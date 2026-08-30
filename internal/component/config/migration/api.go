@@ -255,9 +255,13 @@ func extractAPIConfig(apiTree *config.Tree) apiConfig {
 	return cfg
 }
 
+// formatParsed is the ExaBGP api format flag, and the format name the migrated
+// config carries for it. detect.go looks for the same flag.
+const formatParsed = "parsed"
+
 // extractFormat determines format from parsed/packets/consolidate flags.
 func extractFormat(block *config.Tree) string {
-	hasParsed := hasFlag(block, "parsed")
+	hasParsed := hasFlag(block, formatParsed)
 	hasPackets := hasFlag(block, "packets")
 	hasConsolidate := hasFlag(block, "consolidate")
 
@@ -278,7 +282,7 @@ func extractFormat(block *config.Tree) string {
 
 	// Only parsed or nothing specified = parsed (default)
 	if hasParsed {
-		return "parsed"
+		return formatParsed
 	}
 
 	return "" // No format flags, inherit default

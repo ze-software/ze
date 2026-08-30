@@ -35,6 +35,10 @@ const (
 	interfaceStateConfigured = "configured"
 	interfaceTypeVLAN        = "vlan"
 	defaultInterfaceMTU      = 1500
+
+	// The address family names the config tree and iface.AddrInfo both use.
+	familyIPv4 = "ipv4"
+	familyIPv6 = "ipv6"
 )
 
 func buildInterfaceTableDataForView(runtime []iface.InterfaceInfo, viewTree *config.Tree, filterType string) WorkbenchTableData {
@@ -148,7 +152,7 @@ func configuredUnitAddresses(unit *config.Tree) []iface.AddrInfo {
 		return nil
 	}
 	var addrs []iface.AddrInfo
-	for _, family := range []string{"ipv4", "ipv6"} {
+	for _, family := range []string{familyIPv4, familyIPv6} {
 		familyTree := unit.GetContainer(family)
 		if familyTree == nil {
 			continue
@@ -264,12 +268,12 @@ func BuildInterfaceTableData(infos []iface.InterfaceInfo, filterType string) Wor
 	rates := iface.ListRates()
 
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: labelName, Sortable: true},
-		{Key: "type", Label: "Type", Sortable: true},
-		{Key: "state", Label: "Link State", Sortable: true},
+		{Key: colName, Label: labelName, Sortable: true},
+		{Key: colType, Label: labelType, Sortable: true},
+		{Key: colState, Label: "Link State", Sortable: true},
 		{Key: "mtu", Label: labelMTU, Sortable: true},
 		{Key: "mac", Label: labelMAC},
-		{Key: "addresses", Label: "Addresses"},
+		{Key: segAddresses, Label: "Addresses"},
 		{Key: "rx-bps", Label: "RX bps", Sortable: true},
 		{Key: "tx-bps", Label: "TX bps", Sortable: true},
 		{Key: "rx-pps", Label: "RX pps", Sortable: true},
@@ -355,8 +359,8 @@ func matchesTypeFilter(info iface.InterfaceInfo, filterType string) bool {
 	switch filterType {
 	case interfaceTypeVLAN:
 		return typ == interfaceTypeVLAN || info.VlanID > 0
-	case "tunnel":
-		return typ == "tunnel" || typ == "wireguard" ||
+	case segTunnel:
+		return typ == segTunnel || typ == "wireguard" ||
 			info.Type == "gre" || info.Type == "gretap" ||
 			info.Type == "ip6gre" || info.Type == "ip6gretap" ||
 			info.Type == "ipip" || info.Type == "sit" ||
@@ -378,14 +382,14 @@ func buildInterfaceDetailData(renderer *Renderer, info *iface.InterfaceInfo) Wor
 	countersHTML := buildDetailCountersHTML(renderer, info)
 
 	tabs := []WorkbenchDetailTab{
-		{Key: "config", Label: "Configuration", Content: configHTML, Active: true},
-		{Key: "status", Label: "Status", Content: statusHTML},
+		{Key: tabConfig, Label: "Configuration", Content: configHTML, Active: true},
+		{Key: tabStatus, Label: labelStatus, Content: statusHTML},
 		{Key: "counters", Label: "Traffic Counters", Content: countersHTML},
 	}
 
 	var tb2 textbuf.Buffer
 	tools := []WorkbenchDetailTool{
-		{Label: "Clear Counters", HxPost: tb2.Str("/admin/iface/clear-counters/").Str(info.Name).String(), Class: "danger", Confirm: tb2.Reset().Str("Clear counters for ").Str(info.Name).Byte('?').String()},
+		{Label: "Clear Counters", HxPost: tb2.Str("/admin/iface/clear-counters/").Str(info.Name).String(), Class: wbToolDanger, Confirm: tb2.Reset().Str("Clear counters for ").Str(info.Name).Byte('?').String()},
 	}
 
 	return WorkbenchDetailData{

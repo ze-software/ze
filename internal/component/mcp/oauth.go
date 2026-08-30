@@ -94,7 +94,7 @@ func (a oauthAuthenticator) mapVerifyError(err error) *authError {
 		}
 		return &authError{
 			Status:           http.StatusUnauthorized,
-			Scheme:           "Bearer",
+			Scheme:           authSchemeBearer,
 			Realm:            mcpRealm,
 			ErrorCode:        "insufficient_scope",
 			ErrorDescription: "required scope missing",
@@ -115,7 +115,7 @@ func (a oauthAuthenticator) mapVerifyError(err error) *authError {
 func (a oauthAuthenticator) challengeError(code, desc string) *authError {
 	return &authError{
 		Status:           http.StatusUnauthorized,
-		Scheme:           "Bearer",
+		Scheme:           authSchemeBearer,
 		Realm:            mcpRealm,
 		ErrorCode:        code,
 		ErrorDescription: desc,

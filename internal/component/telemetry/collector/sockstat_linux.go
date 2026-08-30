@@ -27,7 +27,7 @@ func newSockStatCollector(fs procfs.FS) *sockStatCollector {
 func (c *sockStatCollector) Name() string { return "sockstat" }
 
 func (c *sockStatCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.sockets = reg.GaugeVec(prefix+"_ip_sockstat_sockets_sockets_average", "IP Sockets", labels)
 	c.tcpSockets = reg.GaugeVec(prefix+"_ipv4_sockstat_tcp_sockets_sockets_average", "TCP Sockets", labels)
 	c.udpSockets = reg.GaugeVec(prefix+"_ipv4_sockstat_udp_sockets_sockets_average", "UDP Sockets", labels)

@@ -38,7 +38,7 @@ func init() {
 		Description: "Enable IPv4 forwarding on interface", Platform: PlatformLinux,
 	})
 	MustRegister(KeyDef{
-		Name: "net.ipv4.conf.<iface>.arp_filter", Type: TypeBool, Template: true,
+		Name: keyIPv4ARPFilter, Type: TypeBool, Template: true,
 		Description: "Enable ARP filter on interface", Platform: PlatformLinux,
 	})
 	MustRegister(KeyDef{

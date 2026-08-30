@@ -65,7 +65,7 @@ func runLLNHPlugin(conn net.Conn) int {
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		var caps []sdk.CapabilityDecl
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			caps = append(caps, extractLLNHCapabilities(section.Data)...)
@@ -77,7 +77,7 @@ func runLLNHPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 	})
 	if err != nil {
 		logger().Error("llnh plugin failed", "error", err)

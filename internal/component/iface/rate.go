@@ -13,6 +13,10 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
+// metricLabelName is the Prometheus label whose value is the interface name.
+// It names the column, not the interface.
+const metricLabelName = "name"
+
 type ifaceMetrics struct {
 	rxBps     metrics.GaugeVec
 	txBps     metrics.GaugeVec
@@ -62,25 +66,25 @@ func bindMetricsRegistry(reg metrics.Registry) {
 		return
 	}
 	m := &ifaceMetrics{
-		rxBps:        reg.GaugeVec("ze_interface_rx_bytes_per_second", "Interface RX bytes per second", []string{"name"}),
-		txBps:        reg.GaugeVec("ze_interface_tx_bytes_per_second", "Interface TX bytes per second", []string{"name"}),
-		rxPps:        reg.GaugeVec("ze_interface_rx_packets_per_second", "Interface RX packets per second", []string{"name"}),
-		txPps:        reg.GaugeVec("ze_interface_tx_packets_per_second", "Interface TX packets per second", []string{"name"}),
-		rxBytes:      reg.GaugeVec("ze_interface_rx_bytes_total", "Interface total RX bytes (raw kernel counter)", []string{"name"}),
-		txBytes:      reg.GaugeVec("ze_interface_tx_bytes_total", "Interface total TX bytes (raw kernel counter)", []string{"name"}),
-		rxPackets:    reg.GaugeVec("ze_interface_rx_packets_total", "Interface total RX packets (raw kernel counter)", []string{"name"}),
-		txPackets:    reg.GaugeVec("ze_interface_tx_packets_total", "Interface total TX packets (raw kernel counter)", []string{"name"}),
-		rxErrors:     reg.GaugeVec("ze_interface_rx_errors_total", "Interface total RX errors (raw kernel counter)", []string{"name"}),
-		txErrors:     reg.GaugeVec("ze_interface_tx_errors_total", "Interface total TX errors (raw kernel counter)", []string{"name"}),
-		rxDropped:    reg.GaugeVec("ze_interface_rx_dropped_total", "Interface total RX dropped (raw kernel counter)", []string{"name"}),
-		txDropped:    reg.GaugeVec("ze_interface_tx_dropped_total", "Interface total TX dropped (raw kernel counter)", []string{"name"}),
+		rxBps:        reg.GaugeVec("ze_interface_rx_bytes_per_second", "Interface RX bytes per second", []string{metricLabelName}),
+		txBps:        reg.GaugeVec("ze_interface_tx_bytes_per_second", "Interface TX bytes per second", []string{metricLabelName}),
+		rxPps:        reg.GaugeVec("ze_interface_rx_packets_per_second", "Interface RX packets per second", []string{metricLabelName}),
+		txPps:        reg.GaugeVec("ze_interface_tx_packets_per_second", "Interface TX packets per second", []string{metricLabelName}),
+		rxBytes:      reg.GaugeVec("ze_interface_rx_bytes_total", "Interface total RX bytes (raw kernel counter)", []string{metricLabelName}),
+		txBytes:      reg.GaugeVec("ze_interface_tx_bytes_total", "Interface total TX bytes (raw kernel counter)", []string{metricLabelName}),
+		rxPackets:    reg.GaugeVec("ze_interface_rx_packets_total", "Interface total RX packets (raw kernel counter)", []string{metricLabelName}),
+		txPackets:    reg.GaugeVec("ze_interface_tx_packets_total", "Interface total TX packets (raw kernel counter)", []string{metricLabelName}),
+		rxErrors:     reg.GaugeVec("ze_interface_rx_errors_total", "Interface total RX errors (raw kernel counter)", []string{metricLabelName}),
+		txErrors:     reg.GaugeVec("ze_interface_tx_errors_total", "Interface total TX errors (raw kernel counter)", []string{metricLabelName}),
+		rxDropped:    reg.GaugeVec("ze_interface_rx_dropped_total", "Interface total RX dropped (raw kernel counter)", []string{metricLabelName}),
+		txDropped:    reg.GaugeVec("ze_interface_tx_dropped_total", "Interface total TX dropped (raw kernel counter)", []string{metricLabelName}),
 		ownedDevices: reg.GaugeVec("ze_iface_owned_devices", "Plugin-owned devices (macvlan) per owner", []string{"owner"}),
 		linkEventsCoalesced: reg.CounterVec("ze_iface_link_events_coalesced_total",
-			"Carrier and router events superseded in the link queue before the worker took them", []string{"name"}),
+			"Carrier and router events superseded in the link queue before the worker took them", []string{metricLabelName}),
 		carrierResyncs: reg.CounterVec("ze_iface_carrier_resyncs_total",
-			"Interfaces whose route metric the carrier resync repaired", []string{"name"}),
+			"Interfaces whose route metric the carrier resync repaired", []string{metricLabelName}),
 		resolverEventsDropped: reg.CounterVec("ze_iface_resolver_events_dropped_total",
-			"Oldest resolver link events discarded to make room on a full subscriber channel", []string{"name"}),
+			"Oldest resolver link events discarded to make room on a full subscriber channel", []string{metricLabelName}),
 	}
 	ifaceMetricsPtr.Store(m)
 }

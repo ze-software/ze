@@ -7,7 +7,7 @@ package support
 import "time"
 
 func unavailable() (any, error) {
-	return map[string]any{"available": false, "reason": "requires Linux"}, nil
+	return map[string]any{keyAvailable: false, keyReason: "requires Linux"}, nil
 }
 
 func collectDmesgInfo(_ time.Time) (any, error) { return unavailable() }

@@ -131,7 +131,7 @@ func (s *Streamable) serverInfo() map[string]any {
 		name = s.cfg.Provider.ServerName()
 	}
 	return map[string]any{
-		"name":    name,
-		"version": serverVersion,
+		toolKeyName: name,
+		"version":   serverVersion,
 	}
 }

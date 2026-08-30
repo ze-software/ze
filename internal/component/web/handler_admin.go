@@ -169,9 +169,9 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 		// JSON response: return raw command output.
 		if parsed.Format == formatJSON {
 			data := map[string]any{
-				"command": commandStr,
-				"output":  result.Output,
-				"error":   result.Error,
+				"command":    commandStr,
+				"output":     result.Output,
+				jsonKeyError: result.Error,
 			}
 
 			w.Header().Set("Content-Type", "application/json")
@@ -278,7 +278,7 @@ func buildAdminFinderColumns(path []string, children map[string][]string) []Find
 // /admin/<path-up-to-here>/.
 func buildAdminBreadcrumbs(path []string) []BreadcrumbSegment {
 	crumbs := make([]BreadcrumbSegment, 0, 1+len(path))
-	crumbs = append(crumbs, BreadcrumbSegment{Name: "admin", URL: "/admin/", Active: len(path) == 0})
+	crumbs = append(crumbs, BreadcrumbSegment{Name: prefixAdmin, URL: "/admin/", Active: len(path) == 0})
 
 	var tb textbuf.Buffer
 	for i, seg := range path {
@@ -303,11 +303,14 @@ func buildAdminBreadcrumbs(path []string) []BreadcrumbSegment {
 // editing this file. Kept temporarily so existing call sites compile; new
 // code MUST use AdminTreeFromYANG.
 func buildAdminCommandTree() map[string][]string {
+	// adminCmdList is the one command name two categories both offer.
+	const adminCmdList = "list"
+
 	return map[string][]string{
 		"":       {"peer", "route", "cache", "system"},
-		"peer":   {"list", "show", "summary", "capabilities", "statistics", "add", "remove"},
+		"peer":   {adminCmdList, "show", "summary", "capabilities", "statistics", "add", "remove"},
 		"route":  {"update", "raw"},
-		"cache":  {"list", "retain", "release", "expire", "forward"},
+		"cache":  {adminCmdList, "retain", "release", "expire", "forward"},
 		"system": {"events"},
 	}
 }

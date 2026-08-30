@@ -65,11 +65,11 @@ func fetchBGPSummaryPeers(r *http.Request, dispatch CommandDispatcher) map[strin
 // peer listing, enriched with live operational data when available.
 func buildBGPSummaryTableData(viewTree *config.Tree, live map[string]bgpSummaryPeer) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: "Peer", Sortable: true},
-		{Key: "remote-ip", Label: "Remote IP", Sortable: true},
-		{Key: "remote-as", Label: "Remote AS", Sortable: true},
-		{Key: "state", Label: "State", Sortable: true},
-		{Key: "uptime", Label: "Uptime"},
+		{Key: colName, Label: labelPeer, Sortable: true},
+		{Key: "remote-ip", Label: labelRemoteIP, Sortable: true},
+		{Key: colRemoteAS, Label: labelRemoteAS, Sortable: true},
+		{Key: colState, Label: labelState, Sortable: true},
+		{Key: "uptime", Label: labelUptime},
 		{Key: "messages-in", Label: "Msg In"},
 		{Key: "messages-out", Label: "Msg Out"},
 	}

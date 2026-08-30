@@ -26,7 +26,7 @@ func applySysctl(osName string, u unitEntry) {
 			Key    string `json:"key"`
 			Value  string `json:"value"`
 			Source string `json:"source"`
-		}{Key: key, Value: value, Source: "interface"})
+		}{Key: key, Value: value, Source: componentNameInterface})
 		if _, err := eb.Emit(sysctlevents.Namespace, sysctlevents.EventDefault, string(payload)); err != nil {
 			log.Debug("iface: sysctl emit failed", "key", key, "err", err)
 		}

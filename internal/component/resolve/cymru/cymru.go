@@ -16,6 +16,7 @@ import (
 	"context"
 	"math"
 	"net"
+	"slices"
 	"strings"
 	"time"
 
@@ -155,9 +156,9 @@ func buildOrigin6Query(ip string) string {
 	}
 	var b textbuf.Buffer
 	b.Grow(128)
-	for i := len(addr) - 1; i >= 0; i-- {
-		lo := addr[i] & 0x0f
-		hi := addr[i] >> 4
+	for i, octet := range slices.Backward(addr) {
+		lo := octet & 0x0f
+		hi := octet >> 4
 		b.Byte("0123456789abcdef"[lo]).Byte('.')
 		b.Byte("0123456789abcdef"[hi])
 		if i > 0 {

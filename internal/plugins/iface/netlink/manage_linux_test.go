@@ -124,7 +124,7 @@ func captureMissReport(t *testing.T, table []netlink.Route, listErr error) strin
 	listRoutesForMiss = func(netlink.Link, int) ([]netlink.Route, error) { return table, listErr }
 	t.Cleanup(func() { listRoutesForMiss = previousList })
 
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "zert-miss0", Index: 7}}
+	link := &netlink.Dummy{Name: "zert-miss0", Index: 7}
 	_, dst, err := net.ParseCIDR("0.0.0.0/0")
 	if err != nil {
 		t.Fatalf("parse destination: %v", err)

@@ -39,7 +39,7 @@ func checkISISConfigSanity(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagn
 	if !ok || tree == nil {
 		return nil
 	}
-	isisTree := tree.GetContainer("isis")
+	isisTree := tree.GetContainer(configRoot)
 	if isisTree == nil {
 		return nil // IS-IS not configured: nothing to check.
 	}

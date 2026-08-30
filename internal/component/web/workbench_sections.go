@@ -34,6 +34,15 @@ const (
 	segLogs      = "logs"
 	segHealth    = "health"
 	segEvents    = "events"
+	segAddresses = "addresses"
+	segDNS       = "dns"
+	segFamilies  = "families"
+	segFamily    = "family"
+	segIface     = "iface"
+	segRules     = "rules"
+	segSummary   = "summary"
+	segTunnel    = "tunnel"
+	segUsers     = "users"
 
 	showPathPrefix  = "/show/"
 	ifacePathPrefix = "/show/iface/"
@@ -53,8 +62,38 @@ const (
 	labelEnabled         = "Enabled"
 	labelListenEndpoints = "Listen Endpoints"
 	labelBearerToken     = "Bearer Token"
+	labelPeer            = "Peer"
+	labelRemoteAS        = "Remote AS"
+	labelRemoteIP        = "Remote IP"
+	labelState           = "State"
+	labelStatus          = "Status"
+	labelTime            = "Time"
+	labelType            = "Type"
+	labelUptime          = "Uptime"
+	labelUsername        = "Username"
 
 	invalidFormDataMessage = "Invalid form data."
+)
+
+// Table column keys shared by more than one page. A key travels into the sort
+// link of its column and comes back as a query parameter, so the table, the
+// link, and the handler that reads the parameter must spell it the same way.
+//
+// A key here can hold the same text as a segment above and still be a separate
+// constant: a column named "family" is a field of a row, and /show/bgp/family/
+// is a place. Renaming one must not rename the other.
+const (
+	colComponent = "component"
+	colInterface = "interface"
+	colMessage   = "message"
+	colName      = "name"
+	colPeer      = "peer"
+	colRemoteAS  = "remote-as"
+	colSessionID = "session-id"
+	colState     = "state"
+	colTime      = "time"
+	colType      = "type"
+	colUsername  = "username"
 )
 
 // WorkbenchSubPage is a child entry within a workbench navigation section.
@@ -99,7 +138,7 @@ func sections() []sectionDef {
 	return []sectionDef{
 		{key: "dashboard", label: "Dashboard", children: []WorkbenchSubPage{
 			{Key: "overview", Label: "Overview", URL: showPathPrefix},
-			{Key: "health", Label: "Health", URL: "/show/health/"},
+			{Key: segHealth, Label: "Health", URL: "/show/health/"},
 			{Key: "events", Label: "Recent Events", URL: "/show/events/"},
 		}},
 		{key: "interfaces", label: "Interfaces", children: []WorkbenchSubPage{
@@ -107,19 +146,19 @@ func sections() []sectionDef {
 			{Key: "ethernet", Label: "Ethernet", URL: "/show/iface/?type=ethernet"},
 			{Key: "bridge", Label: "Bridge", URL: "/show/iface/?type=bridge"},
 			{Key: "vlan", Label: "VLAN", URL: "/show/iface/?type=vlan"},
-			{Key: "tunnel", Label: "Tunnel", URL: "/show/iface/?type=tunnel"},
+			{Key: segTunnel, Label: "Tunnel", URL: "/show/iface/?type=tunnel"},
 			{Key: "traffic", Label: "Traffic", URL: "/show/iface/traffic/"},
 		}},
 		{key: "ip", label: "IP", children: []WorkbenchSubPage{
-			{Key: "addresses", Label: "Addresses", URL: "/show/ip/addresses/"},
+			{Key: segAddresses, Label: "Addresses", URL: "/show/ip/addresses/"},
 			{Key: "routes", Label: "Routes", URL: "/show/ip/routes/"},
-			{Key: "dns", Label: labelDNS, URL: "/show/ip/dns/"},
+			{Key: segDNS, Label: labelDNS, URL: "/show/ip/dns/"},
 		}},
 		{key: segRouting, label: "Routing", children: []WorkbenchSubPage{
 			{Key: "peers", Label: "Peers", URL: bgpPeerPathPrefix},
 			{Key: "groups", Label: "Groups", URL: "/show/bgp/group/"},
-			{Key: "families", Label: labelFamilies, URL: "/show/bgp/family/"},
-			{Key: "summary", Label: "Summary", URL: "/show/bgp/summary/"},
+			{Key: segFamilies, Label: labelFamilies, URL: "/show/bgp/family/"},
+			{Key: segSummary, Label: "Summary", URL: "/show/bgp/summary/"},
 		}},
 		{key: segPolicy, label: "Policy", children: []WorkbenchSubPage{
 			{Key: "filters", Label: "Filters", URL: "/show/bgp/policy/"},
@@ -127,27 +166,27 @@ func sections() []sectionDef {
 		{key: segFirewall, label: "Firewall", children: []WorkbenchSubPage{
 			{Key: "tables", Label: "Tables", URL: "/show/firewall/"},
 			{Key: "chains", Label: "Chains", URL: "/show/firewall/chain/"},
-			{Key: "rules", Label: "Rules", URL: "/show/firewall/rule/"},
+			{Key: segRules, Label: "Rules", URL: "/show/firewall/rule/"},
 			{Key: "sets", Label: "Sets", URL: "/show/firewall/set/"},
 			{Key: "connections", Label: "Connections", URL: "/show/firewall/connections/"},
 		}},
 		{key: segL2TP, label: "L2TP", children: []WorkbenchSubPage{
 			{Key: "sessions", Label: "Sessions", URL: "/show/l2tp/sessions/"},
 			{Key: "configuration", Label: "Configuration", URL: "/show/l2tp/"},
-			{Key: "health", Label: "Health", URL: "/show/l2tp/health/"},
+			{Key: segHealth, Label: "Health", URL: "/show/l2tp/health/"},
 		}},
 		{key: "services", label: "Services", children: []WorkbenchSubPage{
 			{Key: "ssh", Label: "SSH", URL: "/show/ssh/"},
-			{Key: "web", Label: "Web", URL: "/show/web/"},
-			{Key: "telemetry", Label: "Telemetry", URL: "/show/telemetry/"},
+			{Key: segWeb, Label: "Web", URL: "/show/web/"},
+			{Key: segTelemetry, Label: "Telemetry", URL: "/show/telemetry/"},
 			{Key: "tacacs", Label: "TACACS", URL: "/show/tacacs/"},
 			{Key: "mcp", Label: "MCP", URL: "/show/mcp/"},
 			{Key: "lg", Label: "Looking Glass", URL: "/show/lg/"},
 			{Key: "api", Label: "API", URL: "/show/api/"},
 		}},
-		{key: "system", label: "System", children: []WorkbenchSubPage{
+		{key: segSystem, label: "System", children: []WorkbenchSubPage{
 			{Key: "identity", Label: "Identity", URL: "/show/system/identity/"},
-			{Key: "users", Label: "Users", URL: "/show/users/"},
+			{Key: segUsers, Label: "Users", URL: "/show/users/"},
 			{Key: "resources", Label: "Resources", URL: "/show/system/resources/"},
 			{Key: "hardware", Label: "Host Hardware", URL: "/show/system/hardware/"},
 			{Key: "sysctl", Label: "Sysctl Profiles", URL: "/show/system/sysctl/"},
@@ -235,7 +274,7 @@ func selectChild(section *WorkbenchSection, currentPath []string) {
 		// Dashboard matches the empty path (handled by the fallback default).
 		return
 	case "interfaces":
-		if first != "iface" {
+		if first != segIface {
 			return
 		}
 	case "ip":
@@ -264,16 +303,16 @@ func selectChild(section *WorkbenchSection, currentPath []string) {
 		}
 	case "services":
 		switch first {
-		case "ssh", "web", "telemetry", "tacacs", "mcp", "lg", "api":
+		case segSSH, segWeb, segTelemetry, segTACACS, segMCP, segLG, segAPI:
 			// matches
 		case "environment":
 			// legacy compat
 		default:
 			return
 		}
-	case "system":
+	case segSystem:
 		switch first {
-		case "system", "users":
+		case segSystem, segUsers:
 			// matches
 		default:
 			return

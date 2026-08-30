@@ -298,11 +298,11 @@ set bgp peer peer1 session asn remote 65001
 	}
 }
 
-// TestConfigMigrateHierarchicalOutput tests that --format hierarchical works.
+// TestConfigMigrateHierarchicalOutput tests that `format hierarchical` works.
 //
 // VALIDATES: configMigrateWithWarnings produces hierarchical output when requested.
 //
-// PREVENTS: --format hierarchical flag ignored.
+// PREVENTS: the hierarchical form being ignored.
 func TestConfigMigrateHierarchicalOutput(t *testing.T) {
 	input := `set bgp session asn local 65000
 set bgp peer peer1 connection remote ip 192.0.2.1

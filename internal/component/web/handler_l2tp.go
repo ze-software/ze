@@ -117,8 +117,8 @@ func (h *l2TPHandlers) handleL2TPDetail() http.HandlerFunc {
 		events := svc.SessionEvents(sid)
 
 		enriched := map[string]any{
-			"session-id": ss.LocalSID,
-			"username":   ss.Username,
+			colSessionID: ss.LocalSID,
+			colUsername:  ss.Username,
 		}
 		show.Enrich("show l2tp session detail", enriched)
 
@@ -194,7 +194,7 @@ func handleL2TPSamplesCSV() http.HandlerFunc {
 		w.Header().Set("Content-Type", "text/csv")
 		w.Header().Set("Content-Disposition", "attachment; filename=\""+login+"-cqm.csv\"")
 		cw := csv.NewWriter(w)
-		if err := cw.Write([]string{"timestamp", "state", "echo_count", "min_rtt_us", "avg_rtt_us", "max_rtt_us"}); err != nil {
+		if err := cw.Write([]string{"timestamp", colState, "echo_count", "min_rtt_us", "avg_rtt_us", "max_rtt_us"}); err != nil {
 			return
 		}
 		for i := range buckets {
@@ -350,8 +350,8 @@ func (h *l2TPHandlers) handleL2TPDisconnect() http.HandlerFunc {
 			result := map[string]any{
 				"command":    cmd,
 				"output":     output,
-				"error":      execErr != nil,
-				"session-id": int(sid),
+				jsonKeyError: execErr != nil,
+				colSessionID: int(sid),
 			}
 			w.Header().Set("Content-Type", "application/json")
 			if execErr != nil {

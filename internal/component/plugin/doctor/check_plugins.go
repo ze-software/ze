@@ -36,7 +36,7 @@ func CheckPluginBinaries(plugins []zeplugin.PluginConfig) []diagnostic.Diagnosti
 		if filepath.IsAbs(binary) || strings.HasPrefix(binary, "./") || strings.HasPrefix(binary, "../") {
 			if _, err := os.Stat(binary); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     "doctor-plugin-missing",
+					Code:     codePluginMissing,
 					Severity: diagnostic.SeverityError,
 					Message:  "plugin " + p.Name + ": binary not found: " + binary,
 					Path:     binary,
@@ -45,7 +45,7 @@ func CheckPluginBinaries(plugins []zeplugin.PluginConfig) []diagnostic.Diagnosti
 		} else {
 			if _, err := exec.LookPath(binary); err != nil {
 				diags = append(diags, diagnostic.Diagnostic{
-					Code:     "doctor-plugin-missing",
+					Code:     codePluginMissing,
 					Severity: diagnostic.SeverityError,
 					Message:  "plugin " + p.Name + ": binary not on PATH: " + binary,
 				})

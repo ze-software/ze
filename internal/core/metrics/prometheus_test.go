@@ -207,7 +207,7 @@ func TestPrometheusRegistry_Idempotent(t *testing.T) {
 func scrapeMetrics(t *testing.T, reg *metrics.PrometheusRegistry) string {
 	t.Helper()
 	rec := httptest.NewRecorder()
-	reg.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/metrics", http.NoBody))
+	reg.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), "GET", "/metrics", http.NoBody))
 	require.Equal(t, 200, rec.Code)
 	b, err := io.ReadAll(rec.Body)
 	require.NoError(t, err)

@@ -2176,7 +2176,7 @@ func TestRejectedRowIsBuiltOnce(t *testing.T) {
 //
 //	gate reads this benchmark's allocs/op, so a per-row allocation
 //	reintroduced anywhere between the generator and the wire reddens
-//	`./le verify-deps alloc` rather than being argued about.
+//	`./le verify deps alloc` rather than being argued about.
 //
 // The op is ONE ROW and not one answer. The walk yields b.N rows into a single
 // answer, so allocs/op reads as allocations per row. That is what AC-1 bounds

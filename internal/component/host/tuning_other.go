@@ -9,7 +9,7 @@ func applyTuning(cfg TuningConfig) TuningResult {
 	_ = cfg
 	return TuningResult{
 		Errors: []TuningError{{
-			Operation: "tuning",
+			Operation: tuningOpUnsupported,
 			Subject:   "platform",
 			Err:       ErrUnsupported,
 		}},

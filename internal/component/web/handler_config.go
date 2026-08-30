@@ -69,10 +69,23 @@ type ConfigViewData struct {
 	Entries []string
 }
 
+// The node kind names nodeKindString returns. They reach the browser as a CSS
+// class, so a renamed kind changes the markup.
+const (
+	nodeKindNameContainer  = "container"
+	nodeKindNameList       = "list"
+	nodeKindNameLeaf       = "leaf"
+	nodeKindNameFreeform   = "freeform"
+	nodeKindNameFlex       = "flex"
+	nodeKindNameInlineList = "inline-list"
+	nodeKindNameUnknown    = "unknown"
+)
+
 // ChildEntry represents a child node in a container view.
 type ChildEntry struct {
-	Name   string
-	Kind   string // "container", "list", "leaf"
+	Name string
+	// Kind is one of the nodeKindName constants above.
+	Kind   string
 	URL    string
 	HxPath string // YANG path for hx-get (without /show/ prefix)
 }

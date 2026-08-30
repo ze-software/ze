@@ -158,7 +158,7 @@ func testBackend(t *testing.T, ops *fakeTCOps) *backend {
 
 func testLink(name string, index int) netlink.Link {
 	hw, _ := net.ParseMAC("02:00:00:00:00:01")
-	return &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name, Index: index, HardwareAddr: hw}}
+	return &netlink.Dummy{Name: name, Index: index, HardwareAddr: hw}
 }
 
 func rootAttrs(index int) netlink.QdiscAttrs {
@@ -467,7 +467,7 @@ func TestApplyRejectsOriginalWithClassStateBeforeReplace(t *testing.T) {
 	ops.links["eth0"] = testLink("eth0", 5)
 	ops.qdiscs["eth0"] = []netlink.Qdisc{originalFQ(5)}
 	ops.classes["eth0"] = []netlink.Class{
-		&netlink.GenericClass{ClassAttrs: netlink.ClassAttrs{LinkIndex: 5}, ClassType: "foreign"},
+		&netlink.GenericClass{LinkIndex: 5, ClassType: "foreign"},
 	}
 	b := testBackend(t, ops)
 
@@ -549,7 +549,7 @@ func TestApplyRejectsOriginalWithFilterStateBeforeReplace(t *testing.T) {
 	ops.links["eth0"] = testLink("eth0", 5)
 	ops.qdiscs["eth0"] = []netlink.Qdisc{originalFQ(5)}
 	ops.filters["eth0"] = []netlink.Filter{
-		&netlink.GenericFilter{FilterAttrs: netlink.FilterAttrs{LinkIndex: 5}, FilterType: "u32"},
+		&netlink.GenericFilter{LinkIndex: 5, FilterType: "u32"},
 	}
 	b := testBackend(t, ops)
 
@@ -573,7 +573,7 @@ func TestCloseRestoresAllOwnedInterfaces(t *testing.T) {
 	ops.links["eth1"] = testLink("eth1", 6)
 	ops.qdiscs["eth0"] = []netlink.Qdisc{originalFQ(5)}
 	hw2, _ := net.ParseMAC("02:00:00:00:00:01")
-	ops.links["eth1"] = &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "eth1", Index: 6, HardwareAddr: hw2}}
+	ops.links["eth1"] = &netlink.Dummy{Name: "eth1", Index: 6, HardwareAddr: hw2}
 	ops.qdiscs["eth1"] = []netlink.Qdisc{originalFQ(6)}
 	b := testBackend(t, ops)
 

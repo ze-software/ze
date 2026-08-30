@@ -87,7 +87,7 @@ func TestHandleAddrUpdate_SlaacOrigin(t *testing.T) {
 	m, bus := newTestMonitor()
 
 	// Register the link name for index 7 so the addr handler can resolve it.
-	lu := netlink.LinkUpdate{Link: &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "eth0", Index: 7, MTU: 1500}}}
+	lu := netlink.LinkUpdate{Link: &netlink.Dummy{Name: "eth0", Index: 7, MTU: 1500}}
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_NEWLINK}
 	m.handleLinkUpdate(lu)
 
@@ -118,7 +118,7 @@ func TestHandleAddrUpdate_SlaacOrigin(t *testing.T) {
 // emitted event, not slaac.
 func TestHandleAddrUpdate_StaticOrigin(t *testing.T) {
 	m, bus := newTestMonitor()
-	lu := netlink.LinkUpdate{Link: &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "eth0", Index: 8, MTU: 1500}}}
+	lu := netlink.LinkUpdate{Link: &netlink.Dummy{Name: "eth0", Index: 8, MTU: 1500}}
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_NEWLINK}
 	m.handleLinkUpdate(lu)
 

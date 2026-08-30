@@ -20,6 +20,9 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
+// labelMode is the Prometheus label carrying the BFD session mode.
+const labelMode = "mode"
+
 // bfdMetrics is the set of Prometheus metrics the BFD plugin publishes.
 // The fields are populated once in bindMetricsRegistry; subsequent reads
 // load through bfdMetricsPtr atomically.
@@ -63,18 +66,18 @@ func bindMetricsRegistry(reg metrics.Registry) {
 		return
 	}
 	m := &bfdMetrics{
-		sessions:    reg.GaugeVec("ze_bfd_sessions", "Live BFD session count by state.", []string{"state", "mode", "vrf"}),
-		transitions: reg.CounterVec("ze_bfd_transitions_total", "BFD session state transitions.", []string{"from", "to", "diag", "mode"}),
+		sessions:    reg.GaugeVec("ze_bfd_sessions", "Live BFD session count by state.", []string{"state", labelMode, "vrf"}),
+		transitions: reg.CounterVec("ze_bfd_transitions_total", "BFD session state transitions.", []string{"from", "to", "diag", labelMode}),
 		detectionExpired: reg.CounterVec("ze_bfd_detection_expired_total",
-			"Detection-timer expirations (RFC 5880 Section 6.8.4).", []string{"mode"}),
-		txPackets:     reg.CounterVec("ze_bfd_tx_packets_total", "BFD Control packets transmitted.", []string{"mode"}),
-		rxPackets:     reg.CounterVec("ze_bfd_rx_packets_total", "BFD Control packets received (after TTL gate).", []string{"mode"}),
-		authFailures:  reg.CounterVec("ze_bfd_auth_failures_total", "BFD authentication verify failures.", []string{"mode"}),
-		echoTxPackets: reg.CounterVec("ze_bfd_echo_tx_packets_total", "BFD Echo packets transmitted (RFC 5880 Section 6.4).", []string{"mode"}),
-		echoRxPackets: reg.CounterVec("ze_bfd_echo_rx_packets_total", "BFD Echo packets received on UDP port 3785.", []string{"mode"}),
+			"Detection-timer expirations (RFC 5880 Section 6.8.4).", []string{labelMode}),
+		txPackets:     reg.CounterVec("ze_bfd_tx_packets_total", "BFD Control packets transmitted.", []string{labelMode}),
+		rxPackets:     reg.CounterVec("ze_bfd_rx_packets_total", "BFD Control packets received (after TTL gate).", []string{labelMode}),
+		authFailures:  reg.CounterVec("ze_bfd_auth_failures_total", "BFD authentication verify failures.", []string{labelMode}),
+		echoTxPackets: reg.CounterVec("ze_bfd_echo_tx_packets_total", "BFD Echo packets transmitted (RFC 5880 Section 6.4).", []string{labelMode}),
+		echoRxPackets: reg.CounterVec("ze_bfd_echo_rx_packets_total", "BFD Echo packets received on UDP port 3785.", []string{labelMode}),
 		echoRTTUs: reg.HistogramVec("ze_bfd_echo_rtt_us",
 			"BFD Echo round-trip time in microseconds (RFC 5880 Section 6.4).",
-			echoRTTBuckets, []string{"mode"}),
+			echoRTTBuckets, []string{labelMode}),
 	}
 	bfdMetricsPtr.Store(m)
 }

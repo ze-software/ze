@@ -135,9 +135,7 @@ func mustParseINET(t *testing.T, prefix string, _ bool, pathID uint32) *INET {
 	t.Helper()
 	p := netip.MustParsePrefix(prefix)
 	return &INET{
-		PrefixNLRI: PrefixNLRI{
-			prefix: p,
-			pathID: pathID,
-		},
+		prefix: p,
+		pathID: pathID,
 	}
 }

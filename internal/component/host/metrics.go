@@ -12,6 +12,10 @@ import (
 	"github.com/ze-software/ze/internal/core/report"
 )
 
+// labelName is the Prometheus label that carries the name of the NIC, block
+// device, or thermal sensor a sample belongs to.
+const labelName = "name"
+
 // HostMetrics holds the Prometheus gauges and gauge-vecs for host
 // inventory data. Create one via RegisterMetrics, then call
 // CollectOnce to snapshot the current hardware state into the gauges.
@@ -49,12 +53,12 @@ func RegisterMetrics(reg metrics.Registry, cd *CachedDetector) *HostMetrics {
 		eccCorr:      reg.Gauge("ze_host_ecc_correctable_errors_total", "ECC correctable error count (gauge of external counter)"),
 		eccUncorr:    reg.Gauge("ze_host_ecc_uncorrectable_errors_total", "ECC uncorrectable error count (gauge of external counter)"),
 
-		nicSpeed:   reg.GaugeVec("ze_host_nic_link_speed_mbps", "NIC link speed in Mbps", []string{"name"}),
-		nicCarrier: reg.GaugeVec("ze_host_nic_carrier", "NIC carrier state (1=up, 0=down)", []string{"name"}),
+		nicSpeed:   reg.GaugeVec("ze_host_nic_link_speed_mbps", "NIC link speed in Mbps", []string{labelName}),
+		nicCarrier: reg.GaugeVec("ze_host_nic_carrier", "NIC carrier state (1=up, 0=down)", []string{labelName}),
 
-		storageSize: reg.GaugeVec("ze_host_storage_size_bytes", "Block device size in bytes", []string{"name"}),
+		storageSize: reg.GaugeVec("ze_host_storage_size_bytes", "Block device size in bytes", []string{labelName}),
 
-		thermalTemp: reg.GaugeVec("ze_host_thermal_temp_mc", "Thermal sensor reading in millicelsius", []string{"name", "device"}),
+		thermalTemp: reg.GaugeVec("ze_host_thermal_temp_mc", "Thermal sensor reading in millicelsius", []string{labelName, "device"}),
 
 		cached: cd,
 	}

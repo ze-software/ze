@@ -79,7 +79,7 @@ func profileCPU(duration time.Duration) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"type":     "cpu",
+			keyType:    "cpu",
 			"duration": duration.String(),
 			"format":   "pprof-base64",
 			"data":     base64.StdEncoding.EncodeToString(buf.Bytes()),
@@ -104,8 +104,8 @@ func profileSnapshot(profileType string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"type":   profileType,
-			"count":  p.Count(),
+			keyType:  profileType,
+			keyCount: p.Count(),
 			"format": "pprof-base64",
 			"data":   base64.StdEncoding.EncodeToString(buf.Bytes()),
 		},

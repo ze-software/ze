@@ -68,7 +68,7 @@ func chaosNetNSName(testName string) string {
 // addChaosVeth creates an up veth pair and assigns cidr to the primary end.
 func addChaosVeth(t *testing.T, name, peer, cidr string) netlink.Link {
 	t.Helper()
-	if err := netlink.LinkAdd(&netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: name}, PeerName: peer}); err != nil {
+	if err := netlink.LinkAdd(&netlink.Veth{Name: name, PeerName: peer}); err != nil {
 		t.Fatalf("add veth %q/%q: %v", name, peer, err)
 	}
 	link, err := netlink.LinkByName(name)

@@ -29,6 +29,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -560,8 +561,7 @@ func (p *Plugin) commit() error {
 func (p *Plugin) rollbackApplied(applied []ConfigChange) []error {
 	var errs []error
 	// Reverse order for rollback.
-	for i := len(applied) - 1; i >= 0; i-- {
-		change := applied[i]
+	for _, change := range slices.Backward(applied) {
 		// Invert the action.
 		var action, data string
 		switch change.Action {

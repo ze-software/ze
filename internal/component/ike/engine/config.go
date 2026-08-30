@@ -13,11 +13,18 @@ import (
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// YANG config roots this engine claims. configRootVPN carries the IPsec peers
+// and proposals; configRootPKI carries the certificates and keys they cite.
+const (
+	configRootVPN = "vpn"
+	configRootPKI = "pki"
+)
+
 // parseIPsecSections finds the "vpn" config section and parses the IPsec config.
 // Also loads the "pki" section into the global PKI store if present.
 func parseIPsecSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error) {
 	for _, s := range sections {
-		if s.Root == "pki" {
+		if s.Root == configRootPKI {
 			if err := loadPKIFromJSON(s.Data); err != nil {
 				return nil, err
 			}
@@ -25,7 +32,7 @@ func parseIPsecSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error
 	}
 
 	for _, s := range sections {
-		if s.Root != "vpn" {
+		if s.Root != configRootVPN {
 			continue
 		}
 		return parseIPsecFromJSON(s.Data)
@@ -56,7 +63,7 @@ func parsePKIFromJSON(data string) (*pki.PKIConfig, error) {
 	if err := json.Unmarshal([]byte(data), &raw); err != nil {
 		return nil, err
 	}
-	wrapper := map[string]any{"pki": raw}
+	wrapper := map[string]any{configRootPKI: raw}
 	return pki.ParseConfig(treeFromMap(wrapper))
 }
 
@@ -64,7 +71,7 @@ func parsePKIFromJSON(data string) (*pki.PKIConfig, error) {
 // has no side effects, so it is safe on a verify path.
 func parseVPNSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error) {
 	for _, s := range sections {
-		if s.Root != "vpn" {
+		if s.Root != configRootVPN {
 			continue
 		}
 		return parseIPsecFromJSON(s.Data)
@@ -91,7 +98,7 @@ func candidatePKI(sections []sdk.ConfigSection) (
 		Certificates: make(map[string]*pki.CertificateEntry),
 	}
 	for _, s := range sections {
-		if s.Root != "pki" {
+		if s.Root != configRootPKI {
 			continue
 		}
 		parsed, perr := parsePKIFromJSON(s.Data)

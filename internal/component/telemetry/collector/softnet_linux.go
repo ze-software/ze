@@ -34,7 +34,7 @@ func (c *softNetCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_system_softnet_stat_events_persec_average",
 		"Softnet Statistics",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

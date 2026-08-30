@@ -82,14 +82,14 @@ func parsePrefixSID(entry listEntry) (sr.PrefixSIDConfig, bool) {
 // from the raw config sections.
 func extractSRConfigs(sections []configSection) (v4, v6 *sr.SRConfig) {
 	for _, s := range sections {
-		if s.Root != "ospf" || s.Data == "" {
+		if s.Root != Namespace || s.Data == "" {
 			continue
 		}
 		var wrapper map[string]any
 		if err := json.Unmarshal([]byte(s.Data), &wrapper); err != nil {
 			continue
 		}
-		tree, _ := wrapper["ospf"].(map[string]any)
+		tree, _ := wrapper[Namespace].(map[string]any)
 		if tree == nil {
 			continue
 		}
@@ -99,7 +99,7 @@ func extractSRConfigs(sections []configSection) (v4, v6 *sr.SRConfig) {
 			}
 		}
 		if af, ok := tree["address-family"].(map[string]any); ok {
-			for _, name := range []string{"ipv6", "ipv6-unicast"} {
+			for _, name := range []string{afNameIPv6, afNameIPv6Unicast} {
 				sub, ok := af[name].(map[string]any)
 				if !ok {
 					continue

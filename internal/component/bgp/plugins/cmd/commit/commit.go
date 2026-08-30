@@ -17,6 +17,13 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// Keys of the response payload every commit handler returns.
+const (
+	jsonKeyCommit  = "commit"
+	jsonKeyMessage = "message"
+	jsonKeyPeer    = "peer"
+)
+
 var (
 	errMissingCommitArguments   = errors.New("missing commit arguments")
 	errMissingWithdrawArguments = errors.New("missing withdraw arguments")
@@ -220,9 +227,9 @@ func handleNamedCommitStart(ctx *pluginserver.CommandContext, name string) (*plu
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"commit":  name,
-			"peer":    peerSelector,
-			"message": "commit started",
+			jsonKeyCommit:  name,
+			jsonKeyPeer:    peerSelector,
+			jsonKeyMessage: "commit started",
 		},
 	}, nil
 }
@@ -255,10 +262,10 @@ func handleNamedCommitEnd(ctx *pluginserver.CommandContext, name string, sendEOR
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data: plugin.Map{
-				"commit":  name,
-				"action":  action,
-				"queued":  0,
-				"message": "commit empty, nothing sent",
+				jsonKeyCommit:  name,
+				"action":       action,
+				"queued":       0,
+				jsonKeyMessage: "commit empty, nothing sent",
 			},
 		}, nil
 	}
@@ -284,9 +291,9 @@ func handleNamedCommitEnd(ctx *pluginserver.CommandContext, name string, sendEOR
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"commit":           name,
+			jsonKeyCommit:      name,
 			"action":           action,
-			"peer":             tx.PeerSelector(),
+			jsonKeyPeer:        tx.PeerSelector(),
 			"routes_announced": result.RoutesAnnounced,
 			"routes_withdrawn": result.RoutesWithdrawn,
 			"updates_sent":     result.UpdatesSent,
@@ -313,9 +320,9 @@ func handleNamedCommitRollback(ctx *pluginserver.CommandContext, name string) (*
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"commit":           name,
+			jsonKeyCommit:      name,
 			"routes_discarded": discarded,
-			"message":          "commit rolled back",
+			jsonKeyMessage:     "commit rolled back",
 		},
 	}, nil
 }
@@ -344,8 +351,8 @@ func handleNamedCommitShow(ctx *pluginserver.CommandContext, name string) (*plug
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"commit":      name,
-			"peer":        tx.PeerSelector(),
+			jsonKeyCommit: name,
+			jsonKeyPeer:   tx.PeerSelector(),
 			"queued":      tx.Count(),
 			"withdrawals": tx.WithdrawalCount(),
 			"families":    familyStrs,
@@ -407,7 +414,7 @@ func handleNamedCommitWithdraw(ctx *pluginserver.CommandContext, name string, ar
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"commit":      name,
+			jsonKeyCommit: name,
 			"prefix":      prefix.String(),
 			"withdrawals": tx.WithdrawalCount(),
 		},

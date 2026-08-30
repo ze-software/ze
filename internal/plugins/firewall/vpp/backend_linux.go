@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -143,16 +144,16 @@ func (b *backend) reconcileWithOps(ops vppOps, desired []firewall.Table) error {
 
 	applyErr := b.applyAll(ops, desired, newACLIndexes, &undo)
 	if applyErr != nil {
-		for i := len(undo) - 1; i >= 0; i-- {
-			undo[i]()
+		for _, rollback := range slices.Backward(undo) {
+			rollback()
 		}
 		return fmt.Errorf("firewall-vpp: %w", applyErr)
 	}
 
 	newIfaceACLs := make(map[interface_types.InterfaceIndex]ifaceACLBinding)
 	if err := b.bindAllACLs(ops, nameIndex, desired, newACLIndexes, newIfaceACLs); err != nil {
-		for i := len(undo) - 1; i >= 0; i-- {
-			undo[i]()
+		for _, rollback := range slices.Backward(undo) {
+			rollback()
 		}
 		return fmt.Errorf("firewall-vpp: %w", err)
 	}

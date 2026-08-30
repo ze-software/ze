@@ -26,30 +26,30 @@ var errEmptyListenAddress = errors.New("empty listen address")
 // L2TP auth, privilege drop) stay in their owning package.
 var (
 	// Hub infrastructure.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.ephemeral", Type: "string", Description: "Start SSH on port 0, write address to this file (config edit)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.pid.file", Type: "string", Description: "PID file path written at hub startup, removed at clean shutdown"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.pprof", Type: "string", Description: "pprof HTTP server address (e.g. :6060). Empty means disabled."})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: valueTypeString, Description: "Write signal file when hub is ready (test infrastructure)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.ephemeral", Type: valueTypeString, Description: "Start SSH on port 0, write address to this file (config edit)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.pid.file", Type: valueTypeString, Description: "PID file path written at hub startup, removed at clean shutdown"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.pprof", Type: valueTypeString, Description: "pprof HTTP server address (e.g. :6060). Empty means disabled."})
 
 	// Mirror of internal/core/privilege/drop.go registration so `environment
 	// { daemon { user ...; } }` plumbing works even in builds that have not
 	// imported the privilege package (e.g. unit tests for ApplyEnvConfig).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.user", Type: "string", Description: "User to drop privileges to after port binding"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.user", Type: valueTypeString, Description: "User to drop privileges to after port binding"})
 
 	// BGP protocol knobs plumbed from YANG environment block.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.openwait", Type: "int", Default: "120", Description: "Seconds to wait for peer OPEN after TCP connect (1-3600)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.announce.delay", Type: "duration", Default: "0s", Description: "Delay between reactor Ready and first UPDATE (staged announcement gate)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.openwait", Type: valueTypeInt, Default: "120", Description: "Seconds to wait for peer OPEN after TCP connect (1-3600)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.announce.delay", Type: valueTypeDuration, Default: "0s", Description: "Delay between reactor Ready and first UPDATE (staged announcement gate)"})
 
 	// ExaBGP bridge subprocess uses os.Getenv on this key because the bridge
 	// runs before ze's env registry is initialized; ze sets it via env.Set
 	// here so the child inherits it via os.Environ().
-	_ = env.MustRegister(env.EnvEntry{Key: "exabgp.api.ack", Type: "bool", Default: "true", Description: "ExaBGP bridge: emit done/error ack lines on plugin stdin after each dispatched command"})
+	_ = env.MustRegister(env.EnvEntry{Key: "exabgp.api.ack", Type: valueTypeBool, Default: configTrue, Description: "ExaBGP bridge: emit done/error ack lines on plugin stdin after each dispatched command"})
 
 	// Web server.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.listen", Type: "string", Default: "0.0.0.0:3443", Description: "Web server listen address (ip:port[,ip:port])"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.enabled", Type: "bool", Description: "Enable web server"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.certificate", Type: "string", Description: "Name of the PKI store certificate to serve on HTTPS (empty means self-signed)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.listen", Type: valueTypeString, Default: "0.0.0.0:3443", Description: "Web server listen address (ip:port[,ip:port])"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.enabled", Type: valueTypeBool, Description: "Enable web server"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: valueTypeBool, Description: "Disable web authentication"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.certificate", Type: valueTypeString, Description: "Name of the PKI store certificate to serve on HTTPS (empty means self-signed)"})
 	// Workbench experiment selector. Default `finder` keeps the established UI
 	// during Phases 1-3; flips to `workbench` after the Phase 4 Promotion Criteria
 	// pass; `finder` becomes the emergency rollback after the flip. Removed in
@@ -58,75 +58,75 @@ var (
 	// PHASE 4 DEFAULT FLIP (PENDING): change Default below from "finder" to
 	// "workbench" only after `bin/ze-test web -p workbench-bgp-change-verify`
 	// passes every Promotion Criteria threshold. Until that verification, the default stays.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.ui-mode", Type: "string", Default: "finder", Description: "Web UI mode: finder (default) or workbench (experimental)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.ui-mode", Type: valueTypeString, Default: "finder", Description: "Web UI mode: finder (default) or workbench (experimental)"})
 
 	// MCP server.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.listen", Type: "string", Default: "127.0.0.1:8080", Description: "MCP server listen address (ip:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.enabled", Type: "bool", Description: "Enable MCP server"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.token", Type: "string", Description: "MCP bearer token (Authorization header)", Secret: true})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.bind-remote", Type: "bool", Description: "Allow MCP to bind to non-loopback addresses (requires auth-mode != none)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.auth-mode", Type: "string", Description: "MCP authentication mode: none, bearer, bearer-list, oauth"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.oauth.authorization-server", Type: "string", Description: "OAuth 2.1 authorization server URL (auth-mode=oauth)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.oauth.audience", Type: "string", Description: "Canonical URL identifying this MCP resource (RFC 8707; auth-mode=oauth)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.oauth.required-scopes", Type: "string", Description: "Space-separated scopes required on every accepted token (auth-mode=oauth)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.tls.cert", Type: "string", Description: "PEM certificate file path (required for auth-mode=oauth on non-loopback)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.tls.key", Type: "string", Description: "PEM private-key file path", Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.listen", Type: valueTypeString, Default: "127.0.0.1:8080", Description: "MCP server listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.enabled", Type: valueTypeBool, Description: "Enable MCP server"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.token", Type: valueTypeString, Description: "MCP bearer token (Authorization header)", Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.bind-remote", Type: valueTypeBool, Description: "Allow MCP to bind to non-loopback addresses (requires auth-mode != none)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.auth-mode", Type: valueTypeString, Description: "MCP authentication mode: none, bearer, bearer-list, oauth"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.oauth.authorization-server", Type: valueTypeString, Description: "OAuth 2.1 authorization server URL (auth-mode=oauth)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.oauth.audience", Type: valueTypeString, Description: "Canonical URL identifying this MCP resource (RFC 8707; auth-mode=oauth)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.oauth.required-scopes", Type: valueTypeString, Description: "Space-separated scopes required on every accepted token (auth-mode=oauth)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.tls.cert", Type: valueTypeString, Description: "PEM certificate file path (required for auth-mode=oauth on non-loopback)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.tls.key", Type: valueTypeString, Description: "PEM private-key file path", Secret: true})
 
 	// API (REST + gRPC).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.rest.enabled", Type: "bool", Description: "Enable REST API server"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.rest.listen", Type: "string", Default: "0.0.0.0:8081", Description: "REST API listen address (ip:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.grpc.enabled", Type: "bool", Description: "Enable gRPC API server"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.grpc.listen", Type: "string", Default: "0.0.0.0:50051", Description: "gRPC API listen address (ip:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.token", Type: "string", Description: "API bearer token (shared by REST and gRPC)", Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.rest.enabled", Type: valueTypeBool, Description: "Enable REST API server"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.rest.listen", Type: valueTypeString, Default: "0.0.0.0:8081", Description: "REST API listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.grpc.enabled", Type: valueTypeBool, Description: "Enable gRPC API server"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.grpc.listen", Type: valueTypeString, Default: "0.0.0.0:50051", Description: "gRPC API listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.api-server.token", Type: valueTypeString, Description: "API bearer token (shared by REST and gRPC)", Secret: true})
 
 	// gNMI.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.enabled", Type: "bool", Description: "Enable gNMI server"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.listen", Type: "string", Default: "0.0.0.0:9339", Description: "gNMI listen address (ip:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.token", Type: "string", Description: "gNMI bearer token", Secret: true})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.tls.cert", Type: "string", Description: "gNMI TLS PEM certificate file path"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.tls.key", Type: "string", Description: "gNMI TLS PEM private-key file path", Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.enabled", Type: valueTypeBool, Description: "Enable gNMI server"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.listen", Type: valueTypeString, Default: "0.0.0.0:9339", Description: "gNMI listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.token", Type: valueTypeString, Description: "gNMI bearer token", Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.tls.cert", Type: valueTypeString, Description: "gNMI TLS PEM certificate file path"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gnmi.tls.key", Type: valueTypeString, Description: "gNMI TLS PEM private-key file path", Secret: true})
 
 	// Looking glass.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: "string", Default: "0.0.0.0:8443", Description: "Looking glass listen address (ip:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.enabled", Type: "bool", Description: "Enable looking glass server"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: "bool", Default: "true", Description: "Enable TLS for looking glass (default true; set false to serve plaintext)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.token", Type: "string", Description: "Looking glass bearer token (empty leaves it open)", Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: valueTypeString, Default: "0.0.0.0:8443", Description: "Looking glass listen address (ip:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.enabled", Type: valueTypeBool, Description: "Enable looking glass server"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: valueTypeBool, Default: configTrue, Description: "Enable TLS for looking glass (default true; set false to serve plaintext)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.token", Type: valueTypeString, Description: "Looking glass bearer token (empty leaves it open)", Secret: true})
 
 	// Gokrazy management proxy (mounted on ze web server at /gokrazy/).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.enabled", Type: "bool", Description: "Enable gokrazy appliance mode: management proxy on web at /gokrazy/ and first-boot auto-init fallback"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.socket", Type: "string", Default: "/run/gokrazy-http.sock", Description: "Gokrazy management Unix socket path"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.enabled", Type: valueTypeBool, Description: "Enable gokrazy appliance mode: management proxy on web at /gokrazy/ and first-boot auto-init fallback"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.socket", Type: valueTypeString, Default: "/run/gokrazy-http.sock", Description: "Gokrazy management Unix socket path"})
 
 	// BGP reactor tuning (YANG augment under `environment/reactor/`).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.speed", Type: "string", Default: "1.0", Description: "Reactor loop time multiplier (0.1-10.0)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-ttl", Type: "int", Default: "60", Description: "Update cache TTL in seconds (0=immediate)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-max", Type: "int", Default: "1000000", Description: "Update cache max entries (0=unlimited)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.update-groups", Type: "bool", Default: "true", Description: "Cross-peer UPDATE grouping"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.coalesce", Type: "bool", Default: "true", Description: "Coalesce consecutive IPv4 unicast UPDATEs sharing identical attributes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.forward-dedup", Type: "bool", Default: "true", Description: "Share one UPDATE rebuild between forward destinations whose edit sets are equal"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.speed", Type: valueTypeString, Default: "1.0", Description: "Reactor loop time multiplier (0.1-10.0)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-ttl", Type: valueTypeInt, Default: "60", Description: "Update cache TTL in seconds (0=immediate)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-max", Type: valueTypeInt, Default: "1000000", Description: "Update cache max entries (0=unlimited)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.update-groups", Type: valueTypeBool, Default: configTrue, Description: "Cross-peer UPDATE grouping"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.coalesce", Type: valueTypeBool, Default: configTrue, Description: "Coalesce consecutive IPv4 unicast UPDATEs sharing identical attributes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.forward-dedup", Type: valueTypeBool, Default: configTrue, Description: "Share one UPDATE rebuild between forward destinations whose edit sets are equal"})
 
 	// Chaos (hub YANG `environment/chaos`).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.seed", Type: "int64", Description: "PRNG seed for chaos fault injection (0 = disabled)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.rate", Type: "string", Default: "0.1", Description: "Fault probability per operation (0.0-1.0)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.seed", Type: valueTypeInt64, Description: "PRNG seed for chaos fault injection (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.rate", Type: valueTypeString, Default: "0.1", Description: "Fault probability per operation (0.0-1.0)"})
 
 	// Forward pool tuning (consumed in internal/component/bgp/reactor/).
 	// Promoted to YANG: environment/reactor/forward-queue-size et al.
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "256", Description: "Per-destination forward worker channel capacity", Deprecated: "YANG reactor/forward-queue-size"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "0", Description: "Overflow MixedBufMux byte budget override (0 = auto-sized from peer prefix maximums)", Deprecated: "YANG reactor/forward-pool-max-bytes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)", Deprecated: "YANG reactor/forward-pool-max-bytes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)", Deprecated: "YANG reactor/forward-batch-limit"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: "duration", Default: "5s", Description: "Grace period at >95% pool + >2x weight before forced teardown", Deprecated: "YANG reactor/forward-teardown-grace"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.headroom", Type: "int64", Default: "0", Description: "Extra bytes beyond auto-sized pool baseline (0 = no extra)", Deprecated: "YANG reactor/forward-pool-headroom"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.dest.cap", Type: "int", Default: "4096", Description: "Max destinations per Plugin.ForwardCached call (bounds per-call allocation)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.pressure.highwater", Type: "int", Default: "0", Description: "Read-buffer pool utilization percent (0-100) at or above which passed-over UPDATE cache entries are reclaimed on the shorter ze.cache.pressure.valve (0 = disabled)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.pressure.valve", Type: "duration", Default: "30s", Description: "Shortened safety-valve duration applied to passed-over UPDATE cache entries while pool utilization is at or above ze.cache.pressure.highwater"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: "int", Default: "65536", Description: "Per-session TCP read buffer size (bytes)", Deprecated: "YANG reactor/read-buffer-size"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.write.size", Type: "int", Default: "16384", Description: "Per-session TCP write buffer size (bytes)", Deprecated: "YANG reactor/write-buffer-size"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.metrics.interval", Type: "duration", Default: "10s", Description: "Periodic metrics refresh interval"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: valueTypeInt, Default: "256", Description: "Per-destination forward worker channel capacity", Deprecated: "YANG reactor/forward-queue-size"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: valueTypeDuration, Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: valueTypeInt, Default: "0", Description: "Overflow MixedBufMux byte budget override (0 = auto-sized from peer prefix maximums)", Deprecated: "YANG reactor/forward-pool-max-bytes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: valueTypeInt64, Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)", Deprecated: "YANG reactor/forward-pool-max-bytes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: valueTypeInt, Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)", Deprecated: "YANG reactor/forward-batch-limit"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: valueTypeDuration, Default: "5s", Description: "Grace period at >95% pool + >2x weight before forced teardown", Deprecated: "YANG reactor/forward-teardown-grace"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.headroom", Type: valueTypeInt64, Default: "0", Description: "Extra bytes beyond auto-sized pool baseline (0 = no extra)", Deprecated: "YANG reactor/forward-pool-headroom"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.dest.cap", Type: valueTypeInt, Default: "4096", Description: "Max destinations per Plugin.ForwardCached call (bounds per-call allocation)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: valueTypeDuration, Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.pressure.highwater", Type: valueTypeInt, Default: "0", Description: "Read-buffer pool utilization percent (0-100) at or above which passed-over UPDATE cache entries are reclaimed on the shorter ze.cache.pressure.valve (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.pressure.valve", Type: valueTypeDuration, Default: "30s", Description: "Shortened safety-valve duration applied to passed-over UPDATE cache entries while pool utilization is at or above ze.cache.pressure.highwater"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: valueTypeInt, Default: "65536", Description: "Per-session TCP read buffer size (bytes)", Deprecated: "YANG reactor/read-buffer-size"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.write.size", Type: valueTypeInt, Default: "16384", Description: "Per-session TCP write buffer size (bytes)", Deprecated: "YANG reactor/write-buffer-size"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.metrics.interval", Type: valueTypeDuration, Default: "10s", Description: "Periodic metrics refresh interval"})
 
 	// Route server (consumed in internal/component/bgp/plugins/rs/).
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.route-server.worker-queue-size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity (overrides YANG config)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.route-server.worker-queue-size", Type: valueTypeInt, Default: "4096", Description: "Per-source-peer route server worker channel capacity (overrides YANG config)"})
 )
 
 // Plugin encoder type names (used by pc.Encoder and extracted from the

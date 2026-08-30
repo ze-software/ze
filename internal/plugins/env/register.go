@@ -5,12 +5,16 @@ import (
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
+// modeOffline is the help tag for a command that answers without a running
+// daemon. Every command this plugin registers is one.
+const modeOffline = "offline"
+
 func init() {
 	registry.MustRegisterRootHandler("env", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
 		Description: "Environment variable inspection",
-		Mode:        "offline",
+		Mode:        modeOffline,
 		Section:     registry.SectionSystem,
 		Subs:        "list, get, registered",
 	})
@@ -21,15 +25,15 @@ func init() {
 	// handler implemented one.
 	registry.MustRegisterLocalData("show env list", dataList, registry.Meta{
 		Description: "Every environment variable Ze reads, with its effective value.",
-		Mode:        "offline",
+		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show env get", dataGet, registry.Meta{
 		Description: "One environment variable, by key.",
-		Mode:        "offline",
+		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show env registered", dataRegistered, registry.Meta{
 		Description: "Every environment variable the code declares, without effective values.",
-		Mode:        "offline",
+		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 
 	// The rows are a list read against declared column names, so every row

@@ -11,7 +11,7 @@ Ze uses a YANG-modeled configuration with section-based syntax.
 
 ```sh
 ze config validate <file>
-ze config validate --json <file>
+ze cli -c "validate config <file> | json"
 ze config validate -q <file>
 ```
 

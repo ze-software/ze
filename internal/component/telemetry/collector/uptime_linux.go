@@ -31,7 +31,7 @@ func (c *uptimeCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_system_uptime_seconds_average",
 		"System Uptime",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

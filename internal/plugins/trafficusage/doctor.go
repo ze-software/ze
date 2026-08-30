@@ -17,7 +17,7 @@ func doctorChecks() []registry.DoctorCheckDef {
 		Name:         "traffic-usage-ebpf",
 		Phase:        rpc.DoctorPhasePostConfig,
 		Order:        720,
-		Dependencies: []string{"interface"},
+		Dependencies: []string{dependencyInterface},
 		Platforms:    []string{"any"},
 		Codes:        []string{"doctor-traffic-usage-ebpf"},
 		Check:        checkTrafficUsageBPF,

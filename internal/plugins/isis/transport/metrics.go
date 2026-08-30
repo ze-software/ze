@@ -10,6 +10,9 @@ package transport
 
 import "github.com/ze-software/ze/internal/core/metrics"
 
+// labelInterface is the metric label every per-interface transport series carries.
+const labelInterface = "interface"
+
 // transportMetrics holds the four transport-owned series.
 type transportMetrics struct {
 	framesSent     metrics.CounterVec // ze_isis_frames_sent_total{interface}
@@ -25,17 +28,17 @@ func newTransportMetrics(reg metrics.Registry) *transportMetrics {
 		framesSent: reg.CounterVec(
 			"ze_isis_frames_sent_total",
 			"Total IS-IS frames transmitted, by interface.",
-			[]string{"interface"},
+			[]string{labelInterface},
 		),
 		framesReceived: reg.CounterVec(
 			"ze_isis_frames_received_total",
 			"Total IS-IS frames received, by interface.",
-			[]string{"interface"},
+			[]string{labelInterface},
 		),
 		framesDropped: reg.CounterVec(
 			"ze_isis_frames_dropped_total",
 			"Total IS-IS frames dropped, by interface and reason.",
-			[]string{"interface", "reason"},
+			[]string{labelInterface, "reason"},
 		),
 		socketsOpen: reg.Gauge(
 			"ze_isis_sockets_open",

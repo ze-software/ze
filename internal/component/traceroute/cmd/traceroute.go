@@ -27,6 +27,12 @@ import (
 // package (the central show package keeps its own for tcp-check).
 const argTimeout = "timeout"
 
+// The JSON keys a traceroute-shaped response answers with.
+const (
+	fieldHops = "hops"
+	fieldTTL  = "ttl"
+)
+
 var (
 	errTracerouteMissingTarget      = errors.New("traceroute: missing target address")
 	errTracerouteMaxHopsRequiresVal = errors.New("traceroute: max-hops requires a value")
@@ -53,7 +59,7 @@ func handleTraceroute(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 		return &plugin.Response{Status: plugin.StatusError, Error: trErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
-		"hops": hops,
+		fieldHops: hops,
 	}}, nil
 }
 
@@ -296,8 +302,8 @@ func doTracerouteCtx(ctx context.Context, dest netip.Addr, maxHops int, timeout 
 		}
 
 		hop := map[string]any{
-			"ttl":  ttl,
-			"addr": bestAddr,
+			fieldTTL: ttl,
+			"addr":   bestAddr,
 		}
 		if bestRTT != nil {
 			hop["rtt-ms"] = *bestRTT

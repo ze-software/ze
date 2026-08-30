@@ -129,8 +129,8 @@ func sfSetupLab(t *testing.T) (string, *packet.Conn) {
 	peerSide := fmt.Sprintf("zedhcpp%d", suffix)
 
 	veth := &netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: zeSide},
-		PeerName:  peerSide,
+		Name:     zeSide,
+		PeerName: peerSide,
 	}
 	if err := netlink.LinkAdd(veth); err != nil {
 		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)

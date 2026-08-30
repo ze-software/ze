@@ -58,15 +58,15 @@ func checkOSPFv3IPsec(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic
 	if !ok || tree == nil {
 		return nil
 	}
-	ospfTree := tree.GetContainer("ospf")
+	ospfTree := tree.GetContainer(Namespace)
 	if ospfTree == nil {
 		return nil
 	}
-	data, err := json.Marshal(map[string]any{"ospf": ospfTree.ToMap()})
+	data, err := json.Marshal(map[string]any{Namespace: ospfTree.ToMap()})
 	if err != nil {
 		return nil
 	}
-	cfg, err := parseOSPFConfig([]configSection{{Root: "ospf", Data: string(data)}}, systemRouterIDSource{})
+	cfg, err := parseOSPFConfig([]configSection{{Root: Namespace, Data: string(data)}}, systemRouterIDSource{})
 	if err != nil {
 		return nil // a structural error is the per-leaf YANG validator's job to report.
 	}

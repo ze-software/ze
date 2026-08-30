@@ -27,7 +27,7 @@ func newWirelessCollector(fs procfs.FS) *wirelessCollector {
 func (c *wirelessCollector) Name() string { return "wireless" }
 
 func (c *wirelessCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.signal = reg.GaugeVec(prefix+"_net_wireless_signal_level_dBm_average", "Wireless Signal", labels)
 	c.quality = reg.GaugeVec(prefix+"_net_wireless_quality_link_average", "Wireless Quality", labels)
 	c.discard = reg.GaugeVec(prefix+"_net_wireless_discarded_packets_packets_persec_average", "Wireless Discarded", labels)

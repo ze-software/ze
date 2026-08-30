@@ -10,9 +10,25 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// msgTypeUpdate is the Prometheus label value for UPDATE messages.
-// Shared across message-type counters and notification code mapping.
+// msgTypeUpdate is the Prometheus label value for UPDATE messages, used as the
+// `type` label of ze_peer_messages_received_total and _sent_total.
 const msgTypeUpdate = "update"
+
+// Notification error-code names, as notificationCodeLabel renders RFC 4271
+// Section 4.5 error codes for the ze_peer_notifications_*_total `code` label.
+// They are a separate vocabulary from the message-type labels above: an
+// operator reading code=update is reading "UPDATE Message Error", not "an
+// UPDATE was seen". notifCodeNames must list exactly this set, because the
+// metric cleanup for a removed peer deletes by label value.
+const (
+	notifCodeNameHeader    = "header"
+	notifCodeNameOpen      = "open"
+	notifCodeNameUpdate    = "update"
+	notifCodeNameHoldTimer = "hold-timer"
+	notifCodeNameFSM       = "fsm"
+	notifCodeNameCease     = "cease"
+	notifCodeNameOther     = "other"
+)
 
 // PeerStats holds a snapshot of per-peer counters.
 // Updates = per UPDATE message (engine level, no content parsing).
@@ -208,19 +224,19 @@ func (p *Peer) incrEORSent() {
 func notificationCodeLabel(code uint8) string {
 	switch code {
 	case 1:
-		return "header"
+		return notifCodeNameHeader
 	case 2:
-		return "open"
+		return notifCodeNameOpen
 	case 3:
-		return msgTypeUpdate
+		return notifCodeNameUpdate
 	case 4:
-		return "hold-timer"
+		return notifCodeNameHoldTimer
 	case 5:
-		return "fsm"
+		return notifCodeNameFSM
 	case 6:
-		return "cease"
+		return notifCodeNameCease
 	default: // Intentional: unknown/future codes bucketed to bound cardinality.
-		return "other"
+		return notifCodeNameOther
 	}
 }
 
@@ -360,11 +376,17 @@ func (p *Peer) ClearStats() {
 }
 
 // peerStateNames lists all PeerState.String() values for metric label cleanup.
-var peerStateNames = []string{"stopped", "connecting", "active", "established", "idle-hold", "unknown"}
+var peerStateNames = []string{
+	peerStateNameStopped, peerStateNameConnecting, peerStateNameActive,
+	peerStateNameEstablished, peerStateNameIdleHold, peerStateNameUnknown,
+}
 
 // notifCodeNames lists all notification code label values produced by
 // notificationCodeLabel. Used for metric cleanup when a peer is removed.
-var notifCodeNames = []string{"header", "open", msgTypeUpdate, "hold-timer", "fsm", "cease", "other"}
+var notifCodeNames = []string{
+	notifCodeNameHeader, notifCodeNameOpen, notifCodeNameUpdate, notifCodeNameHoldTimer,
+	notifCodeNameFSM, notifCodeNameCease, notifCodeNameOther,
+}
 
 // notifSubcodeNames lists common subcodes for metric cleanup.
 // Covers 0-14, which spans all standard subcodes across all error codes.

@@ -36,6 +36,11 @@ const drainTimeout = 5 * time.Second
 // listener (full bind failure, or an unexpected post-bind crash).
 const unappliedSig = "\x00unset"
 
+// logKeyError is the structured-log attribute that carries an error value.
+// Every log line in this package names the error with the same key, so an
+// operator greps one word.
+const logKeyError = "error"
+
 // Endpoint is one UDP+TCP bind target.
 type Endpoint struct {
 	IP   netip.Addr
@@ -178,7 +183,7 @@ func (m *Manager) bind(ep, addr string) error {
 	ln, err := lc.Listen(context.Background(), "tcp", ep)
 	if err != nil {
 		if cerr := pc.Close(); cerr != nil {
-			m.log.Debug("dnsserver: closing udp after tcp bind failure", "endpoint", ep, "error", cerr)
+			m.log.Debug("dnsserver: closing udp after tcp bind failure", "endpoint", ep, logKeyError, cerr)
 		}
 		return fmt.Errorf("tcp: %w", err)
 	}
@@ -244,10 +249,10 @@ func (m *Manager) serve(s *dns.Server, ep, addr, proto string, gen int) {
 	m.mu.Unlock()
 
 	if !crashed {
-		m.log.Debug("dnsserver: listener stopped", "endpoint", ep, "proto", proto, "error", err)
+		m.log.Debug("dnsserver: listener stopped", "endpoint", ep, "proto", proto, logKeyError, err)
 		return
 	}
-	m.log.Error("dnsserver: listener crashed unexpectedly", "endpoint", ep, "proto", proto, "error", err)
+	m.log.Error("dnsserver: listener crashed unexpectedly", "endpoint", ep, "proto", proto, logKeyError, err)
 	if m.opts.OnListenerChange != nil {
 		m.opts.OnListenerChange(proto, addr, false)
 	}
@@ -262,14 +267,14 @@ func (m *Manager) Stop() {
 	for _, s := range m.servers {
 		ctx, cancel := context.WithTimeout(context.Background(), drainTimeout)
 		if err := s.ShutdownContext(ctx); err != nil {
-			m.log.Debug("dnsserver: listener shutdown", "error", err)
+			m.log.Debug("dnsserver: listener shutdown", logKeyError, err)
 		}
 		cancel()
 	}
 	for _, hs := range m.httpServers {
 		ctx, cancel := context.WithTimeout(context.Background(), drainTimeout)
 		if err := hs.Shutdown(ctx); err != nil {
-			m.log.Debug("dnsserver: doh listener shutdown", "error", err)
+			m.log.Debug("dnsserver: doh listener shutdown", logKeyError, err)
 		}
 		cancel()
 	}

@@ -153,7 +153,7 @@ func convertAnnounce(peerIP, routeStr string) string {
 	}
 
 	// Determine family from prefix
-	fam := "ipv4/unicast"
+	fam := defaultFamily
 	if strings.Contains(prefix, ":") {
 		fam = "ipv6/unicast"
 	}
@@ -171,7 +171,7 @@ func convertWithdraw(peerIP, routeStr string) string {
 	}
 
 	prefix := parts[0]
-	fam := "ipv4/unicast"
+	fam := defaultFamily
 	if strings.Contains(prefix, ":") {
 		fam = "ipv6/unicast"
 	}

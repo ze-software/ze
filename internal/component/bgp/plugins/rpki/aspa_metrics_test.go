@@ -15,7 +15,7 @@ import (
 func scrapeRPKIMetrics(t *testing.T, reg *metrics.PrometheusRegistry) string {
 	t.Helper()
 	rec := httptest.NewRecorder()
-	reg.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", http.NoBody))
+	reg.Handler().ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody))
 	require.Equal(t, 200, rec.Code)
 	b, err := io.ReadAll(rec.Body)
 	require.NoError(t, err)

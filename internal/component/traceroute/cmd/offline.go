@@ -17,7 +17,7 @@ func printTracerouteResults(w io.Writer, target string, hops []map[string]any) {
 	tb.Str("traceroute to ").Str(target).Str(", ").Int(int64(len(hops))).Str(" hops\n")
 
 	for _, hop := range hops {
-		ttl, _ := hop["ttl"].(int)
+		ttl, _ := hop[fieldTTL].(int)
 		addr, _ := hop["addr"].(string)
 		tb.Str("  ").Int(int64(ttl)).Str("  ").Str(addr)
 		if rtt, ok := hop["rtt-ms"].(float64); ok {

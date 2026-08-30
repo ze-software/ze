@@ -106,7 +106,7 @@ func parseSRPolicyNLRIArgs(args []string) (uint32, uint32, netip.Addr, error) {
 	for i := 0; i < len(args); i++ {
 		key := args[i]
 		switch key {
-		case "distinguisher":
+		case fieldDistinguisher:
 			i++
 			if i >= len(args) {
 				return 0, 0, netip.Addr{}, fmt.Errorf("missing value for %s", key)
@@ -117,7 +117,7 @@ func parseSRPolicyNLRIArgs(args []string) (uint32, uint32, netip.Addr, error) {
 			}
 			distinguisher = uint32(v)
 			hasDistinguisher = true
-		case "color":
+		case fieldColor:
 			i++
 			if i >= len(args) {
 				return 0, 0, netip.Addr{}, fmt.Errorf("missing value for %s", key)
@@ -128,7 +128,7 @@ func parseSRPolicyNLRIArgs(args []string) (uint32, uint32, netip.Addr, error) {
 			}
 			color = uint32(v)
 			hasColor = true
-		case "endpoint":
+		case fieldEndpoint:
 			i++
 			if i >= len(args) {
 				return 0, 0, netip.Addr{}, fmt.Errorf("missing value for %s", key)

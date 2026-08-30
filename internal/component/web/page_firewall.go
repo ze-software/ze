@@ -46,8 +46,8 @@ func collectTables() []tableEntry {
 // buildFirewallTablesTableData constructs a WorkbenchTableData for the tables page.
 func buildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: labelName, Sortable: true},
-		{Key: "family", Label: labelFamily, Sortable: true},
+		{Key: colName, Label: labelName, Sortable: true},
+		{Key: segFamily, Label: labelFamily, Sortable: true},
 		{Key: "chains", Label: "Chains", Sortable: true},
 		{Key: "sets", Label: "Sets", Sortable: true},
 	}
@@ -151,12 +151,12 @@ func collectChains(filterTable, filterHook, filterType string) []chainEntry {
 func buildFirewallChainsTableData(entries []chainEntry, filterTable string) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "table", Label: "Table", Sortable: true},
-		{Key: "name", Label: labelName, Sortable: true},
-		{Key: "type", Label: "Type", Sortable: true},
+		{Key: colName, Label: labelName, Sortable: true},
+		{Key: colType, Label: labelType, Sortable: true},
 		{Key: "hook", Label: "Hook", Sortable: true},
 		{Key: "priority", Label: "Priority", Sortable: true},
 		{Key: "policy", Label: "Policy", Sortable: true},
-		{Key: "rules", Label: "Rule Count", Sortable: true},
+		{Key: segRules, Label: "Rule Count", Sortable: true},
 	}
 
 	rows := make([]WorkbenchTableRow, 0, len(entries))
@@ -504,7 +504,7 @@ func buildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 				{Label: "Move Down", HxPost: tb.Reset().Str(ruleBase).Str("/move-down").String()},
 				{Label: "Clone", HxPost: tb.Reset().Str(ruleBase).Str("/clone").String()},
 				{Label: "Delete", HxPost: tb.Reset().Str(ruleBase).Str("/delete").String(),
-					Class: "danger", Confirm: tb.Reset().Str("Delete rule ").Str(strconv.Quote(re.Name)).Byte('?').String()},
+					Class: wbToolDanger, Confirm: tb.Reset().Str("Delete rule ").Str(strconv.Quote(re.Name)).Byte('?').String()},
 			},
 		})
 	}
@@ -607,8 +607,8 @@ func setFlagsStr(f firewall.SetFlags) string {
 func buildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "table", Label: "Table", Sortable: true},
-		{Key: "name", Label: labelName, Sortable: true},
-		{Key: "type", Label: "Type", Sortable: true},
+		{Key: colName, Label: labelName, Sortable: true},
+		{Key: colType, Label: labelType, Sortable: true},
 		{Key: "flags", Label: "Flags"},
 		{Key: "elements", Label: "Elements", Sortable: true},
 	}
@@ -660,7 +660,7 @@ func buildFirewallConnectionsTableData() WorkbenchTableData {
 		{Key: "protocol", Label: labelProtocol, Sortable: true},
 		{Key: "source", Label: "Source", Sortable: true},
 		{Key: "destination", Label: "Destination", Sortable: true},
-		{Key: "state", Label: "State", Sortable: true},
+		{Key: colState, Label: labelState, Sortable: true},
 		{Key: "timeout", Label: "Timeout", Sortable: true},
 		{Key: "packets", Label: "Packets", Sortable: true},
 		{Key: "bytes", Label: "Bytes", Sortable: true},

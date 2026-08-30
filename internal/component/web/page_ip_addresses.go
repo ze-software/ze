@@ -39,8 +39,8 @@ func buildAddressTableData(infos []iface.InterfaceInfo, filterIface, filterProto
 	columns := []WorkbenchTableColumn{
 		{Key: "address", Label: "Address", Sortable: true},
 		{Key: "network", Label: "Network", Sortable: true},
-		{Key: "interface", Label: labelInterface, Sortable: true},
-		{Key: "family", Label: labelProtocol, Sortable: true},
+		{Key: colInterface, Label: labelInterface, Sortable: true},
+		{Key: segFamily, Label: labelProtocol, Sortable: true},
 	}
 
 	var rows []WorkbenchTableRow
@@ -83,7 +83,7 @@ func buildAddressTableData(infos []iface.InterfaceInfo, filterIface, filterProto
 
 // addrFamily returns "IPv4" or "IPv6" based on the address info.
 func addrFamily(addr iface.AddrInfo) string {
-	if addr.Family == "ipv6" || strings.Contains(addr.Address, ":") {
+	if addr.Family == familyIPv6 || strings.Contains(addr.Address, ":") {
 		return "IPv6"
 	}
 	return "IPv4"

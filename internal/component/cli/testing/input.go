@@ -76,29 +76,29 @@ func (inp Input) toTypeMessages() []tea.Msg {
 
 // keyNameToCode maps key names to tea key code runes.
 var keyNameToCode = map[string]rune{
-	"tab":       tea.KeyTab,
-	"enter":     tea.KeyEnter,
-	"esc":       tea.KeyEscape,
-	"escape":    tea.KeyEscape,
-	"up":        tea.KeyUp,
-	"down":      tea.KeyDown,
-	"left":      tea.KeyLeft,
-	"right":     tea.KeyRight,
-	"backspace": tea.KeyBackspace,
-	"delete":    tea.KeyDelete,
-	"home":      tea.KeyHome,
-	"end":       tea.KeyEnd,
-	"pgup":      tea.KeyPgUp,
-	"pgdn":      tea.KeyPgDown,
-	"pgdown":    tea.KeyPgDown,
-	"space":     tea.KeySpace,
+	"tab":        tea.KeyTab,
+	"enter":      tea.KeyEnter,
+	"esc":        tea.KeyEscape,
+	"escape":     tea.KeyEscape,
+	"up":         tea.KeyUp,
+	"down":       tea.KeyDown,
+	"left":       tea.KeyLeft,
+	"right":      tea.KeyRight,
+	"backspace":  tea.KeyBackspace,
+	"delete":     tea.KeyDelete,
+	"home":       tea.KeyHome,
+	"end":        tea.KeyEnd,
+	"pgup":       tea.KeyPgUp,
+	"pgdn":       tea.KeyPgDown,
+	"pgdown":     tea.KeyPgDown,
+	keyNameSpace: tea.KeySpace,
 }
 
 // toKeyMessages converts a key name to a KeyPressMsg.
 func (inp Input) toKeyMessages() ([]tea.Msg, error) {
 	// Special case: "space" should insert a space character,
 	// not send KeySpace which doesn't insert text in textinput.
-	if inp.Key == "space" {
+	if inp.Key == keyNameSpace {
 		return []tea.Msg{tea.KeyPressMsg{Code: ' ', Text: " "}}, nil
 	}
 

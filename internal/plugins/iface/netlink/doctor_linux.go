@@ -32,7 +32,7 @@ func probeMacvlanCapability() macvlanProbeResult {
 	defer cleanupProbeLink(macvlanProbeChild)
 	defer cleanupProbeLink(macvlanProbeParent)
 
-	dummy := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: macvlanProbeParent}}
+	dummy := &netlink.Dummy{Name: macvlanProbeParent}
 	if err := netlink.LinkAdd(dummy); err != nil {
 		if errors.Is(err, unix.EPERM) {
 			return macvlanProbeNoPrivilege
@@ -46,8 +46,9 @@ func probeMacvlanCapability() macvlanProbeResult {
 		return macvlanProbeUnsupported
 	}
 	mv := &netlink.Macvlan{
-		LinkAttrs: netlink.LinkAttrs{Name: macvlanProbeChild, ParentIndex: parent.Attrs().Index},
-		Mode:      netlink.MACVLAN_MODE_BRIDGE,
+		Name:        macvlanProbeChild,
+		ParentIndex: parent.Attrs().Index,
+		Mode:        netlink.MACVLAN_MODE_BRIDGE,
 	}
 	if err := netlink.LinkAdd(mv); err != nil {
 		if errors.Is(err, unix.EPERM) {

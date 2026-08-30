@@ -13,6 +13,9 @@ import (
 	"github.com/ze-software/ze/internal/component/traffic"
 )
 
+// keyInterface is the response payload key carrying an interface name.
+const keyInterface = "interface"
+
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
@@ -49,7 +52,7 @@ func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.R
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data: plugin.Map{
-				"interface":     qos.Interface,
+				keyInterface:    qos.Interface,
 				"qdisc":         qos.Qdisc.Type.String(),
 				"class-count":   len(qos.Qdisc.Classes),
 				"default-class": qos.Qdisc.DefaultClass,
@@ -61,8 +64,8 @@ func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.R
 		qos, qErr := backend.ListQdiscs(ifaces[i].Name)
 		if qErr != nil {
 			rows = append(rows, map[string]any{
-				"interface": ifaces[i].Name,
-				"error":     qErr.Error(),
+				keyInterface: ifaces[i].Name,
+				"error":      qErr.Error(),
 			})
 			continue
 		}
@@ -71,7 +74,7 @@ func handleShowTraffic(_ *pluginserver.CommandContext, args []string) (*plugin.R
 			filterCount += len(qos.Qdisc.Classes[j].Filters)
 		}
 		rows = append(rows, map[string]any{
-			"interface":    qos.Interface,
+			keyInterface:   qos.Interface,
 			"qdisc":        qos.Qdisc.Type.String(),
 			"class-count":  len(qos.Qdisc.Classes),
 			"filter-count": filterCount,

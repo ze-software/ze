@@ -54,14 +54,14 @@ func SupportedTypes() []string {
 // Ze created a vxlan and then refused to delete it, and a vxlan on the host was
 // classified as ethernet by the MAC fallback at the end of infoToZeType.
 var kernelTunnelKinds = map[string]bool{
-	"gre":       true,
-	"gretap":    true,
-	"ip6gre":    true,
-	"ip6gretap": true,
-	"ipip":      true,
-	"sit":       true,
-	"ip6tnl":    true,
-	"vxlan":     true,
+	kernelLinkGRE:       true,
+	kernelLinkGRETap:    true,
+	kernelLinkIP6GRE:    true,
+	kernelLinkIP6GRETap: true,
+	kernelLinkIPIP:      true,
+	kernelLinkSIT:       true,
+	kernelLinkIP6Tnl:    true,
+	kernelLinkVxlan:     true,
 }
 
 // DiscoverInterfaces enumerates OS network interfaces and classifies them

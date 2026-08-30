@@ -36,12 +36,12 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 			Summary: "Set a configuration value in a config file",
 			Usage:   []string{"ze config set [options] <config-file> <path...> <value>"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Description", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "The last argument is the value, the second-to-last is the leaf name,"},
 					{Name: "", Desc: "and everything between the config file and the leaf is the container path."},
 				}},
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--dry-run", Desc: "Show what would change without writing"},
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
+					{Name: helpFlagDryRun, Desc: "Show what would change without writing"},
 					{Name: "--reload", Desc: "Notify the running daemon to reload after save"},
 				}},
 			},

@@ -724,7 +724,7 @@ func RunBFDPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"bfd"},
+		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  2,
 	}); err != nil {

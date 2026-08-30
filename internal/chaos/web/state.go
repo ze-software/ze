@@ -97,7 +97,7 @@ func (s PeerStatus) String() string {
 	case PeerDown:
 		return "down"
 	case PeerReconnecting:
-		return "reconnecting"
+		return eventLabelReconnecting
 	case PeerSyncing:
 		return "syncing"
 	}

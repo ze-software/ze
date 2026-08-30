@@ -40,7 +40,7 @@ func handleShowPolicyList(_ *pluginserver.CommandContext, _ []string) (*plugin.R
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"filter-types": entries,
-			"count":        len(entries),
+			keyCount:       len(entries),
 		},
 	}, nil
 }

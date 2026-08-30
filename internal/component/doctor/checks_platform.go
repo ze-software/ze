@@ -30,16 +30,20 @@ const (
 	linuxResolvConfPath   = "/etc/resolv.conf"
 )
 
+// diagnosticServiceExecutable names a service-unit fault an operator sees in
+// `ze doctor` output.
+const diagnosticServiceExecutable = "doctor-service-executable"
+
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorServiceUnitEnv,
-	Type:        "string",
+	Type:        envTypeString,
 	Description: "Override ze.service unit path for doctor functional tests",
 	Private:     true,
 })
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorPlatformEnv,
-	Type:        "string",
+	Type:        envTypeString,
 	Description: "Override doctor platform detection for functional tests",
 	Private:     true,
 })
@@ -213,7 +217,7 @@ func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic
 	var tb textbuf.Buffer
 	if executable == "" {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-service-executable",
+			Code:     diagnosticServiceExecutable,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("systemd service unit has no ExecStart command: ").Str(unitPath).String(),
 			Path:     unitPath,
@@ -221,7 +225,7 @@ func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic
 	}
 	if !filepath.IsAbs(executable) {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-service-executable",
+			Code:     diagnosticServiceExecutable,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str("systemd service ExecStart is not an absolute path: ").Str(executable).String(),
 			Path:     unitPath,
@@ -232,7 +236,7 @@ func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic
 	info, err := statServiceExecutable(executable)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-service-executable",
+			Code:     diagnosticServiceExecutable,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str("systemd service executable not found: ").Str(executable).Str(": ").Err(err).String(),
 			Path:     executable,
@@ -240,7 +244,7 @@ func checkServiceExecutable(unitPath, executable string) []diagnostic.Diagnostic
 	}
 	if info.IsDir() || info.Mode().Perm()&0o111 == 0 {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-service-executable",
+			Code:     diagnosticServiceExecutable,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str("systemd service executable is not executable: ").Str(executable).String(),
 			Path:     executable,

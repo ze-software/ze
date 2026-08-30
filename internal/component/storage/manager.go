@@ -13,6 +13,12 @@ import (
 	"github.com/ze-software/ze/internal/core/smart"
 )
 
+// The report detail keys a temperature finding carries.
+const (
+	keyTempCelsius = "temp-celsius"
+	keyThreshold   = "threshold"
+)
+
 // DeviceStatus holds the current SMART state for one device.
 type DeviceStatus struct {
 	Name           string     `json:"name"`
@@ -216,7 +222,7 @@ func (m *Manager) checkTemperature(name string, ds *DeviceStatus, info *smart.In
 		if delta >= m.config.Temperature.Difference {
 			report.RaiseWarning("storage", "temp-rising", name,
 				"disk temperature rising rapidly",
-				map[string]any{"temp-celsius": info.TempCelsius, "delta": delta, "threshold": m.config.Temperature.Difference})
+				map[string]any{keyTempCelsius: info.TempCelsius, "delta": delta, keyThreshold: m.config.Temperature.Difference})
 		} else {
 			report.ClearWarning("storage", "temp-rising", name)
 		}
@@ -228,11 +234,11 @@ func (m *Manager) checkTemperature(name string, ds *DeviceStatus, info *smart.In
 		report.ClearWarning("storage", "temp-high", name)
 		report.RaiseError("storage", "temp-critical", name,
 			"disk temperature critical",
-			map[string]any{"temp-celsius": info.TempCelsius, "threshold": m.config.Temperature.Critical})
+			map[string]any{keyTempCelsius: info.TempCelsius, keyThreshold: m.config.Temperature.Critical})
 	case info.TempCelsius >= m.config.Temperature.Informational:
 		report.RaiseWarning("storage", "temp-high", name,
 			"disk temperature above informational threshold",
-			map[string]any{"temp-celsius": info.TempCelsius, "threshold": m.config.Temperature.Informational})
+			map[string]any{keyTempCelsius: info.TempCelsius, keyThreshold: m.config.Temperature.Informational})
 	default:
 		report.ClearWarning("storage", "temp-high", name)
 	}

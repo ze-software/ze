@@ -39,7 +39,7 @@ func (c *netstatCollector) Name() string { return "netstat" }
 
 //nolint:dupl // distinct metric registrations share GaugeVec pattern
 func (c *netstatCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.sysIPv4 = reg.GaugeVec(prefix+"_system_ipv4_kilobits_persec_average", "System IPv4 Bandwidth", labels)
 	c.mcast = reg.GaugeVec(prefix+"_ipv4_mcast_kilobits_persec_average", "IPv4 Multicast Bandwidth", labels)
 	c.mcastPkts = reg.GaugeVec(prefix+"_ipv4_mcastpkts_packets_persec_average", "IPv4 Multicast Packets", labels)

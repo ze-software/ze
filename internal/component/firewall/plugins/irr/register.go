@@ -11,6 +11,14 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
+// configRoot is the YANG container this plugin reads, and dependencyFirewall is
+// the plugin it needs beside it. The two hold the same text and name two
+// different things.
+const (
+	configRoot         = "firewall"
+	dependencyFirewall = "firewall"
+)
+
 func init() {
 	registerIRRDoctor()
 
@@ -19,8 +27,8 @@ func init() {
 		Description:  "IRR-based prefix-list filtering for firewall rules",
 		Features:     "yang",
 		YANG:         irryang.ZeFirewallIrrYANG,
-		ConfigRoots:  []string{"firewall"},
-		Dependencies: []string{"firewall"},
+		ConfigRoots:  []string{configRoot},
+		Dependencies: []string{dependencyFirewall},
 		RunEngine:    runFirewallIRR,
 		ConfigureMetrics: func(reg metrics.Registry) {
 			setMetricsRegistry(reg)

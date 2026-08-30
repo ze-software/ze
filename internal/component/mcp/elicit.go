@@ -60,6 +60,7 @@ const (
 	elicitTypeNumber  = "number"
 	elicitTypeInteger = "integer"
 	elicitTypeBoolean = "boolean"
+	elicitTypeObject  = "object"
 )
 
 // Supported primitive schema types per MCP 2025-06-18 elicitation. Enum
@@ -72,12 +73,16 @@ var elicitPrimitiveTypes = map[string]struct{}{
 	elicitTypeBoolean: {},
 }
 
+// schemaFormatURI is the "uri" string format, and the resource descriptor key
+// that carries a resource's URI.
+const schemaFormatURI = "uri"
+
 // Supported string formats per the spec. Empty format is allowed.
 var elicitStringFormats = map[string]struct{}{
-	"email":     {},
-	"uri":       {},
-	"date":      {},
-	"date-time": {},
+	"email":         {},
+	schemaFormatURI: {},
+	"date":          {},
+	"date-time":     {},
 }
 
 // Forbidden JSON-Schema composition keywords. Presence of any of these on
@@ -99,9 +104,9 @@ func validateElicitSchema(schema map[string]any) error {
 	if schema == nil {
 		return wrapSchemaErr("", "schema is nil")
 	}
-	if t, _ := schema["type"].(string); t != "object" {
+	if t, _ := schema[schemaKeyType].(string); t != elicitTypeObject {
 		var tb textbuf.Buffer
-		return wrapSchemaErr("", tb.Str(`root type must be "object", got `).Str(describeType(schema["type"])).String())
+		return wrapSchemaErr("", tb.Str(`root type must be "object", got `).Str(describeType(schema[schemaKeyType])).String())
 	}
 	for _, kw := range elicitForbiddenKeywords {
 		if _, present := schema[kw]; present {
@@ -109,7 +114,7 @@ func validateElicitSchema(schema map[string]any) error {
 			return wrapSchemaErr("", tb.Str("forbidden keyword ").Str(kw).Str(" at root").String())
 		}
 	}
-	props, ok := schema["properties"].(map[string]any)
+	props, ok := schema[schemaKeyProperties].(map[string]any)
 	if !ok || len(props) == 0 {
 		return wrapSchemaErr("", "properties must be a non-empty object")
 	}
@@ -134,7 +139,7 @@ func validateElicitProperty(path string, prop map[string]any) error {
 			return wrapSchemaErr(path, tb.Reset().Str("forbidden keyword ").Str(kw).String())
 		}
 	}
-	typ, _ := prop["type"].(string)
+	typ, _ := prop[schemaKeyType].(string)
 	if typ == "" {
 		return wrapSchemaErr(path, "missing type")
 	}
@@ -293,7 +298,7 @@ func newElicitRequest(message string, schema map[string]any) (map[string]any, er
 	if err := validateElicitSchema(schema); err != nil {
 		return nil, err
 	}
-	props, _ := schema["properties"].(map[string]any)
+	props, _ := schema[schemaKeyProperties].(map[string]any)
 	for name := range props {
 		if elicitFieldIsSecret(name) {
 			var tb textbuf.Buffer

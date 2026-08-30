@@ -78,13 +78,13 @@ type componentDef struct {
 // links a row to a live probe in health.DefaultRegistry; AlwaysUp marks the web
 // server, which is necessarily running to serve this page.
 var knownComponents = []componentDef{
-	{Name: "BGP", ConfigKey: "bgp", HealthName: "bgp"},
-	{Name: "Interfaces", ConfigKey: "iface", HealthName: "iface"},
+	{Name: "BGP", ConfigKey: segBGP, HealthName: segBGP},
+	{Name: "Interfaces", ConfigKey: segIface, HealthName: segIface},
 	{Name: "L2TP", ConfigKey: "l2tp", HealthName: "l2tp"},
-	{Name: labelDNS, ConfigKey: "dns"},
+	{Name: labelDNS, ConfigKey: segDNS},
 	{Name: "SSH", ConfigKey: "environment/ssh"},
 	{Name: "Web", ConfigKey: "environment/web", AlwaysUp: true},
-	{Name: "Telemetry", ConfigKey: "telemetry"},
+	{Name: "Telemetry", ConfigKey: segTelemetry},
 	{Name: "MCP", ConfigKey: "environment/mcp"},
 	{Name: "Looking Glass", ConfigKey: "environment/looking-glass"},
 }
@@ -97,9 +97,9 @@ func handleDashboardHealthPage(renderer *Renderer, viewTree *config.Tree, _ *htt
 	data := dashboardHealthData{
 		Title: "Component Health",
 		Columns: []WorkbenchTableColumn{
-			{Key: "component", Label: labelComponent},
-			{Key: "status", Label: "Status"},
-			{Key: "summary", Label: "Summary"},
+			{Key: colComponent, Label: labelComponent},
+			{Key: "status", Label: labelStatus},
+			{Key: segSummary, Label: "Summary"},
 		},
 		EmptyMessage: "No component information available.",
 	}
@@ -183,9 +183,9 @@ func handleDashboardEventsPage(renderer *Renderer, r *http.Request, dispatch Com
 	data := dashboardEventsData{
 		Title: "Recent Events",
 		Columns: []WorkbenchTableColumn{
-			{Key: "time", Label: "Time"},
+			{Key: colTime, Label: labelTime},
 			{Key: "namespace", Label: "Namespace"},
-			{Key: "message", Label: labelMessage},
+			{Key: colMessage, Label: labelMessage},
 		},
 		SelectedNS:   selectedNS,
 		EmptyMessage: "No recent events.",

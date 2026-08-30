@@ -23,11 +23,13 @@ const (
 	defaultInitrdVersion = "v2"
 	initrdURLKey         = "ze.appliance.initrd.url"
 	initrdToolsDir       = "build/initrd"
+	// initrdCommand is how an operator spells this command on the command line.
+	initrdCommand = "ze appliance initrd"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         initrdURLKey,
-	Type:        "string",
+	Type:        envTypeString,
 	Description: "Base URL for pre-built installer initrd downloads",
 })
 
@@ -45,11 +47,11 @@ func runInitrd(args []string) int {
 
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze appliance initrd",
+			Command: initrdCommand,
 			Summary: "Download or build the installer initrd",
-			Usage:   []string{"ze appliance initrd"},
+			Usage:   []string{initrdCommand},
 			Examples: []string{
-				"ze appliance initrd",
+				initrdCommand,
 			},
 		}
 		p.WriteErr()

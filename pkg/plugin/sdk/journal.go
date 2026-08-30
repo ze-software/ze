@@ -3,6 +3,8 @@
 
 package sdk
 
+import "slices"
+
 // Journal records apply/undo pairs during a config transaction.
 // Plugins call Record for each side-effecting change during apply.
 // On rollback, the journal replays undos in reverse order.
@@ -38,8 +40,8 @@ func (j *Journal) Record(apply, undo func() error) error {
 // Every undo is called even if earlier ones fail. Returns all errors.
 func (j *Journal) Rollback() []error {
 	var errs []error
-	for i := len(j.entries) - 1; i >= 0; i-- {
-		if err := j.entries[i].undo(); err != nil {
+	for _, entry := range slices.Backward(j.entries) {
+		if err := entry.undo(); err != nil {
 			errs = append(errs, err)
 		}
 	}

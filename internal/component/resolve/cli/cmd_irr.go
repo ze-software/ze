@@ -12,7 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-var irrOperations = []string{"as-set", "prefix"}
+var irrOperations = []string{opASSet, "prefix"}
 
 func cmdIRR(ctx context.Context, args []string) int {
 	if len(args) > 0 && isHelp(args[0]) {
@@ -40,7 +40,7 @@ func cmdIRR(ctx context.Context, args []string) int {
 	c := irr.NewIRR(*serverFlag)
 
 	switch op {
-	case "as-set":
+	case opASSet:
 		asns, err := c.ResolveASSet(ctx, name)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)

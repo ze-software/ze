@@ -49,12 +49,12 @@ func cmdFmt(args []string) int {
 			Summary: "Format and normalize configuration file",
 			Usage:   []string{"ze config fmt [options] <config-file>"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-w", Desc: "Write result to source file"},
 					{Name: "--check", Desc: "Check if formatting needed (exit 1 if changes)"},
 					{Name: "--diff", Desc: "Show unified diff of changes"},
 				}},
-				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
 					{Name: "0", Desc: "Success (or no changes needed with --check)"},
 					{Name: "1", Desc: "Changes needed (with --check)"},
 					{Name: "2", Desc: "Error (file not found, parse error, old config detected)"},

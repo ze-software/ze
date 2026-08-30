@@ -100,8 +100,8 @@ func extractFamiliesFromPeer(name string, peerTree *config.Tree) []familyEntry {
 // buildBGPFamiliesTableData constructs a WorkbenchTableData for the families view.
 func buildBGPFamiliesTableData(entries []familyEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "family", Label: labelFamily, Sortable: true},
-		{Key: "peer", Label: "Peer / Group", Sortable: true},
+		{Key: segFamily, Label: labelFamily, Sortable: true},
+		{Key: colPeer, Label: "Peer / Group", Sortable: true},
 		{Key: "mode", Label: "Mode", Sortable: true},
 		{Key: "max-prefixes", Label: "Max Prefixes"},
 		{Key: "warning", Label: "Warning"},

@@ -24,6 +24,16 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
+// TLS and PKI diagnostic codes. Each one names the fault an operator sees in
+// `ze doctor` output, and `ze doctor explain <code>` looks it up by this
+// spelling.
+const (
+	diagnosticTLSMissing = "doctor-tls-missing"
+	diagnosticTLSInvalid = "doctor-tls-invalid"
+	diagnosticTLSExpired = "doctor-tls-expired"
+	diagnosticPKICert    = "doctor-pki-cert"
+)
+
 func checkTLS(tree *config.Tree, configDir string) []diagnostic.Diagnostic {
 	var diags []diagnostic.Diagnostic
 
@@ -58,7 +68,7 @@ func checkWebTLS(tree *config.Tree, store storage.Storage) []diagnostic.Diagnost
 
 	if certErr == nil && !keyExists {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-tls-missing",
+			Code:     diagnosticTLSMissing,
 			Severity: diagnostic.SeverityError,
 			Message:  "web: certificate present in storage but key missing",
 		})
@@ -66,7 +76,7 @@ func checkWebTLS(tree *config.Tree, store storage.Storage) []diagnostic.Diagnost
 
 	if certErr != nil && keyExists {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-tls-missing",
+			Code:     diagnosticTLSMissing,
 			Severity: diagnostic.SeverityError,
 			Message:  "web: key present in storage but certificate missing",
 		})
@@ -93,7 +103,7 @@ func checkWebTLSPair(certData []byte, store storage.Storage) []diagnostic.Diagno
 	keyData, keyErr := store.ReadFile(zefs.KeyWebKey.Pattern)
 	if keyErr != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-tls-invalid",
+			Code:     diagnosticTLSInvalid,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str("web: key present in storage but cannot be read: ").Err(keyErr).String(),
 			Path:     zefs.KeyWebKey.Pattern,
@@ -104,7 +114,7 @@ func checkWebTLSPair(certData []byte, store storage.Storage) []diagnostic.Diagno
 	// block types it skipped, and those come from the key file.
 	if _, err := tls.X509KeyPair(certData, keyData); err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-tls-invalid",
+			Code:     diagnosticTLSInvalid,
 			Severity: diagnostic.SeverityError,
 			Message:  "web: certificate and key in storage are not a usable pair",
 			Path:     zefs.KeyWebCert.Pattern,
@@ -129,7 +139,7 @@ func checkPKICerts(tree *config.Tree) []diagnostic.Diagnostic {
 		certData, ok := ca.Value.Get("certificate")
 		if !ok || certData == "" {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-pki-cert",
+				Code:     diagnosticPKICert,
 				Severity: diagnostic.SeverityError,
 				Message:  tb.Reset().Str("PKI CA ").Str(ca.Key).Str(": certificate missing").String(),
 				Path:     path,
@@ -144,7 +154,7 @@ func checkPKICerts(tree *config.Tree) []diagnostic.Diagnostic {
 		certData, ok := cert.Value.Get("certificate")
 		if !ok || certData == "" {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-pki-cert",
+				Code:     diagnosticPKICert,
 				Severity: diagnostic.SeverityError,
 				Message:  tb.Reset().Str("PKI certificate ").Str(cert.Key).Str(": certificate missing").String(),
 				Path:     path,
@@ -162,7 +172,7 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 	der, err := base64.StdEncoding.DecodeString(value)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-pki-cert",
+			Code:     diagnosticPKICert,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Str(service).Str(": certificate is not base64 DER: ").Err(err).String(),
 			Path:     path,
@@ -172,7 +182,7 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 	cert, err := x509.ParseCertificate(der)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-pki-cert",
+			Code:     diagnosticPKICert,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str(service).Str(": cannot parse certificate: ").Err(err).String(),
 			Path:     path,
@@ -183,7 +193,7 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 	notAfter := cert.NotAfter.Format(time.RFC3339)
 	if now.After(cert.NotAfter) {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-pki-cert",
+			Code:     diagnosticPKICert,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str(service).Str(": certificate expired on ").Str(notAfter).String(),
 			Path:     path,
@@ -194,7 +204,7 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 	if now.Before(cert.NotBefore) {
 		notBefore := cert.NotBefore.Format(time.RFC3339)
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-pki-cert",
+			Code:     diagnosticPKICert,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str(service).Str(": certificate not yet valid (starts ").Str(notBefore).Byte(')').String(),
 			Path:     path,
@@ -206,7 +216,7 @@ func checkBase64DERCert(service, path, value string) []diagnostic.Diagnostic {
 	daysLeft := int(time.Until(cert.NotAfter).Hours() / 24)
 	if daysLeft < 30 {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-pki-cert",
+			Code:     diagnosticPKICert,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Reset().Str(service).Str(": certificate expires in ").Int(int64(daysLeft)).Str(" days (").Str(notAfter).Byte(')').String(),
 			Path:     path,
@@ -228,7 +238,7 @@ func checkCertPair(service, certPath, keyPath, configDir string) []diagnostic.Di
 		data, err := os.ReadFile(resolved) //nolint:gosec // cert path from parsed config
 		if err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-tls-missing",
+				Code:     diagnosticTLSMissing,
 				Severity: diagnostic.SeverityError,
 				Message:  tb.Reset().Str(service).Str(": certificate not found: ").Str(resolved).String(),
 				Path:     resolved,
@@ -242,7 +252,7 @@ func checkCertPair(service, certPath, keyPath, configDir string) []diagnostic.Di
 		resolved := resolvePath(keyPath, configDir)
 		if _, err := os.Stat(resolved); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-tls-missing",
+				Code:     diagnosticTLSMissing,
 				Severity: diagnostic.SeverityError,
 				Message:  tb.Reset().Str(service).Str(": key not found: ").Str(resolved).String(),
 				Path:     resolved,
@@ -258,7 +268,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 	block, _ := pem.Decode(pemData)
 	if block == nil {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-tls-invalid",
+			Code:     diagnosticTLSInvalid,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Str(service).Str(": ").Str(path).Str(": not valid PEM").String(),
 			Path:     path,
@@ -267,7 +277,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-tls-invalid",
+			Code:     diagnosticTLSInvalid,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Reset().Str(service).Str(": ").Str(path).Str(": cannot parse certificate: ").Err(err).String(),
 			Path:     path,
@@ -277,7 +287,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 	ts := cert.NotAfter.Format(time.RFC3339)
 	if now.After(cert.NotAfter) {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-tls-expired",
+			Code:     diagnosticTLSExpired,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str(service).Str(": certificate expired on ").Str(ts).String(),
 			Path:     path,
@@ -288,7 +298,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 	if now.Before(cert.NotBefore) {
 		notBefore := cert.NotBefore.Format(time.RFC3339)
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-tls-expired",
+			Code:     diagnosticTLSExpired,
 			Severity: diagnostic.SeverityError,
 			Message:  tb.Reset().Str(service).Str(": certificate not yet valid (starts ").Str(notBefore).Byte(')').String(),
 			Path:     path,
@@ -300,7 +310,7 @@ func checkCertExpiry(service, path string, pemData []byte) []diagnostic.Diagnost
 	daysLeft := int(time.Until(cert.NotAfter).Hours() / 24)
 	if daysLeft < 30 {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-tls-expired",
+			Code:     diagnosticTLSExpired,
 			Severity: diagnostic.SeverityWarning,
 			Message:  tb.Reset().Str(service).Str(": certificate expires in ").Int(int64(daysLeft)).Str(" days (").Str(ts).Byte(')').String(),
 			Path:     path,

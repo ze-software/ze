@@ -279,7 +279,7 @@ func init() {
 	reg := registry.Registration{
 		Name:        "ike",
 		Description: "IKEv2 engine for native IPsec VPN",
-		ConfigRoots: []string{"vpn", "pki"},
+		ConfigRoots: []string{configRootVPN, configRootPKI},
 		RunEngine:   runEngine,
 		// The SAME chain the runtime OnConfigVerify below runs, reached OFFLINE by
 		// ze config validate and by the web and hub commit paths
@@ -305,9 +305,9 @@ func init() {
 			Name:         "ipsec-interface",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        730,
-			Dependencies: []string{"config-loaded", "interface"},
-			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-ipsec-iface"},
+			Dependencies: []string{doctorDepConfigLoaded, "interface"},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnosticIPsecIface},
 			Check:        checkIPsecInterface,
 		}, {
 			// RFC 7296 Section 2.23 makes receiving UDP-encapsulated ESP a MUST. The
@@ -316,9 +316,9 @@ func init() {
 			Name:         "ipsec-udp-encap",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        731,
-			Dependencies: []string{"config-loaded"},
-			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-ipsec-udp-encap"},
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnosticIPsecUDPEncap},
 			Check:        checkIPsecUDPEncap,
 		}, {
 			// RFC 7296 Section 3.6's hash-and-url is an outbound network dependency:
@@ -328,9 +328,9 @@ func init() {
 			Name:         "ipsec-cert-url",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        732,
-			Dependencies: []string{"config-loaded"},
-			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-ipsec-cert-url", "doctor-ipsec-cert-url-denied"},
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnosticIPsecCertURL, diagnosticIPsecCertURLDenied},
 			Check:        checkIPsecCertURL,
 		}, {
 			// RFC 7296 Section 2.6's COOKIE challenge is gated on a count whose
@@ -339,9 +339,9 @@ func init() {
 			Name:         "ipsec-cookie-threshold",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        733,
-			Dependencies: []string{"config-loaded"},
-			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-ipsec-cookie-threshold"},
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnosticIPsecCookieThreshold},
 			Check:        checkIPsecCookieThreshold,
 		}, {
 			// Every Child SA ze installs goes through XFRM. A host whose XFRM
@@ -352,9 +352,9 @@ func init() {
 			Name:         "ipsec-xfrm",
 			Phase:        rpc.DoctorPhasePostConfig,
 			Order:        734,
-			Dependencies: []string{"config-loaded"},
-			Platforms:    []string{"any"},
-			Codes:        []string{"doctor-ipsec-xfrm-unavailable"},
+			Dependencies: []string{doctorDepConfigLoaded},
+			Platforms:    []string{doctorPlatformAny},
+			Codes:        []string{diagnosticIPsecXFRMUnavailable},
 			Check:        checkXFRMReachable,
 		}},
 	}
@@ -673,7 +673,7 @@ func runEngine(conn net.Conn) int {
 	defer cancel()
 
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"vpn"},
+		WantsConfig: []string{configRootVPN},
 	}); err != nil {
 		log.Error("ike engine failed", "error", err)
 		return 1

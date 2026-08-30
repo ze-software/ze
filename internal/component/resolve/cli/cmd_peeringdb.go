@@ -15,7 +15,7 @@ import (
 
 const defaultPeeringDBURL = "https://www.peeringdb.com"
 
-var peeringDBOperations = []string{"max-prefix", "as-set"}
+var peeringDBOperations = []string{"max-prefix", opASSet}
 
 func cmdPeeringDB(ctx context.Context, args []string) int {
 	if len(args) > 0 && isHelp(args[0]) {
@@ -61,7 +61,7 @@ func cmdPeeringDB(ctx context.Context, args []string) int {
 			fmt.Fprintf(os.Stderr, "warning: both counts are zero (ASN may not be in PeeringDB)\n")
 		}
 
-	case "as-set":
+	case opASSet:
 		sets, lookupErr := c.LookupASSet(ctx, uint32(asn))
 		if lookupErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", lookupErr)

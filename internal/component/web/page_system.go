@@ -52,7 +52,7 @@ func buildSystemIdentityFormData(tree *config.Tree) WorkbenchFormData {
 				Name:        "hostname",
 				Path:        "system/host",
 				Label:       "Hostname",
-				Type:        "text",
+				Type:        wbFormTextType,
 				Value:       hostname,
 				Description: "System hostname (supports $ENV_VAR expansion)",
 			},
@@ -60,7 +60,7 @@ func buildSystemIdentityFormData(tree *config.Tree) WorkbenchFormData {
 				Name:        "domain",
 				Path:        "system/domain",
 				Label:       "Domain",
-				Type:        "text",
+				Type:        wbFormTextType,
 				Value:       domain,
 				Description: "System domain name",
 			},
@@ -192,7 +192,7 @@ func collectUsers(tree *config.Tree) []userEntry {
 // buildUsersTableData constructs a WorkbenchTableData for the users page.
 func buildUsersTableData(users []userEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: "Username", Sortable: true},
+		{Key: colName, Label: labelUsername, Sortable: true},
 		{Key: "profiles", Label: "Profiles"},
 		{Key: "keys", Label: "SSH Keys"},
 	}
@@ -284,7 +284,7 @@ func buildResourcesData() resourcesData {
 func resourceRows(data resourcesData) []detailKV {
 	return []detailKV{
 		{Key: "Version", Value: data.Version},
-		{Key: "Uptime", Value: data.Uptime},
+		{Key: labelUptime, Value: data.Uptime},
 		{Key: "CPU Cores", Value: strconv.Itoa(data.CPUCount)},
 		{Key: "GOMAXPROCS", Value: strconv.Itoa(data.GOMAXPROCS)},
 		{Key: "Goroutines", Value: strconv.Itoa(data.Goroutines)},
@@ -485,7 +485,7 @@ func buildHostHardwareData() []hardwareSection {
 	if len(sections) == 0 {
 		sections = append(sections, hardwareSection{
 			Title: "Info",
-			Items: []HardwareItem{{Key: "Status", Value: "No hardware information detected"}},
+			Items: []HardwareItem{{Key: labelStatus, Value: "No hardware information detected"}},
 		})
 	}
 
@@ -544,7 +544,7 @@ func collectSysctlProfiles(tree *config.Tree) []sysctlProfileEntry {
 // buildSysctlProfilesTableData constructs a WorkbenchTableData for the sysctl profiles page.
 func buildSysctlProfilesTableData(profiles []sysctlProfileEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: labelName, Sortable: true},
+		{Key: colName, Label: labelName, Sortable: true},
 		{Key: "settings", Label: "Settings", Sortable: true},
 	}
 

@@ -213,7 +213,7 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo,
 			child := map[string]any{
 				"inbound-spi":    info.ChildInSPI,
 				"outbound-spi":   info.ChildOutSPI,
-				"if-id":          info.ChildIfID,
+				jsonKeyIfID:      info.ChildIfID,
 				"ts-local":       info.TSLocal,
 				"ts-remote":      info.TSRemote,
 				"esp-encryption": info.ESPEncryption,

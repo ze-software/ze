@@ -22,7 +22,7 @@ func init() {
 
 func dnsCacheUnavailableResponse() *plugin.Response {
 	if resolvers == nil || resolvers.DNS == nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: "DNS cache not available"}
+		return &plugin.Response{Status: plugin.StatusError, Error: msgCacheUnavailable}
 	}
 	return nil
 }
@@ -35,7 +35,7 @@ func handleClearDNSCache(_ *pluginserver.CommandContext, args []string) (*plugin
 		return &plugin.Response{Status: plugin.StatusError, Error: "clear dns cache: unexpected arguments"}, nil
 	}
 	resolvers.DNS.CacheClear()
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"action": "clear-all"}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{keyAction: "clear-all"}}, nil
 }
 
 func handleClearDNSCacheStats(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
@@ -46,7 +46,7 @@ func handleClearDNSCacheStats(_ *pluginserver.CommandContext, args []string) (*p
 		return &plugin.Response{Status: plugin.StatusError, Error: "clear dns cache stats: unexpected arguments"}, nil
 	}
 	resolvers.DNS.CacheResetStats()
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"action": "reset-stats"}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{keyAction: "reset-stats"}}, nil
 }
 
 func handleClearDNSCacheRecord(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
@@ -62,22 +62,22 @@ func handleClearDNSCacheRecord(_ *pluginserver.CommandContext, args []string) (*
 	name := args[0]
 	typeName := ""
 	if len(args) == 3 {
-		if args[1] != "type" {
+		if args[1] != argType {
 			return &plugin.Response{Status: plugin.StatusError, Error: "clear dns cache record: expected type <record-type>"}, nil
 		}
 		typeName = args[2]
 	}
 	if typeName == "" {
 		removed := resolvers.DNS.CacheDeleteByName(name)
-		result := plugin.Map{"action": "delete-entry", "name": name, "removed": removed}
+		result := plugin.Map{keyAction: actionDeleteEntry, keyName: name, "removed": removed}
 		return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
 	}
 	qtype, ok := mdns.StringToType[strings.ToUpper(typeName)]
 	if !ok {
-		result := plugin.Map{"action": "delete-entry", "error": "unknown type: " + typeName}
+		result := plugin.Map{keyAction: actionDeleteEntry, "error": "unknown type: " + typeName}
 		return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
 	}
 	found := resolvers.DNS.CacheDelete(name, qtype)
-	result := plugin.Map{"action": "delete-entry", "name": name, "type": typeName, "found": found}
+	result := plugin.Map{keyAction: actionDeleteEntry, keyName: name, keyType: typeName, "found": found}
 	return &plugin.Response{Status: plugin.StatusDone, Data: result}, nil
 }

@@ -32,6 +32,18 @@ const Name = "traffic-usage"
 // ConfigRoots/WantsConfig entries.
 const configRoot = "traffic/usage"
 
+// dependencyInterface is the plugin this one requires, labelInterface and
+// labelProtocol are the metric labels its series carry, and keyInterface and
+// keyProtocol are the response payload keys. They repeat two spellings across
+// three surfaces: a rename of one must not rename the others.
+const (
+	dependencyInterface = "interface"
+	labelInterface      = "interface"
+	labelProtocol       = "protocol"
+	keyInterface        = "interface"
+	keyProtocol         = "protocol"
+)
+
 // loggerPtr holds the package logger, primed to a discard logger so calls made
 // before ConfigureEngineLogger are safe.
 var loggerPtr atomic.Pointer[slog.Logger]

@@ -132,7 +132,7 @@ func parseInterAS(m map[string]any, ifaceName string) (interASConfig, error) {
 		ia.RemoteASBRv6 = addr.As16()
 		ia.HasRemoteASBRv6 = true
 	}
-	if s := configString(m["scope"]); s != "" {
+	if s := configString(m[labelScope]); s != "" {
 		switch s {
 		case scopeAreaName:
 			ia.Scope = OpaqueScopeArea

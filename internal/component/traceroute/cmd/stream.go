@@ -333,7 +333,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 
 	for i := range limit {
 		r := &results[i]
-		hop := map[string]any{"ttl": i + 1}
+		hop := map[string]any{fieldTTL: i + 1}
 		if r.hasRTT {
 			hop["addr"] = r.addr
 			hop["rtt-ms"] = r.rttMS

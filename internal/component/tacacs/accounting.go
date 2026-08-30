@@ -174,7 +174,7 @@ func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) st
 		AuthenType:    0x01, // ASCII
 		AuthenService: 0x01, // login
 		User:          username,
-		Port:          "ssh",
+		Port:          portSSH,
 		RemAddr:       remoteAddr,
 		Args:          args,
 	}
@@ -202,7 +202,7 @@ func (a *TacacsAccountant) CommandStop(taskID, username, remoteAddr, command str
 		AuthenType:    0x01,
 		AuthenService: 0x01,
 		User:          username,
-		Port:          "ssh",
+		Port:          portSSH,
 		RemAddr:       remoteAddr,
 		Args:          stopArgs,
 	}

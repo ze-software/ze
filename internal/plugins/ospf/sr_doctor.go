@@ -46,15 +46,15 @@ func checkOSPFSegmentRouting(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 	if !ok || tree == nil {
 		return nil
 	}
-	ospfTree := tree.GetContainer("ospf")
+	ospfTree := tree.GetContainer(Namespace)
 	if ospfTree == nil {
 		return nil
 	}
-	data, err := json.Marshal(map[string]any{"ospf": ospfTree.ToMap()})
+	data, err := json.Marshal(map[string]any{Namespace: ospfTree.ToMap()})
 	if err != nil {
 		return nil
 	}
-	v4, v6 := extractSRConfigs([]configSection{{Root: "ospf", Data: string(data)}})
+	v4, v6 := extractSRConfigs([]configSection{{Root: Namespace, Data: string(data)}})
 	diags := make([]diagnostic.Diagnostic, 0, 2)
 	diags = append(diags, srConfigDiagnostics(v4)...)
 	diags = append(diags, srConfigDiagnostics(v6)...)

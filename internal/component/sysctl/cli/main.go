@@ -15,7 +15,10 @@ import (
 	sysctlreg "github.com/ze-software/ze/internal/core/sysctl"
 )
 
-const commandList = "list"
+const (
+	commandList         = "list"
+	commandListProfiles = "list-profiles"
+)
 
 // Run executes the sysctl subcommand. Returns exit code.
 func Run(args []string) int {
@@ -37,7 +40,7 @@ func Run(args []string) int {
 		return cmdList(subArgs)
 	case "describe":
 		return cmdDescribe(subArgs)
-	case "list-profiles":
+	case commandListProfiles:
 		return cmdListProfiles(subArgs)
 	case "describe-profile":
 		return cmdDescribeProfile(subArgs)
@@ -49,7 +52,7 @@ func Run(args []string) int {
 
 	fmt.Fprintf(os.Stderr, "error: unknown sysctl subcommand: %s\n", subcmd)
 	if s := suggest.Command(subcmd, []string{
-		commandList, "describe", "list-profiles", "describe-profile", "show", "set", "help",
+		commandList, "describe", commandListProfiles, "describe-profile", "show", "set", "help",
 	}); s != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 	}
@@ -238,7 +241,7 @@ func usage() {
 			{Title: "Offline Commands (no daemon needed)", Entries: []helpfmt.HelpEntry{
 				{Name: commandList, Desc: "List all known sysctl keys with descriptions"},
 				{Name: "describe <key>", Desc: "Show detail for one known key"},
-				{Name: "list-profiles", Desc: "List all registered sysctl profiles"},
+				{Name: commandListProfiles, Desc: "List all registered sysctl profiles"},
 				{Name: "describe-profile <name>", Desc: "Show detail for one sysctl profile"},
 			}},
 			{Title: "Daemon Commands (requires running ze)", Entries: []helpfmt.HelpEntry{

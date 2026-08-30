@@ -35,7 +35,7 @@ func (c *cpuIdleCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_cpuidle_cpu_cstate_residency_time_percentage_average",
 		"CPU C-State Residency",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

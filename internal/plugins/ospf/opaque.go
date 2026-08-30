@@ -79,11 +79,11 @@ func nopOpaqueMetrics() opaqueMetrics {
 
 func (e *engine) setOpaqueMetrics(reg metrics.Registry) {
 	e.opaque = opaqueMetrics{
-		lsas:         reg.GaugeVec("ze_ospf_opaque_lsas", "Current OSPF opaque LSAs in the database, by flooding scope and opaque type.", []string{"scope", "opaque_type"}),
-		originations: reg.CounterVec("ze_ospf_opaque_originations_total", "Total OSPF opaque LSAs originated by a registered consumer, by opaque type.", []string{"opaque_type"}),
-		received:     reg.CounterVec("ze_ospf_opaque_received_total", "Total newer OSPF opaque LSAs received, by opaque type and whether a consumer is registered.", []string{"opaque_type", "registered"}),
-		consumerEr:   reg.CounterVec("ze_ospf_opaque_consumer_errors_total", "Total OSPF opaque consumer callback panics recovered by the carrier, by opaque type.", []string{"opaque_type"}),
-		capableNbrs:  reg.GaugeVec("ze_ospf_opaque_capable_neighbors", "Current opaque-capable OSPF neighbors (O-bit set in their DD), by interface.", []string{"interface"}),
+		lsas:         reg.GaugeVec("ze_ospf_opaque_lsas", "Current OSPF opaque LSAs in the database, by flooding scope and opaque type.", []string{labelScope, labelOpaqueType}),
+		originations: reg.CounterVec("ze_ospf_opaque_originations_total", "Total OSPF opaque LSAs originated by a registered consumer, by opaque type.", []string{labelOpaqueType}),
+		received:     reg.CounterVec("ze_ospf_opaque_received_total", "Total newer OSPF opaque LSAs received, by opaque type and whether a consumer is registered.", []string{labelOpaqueType, "registered"}),
+		consumerEr:   reg.CounterVec("ze_ospf_opaque_consumer_errors_total", "Total OSPF opaque consumer callback panics recovered by the carrier, by opaque type.", []string{labelOpaqueType}),
+		capableNbrs:  reg.GaugeVec("ze_ospf_opaque_capable_neighbors", "Current opaque-capable OSPF neighbors (O-bit set in their DD), by interface.", []string{labelInterface}),
 	}
 	// Fresh trackers for the newly bound gauges, so a label set drained under the previous
 	// (nop) registry does not leak a stale zeroing onto the real series.

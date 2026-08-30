@@ -10,10 +10,10 @@ import (
 
 // zeFamilyToFRR maps Ze family strings to FRR address-family names.
 var zeFamilyToFRR = map[string]string{
-	"ipv4/unicast":   "ipv4 unicast",
-	"ipv6/unicast":   "ipv6 unicast",
-	"ipv4/multicast": "ipv4 multicast",
-	"ipv6/multicast": "ipv6 multicast",
+	familyIPv4Unicast:   "ipv4 unicast",
+	familyIPv6Unicast:   "ipv6 unicast",
+	familyIPv4Multicast: "ipv4 multicast",
+	familyIPv6Multicast: "ipv6 multicast",
 }
 
 // GenerateFRRConfig produces an FRR bgpd.conf from the given parameters.
@@ -67,7 +67,7 @@ func writeFRRAddressFamily(b *textbuf.Buffer, frrFam, zeFam string, profiles []P
 	for i := range profiles {
 		families := profiles[i].Families
 		if len(families) == 0 {
-			families = []string{"ipv4/unicast"}
+			families = []string{familyIPv4Unicast}
 		}
 		if !hasFamily(families, zeFam) {
 			continue
@@ -88,7 +88,7 @@ func collectFamilies(profiles []PeerProfile) []string {
 	for i := range profiles {
 		families := profiles[i].Families
 		if len(families) == 0 {
-			families = []string{"ipv4/unicast"}
+			families = []string{familyIPv4Unicast}
 		}
 		for _, f := range families {
 			if !seen[f] {

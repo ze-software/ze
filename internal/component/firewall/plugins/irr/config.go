@@ -90,14 +90,14 @@ func parseIRRConfig(sections []sdk.ConfigSection) *irrConfig {
 		PeeringDBURL: defaultPeeringDBURL,
 	}
 	for _, s := range sections {
-		if s.Root != "firewall" {
+		if s.Root != configRoot {
 			continue
 		}
 		var root map[string]any
 		if json.Unmarshal([]byte(s.Data), &root) != nil {
 			continue
 		}
-		fw, ok := root["firewall"].(map[string]any)
+		fw, ok := root[configRoot].(map[string]any)
 		if !ok {
 			continue
 		}
@@ -130,7 +130,7 @@ type refKey struct {
 }
 
 func extractRefsFromConfig(root map[string]any) []irrRef {
-	fw, ok := root["firewall"].(map[string]any)
+	fw, ok := root[configRoot].(map[string]any)
 	if !ok {
 		return nil
 	}

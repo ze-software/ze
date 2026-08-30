@@ -33,6 +33,10 @@ import (
 // balances convergence latency against thrash on a flapping link.
 const DefaultDebounce = 200 * time.Millisecond
 
+// labelLevel is the Prometheus label that carries the IS-IS level (1 or 2) a
+// sample belongs to.
+const labelLevel = "level"
+
 // spfDurationBuckets are the histogram buckets for ze_isis_spf_duration_seconds:
 // SPF over a small-to-medium area runs in microseconds to low milliseconds, so
 // the buckets span 50us..500ms to keep useful resolution at both ends.
@@ -183,18 +187,18 @@ func (c *Computer) SetMetrics(reg metrics.Registry) {
 	c.mRuns = reg.CounterVec(
 		"ze_isis_spf_runs_total",
 		"Total IS-IS SPF (Dijkstra) runs, by level.",
-		[]string{"level"},
+		[]string{labelLevel},
 	)
 	c.mDuration = reg.HistogramVec(
 		"ze_isis_spf_duration_seconds",
 		"IS-IS SPF run duration in seconds, by level.",
 		spfDurationBuckets,
-		[]string{"level"},
+		[]string{labelLevel},
 	)
 	c.mNodes = reg.GaugeVec(
 		"ze_isis_spf_nodes",
 		"Number of nodes in the last IS-IS SPF run, by level.",
-		[]string{"level"},
+		[]string{labelLevel},
 	)
 	c.mu.Unlock()
 	c.installer.SetMetrics(reg)

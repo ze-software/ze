@@ -191,7 +191,7 @@ func TestHandleVizPanels(t *testing.T) {
 	defer d.broker.Close()
 	d.state.StartTime = time.Now()
 
-	req := httptest.NewRequest("GET", "/viz/panels", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/viz/panels", http.NoBody)
 	rec := httptest.NewRecorder()
 	d.handleVizPanels(rec, req)
 
@@ -221,7 +221,7 @@ func TestHandleVizPanelContent(t *testing.T) {
 	defer d.broker.Close()
 	d.state.StartTime = time.Now()
 
-	req := httptest.NewRequest("GET", "/viz/panel-content?panel=1&viz=families", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/viz/panel-content?panel=1&viz=families", http.NoBody)
 	rec := httptest.NewRecorder()
 	d.handleVizPanelContent(rec, req)
 
@@ -261,7 +261,7 @@ func TestHandleVizPanelContentInvalidPanel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest("GET", tt.query, http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), "GET", tt.query, http.NoBody)
 			rec := httptest.NewRecorder()
 			d.handleVizPanelContent(rec, req)
 			if rec.Code != http.StatusBadRequest {
@@ -281,7 +281,7 @@ func TestHandleVizPanelContentInvalidViz(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest("GET", "/viz/panel-content?panel=0&viz=nonexistent", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/viz/panel-content?panel=0&viz=nonexistent", http.NoBody)
 	rec := httptest.NewRecorder()
 	d.handleVizPanelContent(rec, req)
 	if rec.Code != http.StatusBadRequest {
@@ -316,7 +316,7 @@ func TestIsValidVizName(t *testing.T) {
 func TestPanelSelectionsFromRequest(t *testing.T) {
 	t.Parallel()
 
-	req := httptest.NewRequest("GET", "/viz/panels?p0=events&p2=route-matrix", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/viz/panels?p0=events&p2=route-matrix", http.NoBody)
 	selections := panelSelectionsFromRequest(req)
 
 	if selections[0] != "events" {

@@ -107,7 +107,7 @@ func routeNetNSName(testName string) string {
 func addRouteTestLink(t *testing.T) {
 	t.Helper()
 
-	if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: routeTestLink}}); err != nil {
+	if err := netlink.LinkAdd(&netlink.Dummy{Name: routeTestLink}); err != nil {
 		t.Fatalf("add dummy %q: %v", routeTestLink, err)
 	}
 	link, err := netlink.LinkByName(routeTestLink)

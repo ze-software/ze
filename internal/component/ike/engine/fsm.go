@@ -1083,7 +1083,7 @@ func buildPeerTLSConfig(sa *SA, log *slog.Logger) *eap.PeerTLSConfig {
 		return nil
 	}
 
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.Raw})
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: entry.Raw})
 	if entry.PrivateKey == nil {
 		log.Warn("ike: client certificate has no private key", "peer", sa.PeerName, "cert", certName)
 		return nil
@@ -1116,7 +1116,7 @@ func buildPeerTLSConfig(sa *SA, log *slog.Logger) *eap.PeerTLSConfig {
 		log.Warn("ike: EAP-TLS ca-certificate not found in PKI store", "peer", sa.PeerName, "ca", caName)
 		return nil
 	}
-	cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
+	cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: ca.Raw})
 
 	return cfg
 }

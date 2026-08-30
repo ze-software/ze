@@ -25,7 +25,7 @@ func (c *loadAvgCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_system_load_load_average",
 		"System Load Average",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

@@ -70,6 +70,14 @@ const (
 	relatedMaxResolvedCmdLen   = 4096
 )
 
+// The placeholder sources that take a relative path argument. Resolve switches
+// on them and validateRelatedTemplate checks the same pair, so a source added
+// to one and not the other is a template that validates and never resolves.
+const (
+	relatedSourcePath        = "path"
+	relatedSourcePathInherit = "path-inherit"
+)
+
 // Resolve substitutes placeholders in tool.Command using values from the
 // working tree at contextPath. Returns:
 //   - (resolution, nil) on success or graceful disable.
@@ -231,10 +239,10 @@ func (r *RelatedResolver) resolvePlaceholder(body string, contextPath []string, 
 		}
 		return v, true, nil
 
-	case "path":
+	case relatedSourcePath:
 		return r.resolvePath(args, contextPath, rowSubtree, false)
 
-	case "path-inherit":
+	case relatedSourcePathInherit:
 		return r.resolvePath(args, contextPath, rowSubtree, true)
 
 	default:
@@ -301,7 +309,7 @@ func validatePlaceholderDepths(template string) error {
 
 		source, args, _ := strings.Cut(body, ":")
 		source = strings.TrimSpace(source)
-		if source != "path" && source != "path-inherit" {
+		if source != relatedSourcePath && source != relatedSourcePathInherit {
 			continue
 		}
 		rel, _, _ := strings.Cut(strings.TrimSpace(args), "|")

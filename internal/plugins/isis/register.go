@@ -133,11 +133,11 @@ func registerISIS() {
 	registerISISDoctor()
 
 	reg := registry.Registration{
-		Name:         "isis",
+		Name:         componentName,
 		Description:  "Intermediate System to Intermediate System (ISO/IEC 10589, RFC 1195): native link-state IGP",
 		Features:     "yang",
 		YANG:         isisyang.ZeIsisConfYANG,
-		ConfigRoots:  []string{"isis"},
+		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"fib-kernel", "sysctl"},
 		RFCs:         []string{"1195", "5301", "5303", "5305", "5308", "5310"},
 		RunEngine:    runISISEngine,
@@ -188,7 +188,7 @@ func registerISISDoctor() {
 		Name:         "isis-config-sanity",
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        731, // just after the isis-3 raw-socket check (730)
-		Component:    "isis",
+		Component:    componentName,
 		Dependencies: []string{"config-tree"}, // reads the parsed isis config block
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{codeNETMissing, codeSystemIDMismatch},
@@ -228,7 +228,7 @@ func runISISEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("isis engine starting")
 
-	p := sdk.NewWithConn("isis", conn)
+	p := sdk.NewWithConn(componentName, conn)
 	defer func() { _ = p.Close() }()
 
 	// Ship SPF routes to the engine over RPC when IS-IS runs FORKED (locrib.Default()
@@ -365,30 +365,30 @@ func runISISEngine(conn net.Conn) int {
 	p.OnExecuteCommand(func(_, command string, _ []string, _ string) (string, any, error) {
 		const statusDone = "done"
 		switch command {
-		case "show isis neighbor":
+		case cmdShowNeighbor:
 			return statusDone, eng.neighborSnapshot(), nil
-		case "show isis database":
+		case cmdShowDatabase:
 			return statusDone, eng.databaseSnapshot(), nil
-		case "show isis database detail":
+		case cmdShowDatabaseDetail:
 			return statusDone, eng.databaseDetailSnapshot(), nil
-		case "show isis route":
+		case cmdShowRoute:
 			return statusDone, eng.routeSnapshot(), nil
-		case "show isis route ipv6":
+		case cmdShowRouteIPv6:
 			// IPv6 route table (isis-12); isis-13 refines the grammar/rendering.
 			return statusDone, eng.routeSnapshotV6(), nil
-		case "show isis interface":
+		case cmdShowInterface:
 			return statusDone, eng.interfaceSnapshot(), nil
-		case "show isis hostname":
+		case cmdShowHostname:
 			// System ID -> dynamic hostname mapping (TLV 137, RFC 5301).
 			return statusDone, eng.hostnameSnapshot(), nil
-		case "show isis spf-log":
+		case cmdShowSPFLog:
 			return statusDone, eng.spfLogView(), nil
-		case "clear isis adjacency":
+		case cmdClearAdjacency:
 			n := eng.clearAdjacencies()
-			return statusDone, clearResult{Action: "clear isis adjacency", Cleared: n}, nil
-		case "clear isis counters":
+			return statusDone, clearResult{Action: cmdClearAdjacency, Cleared: n}, nil
+		case cmdClearCounters:
 			eng.clearCounters()
-			return statusDone, clearResult{Action: "clear isis counters", Cleared: 0}, nil
+			return statusDone, clearResult{Action: cmdClearCounters, Cleared: 0}, nil
 		default:
 			return "error", "", fmt.Errorf("unknown command: %s", command)
 		}
@@ -397,20 +397,20 @@ func runISISEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"isis"},
+		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
-			{Name: "show isis neighbor"},
-			{Name: "show isis database"},
-			{Name: "show isis database detail"},
-			{Name: "show isis route"},
-			{Name: "show isis route ipv6"},
-			{Name: "show isis interface"},
-			{Name: "show isis hostname"},
-			{Name: "show isis spf-log"},
-			{Name: "clear isis adjacency"},
-			{Name: "clear isis counters"},
+			{Name: cmdShowNeighbor},
+			{Name: cmdShowDatabase},
+			{Name: cmdShowDatabaseDetail},
+			{Name: cmdShowRoute},
+			{Name: cmdShowRouteIPv6},
+			{Name: cmdShowInterface},
+			{Name: cmdShowHostname},
+			{Name: cmdShowSPFLog},
+			{Name: cmdClearAdjacency},
+			{Name: cmdClearCounters},
 		},
 	})
 	if err != nil {

@@ -188,10 +188,10 @@ func (e *engine) decodeOpaqueBody(row *opaqueDetailLSA, opaqueType uint8, body [
 func opaqueScopeCommand(scope OpaqueScope) string {
 	switch scope {
 	case OpaqueScopeLink:
-		return "show ospf database opaque-link"
+		return cmdShowDatabaseOpaqueLink
 	case OpaqueScopeAS:
-		return "show ospf database opaque-as"
+		return cmdShowDatabaseOpaqueAS
 	default:
-		return "show ospf database opaque-area"
+		return cmdShowDatabaseOpaqueArea
 	}
 }

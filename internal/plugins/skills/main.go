@@ -14,6 +14,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// flagJSON is the CLI flag that selects structured output.
+const flagJSON = "--json"
+
 //go:embed data/*.md
 var skillFS embed.FS
 
@@ -57,7 +60,7 @@ func Run(args []string) int {
 func runList(args []string) int {
 	jsonOutput := false
 	for _, a := range args {
-		if a == "--json" {
+		if a == flagJSON {
 			jsonOutput = true
 		}
 	}
@@ -94,7 +97,7 @@ func runGet(args []string) int {
 
 	for _, a := range args {
 		switch a {
-		case "--json":
+		case flagJSON:
 			jsonOutput = true
 		case "--full":
 			full = true
@@ -177,7 +180,7 @@ func usage() {
 				{Name: "get <name>", Desc: "Retrieve skill content by name"},
 			}},
 			{Title: "Options", Entries: []helpfmt.HelpEntry{
-				{Name: "--json", Desc: "Output as structured JSON"},
+				{Name: flagJSON, Desc: "Output as structured JSON"},
 				{Name: "--full", Desc: "Return expanded content (with examples and patterns)"},
 			}},
 		},

@@ -11,9 +11,9 @@ SSH-accessible CLI, HTMX web UI, and agent-facing tooling.
 ## Agent Entry Points
 
 ```sh
-ze config validate --json <file>
+ze cli -c "validate config <file> | json"
 ze explain [--json] <diagnostic-code>
-ze config fix --plan --json <file>
+ze config fix --plan <file>
 ze help ai --json
 ze skills list [--json]
 ze skills get <name> [--full] [--json]
@@ -21,10 +21,10 @@ ze skills get <name> [--full] [--json]
 
 ## Diagnostic Loop
 
-1. Run `ze config validate --json <file>` to get structured diagnostics.
+1. Run `ze cli -c "validate config <file> | json"` to get structured diagnostics.
 2. For each diagnostic, check `code` and `help` fields.
 3. Run `ze explain <code>` for codes you do not recognize.
-4. Run `ze config fix --plan --json <file>` for repair candidates.
+4. Run `ze config fix --plan <file>` for repair candidates.
 5. Apply the smallest fix, then re-validate.
 
 ## Skills

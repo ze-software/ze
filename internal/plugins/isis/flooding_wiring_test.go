@@ -402,7 +402,7 @@ func buildProbeCSNP(t *testing.T, id types.LSPID) []byte {
 // metric assertions).
 func scrapeEngine(t *testing.T, reg *metrics.PrometheusRegistry) string {
 	t.Helper()
-	req := httptest.NewRequest("GET", "/metrics", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/metrics", http.NoBody)
 	w := httptest.NewRecorder()
 	reg.Handler().ServeHTTP(w, req)
 	return w.Body.String()

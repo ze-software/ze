@@ -54,11 +54,9 @@ type INET struct {
 // Use WriteNLRI() with addPath=true to encode with path ID.
 func NewINET(fam family.Family, prefix netip.Prefix, pathID uint32) *INET {
 	return &INET{
-		PrefixNLRI: PrefixNLRI{
-			fam:    fam,
-			prefix: prefix,
-			pathID: pathID,
-		},
+		fam:    fam,
+		prefix: prefix,
+		pathID: pathID,
 	}
 }
 
@@ -138,11 +136,9 @@ func ParseINET(afi family.AFI, safi family.SAFI, data []byte, addpath bool) (NLR
 	}
 
 	inet := &INET{
-		PrefixNLRI: PrefixNLRI{
-			fam:    family.Family{AFI: afi, SAFI: safi},
-			prefix: prefix,
-			pathID: pathID,
-		},
+		fam:    family.Family{AFI: afi, SAFI: safi},
+		prefix: prefix,
+		pathID: pathID,
 	}
 
 	return inet, data[offset+prefixBytes:], nil

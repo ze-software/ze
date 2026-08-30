@@ -11,12 +11,16 @@ import (
 	"github.com/ze-software/ze/internal/component/command/registry"
 )
 
+// modeOffline marks a command that reads or writes the blob store without a
+// running daemon. The help output groups commands by this tag.
+const modeOffline = "offline"
+
 func init() {
 	registry.MustRegisterRootHandler("data", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
 		Description: "ZeFS blob store management",
-		Mode:        "offline",
+		Mode:        modeOffline,
 		Section:     registry.SectionConfiguration,
 		Subs:        "import, rm, ls, cat",
 	})
@@ -25,11 +29,11 @@ func init() {
 	// declared a wire method for each that no daemon handler implements.
 	registry.MustRegisterLocalData("show data ls", dataLs, registry.Meta{
 		Description: "The keys the ZeFS blob store holds. Narrow them with a prefix.",
-		Mode:        "offline",
+		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show data registered", dataRegistered, registry.Meta{
 		Description: "The key patterns the code declares, and what each one holds.",
-		Mode:        "offline",
+		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 
 	// `show data cat` answers the BYTES of one stored file, which may be YAML,

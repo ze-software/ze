@@ -26,9 +26,7 @@ import (
 func TestWriteToAtOffset(t *testing.T) {
 	t.Parallel()
 	inet := &INET{
-		PrefixNLRI: PrefixNLRI{
-			prefix: netip.MustParsePrefix("10.0.0.0/24"),
-		},
+		prefix: netip.MustParsePrefix("10.0.0.0/24"),
 	}
 
 	expected := inet.Bytes()
@@ -57,9 +55,7 @@ func TestWriteToZeroAlloc(t *testing.T) {
 	t.Parallel()
 	// Create an INET
 	inet := &INET{
-		PrefixNLRI: PrefixNLRI{
-			prefix: netip.MustParsePrefix("10.0.0.0/24"),
-		},
+		prefix: netip.MustParsePrefix("10.0.0.0/24"),
 	}
 
 	// Get expected output from Bytes()

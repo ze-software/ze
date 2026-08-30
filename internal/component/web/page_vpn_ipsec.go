@@ -17,12 +17,12 @@ import (
 
 func buildIPsecSATableData() WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "peer-name", Label: "Peer", Sortable: true},
-		{Key: "state", Label: "State", Sortable: true},
+		{Key: "peer-name", Label: labelPeer, Sortable: true},
+		{Key: colState, Label: labelState, Sortable: true},
 		{Key: "initiator-spi", Label: "Initiator SPI"},
 		{Key: "responder-spi", Label: "Responder SPI"},
 		{Key: "encryption", Label: "Encryption"},
-		{Key: "uptime", Label: "Uptime", Sortable: true},
+		{Key: "uptime", Label: labelUptime, Sortable: true},
 	}
 
 	table := engine.ActiveTable()

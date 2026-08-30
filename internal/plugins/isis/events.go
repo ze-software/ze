@@ -18,8 +18,21 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
+// labelLevel is the Prometheus label that carries the IS-IS level (1 or 2) a
+// sample belongs to.
+const labelLevel = "level"
+
 // Namespace is the IS-IS event-bus namespace.
 const Namespace = "isis"
+
+// componentName is the name the component registry, the plugin SDK and the
+// doctor check know this component by.
+const componentName = "isis"
+
+// configRoot is the YANG container this component reads its config from. It
+// holds the same text as componentName and means something else: one names the
+// component, the other names a subtree of the config, so they are two constants.
+const configRoot = "isis"
 
 // IS-IS event types.
 const (

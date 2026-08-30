@@ -4,6 +4,9 @@ package transport
 
 import "github.com/ze-software/ze/internal/core/metrics"
 
+// labelInterface is the metric label every per-interface transport series carries.
+const labelInterface = "interface"
+
 // transportMetrics holds the OSPF transport Prometheus series. OSPFv3 is "our
 // OSPF" for the operator, so it REUSES the OSPFv2 ze_ospf_ series rather than a
 // distinct ze_ospfv3_ namespace: the metrics registry is get-or-create by name,
@@ -27,17 +30,17 @@ func newTransportMetrics(reg metrics.Registry) *transportMetrics {
 		packetsSent: reg.CounterVec(
 			"ze_ospf_packets_sent_total",
 			"Total OSPF packets transmitted, by interface and packet type.",
-			[]string{"interface", "type"},
+			[]string{labelInterface, "type"},
 		),
 		packetsReceived: reg.CounterVec(
 			"ze_ospf_packets_received_total",
 			"Total OSPF packets received, by interface and packet type.",
-			[]string{"interface", "type"},
+			[]string{labelInterface, "type"},
 		),
 		packetsDropped: reg.CounterVec(
 			"ze_ospf_packets_dropped_total",
 			"Total OSPF packets dropped, by interface and reason.",
-			[]string{"interface", "reason"},
+			[]string{labelInterface, "reason"},
 		),
 		socketsOpen: reg.Gauge(
 			"ze_ospf_sockets_open",

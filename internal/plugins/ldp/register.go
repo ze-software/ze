@@ -125,7 +125,7 @@ func parseLDPConfig(sections []sdk.ConfigSection) (ldpConfig, error) {
 		KeepaliveTime: DefaultKeepaliveTime,
 	}
 	for _, sec := range sections {
-		if sec.Root != "ldp" || sec.Data == "" {
+		if sec.Root != configRoot || sec.Data == "" {
 			continue
 		}
 		// BuildPluginConfigSections wraps the subtree under its root key, so the
@@ -134,7 +134,7 @@ func parseLDPConfig(sections []sdk.ConfigSection) (ldpConfig, error) {
 		if err := json.Unmarshal([]byte(sec.Data), &wrapper); err != nil {
 			return cfg, fmt.Errorf("ldp: invalid config JSON: %w", err)
 		}
-		tree, _ := wrapper["ldp"].(map[string]any)
+		tree, _ := wrapper[configRoot].(map[string]any)
 		if tree == nil {
 			continue
 		}
@@ -166,15 +166,23 @@ func parseLDPConfig(sections []sdk.ConfigSection) (ldpConfig, error) {
 	return cfg, nil
 }
 
+// pluginName is the name this plugin registers under, and configRoot is the
+// YANG container it reads. They hold the same text as the event Namespace and
+// name three different things: a rename of one renames none of the others.
+const (
+	pluginName = "ldp"
+	configRoot = "ldp"
+)
+
 func registerLDP() {
 	_ = events.RegisterNamespace(Namespace, EventSessionUp, EventSessionDown, EventLabelBind)
 
 	reg := registry.Registration{
-		Name:         "ldp",
+		Name:         pluginName,
 		Description:  "Label Distribution Protocol (RFC 5036): MPLS label distribution",
 		Features:     "yang",
 		YANG:         ldpyang.ZeLDPConfYANG,
-		ConfigRoots:  []string{"ldp"},
+		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"fib-kernel", "sysctl"},
 		RunEngine:    runLDPEngine,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -215,7 +223,7 @@ func runLDPEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("ldp engine starting")
 
-	p := sdk.NewWithConn("ldp", conn)
+	p := sdk.NewWithConn(pluginName, conn)
 	defer func() { _ = p.Close() }()
 
 	lib := newLIB()
@@ -329,7 +337,7 @@ func runLDPEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"ldp"},
+		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{

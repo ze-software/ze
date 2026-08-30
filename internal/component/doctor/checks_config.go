@@ -18,6 +18,10 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// diagnosticBGPMD5 names a TCP-MD5 configuration fault an operator sees in
+// `ze doctor` output.
+const diagnosticBGPMD5 = "doctor-bgp-md5"
+
 func checkIfaceBackend(tree *config.Tree) []diagnostic.Diagnostic {
 	ifaceBlock := tree.GetContainer("interface")
 	if ifaceBlock == nil {
@@ -217,7 +221,7 @@ func checkBGPMD5(tree *config.Tree) []diagnostic.Diagnostic {
 	for _, p := range bgp.GetListOrdered("peer") {
 		if hasMD5(nil, p.Value) {
 			return []diagnostic.Diagnostic{{
-				Code:     "doctor-bgp-md5",
+				Code:     diagnosticBGPMD5,
 				Severity: diagnostic.SeverityWarning,
 				Message:  tb.Reset().Str("BGP peer ").Str(p.Key).Str(" requires TCP MD5 but platform does not support it").String(),
 			}}
@@ -226,7 +230,7 @@ func checkBGPMD5(tree *config.Tree) []diagnostic.Diagnostic {
 	for _, g := range bgp.GetListOrdered("group") {
 		if hasMD5(nil, g.Value) {
 			return []diagnostic.Diagnostic{{
-				Code:     "doctor-bgp-md5",
+				Code:     diagnosticBGPMD5,
 				Severity: diagnostic.SeverityWarning,
 				Message:  tb.Reset().Str("BGP group ").Str(g.Key).Str(" requires TCP MD5 but platform does not support it").String(),
 			}}
@@ -234,7 +238,7 @@ func checkBGPMD5(tree *config.Tree) []diagnostic.Diagnostic {
 		for _, p := range g.Value.GetListOrdered("peer") {
 			if hasMD5(g.Value, p.Value) {
 				return []diagnostic.Diagnostic{{
-					Code:     "doctor-bgp-md5",
+					Code:     diagnosticBGPMD5,
 					Severity: diagnostic.SeverityWarning,
 					Message:  tb.Reset().Str("BGP peer ").Str(g.Key).Byte('/').Str(p.Key).Str(" requires TCP MD5 but platform does not support it").String(),
 				}}

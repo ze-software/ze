@@ -68,8 +68,8 @@ func checkXFRMReachable(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagno
 	}
 	var tb textbuf.Buffer
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     "doctor-ipsec-xfrm-unavailable",
-		Severity: "warning",
+		Code:     diagnosticIPsecXFRMUnavailable,
+		Severity: severityWarning,
 		Message: tb.Str("vpn ipsec is configured and the kernel XFRM dataplane did not answer: ").Err(err).
 			Str("; ze installs every Child SA through XFRM, so tunnels will negotiate and carry no traffic").String(),
 	}}

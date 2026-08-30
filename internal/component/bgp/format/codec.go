@@ -35,7 +35,7 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 		}
 		nhStr := mp.NextHop().String()
 		familyOps[mp.Family().String()] = append(familyOps[mp.Family().String()], familyOperation{
-			Action:  "add",
+			Action:  actionAdd,
 			NextHop: nhStr,
 			NLRIs:   nlris,
 		})
@@ -48,7 +48,7 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 			continue
 		}
 		familyOps[mp.Family().String()] = append(familyOps[mp.Family().String()], familyOperation{
-			Action: "del",
+			Action: actionDel,
 			NLRIs:  nlris,
 		})
 	}
@@ -58,7 +58,7 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 		nlris, err := result.IPv4Announced.NLRIs(addPath)
 		if err == nil && len(nlris) > 0 {
 			familyOps["ipv4/unicast"] = append(familyOps["ipv4/unicast"], familyOperation{
-				Action:  "add",
+				Action:  actionAdd,
 				NextHop: result.IPv4Announced.NextHop().String(),
 				NLRIs:   nlris,
 			})
@@ -70,7 +70,7 @@ func FormatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string 
 		nlris, err := result.IPv4Withdrawn.NLRIs(addPath)
 		if err == nil && len(nlris) > 0 {
 			familyOps["ipv4/unicast"] = append(familyOps["ipv4/unicast"], familyOperation{
-				Action: "del",
+				Action: actionDel,
 				NLRIs:  nlris,
 			})
 		}

@@ -33,6 +33,10 @@ var logger = slogutil.Logger("api.rest")
 // maxRequestBody limits the size of request bodies (1 MB).
 const maxRequestBody = 1 << 20
 
+// fieldStatus is the key of the one-word outcome the config session endpoints
+// return in their JSON body.
+const fieldStatus = "status"
+
 // ConvenienceCommands lists the dispatch command strings used by REST
 // convenience routes. Used by parity tests to detect drift from the
 // live command registry.
@@ -603,7 +607,7 @@ func (s *RESTServer) handleConfigSet(w http.ResponseWriter, r *http.Request) {
 		writeSessionError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, map[string]string{fieldStatus: "ok"})
 }
 
 func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.Request) {
@@ -642,7 +646,7 @@ func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.
 			Detail:     detail,
 			Outcome:    audit.OutcomeSuccess,
 		})
-		writeJSON(w, http.StatusOK, map[string]string{"status": "discarded"})
+		writeJSON(w, http.StatusOK, map[string]string{fieldStatus: "discarded"})
 		return
 	}
 	configPath := strings.ReplaceAll(parts[1], "/", ".")
@@ -650,7 +654,7 @@ func (s *RESTServer) handleConfigDeleteOrDiscard(w http.ResponseWriter, r *http.
 		writeSessionError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, map[string]string{fieldStatus: "ok"})
 }
 
 func (s *RESTServer) handleConfigDiff(w http.ResponseWriter, r *http.Request) {
@@ -708,7 +712,7 @@ func (s *RESTServer) handleConfigCommit(w http.ResponseWriter, r *http.Request) 
 		Detail:     detail,
 		Outcome:    audit.OutcomeSuccess,
 	})
-	writeJSON(w, http.StatusOK, map[string]string{"status": "committed"})
+	writeJSON(w, http.StatusOK, map[string]string{fieldStatus: "committed"})
 }
 
 func (s *RESTServer) recordAudit(entry audit.Entry) {

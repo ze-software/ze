@@ -14,7 +14,7 @@ import (
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         "ze.cli.transcript",
 	Type:        "bool",
-	Default:     "false",
+	Default:     boolFalse,
 	Description: "Enable CLI session transcript recording",
 })
 
@@ -83,7 +83,7 @@ func (w *TranscriptWriter) Close() error {
 // TranscriptEnabled returns true if the ze.cli.transcript env var is set to a truthy value.
 func TranscriptEnabled() bool {
 	v := env.Get("ze.cli.transcript")
-	return v == "true" || v == "1" || v == "yes" || v == "enabled"
+	return v == boolTrue || v == "1" || v == "yes" || v == "enabled"
 }
 
 // WrapExecutorWithTranscript wraps a command executor so that every command

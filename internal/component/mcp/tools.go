@@ -302,13 +302,13 @@ func buildToolDef(g toolGroup) map[string]any {
 		}
 
 		actionProp := map[string]any{
-			"type": "string",
-			"enum": actionEnums,
+			schemaKeyType: elicitTypeString,
+			"enum":        actionEnums,
 		}
 		if len(actionDescs) > 0 {
-			actionProp["description"] = textbuf.Join(actionDescs, ". ")
+			actionProp[schemaKeyDescription] = textbuf.Join(actionDescs, ". ")
 		} else {
-			actionProp["description"] = "Action to perform"
+			actionProp[schemaKeyDescription] = "Action to perform"
 		}
 		properties["action"] = actionProp
 		required = append(required, "action")
@@ -337,8 +337,8 @@ func buildToolDef(g toolGroup) map[string]any {
 	// Only add generic "arguments" if no typed params were found.
 	if !addedParams {
 		properties["arguments"] = map[string]any{
-			"type":        "string",
-			"description": "Additional arguments to append to the command",
+			schemaKeyType:        elicitTypeString,
+			schemaKeyDescription: "Additional arguments to append to the command",
 		}
 	}
 
@@ -348,14 +348,14 @@ func buildToolDef(g toolGroup) map[string]any {
 	// and got `peer <sel> show config dump`, which resolves nowhere.
 	if groupTakesSelector(g.actions) {
 		properties["peer"] = map[string]any{
-			"type":        "string",
-			"description": "Peer selector: address, name, as<N>, glob, or * for all. Only valid for actions that address a peer; the value is placed after the 'peer' keyword of the command.",
+			schemaKeyType:        elicitTypeString,
+			schemaKeyDescription: "Peer selector: address, name, as<N>, glob, or * for all. Only valid for actions that address a peer; the value is placed after the 'peer' keyword of the command.",
 		}
 	}
 
 	schema := map[string]any{
-		"type":       "object",
-		"properties": properties,
+		schemaKeyType:       elicitTypeObject,
+		schemaKeyProperties: properties,
 	}
 	if len(required) > 0 {
 		schema["required"] = required
@@ -367,9 +367,9 @@ func buildToolDef(g toolGroup) map[string]any {
 	}
 
 	tool := map[string]any{
-		"name":        name,
-		"description": desc.String(),
-		"inputSchema": json.RawMessage(schemaJSON),
+		toolKeyName:          name,
+		schemaKeyDescription: desc.String(),
+		schemaKeyInputSchema: json.RawMessage(schemaJSON),
 	}
 	tool["execution"] = map[string]any{
 		"taskSupport": g.taskSupport.String(),
@@ -467,10 +467,10 @@ func addYANGParams(actions []action, properties map[string]any) (bool, []string)
 			}
 			seen[p.Name] = true
 			prop := map[string]any{
-				"type": yangTypeToJSON(p.Type),
+				schemaKeyType: yangTypeToJSON(p.Type),
 			}
 			if p.Description != "" {
-				prop["description"] = p.Description
+				prop[schemaKeyDescription] = p.Description
 			}
 			properties[p.Name] = prop
 			added = true
@@ -485,14 +485,14 @@ func addYANGParams(actions []action, properties map[string]any) (bool, []string)
 // yangTypeToJSON maps YANG type names to JSON Schema types.
 // Unknown types map to "string" which is the safest JSON Schema fallback.
 var yangTypeToJSONMap = map[string]string{
-	"uint8":   "integer",
-	"uint16":  "integer",
-	"uint32":  "integer",
-	"uint64":  "integer",
-	"int8":    "integer",
-	"int16":   "integer",
-	"int32":   "integer",
-	"int64":   "integer",
+	"uint8":   elicitTypeInteger,
+	"uint16":  elicitTypeInteger,
+	"uint32":  elicitTypeInteger,
+	"uint64":  elicitTypeInteger,
+	"int8":    elicitTypeInteger,
+	"int16":   elicitTypeInteger,
+	"int32":   elicitTypeInteger,
+	"int64":   elicitTypeInteger,
 	"boolean": "boolean",
 }
 
@@ -500,7 +500,7 @@ func yangTypeToJSON(yangType string) string {
 	if jsonType, ok := yangTypeToJSONMap[yangType]; ok {
 		return jsonType
 	}
-	return "string"
+	return elicitTypeString
 }
 
 // reservedParams are the built-in dispatch parameters, not forwarded as typed args.
@@ -896,7 +896,7 @@ func (s *server) run(command string) map[string]any {
 // TextResult returns an MCP text content result.
 func TextResult(s string) map[string]any {
 	return map[string]any{
-		"content": []map[string]any{{"type": "text", "text": s}},
+		"content": []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: s}},
 	}
 }
 
@@ -904,7 +904,7 @@ func TextResult(s string) map[string]any {
 func ErrResult(msg string) map[string]any {
 	var tb textbuf.Buffer
 	return map[string]any{
-		"content": []map[string]any{{"type": "text", "text": tb.Str("Error: ").Str(msg).String()}},
+		"content": []map[string]any{{schemaKeyType: contentTypeText, contentTypeText: tb.Str("Error: ").Str(msg).String()}},
 		"isError": true,
 	}
 }
@@ -923,28 +923,28 @@ func ErrResult(msg string) map[string]any {
 // only elicitation is malformed. And the host would never make that call.
 var handcraftedTools = []map[string]any{
 	{
-		"name": toolNameExecute,
-		"description": "Execute a ze CLI command and return the result. Supply 'command'. " +
+		toolKeyName: toolNameExecute,
+		schemaKeyDescription: "Execute a ze CLI command and return the result. Supply 'command'. " +
 			"A client that declared form-mode elicitation may omit it: the call then returns " +
 			"resultType \"input_required\" asking for the command, which the client answers by " +
 			"retrying the call with 'inputResponses'. A client that did not declare form-mode " +
 			"elicitation must supply it; omitting it returns an error naming the missing argument.",
-		"inputSchema": map[string]any{
-			"type": "object",
-			"properties": map[string]any{
+		schemaKeyInputSchema: map[string]any{
+			schemaKeyType: elicitTypeObject,
+			schemaKeyProperties: map[string]any{
 				elicitFieldCommand: map[string]any{
-					"type":        "string",
-					"description": "The ze command to execute (e.g., 'show bgp peer list', 'show bgp').",
+					schemaKeyType:        elicitTypeString,
+					schemaKeyDescription: "The ze command to execute (e.g., 'show bgp peer list', 'show bgp').",
 				},
 			},
 		},
 	},
 	{
-		"name":        "ze_reference",
-		"description": "Full machine-readable reference for this ze daemon: CLI commands, daemon API endpoints (ze-show:*, ze-set:*, ...) with dispatch keys, loaded plugins, address families, and config services. Call this first to discover what this instance can do. Returns the same JSON as 'ze help ai --json'.",
-		"inputSchema": map[string]any{
-			"type":       "object",
-			"properties": map[string]any{},
+		toolKeyName:          "ze_reference",
+		schemaKeyDescription: "Full machine-readable reference for this ze daemon: CLI commands, daemon API endpoints (ze-show:*, ze-set:*, ...) with dispatch keys, loaded plugins, address families, and config services. Call this first to discover what this instance can do. Returns the same JSON as 'ze help ai --json'.",
+		schemaKeyInputSchema: map[string]any{
+			schemaKeyType:       elicitTypeObject,
+			schemaKeyProperties: map[string]any{},
 		},
 	},
 }

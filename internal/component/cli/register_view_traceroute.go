@@ -112,13 +112,16 @@ func (m *Model) tracerouteFactory() TracerouteFactory {
 	return f
 }
 
+// commandMonitorTraceroute is the command prefix the traceroute view answers to.
+const commandMonitorTraceroute = "monitor traceroute"
+
 func init() {
-	command.RegisterShape([]string{"monitor traceroute"}, command.ShapeTab)
-	command.RegisterAddressFields([]string{"monitor traceroute"}, "addr")
+	command.RegisterShape([]string{commandMonitorTraceroute}, command.ShapeTab)
+	command.RegisterAddressFields([]string{commandMonitorTraceroute}, "addr")
 
 	RegisterView(viewSpec{
 		key:    ViewKeyTraceroute,
-		prefix: "monitor traceroute",
+		prefix: commandMonitorTraceroute,
 		matches: func(input string) bool {
 			return isTracerouteMonitorCommand(input) || isPipedTracerouteMonitorCommand(input)
 		},

@@ -109,7 +109,7 @@ func handleResolveTraceroute(ctx *pluginserver.CommandContext, args []string) (*
 		return &plugin.Response{Status: plugin.StatusError, Error: trErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
-		"hops": hops,
+		fieldHops: hops,
 	}}, nil
 }
 

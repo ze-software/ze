@@ -153,12 +153,16 @@ func errorNotifySentCount(notifyType uint16, protected bool) uint64 {
 // installed in the dataplane. An established SA whose ESP install was refused reads
 // up 0 and degraded 1. The two gauges therefore separate "no session" from "session
 // but no encrypted traffic", which the up gauge alone reported as healthy.
+// metricLabelPeer is the Prometheus label whose value is a peer name. It names
+// the column, not the peer.
+const metricLabelPeer = "peer"
+
 func RegisterMetrics(reg metrics.Registry) *IPsecMetrics {
 	return &IPsecMetrics{
 		saCount:        reg.Gauge("ze_ipsec_sa_count", "Number of active IKE Security Associations"),
-		tunnelUp:       reg.GaugeVec("ze_ipsec_tunnel_up", "Whether a peer tunnel is established and carries ESP (1=up, 0=down or degraded)", []string{"peer"}),
-		tunnelDegraded: reg.GaugeVec("ze_ipsec_tunnel_degraded", "Whether a peer IKE SA is established but its Child SA carries no ESP (1=degraded)", []string{"peer"}),
-		rekeyTotal:     reg.GaugeVec("ze_ipsec_rekey_total", "Cumulative child SA rekey count per peer", []string{"peer"}),
+		tunnelUp:       reg.GaugeVec("ze_ipsec_tunnel_up", "Whether a peer tunnel is established and carries ESP (1=up, 0=down or degraded)", []string{metricLabelPeer}),
+		tunnelDegraded: reg.GaugeVec("ze_ipsec_tunnel_degraded", "Whether a peer IKE SA is established but its Child SA carries no ESP (1=degraded)", []string{metricLabelPeer}),
+		rekeyTotal:     reg.GaugeVec("ze_ipsec_rekey_total", "Cumulative child SA rekey count per peer", []string{metricLabelPeer}),
 		errorNotifySent: reg.GaugeVec("ze_ipsec_error_notify_sent_total",
 			"Cumulative error notifications sent, by notify type and whether the carrying message was encrypted",
 			[]string{"type", "protected"}),
@@ -167,13 +171,13 @@ func RegisterMetrics(reg metrics.Registry) *IPsecMetrics {
 			[]string{"reason"}),
 		cookieChallenges: reg.GaugeVec("ze_ipsec_cookie_challenges_total",
 			"Cumulative COOKIE challenges sent to an inbound initiation, by peer",
-			[]string{"peer"}),
+			[]string{metricLabelPeer}),
 		cookieVerifyFailures: reg.GaugeVec("ze_ipsec_cookie_verify_failures_total",
 			"Cumulative inbound cookies that did not verify, by peer",
-			[]string{"peer"}),
+			[]string{metricLabelPeer}),
 		saInitRetries: reg.GaugeVec("ze_ipsec_sa_init_retries_total",
 			"Cumulative IKE_SA_INIT retries sent, by peer and by the notify that caused them",
-			[]string{"peer", "cause"}),
+			[]string{metricLabelPeer, "cause"}),
 	}
 }
 

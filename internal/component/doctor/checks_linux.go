@@ -49,16 +49,23 @@ const (
 	systemdRandomSeedPath = "/var/lib/systemd/random-seed"
 )
 
+// Linux-only diagnostic codes. Each one names the fault an operator sees in
+// `ze doctor` output.
+const (
+	diagnosticModuleMissing = "doctor-module-missing"
+	diagnosticRandomSeed    = "doctor-random-seed"
+)
+
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorModulesEnv,
-	Type:        "string",
+	Type:        envTypeString,
 	Description: "Override /proc/modules path for doctor functional tests",
 	Private:     true,
 })
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorProcRootEnv,
-	Type:        "string",
+	Type:        envTypeString,
 	Description: "Override /proc root path for doctor functional tests",
 	Private:     true,
 })
@@ -72,14 +79,14 @@ var _ = env.MustRegister(env.EnvEntry{
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorMachineIDEnv,
-	Type:        "string",
+	Type:        envTypeString,
 	Description: "Override /etc/machine-id path for doctor functional tests",
 	Private:     true,
 })
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorRandomSeedEnv,
-	Type:        "string",
+	Type:        envTypeString,
 	Description: "Override random-seed path for doctor functional tests",
 	Private:     true,
 })
@@ -183,7 +190,7 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 	for _, mod := range required {
 		if !loaded[mod] {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-module-missing",
+				Code:     diagnosticModuleMissing,
 				Severity: diagnostic.SeverityError,
 				Message:  tb.Reset().Str("kernel module not loaded: ").Str(mod).String(),
 			})
@@ -221,7 +228,7 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 	if hasIPsec {
 		if err := xfrmNetlinkProbe(); err != nil {
 			diags = append(diags, diagnostic.Diagnostic{
-				Code:     "doctor-module-missing",
+				Code:     diagnosticModuleMissing,
 				Severity: diagnostic.SeverityError,
 				Message: tb.Reset().Str("IPsec: the kernel holds no XFRM dataplane (xfrm_user, xfrm_algo): ").
 					Err(err).String(),
@@ -231,7 +238,7 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 
 	if hasIPsec && !loaded["ip_tables"] && !loaded["nf_tables"] {
 		diags = append(diags, diagnostic.Diagnostic{
-			Code:     "doctor-module-missing",
+			Code:     diagnosticModuleMissing,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "IPsec: neither ip_tables nor nf_tables loaded (firewall marking may not work)",
 		})
@@ -945,7 +952,7 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 			return nil
 		}
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-random-seed",
+			Code:     diagnosticRandomSeed,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "gokrazy random seed not found at " + path + "; verify randomd is included in the gokrazy image",
 			Path:     path,
@@ -959,7 +966,7 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 			return nil
 		}
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-random-seed",
+			Code:     diagnosticRandomSeed,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "systemd random seed not found at " + path + "; systemd-random-seed.service may not be enabled",
 			Path:     path,
@@ -969,7 +976,7 @@ func checkRandomSeed(platform *host.PlatformInfo) []diagnostic.Diagnostic {
 
 	case host.PlatformPlainLinux:
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-random-seed",
+			Code:     diagnosticRandomSeed,
 			Severity: diagnostic.SeverityWarning,
 			Message:  "non-systemd Linux without a known random-seed service; early-boot entropy may be insufficient for cryptographic operations",
 		}}

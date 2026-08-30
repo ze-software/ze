@@ -9,15 +9,15 @@ import ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 // dbSubviewType maps a `show ospf database <type>` command to the LSASnapshot.Type
 // string it filters to (types.LSType.String()).
 var dbSubviewType = map[string]string{
-	"show ospf database router":        "router",          // Type 1
-	"show ospf database network":       "network",         // Type 2
-	"show ospf database summary":       "summary-network", // Type 3
-	"show ospf database asbr-summary":  "summary-asbr",    // Type 4
-	"show ospf database external":      "as-external",     // Type 5
-	"show ospf database nssa-external": "nssa",            // Type 7
-	"show ospf database opaque-link":   "opaque-link",     // Type 9 (RFC 5250)
-	"show ospf database opaque-area":   "opaque-area",     // Type 10 (RFC 5250)
-	"show ospf database opaque-as":     "opaque-as",       // Type 11 (RFC 5250)
+	cmdShowDatabaseRouter:       "router",          // Type 1
+	cmdShowDatabaseNetwork:      "network",         // Type 2
+	cmdShowDatabaseSummary:      "summary-network", // Type 3
+	cmdShowDatabaseASBRSummary:  "summary-asbr",    // Type 4
+	cmdShowDatabaseExternal:     "as-external",     // Type 5
+	cmdShowDatabaseNSSAExternal: "nssa",            // Type 7
+	cmdShowDatabaseOpaqueLink:   "opaque-link",     // Type 9 (RFC 5250)
+	cmdShowDatabaseOpaqueArea:   "opaque-area",     // Type 10 (RFC 5250)
+	cmdShowDatabaseOpaqueAS:     "opaque-as",       // Type 11 (RFC 5250)
 }
 
 // databaseSnapshotByType renders the LSDB snapshot filtered to a single LS Type. It

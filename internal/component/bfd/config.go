@@ -98,7 +98,7 @@ type sessionConfig struct {
 // to nil-check the result.
 func parseSections(sections []sdk.ConfigSection) (*pluginConfig, error) {
 	for _, section := range sections {
-		if section.Root != "bfd" {
+		if section.Root != configRoot {
 			continue
 		}
 		return parseBFDSection(section.Data)
@@ -122,7 +122,7 @@ func parseBFDSection(data string) (*pluginConfig, error) {
 		profiles: make(map[string]profileConfig),
 	}
 
-	bfdMap, ok := root["bfd"].(map[string]any)
+	bfdMap, ok := root[configRoot].(map[string]any)
 	if !ok {
 		return cfg, nil
 	}

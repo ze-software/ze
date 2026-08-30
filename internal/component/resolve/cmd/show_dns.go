@@ -135,7 +135,7 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "type":
+		case argType:
 			if i+1 < len(args) {
 				i++
 				qtype = strings.ToUpper(args[i])
@@ -176,10 +176,10 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	queryTime := time.Since(start)
 
 	result := map[string]any{
-		"name":          name,
-		"type":          qtype,
-		"records":       records,
-		"count":         len(records),
+		keyName:         name,
+		keyType:         qtype,
+		keyRecords:      records,
+		keyCount:        len(records),
 		"ttl":           ttl,
 		"query-time-ms": float64(queryTime.Microseconds()) / 1000.0,
 	}
@@ -199,7 +199,7 @@ func handleDNSLookup(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 func getDNSCacheStats() map[string]any {
 	if resolvers == nil || resolvers.DNS == nil {
 		return map[string]any{
-			"status": "DNS cache not available",
+			"status": msgCacheUnavailable,
 		}
 	}
 	s := resolvers.DNS.CacheStats()
@@ -210,7 +210,7 @@ func getDNSCacheStats() map[string]any {
 		missRate = float64(s.Misses) / float64(total) * 100
 	}
 	return map[string]any{
-		"entries":   s.Entries,
+		keyEntries:  s.Entries,
 		"capacity":  s.Capacity,
 		"hits":      s.Hits,
 		"misses":    s.Misses,
@@ -224,34 +224,34 @@ func getDNSCacheStats() map[string]any {
 func getDNSCacheEntries(filterName string) map[string]any {
 	if resolvers == nil || resolvers.DNS == nil {
 		return map[string]any{
-			"status": "DNS cache not available",
+			"status": msgCacheUnavailable,
 		}
 	}
 	entries := resolvers.DNS.CacheEntries()
 	all := make([]map[string]any, len(entries))
 	for i, e := range entries {
 		all[i] = map[string]any{
-			"name":        e.Name,
-			"type":        e.TypeName,
-			"records":     e.Records,
+			keyName:       e.Name,
+			keyType:       e.TypeName,
+			keyRecords:    e.Records,
 			"ttl-seconds": e.TTLSeconds,
 		}
 	}
 	if filterName == "" {
 		return map[string]any{
-			"entries": all,
-			"count":   len(all),
+			keyEntries: all,
+			keyCount:   len(all),
 		}
 	}
 	filtered := make([]map[string]any, 0)
 	for _, e := range all {
-		if name, _ := e["name"].(string); name == filterName {
+		if name, _ := e[keyName].(string); name == filterName {
 			filtered = append(filtered, e)
 		}
 	}
 	return map[string]any{
-		"entries": filtered,
-		"count":   len(filtered),
-		"filter":  filterName,
+		keyEntries: filtered,
+		keyCount:   len(filtered),
+		"filter":   filterName,
 	}
 }

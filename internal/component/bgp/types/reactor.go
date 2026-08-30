@@ -33,9 +33,9 @@ import (
 // The permission each one is gated on is the message it generates. AnnounceEOR,
 // AnnounceNLRIBatch, WithdrawNLRIBatch, SendRoutes and ForwardUpdate need
 // `send [ update ]`. SendBoRR, SendEoRR, SendRefresh and SoftClearPeer need
-// `send [ refresh ]`. SendRawMessage needs neither, and needs the peer to attach
-// the process at all: the bytes it carries are a message of the caller's
-// choosing, so no send type describes it (send_permission.go, sendTypeRaw).
+// `send [ refresh ]`. SendRawMessage needs `send [ raw ]`: the bytes it carries
+// are a whole message of the caller's choosing, so it has a word of its own
+// rather than borrowing one (send_permission.go, bgpevents.SendRaw).
 //
 // pluginName, where a method carries one beside the sender, is NOT an identity.
 // ForwardUpdate and ReleaseUpdate use it for cache accounting, it names the

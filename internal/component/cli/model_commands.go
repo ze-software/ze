@@ -19,6 +19,11 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// emptyConfiguration is what every show path prints when the tree it was asked
+// for holds nothing. It is one sentence, so the editor and the show commands
+// cannot disagree about how an empty tree reads.
+const emptyConfiguration = "(empty configuration)"
+
 var (
 	errCommitConfirmedNotYetSupportedIn         = errors.New("commit confirmed not yet supported in session mode (use 'commit')")
 	errUsageCommitforceConfirmedSeconds         = errors.New("usage: commit [force] confirmed <seconds>")
@@ -231,7 +236,7 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 
 func (m *Model) cmdTop() (commandResult, error) {
 	if m.editor.WorkingContent() == "" {
-		return commandResult{clearContext: true, output: "(empty configuration)"}, nil
+		return commandResult{clearContext: true, output: emptyConfiguration}, nil
 	}
 	return commandResult{
 		clearContext: true,
@@ -314,7 +319,7 @@ func (m *Model) showConfigContent() {
 		return
 	}
 	if m.editor.ContentAtPath(m.contextPath) == "" {
-		m.setViewportText("(empty configuration)")
+		m.setViewportText(emptyConfiguration)
 		return
 	}
 	m.setViewportData(*m.configViewAtPath(m.contextPath))

@@ -553,7 +553,7 @@ func interfaceIPv6Prefixes(name string) []netip.Prefix {
 	}
 	var out []netip.Prefix
 	for _, addr := range addrs {
-		if addr.Family != "ipv6" || addr.PrefixLength < 0 || addr.PrefixLength > 128 {
+		if addr.Family != interfaceFamilyIPv6 || addr.PrefixLength < 0 || addr.PrefixLength > 128 {
 			continue
 		}
 		parsed, err := netip.ParseAddr(addr.Address)
@@ -574,7 +574,7 @@ func interfaceIPv6LinkLocal(name string) netip.Addr {
 		return netip.Addr{}
 	}
 	for _, addr := range addrs {
-		if addr.Family != "ipv6" || !addr.LinkLocal {
+		if addr.Family != interfaceFamilyIPv6 || !addr.LinkLocal {
 			continue
 		}
 		parsed, err := netip.ParseAddr(addr.Address)

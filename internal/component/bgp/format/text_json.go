@@ -106,12 +106,21 @@ func appendFilterResultJSON(buf []byte, peer *plugin.PeerInfo, result bgpfilter.
 	return buf
 }
 
+// The two values familyOperation.Action takes. They reach a consumer as the
+// "action" member of a per-family operation object, so the spelling is part of
+// the published format. The append-based writers embed them inside a larger
+// JSON fragment literal and so cannot use these constants.
+const (
+	actionAdd = "add"
+	actionDel = "del"
+)
+
 // familyOperation represents a single operation (add/del) for a family.
 // Retained for FormatDecodeUpdateJSON (codec.go) which still uses the map
 // grouping since it mixes legacy IPv4 + MP routes from multiple sources.
 type familyOperation struct {
-	Action  string      // "add" or "del"
-	NextHop string      // Only for "add" operations
+	Action  string      // actionAdd or actionDel
+	NextHop string      // Only for actionAdd operations
 	NLRIs   []nlri.NLRI // NLRIs in this operation
 }
 
@@ -329,7 +338,7 @@ func appendFamilyOpsJSON(buf []byte, familyOps map[string][]familyOperation) []b
 				buf = append(buf, ',')
 			}
 			buf = append(buf, '{')
-			if op.Action == "add" && op.NextHop != "" && op.NextHop != "invalid IP" {
+			if op.Action == actionAdd && op.NextHop != "" && op.NextHop != "invalid IP" {
 				buf = append(buf, `"next-hop":"`...)
 				buf = append(buf, op.NextHop...)
 				buf = append(buf, `",`...)

@@ -19,8 +19,55 @@ import (
 	"github.com/ze-software/ze/internal/chaos/web"
 )
 
+// MCP tool-descriptor member names, as a tools/list response spells them. They
+// are the protocol's grammar, not this package's data: an MCP client looks each
+// one up by name.
+const (
+	schemaKeyName        = "name"
+	schemaKeyDescription = "description"
+	schemaKeyInputSchema = "inputSchema"
+	schemaKeyType        = "type"
+	schemaKeyProperties  = "properties"
+	schemaKeyEnum        = "enum"
+	schemaKeyRequired    = "required"
+)
+
+// JSON Schema type values, as the inputSchema of a chaos tool declares them.
+const (
+	schemaTypeObject  = "object"
+	schemaTypeString  = "string"
+	schemaTypeInteger = "integer"
+	schemaTypeNumber  = "number"
+)
+
+// Input property names that a chaos tool declares more than once. schemaPropAction
+// heads the chaos_control property map and is also its one required entry, so the
+// two must agree.
+const (
+	schemaPropPeer   = "peer"
+	schemaPropAction = "action"
+)
+
+// resultKeyType is the `type` member of a chaos result record: a watchdog
+// problem's kind, or a peer event's kind. It is a member of the answer this
+// package builds, not of the schema that describes the question, so it is not
+// schemaKeyType.
+const resultKeyType = "type"
+
+// Control actions a chaos_control call can ask for. The set is declared three
+// times -- as the validity map, as the schema enum, and as the dispatch switch
+// -- so all three read from these constants.
+const (
+	controlActionPause   = "pause"
+	controlActionResume  = "resume"
+	controlActionTrigger = "trigger"
+	controlActionRate    = "rate"
+	controlActionStop    = "stop"
+)
+
 var validControlActions = map[string]bool{
-	"pause": true, "resume": true, "trigger": true, "rate": true, "stop": true,
+	controlActionPause: true, controlActionResume: true, controlActionTrigger: true,
+	controlActionRate: true, controlActionStop: true,
 }
 
 var sortedControlActions = func() string {
@@ -170,10 +217,10 @@ func (p *Provider) toolProblems(_ json.RawMessage) map[string]any {
 	if p.Watchdog != nil {
 		for _, prob := range p.Watchdog.Problems() {
 			problems = append(problems, map[string]any{
-				"type":    prob.Type,
-				"peer":    prob.PeerIndex,
-				"message": prob.Message,
-				"time":    prob.Time.Format(time.RFC3339),
+				resultKeyType: prob.Type,
+				"peer":        prob.PeerIndex,
+				"message":     prob.Message,
+				"time":        prob.Time.Format(time.RFC3339),
 			})
 		}
 	}
@@ -190,7 +237,7 @@ func (p *Provider) toolProblems(_ json.RawMessage) map[string]any {
 		missing := ps.Missing
 		if missing > 0 {
 			problems = append(problems, map[string]any{
-				"type":          "missing-routes",
+				resultKeyType:   "missing-routes",
 				"peer":          idx,
 				"expected":      sent,
 				"actual":        recv,
@@ -296,9 +343,9 @@ func peerDetail(ps *web.PeerState, detail bool) map[string]any {
 		recent := make([]map[string]any, 0, 5)
 		for i := start; i < len(events); i++ {
 			recent = append(recent, map[string]any{
-				"time":   events[i].Time.Format(time.RFC3339),
-				"type":   events[i].Type.String(),
-				"action": events[i].ChaosAction,
+				"time":        events[i].Time.Format(time.RFC3339),
+				resultKeyType: events[i].Type.String(),
+				"action":      events[i].ChaosAction,
 			})
 		}
 		m["recent-chaos"] = recent
@@ -344,7 +391,7 @@ func (p *Provider) toolControl(args json.RawMessage) map[string]any {
 
 	cmd := web.ControlCommand{Type: input.Action}
 	switch input.Action {
-	case "rate":
+	case controlActionRate:
 		if input.Value == nil {
 			return zemcp.ErrResult("rate action requires value (0.0-1.0)")
 		}
@@ -352,7 +399,7 @@ func (p *Provider) toolControl(args json.RawMessage) map[string]any {
 			return zemcp.ErrResult(fmt.Sprintf("rate must be 0.0-1.0, got %f", *input.Value))
 		}
 		cmd.Rate = *input.Value
-	case "trigger":
+	case controlActionTrigger:
 		if input.ChaosAction == "" {
 			return zemcp.ErrResult("trigger action requires chaos-action")
 		}
@@ -404,63 +451,66 @@ func statusStr(pass bool) string {
 
 var chaosTools = []map[string]any{
 	{
-		"name":        "chaos_status",
-		"description": "Full chaos test status snapshot: peers, routes, convergence stats, throughput, properties.",
-		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+		schemaKeyName:        "chaos_status",
+		schemaKeyDescription: "Full chaos test status snapshot: peers, routes, convergence stats, throughput, properties.",
+		schemaKeyInputSchema: map[string]any{schemaKeyType: schemaTypeObject, schemaKeyProperties: map[string]any{}},
 	},
 	{
-		"name":        "chaos_problems",
-		"description": "Filtered list of actionable issues. Empty array means healthy.",
-		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+		schemaKeyName:        "chaos_problems",
+		schemaKeyDescription: "Filtered list of actionable issues. Empty array means healthy.",
+		schemaKeyInputSchema: map[string]any{schemaKeyType: schemaTypeObject, schemaKeyProperties: map[string]any{}},
 	},
 	{
-		"name":        "chaos_peers",
-		"description": "Per-peer detail. Omit 'peer' for all peers summary, provide index for single peer with recent chaos history.",
-		"inputSchema": map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"peer": map[string]any{
-					"type":        "integer",
-					"description": "Peer index for detail view. Omit for all peers.",
+		schemaKeyName:        "chaos_peers",
+		schemaKeyDescription: "Per-peer detail. Omit 'peer' for all peers summary, provide index for single peer with recent chaos history.",
+		schemaKeyInputSchema: map[string]any{
+			schemaKeyType: schemaTypeObject,
+			schemaKeyProperties: map[string]any{
+				schemaPropPeer: map[string]any{
+					schemaKeyType:        schemaTypeInteger,
+					schemaKeyDescription: "Peer index for detail view. Omit for all peers.",
 				},
 			},
 		},
 	},
 	{
-		"name":        "chaos_scenario",
-		"description": "Static scenario metadata: seed, peer count.",
-		"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+		schemaKeyName:        "chaos_scenario",
+		schemaKeyDescription: "Static scenario metadata: seed, peer count.",
+		schemaKeyInputSchema: map[string]any{schemaKeyType: schemaTypeObject, schemaKeyProperties: map[string]any{}},
 	},
 	{
-		"name":        "chaos_control",
-		"description": "Control chaos scheduling. Use chaos_problems or chaos_status first to understand the situation before changing anything.",
-		"inputSchema": map[string]any{
-			"type": "object",
-			"properties": map[string]any{
-				"action": map[string]any{
-					"type":        "string",
-					"enum":        []string{"pause", "resume", "trigger", "rate", "stop"},
-					"description": "Control action to perform.",
+		schemaKeyName:        "chaos_control",
+		schemaKeyDescription: "Control chaos scheduling. Use chaos_problems or chaos_status first to understand the situation before changing anything.",
+		schemaKeyInputSchema: map[string]any{
+			schemaKeyType: schemaTypeObject,
+			schemaKeyProperties: map[string]any{
+				schemaPropAction: map[string]any{
+					schemaKeyType: schemaTypeString,
+					schemaKeyEnum: []string{
+						controlActionPause, controlActionResume, controlActionTrigger,
+						controlActionRate, controlActionStop,
+					},
+					schemaKeyDescription: "Control action to perform.",
 				},
-				"peer":         map[string]any{"type": "integer", "description": "Peer index for trigger action."},
-				"chaos-action": map[string]any{"type": "string", "description": "Chaos action name for trigger (e.g. tcp-disconnect)."},
-				"value":        map[string]any{"type": "number", "description": "New rate for rate action (0.0-1.0)."},
+				schemaPropPeer: map[string]any{schemaKeyType: schemaTypeInteger, schemaKeyDescription: "Peer index for trigger action."},
+				"chaos-action": map[string]any{schemaKeyType: schemaTypeString, schemaKeyDescription: "Chaos action name for trigger (e.g. tcp-disconnect)."},
+				"value":        map[string]any{schemaKeyType: schemaTypeNumber, schemaKeyDescription: "New rate for rate action (0.0-1.0)."},
 			},
-			"required": []string{"action"},
+			schemaKeyRequired: []string{schemaPropAction},
 		},
 	},
 	{
-		"name":        "chaos_execute",
-		"description": "Execute a chaos orchestrator command. Prefer the specific tools when possible.",
-		"inputSchema": map[string]any{
-			"type": "object",
-			"properties": map[string]any{
+		schemaKeyName:        "chaos_execute",
+		schemaKeyDescription: "Execute a chaos orchestrator command. Prefer the specific tools when possible.",
+		schemaKeyInputSchema: map[string]any{
+			schemaKeyType: schemaTypeObject,
+			schemaKeyProperties: map[string]any{
 				"command": map[string]any{
-					"type":        "string",
-					"description": "Command to execute.",
+					schemaKeyType:        schemaTypeString,
+					schemaKeyDescription: "Command to execute.",
 				},
 			},
-			"required": []string{"command"},
+			schemaKeyRequired: []string{"command"},
 		},
 	},
 }

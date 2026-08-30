@@ -51,18 +51,18 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 	}
 
 	switch path[0] {
-	case "iface":
+	case segIface:
 		return handleInterfacesPage(renderer, r, path[1:], display()), true
 	case "ip":
 		if len(path) < 2 {
 			return "", false
 		}
 		switch path[1] {
-		case "addresses":
+		case segAddresses:
 			return handleAddressesPage(renderer, r), true
 		case "routes":
 			return HandleRoutesPage(renderer, r), true
-		case "dns":
+		case segDNS:
 			return handleDNSPage(renderer, display()), true
 		}
 	case segBGP:
@@ -71,7 +71,7 @@ func renderPageContent(renderer *Renderer, r *http.Request, path []string, viewT
 		return renderFirewallPageContent(renderer, r, path[1:])
 	case segSystem:
 		return renderSystemPageContent(renderer, path[1:], display())
-	case "users":
+	case segUsers:
 		return handleUsersPage(renderer, display(), powerUsers), true
 	case segL2TP:
 		return renderL2TPPageContent(renderer, path[1:], display())
@@ -122,11 +122,11 @@ func renderBGPPageContent(renderer *Renderer, r *http.Request, path []string, vi
 			return handleBGPPeersPage(renderer, r, viewTree, path[1], dispatch), true
 		}
 		return "", false
-	case "summary":
+	case segSummary:
 		return handleBGPSummaryPage(renderer, r, viewTree, dispatch), true
-	case "family":
+	case segFamily:
 		return handleBGPFamiliesPage(renderer, viewTree), true
-	case "policy":
+	case segPolicy:
 		// /show/bgp/policy/ shows the filters table; deeper paths fall through.
 		if len(path) == 1 || (len(path) == 2 && path[1] == "") {
 			return handleBGPPolicyPage(renderer, viewTree, schema), true

@@ -105,7 +105,7 @@ func diffThrottle(prev, curr *CPUInfo) []DiffEvent {
 				var b textbuf.Buffer
 				events = append(events, DiffEvent{
 					Code:    "throttle",
-					Subject: textbuf.StrInt("cpu", int64(c.CPU)),
+					Subject: textbuf.StrInt(cpuNamePrefix, int64(c.CPU)),
 					Message: b.Reset().Str("CPU ").Int(int64(c.CPU)).Str(" throttle: core=").Int(int64(c.CoreThrottleCount)).Str(" pkg=").Int(int64(c.PackageThrottleCount)).String(),
 					Detail: map[string]any{
 						"cpu":              c.CPU,

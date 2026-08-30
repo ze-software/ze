@@ -63,8 +63,8 @@ func checkIPsecCookieThreshold(ctx registry.DoctorCheckContext) []rpc.DoctorChec
 		Int(int64(reachable)).
 		Str(" or below, or leave it at 0 to challenge every initiation.")
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     "doctor-ipsec-cookie-threshold",
-		Severity: "warning",
+		Code:     diagnosticIPsecCookieThreshold,
+		Severity: severityWarning,
 		Message:  tb.String(),
 	}}
 }

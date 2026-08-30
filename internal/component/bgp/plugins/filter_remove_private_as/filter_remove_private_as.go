@@ -28,7 +28,7 @@ func runFilterRemovePrivateAS(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, section := range sections {
-			if section.Root != "bgp" {
+			if section.Root != configRootBGP {
 				continue
 			}
 			bgpCfg, ok := configjson.ParseBGPSubtree(section.Data)
@@ -52,7 +52,7 @@ func runFilterRemovePrivateAS(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 		Filters: []sdk.FilterDecl{{
 			Name:       "*",
 			Direction:  sdk.FilterBoth,

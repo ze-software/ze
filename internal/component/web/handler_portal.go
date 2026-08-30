@@ -89,7 +89,7 @@ func HandlePortal(renderer *Renderer, defaultMode UIMode) http.HandlerFunc {
 			portalFrame(portalFrameData{URL: svc.Path, Title: svc.Title}))
 
 		breadcrumbs := []BreadcrumbSegment{
-			{Name: "portal", URL: showPathPrefix},
+			{Name: prefixPortal, URL: showPathPrefix},
 			{Name: svc.Title, URL: "/portal/" + svc.Key, Active: true},
 		}
 

@@ -43,7 +43,7 @@ func (b *strippedZeBackend) Status() ExtendedUpdateStatus {
 		Backend:        BackendZeSelfUpdate,
 		StatusText:     strippedStatusText,
 		Message:        strippedMessage,
-		DownloadStatus: "unsupported",
+		DownloadStatus: statusUnsupported,
 	}
 }
 
@@ -52,19 +52,19 @@ func (b *strippedZeBackend) Check(context.Context) (ExtendedUpdateStatus, error)
 }
 
 func (b *strippedZeBackend) Download(context.Context) (FirmwareResult, error) {
-	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: "unsupported", Message: strippedMessage}, ErrFirmwareUnsupported
+	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: statusUnsupported, Message: strippedMessage}, ErrFirmwareUnsupported
 }
 
 func (b *strippedZeBackend) Apply(context.Context) (FirmwareResult, error) {
-	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: "unsupported", Message: strippedMessage}, ErrFirmwareUnsupported
+	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: statusUnsupported, Message: strippedMessage}, ErrFirmwareUnsupported
 }
 
 func (b *strippedZeBackend) Restart() (FirmwareResult, error) {
-	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: "unsupported", Message: strippedMessage}, ErrFirmwareUnsupported
+	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: statusUnsupported, Message: strippedMessage}, ErrFirmwareUnsupported
 }
 
 func (b *strippedZeBackend) Rollback() (FirmwareResult, error) {
-	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: "unsupported", Message: strippedMessage}, ErrFirmwareUnsupported
+	return FirmwareResult{Backend: BackendZeSelfUpdate, Status: statusUnsupported, Message: strippedMessage}, ErrFirmwareUnsupported
 }
 
 func (b *strippedZeBackend) History() []UpdateEvent { return nil }

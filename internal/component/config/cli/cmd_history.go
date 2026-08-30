@@ -30,11 +30,11 @@ func cmdHistoryImpl(store storage.Storage, args []string) int {
 			Summary: "List rollback revisions for a configuration file",
 			Usage:   []string{"ze config history <file>"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Description", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "Revisions are stored in the rollback/ subdirectory alongside the config file."},
 				}},
-				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
-					{Name: "0", Desc: "Success"},
+				{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
+					{Name: "0", Desc: helpDescSuccess},
 					{Name: "2", Desc: "File not found or error"},
 				}},
 			},

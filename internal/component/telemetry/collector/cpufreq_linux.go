@@ -33,7 +33,7 @@ func newCPUFreqCollector(interval time.Duration) *cpuFreqCollector {
 func (c *cpuFreqCollector) Name() string { return "cpufreq" }
 
 func (c *cpuFreqCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.freq = reg.GaugeVec(prefix+"_cpufreq_cpufreq_MHz_average", "CPU Frequency", labels)
 	c.throttle = reg.GaugeVec(prefix+"_cpu_core_throttling_events_persec_average", "CPU Core Throttling", labels)
 }

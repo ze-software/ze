@@ -8,6 +8,11 @@ import (
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 )
 
+// responseKeyAction names the member of a clear-command response that says
+// which clear was performed. It is not the `action` of an XFRM policy
+// (show_dataplane.go), which says allow or block.
+const responseKeyAction = "action"
+
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-clear:vpn-ipsec-sa", Handler: handleClearIPsecSA},
@@ -32,13 +37,13 @@ func handleClearIPsecSA(_ *pluginserver.CommandContext, args []string) (*plugin.
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"action": "clear-peer", "peer": name},
+			Data:   plugin.Map{responseKeyAction: "clear-peer", "peer": name},
 		}, nil
 	}
 
 	count := engine.TerminateAllSAs()
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"action": "clear-all", "terminated": count},
+		Data:   plugin.Map{responseKeyAction: "clear-all", "terminated": count},
 	}, nil
 }

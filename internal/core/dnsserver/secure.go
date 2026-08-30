@@ -100,20 +100,20 @@ func (m *Manager) applyListeners(enabled bool, l Listeners) error {
 	for _, e := range l.Plain {
 		ep := net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
 		if err := m.bind(ep, e.IP.String()); err != nil {
-			m.log.Error("dnsserver: listen failed", "endpoint", ep, "error", err)
+			m.log.Error("dnsserver: listen failed", "endpoint", ep, logKeyError, err)
 		}
 	}
 	if l.TLSConfig != nil {
 		for _, e := range l.DoT {
 			ep := net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
 			if err := m.bindDoT(ep, e.IP.String(), l.TLSConfig); err != nil {
-				m.log.Error("dnsserver: DoT listen failed", "endpoint", ep, "error", err)
+				m.log.Error("dnsserver: DoT listen failed", "endpoint", ep, logKeyError, err)
 			}
 		}
 		for _, e := range l.DoH {
 			ep := net.JoinHostPort(e.IP.String(), strconv.Itoa(int(e.Port)))
 			if err := m.bindDoH(ep, e.IP.String(), l.TLSConfig, l.DoHPath); err != nil {
-				m.log.Error("dnsserver: DoH listen failed", "endpoint", ep, "error", err)
+				m.log.Error("dnsserver: DoH listen failed", "endpoint", ep, logKeyError, err)
 			}
 		}
 	}
@@ -226,7 +226,7 @@ func (m *Manager) ApplyWithSecure(enabled bool, plain []Endpoint, sc SecureConfi
 		}
 		tlsCfg, err := m.buildSecureTLS(sc, sans, log)
 		if err != nil {
-			log.Error("dnsserver: TLS material load failed; DoT/DoH not started", "error", err)
+			log.Error("dnsserver: TLS material load failed; DoT/DoH not started", logKeyError, err)
 		} else {
 			l.TLSConfig = tlsCfg
 			if sc.DoTEnabled {
@@ -403,10 +403,10 @@ func (m *Manager) serveHTTP(srv *http.Server, ln net.Listener, ep, addr string, 
 	m.mu.Unlock()
 
 	if !crashed {
-		m.log.Debug("dnsserver: doh listener stopped", "endpoint", ep, "error", err)
+		m.log.Debug("dnsserver: doh listener stopped", "endpoint", ep, logKeyError, err)
 		return
 	}
-	m.log.Error("dnsserver: doh listener crashed unexpectedly", "endpoint", ep, "error", err)
+	m.log.Error("dnsserver: doh listener crashed unexpectedly", "endpoint", ep, logKeyError, err)
 	if m.opts.OnListenerChange != nil {
 		m.opts.OnListenerChange("doh", addr, false)
 	}
@@ -452,7 +452,7 @@ func (m *Manager) dohHandler(localAddr net.Addr) http.HandlerFunc {
 		}
 		w.WriteHeader(http.StatusOK)
 		if _, werr := w.Write(out); werr != nil {
-			m.log.Debug("dnsserver: doh response write", "error", werr)
+			m.log.Debug("dnsserver: doh response write", logKeyError, werr)
 		}
 	}
 }

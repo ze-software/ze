@@ -10,6 +10,18 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
+const (
+	// componentAppliance is the doctor component that owns the appliance build checks.
+	componentAppliance = "appliance"
+	// dependencyExternalBinary is the doctor dependency of a check that runs a program from PATH.
+	dependencyExternalBinary = "external-binary"
+	// grubStandalone and grubStandalone2 are the two names distributions give the
+	// GRUB standalone EFI image builder. Debian keeps the original name, and the
+	// distributions that packaged GRUB 2 beside GRUB Legacy prefix theirs.
+	grubStandalone  = "grub-mkstandalone"
+	grubStandalone2 = "grub2-mkstandalone"
+)
+
 var doctorLookPathFn = exec.LookPath
 
 func applianceDoctorChecks() []diagnostic.DoctorCheck {
@@ -18,8 +30,8 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 			Name:         "appliance-kernel",
 			Phase:        diagnostic.DoctorPhasePreConfig,
 			Order:        800,
-			Component:    "appliance",
-			Dependencies: []string{"external-binary"},
+			Component:    componentAppliance,
+			Dependencies: []string{dependencyExternalBinary},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
 			Codes:        []string{"doctor-appliance-kernel"},
 			Check:        checkKernelArtifact,
@@ -28,8 +40,8 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 			Name:         "appliance-initrd",
 			Phase:        diagnostic.DoctorPhasePreConfig,
 			Order:        801,
-			Component:    "appliance",
-			Dependencies: []string{"external-binary"},
+			Component:    componentAppliance,
+			Dependencies: []string{dependencyExternalBinary},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
 			Codes:        []string{"doctor-appliance-initrd"},
 			Check:        checkInitrdArtifact,
@@ -38,8 +50,8 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 			Name:         "appliance-grub",
 			Phase:        diagnostic.DoctorPhasePreConfig,
 			Order:        802,
-			Component:    "appliance",
-			Dependencies: []string{"external-binary"},
+			Component:    componentAppliance,
+			Dependencies: []string{dependencyExternalBinary},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
 			Codes:        []string{"doctor-appliance-grub"},
 			Check:        checkGrubBinary,
@@ -48,8 +60,8 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 			Name:         "appliance-xorriso",
 			Phase:        diagnostic.DoctorPhasePreConfig,
 			Order:        803,
-			Component:    "appliance",
-			Dependencies: []string{"external-binary"},
+			Component:    componentAppliance,
+			Dependencies: []string{dependencyExternalBinary},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
 			Codes:        []string{"doctor-appliance-xorriso"},
 			Check:        checkXorrisoBinary,
@@ -58,8 +70,8 @@ func applianceDoctorChecks() []diagnostic.DoctorCheck {
 			Name:         "appliance-e2fsprogs",
 			Phase:        diagnostic.DoctorPhasePreConfig,
 			Order:        804,
-			Component:    "appliance",
-			Dependencies: []string{"external-binary"},
+			Component:    componentAppliance,
+			Dependencies: []string{dependencyExternalBinary},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
 			Codes:        []string{"doctor-appliance-e2fsprogs"},
 			Check:        checkE2fsprogs,
@@ -105,7 +117,7 @@ func checkInitrdArtifact(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 }
 
 func checkGrubBinary(_ diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
-	for _, name := range []string{"grub-mkstandalone", "grub2-mkstandalone"} {
+	for _, name := range []string{grubStandalone, grubStandalone2} {
 		if _, err := doctorLookPathFn(name); err == nil {
 			return nil
 		}

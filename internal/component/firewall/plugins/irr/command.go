@@ -20,7 +20,7 @@ const (
 
 func (plug *irrPlugin) handleCommand(command string, args []string) (string, any, error) {
 	switch command {
-	case "show firewall irr":
+	case cmdShowIRR:
 		return plug.showIRR()
 	case "show firewall irr prefix":
 		return plug.showIRRPrefix(args)

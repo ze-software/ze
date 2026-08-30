@@ -85,7 +85,7 @@ func TestHandler200(t *testing.T) {
 	r.Register("bgp", func() (Status, string) { return StatusHealthy, "" })
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/health", http.NoBody)
 	r.Handler().ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -105,7 +105,7 @@ func TestHandler503(t *testing.T) {
 	r.Register("vpp", func() (Status, string) { return StatusDown, "not connected" })
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/health", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/health", http.NoBody)
 	r.Handler().ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusServiceUnavailable {

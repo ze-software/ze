@@ -162,12 +162,16 @@ func dataplaneSPISelector(ctx *pluginserver.CommandContext, args []string) (uint
 	return uint32(spi), nil
 }
 
+// jsonKeyIfID names the XFRM interface ID member. Three record shapes carry it:
+// an SA, a policy, and a Child SA (show_ipsec.go).
+const jsonKeyIfID = "if-id"
+
 func saInfoToMap(sa *dataplane.SAInfo) map[string]any {
 	return map[string]any{
 		"spi":                sa.SPI,
 		"src":                ipString(sa.Src),
 		"dst":                ipString(sa.Dst),
-		"if-id":              sa.IfID,
+		jsonKeyIfID:          sa.IfID,
 		"proto":              ipsecProtoName(sa.Proto),
 		"mode":               ipsecModeName(sa.Mode),
 		"reqid":              sa.ReqID,
@@ -213,7 +217,7 @@ func policyInfoToMap(p *dataplane.PolicyInfo) map[string]any {
 		"direction":   policyDirName(p.Dir),
 		"upper-proto": p.UpperProto,
 		"priority":    p.Priority,
-		"if-id":       p.IfID,
+		jsonKeyIfID:   p.IfID,
 		"action":      policyActionName(p.Action),
 		"mode":        ipsecModeName(p.Mode),
 		"reqid":       p.ReqID,

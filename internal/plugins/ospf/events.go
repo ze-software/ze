@@ -9,6 +9,8 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
+// Namespace is the one name OSPF answers to: its event namespace, its plugin
+// registration name, its component name and its configuration root.
 const Namespace = "ospf"
 
 const (

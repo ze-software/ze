@@ -5,7 +5,7 @@
 //     ping handlers, and
 //   - the local command registry, for offline `show ping` and `monitor ping`.
 //
-// The module is reached by the daemon through internal/le/pluginimports/pluginimports.go
+// The module is reached by the daemon through internal/le/plugin/imports/pluginimports.go
 // rpcDirs (internal/component/ping/cmd) and by the `ze` binary through plugin/all.
 
 package cmd
@@ -87,7 +87,7 @@ func monitorPingLocal(args []string) int {
 	for result := range ch {
 		tb.Reset(0)
 		seq, _ := result["seq"].(int)
-		status, _ := result["status"].(string)
+		status, _ := result[fieldStatus].(string)
 		tb.Str("  seq=").Int(int64(seq))
 		if status == "ok" {
 			rtt, _ := result["rtt-ms"].(float64)

@@ -20,13 +20,19 @@ import (
 // xfrmStatPath is the procfs XFRM counters file; overridable in tests.
 var xfrmStatPath = "/proc/net/xfrm_stat"
 
+// The values of the reason label the XFRM drop counters carry.
+const (
+	reasonNoPolicy   = "no-policy"
+	reasonAuthFailed = "auth-failed"
+)
+
 // xfrmDropReasons maps /proc/net/xfrm_stat field names to the metric reason label.
 var xfrmDropReasons = map[string]string{
-	"XfrmInNoPols":          "no-policy",   // inbound OSPF packet with no matching (required) policy
-	"XfrmInNoStates":        "no-policy",   // inbound protected packet with no matching SA
-	"XfrmInStateProtoError": "auth-failed", // transform (ESP/AH) processing error
-	"XfrmInIntegFailures":   "auth-failed", // integrity check failed
-	"XfrmInStateInvalid":    "auth-failed",
+	"XfrmInNoPols":          reasonNoPolicy,   // inbound OSPF packet with no matching (required) policy
+	"XfrmInNoStates":        reasonNoPolicy,   // inbound protected packet with no matching SA
+	"XfrmInStateProtoError": reasonAuthFailed, // transform (ESP/AH) processing error
+	"XfrmInIntegFailures":   reasonAuthFailed, // integrity check failed
+	"XfrmInStateInvalid":    reasonAuthFailed,
 }
 
 func readXfrmDropsPlatform() (map[string]uint64, error) {

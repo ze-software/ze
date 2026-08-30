@@ -1,7 +1,6 @@
 // Design: docs/architecture/route-types.md — L3VPN route parsing
 // Overview: route.go — core route types and attribute parsing
 
-//nolint:goconst // Many string literals are intentional for BGP protocol keywords
 package route
 
 import (
@@ -84,7 +83,7 @@ func parseL3VPNAttributes(args []string) (bgptypes.L3VPNRoute, error) {
 			route.Labels = labels
 			i += consumed
 
-		case "next-hop":
+		case keywordNextHop:
 			if i+1 >= len(args) {
 				return bgptypes.L3VPNRoute{}, ErrMissingNextHop
 			}

@@ -91,8 +91,8 @@ func checkIPsecUDPEncap(_ registry.DoctorCheckContext) []rpc.DoctorCheckDiagnost
 		Str("), so a NAT-traversing tunnel will establish and carry no traffic: ").
 		Err(r.err)
 	return []rpc.DoctorCheckDiagnostic{{
-		Code:     "doctor-ipsec-udp-encap",
-		Severity: "error",
+		Code:     diagnosticIPsecUDPEncap,
+		Severity: severityError,
 		Message:  tb.String(),
 	}}
 }

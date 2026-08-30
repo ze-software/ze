@@ -34,7 +34,7 @@ func newStatCollector(fs procfs.FS, interval time.Duration) *statCollector {
 func (c *statCollector) Name() string { return "stat" }
 
 func (c *statCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.processes = reg.GaugeVec(prefix+"_system_processes_processes_average", "System Processes", labels)
 	c.forks = reg.GaugeVec(prefix+"_system_forks_processes_persec_average", "Process Forks", labels)
 	c.ctxt = reg.GaugeVec(prefix+"_system_ctxt_context_switches_persec_average", "Context Switches", labels)

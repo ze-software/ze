@@ -55,7 +55,7 @@ func newStartupProtocol(scanner *bufio.Scanner, output io.Writer) *startupProtoc
 	return &startupProtocol{
 		scanner:  scanner,
 		output:   output,
-		Families: []string{"ipv4/unicast"}, // Default family
+		Families: []string{defaultFamily},
 	}
 }
 
@@ -376,7 +376,7 @@ type Bridge struct {
 func NewBridge(pluginCmd []string) *Bridge {
 	return &Bridge{
 		pluginCmd: pluginCmd,
-		Families:  []string{"ipv4/unicast"}, // Default family
+		Families:  []string{defaultFamily},
 		ack:       newAckMode(),
 	}
 }

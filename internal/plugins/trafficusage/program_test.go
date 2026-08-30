@@ -35,8 +35,7 @@ func loadColl(t *testing.T, trackIP bool) *ebpf.Collection {
 		if errors.Is(err, syscall.EPERM) {
 			t.Skipf("no permission to load BPF: %v", err)
 		}
-		var ve *ebpf.VerifierError
-		if errors.As(err, &ve) {
+		if ve, ok := errors.AsType[*ebpf.VerifierError](err); ok {
 			t.Fatalf("BPF verifier rejected program:\n%+v", ve)
 		}
 		t.Fatalf("load collection: %v", err)

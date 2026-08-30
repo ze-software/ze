@@ -108,6 +108,10 @@ func (c *Consumer) forgetSource(prefix netip.Prefix) string {
 	return src
 }
 
+// labelSource is the Prometheus label that carries the protocol a
+// redistributed route came from.
+const labelSource = "source"
+
 // SetMetrics registers the redistribution counters this spec OWNS (umbrella
 // canonical Metrics table). A nil registry is ignored (the no-ops stay).
 func (c *Consumer) SetMetrics(reg metrics.Registry) {
@@ -117,17 +121,17 @@ func (c *Consumer) SetMetrics(reg metrics.Registry) {
 	c.mInjected = reg.CounterVec(
 		"ze_isis_redist_injected_total",
 		"Total routes injected into IS-IS LSPs by the redistribution consumer, by source and address family.",
-		[]string{"source", "afi"},
+		[]string{labelSource, "afi"},
 	)
 	c.mWithdrawn = reg.CounterVec(
 		"ze_isis_redist_withdrawn_total",
 		"Total routes withdrawn from IS-IS LSPs by the redistribution consumer, by source and address family.",
-		[]string{"source", "afi"},
+		[]string{labelSource, "afi"},
 	)
 	c.mInjectFailed = reg.CounterVec(
 		"ze_isis_redist_inject_failures_total",
 		"Total IS-IS redistribution injections that failed to re-originate the LSP, by source.",
-		[]string{"source"},
+		[]string{labelSource},
 	)
 }
 

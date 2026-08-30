@@ -143,7 +143,7 @@ func validateYangType(t *gyang.YangType, value string) bool {
 		return validateUintRange(value, 0, 4294967295)
 
 	case gyang.Ybool:
-		return value == "true" || value == "false"
+		return value == boolTrue || value == boolFalse
 
 	case gyang.Yenum:
 		if t.Enum == nil {

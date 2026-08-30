@@ -24,6 +24,23 @@ import (
 // Completion is a type alias of contract.Completion.
 type Completion = contract.Completion
 
+// The kinds a Completion carries in its Type field. The editor renders each
+// kind differently, so a suggestion that names the wrong kind is shown wrong.
+const (
+	completionCommand = "command"
+	completionKeyword = "keyword"
+	completionListKey = "list-key"
+	completionValue   = "value"
+	completionHint    = "hint"
+)
+
+// typeHintAny is the hint shown for a leaf whose YANG type names nothing more
+// specific. It is a word for the operator to read, not a completion kind.
+const typeHintAny = "value"
+
+// leafBackend is the YANG leaf that names the active backend of a component.
+const leafBackend = "backend"
+
 // Completer provides YANG-driven completions.
 type Completer struct {
 	loader   *yang.Loader
@@ -62,9 +79,9 @@ func (c *Completer) setTreeInternal(tree *config.Tree) {
 
 // backendLeaves maps component root container names to their backend leaf path.
 var backendLeaves = map[string]string{
-	"interface":       "backend",
-	"firewall":        "backend",
-	"traffic/control": "backend",
+	"interface":       leafBackend,
+	"firewall":        leafBackend,
+	"traffic/control": leafBackend,
 }
 
 // deriveBackends reads backend leaf values from the config tree.
@@ -90,27 +107,27 @@ func (c *Completer) deriveBackends(tree *config.Tree) map[string]string {
 
 // commands returns the available editor commands.
 var commands = []Completion{
-	{Text: cmdSet, Description: "Set a configuration value", Type: "command"},
-	{Text: cmdDelete, Description: "Delete a configuration value", Type: "command"},
-	{Text: cmdEdit, Description: "Enter a subsection context", Type: "command"},
-	{Text: cmdShow, Description: "Display configuration", Type: "command"},
-	{Text: cmdOption, Description: "Display settings (columns, errors)", Type: "command"},
-	{Text: cmdCommit, Description: "Apply config (must be valid)", Type: "command"},
-	{Text: cmdSave, Description: "Snapshot work-in-progress", Type: "command"},
-	{Text: cmdDiscard, Description: "Revert all changes", Type: "command"},
-	{Text: cmdTop, Description: "Return to root context", Type: "command"},
-	{Text: cmdUp, Description: "Go up one level", Type: "command"},
-	{Text: cmdRollback, Description: "Restore from backup", Type: "command"},
-	{Text: cmdExit, Description: "Exit current mode", Type: "command"},
-	{Text: cmdHelp, Description: "Show help", Type: "command"},
-	{Text: cmdRun, Description: "Run operational command", Type: "command"},
-	{Text: cmdWho, Description: "List active editing sessions", Type: "command"},
-	{Text: cmdDisconnect, Description: "Remove another session", Type: "command"},
-	{Text: cmdDeactivate, Description: "Mark a config block inactive", Type: "command"},
-	{Text: cmdActivate, Description: "Reactivate an inactive config block", Type: "command"},
-	{Text: cmdRename, Description: "Rename a list entry", Type: "command"},
-	{Text: cmdCopy, Description: "Copy a list entry", Type: "command"},
-	{Text: cmdInsert, Description: "Insert into a leaf-list at position", Type: "command"},
+	{Text: cmdSet, Description: "Set a configuration value", Type: completionCommand},
+	{Text: cmdDelete, Description: "Delete a configuration value", Type: completionCommand},
+	{Text: cmdEdit, Description: "Enter a subsection context", Type: completionCommand},
+	{Text: cmdShow, Description: "Display configuration", Type: completionCommand},
+	{Text: cmdOption, Description: "Display settings (columns, errors)", Type: completionCommand},
+	{Text: cmdCommit, Description: "Apply config (must be valid)", Type: completionCommand},
+	{Text: cmdSave, Description: "Snapshot work-in-progress", Type: completionCommand},
+	{Text: cmdDiscard, Description: "Revert all changes", Type: completionCommand},
+	{Text: cmdTop, Description: "Return to root context", Type: completionCommand},
+	{Text: cmdUp, Description: "Go up one level", Type: completionCommand},
+	{Text: cmdRollback, Description: "Restore from backup", Type: completionCommand},
+	{Text: cmdExit, Description: "Exit current mode", Type: completionCommand},
+	{Text: cmdHelp, Description: "Show help", Type: completionCommand},
+	{Text: cmdRun, Description: "Run operational command", Type: completionCommand},
+	{Text: cmdWho, Description: "List active editing sessions", Type: completionCommand},
+	{Text: cmdDisconnect, Description: "Remove another session", Type: completionCommand},
+	{Text: cmdDeactivate, Description: "Mark a config block inactive", Type: completionCommand},
+	{Text: cmdActivate, Description: "Reactivate an inactive config block", Type: completionCommand},
+	{Text: cmdRename, Description: "Rename a list entry", Type: completionCommand},
+	{Text: cmdCopy, Description: "Copy a list entry", Type: completionCommand},
+	{Text: cmdInsert, Description: "Insert into a leaf-list at position", Type: completionCommand},
 }
 
 // Complete returns completions for the given input at cursor position.
@@ -148,7 +165,7 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 					cmdCompletions = append(cmdCompletions, Completion{
 						Text:        tb.Str(cmdSet).Byte(' ').Str(name).String(),
 						Description: tb.Reset().Str("Set ").Str(name).String(),
-						Type:        "keyword",
+						Type:        completionKeyword,
 					})
 				}
 			}
@@ -369,7 +386,7 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 		// Offer schema children (peer, rib, etc.) and pipe.
 		completions := c.matchEditTargets(contextPath, prefix)
 		if prefix == "" || prefix == "|" {
-			completions = append(completions, Completion{Text: "|", Description: "Pipe output through filters", Type: "keyword"})
+			completions = append(completions, Completion{Text: "|", Description: "Pipe output through filters", Type: completionKeyword})
 		}
 		return completions
 	}
@@ -386,13 +403,13 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 
 // optionSubcommands are completions offered when typing "option ".
 var optionSubcommands = []Completion{
-	{Text: colAuthor, Description: "Toggle author column (enable/disable)", Type: "keyword"},
-	{Text: colDate, Description: "Toggle date column (enable/disable)", Type: "keyword"},
-	{Text: colSource, Description: "Toggle source column (enable/disable)", Type: "keyword"},
-	{Text: colChanges, Description: "Toggle changes column (enable/disable)", Type: "keyword"},
-	{Text: cmdErrors, Description: "Error display (hints/hide)", Type: "keyword"},
-	{Text: cmdAll, Description: "Enable all display columns", Type: "keyword"},
-	{Text: cmdNone, Description: "Disable all display columns", Type: "keyword"},
+	{Text: colAuthor, Description: "Toggle author column (enable/disable)", Type: completionKeyword},
+	{Text: colDate, Description: "Toggle date column (enable/disable)", Type: completionKeyword},
+	{Text: colSource, Description: "Toggle source column (enable/disable)", Type: completionKeyword},
+	{Text: colChanges, Description: "Toggle changes column (enable/disable)", Type: completionKeyword},
+	{Text: cmdErrors, Description: "Error display (hints/hide)", Type: completionKeyword},
+	{Text: cmdAll, Description: "Enable all display columns", Type: completionKeyword},
+	{Text: cmdNone, Description: "Disable all display columns", Type: completionKeyword},
 }
 
 // completeOptionPath completes paths for option command (display settings).
@@ -408,16 +425,16 @@ func (c *Completer) completeOptionPath(tokens, _ []string, endsWithSpace bool) [
 	// "option errors " -> offer hints/hide.
 	if len(tokens) == 1 && tokens[0] == cmdErrors && endsWithSpace {
 		return []Completion{
-			{Text: "hints", Description: "Toggle inline diagnostic hints", Type: "keyword"},
-			{Text: "hide", Description: "Hide error annotations", Type: "keyword"},
+			{Text: "hints", Description: "Toggle inline diagnostic hints", Type: completionKeyword},
+			{Text: "hide", Description: "Hide error annotations", Type: completionKeyword},
 		}
 	}
 
 	// "option <column> " -> offer enable/disable.
 	if len(tokens) == 1 && endsWithSpace && isOptionColumn(tokens[0]) {
 		return []Completion{
-			{Text: cmdEnable, Description: "Enable column", Type: "keyword"},
-			{Text: cmdDisable, Description: "Disable column", Type: "keyword"},
+			{Text: cmdEnable, Description: "Enable column", Type: completionKeyword},
+			{Text: cmdDisable, Description: "Disable column", Type: completionKeyword},
 		}
 	}
 
@@ -426,21 +443,21 @@ func (c *Completer) completeOptionPath(tokens, _ []string, endsWithSpace bool) [
 
 // textPipeFilters are basic text filters available to any piped command.
 var textPipeFilters = []Completion{
-	{Text: cmdMatch, Description: "Filter lines matching pattern", Type: "keyword"},
-	{Text: cmdHead, Description: "Show first N lines", Type: "keyword"},
-	{Text: cmdTail, Description: "Show last N lines", Type: "keyword"},
+	{Text: cmdMatch, Description: "Filter lines matching pattern", Type: completionKeyword},
+	{Text: cmdHead, Description: "Show first N lines", Type: completionKeyword},
+	{Text: cmdTail, Description: "Show last N lines", Type: completionKeyword},
 }
 
 // showPipeFilters extend text filters with show-specific pipes.
 var showPipeFilters = append([]Completion{
-	{Text: cmdBlame, Description: "Annotate with authorship", Type: "keyword"},
-	{Text: cmdChanges, Description: "Pending changes", Type: "keyword"},
-	{Text: cmdCompare, Description: "Diff against baseline", Type: "keyword"},
-	{Text: cmdErrors, Description: "Validation issues", Type: "keyword"},
-	{Text: cmdFormat, Description: "Output format (tree or config)", Type: "keyword"},
-	{Text: cmdHistory, Description: "Rollback revisions", Type: "keyword"},
-	{Text: cmdActive, Description: "Show only active nodes (hide inactive)", Type: "keyword"},
-	{Text: cmdInactive, Description: "Show only inactive nodes", Type: "keyword"},
+	{Text: cmdBlame, Description: "Annotate with authorship", Type: completionKeyword},
+	{Text: cmdChanges, Description: "Pending changes", Type: completionKeyword},
+	{Text: cmdCompare, Description: "Diff against baseline", Type: completionKeyword},
+	{Text: cmdErrors, Description: "Validation issues", Type: completionKeyword},
+	{Text: cmdFormat, Description: "Output format (tree or config)", Type: completionKeyword},
+	{Text: cmdHistory, Description: "Rollback revisions", Type: completionKeyword},
+	{Text: cmdActive, Description: "Show only active nodes (hide inactive)", Type: completionKeyword},
+	{Text: cmdInactive, Description: "Show only inactive nodes", Type: completionKeyword},
 }, textPipeFilters...)
 
 // completePipeFilter completes pipe filter names and their arguments.
@@ -472,8 +489,8 @@ func completePipeFilter(available []Completion, tokens []string, endsWithSpace b
 			prefix = tokens[len(tokens)-1]
 		}
 		return filterCompletions([]Completion{
-			{Text: fmtTree, Description: "Hierarchical tree format", Type: "keyword"},
-			{Text: fmtConfig, Description: "Flat set-command format", Type: "keyword"},
+			{Text: fmtTree, Description: "Hierarchical tree format", Type: completionKeyword},
+			{Text: fmtConfig, Description: "Flat set-command format", Type: completionKeyword},
 		}, prefix)
 	case cmdCompare:
 		prefix := ""
@@ -481,9 +498,9 @@ func completePipeFilter(available []Completion, tokens []string, endsWithSpace b
 			prefix = tokens[len(tokens)-1]
 		}
 		return filterCompletions([]Completion{
-			{Text: "committed", Description: "Compare with committed config", Type: "keyword"},
-			{Text: "saved", Description: "Compare with saved draft", Type: "keyword"},
-			{Text: "rollback", Description: "Compare with rollback N", Type: "keyword"},
+			{Text: "committed", Description: "Compare with committed config", Type: completionKeyword},
+			{Text: "saved", Description: "Compare with saved draft", Type: completionKeyword},
+			{Text: "rollback", Description: "Compare with rollback N", Type: completionKeyword},
 		}, prefix)
 	case cmdChanges:
 		prefix := ""
@@ -491,7 +508,7 @@ func completePipeFilter(available []Completion, tokens []string, endsWithSpace b
 			prefix = tokens[len(tokens)-1]
 		}
 		return filterCompletions([]Completion{
-			{Text: cmdAll, Description: "All sessions' pending changes", Type: "keyword"},
+			{Text: cmdAll, Description: "All sessions' pending changes", Type: completionKeyword},
 		}, prefix)
 	}
 
@@ -507,7 +524,7 @@ func (c *Completer) completeDiscardPath(tokens, contextPath []string, endsWithSp
 			prefix = tokens[0]
 		}
 		results := filterCompletions([]Completion{
-			{Text: cmdAll, Description: "Discard all pending changes", Type: "keyword"},
+			{Text: cmdAll, Description: "Discard all pending changes", Type: completionKeyword},
 		}, prefix)
 		results = append(results, c.completeSetPath(tokens, contextPath, endsWithSpace)...)
 		return results
@@ -547,7 +564,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		completions = append(completions, Completion{
 			Text:        "*",
 			Description: "Template for all entries",
-			Type:        "list-key",
+			Type:        completionListKey,
 		})
 	}
 
@@ -560,7 +577,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 				completions = append(completions, Completion{
 					Text:        id,
 					Description: listName,
-					Type:        "list-key",
+					Type:        completionListKey,
 				})
 			}
 		} else if prefix == "" || strings.HasPrefix(entry.Key, prefix) {
@@ -568,7 +585,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 			completions = append(completions, Completion{
 				Text:        entry.Key,
 				Description: listName,
-				Type:        "list-key",
+				Type:        completionListKey,
 			})
 		}
 	}
@@ -579,7 +596,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		completions = append(completions, Completion{
 			Text:        "<value>",
 			Description: tb.Str("New ").Str(listName).Str(" key").String(),
-			Type:        "hint",
+			Type:        completionHint,
 		})
 	} else if prefix != "" && len(completions) == 0 {
 		// User typed a value that doesn't match any existing key —
@@ -591,7 +608,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 			completions = append(completions, Completion{
 				Text:        prefix,
 				Description: tb.Str("New ").Str(listName).Str(" key").String(),
-				Type:        "list-key",
+				Type:        completionListKey,
 			})
 		} else {
 			hint := c.TypeHint(keyEntry.Type)
@@ -707,7 +724,7 @@ func (c *Completer) matchChildren(path []string, prefix string) []Completion {
 			completions = append(completions, Completion{
 				Text:        name,
 				Description: c.entryDescription(child),
-				Type:        "keyword",
+				Type:        completionKeyword,
 			})
 		}
 	}
@@ -735,7 +752,7 @@ func (c *Completer) matchEditTargets(path []string, prefix string) []Completion 
 			completions = append(completions, Completion{
 				Text:        name,
 				Description: c.entryDescription(child),
-				Type:        "keyword",
+				Type:        completionKeyword,
 			})
 		}
 	}
@@ -768,7 +785,7 @@ func (c *Completer) backendAllowed(entry *gyang.Entry) bool {
 // valueCompletions returns completions for a leaf value.
 func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Completion {
 	if entry.Type == nil {
-		return []Completion{{Text: "<value>", Description: "value", Type: "hint"}}
+		return []Completion{{Text: "<" + typeHintAny + ">", Description: typeHintAny, Type: completionHint}}
 	}
 
 	// Check ze:validate extension for CompleteFn-based completions.
@@ -787,7 +804,7 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 				completions = append(completions, Completion{
 					Text:        name,
 					Description: "enum value",
-					Type:        "value",
+					Type:        completionValue,
 				})
 			}
 		}
@@ -797,8 +814,8 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 	// Handle booleans
 	if entry.Type.Kind == gyang.Ybool {
 		return filterCompletions([]Completion{
-			{Text: "true", Description: "Enable", Type: "value"},
-			{Text: "false", Description: "Disable", Type: "value"},
+			{Text: boolTrue, Description: "Enable", Type: completionValue},
+			{Text: boolFalse, Description: "Disable", Type: completionValue},
 		}, prefix)
 	}
 
@@ -812,7 +829,7 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 						completions = append(completions, Completion{
 							Text:        name,
 							Description: "enum value",
-							Type:        "value",
+							Type:        completionValue,
 						})
 					}
 				}
@@ -826,7 +843,7 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 	// Type hint based on YANG type — hint-only, not applicable by Tab
 	hint := c.TypeHint(entry.Type)
 	var tb textbuf.Buffer
-	return []Completion{{Text: tb.Byte('<').Str(hint).Byte('>').String(), Description: tb.Reset().Str(hint).Str(" value").String(), Type: "hint"}}
+	return []Completion{{Text: tb.Byte('<').Str(hint).Byte('>').String(), Description: tb.Reset().Str(hint).Str(" value").String(), Type: completionHint}}
 }
 
 // validateCompletions returns completions from ze:validate CompleteFn if available.
@@ -870,7 +887,7 @@ func (c *Completer) validateCompletions(entry *gyang.Entry, prefix string) []Com
 			completions = append(completions, Completion{
 				Text:        v,
 				Description: "valid value",
-				Type:        "value",
+				Type:        completionValue,
 			})
 		}
 	}
@@ -880,7 +897,7 @@ func (c *Completer) validateCompletions(entry *gyang.Entry, prefix string) []Com
 // TypeHint returns a hint string for a YANG type.
 func (c *Completer) TypeHint(t *gyang.YangType) string {
 	if t == nil {
-		return "value"
+		return typeHintAny
 	}
 	//nolint:exhaustive // fallthrough uses type name for unlisted YANG kinds
 	switch t.Kind {
@@ -913,7 +930,7 @@ func (c *Completer) TypeHint(t *gyang.YangType) string {
 	if t.Name != "" && t.Name != "union" {
 		return t.Name
 	}
-	return "value"
+	return typeHintAny
 }
 
 // entryDescription returns description for a YANG entry.

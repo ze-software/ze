@@ -28,7 +28,7 @@ func parseShaperConfig(data string) (*shaperConfig, bool, error) {
 		return nil, false, fmt.Errorf("%s: invalid config JSON: %w", Name, err)
 	}
 
-	l2tpBlock, ok := tree["l2tp"].(map[string]any)
+	l2tpBlock, ok := tree[configRootL2TP].(map[string]any)
 	if !ok {
 		return nil, false, nil
 	}

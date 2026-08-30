@@ -18,12 +18,16 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
+// configRoot is the YANG container this plugin reads. The plugin registers as
+// "fib-vpp"; the config path is "fib/vpp".
+const configRoot = "fib/vpp"
+
 func init() {
 	reg := registry.Registration{
 		Name:         "fib-vpp",
 		Description:  "FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API",
 		Features:     "yang",
-		ConfigRoots:  []string{"fib/vpp"},
+		ConfigRoots:  []string{configRoot},
 		Dependencies: []string{"rib", "vpp"},
 		YANG:         fibvppyang.ZeFibVPPConfYANG,
 		RunEngine:    runFibVPPPlugin,
@@ -63,7 +67,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
-			if s.Root != "fib/vpp" {
+			if s.Root != configRoot {
 				continue
 			}
 			parsed, err := parseFibVPPConfigSection(s.Data)
@@ -163,7 +167,7 @@ func runFibVPPPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"fib/vpp"},
+		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{

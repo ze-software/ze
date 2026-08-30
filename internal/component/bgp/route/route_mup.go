@@ -1,7 +1,6 @@
 // Design: docs/architecture/route-types.md — MUP route parsing
 // Overview: route.go — core route types and attribute parsing
 
-//nolint:goconst // Many string literals are intentional for BGP protocol keywords
 package route
 
 import (
@@ -93,7 +92,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 			i++
 			continue
 
-		case "next-hop":
+		case keywordNextHop:
 			if i+1 >= len(args) {
 				return spec, errMissingNextHopValue
 			}
@@ -129,7 +128,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
 			i++
 			continue
 
-		case "source":
+		case keywordSource:
 			if i+1 >= len(args) {
 				return spec, errMissingSourceValue
 			}

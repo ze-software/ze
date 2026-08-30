@@ -25,14 +25,21 @@ func WireValueHints(tree *Node) {
 	wireEnvHints(tree)
 }
 
+// The two command words the env value hints hang from.
+const (
+	commandEnv        = "env"
+	commandGet        = "get"
+	commandRegistered = "registered"
+)
+
 func wireEnvHints(tree *Node) {
 	for _, path := range [][]string{
-		{"show", "env", "get"},
-		{"show", "env", "registered"},
-		{"env", "get"},
-		{"env", "registered"},
-		{"get"},
-		{"registered"},
+		{verbShow, commandEnv, commandGet},
+		{verbShow, commandEnv, commandRegistered},
+		{commandEnv, commandGet},
+		{commandEnv, commandRegistered},
+		{commandGet},
+		{commandRegistered},
 	} {
 		if node := navigatePath(tree, path...); node != nil {
 			node.ValueHints = EnvValueHints
@@ -76,7 +83,7 @@ func EnvValueHints() []Suggestion {
 		hints = append(hints, Suggestion{
 			Text:        e.Key,
 			Description: e.Description,
-			Type:        "value",
+			Type:        SuggestionValue,
 		})
 	}
 	return hints
@@ -103,7 +110,7 @@ func FamilyValueHints() []Suggestion {
 		hints = append(hints, Suggestion{
 			Text:        fam,
 			Description: plugin,
-			Type:        "value",
+			Type:        SuggestionValue,
 		})
 	}
 	sort.Slice(hints, func(i, j int) bool { return hints[i].Text < hints[j].Text })

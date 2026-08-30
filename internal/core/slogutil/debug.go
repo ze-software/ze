@@ -56,7 +56,7 @@ func SubsystemsMatching(name string) []string {
 func RestoreLevel(subsystem string) {
 	v := getLogEnv(subsystem)
 	if v == "" {
-		_ = SetLevel(subsystem, "warn")
+		_ = SetLevel(subsystem, levelWarn)
 		return
 	}
 	lvl, enabled := parseLevel(v)

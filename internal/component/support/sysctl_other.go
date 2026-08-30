@@ -5,5 +5,5 @@
 package support
 
 func collectSysctlInfo() (any, error) {
-	return map[string]any{"available": false, "reason": "sysctl collection requires Linux"}, nil
+	return map[string]any{keyAvailable: false, keyReason: "sysctl collection requires Linux"}, nil
 }

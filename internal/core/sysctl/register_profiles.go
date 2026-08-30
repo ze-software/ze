@@ -13,22 +13,26 @@ func init() {
 	}
 }
 
+// keyProxyARP is the proxy ARP key suffix. Three conflict rules name it as the
+// setting they contradict.
+const keyProxyARP = "proxy_arp"
+
 // builtinConflicts defines per-sysctl-key conflicts.
 // Checked when both keys are active on the same interface.
 var builtinConflicts = []ConflictRule{
 	{
 		KeyA: "arp_ignore", ValueA: "1",
-		KeyB: "proxy_arp", ValueB: "1",
+		KeyB: keyProxyARP, ValueB: "1",
 		Reason: "arp_ignore=1 (ignore ARP for non-local IPs) contradicts proxy_arp=1 (answer ARP for them)",
 	},
 	{
 		KeyA: "rp_filter", ValueA: "1",
-		KeyB: "proxy_arp", ValueB: "1",
+		KeyB: keyProxyARP, ValueB: "1",
 		Reason: "rp_filter=1 (strict RPF) drops packets for non-local destinations; proxy_arp=1 advertises reachability",
 	},
 	{
 		KeyA: "arp_announce", ValueA: "2",
-		KeyB: "proxy_arp", ValueB: "1",
+		KeyB: keyProxyARP, ValueB: "1",
 		Reason: "arp_announce=2 (best-source-only) contradicts proxy_arp=1 (answering for others' IPs)",
 	},
 }

@@ -79,9 +79,9 @@ func listResources() []map[string]any {
 			return nil
 		}
 		result = append(result, map[string]any{
-			"uri":      uiScheme + p,
-			"name":     p,
-			"mimeType": sniffMIME(p),
+			schemaFormatURI: uiScheme + p,
+			toolKeyName:     p,
+			"mimeType":      sniffMIME(p),
 		})
 		return nil
 	})
@@ -123,11 +123,11 @@ func readResource(uri string) (map[string]any, error) {
 	}
 	mime := sniffMIME(cleaned)
 	rc := map[string]any{
-		"uri":      uri,
-		"mimeType": mime,
+		schemaFormatURI: uri,
+		"mimeType":      mime,
 	}
 	if isTextMIME(mime) {
-		rc["text"] = string(data)
+		rc[contentTypeText] = string(data)
 	} else {
 		rc["blob"] = base64.StdEncoding.EncodeToString(data)
 	}

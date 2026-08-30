@@ -122,10 +122,10 @@ func (d *Detector) readThrottleCounters() []ThrottleEntry {
 // parseCPUIndex returns the N from a `cpuN` directory name, rejecting
 // anything else (`cpuidle`, `cpufreq`, etc.).
 func parseCPUIndex(name string) (int, bool) {
-	if !strings.HasPrefix(name, "cpu") {
+	if !strings.HasPrefix(name, cpuNamePrefix) {
 		return 0, false
 	}
-	s := strings.TrimPrefix(name, "cpu")
+	s := strings.TrimPrefix(name, cpuNamePrefix)
 	if s == "" {
 		return 0, false
 	}

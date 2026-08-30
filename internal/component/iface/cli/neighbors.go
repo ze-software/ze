@@ -19,20 +19,20 @@ import (
 // Optional positional argument "ipv4" or "ipv6" narrows the dump.
 // Returns exit code.
 func cmdNeighbors(args []string) int {
-	fs := flag.NewFlagSet("ze interface neighbors", flag.ContinueOnError)
+	fs := flag.NewFlagSet(cmdPathNeighbors, flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Output in JSON format")
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze interface neighbors",
+			Command: cmdPathNeighbors,
 			Summary: "List the kernel neighbor table (IPv4 ARP + IPv6 ND)",
 			Usage:   []string{"ze interface neighbors [ipv4|ipv6] [--json]"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--json", Desc: "Output in JSON format"},
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
+					{Name: flagJSONLong, Desc: helpDescJSON},
 				}},
 			},
 			Examples: []string{
-				"ze interface neighbors",
+				cmdPathNeighbors,
 				"ze interface neighbors ipv4",
 				"ze interface neighbors ipv6 --json",
 			},

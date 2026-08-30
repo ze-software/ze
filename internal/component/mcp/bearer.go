@@ -59,7 +59,7 @@ func (a bearerAuthenticator) Authenticate(r *http.Request) (Identity, *authError
 	if got == "" {
 		return Identity{}, &authError{
 			Status:           http.StatusUnauthorized,
-			Scheme:           "Bearer",
+			Scheme:           authSchemeBearer,
 			Realm:            mcpRealm,
 			ErrorCode:        "invalid_request",
 			ErrorDescription: "missing or malformed Authorization header",
@@ -69,7 +69,7 @@ func (a bearerAuthenticator) Authenticate(r *http.Request) (Identity, *authError
 	if subtle.ConstantTimeCompare(gotHash[:], a.hash[:]) != 1 {
 		return Identity{}, &authError{
 			Status:           http.StatusUnauthorized,
-			Scheme:           "Bearer",
+			Scheme:           authSchemeBearer,
 			Realm:            mcpRealm,
 			ErrorCode:        "invalid_token",
 			ErrorDescription: "bearer token does not match",
@@ -99,7 +99,7 @@ func (a bearerListAuthenticator) Authenticate(r *http.Request) (Identity, *authE
 	if got == "" {
 		return Identity{}, &authError{
 			Status:           http.StatusUnauthorized,
-			Scheme:           "Bearer",
+			Scheme:           authSchemeBearer,
 			Realm:            mcpRealm,
 			ErrorCode:        "invalid_request",
 			ErrorDescription: "missing or malformed Authorization header",
@@ -120,7 +120,7 @@ func (a bearerListAuthenticator) Authenticate(r *http.Request) (Identity, *authE
 	if matchIdx < 0 {
 		return Identity{}, &authError{
 			Status:           http.StatusUnauthorized,
-			Scheme:           "Bearer",
+			Scheme:           authSchemeBearer,
 			Realm:            mcpRealm,
 			ErrorCode:        "invalid_token",
 			ErrorDescription: "bearer token does not match any identity",

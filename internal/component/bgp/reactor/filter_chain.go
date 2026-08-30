@@ -15,8 +15,37 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-const policyAttrNLRI = "nlri"
-const policyAttrAtomicAggregate = "atomic-aggregate"
+// Policy filter attribute names. These are the keywords of the filter text
+// format: a filter delta is a sequence of "<name> <value>" pairs, and the same
+// keyword names the attribute in the wire-code table (attrNameToCode,
+// filter_format.go) and in the modify directives (filter_delta.go). Every
+// spelling of one of these tokens in this package is one of these constants,
+// so a rename cannot leave a table half-converted.
+const (
+	policyAttrOrigin                  = "origin"
+	policyAttrASPath                  = "as-path"
+	policyAttrNextHop                 = "next-hop"
+	policyAttrMED                     = "med"
+	policyAttrLocalPreference         = "local-preference"
+	policyAttrAtomicAggregate         = "atomic-aggregate"
+	policyAttrAggregator              = "aggregator"
+	policyAttrCommunity               = "community"
+	policyAttrOriginatorID            = "originator-id"
+	policyAttrClusterList             = "cluster-list"
+	policyAttrExtendedCommunity       = "extended-community"
+	policyAttrAIGP                    = "aigp"
+	policyAttrLargeCommunity          = "large-community"
+	policyAttrCommunityAdd            = "community-add"
+	policyAttrCommunityRemove         = "community-remove"
+	policyAttrLargeCommunityAdd       = "large-community-add"
+	policyAttrLargeCommunityRemove    = "large-community-remove"
+	policyAttrExtendedCommunityAdd    = "extended-community-add"
+	policyAttrExtendedCommunityRemove = "extended-community-remove"
+	policyAttrMEDRemove               = "med-remove"
+	policyAttrASPathPrepend           = "as-path-prepend"
+	policyAttrRemovePrivate           = "remove-private"
+	policyAttrNLRI                    = "nlri"
+)
 
 // Policy filter chain direction tokens (the `direction` argument passed to
 // PolicyFilterChain and on to each filter via the RPC FilterUpdateInput).
@@ -55,18 +84,18 @@ const (
 )
 
 var filterAttrNames = [faCount]string{
-	faOrigin: "origin", faASPath: "as-path", faNextHop: "next-hop",
-	faMED: "med", faLocalPreference: "local-preference",
-	faAtomicAggregate: policyAttrAtomicAggregate, faAggregator: "aggregator",
-	faCommunity: "community", faOriginatorID: "originator-id",
-	faClusterList: "cluster-list", faExtendedCommunity: "extended-community",
-	faAIGP: "aigp", faLargeCommunity: "large-community",
-	faCommunityAdd: "community-add", faCommunityRemove: "community-remove",
-	faLargeCommunityAdd: "large-community-add", faLargeCommunityRemove: "large-community-remove",
-	faExtendedCommunityAdd: "extended-community-add", faExtendedCommunityRemove: "extended-community-remove",
+	faOrigin: policyAttrOrigin, faASPath: policyAttrASPath, faNextHop: policyAttrNextHop,
+	faMED: policyAttrMED, faLocalPreference: policyAttrLocalPreference,
+	faAtomicAggregate: policyAttrAtomicAggregate, faAggregator: policyAttrAggregator,
+	faCommunity: policyAttrCommunity, faOriginatorID: policyAttrOriginatorID,
+	faClusterList: policyAttrClusterList, faExtendedCommunity: policyAttrExtendedCommunity,
+	faAIGP: policyAttrAIGP, faLargeCommunity: policyAttrLargeCommunity,
+	faCommunityAdd: policyAttrCommunityAdd, faCommunityRemove: policyAttrCommunityRemove,
+	faLargeCommunityAdd: policyAttrLargeCommunityAdd, faLargeCommunityRemove: policyAttrLargeCommunityRemove,
+	faExtendedCommunityAdd: policyAttrExtendedCommunityAdd, faExtendedCommunityRemove: policyAttrExtendedCommunityRemove,
 	faMEDRemove:     policyAttrMEDRemove,
-	faASPathPrepend: "as-path-prepend", faRemovePrivate: policyAttrRemovePrivate,
-	faNLRI: "nlri",
+	faASPathPrepend: policyAttrASPathPrepend, faRemovePrivate: policyAttrRemovePrivate,
+	faNLRI: policyAttrNLRI,
 }
 
 var filterAttrNameToID map[string]filterAttrID
@@ -270,10 +299,10 @@ func applyFilterDelta(current, delta string) string {
 }
 
 var policySingleToken = map[string]bool{
-	"origin": true, "next-hop": true, "med": true,
-	"local-preference": true, policyAttrAtomicAggregate: true,
-	"aggregator": true, "originator-id": true,
-	"as-path-prepend": true, policyAttrRemovePrivate: true, "aigp": true,
+	policyAttrOrigin: true, policyAttrNextHop: true, policyAttrMED: true,
+	policyAttrLocalPreference: true, policyAttrAtomicAggregate: true,
+	policyAttrAggregator: true, policyAttrOriginatorID: true,
+	policyAttrASPathPrepend: true, policyAttrRemovePrivate: true, policyAttrAIGP: true,
 }
 
 // parseFilterAttrsCalls counts parseFilterAttrs invocations. Test seam for
@@ -345,13 +374,13 @@ func parseFilterAttrs(text string) *filterAttrs {
 // isPolicyAttrName returns true if the token is a known BGP attribute name.
 func isPolicyAttrName(s string) bool {
 	switch s {
-	case "origin", "as-path", "next-hop", "med", "local-preference",
-		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
-		"cluster-list", "extended-community", "aigp", "large-community", "nlri",
-		"as-path-prepend", policyAttrRemovePrivate, policyAttrMEDRemove,
-		"community-add", "community-remove",
-		"large-community-add", "large-community-remove",
-		"extended-community-add", "extended-community-remove":
+	case policyAttrOrigin, policyAttrASPath, policyAttrNextHop, policyAttrMED, policyAttrLocalPreference,
+		policyAttrAtomicAggregate, policyAttrAggregator, policyAttrCommunity, policyAttrOriginatorID,
+		policyAttrClusterList, policyAttrExtendedCommunity, policyAttrAIGP, policyAttrLargeCommunity, policyAttrNLRI,
+		policyAttrASPathPrepend, policyAttrRemovePrivate, policyAttrMEDRemove,
+		policyAttrCommunityAdd, policyAttrCommunityRemove,
+		policyAttrLargeCommunityAdd, policyAttrLargeCommunityRemove,
+		policyAttrExtendedCommunityAdd, policyAttrExtendedCommunityRemove:
 		return true
 	}
 	return false

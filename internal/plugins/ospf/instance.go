@@ -531,39 +531,39 @@ func (e *engine) setMetrics(reg metrics.Registry) {
 		InterfaceUp: reg.GaugeVec(
 			"ze_ospf_interface_up",
 			"Current OSPF interface operational state by area and interface.",
-			[]string{"area", "interface"},
+			[]string{labelArea, labelInterface},
 		),
 		DRElections: reg.CounterVec(
 			"ze_ospf_dr_elections_total",
 			"Total OSPF DR/BDR elections that changed the elected role, by interface.",
-			[]string{"interface"},
+			[]string{labelInterface},
 		),
 		NBMANeighbors: reg.GaugeVec(
 			"ze_ospf_nbma_neighbors",
 			"Configured NBMA neighbor count by interface, address family, and poll state (attempt/heard).",
-			[]string{"interface", "af", "state"},
+			[]string{labelInterface, "af", labelState},
 		),
 		NBMAPolls: reg.CounterVec(
 			"ze_ospf_nbma_polls_total",
 			"Total poll-rate Hellos sent to silent NBMA neighbors by interface and address family.",
-			[]string{"interface", "af"},
+			[]string{labelInterface, "af"},
 		),
 		PTMPHostRoutes: reg.GaugeVec(
 			"ze_ospf_ptmp_host_routes",
 			"Point-to-multipoint host routes contributed by interface and address family.",
-			[]string{"interface", "af"},
+			[]string{labelInterface, "af"},
 		),
 	}
 	e.neighborMetric = ospfneighbor.Metrics{
 		Neighbors: reg.GaugeVec(
 			"ze_ospf_neighbors",
 			"Current OSPF neighbor count by area, interface, and state.",
-			[]string{"area", "interface", "state"},
+			[]string{labelArea, labelInterface, labelState},
 		),
 		AdjacenciesFull: reg.GaugeVec(
 			"ze_ospf_adjacencies_full",
 			"Current number of full OSPF adjacencies by area.",
-			[]string{"area"},
+			[]string{labelArea},
 		),
 		NSMEvents: reg.CounterVec(
 			"ze_ospf_nsm_events_total",
@@ -582,17 +582,17 @@ func (e *engine) setMetrics(reg metrics.Registry) {
 	e.mNSSATranslations = reg.CounterVec(
 		"ze_ospf_nssa_translations_total",
 		"Total NSSA Type 7 to Type 5 LSA translations performed by the elected translator, by area.",
-		[]string{"area"},
+		[]string{labelArea},
 	)
 	e.mAuthFailures = reg.CounterVec(
 		"ze_ospf_auth_failures_total",
 		"Total OSPF packets dropped for failing authentication, by interface and reason.",
-		[]string{"interface", "reason"},
+		[]string{labelInterface, labelReason},
 	)
 	e.mInstanceMismatch = reg.CounterVec(
 		"ze_ospf_instance_mismatch_drops_total",
 		"Total OSPF packets dropped because their Instance ID did not match the receiving engine's configured Instance ID (RFC 6549), by interface.",
-		[]string{"interface"},
+		[]string{labelInterface},
 	)
 	// RFC 5838 §2.5: neighbors refused Full on a non-default AF for a missing AF-bit.
 	e.mAFBitMismatch = reg.CounterVec(

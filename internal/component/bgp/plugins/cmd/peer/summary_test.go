@@ -1170,7 +1170,7 @@ func TestChildCommandsDoNotInheritTheSummaryOrder(t *testing.T) {
 	//   - the SELECTOR spellings. `show bgp peer detail` is not a prefix of
 	//     `show bgp peer 192.0.2.1 detail`, so a per-leaf registration leaves
 	//     the typed form resolving `show bgp`.
-	//   - the plugin paths, which `./le command-list` does not report.
+	//   - the plugin paths, which `./le command list` does not report.
 	//   - `show bgp decode`, an offline handler the inventory does not report.
 	commands := []commandOrder{
 		{command: "show bgp irr check", orders: []command.ColumnOrder{{"prefix", "asn", "accepted", "matched-entry"}}},

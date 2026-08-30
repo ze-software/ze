@@ -44,7 +44,7 @@ func newTacacsAuthenticator(client *TacacsClient, privLvlMap map[int][]string, l
 func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthResult, error) {
 	service := request.Service
 	if service == "" {
-		service = "ssh"
+		service = defaultService
 	}
 
 	reply, err := a.client.Authenticate(request.Username, request.Password, service, request.RemoteAddr)
@@ -59,7 +59,7 @@ func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 	}
 	if reply.Status == AuthenStatusFail {
 		// Explicit rejection: chain must NOT try next backend.
-		return aaa.AuthResult{Source: "tacacs"}, aaa.ErrAuthRejected
+		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
 	}
 	if reply.Status == AuthenStatusError {
 		// Server error: treat as infrastructure failure, chain tries next.
@@ -113,7 +113,7 @@ func (a *tacacsAuthenticator) handlePass(username string, reply *AuthenReply) (a
 		// AC-18: an unmapped, empty, or all-reserved priv-lvl denies access.
 		a.logger.Warn("TACACS+ unmapped privilege level",
 			"username", username, "priv-lvl", privLvl)
-		return aaa.AuthResult{Source: "tacacs"}, aaa.ErrAuthRejected
+		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
 	}
 
 	a.logger.Info("TACACS+ auth success",
@@ -121,6 +121,6 @@ func (a *tacacsAuthenticator) handlePass(username string, reply *AuthenReply) (a
 	return aaa.AuthResult{
 		Authenticated: true,
 		Profiles:      profiles,
-		Source:        "tacacs",
+		Source:        backendName,
 	}, nil
 }

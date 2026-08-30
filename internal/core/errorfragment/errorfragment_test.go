@@ -129,7 +129,7 @@ func TestMiddlewareConvertsOnlyBareStatusLines(t *testing.T) {
 			mux := http.NewServeMux()
 			mux.Handle("GET /probe", c.handler(t))
 
-			req := httptest.NewRequest(http.MethodGet, "/probe", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/probe", http.NoBody)
 			if c.HTMX {
 				req.Header.Set("HX-Request", "true")
 			}
@@ -207,7 +207,7 @@ func TestMiddlewareForwardsAFlush(t *testing.T) {
 		flusher.Flush()
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/events", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/events", http.NoBody)
 	req.Header.Set("HX-Request", "true")
 
 	rec := httptest.NewRecorder()

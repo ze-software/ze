@@ -75,15 +75,15 @@ var validExpectationTypes = map[string]func(Expectation, State) error{
 	"errors":     checkErrors,
 	"warnings":   checkWarnings,
 	"content":    checkContent,
-	"status":     checkStatus,
+	etStatus:     checkStatus,
 	"template":   checkTemplate,
 	"dropdown":   checkDropdown,
 	"prompt":     checkPrompt,
 	"viewport":   checkViewport,
 	"timer":      checkTimer,
-	"mode":       checkMode,
-	"input":      checkInput,
-	"file":       checkFile,
+	etMode:       checkMode,
+	etInput:      checkInput,
+	etFile:       checkFile,
 }
 
 // checkExpectation verifies a single expectation against the current state.

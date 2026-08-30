@@ -105,7 +105,7 @@ func filterSuggestions(command string) []Suggestion {
 	sort.SliceStable(items, func(i, j int) bool { return items[i].Name < items[j].Name })
 	suggestions := make([]Suggestion, 0, len(items))
 	for _, filter := range items {
-		suggestions = append(suggestions, Suggestion{Text: filter.Name, Description: filter.Description, Type: "pipe"})
+		suggestions = append(suggestions, Suggestion{Text: filter.Name, Description: filter.Description, Type: SuggestionPipe})
 	}
 	return suggestions
 }

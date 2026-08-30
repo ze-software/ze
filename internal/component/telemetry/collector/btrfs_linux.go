@@ -29,7 +29,7 @@ func newBtrfsCollector() *btrfsCollector {
 func (c *btrfsCollector) Name() string { return "btrfs" }
 
 func (c *btrfsCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.disk = reg.GaugeVec(prefix+"_btrfs_disk_MiB_average", "Btrfs Disk Allocation", labels)
 	c.data = reg.GaugeVec(prefix+"_btrfs_data_MiB_average", "Btrfs Data Allocation", labels)
 	c.metadata = reg.GaugeVec(prefix+"_btrfs_metadata_MiB_average", "Btrfs Metadata Allocation", labels)

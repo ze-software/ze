@@ -109,11 +109,11 @@ func registerOSPF() {
 	configyang.RegisterCompleteFn("ospf-area-id", areaIDCompletions)
 
 	reg := registry.Registration{
-		Name:                    "ospf",
+		Name:                    Namespace,
 		Description:             "Open Shortest Path First v2 (RFC 2328): native link-state IPv4 IGP",
 		Features:                "yang",
 		YANG:                    ospfyang.ZeOSPFConfYANG,
-		ConfigRoots:             []string{"ospf"},
+		ConfigRoots:             []string{Namespace},
 		Dependencies:            []string{"interface", "fib-kernel", "sysctl"},
 		RFCs:                    []string{"2328", "5709", "7474", "9129"},
 		RunEngine:               runOSPFEngine,
@@ -155,19 +155,19 @@ var ospfDiagnosticCodes = []diagnostic.CodeMeta{
 		Code:        codeOSPFRouterIDMissing,
 		Title:       "OSPF router-id missing",
 		Description: "OSPF is configured but no router-id is set and none can be derived from an interface IPv4 address. The engine cannot originate LSAs or form adjacencies without a router-id; set `ospf { router-id <dotted-quad> }`.",
-		Examples:    []string{"ze doctor --json", "ze explain doctor-ospf-router-id-missing"},
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-router-id-missing"},
 	},
 	{
 		Code:        codeOSPFInterfaceAreaUnbound,
 		Title:       "OSPF interface bound to undeclared area",
 		Description: "An OSPF interface references an area that is not declared under `areas`. The interface forms no adjacency; declare the area or correct the interface `area` binding.",
-		Examples:    []string{"ze doctor --json", "ze explain doctor-ospf-interface-area-unbound"},
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-interface-area-unbound"},
 	},
 	{
 		Code:        codeOSPFBFDPluginAbsent,
 		Title:       "OSPF BFD enabled but BFD plugin not loaded",
 		Description: "BFD (RFC 5880 / RFC 5881) is enabled on an OSPF interface but the BFD plugin is not loaded in this process. OSPF still forms adjacencies and detects loss on the Hello/Dead timers; sub-second BFD failure detection is unavailable until the `bfd` plugin runs.",
-		Examples:    []string{"ze doctor --json", "ze explain doctor-ospf-bfd-plugin-absent"},
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-bfd-plugin-absent"},
 	},
 }
 
@@ -185,8 +185,8 @@ func registerOSPFDoctor() {
 		Name:         "ospf-config-sanity",
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        736, // just after the ospf-3 raw-socket check (735)
-		Component:    "ospf",
-		Dependencies: []string{"config-tree"},
+		Component:    Namespace,
+		Dependencies: []string{dependencyConfigTree},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{codeOSPFRouterIDMissing, codeOSPFInterfaceAreaUnbound, codeOSPFBFDPluginAbsent},
 		Check:        checkOSPFConfigSanity,
@@ -205,8 +205,8 @@ func registerOSPFGracefulRestartDoctor() {
 		Name:         "ospf-graceful-restart-nvs",
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        740, // just after the ospfv3 ipsec check (738)
-		Component:    "ospf",
-		Dependencies: []string{"config-tree", "blob-store"},
+		Component:    Namespace,
+		Dependencies: []string{dependencyConfigTree, "blob-store"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{codeOSPFGracefulRestartNVS},
 		Check:        checkOSPFGracefulRestartNVS,
@@ -225,8 +225,8 @@ func registerOSPFSegmentRoutingDoctor() {
 		Name:         "ospf-segment-routing",
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        742, // just after the graceful-restart NVS check (740)
-		Component:    "ospf",
-		Dependencies: []string{"config-tree"},
+		Component:    Namespace,
+		Dependencies: []string{dependencyConfigTree},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{codeOSPFSegmentRoutingOverlap},
 		Check:        checkOSPFSegmentRouting,
@@ -245,8 +245,8 @@ func registerOSPFDebugDoctor() {
 		Name:         "ospf-debug-enabled",
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        744, // just after the segment-routing check (742)
-		Component:    "ospf",
-		Dependencies: []string{"config-tree"},
+		Component:    Namespace,
+		Dependencies: []string{dependencyConfigTree},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{codeOSPFDebugEnabled},
 		Check:        checkOSPFDebugEnabled,
@@ -265,8 +265,8 @@ func registerOSPFIPsecDoctor() {
 		Name:         "ospfv3-ipsec",
 		Phase:        diagnostic.DoctorPhasePostConfig,
 		Order:        738, // just after the ospfv3 raw-socket check (737)
-		Component:    "ospf",
-		Dependencies: []string{"config-tree", "netlink"},
+		Component:    Namespace,
+		Dependencies: []string{dependencyConfigTree, "netlink"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
 		Codes:        []string{codeOSPFv3IPsec},
 		Check:        checkOSPFv3IPsec,
@@ -309,7 +309,7 @@ func runOSPFEngine(conn net.Conn) int {
 	log := logger()
 	log.Debug("ospf engine starting")
 
-	p := sdk.NewWithConn("ospf", conn)
+	p := sdk.NewWithConn(Namespace, conn)
 	defer func() { _ = p.Close() }()
 
 	// Ship SPF routes to the engine over RPC when OSPF runs FORKED (locrib.Default()
@@ -526,16 +526,16 @@ func runOSPFEngine(conn net.Conn) int {
 			return statusDone, eng.interfaceSnapshot(), nil
 		case "show ospf database":
 			return statusDone, eng.databaseSnapshot(), nil
-		case "show ospf database router", "show ospf database network", "show ospf database summary",
-			"show ospf database asbr-summary", "show ospf database external", "show ospf database nssa-external",
-			"show ospf database opaque-link":
+		case cmdShowDatabaseRouter, cmdShowDatabaseNetwork, cmdShowDatabaseSummary,
+			cmdShowDatabaseASBRSummary, cmdShowDatabaseExternal, cmdShowDatabaseNSSAExternal,
+			cmdShowDatabaseOpaqueLink:
 			return statusDone, eng.databaseSnapshotByType(dbSubviewType[command]), nil
-		case "show ospf database opaque-area":
+		case cmdShowDatabaseOpaqueArea:
 			// RFC 3630 / RFC 5392: decode any TE LSA body inline (AC-16), not as raw hex.
 			// RFC 7684 (spec-ospf-ext-4): also decode Extended Prefix/Link (Opaque Type 7/8).
 			out := eng.databaseOpaqueWithTEDecode(dbSubviewType[command], OpaqueScopeArea)
 			return statusDone, eng.appendExtOpaqueDecode(out, OpaqueScopeArea), nil
-		case "show ospf database opaque-as":
+		case cmdShowDatabaseOpaqueAS:
 			out := eng.databaseOpaqueWithTEDecode(dbSubviewType[command], OpaqueScopeAS)
 			return statusDone, eng.appendExtOpaqueDecode(out, OpaqueScopeAS), nil
 		case cmdShowDatabaseRI:
@@ -578,95 +578,95 @@ func runOSPFEngine(conn net.Conn) int {
 				return statusDone, v6eng.srSnapshot(interfaceFamilyIPv6), nil
 			}
 			return statusDone, eng.srSnapshot(interfaceFamilyIPv6), nil
-		case "clear ospf process":
-			return statusDone, clearResult{Action: "clear ospf process", Cleared: eng.clearProcess()}, nil
-		case "clear ospf neighbor":
-			return statusDone, clearResult{Action: "clear ospf neighbor", Cleared: eng.clearNeighbors()}, nil
-		case "clear ospf counters":
+		case cmdClearProcess:
+			return statusDone, clearResult{Action: cmdClearProcess, Cleared: eng.clearProcess()}, nil
+		case cmdClearNeighbor:
+			return statusDone, clearResult{Action: cmdClearNeighbor, Cleared: eng.clearNeighbors()}, nil
+		case cmdClearCounters:
 			eng.clearCounters()
-			return statusDone, clearResult{Action: "clear ospf counters", Cleared: 0}, nil
+			return statusDone, clearResult{Action: cmdClearCounters, Cleared: 0}, nil
 		case cmdGRPrepare:
 			// RFC 3623 sec 2.1: operator-triggered planned graceful restart on the base
 			// (IPv4/OSPFv2) engine. Runs against live engine state, so it forwards here.
 			return statusDone, eng.grPrepare(), nil
 
 		// spec-ospf-ext-14 IPv4 deep-introspection views.
-		case "show ospf database opaque-area detail":
+		case cmdShowDatabaseOpaqueAreaDetail:
 			return statusDone, eng.opaqueDetailSnapshot(OpaqueScopeArea), nil
-		case "show ospf database opaque-as detail":
+		case cmdShowDatabaseOpaqueASDetail:
 			return statusDone, eng.opaqueDetailSnapshot(OpaqueScopeAS), nil
-		case "show ospf database opaque-link detail":
+		case cmdShowDatabaseOpaqueLinkDetail:
 			return statusDone, eng.opaqueDetailSnapshot(OpaqueScopeLink), nil
-		case "show ospf spf detail":
+		case cmdShowSPFDetail:
 			return statusDone, eng.spfExplainSnapshot(), nil
-		case "show ospf neighbor detail":
+		case cmdShowNeighborDetail:
 			return statusDone, eng.neighborDetailSnapshot(), nil
-		case "show ospf interface detail":
+		case cmdShowInterfaceDetail:
 			return statusDone, eng.interfaceDetailSnapshot(), nil
 
 		// spec-ospf-ext-14 IPv6 deep-introspection views (routed to the v6 engine instance).
-		case "show ospf ipv6 database", "show ospf ipv6 database detail":
+		case cmdShowIPv6Database, cmdShowIPv6DatabaseDetail:
 			return statusDone, v6DatabaseDetail(v6set, "", ""), nil
-		case "show ospf ipv6 database router detail":
+		case cmdShowIPv6DatabaseRouterDetail:
 			return statusDone, v6DatabaseDetail(v6set, "router", ""), nil
-		case "show ospf ipv6 database scope link":
+		case cmdShowIPv6DatabaseScopeLink:
 			return statusDone, v6DatabaseDetail(v6set, "", "link"), nil
-		case "show ospf ipv6 database scope area":
+		case cmdShowIPv6DatabaseScopeArea:
 			return statusDone, v6DatabaseDetail(v6set, "", "area"), nil
-		case "show ospf ipv6 database scope as":
+		case cmdShowIPv6DatabaseScopeAS:
 			return statusDone, v6DatabaseDetail(v6set, "", "as"), nil
-		case "show ospf ipv6 database router-information":
+		case cmdShowIPv6DatabaseRI:
 			v6ri, _ := v6set.engineFor(afIPv6Unicast)
 			return statusDone, riDatabaseSnapshot(nil, v6ri), nil
-		case "show ospf ipv6 database extended":
+		case cmdShowIPv6DatabaseExtended:
 			return statusDone, v6DatabaseExtended(v6set), nil
-		case "show ospf ipv6 database segment-routing":
+		case cmdShowIPv6DatabaseSegmentRouting:
 			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
 				return statusDone, v6eng.srSnapshot(interfaceFamilyIPv6), nil
 			}
 			return statusDone, eng.srSnapshot(interfaceFamilyIPv6), nil
-		case "show ospf ipv6 instance":
+		case cmdShowIPv6Instance:
 			return statusDone, v6set.instanceListing(), nil
-		case "show ospf ipv6 neighbor":
+		case cmdShowIPv6Neighbor:
 			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
 				return statusDone, v6eng.neighborSnapshot(), nil
 			}
 			return statusDone, []any{}, nil
-		case "show ospf ipv6 neighbor detail":
+		case cmdShowIPv6NeighborDetail:
 			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
 				return statusDone, v6eng.v3NeighborDetailSnapshot(), nil
 			}
 			return statusDone, []any{}, nil
-		case "show ospf ipv6 interface detail":
+		case cmdShowIPv6InterfaceDetail:
 			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
 				return statusDone, v6eng.v3InterfaceDetailSnapshot(), nil
 			}
 			return statusDone, []any{}, nil
-		case "show ospf ipv6 spf":
+		case cmdShowIPv6SPF:
 			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
 				return statusDone, v6eng.spfSnapshot(), nil
 			}
 			return statusDone, []any{}, nil
-		case "show ospf ipv6 spf detail":
+		case cmdShowIPv6SPFDetail:
 			if v6eng, ok := v6set.engineFor(afIPv6Unicast); ok {
 				return statusDone, v6eng.spfExplainSnapshot(), nil
 			}
 			return statusDone, []any{}, nil
 
 		// spec-ospf-ext-14 guarded LSA injection (both families) + the shared enablement.
-		case "debug ospf inject enable":
+		case cmdDebugInjectEnable:
 			setDebugInjectEnabled(true)
 			return statusDone, debugEnableResult{Action: "enable", Enabled: true}, nil
-		case "debug ospf inject disable":
+		case cmdDebugInjectDisable:
 			setDebugInjectEnabled(false)
 			return statusDone, debugEnableResult{Action: "disable", Enabled: false}, nil
-		case "debug ip ospf inject opaque":
+		case cmdDebugInjectOpaque:
 			res, err := eng.debugInjectOpaque(cmdArgs)
 			if err != nil {
 				return statusError, "", err
 			}
 			return statusDone, res, nil
-		case "debug ipv6 ospf inject lsa":
+		case cmdDebugInjectLSA:
 			v6eng, ok := v6set.engineFor(afIPv6Unicast)
 			if !ok {
 				return statusError, "", errNoV6Engine
@@ -685,7 +685,7 @@ func runOSPFEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"ospf"},
+		WantsConfig:  []string{Namespace},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{
@@ -696,15 +696,15 @@ func runOSPFEngine(conn net.Conn) int {
 			{Name: "show ospf neighbor"},
 			{Name: "show ospf interface"},
 			{Name: "show ospf database"},
-			{Name: "show ospf database router"},
-			{Name: "show ospf database network"},
-			{Name: "show ospf database summary"},
-			{Name: "show ospf database asbr-summary"},
-			{Name: "show ospf database external"},
-			{Name: "show ospf database nssa-external"},
-			{Name: "show ospf database opaque-link"},
-			{Name: "show ospf database opaque-area"},
-			{Name: "show ospf database opaque-as"},
+			{Name: cmdShowDatabaseRouter},
+			{Name: cmdShowDatabaseNetwork},
+			{Name: cmdShowDatabaseSummary},
+			{Name: cmdShowDatabaseASBRSummary},
+			{Name: cmdShowDatabaseExternal},
+			{Name: cmdShowDatabaseNSSAExternal},
+			{Name: cmdShowDatabaseOpaqueLink},
+			{Name: cmdShowDatabaseOpaqueArea},
+			{Name: cmdShowDatabaseOpaqueAS},
 			{Name: cmdShowDatabaseRI},
 			{Name: "show ospf te-database"},
 			{Name: "show ospf route"},
@@ -717,38 +717,38 @@ func runOSPFEngine(conn net.Conn) int {
 			{Name: cmdShowIPv6GracefulRestart},
 			{Name: cmdShowSegmentRouting},
 			{Name: cmdShowIPv6SegmentRouting},
-			{Name: "clear ospf process"},
-			{Name: "clear ospf neighbor"},
-			{Name: "clear ospf counters"},
+			{Name: cmdClearProcess},
+			{Name: cmdClearNeighbor},
+			{Name: cmdClearCounters},
 			{Name: cmdGRPrepare},
 			// spec-ospf-ext-14 IPv4 deep-introspection views.
-			{Name: "show ospf database opaque-area detail"},
-			{Name: "show ospf database opaque-as detail"},
-			{Name: "show ospf database opaque-link detail"},
-			{Name: "show ospf spf detail"},
-			{Name: "show ospf neighbor detail"},
-			{Name: "show ospf interface detail"},
+			{Name: cmdShowDatabaseOpaqueAreaDetail},
+			{Name: cmdShowDatabaseOpaqueASDetail},
+			{Name: cmdShowDatabaseOpaqueLinkDetail},
+			{Name: cmdShowSPFDetail},
+			{Name: cmdShowNeighborDetail},
+			{Name: cmdShowInterfaceDetail},
 			// spec-ospf-ext-14 IPv6 deep-introspection views.
-			{Name: "show ospf ipv6 database"},
-			{Name: "show ospf ipv6 database detail"},
-			{Name: "show ospf ipv6 database router detail"},
-			{Name: "show ospf ipv6 database scope link"},
-			{Name: "show ospf ipv6 database scope area"},
-			{Name: "show ospf ipv6 database scope as"},
-			{Name: "show ospf ipv6 database router-information"},
-			{Name: "show ospf ipv6 database extended"},
-			{Name: "show ospf ipv6 database segment-routing"},
-			{Name: "show ospf ipv6 instance"},
-			{Name: "show ospf ipv6 neighbor"},
-			{Name: "show ospf ipv6 neighbor detail"},
-			{Name: "show ospf ipv6 interface detail"},
-			{Name: "show ospf ipv6 spf"},
-			{Name: "show ospf ipv6 spf detail"},
+			{Name: cmdShowIPv6Database},
+			{Name: cmdShowIPv6DatabaseDetail},
+			{Name: cmdShowIPv6DatabaseRouterDetail},
+			{Name: cmdShowIPv6DatabaseScopeLink},
+			{Name: cmdShowIPv6DatabaseScopeArea},
+			{Name: cmdShowIPv6DatabaseScopeAS},
+			{Name: cmdShowIPv6DatabaseRI},
+			{Name: cmdShowIPv6DatabaseExtended},
+			{Name: cmdShowIPv6DatabaseSegmentRouting},
+			{Name: cmdShowIPv6Instance},
+			{Name: cmdShowIPv6Neighbor},
+			{Name: cmdShowIPv6NeighborDetail},
+			{Name: cmdShowIPv6InterfaceDetail},
+			{Name: cmdShowIPv6SPF},
+			{Name: cmdShowIPv6SPFDetail},
 			// spec-ospf-ext-14 guarded LSA injection (both families) + shared enablement.
-			{Name: "debug ospf inject enable"},
-			{Name: "debug ospf inject disable"},
-			{Name: "debug ip ospf inject opaque"},
-			{Name: "debug ipv6 ospf inject lsa"},
+			{Name: cmdDebugInjectEnable},
+			{Name: cmdDebugInjectDisable},
+			{Name: cmdDebugInjectOpaque},
+			{Name: cmdDebugInjectLSA},
 		},
 	})
 	if err != nil {

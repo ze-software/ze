@@ -55,7 +55,7 @@ func (b *netlinkBackend) CreateDummy(name string) error {
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return fmt.Errorf("iface: create dummy %q: %w", name, err)
 	}
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}
+	link := &netlink.Dummy{Name: name}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("iface: create dummy %q: %w", name, err)
 	}
@@ -74,8 +74,8 @@ func (b *netlinkBackend) CreateVeth(name, peerName string) error {
 		return fmt.Errorf("iface: create veth peer %q: %w", peerName, err)
 	}
 	link := &netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: name},
-		PeerName:  peerName,
+		Name:     name,
+		PeerName: peerName,
 	}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("iface: create veth %q/%q: %w", name, peerName, err)
@@ -100,7 +100,7 @@ func (b *netlinkBackend) CreateBridge(name string) error {
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return fmt.Errorf("iface: create bridge %q: %w", name, err)
 	}
-	link := &netlink.Bridge{LinkAttrs: netlink.LinkAttrs{Name: name}}
+	link := &netlink.Bridge{Name: name}
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("iface: create bridge %q: %w", name, err)
 	}
@@ -134,11 +134,9 @@ func (b *netlinkBackend) CreateVLAN(spec iface.VLANSpec) error {
 		return fmt.Errorf("iface: create vlan: composed name too long: %w", err)
 	}
 	vlan := &netlink.Vlan{
-		LinkAttrs: netlink.LinkAttrs{
-			Name:        vlanName,
-			ParentIndex: parent.Attrs().Index,
-		},
-		VlanId: spec.VLANID,
+		Name:        vlanName,
+		ParentIndex: parent.Attrs().Index,
+		VlanId:      spec.VLANID,
 		// Serialized as IFLA_VLAN_INGRESS_QOS / IFLA_VLAN_EGRESS_QOS inside
 		// RTM_NEWLINK; nil maps emit no attribute.
 		IngressQosMap: spec.IngressQoSMap,

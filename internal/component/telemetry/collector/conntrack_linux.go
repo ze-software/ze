@@ -72,7 +72,7 @@ func newConntrackCollector(fs procfs.FS, interval time.Duration) *conntrackColle
 func (c *conntrackCollector) Name() string { return "conntrack" }
 
 func (c *conntrackCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.sockets = reg.GaugeVec(prefix+"_netfilter_conntrack_sockets_active_connections_average", "Conntrack Connections", labels)
 	c.maxGauge = reg.GaugeVec(prefix+"_netfilter_conntrack_sockets_max_connections_average", "Conntrack Max", labels)
 	c.newConn = reg.GaugeVec(prefix+"_netfilter_conntrack_new_connections_persec_average", "Conntrack New", labels)

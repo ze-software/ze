@@ -20,6 +20,9 @@ import (
 
 const tracerouteDrainInterval = 50 * time.Millisecond
 
+// hopUnanswered stands in for a hop whose address no probe answered with.
+const hopUnanswered = "???"
+
 // TracerouteFactory starts a streaming probe round. The returned channel
 // receives individual hop results as ICMP responses arrive. It is closed
 // when the round completes (after ~1s). Cancel stops the round early.
@@ -750,7 +753,7 @@ func tbSpaces(sb *textbuf.Buffer, n int) {
 func renderPathLine(sb *textbuf.Buffer, hopNum string, p *traceroutePathStats, addrWidth int) {
 	addr := p.addr
 	if addr == "" {
-		addr = "???"
+		addr = hopUnanswered
 	}
 
 	loss := p.loss()
@@ -802,7 +805,7 @@ func renderPathLine(sb *textbuf.Buffer, hopNum string, p *traceroutePathStats, a
 func renderPathLinePlain(sb *textbuf.Buffer, hopNum string, p *traceroutePathStats, addrWidth int) {
 	addr := p.addr
 	if addr == "" {
-		addr = "???"
+		addr = hopUnanswered
 	}
 
 	var tbL2 textbuf.Buffer
@@ -901,7 +904,7 @@ func (m Model) renderTraceroute() string {
 			renderPathLine(&sb, label, &h.paths[j], addrWidth)
 		}
 		if len(h.paths) == 0 {
-			renderPathLine(&sb, hopNum, &traceroutePathStats{addr: "???"}, addrWidth)
+			renderPathLine(&sb, hopNum, &traceroutePathStats{addr: hopUnanswered}, addrWidth)
 		}
 	}
 
@@ -986,7 +989,7 @@ func (m Model) renderTraceroutePlain() string {
 			renderPathLinePlain(&sb, label, &h.paths[j], addrWidth)
 		}
 		if len(h.paths) == 0 {
-			renderPathLinePlain(&sb, hopNum, &traceroutePathStats{addr: "???"}, addrWidth)
+			renderPathLinePlain(&sb, hopNum, &traceroutePathStats{addr: hopUnanswered}, addrWidth)
 		}
 	}
 

@@ -113,7 +113,7 @@ func do(t *testing.T, srv *RESTServer, method, path, body string) doResult {
 	if body != "" {
 		bodyReader = strings.NewReader(body)
 	}
-	req := httptest.NewRequest(method, path, bodyReader)
+	req := httptest.NewRequestWithContext(t.Context(), method, path, bodyReader)
 	if body != "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -133,7 +133,7 @@ func doWithHeader(t *testing.T, srv *RESTServer, method, path, body string, head
 	if body != "" {
 		bodyReader = strings.NewReader(body)
 	}
-	req := httptest.NewRequest(method, path, bodyReader)
+	req := httptest.NewRequestWithContext(t.Context(), method, path, bodyReader)
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -271,7 +271,7 @@ func TestRESTExecuteCompletesTransportAfterResponseWrite(t *testing.T) {
 		nil,
 	)
 	srv := &RESTServer{engine: engine}
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"request shutdown"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"request shutdown"}`))
 	req.Header.Set("Content-Type", "application/json")
 	ctx := context.WithValue(req.Context(), callerKey, api.CallerIdentity{
 		Username: aaa.ReservedSharedAPIUsername,
@@ -314,7 +314,7 @@ func TestExecutePropagatesRequestContextAndRemoteAddr(t *testing.T) {
 	srv, err := NewRESTServer(RESTConfig{ListenAddrs: []string{"127.0.0.1:0"}}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"show bgp"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"show bgp"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.RemoteAddr = "198.51.100.10:4444"
 	req = req.WithContext(context.WithValue(req.Context(), ctxKey{}, "trace-id"))
@@ -371,7 +371,7 @@ func TestRESTAuthFailureAuditRecord(t *testing.T) {
 		AuditRecorder: recorder,
 	}, engine, nil, func() []byte { return openAPI })
 	require.NoError(t, err)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"show bgp"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/execute", strings.NewReader(`{"command":"show bgp"}`))
 	req.Header.Set("Authorization", "Bearer alice:wrong")
 	req.Header.Set("Content-Type", "application/json")
 	req.RemoteAddr = "192.0.2.10:4444"

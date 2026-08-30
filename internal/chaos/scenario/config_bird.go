@@ -4,18 +4,25 @@ package scenario
 
 import "github.com/ze-software/ze/internal/core/textbuf"
 
+// The BIRD 2 channel names for the multicast families. They are BIRD's grammar,
+// not FRR's, even where the two daemons spell a family the same way.
+const (
+	birdChannelIPv4Multicast = "ipv4 multicast"
+	birdChannelIPv6Multicast = "ipv6 multicast"
+)
+
 // zeFamilyToBIRDChannel maps Ze family strings to BIRD 2 channel names.
 var zeFamilyToBIRDChannel = map[string]string{
-	"ipv4/unicast":   "ipv4",
-	"ipv6/unicast":   "ipv6",
-	"ipv4/multicast": "ipv4 multicast",
-	"ipv6/multicast": "ipv6 multicast",
+	familyIPv4Unicast:   "ipv4",
+	familyIPv6Unicast:   "ipv6",
+	familyIPv4Multicast: birdChannelIPv4Multicast,
+	familyIPv6Multicast: birdChannelIPv6Multicast,
 }
 
 // birdMulticastTable maps multicast channel names to their required table declarations.
 var birdMulticastTable = map[string]string{
-	"ipv4 multicast": "mrib4",
-	"ipv6 multicast": "mrib6",
+	birdChannelIPv4Multicast: "mrib4",
+	birdChannelIPv6Multicast: "mrib6",
 }
 
 // GenerateBIRDConfig produces a BIRD 2 bird.conf from the given parameters.
@@ -59,7 +66,7 @@ func writeBIRDPeer(b *textbuf.Buffer, params ConfigParams, p PeerProfile) {
 
 	families := p.Families
 	if len(families) == 0 {
-		families = []string{"ipv4/unicast"}
+		families = []string{familyIPv4Unicast}
 	}
 	for _, fam := range families {
 		ch, ok := zeFamilyToBIRDChannel[fam]
@@ -91,7 +98,7 @@ func collectBIRDTables(profiles []PeerProfile) []birdTable {
 	for i := range profiles {
 		families := profiles[i].Families
 		if len(families) == 0 {
-			families = []string{"ipv4/unicast"}
+			families = []string{familyIPv4Unicast}
 		}
 		for _, fam := range families {
 			ch, ok := zeFamilyToBIRDChannel[fam]
@@ -102,7 +109,7 @@ func collectBIRDTables(profiles []PeerProfile) []birdTable {
 			if isMcast && !seen[tbl] {
 				seen[tbl] = true
 				typ := "ipv4"
-				if ch == "ipv6 multicast" {
+				if ch == birdChannelIPv6Multicast {
 					typ = "ipv6"
 				}
 				tables = append(tables, birdTable{typ: typ, name: tbl})

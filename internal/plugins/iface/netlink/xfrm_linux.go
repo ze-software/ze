@@ -16,9 +16,7 @@ import (
 
 func (b *netlinkBackend) CreateXFRM(spec iface.XFRMSpec) error {
 	link := &netlink.Xfrmi{
-		LinkAttrs: netlink.LinkAttrs{
-			Name: spec.Name,
-		},
+		Name: spec.Name,
 		Ifid: spec.IfID,
 	}
 	if spec.PhysicalDev != "" {

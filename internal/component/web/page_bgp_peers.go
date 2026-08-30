@@ -148,13 +148,13 @@ func peerFlagFromState(pe peerEntry, state string) (string, string) {
 // live provides operational state from "show bgp" (nil when unavailable).
 func buildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[string]bgpSummaryPeer) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: labelName, Sortable: true},
-		{Key: "remote-ip", Label: "Remote IP", Sortable: true},
-		{Key: "remote-as", Label: "Remote AS", Sortable: true},
+		{Key: colName, Label: labelName, Sortable: true},
+		{Key: "remote-ip", Label: labelRemoteIP, Sortable: true},
+		{Key: colRemoteAS, Label: labelRemoteAS, Sortable: true},
 		{Key: "local-as", Label: "Local AS", Sortable: true},
 		{Key: "group", Label: "Group", Sortable: true},
-		{Key: "state", Label: "State"},
-		{Key: "families", Label: labelFamilies},
+		{Key: colState, Label: labelState},
+		{Key: segFamilies, Label: labelFamilies},
 	}
 
 	var rows []WorkbenchTableRow
@@ -205,7 +205,7 @@ func buildBGPPeersTableData(peers []peerEntry, filterGroup string, live map[stri
 				WorkbenchRowAction{
 					Label:   "Teardown",
 					HxPost:  "/tools/related/run",
-					Class:   "danger",
+					Class:   wbToolDanger,
 					Confirm: tb.Reset().Str("Tear down BGP session with ").Str(pe.Name).Str(" (").Str(pe.RemoteIP).Str(")?").String(),
 				},
 			)
@@ -260,8 +260,8 @@ func buildBGPPeerDetailData(renderer *Renderer, pe peerEntry) WorkbenchDetailDat
 	actionsHTML := buildPeerActionsHTML(renderer, pe)
 
 	tabs := []WorkbenchDetailTab{
-		{Key: "config", Label: "Config", Content: configHTML, Active: true},
-		{Key: "status", Label: "Status", Content: statusHTML},
+		{Key: tabConfig, Label: "Config", Content: configHTML, Active: true},
+		{Key: tabStatus, Label: labelStatus, Content: statusHTML},
 		{Key: "actions", Label: "Actions", Content: actionsHTML},
 	}
 
@@ -323,7 +323,7 @@ func buildPeerStatusHTML(renderer *Renderer, pe peerEntry) template.HTML {
 
 	rows := []detailKV{
 		{Key: "State", Value: state},
-		{Key: "Uptime", Value: "--"},
+		{Key: labelUptime, Value: "--"},
 		{Key: "Prefixes Received", Value: "--"},
 		{Key: "Messages In", Value: "--"},
 		{Key: "Messages Out", Value: "--"},

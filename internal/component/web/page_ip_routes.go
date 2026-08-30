@@ -40,7 +40,7 @@ func buildRouteTableData(routes []iface.KernelRoute, filterProtocol string) Work
 		{Key: "metric", Label: "Metric", Sortable: true},
 		{Key: "protocol", Label: labelProtocol, Sortable: true},
 		{Key: "device", Label: labelInterface, Sortable: true},
-		{Key: "family", Label: labelFamily, Sortable: true},
+		{Key: segFamily, Label: labelFamily, Sortable: true},
 	}
 
 	var rows []WorkbenchTableRow

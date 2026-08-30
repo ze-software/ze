@@ -591,7 +591,7 @@ func (s *Streamable) ok(id *json.RawMessage, result map[string]any) *response {
 		out[resultTypeKey] = resultTypeComplete
 	}
 	out[metaKey] = s.resultMeta(result[metaKey])
-	return &response{JSONRPC: "2.0", ID: id, Result: out}
+	return &response{JSONRPC: jsonRPCVersion, ID: id, Result: out}
 }
 
 // resultMeta merges the server identity into whatever `_meta` a handler already
@@ -608,7 +608,7 @@ func (s *Streamable) resultMeta(existing any) map[string]any {
 }
 
 func (s *Streamable) fail(id *json.RawMessage, code int, msg string) *response {
-	return &response{JSONRPC: "2.0", ID: id, Error: &rpcError{Code: code, Message: msg}}
+	return &response{JSONRPC: jsonRPCVersion, ID: id, Error: &rpcError{Code: code, Message: msg}}
 }
 
 // failUnsupportedVersion builds the UnsupportedProtocolVersionError for a
@@ -624,7 +624,7 @@ func (s *Streamable) fail(id *json.RawMessage, code int, msg string) *response {
 // already parsed out of the body rather than a raw header.
 func (s *Streamable) failUnsupportedVersion(id *json.RawMessage, requested string) *response {
 	return &response{
-		JSONRPC: "2.0",
+		JSONRPC: jsonRPCVersion,
 		ID:      id,
 		Error: &rpcError{
 			Code:    rpcUnsupportedProtocolVersion,
@@ -663,7 +663,7 @@ func (s *Streamable) failMissingTasksCapability(id *json.RawMessage) *response {
 	msg := tb.Str("client did not declare the ").Str(extensionTasks).
 		Str(` extension in params._meta["io.modelcontextprotocol/clientCapabilities"].extensions`).String()
 	return &response{
-		JSONRPC: "2.0",
+		JSONRPC: jsonRPCVersion,
 		ID:      id,
 		Error: &rpcError{
 			Code:    rpcMissingRequiredClientCapability,

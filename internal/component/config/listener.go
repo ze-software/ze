@@ -126,7 +126,7 @@ func buildListenerService(ln *ListNode, fullPath []string, parentNode Node) List
 	// like "plugin" are kept because they carry meaning (e.g. "plugin-hub").
 	var nameParts []string
 	for i, p := range containers {
-		if i == 0 && (p == "environment" || p == "interface" || p == "telemetry") {
+		if i == 0 && (p == sectionEnvironment || p == sectionInterface || p == sectionTelemetry) {
 			continue
 		}
 		nameParts = append(nameParts, p)

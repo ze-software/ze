@@ -73,7 +73,7 @@ func (d *Detector) readBlockDevice(name, dev string) StorageDevice {
 // accurate and portable enough for inventory purposes.
 func classifyTransport(name string) string {
 	if name == "" {
-		return "unknown"
+		return strUnknown
 	}
 	if strings.HasPrefix(name, storageTransportNVMe) {
 		return storageTransportNVMe
@@ -87,5 +87,5 @@ func classifyTransport(name string) string {
 	if strings.HasPrefix(name, "vd") {
 		return "virtio"
 	}
-	return "unknown"
+	return strUnknown
 }

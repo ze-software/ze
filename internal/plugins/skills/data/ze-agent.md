@@ -14,14 +14,14 @@ Use this when editing Ze config as an agent.
 3. Validate:
 
 ```sh
-ze config validate --json <file>
+ze cli -c "validate config <file> | json"
 ```
 
 4. When validation reports a diagnostic:
 
 ```sh
 ze explain <diagnostic-code>
-ze config fix --plan --json <file>
+ze config fix --plan <file>
 ```
 
 5. Apply the fix, then re-validate.

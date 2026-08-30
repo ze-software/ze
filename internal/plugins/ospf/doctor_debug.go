@@ -18,7 +18,7 @@ var ospfDebugDoctorCode = diagnostic.CodeMeta{
 	Code:        codeOSPFDebugEnabled,
 	Title:       "OSPF debug LSA injection enabled",
 	Description: "OSPF debug LSA injection is currently enabled (`debug ospf inject enable`). An authorized operator can originate crafted test LSAs into the local LSDB, which then flood normally. This is a testing/research facility that should be disabled on a production router; run `debug ospf inject disable`.",
-	Examples:    []string{"ze doctor --json", "ze explain doctor-ospf-debug-enabled"},
+	Examples:    []string{exampleDoctorJSON, "ze explain doctor-ospf-debug-enabled"},
 }
 
 // checkOSPFDebugEnabled emits a Warning while the shared debug-injection enablement is on.

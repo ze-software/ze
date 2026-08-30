@@ -114,7 +114,7 @@ func isOldStyleAPIBlock(apiTree *config.Tree) bool {
 
 	// Check for format flags in receive block (parsed, packets, consolidate)
 	if recv := apiTree.GetContainer("receive"); recv != nil {
-		for _, flag := range []string{"parsed", "packets", "consolidate"} {
+		for _, flag := range []string{formatParsed, "packets", "consolidate"} {
 			if _, ok := recv.GetFlex(flag); ok {
 				return true
 			}
@@ -123,7 +123,7 @@ func isOldStyleAPIBlock(apiTree *config.Tree) bool {
 
 	// Check for format flags in send block (will be dropped during migration)
 	if send := apiTree.GetContainer("send"); send != nil {
-		for _, flag := range []string{"parsed", "packets", "consolidate"} {
+		for _, flag := range []string{formatParsed, "packets", "consolidate"} {
 			if _, ok := send.GetFlex(flag); ok {
 				return true
 			}

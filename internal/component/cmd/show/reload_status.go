@@ -41,7 +41,7 @@ func handleShowReloadStatus(ctx *pluginserver.CommandContext, _ []string) (*plug
 	if ctx == nil || ctx.Server == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Error:  "daemon not running",
+			Error:  msgDaemonNotRunning,
 		}, nil
 	}
 

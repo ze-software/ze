@@ -26,6 +26,12 @@ const (
 	maxNameservers    = 9
 )
 
+// The loopback addresses this resolver listens on when the operator names none.
+const (
+	loopbackIPv4 = "127.0.0.1"
+	loopbackIPv6 = "::1"
+)
+
 // maxLabelOctets and maxNameOctets are the two bounds RFC 1035 section 3.1 puts
 // on a domain name's wire form.
 //
@@ -533,8 +539,8 @@ func parseListeners(g map[string]any) ([]listenerEndpoint, error) {
 	lm, ok := asMap(g, "listener")
 	if !ok || len(lm) == 0 {
 		return []listenerEndpoint{
-			{IP: netip.MustParseAddr("127.0.0.1"), Port: defaultListenPort},
-			{IP: netip.MustParseAddr("::1"), Port: defaultListenPort},
+			{IP: netip.MustParseAddr(loopbackIPv4), Port: defaultListenPort},
+			{IP: netip.MustParseAddr(loopbackIPv6), Port: defaultListenPort},
 		}, nil
 	}
 	var out []listenerEndpoint
@@ -545,7 +551,7 @@ func parseListeners(g map[string]any) ([]listenerEndpoint, error) {
 		}
 		ipStr, _ := asString(em, "ip")
 		if ipStr == "" {
-			ipStr = "127.0.0.1"
+			ipStr = loopbackIPv4
 		}
 		ip, err := netip.ParseAddr(ipStr)
 		if err != nil {

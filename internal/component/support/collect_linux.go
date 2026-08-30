@@ -64,7 +64,7 @@ func collectDmesgInfo(since time.Time) (any, error) {
 
 	result := map[string]any{
 		"entries": entries,
-		"count":   len(entries),
+		keyCount:  len(entries),
 	}
 	if sinceUs > 0 {
 		result["since"] = since.Format(time.RFC3339)
@@ -112,6 +112,16 @@ func parseDmesgLine(line string) map[string]any {
 	}
 }
 
+// The transport protocol names the /proc/net socket tables are read under.
+const (
+	protoTCP = "tcp"
+	protoUDP = "udp"
+)
+
+// fdCategoryUnknown is the file-descriptor category for a link this package
+// cannot classify. It is not the nftables family of the same spelling.
+const fdCategoryUnknown = "unknown"
+
 func collectSocketsInfo() (any, error) {
 	type socketFile struct {
 		path  string
@@ -120,10 +130,10 @@ func collectSocketsInfo() (any, error) {
 	}
 
 	files := []socketFile{
-		{"/proc/net/tcp", "tcp", "4"},
-		{"/proc/net/tcp6", "tcp", "6"},
-		{"/proc/net/udp", "udp", "4"},
-		{"/proc/net/udp6", "udp", "6"},
+		{"/proc/net/tcp", protoTCP, "4"},
+		{"/proc/net/tcp6", protoTCP, "6"},
+		{"/proc/net/udp", protoUDP, "4"},
+		{"/proc/net/udp6", protoUDP, "6"},
 	}
 
 	var sockets []map[string]any
@@ -159,7 +169,7 @@ func collectSocketsInfo() (any, error) {
 				"remote-port": procfs.ParseHexPort(remoteParts[1]),
 			}
 
-			if sf.proto == "tcp" {
+			if sf.proto == protoTCP {
 				entry["state"] = procfs.TCPStateString(int(stateHex))
 			}
 
@@ -169,7 +179,7 @@ func collectSocketsInfo() (any, error) {
 
 	return map[string]any{
 		"sockets": sockets,
-		"count":   len(sockets),
+		keyCount:  len(sockets),
 	}, nil
 }
 
@@ -191,13 +201,13 @@ func collectKernelModulesInfo() (any, error) {
 
 	return map[string]any{
 		"modules": modules,
-		"count":   len(modules),
+		keyCount:  len(modules),
 	}, nil
 }
 
 func collectConntrackInfo() (any, error) {
 	result := map[string]any{
-		"count":       readProcSysInt("net/netfilter/nf_conntrack_count"),
+		keyCount:      readProcSysInt("net/netfilter/nf_conntrack_count"),
 		"max":         readProcSysInt("net/netfilter/nf_conntrack_max"),
 		"buckets":     readProcSysInt("net/netfilter/nf_conntrack_buckets"),
 		"expect-max":  readProcSysInt("net/netfilter/nf_conntrack_expect_max"),
@@ -255,12 +265,12 @@ func collectFDsInfo() (any, error) {
 	}
 
 	counts := map[string]int{
-		"socket":     0,
-		"pipe":       0,
-		"anon-inode": 0,
-		"device":     0,
-		"file":       0,
-		"unknown":    0,
+		"socket":          0,
+		"pipe":            0,
+		"anon-inode":      0,
+		"device":          0,
+		"file":            0,
+		fdCategoryUnknown: 0,
 	}
 
 	var fds []map[string]string
@@ -281,7 +291,7 @@ func collectFDsInfo() (any, error) {
 
 	result := map[string]any{
 		"fds":    fds,
-		"count":  len(fds),
+		keyCount: len(fds),
 		"counts": counts,
 	}
 
@@ -304,7 +314,7 @@ func categorizeFD(target string) string {
 	case strings.HasPrefix(target, "/dev/"):
 		return "device"
 	case target == "(unknown)":
-		return "unknown"
+		return fdCategoryUnknown
 	default:
 		return "file"
 	}
@@ -341,7 +351,7 @@ func collectDNSInfo() (any, error) {
 	data, err := os.ReadFile("/etc/resolv.conf") //nolint:gosec // fixed system path
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return map[string]any{"available": false}, nil
+			return map[string]any{keyAvailable: false}, nil
 		}
 		return nil, err
 	}
@@ -368,8 +378,8 @@ func collectFirewallInfo() (any, error) {
 			tableName = c.Table.Name
 		}
 		entry := map[string]any{
-			"name": c.Name,
-			"type": string(c.Type),
+			keyName: c.Name,
+			"type":  string(c.Type),
 		}
 		if c.Policy != nil {
 			switch *c.Policy {
@@ -391,7 +401,7 @@ func collectFirewallInfo() (any, error) {
 	tableList := make([]map[string]any, 0, len(tables))
 	for _, t := range tables {
 		entry := map[string]any{
-			"name":   t.Name,
+			keyName:  t.Name,
 			"family": tableFamilyName(t.Family),
 		}
 		if cs, ok := chainsByTable[t.Name]; ok {
@@ -402,7 +412,7 @@ func collectFirewallInfo() (any, error) {
 
 	return map[string]any{
 		"tables": tableList,
-		"count":  len(tableList),
+		keyCount: len(tableList),
 	}, nil
 }
 

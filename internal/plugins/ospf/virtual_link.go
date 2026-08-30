@@ -464,14 +464,14 @@ func (e *engine) registerVirtualLinkMetrics(reg metrics.Registry) {
 		return
 	}
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
-		e.mVirtualLinks = reg.GaugeVec("ze_ospfv3_virtual_links", "Current OSPFv3 virtual links by transit area and state.", []string{"transit_area", "state"})
-		e.mVirtualCost = reg.GaugeVec("ze_ospfv3_virtual_link_cost", "Current OSPFv3 virtual-link cost (transit-area path cost) by transit area and remote router.", []string{"transit_area", "remote_router_id"})
-		e.mVirtualAdjChgs = reg.CounterVec("ze_ospfv3_virtual_link_reresolves_total", "Total OSPFv3 virtual-link reachability changes by transit area.", []string{"transit_area"})
+		e.mVirtualLinks = reg.GaugeVec("ze_ospfv3_virtual_links", "Current OSPFv3 virtual links by transit area and state.", []string{labelTransitArea, labelState})
+		e.mVirtualCost = reg.GaugeVec("ze_ospfv3_virtual_link_cost", "Current OSPFv3 virtual-link cost (transit-area path cost) by transit area and remote router.", []string{labelTransitArea, "remote_router_id"})
+		e.mVirtualAdjChgs = reg.CounterVec("ze_ospfv3_virtual_link_reresolves_total", "Total OSPFv3 virtual-link reachability changes by transit area.", []string{labelTransitArea})
 		return
 	}
-	e.mVirtualLinks = reg.GaugeVec("ze_ospf_virtual_links", "Current OSPF virtual links by transit area and state.", []string{"transit_area", "state"})
-	e.mVirtualCost = reg.GaugeVec("ze_ospf_virtual_link_cost", "Current OSPF virtual-link cost (transit-area path cost) by transit area and neighbor.", []string{"transit_area", "neighbor"})
-	e.mVirtualAdjChgs = reg.CounterVec("ze_ospf_virtual_link_adjacency_changes_total", "Total OSPF virtual-link adjacency (reachability) changes by transit area and neighbor.", []string{"transit_area", "neighbor"})
+	e.mVirtualLinks = reg.GaugeVec("ze_ospf_virtual_links", "Current OSPF virtual links by transit area and state.", []string{labelTransitArea, labelState})
+	e.mVirtualCost = reg.GaugeVec("ze_ospf_virtual_link_cost", "Current OSPF virtual-link cost (transit-area path cost) by transit area and neighbor.", []string{labelTransitArea, "neighbor"})
+	e.mVirtualAdjChgs = reg.CounterVec("ze_ospf_virtual_link_adjacency_changes_total", "Total OSPF virtual-link adjacency (reachability) changes by transit area and neighbor.", []string{labelTransitArea, "neighbor"})
 }
 
 func (e *engine) recordVirtualAdjChangeLocked(key virtualLinkKey) {

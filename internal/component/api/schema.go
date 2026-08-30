@@ -8,16 +8,33 @@ import (
 	"strings"
 )
 
+// The OpenAPI 3.1 and JSON Schema vocabulary this file writes. Each constant is
+// the exact token the generated document carries.
+const (
+	schemaKeyContent     = "content"
+	schemaKeyDescription = "description"
+	schemaKeyProperties  = "properties"
+	schemaKeyRequired    = "required"
+	schemaKeySchema      = "schema"
+	schemaKeyType        = "type"
+
+	schemaTypeInteger = "integer"
+	schemaTypeObject  = "object"
+	schemaTypeString  = "string"
+
+	mediaTypeJSON = "application/json"
+)
+
 // yangTypeToJSON maps YANG type names to JSON Schema types.
 var yangTypeToJSON = map[string]string{
-	"uint8":   "integer",
-	"uint16":  "integer",
-	"uint32":  "integer",
-	"uint64":  "integer",
-	"int8":    "integer",
-	"int16":   "integer",
-	"int32":   "integer",
-	"int64":   "integer",
+	"uint8":   schemaTypeInteger,
+	"uint16":  schemaTypeInteger,
+	"uint32":  schemaTypeInteger,
+	"uint64":  schemaTypeInteger,
+	"int8":    schemaTypeInteger,
+	"int16":   schemaTypeInteger,
+	"int32":   schemaTypeInteger,
+	"int64":   schemaTypeInteger,
 	"boolean": "boolean",
 }
 
@@ -26,7 +43,7 @@ func jsonSchemaType(yangType string) string {
 	if t, ok := yangTypeToJSON[yangType]; ok {
 		return t
 	}
-	return "string"
+	return schemaTypeString
 }
 
 // CommandSchema generates a JSON Schema for a single command's parameters.
@@ -36,10 +53,10 @@ func CommandSchema(cmd CommandMeta) map[string]any {
 
 	for _, p := range cmd.Params {
 		prop := map[string]any{
-			"type": jsonSchemaType(p.Type),
+			schemaKeyType: jsonSchemaType(p.Type),
 		}
 		if p.Description != "" {
-			prop["description"] = p.Description
+			prop[schemaKeyDescription] = p.Description
 		}
 		properties[p.Name] = prop
 		if p.Required {
@@ -48,11 +65,11 @@ func CommandSchema(cmd CommandMeta) map[string]any {
 	}
 
 	schema := map[string]any{
-		"type":       "object",
-		"properties": properties,
+		schemaKeyType:       schemaTypeObject,
+		schemaKeyProperties: properties,
 	}
 	if len(required) > 0 {
-		schema["required"] = required
+		schema[schemaKeyRequired] = required
 	}
 	return schema
 }
@@ -71,10 +88,10 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 			"tags":        []string{commandTag(cmd.Name)},
 			"responses": map[string]any{
 				"200": map[string]any{
-					"description": "Command result",
-					"content": map[string]any{
-						"application/json": map[string]any{
-							"schema": map[string]any{
+					schemaKeyDescription: "Command result",
+					schemaKeyContent: map[string]any{
+						mediaTypeJSON: map[string]any{
+							schemaKeySchema: map[string]any{
 								"$ref": "#/components/schemas/ExecResult",
 							},
 						},
@@ -85,9 +102,9 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 
 		if len(cmd.Params) > 0 {
 			operation["requestBody"] = map[string]any{
-				"content": map[string]any{
-					"application/json": map[string]any{
-						"schema": CommandSchema(cmd),
+				schemaKeyContent: map[string]any{
+					mediaTypeJSON: map[string]any{
+						schemaKeySchema: CommandSchema(cmd),
 					},
 				},
 			}
@@ -110,32 +127,32 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 			"operationId": "execute",
 			"tags":        []string{"execute"},
 			"requestBody": map[string]any{
-				"required": true,
-				"content": map[string]any{
-					"application/json": map[string]any{
-						"schema": map[string]any{
-							"type": "object",
-							"properties": map[string]any{
+				schemaKeyRequired: true,
+				schemaKeyContent: map[string]any{
+					mediaTypeJSON: map[string]any{
+						schemaKeySchema: map[string]any{
+							schemaKeyType: schemaTypeObject,
+							schemaKeyProperties: map[string]any{
 								"command": map[string]any{
-									"type":        "string",
-									"description": "Command to execute",
+									schemaKeyType:        schemaTypeString,
+									schemaKeyDescription: "Command to execute",
 								},
 								"params": map[string]any{
-									"type":        "object",
-									"description": "Command parameters",
+									schemaKeyType:        schemaTypeObject,
+									schemaKeyDescription: "Command parameters",
 								},
 							},
-							"required": []string{"command"},
+							schemaKeyRequired: []string{"command"},
 						},
 					},
 				},
 			},
 			"responses": map[string]any{
 				"200": map[string]any{
-					"description": "Command result",
-					"content": map[string]any{
-						"application/json": map[string]any{
-							"schema": map[string]any{
+					schemaKeyDescription: "Command result",
+					schemaKeyContent: map[string]any{
+						mediaTypeJSON: map[string]any{
+							schemaKeySchema: map[string]any{
 								"$ref": "#/components/schemas/ExecResult",
 							},
 						},
@@ -155,27 +172,27 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 		"components": map[string]any{
 			"schemas": map[string]any{
 				"ExecResult": map[string]any{
-					"type": "object",
-					"properties": map[string]any{
+					schemaKeyType: schemaTypeObject,
+					schemaKeyProperties: map[string]any{
 						"status": map[string]any{
-							"type": "string",
-							"enum": []string{"done", "error"},
+							schemaKeyType: schemaTypeString,
+							"enum":        []string{"done", "error"},
 						},
 						"data": map[string]any{
-							"description": "Response payload",
+							schemaKeyDescription: "Response payload",
 						},
 						"error": map[string]any{
-							"type":        "string",
-							"description": "Error message",
+							schemaKeyType:        schemaTypeString,
+							schemaKeyDescription: "Error message",
 						},
 					},
-					"required": []string{"status"},
+					schemaKeyRequired: []string{"status"},
 				},
 			},
 			"securitySchemes": map[string]any{
 				"bearerAuth": map[string]any{
-					"type":   "http",
-					"scheme": "bearer",
+					schemaKeyType: "http",
+					"scheme":      "bearer",
 				},
 			},
 		},

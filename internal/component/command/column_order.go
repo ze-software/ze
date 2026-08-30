@@ -239,10 +239,10 @@ type priorDeclaration[T any] struct {
 
 func newDeclarationRegistry[T any](name string, isEmpty func(value T) bool) *declarationRegistry[T] {
 	return &declarationRegistry[T]{
-		commandRegistry: commandRegistry[T]{byCommand: make(map[string]T)},
-		name:            name,
-		isEmpty:         isEmpty,
-		byOwner:         make(map[string]map[string]priorDeclaration[T]),
+		byCommand: make(map[string]T),
+		name:      name,
+		isEmpty:   isEmpty,
+		byOwner:   make(map[string]map[string]priorDeclaration[T]),
 	}
 }
 

@@ -9,6 +9,9 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
+// codePluginMissing is the diagnostic code this check publishes and raises.
+const codePluginMissing = "doctor-plugin-missing"
+
 func init() {
 	if err := diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
 		Name:         "plugin-binaries",
@@ -17,7 +20,7 @@ func init() {
 		Component:    "plugin",
 		Dependencies: []string{"external-binary"},
 		Platforms:    []string{diagnostic.DoctorPlatformAny},
-		Codes:        []string{"doctor-plugin-missing"},
+		Codes:        []string{codePluginMissing},
 		Check:        checkPlugins,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "doctor check registration: %v\n", err)

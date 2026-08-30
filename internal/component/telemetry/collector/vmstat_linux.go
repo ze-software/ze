@@ -42,7 +42,7 @@ func (c *vmstatCollector) Name() string { return "vmstat" }
 
 //nolint:dupl // distinct metric registrations share GaugeVec pattern
 func (c *vmstatCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.pgfaults = reg.GaugeVec(prefix+"_mem_pgfaults_faults_persec_average", "Page Faults", labels)
 	c.pgio = reg.GaugeVec(prefix+"_system_pgpgio_KiB_persec_average", "Disk Paging I/O", labels)
 	c.swapio = reg.GaugeVec(prefix+"_mem_swapio_KiB_persec_average", "Swap I/O", labels)

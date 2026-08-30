@@ -44,10 +44,10 @@ func nopExtMetrics() extMetrics {
 // setExtMetrics registers the five ze_ospf_ext_* series on the engine's metric registry.
 func (e *engine) setExtMetrics(reg metrics.Registry) {
 	e.ext = extMetrics{
-		prefixLSAs:   reg.GaugeVec("ze_ospf_ext_prefix_lsas", "Current OSPF Extended Prefix Opaque LSAs (RFC 7684 Opaque Type 7), by flooding scope.", []string{"scope"}),
+		prefixLSAs:   reg.GaugeVec("ze_ospf_ext_prefix_lsas", "Current OSPF Extended Prefix Opaque LSAs (RFC 7684 Opaque Type 7), by flooding scope.", []string{labelScope}),
 		linkLSAs:     reg.Gauge("ze_ospf_ext_link_lsas", "Current OSPF Extended Link Opaque LSAs (RFC 7684 Opaque Type 8); always area-scoped."),
-		originations: reg.CounterVec("ze_ospf_ext_originations_total", "Total OSPF Extended Prefix/Link Opaque LSAs originated, by opaque type.", []string{"opaque_type"}),
-		malformed:    reg.CounterVec("ze_ospf_ext_malformed_total", "Total malformed OSPF Extended Prefix/Link Opaque LSA bodies rejected on receipt (RFC 7684 sec 5), by opaque type.", []string{"opaque_type"}),
+		originations: reg.CounterVec("ze_ospf_ext_originations_total", "Total OSPF Extended Prefix/Link Opaque LSAs originated, by opaque type.", []string{labelOpaqueType}),
+		malformed:    reg.CounterVec("ze_ospf_ext_malformed_total", "Total malformed OSPF Extended Prefix/Link Opaque LSA bodies rejected on receipt (RFC 7684 sec 5), by opaque type.", []string{labelOpaqueType}),
 		subtlvErrors: reg.CounterVec("ze_ospf_ext_subtlv_errors_total", "Total registered Extended Prefix/Link sub-TLV codec panics recovered, by registry.", []string{"registry"}),
 	}
 	// Fresh tracker for the newly bound gauge so a drained scope label is zeroed on the real

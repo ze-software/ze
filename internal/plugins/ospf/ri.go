@@ -65,8 +65,8 @@ func nopRIMetrics() riMetrics {
 // setRIMetrics registers the five ze_ospf_ri_* series on reg (called for the IPv4 engine).
 func (e *engine) setRIMetrics(reg metrics.Registry) {
 	e.ri = riMetrics{
-		lsas:          reg.GaugeVec("ze_ospf_ri_lsas", "Current OSPF Router Information LSAs, by address family and flooding scope.", []string{"af", "scope"}),
-		originations:  reg.CounterVec("ze_ospf_ri_originations_total", "Total OSPF Router Information LSAs originated, by address family and flooding scope.", []string{"af", "scope"}),
+		lsas:          reg.GaugeVec("ze_ospf_ri_lsas", "Current OSPF Router Information LSAs, by address family and flooding scope.", []string{"af", labelScope}),
+		originations:  reg.CounterVec("ze_ospf_ri_originations_total", "Total OSPF Router Information LSAs originated, by address family and flooding scope.", []string{"af", labelScope}),
 		received:      reg.CounterVec("ze_ospf_ri_received_total", "Total OSPF Router Information LSAs received from peers, by address family.", []string{"af"}),
 		builderErrors: reg.Counter("ze_ospf_ri_tlv_builder_errors_total", "Total registered RI-TLV builder panics recovered during RI LSA origination."),
 		capabilityBit: reg.GaugeVec("ze_ospf_ri_capability_bits", "Current OSPF Router Informational Capability bits advertised by this router, by bit name.", []string{"bit"}),

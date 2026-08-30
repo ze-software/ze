@@ -68,10 +68,10 @@ func bmpTLVSeeds() [][]byte {
 		{}, // zero-length
 		encode(makeStringTLV(InitTLVSysName, "ze")),                                          // one valid TLV
 		encode(makeStringTLV(InitTLVSysDescr, "router-a"), makeStringTLV(InitTLVString, "")), // pair, second empty
-		{0x00, 0x00, 0x00, 0x00},       // zero-length value TLV (valid)
-		{0x00, 0x01},                   // header truncated below TLVHeaderSize
-		{0x00, 0x02, 0x00, 0x08},       // Length=8 with no value bytes (truncated)
-		{0x00, 0x00, 0xFF, 0xFF},       // Length=65535 with no value (oversized)
-		{0x00, 0x02, 0x00, 0x02, 0x41}, // valid header, one short of its 2 value bytes
+		{0x00, 0x00, 0x00, 0x00},                                                             // zero-length value TLV (valid)
+		{0x00, 0x01},                                                                         // header truncated below TLVHeaderSize
+		{0x00, 0x02, 0x00, 0x08},                                                             // Length=8 with no value bytes (truncated)
+		{0x00, 0x00, 0xFF, 0xFF},                                                             // Length=65535 with no value (oversized)
+		{0x00, 0x02, 0x00, 0x02, 0x41},                                                       // valid header, one short of its 2 value bytes
 	}
 }

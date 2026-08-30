@@ -89,17 +89,17 @@ func (e *engine) setBFDMetrics(reg metrics.Registry) {
 		Sessions: reg.GaugeVec(
 			"ze_ospf_bfd_sessions",
 			"Current OSPF BFD sessions by interface and area.",
-			[]string{"interface", "area"},
+			[]string{labelInterface, labelArea},
 		),
 		SessionDownTotal: reg.CounterVec(
 			"ze_ospf_bfd_session_down_total",
 			"Total OSPF adjacencies declared down by a BFD session failure, by interface.",
-			[]string{"interface"},
+			[]string{labelInterface},
 		),
 		RegisterFailures: reg.CounterVec(
 			"ze_ospf_bfd_register_failures_total",
 			"Total OSPF BFD session registration failures, by interface and reason.",
-			[]string{"interface", "reason"},
+			[]string{labelInterface, labelReason},
 		),
 	}
 	e.mu.Unlock()

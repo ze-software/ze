@@ -84,7 +84,7 @@ func (m *Model) cmdShowDisplayWithSource(format, compareTarget, source string) (
 
 	// Default: working config.
 	if m.editor.ContentAtPath(m.contextPath) == "" {
-		return commandResult{output: "(empty configuration)"}, nil
+		return commandResult{output: emptyConfiguration}, nil
 	}
 
 	columns := m.showColumns()
@@ -134,7 +134,7 @@ func (m *Model) cmdShowFiltered(filter string, textFilters []PipeFilter) (comman
 // compareView, which serves every source.
 func (m *Model) showAlternateSource(content string) (commandResult, error) {
 	if content == "" {
-		return commandResult{output: "(empty configuration)"}, nil
+		return commandResult{output: emptyConfiguration}, nil
 	}
 	return commandResult{configView: &viewportData{content: content}}, nil
 }
@@ -261,7 +261,7 @@ func (m *Model) compareViewUnpruned(format, compareTarget, source string, column
 	}
 	content := m.sourceContent(source, columns, format)
 	if content == "" {
-		return commandResult{output: "(empty configuration)"}, nil
+		return commandResult{output: emptyConfiguration}, nil
 	}
 	return commandResult{configView: &viewportData{
 		content:         content,

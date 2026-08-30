@@ -69,7 +69,8 @@ func TestGetInterfaceInvalidName(t *testing.T) {
 // PREVENTS: maps configured but invisible to operators.
 func TestLinkToInfoVLANQoSMaps(t *testing.T) {
 	vlan := &netlink.Vlan{
-		LinkAttrs:     netlink.LinkAttrs{Name: "eth0.100", Index: 7, ParentIndex: 2, MTU: 1500},
+		Name: "eth0.100", Index: 7, ParentIndex: 2, MTU: 1500,
+
 		VlanId:        100,
 		IngressQosMap: map[uint32]uint32{6: 6},
 		EgressQosMap:  map[uint32]uint32{0: 0, 6: 6},
@@ -80,8 +81,8 @@ func TestLinkToInfoVLANQoSMaps(t *testing.T) {
 	assert.Equal(t, map[uint32]uint32{0: 0, 6: 6}, info.EgressQoSMap)
 
 	bare := &netlink.Vlan{
-		LinkAttrs: netlink.LinkAttrs{Name: "eth0.200", Index: 8, ParentIndex: 2, MTU: 1500},
-		VlanId:    200,
+		Name: "eth0.200", Index: 8, ParentIndex: 2, MTU: 1500,
+		VlanId: 200,
 	}
 	bareInfo := linkToInfo(bare)
 	assert.Nil(t, bareInfo.IngressQoSMap)
@@ -102,13 +103,11 @@ func TestLinkToInfoPermanentMAC(t *testing.T) {
 	require.NoError(t, err)
 
 	dev := &netlink.Device{
-		LinkAttrs: netlink.LinkAttrs{
-			Name:         "eth0",
-			Index:        3,
-			MTU:          1500,
-			HardwareAddr: oper,
-			PermHWAddr:   perm,
-		},
+		Name:         "eth0",
+		Index:        3,
+		MTU:          1500,
+		HardwareAddr: oper,
+		PermHWAddr:   perm,
 	}
 	info := linkToInfo(dev)
 	assert.Equal(t, "eth0", info.Name)
@@ -124,7 +123,7 @@ func TestLinkToInfoPermanentMAC(t *testing.T) {
 //
 // VALIDATES: spec-iface-resolve-1-model A-3 -- created kinds have empty permaddr.
 func TestLinkToInfoNoPermanentMAC(t *testing.T) {
-	dev := &netlink.Device{LinkAttrs: netlink.LinkAttrs{Name: "veth0", Index: 9, MTU: 1500}}
+	dev := &netlink.Device{Name: "veth0", Index: 9, MTU: 1500}
 	info := linkToInfo(dev)
 	assert.Empty(t, info.PermanentMAC, "virtual kinds have no permanent MAC")
 	assert.Equal(t, "veth0", info.OsName)

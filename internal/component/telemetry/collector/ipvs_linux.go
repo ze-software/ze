@@ -31,7 +31,7 @@ func newIPVSCollector(fs procfs.FS, interval time.Duration) *ipvsCollector {
 func (c *ipvsCollector) Name() string { return "ipvs" }
 
 func (c *ipvsCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.connections = reg.GaugeVec(prefix+"_ipvs_net_connections_persec_average", "IPVS Connections", labels)
 	c.bandwidth = reg.GaugeVec(prefix+"_ipvs_net_kilobits_persec_average", "IPVS Bandwidth", labels)
 	c.packets = reg.GaugeVec(prefix+"_ipvs_net_packets_persec_average", "IPVS Packets", labels)

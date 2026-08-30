@@ -133,7 +133,7 @@ func (c *Computer) publishFRRMetrics(stats map[types.AreaID]areaFRRStats, dur ti
 	mProt, mUnprot := c.mFRRProtected, c.mFRRUnprotected
 	mInst, mCompute, mRepair := c.mFRRInstalled, c.mFRRCompute, c.mFRRRepairLabels
 	c.mu.Unlock()
-	classes := []string{"node", "link", "downstream", "loop-free"}
+	classes := []string{backupClassNode, backupClassLink, backupClassDownstream, backupClassLoopFree}
 	reasons := []string{"no-lfa", "no-sr", "suppressed"}
 	installedLFA, installedTILFA := 0, 0
 	for area, st := range stats {
@@ -552,13 +552,13 @@ func countBorder(border []BorderRouterEntry, area types.AreaID, kind BorderRoute
 func classKey(b Backup) string {
 	switch {
 	case b.NodeProtect:
-		return "node"
+		return backupClassNode
 	case b.LinkProtect:
-		return "link"
+		return backupClassLink
 	case b.Downstream:
-		return "downstream"
+		return backupClassDownstream
 	default:
-		return "loop-free"
+		return backupClassLoopFree
 	}
 }
 

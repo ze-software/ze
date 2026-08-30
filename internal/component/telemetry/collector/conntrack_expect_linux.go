@@ -37,7 +37,7 @@ func (c *conntrackExpectCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_netfilter_conntrack_expect_expectations_persec_average",
 		"Conntrack Expectations",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

@@ -27,7 +27,7 @@ const doctorListenerFailEnv = "ze.test.doctor.listener-fail-code"
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         doctorListenerFailEnv,
-	Type:        "string",
+	Type:        envTypeString,
 	Description: "Force selected doctor listener codes to fail (test infrastructure)",
 	Private:     true,
 })

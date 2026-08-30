@@ -67,8 +67,8 @@ func withLabNetNS(t *testing.T, fn func()) {
 	})
 
 	if err := netlink.LinkAdd(&netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: "ze0"},
-		PeerName:  "ze1",
+		Name:     "ze0",
+		PeerName: "ze1",
 	}); err != nil {
 		t.Fatalf("add veth: %v", err)
 	}

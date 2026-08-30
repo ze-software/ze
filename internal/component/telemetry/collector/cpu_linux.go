@@ -32,7 +32,7 @@ func newCPUCollector(fs procfs.FS, interval time.Duration) *cpuCollector {
 func (c *cpuCollector) Name() string { return "cpu" }
 
 func (c *cpuCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.sysGauge = reg.GaugeVec(prefix+"_system_cpu_percentage_average", "System CPU utilization", labels)
 	c.cpuGauge = reg.GaugeVec(prefix+"_cpu_cpu_percentage_average", "Per-CPU Utilization", labels)
 }

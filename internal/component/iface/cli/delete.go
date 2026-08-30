@@ -19,7 +19,7 @@ func cmdDelete(args []string) int {
 	}
 
 	switch args[0] {
-	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
+	case subcmdHelp, flagHelpShort, flagHelpLong:
 		deleteUsage()
 		return 0
 	}

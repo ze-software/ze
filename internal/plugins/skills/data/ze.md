@@ -10,9 +10,9 @@ Ze is a network OS with its own BGP implementation, YANG-modeled config, and age
 ## Agent Entry Points
 
 ```sh
-ze config validate --json <file>
+ze cli -c "validate config <file> | json"
 ze explain [--json] <diagnostic-code>
-ze config fix --plan --json <file>
+ze config fix --plan <file>
 ze help ai --json
 ze skills list
 ze skills get <name> [--full]

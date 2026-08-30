@@ -6,7 +6,7 @@
 //   - the local command registry, for offline `show traceroute` and
 //     `monitor traceroute`.
 //
-// The module is reached by the daemon through internal/le/pluginimports/pluginimports.go
+// The module is reached by the daemon through internal/le/plugin/imports/pluginimports.go
 // rpcDirs (internal/component/traceroute/cmd) and by the `ze` binary through
 // plugin/all.
 
@@ -103,7 +103,7 @@ func monitorTracerouteLocal(args []string) int {
 		var tb textbuf.Buffer
 		tb.Str("--- round ").Int(int64(round)).Str(" ---\n")
 		for _, hop := range hops {
-			ttl, _ := hop["ttl"].(int)
+			ttl, _ := hop[fieldTTL].(int)
 			addr, _ := hop["addr"].(string)
 			tb.Str("  ").Int(int64(ttl)).Str("  ").Str(addr)
 			if rtt, ok := hop["rtt-ms"].(float64); ok {

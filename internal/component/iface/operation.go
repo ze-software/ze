@@ -13,6 +13,7 @@ import (
 	"time"
 
 	tx "github.com/ze-software/ze/internal/component/config/transaction"
+	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -57,7 +58,7 @@ func init() {
 	if err := tx.RegisterSettlementRule(tx.SettlementRule{
 		ID:           "iface-add-address-settles-addr-added",
 		Operation:    tx.OperationSelector{Type: tx.OperationAddAddress, ResourceKind: tx.ResourceAddress},
-		Readiness:    tx.ConfigOperationReadiness{Namespace: "interface", EventType: "addr-added"},
+		Readiness:    tx.ConfigOperationReadiness{Namespace: ifaceevents.Namespace, EventType: "addr-added"},
 		ResourceFrom: tx.SettlementResourceAddress,
 		Timeout:      5 * time.Second,
 	}); err != nil {
@@ -90,7 +91,7 @@ func init() {
 	if err := tx.RegisterSettlementRule(tx.SettlementRule{
 		ID:           "iface-add-interface-settles-created",
 		Operation:    tx.OperationSelector{Type: tx.OperationAddInterface, ResourceKind: tx.ResourceInterface},
-		Readiness:    tx.ConfigOperationReadiness{Namespace: "interface", EventType: "created"},
+		Readiness:    tx.ConfigOperationReadiness{Namespace: ifaceevents.Namespace, EventType: "created"},
 		ResourceFrom: tx.SettlementResourceInterface,
 		Timeout:      5 * time.Second,
 	}); err != nil {
@@ -192,9 +193,9 @@ func ifaceAddressOperation(opType tx.ConfigOperationType, ifaceName, cidr string
 		verb = "remove"
 	}
 	return tx.ConfigOperation{
-		ID:    textbuf.Join([]string{"interface", verb, "address", sanitizeOperationID(ifaceName), sanitizeOperationID(cidr)}, "-"),
+		ID:    textbuf.Join([]string{componentNameInterface, verb, "address", sanitizeOperationID(ifaceName), sanitizeOperationID(cidr)}, "-"),
 		Root:  configRootInterface,
-		Owner: "interface",
+		Owner: componentNameInterface,
 		Type:  opType,
 		Target: tx.ResourceRef{
 			Kind:      tx.ResourceAddress,
@@ -211,9 +212,9 @@ func ifaceInterfaceOperation(opType tx.ConfigOperationType, ifaceName, ifaceType
 		verb = "remove"
 	}
 	return tx.ConfigOperation{
-		ID:    textbuf.Join([]string{"interface", verb, sanitizeOperationID(ifaceName)}, "-"),
+		ID:    textbuf.Join([]string{componentNameInterface, verb, sanitizeOperationID(ifaceName)}, "-"),
 		Root:  configRootInterface,
-		Owner: "interface",
+		Owner: componentNameInterface,
 		Type:  opType,
 		Target: tx.ResourceRef{
 			Kind: tx.ResourceInterface,

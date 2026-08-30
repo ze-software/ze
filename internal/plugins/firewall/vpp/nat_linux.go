@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"net/netip"
+	"slices"
 	"strings"
 
 	"go.fd.io/govpp/binapi/interface_types"
@@ -121,8 +122,8 @@ func (b *backend) applyNATChain(
 }
 
 func undoNAT(undo []func()) {
-	for i := len(undo) - 1; i >= 0; i-- {
-		undo[i]()
+	for _, step := range slices.Backward(undo) {
+		step()
 	}
 }
 

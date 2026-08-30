@@ -23,5 +23,5 @@ func collectSysctlInfo() (any, error) {
 		}
 		results[k.Name] = strings.TrimSpace(string(data))
 	}
-	return map[string]any{"sysctls": results, "count": len(results)}, nil
+	return map[string]any{"sysctls": results, keyCount: len(results)}, nil
 }

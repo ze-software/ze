@@ -16,6 +16,13 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// argTarget is the CLI argument keyword that introduces the probed address, and
+// keyTarget is the response payload key that reports it back.
+const (
+	argTarget = "target"
+	keyTarget = "target"
+)
+
 // errHealthUsage is returned for any args shape other than none or the
 // documented "target <ip>" keyword form (yang/ze-as112-cmd.yang's usage
 // string).
@@ -87,7 +94,7 @@ func parseHealthArgs(args []string) (string, error) {
 	if len(args) == 0 {
 		return "", nil
 	}
-	if len(args) != 2 || args[0] != "target" || args[1] == "" {
+	if len(args) != 2 || args[0] != argTarget || args[1] == "" {
 		return "", errHealthUsage
 	}
 	return args[1], nil
@@ -123,8 +130,8 @@ func handleAS112Health(_ *pluginserver.CommandContext, args []string) (*plugin.R
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Error:  reason,
-			Data:   plugin.Map{"healthy": false, "target": target},
+			Data:   plugin.Map{"healthy": false, keyTarget: target},
 		}, nil
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"healthy": true, "target": target}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"healthy": true, keyTarget: target}}, nil
 }

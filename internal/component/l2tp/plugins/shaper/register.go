@@ -16,6 +16,9 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
+// configRootL2TP is the YANG container this plugin reads.
+const configRootL2TP = "l2tp"
+
 func init() {
 	subscriber.RegisterShaperHandler(shaperInstance.handleSubscriberSessionUp)
 	reg := registry.Registration{
@@ -23,7 +26,7 @@ func init() {
 		Description:             "Traffic shaping for L2TP subscriber sessions",
 		Features:                "yang",
 		YANG:                    yang.ZeL2TPShaperConfYANG,
-		ConfigRoots:             []string{"l2tp"},
+		ConfigRoots:             []string{configRootL2TP},
 		InProcessConfigVerifier: verifyShaperConfig,
 		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -48,7 +51,7 @@ func init() {
 
 func verifyShaperConfig(sections []sdk.ConfigSection) error {
 	for _, sec := range sections {
-		if sec.Root != "l2tp" {
+		if sec.Root != configRootL2TP {
 			continue
 		}
 		if _, _, err := parseShaperConfig(sec.Data); err != nil {
@@ -70,7 +73,7 @@ func runPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, sec := range sections {
-			if sec.Root != "l2tp" {
+			if sec.Root != configRootL2TP {
 				continue
 			}
 			cfg, found, err := parseShaperConfig(sec.Data)
@@ -115,7 +118,7 @@ func runPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"l2tp"},
+		WantsConfig:  []string{configRootL2TP},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{

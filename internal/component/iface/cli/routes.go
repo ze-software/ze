@@ -25,22 +25,22 @@ const defaultRouteLimit = 1000
 // positional CIDR restricts the dump. --limit caps the result size.
 // Returns exit code.
 func cmdRoutes(args []string) int {
-	fs := flag.NewFlagSet("ze interface routes", flag.ContinueOnError)
+	fs := flag.NewFlagSet(cmdPathRoutes, flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Output in JSON format")
 	limit := fs.Int("limit", defaultRouteLimit, "Maximum number of routes to return (must be > 0)")
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze interface routes",
+			Command: cmdPathRoutes,
 			Summary: "List kernel routing table entries",
 			Usage:   []string{"ze interface routes [<cidr>] [--limit N] [--json]"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--json", Desc: "Output in JSON format"},
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
+					{Name: flagJSONLong, Desc: helpDescJSON},
 					{Name: "--limit N", Desc: fmt.Sprintf("Maximum number of routes (default %d, must be > 0)", defaultRouteLimit)},
 				}},
 			},
 			Examples: []string{
-				"ze interface routes",
+				cmdPathRoutes,
 				"ze interface routes 10.0.0.0/8",
 				"ze interface routes --limit 50000",
 				"ze interface routes --json",

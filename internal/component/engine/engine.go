@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/pkg/ze"
@@ -105,9 +106,9 @@ func (e *Engine) Stop(ctx context.Context) error {
 
 	// Stop subsystems in reverse registration order.
 	var firstErr error
-	for i := len(e.subsystems) - 1; i >= 0; i-- {
-		if err := e.subsystems[i].Stop(ctx); err != nil && firstErr == nil {
-			firstErr = fmt.Errorf("stop subsystem %q: %w", e.subsystems[i].Name(), err)
+	for _, sub := range slices.Backward(e.subsystems) {
+		if err := sub.Stop(ctx); err != nil && firstErr == nil {
+			firstErr = fmt.Errorf("stop subsystem %q: %w", sub.Name(), err)
 		}
 	}
 

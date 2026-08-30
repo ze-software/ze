@@ -176,7 +176,7 @@ func checkISOPrerequisites(opts isoOptions) int {
 
 	grubPath := opts.builderPath
 	if grubPath == "" {
-		for _, candidate := range []string{"grub-mkstandalone", "grub2-mkstandalone"} {
+		for _, candidate := range []string{grubStandalone, grubStandalone2} {
 			if p, err := isoLookPathFn(candidate); err == nil {
 				grubPath = p
 				break
@@ -473,7 +473,7 @@ func resolveISOBuilder(builder string) (grubPath, xorrisoPath string, err error)
 		}
 	} else {
 		var firstErr error
-		for _, candidate := range []string{"grub-mkstandalone", "grub2-mkstandalone"} {
+		for _, candidate := range []string{grubStandalone, grubStandalone2} {
 			grubPath, err = isoLookPathFn(candidate)
 			if err == nil {
 				break

@@ -193,7 +193,7 @@ func TestHandlePeerDetailInvalidID(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/peer/abc", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peer/abc", http.NoBody)
 	req.SetPathValue("id", "abc")
 	w := httptest.NewRecorder()
 
@@ -218,7 +218,7 @@ func TestHandlePeerPin(t *testing.T) {
 	d.state.Active.Promote(1, PriorityMedium, time.Now())
 
 	// Pin.
-	req := httptest.NewRequest(http.MethodPost, "/peers/1/pin", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/peers/1/pin", http.NoBody)
 	req.SetPathValue("id", "1")
 	w := httptest.NewRecorder()
 
@@ -232,7 +232,7 @@ func TestHandlePeerPin(t *testing.T) {
 	}
 
 	// Unpin.
-	req = httptest.NewRequest(http.MethodPost, "/peers/1/pin", http.NoBody)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/peers/1/pin", http.NoBody)
 	req.SetPathValue("id", "1")
 	w = httptest.NewRecorder()
 
@@ -253,7 +253,7 @@ func TestHandlePeerClose(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/peer/close", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peer/close", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handlePeerClose(w, req)
@@ -344,7 +344,7 @@ func TestPeerFilterSyncing(t *testing.T) {
 	d.state.mu.Unlock()
 
 	// "syncing" filter: only peer 0.
-	req := httptest.NewRequest("GET", "/peers?status=syncing", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/peers?status=syncing", http.NoBody)
 	rec := httptest.NewRecorder()
 	d.handlePeers(rec, req)
 	body := rec.Body.String()
@@ -356,7 +356,7 @@ func TestPeerFilterSyncing(t *testing.T) {
 	}
 
 	// "fault" filter: only peer 2 (down), NOT peer 0 (syncing is not a fault).
-	req = httptest.NewRequest("GET", "/peers?status=fault", http.NoBody)
+	req = httptest.NewRequestWithContext(t.Context(), "GET", "/peers?status=fault", http.NoBody)
 	rec = httptest.NewRecorder()
 	d.handlePeers(rec, req)
 	body = rec.Body.String()
@@ -400,7 +400,7 @@ func TestControlHandlersLogToNDJSON(t *testing.T) {
 	defer d.broker.Close()
 
 	// Pause.
-	req := httptest.NewRequest(http.MethodPost, "/control/pause", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleControlPause(w, req)
 	if w.Code != http.StatusOK {
@@ -408,24 +408,24 @@ func TestControlHandlersLogToNDJSON(t *testing.T) {
 	}
 
 	// Resume.
-	req = httptest.NewRequest(http.MethodPost, "/control/resume", http.NoBody)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/resume", http.NoBody)
 	w = httptest.NewRecorder()
 	d.handleControlResume(w, req)
 
 	// Rate.
-	req = httptest.NewRequest(http.MethodPost, "/control/rate", strings.NewReader("rate=0.75"))
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/rate", strings.NewReader("rate=0.75"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w = httptest.NewRecorder()
 	d.handleControlRate(w, req)
 
 	// Trigger.
-	req = httptest.NewRequest(http.MethodPost, "/control/trigger", strings.NewReader("action=tcp-disconnect"))
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/trigger", strings.NewReader("action=tcp-disconnect"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w = httptest.NewRecorder()
 	d.handleControlTrigger(w, req)
 
 	// Stop.
-	req = httptest.NewRequest(http.MethodPost, "/control/stop", http.NoBody)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/stop", http.NoBody)
 	w = httptest.NewRecorder()
 	d.handleControlStop(w, req)
 
@@ -462,7 +462,7 @@ func TestControlHandlersNoLoggerNoPanic(t *testing.T) {
 	// d.controlLogger is nil (default).
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/control/pause", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleControlPause(w, req)
 	if w.Code != http.StatusOK {
@@ -554,7 +554,7 @@ func TestHandlePeerPinOutOfRange(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(http.MethodPost, "/peers/"+tt.id+"/pin", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/peers/"+tt.id+"/pin", http.NoBody)
 			req.SetPathValue("id", tt.id)
 			w := httptest.NewRecorder()
 			d.handlePeerPin(w, req)
@@ -724,7 +724,7 @@ func TestControlChannelFull(t *testing.T) {
 	}
 
 	// 17th command should return 503.
-	req := httptest.NewRequest(http.MethodPost, "/control/pause", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleControlPause(w, req)
 
@@ -754,7 +754,7 @@ func TestHandlerRestart(t *testing.T) {
 	d.onStop = func() { close(stopped) }
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/control/restart",
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/restart",
 		strings.NewReader("seed=12345"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -805,7 +805,7 @@ func TestHandlerRestartInvalidSeed(t *testing.T) {
 	d.restartCh = restartCh
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/control/restart",
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/restart",
 		strings.NewReader("seed=not-a-number"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -840,7 +840,7 @@ func TestHandlerRestartMissingSeed(t *testing.T) {
 	d.restartCh = restartCh
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/control/restart",
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/restart",
 		strings.NewReader("seed="))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -871,7 +871,7 @@ func TestHandlerRestartNoChannel(t *testing.T) {
 	// d.restartCh is nil.
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/control/restart",
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/restart",
 		strings.NewReader("seed=42"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w := httptest.NewRecorder()
@@ -1066,7 +1066,7 @@ func TestRouteControlHandlers(t *testing.T) {
 	defer d.broker.Close()
 
 	// Pause.
-	req := httptest.NewRequest(http.MethodPost, "/control/route/pause", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/route/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleRouteControlPause(w, req)
 	if w.Code != http.StatusOK {
@@ -1086,7 +1086,7 @@ func TestRouteControlHandlers(t *testing.T) {
 	d.state.RUnlock()
 
 	// Resume.
-	req = httptest.NewRequest(http.MethodPost, "/control/route/resume", http.NoBody)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/route/resume", http.NoBody)
 	w = httptest.NewRecorder()
 	d.handleRouteControlResume(w, req)
 	if w.Code != http.StatusOK {
@@ -1102,7 +1102,7 @@ func TestRouteControlHandlers(t *testing.T) {
 	d.state.RUnlock()
 
 	// Rate.
-	req = httptest.NewRequest(http.MethodPost, "/control/route/rate", strings.NewReader("rate=0.30"))
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/route/rate", strings.NewReader("rate=0.30"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	w = httptest.NewRecorder()
 	d.handleRouteControlRate(w, req)
@@ -1116,7 +1116,7 @@ func TestRouteControlHandlers(t *testing.T) {
 	d.state.RUnlock()
 
 	// Stop.
-	req = httptest.NewRequest(http.MethodPost, "/control/route/stop", http.NoBody)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/route/stop", http.NoBody)
 	w = httptest.NewRecorder()
 	d.handleRouteControlStop(w, req)
 	if w.Code != http.StatusOK {
@@ -1168,7 +1168,7 @@ func TestRouteControlNoChannel(t *testing.T) {
 	for _, h := range handlers {
 		t.Run(h.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(http.MethodPost, "/control/route/"+h.name, http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/route/"+h.name, http.NoBody)
 			w := httptest.NewRecorder()
 			h.handler(w, req)
 			if w.Code != http.StatusServiceUnavailable {
@@ -1203,7 +1203,7 @@ func TestRouteControlRateInvalid(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(http.MethodPost, "/control/route/rate",
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/route/rate",
 				strings.NewReader("rate="+tt.rate))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			w := httptest.NewRecorder()
@@ -1234,7 +1234,7 @@ func TestRouteControlChannelFull(t *testing.T) {
 		routeControlCh <- ControlCommand{Type: "test"}
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/control/route/pause", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/route/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleRouteControlPause(w, req)
 
@@ -1257,7 +1257,7 @@ func TestHandlePeersGridView(t *testing.T) {
 	d.state.Peers[1].Status = PeerDown
 	d.state.Peers[5].Status = PeerSyncing
 
-	req := httptest.NewRequest(http.MethodGet, "/peers/grid", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peers/grid", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handlePeersGrid(w, req)
@@ -1298,7 +1298,7 @@ func TestHandlePeersGridStatusFilter(t *testing.T) {
 	d.state.Peers[1].Status = PeerDown
 	d.state.Peers[2].Status = PeerUp
 
-	req := httptest.NewRequest(http.MethodGet, "/peers/grid?status=up", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peers/grid?status=up", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handlePeersGrid(w, req)
@@ -1331,7 +1331,7 @@ func TestHandlePeersTableView(t *testing.T) {
 	d.state.Peers[0].Status = PeerUp
 	d.state.Peers[2].Status = PeerDown
 
-	req := httptest.NewRequest(http.MethodGet, "/peers/table", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peers/table", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handlePeersTable(w, req)
@@ -1430,7 +1430,7 @@ func TestSidebarStatsIncludesDonut(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest("GET", "/sidebar/stats", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/sidebar/stats", http.NoBody)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
@@ -1512,7 +1512,7 @@ func TestLayoutIncludesControlStrip(t *testing.T) {
 	d.control = make(chan ControlCommand, 1)
 	d.state.Control = ControlState{Status: "running", Rate: 0.5}
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleIndex(w, req)
 	body := w.Body.String()
@@ -1540,7 +1540,7 @@ func TestLayoutOmitsControlStripWhenNoControl(t *testing.T) {
 	defer d.broker.Close()
 	// d.control is nil by default, d.state.Control.Status is ""
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleIndex(w, req)
 	body := w.Body.String()
@@ -1562,7 +1562,7 @@ func TestControlPauseReturnsStrip(t *testing.T) {
 	d.control = make(chan ControlCommand, 1)
 	d.state.Control = ControlState{Status: "running", Rate: 0.5}
 
-	req := httptest.NewRequest(http.MethodPost, "/control/pause", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleControlPause(w, req)
 
@@ -1589,7 +1589,7 @@ func TestControlSpeedReturnsStrip(t *testing.T) {
 	defer d.broker.Close()
 	d.state.Control = ControlState{Status: "running", Rate: 0.5, SpeedAvailable: true, SpeedFactor: 1}
 
-	req := httptest.NewRequest(http.MethodPost, "/control/speed?factor=10", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/control/speed?factor=10", http.NoBody)
 	req.Form = map[string][]string{"factor": {"10"}}
 	w := httptest.NewRecorder()
 	d.handleControlSpeed(w, req)
@@ -1615,7 +1615,7 @@ func TestLayoutSidebarHasTriggerNotControls(t *testing.T) {
 	d.control = make(chan ControlCommand, 1)
 	d.state.Control = ControlState{Status: "running", Rate: 0.5}
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleIndex(w, req)
 	body := w.Body.String()
@@ -1643,7 +1643,7 @@ func TestLayoutIncludesPanelToggle(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleIndex(w, req)
 	body := w.Body.String()
@@ -1719,7 +1719,7 @@ func TestHandlePeersSearchSingle(t *testing.T) {
 		d.state.Peers[i].Status = PeerUp
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/peers?search=2", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peers?search=2", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handlePeers(w, req)
 
@@ -1755,7 +1755,7 @@ func TestHandlePeersSearchStatus(t *testing.T) {
 	d.state.Peers[3].Status = PeerDown
 	d.state.Peers[4].Status = PeerUp
 
-	req := httptest.NewRequest(http.MethodGet, "/peers?search=down", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peers?search=down", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handlePeers(w, req)
 
@@ -1791,7 +1791,7 @@ func TestHandlePeersSearchWithStatusFilter(t *testing.T) {
 	d.state.Peers[4].Status = PeerDown
 
 	// Search "0" + status "up": only peer 0 matches (index starts with "0" AND status is "up").
-	req := httptest.NewRequest(http.MethodGet, "/peers?search=0&status=up", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peers?search=0&status=up", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handlePeers(w, req)
 
@@ -1819,7 +1819,7 @@ func TestHandlePeersSearchNoMatch(t *testing.T) {
 		d.state.Peers[i].Status = PeerUp
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/peers?search=99999", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/peers?search=99999", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handlePeers(w, req)
 
@@ -1842,7 +1842,7 @@ func TestLayoutIncludesSearchInput(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleIndex(w, req)
 	body := w.Body.String()

@@ -17,9 +17,28 @@ import (
 // provide the information (e.g. darwin for all Linux-specific sections).
 var ErrUnsupported = errors.New("host inventory: unsupported on this platform")
 
-// strUnknown is the canonical JSON string for any enum value that
-// cannot be mapped. Shared by all enum String() fallbacks.
+// strUnknown is the canonical JSON string for any value that cannot be
+// determined or mapped. Shared by the enum String() fallbacks and by the
+// name-based classifiers.
 const strUnknown = "unknown"
+
+// cpuNamePrefix is the prefix the kernel gives every logical CPU. It opens the
+// sysfs directory name `cpuN`, and the diff event subject built from it.
+const cpuNamePrefix = "cpu"
+
+// The inventory section names. sectionDetectors keys the map with them, and a
+// DetectError names the section that failed.
+const (
+	sectionAll      = "all"
+	sectionCPU      = "cpu"
+	sectionDMI      = "dmi"
+	sectionKernel   = "kernel"
+	sectionMemory   = "memory"
+	sectionNIC      = "nic"
+	sectionPlatform = "platform"
+	sectionStorage  = "storage"
+	sectionThermal  = "thermal"
+)
 
 // Inventory is the full hardware inventory for the host. Every section is
 // a pointer so "unknown" or "unsupported on this platform" is expressible
@@ -64,7 +83,7 @@ const (
 )
 
 var cpuVendorNames = map[CPUVendor]string{
-	CPUVendorUnknown: "unknown",
+	CPUVendorUnknown: strUnknown,
 	CPUVendorIntel:   "intel",
 	CPUVendorAMD:     "amd",
 	CPUVendorOther:   "other",
@@ -96,7 +115,7 @@ const (
 )
 
 var coreRoleNames = map[CoreRole]string{
-	CoreRoleUnknown:     "unknown",
+	CoreRoleUnknown:     strUnknown,
 	CoreRoleUniform:     "uniform",
 	CoreRolePerformance: "performance",
 	CoreRoleEfficient:   "efficient",
@@ -127,7 +146,7 @@ const (
 )
 
 var scalingDriverNames = map[ScalingDriver]string{
-	ScalingDriverUnknown:     "unknown",
+	ScalingDriverUnknown:     strUnknown,
 	ScalingDriverIntelPState: "intel_pstate",
 	ScalingDriverAMDPState:   "amd_pstate",
 	ScalingDriverACPICpufreq: "acpi_cpufreq",
@@ -158,7 +177,7 @@ const (
 )
 
 var nicTransportNames = map[NICTransport]string{
-	NICTransportUnknown:  "unknown",
+	NICTransportUnknown:  strUnknown,
 	NICTransportPCI:      "pci",
 	NICTransportUSB:      "usb",
 	NICTransportPlatform: "platform",
@@ -346,7 +365,7 @@ const (
 )
 
 var platformTypeNames = map[PlatformType]string{
-	PlatformUnknown:    "unknown",
+	PlatformUnknown:    strUnknown,
 	PlatformGokrazy:    "gokrazy",
 	PlatformSystemd:    "systemd",
 	PlatformContainer:  "container",
@@ -451,15 +470,15 @@ var ErrUnknownSection = errors.New("host: unknown section")
 // replaces was a second parallel `validSections` table in
 // cmd/ze/host/host.go that had to be kept in sync by hand.
 var sectionDetectors = map[string]func(*Detector) (any, error){
-	"cpu":      func(d *Detector) (any, error) { return d.DetectCPU() },
-	"nic":      func(d *Detector) (any, error) { return d.DetectNICs() },
-	"dmi":      func(d *Detector) (any, error) { return d.DetectDMI() },
-	"memory":   func(d *Detector) (any, error) { return d.DetectMemory() },
-	"thermal":  func(d *Detector) (any, error) { return d.DetectThermal() },
-	"storage":  func(d *Detector) (any, error) { return d.DetectStorage() },
-	"kernel":   func(d *Detector) (any, error) { return d.DetectKernel() },
-	"platform": func(d *Detector) (any, error) { return d.DetectPlatform() },
-	"all":      func(_ *Detector) (any, error) { return Detect() },
+	sectionCPU:      func(d *Detector) (any, error) { return d.DetectCPU() },
+	sectionNIC:      func(d *Detector) (any, error) { return d.DetectNICs() },
+	sectionDMI:      func(d *Detector) (any, error) { return d.DetectDMI() },
+	sectionMemory:   func(d *Detector) (any, error) { return d.DetectMemory() },
+	sectionThermal:  func(d *Detector) (any, error) { return d.DetectThermal() },
+	sectionStorage:  func(d *Detector) (any, error) { return d.DetectStorage() },
+	sectionKernel:   func(d *Detector) (any, error) { return d.DetectKernel() },
+	sectionPlatform: func(d *Detector) (any, error) { return d.DetectPlatform() },
+	sectionAll:      func(_ *Detector) (any, error) { return Detect() },
 }
 
 // SectionNames returns the sorted list of valid section names. The
@@ -544,7 +563,7 @@ func (d *Detector) Detect() (*Inventory, error) {
 	if cpu, err := d.DetectCPU(); err == nil {
 		inv.CPU = cpu
 	} else if !errors.Is(err, ErrUnsupported) {
-		inv.Errors = append(inv.Errors, DetectError{Path: "cpu", Err: err.Error()})
+		inv.Errors = append(inv.Errors, DetectError{Path: sectionCPU, Err: err.Error()})
 	}
 
 	if nics, err := d.DetectNICs(); err == nil {
@@ -556,31 +575,31 @@ func (d *Detector) Detect() (*Inventory, error) {
 	if dmi, err := d.DetectDMI(); err == nil {
 		inv.DMI = dmi
 	} else if !errors.Is(err, ErrUnsupported) {
-		inv.Errors = append(inv.Errors, DetectError{Path: "dmi", Err: err.Error()})
+		inv.Errors = append(inv.Errors, DetectError{Path: sectionDMI, Err: err.Error()})
 	}
 
 	if mem, err := d.DetectMemory(); err == nil {
 		inv.Memory = mem
 	} else if !errors.Is(err, ErrUnsupported) {
-		inv.Errors = append(inv.Errors, DetectError{Path: "memory", Err: err.Error()})
+		inv.Errors = append(inv.Errors, DetectError{Path: sectionMemory, Err: err.Error()})
 	}
 
 	if t, err := d.DetectThermal(); err == nil {
 		inv.Thermal = t
 	} else if !errors.Is(err, ErrUnsupported) {
-		inv.Errors = append(inv.Errors, DetectError{Path: "thermal", Err: err.Error()})
+		inv.Errors = append(inv.Errors, DetectError{Path: sectionThermal, Err: err.Error()})
 	}
 
 	if s, err := d.DetectStorage(); err == nil {
 		inv.Storage = s
 	} else if !errors.Is(err, ErrUnsupported) {
-		inv.Errors = append(inv.Errors, DetectError{Path: "storage", Err: err.Error()})
+		inv.Errors = append(inv.Errors, DetectError{Path: sectionStorage, Err: err.Error()})
 	}
 
 	if k, err := d.DetectKernel(); err == nil {
 		inv.Kernel = k
 	} else if !errors.Is(err, ErrUnsupported) {
-		inv.Errors = append(inv.Errors, DetectError{Path: "kernel", Err: err.Error()})
+		inv.Errors = append(inv.Errors, DetectError{Path: sectionKernel, Err: err.Error()})
 	}
 
 	if h, err := d.DetectHost(); err == nil {
@@ -592,7 +611,7 @@ func (d *Detector) Detect() (*Inventory, error) {
 	if p, err := d.DetectPlatform(); err == nil {
 		inv.Platform = p
 	} else if !errors.Is(err, ErrUnsupported) {
-		inv.Errors = append(inv.Errors, DetectError{Path: "platform", Err: err.Error()})
+		inv.Errors = append(inv.Errors, DetectError{Path: sectionPlatform, Err: err.Error()})
 	}
 
 	return inv, nil

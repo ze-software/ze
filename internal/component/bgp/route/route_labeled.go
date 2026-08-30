@@ -1,7 +1,6 @@
 // Design: docs/architecture/route-types.md — labeled unicast route parsing
 // Overview: route.go — core route types and attribute parsing
 
-//nolint:goconst // Many string literals are intentional for BGP protocol keywords
 package route
 
 import (
@@ -116,7 +115,7 @@ func parseLabeledUnicastAttributes(args []string) (bgptypes.LabeledUnicastRoute,
 			route.Labels = labels
 			i += consumed
 
-		case "next-hop":
+		case keywordNextHop:
 			if i+1 >= len(args) {
 				return bgptypes.LabeledUnicastRoute{}, ErrMissingNextHop
 			}

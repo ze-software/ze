@@ -83,6 +83,24 @@ type WorkbenchFormField struct {
 // out in the clear.
 const wbFormPasswordType = "password"
 
+// The other WorkbenchFormField.Type values a page sets. component_workbench_form.templ
+// switches on these, so a form that spells one differently renders as text.
+const (
+	wbFormTextType   = "text"
+	wbFormNumberType = "number"
+	wbFormToggleType = "toggle"
+	wbFormListType   = "list"
+)
+
+// Field names that more than one service form uses. The name reaches the
+// browser as the input name and comes back as the form key the handler reads.
+const (
+	wbFormEnabledField = "enabled"
+	wbFormServersField = "servers"
+	wbFormTimeoutField = "timeout"
+	wbFormTokenField   = "token"
+)
+
 func formFieldName(f WorkbenchFormField) string {
 	if f.Path != "" {
 		return "field:" + f.Path

@@ -20,9 +20,9 @@ func rawEntriesToJSON(entries []l2tp.RawCaptureEntry) []map[string]any {
 			dir = "out"
 		}
 		rows = append(rows, map[string]any{
-			"timestamp": e.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			"direction": dir,
-			"bytes":     len(e.Data),
+			keyTimestamp: e.Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
+			keyDirection: dir,
+			keyBytes:     len(e.Data),
 		})
 	}
 	return rows

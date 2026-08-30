@@ -1,7 +1,6 @@
 // Design: docs/architecture/route-types.md — FlowSpec route parsing
 // Overview: route.go — core route types and attribute parsing
 
-//nolint:goconst // Many string literals are intentional for BGP protocol keywords
 package route
 
 import (
@@ -14,6 +13,24 @@ import (
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
+)
+
+// FlowSpec keywords, as an API flow command spells them.
+//
+// flowspecMatchSource is the source PREFIX of a match block, which is a
+// different thing from keywordSource (route_keywords.go), the source ADDRESS of
+// a MUP route. The two share a spelling and nothing else.
+//
+// Each action name is also how the extended community carrying that action is
+// spelled, both in function syntax (`discard()`) and as a type prefix
+// (`rate-limit:...`), so route_community.go parses them from these same
+// constants.
+const (
+	flowspecMatchSource            = "source"
+	flowspecActionDiscard          = "discard"
+	flowspecActionRateLimit        = "rate-limit"
+	flowspecActionRateLimitPackets = "rate-limit-packets"
+	flowspecActionRedirect         = "redirect"
 )
 
 var (
@@ -65,7 +82,7 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 				}
 				i++
 
-			case "source":
+			case flowspecMatchSource:
 				prefix, err := netip.ParsePrefix(value)
 				if err != nil {
 					return route, fmt.Errorf("%w: %s", ErrInvalidPrefix, value)
@@ -116,9 +133,9 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 			switch arg {
 			case "accept":
 				route.Actions.Accept = true
-			case "discard":
+			case flowspecActionDiscard:
 				route.Actions.Discard = true
-			case "rate-limit":
+			case flowspecActionRateLimit:
 				if i+1 >= len(args) {
 					return route, errMissingRateLimitValue
 				}
@@ -146,7 +163,7 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 					route.Actions.RateLimitSet = true
 					i++
 				}
-			case "rate-limit-packets":
+			case flowspecActionRateLimitPackets:
 				if i+1 >= len(args) {
 					return route, errMissingRateLimitValue
 				}
@@ -157,7 +174,7 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 				route.Actions.RateLimitPackets = uint32(rate)
 				route.Actions.RateLimitPacketsSet = true
 				i++
-			case "redirect":
+			case flowspecActionRedirect:
 				if i+1 >= len(args) {
 					return route, errMissingRedirectTarget
 				}
@@ -191,9 +208,9 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 		default: // reject keywords outside match/then blocks
 			// Provide helpful error: is it a misplaced match/then keyword or unknown?
 			switch arg {
-			case "destination", "source", "protocol", "port", "destination-port", "source-port":
+			case "destination", flowspecMatchSource, "protocol", "port", "destination-port", "source-port":
 				return route, fmt.Errorf("match keyword %q must appear after 'match'", arg)
-			case "accept", "discard", "rate-limit", "rate-limit-packets", "redirect", "mark":
+			case "accept", flowspecActionDiscard, flowspecActionRateLimit, flowspecActionRateLimitPackets, flowspecActionRedirect, "mark":
 				return route, fmt.Errorf("then keyword %q must appear after 'then'", arg)
 			default: // reject completely unknown keyword
 				return route, fmt.Errorf("unknown keyword %q", arg)

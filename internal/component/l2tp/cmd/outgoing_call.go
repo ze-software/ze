@@ -47,7 +47,7 @@ func handleOutgoingCall(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 		// ze supplied one, the RFC 2661 Result Code, so tie-breaker loss and
 		// authentication rejections are visible instead of a silent drop.
 		payload := map[string]any{
-			"action":      "outgoing-call",
+			keyAction:     "outgoing-call",
 			"remote":      remote,
 			"called":      called,
 			"established": false,
@@ -66,7 +66,7 @@ func handleOutgoingCall(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 	}
 
 	return jsonResponse("l2tp outgoing-call", map[string]any{
-		"action":      "outgoing-call",
+		keyAction:     "outgoing-call",
 		"remote":      remote,
 		"called":      called,
 		"established": true,

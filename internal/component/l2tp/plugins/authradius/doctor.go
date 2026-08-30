@@ -101,7 +101,7 @@ func udpServerReachable(addr string, secret []byte, sourceIP net.IP, nasID strin
 // level of the block is absent.
 func radiusAuthContainer(tree *config.Tree) *config.Tree {
 	cur := tree
-	for _, name := range []string{"l2tp", "auth", "radius"} {
+	for _, name := range []string{configRootL2TP, "auth", "radius"} {
 		if cur == nil {
 			return nil
 		}

@@ -419,7 +419,7 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 			Summary: "Interactive configuration editor with VyOS-like set commands",
 			Usage:   []string{"ze config edit [options] [config-file]"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 					{Name: "-f", Desc: "Use filesystem directly, bypass blob store"},
 					{Name: "--web <port>", Desc: "Start web UI on given port (ephemeral daemon)"},
 					{Name: "--insecure-web", Desc: "Disable web auth (binds localhost)"},

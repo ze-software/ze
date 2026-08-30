@@ -40,7 +40,7 @@ func applyGovernor(governor string, r *TuningResult) {
 	entries, err := os.ReadDir(base)
 	if err != nil {
 		r.Errors = append(r.Errors, TuningError{
-			Operation: "governor",
+			Operation: tuningOpGovernor,
 			Subject:   "cpufreq",
 			Err:       err,
 		})
@@ -65,7 +65,7 @@ func applyGovernor(governor string, r *TuningResult) {
 		}
 		if writeErr := os.WriteFile(govPath, []byte(governor), 0o644); writeErr != nil { //nolint:gosec // sysfs node
 			r.Errors = append(r.Errors, TuningError{
-				Operation: "governor",
+				Operation: tuningOpGovernor,
 				Subject:   e.Name(),
 				Err:       writeErr,
 			})
@@ -74,13 +74,13 @@ func applyGovernor(governor string, r *TuningResult) {
 		verify, _ := os.ReadFile(govPath) //nolint:gosec // sysfs path
 		if strings.TrimSpace(string(verify)) != governor {
 			r.Errors = append(r.Errors, TuningError{
-				Operation: "governor",
+				Operation: tuningOpGovernor,
 				Subject:   e.Name(),
 				Err:       fmt.Errorf("write did not take effect: wanted %s, got %s", governor, strings.TrimSpace(string(verify))),
 			})
 			continue
 		}
-		r.Applied = append(r.Applied, "governor "+e.Name()+"="+governor)
+		r.Applied = append(r.Applied, tuningOpGovernor+" "+e.Name()+"="+governor)
 	}
 }
 
@@ -88,7 +88,7 @@ func applyIRQAffinity(cfg IRQAffinityConfig, r *TuningResult) {
 	irqs, err := findInterfaceIRQs(cfg.Interface)
 	if err != nil {
 		r.Errors = append(r.Errors, TuningError{
-			Operation: "irq-affinity",
+			Operation: tuningOpIRQAffinity,
 			Subject:   cfg.Interface,
 			Err:       err,
 		})
@@ -96,7 +96,7 @@ func applyIRQAffinity(cfg IRQAffinityConfig, r *TuningResult) {
 	}
 	if len(irqs) == 0 {
 		r.Errors = append(r.Errors, TuningError{
-			Operation: "irq-affinity",
+			Operation: tuningOpIRQAffinity,
 			Subject:   cfg.Interface,
 			Err:       fmt.Errorf("no MSI IRQs found for %s", cfg.Interface),
 		})
@@ -115,7 +115,7 @@ func applyIRQAffinity(cfg IRQAffinityConfig, r *TuningResult) {
 		}
 		if writeErr := os.WriteFile(affinityPath, []byte(cfg.CPUs), 0o644); writeErr != nil { //nolint:gosec // procfs path
 			r.Errors = append(r.Errors, TuningError{
-				Operation: "irq-affinity",
+				Operation: tuningOpIRQAffinity,
 				Subject:   cfg.Interface + "/irq" + irqNum,
 				Err:       writeErr,
 			})
@@ -124,7 +124,7 @@ func applyIRQAffinity(cfg IRQAffinityConfig, r *TuningResult) {
 		applied = true
 	}
 	if applied {
-		r.Applied = append(r.Applied, "irq-affinity "+cfg.Interface+" cpus="+cfg.CPUs)
+		r.Applied = append(r.Applied, tuningOpIRQAffinity+" "+cfg.Interface+" cpus="+cfg.CPUs)
 	}
 }
 
@@ -153,7 +153,7 @@ func applyEthtoolRing(cfg EthtoolConfig, r *TuningResult) {
 	result, err := setEthtoolRing(cfg.Interface, cfg.RingRx, cfg.RingTx)
 	if err != nil {
 		r.Errors = append(r.Errors, TuningError{
-			Operation: "ethtool-ring",
+			Operation: tuningOpEthtoolRing,
 			Subject:   cfg.Interface,
 			Err:       err,
 		})
@@ -193,5 +193,5 @@ func setEthtoolRing(iface string, rx, tx int) (string, error) {
 		return "", fmt.Errorf("set ring params %s: %w", iface, err)
 	}
 	var b textbuf.Buffer
-	return b.Reset().Str("ethtool-ring ").Str(iface).Str(" rx=").Int(int64(rp.rxPending)).Str(" tx=").Int(int64(rp.txPending)).String(), nil
+	return b.Reset().Str(tuningOpEthtoolRing + " ").Str(iface).Str(" rx=").Int(int64(rp.rxPending)).Str(" tx=").Int(int64(rp.txPending)).String(), nil
 }

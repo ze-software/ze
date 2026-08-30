@@ -9,6 +9,9 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
+// envTypeString is the env registry's name for a free-text value.
+const envTypeString = "string"
+
 const (
 	applianceDirKey  = "ze.appliance.dir"
 	defaultSubdir    = "ze/appliances"
@@ -19,7 +22,7 @@ const (
 	sharedDirName    = "_shared"
 )
 
-var _ = env.MustRegister(env.EnvEntry{Key: applianceDirKey, Type: "string", Description: "Override appliance directory"})
+var _ = env.MustRegister(env.EnvEntry{Key: applianceDirKey, Type: envTypeString, Description: "Override appliance directory"})
 
 func ResolveDir(flagDir string) string {
 	if flagDir != "" {

@@ -31,11 +31,11 @@ func cmdRollbackImpl(store storage.Storage, args []string) int {
 			Summary: "Restore a configuration file from rollback revision N",
 			Usage:   []string{"ze config rollback <N> <file>"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Description", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "Use 'ze config history <file>' to list available revisions."},
 				}},
-				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
-					{Name: "0", Desc: "Success"},
+				{Title: helpSectionExitCodes, Entries: []helpfmt.HelpEntry{
+					{Name: "0", Desc: helpDescSuccess},
 					{Name: "2", Desc: "Error (file not found, invalid revision, etc.)"},
 				}},
 			},

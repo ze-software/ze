@@ -17,6 +17,9 @@ type pluginMethod struct {
 }
 
 // pluginSDKMethods lists all plugin SDK methods available after stage 5.
+// argHex is the argument list of a method that decodes one hex-encoded blob.
+const argHex = "<hex>"
+
 var pluginSDKMethods = []pluginMethod{
 	{name: "update-route", help: "Inject route update to matching peers", args: "<selector> <command>"},
 	{name: "dispatch-command", help: "Dispatch command through engine", args: "<command>"},
@@ -24,9 +27,9 @@ var pluginSDKMethods = []pluginMethod{
 	{name: "unsubscribe-events", help: "Unsubscribe from engine events", args: ""},
 	{name: "decode-nlri", help: "Decode NLRI from hex", args: "<family> <hex>"},
 	{name: "encode-nlri", help: "Encode NLRI from args", args: "<family> <args...>"},
-	{name: "decode-mp-reach", help: "Decode MP_REACH_NLRI from hex", args: "<hex>"},
-	{name: "decode-mp-unreach", help: "Decode MP_UNREACH_NLRI from hex", args: "<hex>"},
-	{name: "decode-update", help: "Decode full UPDATE from hex", args: "<hex>"},
+	{name: "decode-mp-reach", help: "Decode MP_REACH_NLRI from hex", args: argHex},
+	{name: "decode-mp-unreach", help: "Decode MP_UNREACH_NLRI from hex", args: argHex},
+	{name: "decode-update", help: "Decode full UPDATE from hex", args: argHex},
 	{name: "bye", help: "Signal clean shutdown", args: "[reason]"},
 }
 
@@ -52,7 +55,7 @@ func (c *pluginCompleter) Complete(input string) []Completion {
 		} else if len(input) > len(m.name) && input[:len(m.name)] == m.name && input[len(m.name)] == ' ' {
 			// Already typed the method name — show argument hint
 			if m.args != "" {
-				comps = append(comps, Completion{Text: m.args, Description: m.help, Type: "hint"})
+				comps = append(comps, Completion{Text: m.args, Description: m.help, Type: completionHint})
 			}
 			return comps
 		}

@@ -38,7 +38,7 @@ func newNetDevCollector(fs procfs.FS, interval time.Duration) *netDevCollector {
 func (c *netDevCollector) Name() string { return "netdev" }
 
 func (c *netDevCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.bandwidth = reg.GaugeVec(prefix+"_net_net_kilobits_persec_average", "Network Bandwidth", labels)
 	c.packets = reg.GaugeVec(prefix+"_net_packets_packets_persec_average", "Network Packets", labels)
 	c.errors = reg.GaugeVec(prefix+"_net_errors_errors_persec_average", "Network Errors", labels)

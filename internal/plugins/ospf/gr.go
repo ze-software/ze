@@ -183,11 +183,11 @@ func (m *grManager) setGRMetrics(reg metrics.Registry) {
 		return
 	}
 	gm := grMetrics{
-		restarterActive: reg.GaugeVec("ze_ospf_gr_restarter_active", "Whether this OSPF engine is currently in graceful restart (1) or not (0), by address family.", []string{"family"}),
-		restarterExits:  reg.CounterVec("ze_ospf_gr_restarter_exits_total", "Total graceful-restart restarter exits, by address family and trigger reason.", []string{"family", "reason"}),
-		helperSessions:  reg.GaugeVec("ze_ospf_gr_helper_sessions", "Current graceful-restart helper sessions, by address family and interface.", []string{"family", "interface"}),
-		helperExits:     reg.CounterVec("ze_ospf_gr_helper_exits_total", "Total graceful-restart helper exits, by address family and trigger reason.", []string{"family", "reason"}),
-		graceLSAs:       reg.GaugeVec("ze_ospf_gr_grace_lsas", "Current graceful-restart Grace-LSAs, by address family and direction (originated/received).", []string{"family", "direction"}),
+		restarterActive: reg.GaugeVec("ze_ospf_gr_restarter_active", "Whether this OSPF engine is currently in graceful restart (1) or not (0), by address family.", []string{labelFamily}),
+		restarterExits:  reg.CounterVec("ze_ospf_gr_restarter_exits_total", "Total graceful-restart restarter exits, by address family and trigger reason.", []string{labelFamily, labelReason}),
+		helperSessions:  reg.GaugeVec("ze_ospf_gr_helper_sessions", "Current graceful-restart helper sessions, by address family and interface.", []string{labelFamily, labelInterface}),
+		helperExits:     reg.CounterVec("ze_ospf_gr_helper_exits_total", "Total graceful-restart helper exits, by address family and trigger reason.", []string{labelFamily, labelReason}),
+		graceLSAs:       reg.GaugeVec("ze_ospf_gr_grace_lsas", "Current graceful-restart Grace-LSAs, by address family and direction (originated/received).", []string{labelFamily, labelDirection}),
 	}
 	m.mu.Lock()
 	m.metrics = gm

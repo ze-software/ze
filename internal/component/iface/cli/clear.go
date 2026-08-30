@@ -22,7 +22,7 @@ func cmdClear(args []string) int {
 		return 1
 	}
 	switch args[0] {
-	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
+	case subcmdHelp, flagHelpShort, flagHelpLong:
 		clearUsage()
 		return 0
 	case "counters":

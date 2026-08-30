@@ -45,6 +45,16 @@ type fibMetrics struct {
 	mplsInstalls        metrics.Counter    // MPLS routes successfully programmed
 }
 
+// labelOperation is the metric label naming the backend operation that failed,
+// and keyOperation and keyPrefix are the diagnostic detail keys a failure
+// report carries. The label and the detail key hold the same text and belong to
+// two surfaces: renaming one must not rename the other.
+const (
+	labelOperation = "operation"
+	keyOperation   = "operation"
+	keyPrefix      = "prefix"
+)
+
 // fibMetricsPtr stores fib-kernel metrics, set by SetMetricsRegistry.
 var fibMetricsPtr atomic.Pointer[fibMetrics]
 
@@ -56,7 +66,7 @@ func SetMetricsRegistry(reg metrics.Registry) {
 		routeInstalls:       reg.Counter("ze_fibkernel_route_installs_total", "Routes successfully added to kernel."),
 		routeUpdates:        reg.Counter("ze_fibkernel_route_updates_total", "Routes successfully replaced in kernel."),
 		routeRemovals:       reg.Counter("ze_fibkernel_route_removals_total", "Routes successfully removed from kernel."),
-		errors:              reg.CounterVec("ze_fibkernel_errors_total", "Backend operation failures.", []string{"operation"}),
+		errors:              reg.CounterVec("ze_fibkernel_errors_total", "Backend operation failures.", []string{labelOperation}),
 		mplsRoutesInstalled: reg.Gauge("ze_fibkernel_mpls_routes_installed", "Current number of MPLS labeled routes installed."),
 		mplsInstalls:        reg.Counter("ze_fibkernel_mpls_installs_total", "MPLS routes successfully programmed."),
 	}
@@ -270,7 +280,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 					m.errors.With("add").Inc()
 				}
 				report.RaiseError(reportSourceFIB, reportCodeFIBSyncFailure, pfx,
-					"FIB add failed: "+err.Error(), map[string]any{"operation": "add", "prefix": pfx})
+					"FIB add failed: "+err.Error(), map[string]any{keyOperation: "add", keyPrefix: pfx})
 				f.trackPendingLocked(pfx, now)
 				continue
 			}
@@ -294,7 +304,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 					m.errors.With("replace").Inc()
 				}
 				report.RaiseError(reportSourceFIB, reportCodeFIBSyncFailure, pfx,
-					"FIB replace failed: "+err.Error(), map[string]any{"operation": "replace", "prefix": pfx})
+					"FIB replace failed: "+err.Error(), map[string]any{keyOperation: "replace", keyPrefix: pfx})
 				f.trackPendingLocked(pfx, now)
 				continue
 			}
@@ -322,7 +332,7 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 					m.errors.With("delete").Inc()
 				}
 				report.RaiseError(reportSourceFIB, reportCodeFIBSyncFailure, pfx,
-					"FIB delete failed: "+err.Error(), map[string]any{"operation": "delete", "prefix": pfx})
+					"FIB delete failed: "+err.Error(), map[string]any{keyOperation: "delete", keyPrefix: pfx})
 				continue
 			}
 			delete(f.installed, pfx)

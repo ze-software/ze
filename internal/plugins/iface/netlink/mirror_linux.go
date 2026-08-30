@@ -343,11 +343,9 @@ func ingressSideQdisc(link netlink.Link) netlink.Qdisc {
 // clsactQdisc describes the shared ingress-side qdisc of a link.
 func clsactQdisc(linkIndex int) *netlink.Clsact {
 	return &netlink.Clsact{
-		QdiscAttrs: netlink.QdiscAttrs{
-			LinkIndex: linkIndex,
-			Handle:    netlink.MakeHandle(mirrorQdiscHandleMajor, 0),
-			Parent:    netlink.HANDLE_CLSACT,
-		},
+		LinkIndex: linkIndex,
+		Handle:    netlink.MakeHandle(mirrorQdiscHandleMajor, 0),
+		Parent:    netlink.HANDLE_CLSACT,
 	}
 }
 
@@ -356,17 +354,15 @@ func clsactQdisc(linkIndex int) *netlink.Clsact {
 // matches on link, parent, priority and protocol.
 func mirrorFilter(linkIndex int, parent uint32, dstIndex int) *netlink.MatchAll {
 	filter := &netlink.MatchAll{
-		FilterAttrs: netlink.FilterAttrs{
-			LinkIndex: linkIndex,
-			Parent:    parent,
-			Priority:  mirrorFilterPriority,
-			Protocol:  unix.ETH_P_ALL,
-		},
+		LinkIndex: linkIndex,
+		Parent:    parent,
+		Priority:  mirrorFilterPriority,
+		Protocol:  unix.ETH_P_ALL,
 	}
 	if dstIndex != 0 {
 		filter.Actions = []netlink.Action{
 			&netlink.MirredAction{
-				ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
+				Action:       netlink.TC_ACT_PIPE,
 				MirredAction: netlink.TCA_EGRESS_MIRROR,
 				Ifindex:      dstIndex,
 			},

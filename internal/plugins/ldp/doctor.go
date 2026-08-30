@@ -29,7 +29,7 @@ func checkLDPPort(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagnostic {
 	if !ok || tree == nil {
 		return nil
 	}
-	if tree.GetContainer("ldp") == nil {
+	if tree.GetContainer(configRoot) == nil {
 		return nil
 	}
 	if ldpPortProbe() {

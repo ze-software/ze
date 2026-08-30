@@ -18,6 +18,8 @@ import (
 const (
 	sourceBuiltin = "builtin"
 	argVerbose    = "verbose"
+	// keyDescription is the response payload key carrying a one-line summary.
+	keyDescription = "description"
 )
 
 func init() {
@@ -118,9 +120,9 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 // own process can report neither.
 func commandHelp(name, description, source, args string) *plugin.Response {
 	data := map[string]any{
-		"command":     name,
-		"description": description,
-		"source":      source,
+		"command":      name,
+		keyDescription: description,
+		"source":       source,
 	}
 	if args != "" {
 		data["args"] = args
@@ -149,9 +151,9 @@ func pipeAliasHelp(aliases []command.Alias) []map[string]any {
 	items := make([]map[string]any, 0, len(aliases))
 	for _, alias := range aliases {
 		items = append(items, map[string]any{
-			"name":        alias.Name,
-			"description": alias.Description,
-			"expansion":   alias.Expansion,
+			"name":         alias.Name,
+			keyDescription: alias.Description,
+			"expansion":    alias.Expansion,
 		})
 	}
 	return items
@@ -164,9 +166,9 @@ func pipeFilterHelp(filters []command.PipeFilter) []map[string]any {
 	items := make([]map[string]any, 0, len(filters))
 	for _, filter := range filters {
 		items = append(items, map[string]any{
-			"name":        filter.Name,
-			"description": filter.Description,
-			"takes-arg":   filter.TakesArg,
+			"name":         filter.Name,
+			keyDescription: filter.Description,
+			"takes-arg":    filter.TakesArg,
 		})
 	}
 	return items

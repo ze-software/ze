@@ -71,7 +71,7 @@ func macvlanNetNSName(testName string) string {
 
 func addMacvlanParent(t *testing.T, name string, mtu int) {
 	t.Helper()
-	dummy := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}
+	dummy := &netlink.Dummy{Name: name}
 	if err := netlink.LinkAdd(dummy); err != nil {
 		t.Fatalf("add dummy parent %q: %v", name, err)
 	}

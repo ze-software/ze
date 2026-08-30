@@ -63,7 +63,7 @@ func handleShowTrafficUsage(_ *pluginserver.CommandContext, args []string) (*plu
 // Per-IP sections are present only when track-ip populated them.
 func renderInterface(c counts) plugin.Map {
 	m := plugin.Map{
-		"interface":     c.ifname,
+		keyInterface:    c.ifname,
 		"ingress-ports": renderPorts(c.ingressPort),
 		"egress-ports":  renderPorts(c.egressPort),
 	}
@@ -87,9 +87,9 @@ func renderPorts(byKey map[portProto]uint64) plugin.Slice[plugin.Map] {
 	out := make(plugin.Slice[plugin.Map], 0, len(byKey))
 	for k, v := range byKey {
 		out = append(out, plugin.Map{
-			"port":     int(k.port),
-			"protocol": protoName(k.proto),
-			"bytes":    v,
+			"port":      int(k.port),
+			keyProtocol: protoName(k.proto),
+			"bytes":     v,
 		})
 	}
 	return out

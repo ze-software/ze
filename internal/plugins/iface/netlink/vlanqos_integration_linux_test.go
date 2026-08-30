@@ -66,7 +66,7 @@ func vlanQoSNetNSName(testName string) string {
 func addVLANQoSDummy(t *testing.T, name string) {
 	t.Helper()
 
-	if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}); err != nil {
+	if err := netlink.LinkAdd(&netlink.Dummy{Name: name}); err != nil {
 		t.Fatalf("add dummy %q: %v", name, err)
 	}
 	link, err := netlink.LinkByName(name)
@@ -187,7 +187,8 @@ func TestVLANQoSMapIntegrationModify(t *testing.T) {
 
 		existing := kernelVLAN(t, "zeq0.300")
 		update := &netlink.Vlan{
-			LinkAttrs:     netlink.LinkAttrs{Name: "zeq0.300", Index: existing.Attrs().Index},
+			Name:          "zeq0.300",
+			Index:         existing.Attrs().Index,
 			VlanId:        300,
 			IngressQosMap: map[uint32]uint32{5: 5},
 			EgressQosMap:  map[uint32]uint32{5: 5},

@@ -82,7 +82,7 @@ func mirrorNetNSName(testName string) string {
 func addMirrorTestDummy(t *testing.T, name string) netlink.Link {
 	t.Helper()
 
-	if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}); err != nil {
+	if err := netlink.LinkAdd(&netlink.Dummy{Name: name}); err != nil {
 		t.Fatalf("add dummy %q: %v", name, err)
 	}
 	link, err := netlink.LinkByName(name)
@@ -98,15 +98,13 @@ func addForeignTestFilter(t *testing.T, src netlink.Link, dstIndex int) {
 	t.Helper()
 
 	filter := &netlink.MatchAll{
-		FilterAttrs: netlink.FilterAttrs{
-			LinkIndex: src.Attrs().Index,
-			Parent:    netlink.HANDLE_MIN_INGRESS,
-			Priority:  mirrorTestForeignPriority,
-			Protocol:  unix.ETH_P_ALL,
-		},
+		LinkIndex: src.Attrs().Index,
+		Parent:    netlink.HANDLE_MIN_INGRESS,
+		Priority:  mirrorTestForeignPriority,
+		Protocol:  unix.ETH_P_ALL,
 		Actions: []netlink.Action{
 			&netlink.MirredAction{
-				ActionAttrs:  netlink.ActionAttrs{Action: netlink.TC_ACT_PIPE},
+				Action:       netlink.TC_ACT_PIPE,
 				MirredAction: netlink.TCA_EGRESS_MIRROR,
 				Ifindex:      dstIndex,
 			},
@@ -254,10 +252,12 @@ func TestIntegrationMirrorTeardownToleratesOnlyAnAbsentFilter(t *testing.T) {
 		// a FilterDel on a present qdisc whose hook holds no filter at that
 		// priority with ENOENT. Both must be tolerated, which is why ENOENT
 		// alone (what RemoveSampling gates on) is not enough here.
-		sel := &netlink.MatchAll{FilterAttrs: netlink.FilterAttrs{
-			LinkIndex: idx, Parent: netlink.HANDLE_MIN_INGRESS,
-			Priority: mirrorFilterPriority, Protocol: unix.ETH_P_ALL,
-		}}
+		sel := &netlink.MatchAll{
+			LinkIndex: idx,
+			Parent:    netlink.HANDLE_MIN_INGRESS,
+			Priority:  mirrorFilterPriority,
+			Protocol:  unix.ETH_P_ALL,
+		}
 
 		err := netlink.FilterDel(sel)
 		if !errors.Is(err, unix.EINVAL) {
@@ -336,12 +336,10 @@ func TestIntegrationMirrorRemoveKeepsTheQdiscOfAnotherSubsystem(t *testing.T) {
 		// undoMirrorSetup deletes, because a rollback knows it created the
 		// qdisc moments earlier (TestIntegrationMirrorSetupRollbackRemovesTheQdiscItCreated).
 		if err := netlink.FilterDel(&netlink.MatchAll{
-			FilterAttrs: netlink.FilterAttrs{
-				LinkIndex: src.Attrs().Index,
-				Parent:    netlink.HANDLE_MIN_INGRESS,
-				Priority:  mirrorTestForeignPriority,
-				Protocol:  unix.ETH_P_ALL,
-			},
+			LinkIndex: src.Attrs().Index,
+			Parent:    netlink.HANDLE_MIN_INGRESS,
+			Priority:  mirrorTestForeignPriority,
+			Protocol:  unix.ETH_P_ALL,
 		}); err != nil {
 			t.Fatalf("remove the foreign filter: %v", err)
 		}

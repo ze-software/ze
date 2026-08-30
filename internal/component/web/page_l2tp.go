@@ -24,11 +24,11 @@ import (
 func buildL2TPSessionsTableData() WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "tunnel-id", Label: "Tunnel ID", Sortable: true},
-		{Key: "session-id", Label: "Session ID", Sortable: true},
-		{Key: "username", Label: "Username", Sortable: true},
-		{Key: "peer", Label: "Peer", Sortable: true},
-		{Key: "state", Label: "State", Sortable: true},
-		{Key: "interface", Label: labelInterface},
+		{Key: colSessionID, Label: "Session ID", Sortable: true},
+		{Key: colUsername, Label: labelUsername, Sortable: true},
+		{Key: colPeer, Label: labelPeer, Sortable: true},
+		{Key: colState, Label: labelState, Sortable: true},
+		{Key: colInterface, Label: labelInterface},
 	}
 
 	svc := l2tp.LookupService()
@@ -68,7 +68,7 @@ func buildL2TPSessionsTableData() WorkbenchTableData {
 					{
 						Label:   "Disconnect",
 						HxPost:  tb.Reset().Str(sessionURL).Str("/disconnect").String(),
-						Class:   "danger",
+						Class:   wbToolDanger,
 						Confirm: tb.Reset().Str("Disconnect session ").Str(sidStr).Str(" (user ").Str(s.Username).Str(")?").String(),
 					},
 				},
@@ -104,65 +104,65 @@ func buildL2TPConfigFormData(tree *config.Tree) WorkbenchFormData {
 		Title: "L2TP Configuration",
 		Fields: []WorkbenchFormField{
 			{
-				Name:        "enabled",
+				Name:        wbFormEnabledField,
 				Label:       labelEnabled,
-				Type:        "toggle",
+				Type:        wbFormToggleType,
 				Value:       getConfigValue(tree, "l2tp/enabled"),
 				Description: "Enable L2TP subsystem",
 			},
 			{
 				Name:        "max-tunnels",
 				Label:       "Max Tunnels",
-				Type:        "number",
+				Type:        wbFormNumberType,
 				Value:       getConfigValue(tree, "l2tp/max-tunnels"),
 				Description: "Maximum concurrent L2TP tunnels (0 = unlimited)",
 			},
 			{
 				Name:        "max-sessions",
 				Label:       "Max Sessions Per Tunnel",
-				Type:        "number",
+				Type:        wbFormNumberType,
 				Value:       getConfigValue(tree, "l2tp/max-sessions"),
 				Description: "Maximum concurrent sessions per tunnel (0 = unlimited)",
 			},
 			{
 				Name:        "shared-secret",
 				Label:       "Shared Secret",
-				Type:        "password",
+				Type:        wbFormPasswordType,
 				Value:       getConfigValue(tree, "l2tp/shared-secret"),
 				Description: "CHAP-MD5 shared secret (sensitive)",
 			},
 			{
 				Name:        "hello-interval",
 				Label:       "Hello Interval (seconds)",
-				Type:        "number",
+				Type:        wbFormNumberType,
 				Value:       getConfigValue(tree, "l2tp/hello-interval"),
 				Description: "Seconds of peer silence before sending HELLO (1-3600)",
 			},
 			{
 				Name:        "hello-retries",
 				Label:       "Hello Retries (dead-peer threshold)",
-				Type:        "number",
+				Type:        wbFormNumberType,
 				Value:       getConfigValue(tree, "l2tp/hello-retries"),
 				Description: "Unanswered HELLO intervals before a peer is declared dead (0 disables; detection = retries x interval)",
 			},
 			{
 				Name:        "cqm-enabled",
 				Label:       "CQM Enabled",
-				Type:        "toggle",
+				Type:        wbFormToggleType,
 				Value:       getConfigValue(tree, "l2tp/cqm-enabled"),
 				Description: "Enable Customer Quality Monitor observer",
 			},
 			{
 				Name:        "max-logins",
 				Label:       "Max Logins",
-				Type:        "number",
+				Type:        wbFormNumberType,
 				Value:       getConfigValue(tree, "l2tp/max-logins"),
 				Description: "Maximum concurrent PPP logins tracked by CQM (1-1000000)",
 			},
 			{
-				Name:        "servers",
+				Name:        wbFormServersField,
 				Label:       labelListenEndpoints,
-				Type:        "list",
+				Type:        wbFormListType,
 				Items:       getConfigListItems(tree, "environment/l2tp", "server"),
 				Description: "L2TP server listen endpoints (UDP)",
 			},
@@ -186,10 +186,10 @@ func handleL2TPConfigPage(renderer *Renderer, viewTree *config.Tree) template.HT
 func buildL2TPHealthTableData() WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
 		{Key: "session", Label: "Session", Sortable: true},
-		{Key: "username", Label: "Username", Sortable: true},
-		{Key: "peer", Label: "Peer", Sortable: true},
-		{Key: "state", Label: "State", Sortable: true},
-		{Key: "interface", Label: labelInterface},
+		{Key: colUsername, Label: labelUsername, Sortable: true},
+		{Key: colPeer, Label: labelPeer, Sortable: true},
+		{Key: colState, Label: labelState, Sortable: true},
+		{Key: colInterface, Label: labelInterface},
 	}
 
 	svc := l2tp.LookupService()
@@ -252,7 +252,7 @@ func renderL2TPPageContent(renderer *Renderer, path []string, viewTree *config.T
 	switch path[0] {
 	case "sessions":
 		return handleL2TPSessionsPage(renderer), true
-	case "health":
+	case segHealth:
 		return handleL2TPHealthPage(renderer), true
 	}
 

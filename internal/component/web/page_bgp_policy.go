@@ -50,7 +50,7 @@ func collectPolicies(viewTree *config.Tree, schema *config.Schema) []policyEntry
 }
 
 func policyFilterListNames(schema *config.Schema) []string {
-	node, err := walkSchema(schema, []string{"bgp", "policy"})
+	node, err := walkSchema(schema, []string{segBGP, segPolicy})
 	if err != nil {
 		return nil
 	}
@@ -85,9 +85,9 @@ func countRules(filterTree *config.Tree) int {
 // buildBGPPolicyTableData constructs a WorkbenchTableData for the policy page.
 func buildBGPPolicyTableData(entries []policyEntry, addActions ...WorkbenchTableAddAction) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: labelName, Sortable: true},
-		{Key: "type", Label: "Type", Sortable: true},
-		{Key: "rules", Label: "Rule Count", Sortable: true},
+		{Key: colName, Label: labelName, Sortable: true},
+		{Key: colType, Label: labelType, Sortable: true},
+		{Key: segRules, Label: "Rule Count", Sortable: true},
 	}
 
 	rows := make([]WorkbenchTableRow, 0, len(entries))

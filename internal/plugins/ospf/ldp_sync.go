@@ -158,22 +158,22 @@ func (m *ldpSyncManager) setMetrics(reg metrics.Registry) {
 		state: reg.GaugeVec(
 			"ze_ospf_ldp_sync_state",
 			"OSPF LDP-IGP sync state per interface (0=not-synchronized, 1=hold-down, 2=synchronized).",
-			[]string{"interface"},
+			[]string{labelInterface},
 		),
 		transitions: reg.CounterVec(
 			"ze_ospf_ldp_sync_transitions_total",
 			"Total OSPF LDP-IGP sync state transitions, by interface and target state.",
-			[]string{"interface", "to"},
+			[]string{labelInterface, "to"},
 		),
 		holddownExpired: reg.CounterVec(
 			"ze_ospf_ldp_sync_holddown_expired_total",
 			"Total OSPF LDP-IGP sync hold-down timer expiries (link declared synchronized), by interface.",
-			[]string{"interface"},
+			[]string{labelInterface},
 		),
 		costOut: reg.GaugeVec(
 			"ze_ospf_ldp_sync_costout_seconds",
 			"Seconds the OSPF interface has been costed out (not synchronized) by LDP-IGP sync.",
-			[]string{"interface"},
+			[]string{labelInterface},
 		),
 	}
 	// Reflect any machines that already exist (created before metrics were wired).

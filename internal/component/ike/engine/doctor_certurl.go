@@ -63,16 +63,16 @@ func certURLDiagnostics(peerName string, auth ipsec.AuthConfig) []rpc.DoctorChec
 	u, err := url.Parse(auth.CertificateURL)
 	if err != nil {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     "doctor-ipsec-cert-url",
-			Severity: "error",
+			Code:     diagnosticIPsecCertURL,
+			Severity: severityError,
 			Message: tb.Str("ipsec peer ").Str(peerName).
 				Str(" certificate-url is not a URL: ").Err(err).String(),
 		}}
 	}
 	if u.Scheme != "http" {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     "doctor-ipsec-cert-url",
-			Severity: "error",
+			Code:     diagnosticIPsecCertURL,
+			Severity: severityError,
 			Message: tb.Str("ipsec peer ").Str(peerName).
 				Str(" certificate-url uses the ").Str(u.Scheme).
 				Str(" scheme, and RFC 7296 Section 3.6 makes http the scheme an implementation " +
@@ -82,8 +82,8 @@ func certURLDiagnostics(peerName string, auth ipsec.AuthConfig) []rpc.DoctorChec
 	host := u.Hostname()
 	if host == "" {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     "doctor-ipsec-cert-url",
-			Severity: "error",
+			Code:     diagnosticIPsecCertURL,
+			Severity: severityError,
 			Message: tb.Str("ipsec peer ").Str(peerName).
 				Str(" certificate-url names no host, so no peer can fetch the certificate").String(),
 		}}
@@ -102,8 +102,8 @@ func certURLDiagnostics(peerName string, auth ipsec.AuthConfig) []rpc.DoctorChec
 	}
 	if certURLDenied(addr) {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     "doctor-ipsec-cert-url-denied",
-			Severity: "warning",
+			Code:     diagnosticIPsecCertURLDenied,
+			Severity: severityWarning,
 			Message: tb.Str("ipsec peer ").Str(peerName).
 				Str(" certificate-url names ").Addr(addr).
 				Str(", which the hash-and-url fetcher refuses. The URL must be reachable by the " +

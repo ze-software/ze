@@ -25,7 +25,7 @@ func (c *entropyCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_system_entropy_entropy_average",
 		"Available Entropy",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

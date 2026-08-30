@@ -64,7 +64,8 @@ type Related struct {
 	Message string `json:"message"`
 }
 
-// ValidateResult is the top-level JSON envelope for config validation.
+// ValidateResult is the record `validate config` answers with: the verdict,
+// and every diagnostic behind it.
 type ValidateResult struct {
 	SchemaVersion int          `json:"schema-version"`
 	Valid         bool         `json:"valid"`
@@ -82,7 +83,7 @@ type ExplainResult struct {
 	RelatedCodes []string `json:"related-codes,omitempty"`
 }
 
-// FixPlanResult is the JSON envelope for ze config fix --plan --json.
+// FixPlanResult is the record `ze config fix --plan` answers with.
 type FixPlanResult struct {
 	SchemaVersion int          `json:"schema-version"`
 	Path          string       `json:"path"`

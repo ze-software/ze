@@ -43,7 +43,7 @@ func validateIfaceName(name string) error {
 // the flag entirely. Scanning first closes the review I4 gap.
 func hasHelpFlag(args []string) bool {
 	for _, a := range args {
-		if a == "-h" || a == "--help" { //nolint:goconst // consistent pattern across cmd files
+		if a == flagHelpShort || a == flagHelpLong {
 			return true
 		}
 	}

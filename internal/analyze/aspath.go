@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -175,8 +176,7 @@ func hashASPath(asns []uint32) uint64 {
 
 func insertReversed(root *trieNode, asns []uint32) {
 	node := root
-	for i := len(asns) - 1; i >= 0; i-- {
-		asn := asns[i]
+	for _, asn := range slices.Backward(asns) {
 		child, ok := node.children[asn]
 		if !ok {
 			child = newTrieNode()

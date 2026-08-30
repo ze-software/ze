@@ -62,7 +62,7 @@ func newDiskStatsCollector(interval time.Duration) *diskStatsCollector {
 func (c *diskStatsCollector) Name() string { return "diskstats" }
 
 func (c *diskStatsCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.io = reg.GaugeVec(prefix+"_disk_io_KiB_persec_average", "Disk I/O Bandwidth", labels)
 	c.ops = reg.GaugeVec(prefix+"_disk_ops_operations_persec_average", "Disk Operations", labels)
 	c.mops = reg.GaugeVec(prefix+"_disk_mops_merged_operations_persec_average", "Disk Merged Operations", labels)

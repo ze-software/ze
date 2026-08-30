@@ -26,6 +26,14 @@ const (
 	prefixDefault = "default"
 )
 
+// Members every netlink monitor event carries, whatever its kind. A consumer
+// reads the stream one JSON object per line and switches on eventKeyType.
+const (
+	eventKeyType      = "type"
+	eventKeyAction    = "action"
+	eventKeyTimestamp = "timestamp"
+)
+
 func streamNetlinkMonitor(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ string, args []string) error {
 	group, err := netlinkGroupFromArgs(args)
 	if err != nil {
@@ -167,9 +175,9 @@ func routeUpdateToEvent(u *netlink.RouteUpdate) map[string]any {
 	}
 
 	ev := map[string]any{
-		"type":      "route",
-		"action":    action,
-		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		eventKeyType:      "route",
+		eventKeyAction:    action,
+		eventKeyTimestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 
 	if u.Dst != nil {
@@ -217,9 +225,9 @@ func linkUpdateToEvent(u netlink.LinkUpdate) map[string]any {
 	}
 
 	ev := map[string]any{
-		"type":            "link",
-		"action":          action,
-		"timestamp":       time.Now().UTC().Format(time.RFC3339),
+		eventKeyType:      "link",
+		eventKeyAction:    action,
+		eventKeyTimestamp: time.Now().UTC().Format(time.RFC3339),
 		"interface":       attrs.Name,
 		"interface-index": attrs.Index,
 		"state":           state,
@@ -244,9 +252,9 @@ func addrUpdateToEvent(u netlink.AddrUpdate) map[string]any {
 	}
 
 	ev := map[string]any{
-		"type":            "address",
-		"action":          action,
-		"timestamp":       time.Now().UTC().Format(time.RFC3339),
+		eventKeyType:      "address",
+		eventKeyAction:    action,
+		eventKeyTimestamp: time.Now().UTC().Format(time.RFC3339),
 		"address":         u.LinkAddress.String(),
 		"interface-index": u.LinkIndex,
 	}

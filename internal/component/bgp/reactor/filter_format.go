@@ -143,19 +143,19 @@ func appendNLRIBlock(buf []byte, fam, op string, prefixes []netip.Prefix) []byte
 
 // attrNameToCode maps filter text attribute names to wire codes.
 var attrNameToCode = map[string]attribute.AttributeCode{
-	"origin":             attribute.AttrOrigin,
-	"as-path":            attribute.AttrASPath,
-	"next-hop":           attribute.AttrNextHop,
-	"med":                attribute.AttrMED,
-	"local-preference":   attribute.AttrLocalPref,
-	"atomic-aggregate":   attribute.AttrAtomicAggregate,
-	"aggregator":         attribute.AttrAggregator,
-	"community":          attribute.AttrCommunity,
-	"originator-id":      attribute.AttrOriginatorID,
-	"cluster-list":       attribute.AttrClusterList,
-	"extended-community": attribute.AttrExtCommunity,
-	"aigp":               attribute.AttrAIGP,
-	"large-community":    attribute.AttrLargeCommunity,
+	policyAttrOrigin:            attribute.AttrOrigin,
+	policyAttrASPath:            attribute.AttrASPath,
+	policyAttrNextHop:           attribute.AttrNextHop,
+	policyAttrMED:               attribute.AttrMED,
+	policyAttrLocalPreference:   attribute.AttrLocalPref,
+	policyAttrAtomicAggregate:   attribute.AttrAtomicAggregate,
+	policyAttrAggregator:        attribute.AttrAggregator,
+	policyAttrCommunity:         attribute.AttrCommunity,
+	policyAttrOriginatorID:      attribute.AttrOriginatorID,
+	policyAttrClusterList:       attribute.AttrClusterList,
+	policyAttrExtendedCommunity: attribute.AttrExtCommunity,
+	policyAttrAIGP:              attribute.AttrAIGP,
+	policyAttrLargeCommunity:    attribute.AttrLargeCommunity,
 }
 
 // AppendAttrsForFilter appends selected attributes from wire into buf as
@@ -187,9 +187,9 @@ func AppendAttrsForFilter(buf []byte, attrs *attribute.AttributesWire, declared 
 // appendAllAttrs appends all known attributes from wire in a stable order.
 func appendAllAttrs(buf []byte, attrs *attribute.AttributesWire) []byte {
 	order := []string{
-		"origin", "as-path", "next-hop", "med", "local-preference",
-		policyAttrAtomicAggregate, "aggregator", "community", "originator-id",
-		"cluster-list", "extended-community", "aigp", "large-community",
+		policyAttrOrigin, policyAttrASPath, policyAttrNextHop, policyAttrMED, policyAttrLocalPreference,
+		policyAttrAtomicAggregate, policyAttrAggregator, policyAttrCommunity, policyAttrOriginatorID,
+		policyAttrClusterList, policyAttrExtendedCommunity, policyAttrAIGP, policyAttrLargeCommunity,
 	}
 	first := true
 	for _, name := range order {

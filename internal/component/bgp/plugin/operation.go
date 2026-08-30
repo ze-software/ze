@@ -16,6 +16,7 @@ import (
 
 	configtx "github.com/ze-software/ze/internal/component/config/transaction"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/capture"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -74,7 +75,7 @@ func init() {
 	if err := configtx.RegisterSettlementRule(configtx.SettlementRule{
 		ID:           "bgp-add-peer-settles-listener-ready",
 		Operation:    configtx.OperationSelector{Type: configtx.OperationAddPeer, ResourceKind: configtx.ResourcePeer},
-		Readiness:    configtx.ConfigOperationReadiness{Namespace: "bgp", EventType: "listener-ready"},
+		Readiness:    configtx.ConfigOperationReadiness{Namespace: bgpevents.Namespace, EventType: "listener-ready"},
 		ResourceFrom: configtx.SettlementResourceAddress,
 		Timeout:      10 * time.Second,
 	}); err != nil {
@@ -248,7 +249,7 @@ func bgpPeerOperation(opType configtx.ConfigOperationType, name, localAddress st
 	return configtx.ConfigOperation{
 		ID:    "bgp-" + verb + "-peer-" + sanitizeBGPOperationID(name),
 		Root:  configRootBGP,
-		Owner: "bgp",
+		Owner: pluginNameBGP,
 		Type:  opType,
 		Target: configtx.ResourceRef{
 			Kind:    configtx.ResourcePeer,
@@ -263,7 +264,7 @@ func bgpModifyPeerOperation(name, localAddress string, config, oldConfig json.Ra
 	return configtx.ConfigOperation{
 		ID:    "bgp-modify-peer-" + sanitizeBGPOperationID(name),
 		Root:  configRootBGP,
-		Owner: "bgp",
+		Owner: pluginNameBGP,
 		Type:  configtx.OperationModifyPeer,
 		Target: configtx.ResourceRef{
 			Kind:    configtx.ResourcePeer,

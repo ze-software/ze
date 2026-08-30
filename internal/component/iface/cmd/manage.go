@@ -26,7 +26,7 @@ func handleCreateTyped(ctx *pluginserver.CommandContext, ifType string, create f
 		}
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"message": tb.Reset().Str("interface ").Str(name).Str(" already exists").String(), "created": false},
+			Data:   plugin.Map{fieldMessage: tb.Reset().Str("interface ").Str(name).Str(" already exists").String(), "created": false},
 		}, nil
 	}
 	if err := create(name); err != nil {
@@ -34,7 +34,7 @@ func handleCreateTyped(ctx *pluginserver.CommandContext, ifType string, create f
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Reset().Str("created ").Str(ifType).Str(" interface ").Str(name).String(), "created": true},
+		Data:   plugin.Map{fieldMessage: tb.Reset().Str("created ").Str(ifType).Str(" interface ").Str(name).String(), "created": true},
 	}, nil
 }
 
@@ -81,7 +81,7 @@ func handleDelete(ctx *pluginserver.CommandContext, args []string) (*plugin.Resp
 	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Str("deleted interface ").Str(name).String()},
+		Data:   plugin.Map{fieldMessage: tb.Str("deleted interface ").Str(name).String()},
 	}, nil
 }
 
@@ -97,7 +97,7 @@ func handleAddrAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Str("added ").Str(prefix).Str(" to ").Str(name).String()},
+		Data:   plugin.Map{fieldMessage: tb.Str("added ").Str(prefix).Str(" to ").Str(name).String()},
 	}, nil
 }
 
@@ -113,7 +113,7 @@ func handleAddrDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Str("removed ").Str(prefix).Str(" from ").Str(name).String()},
+		Data:   plugin.Map{fieldMessage: tb.Str("removed ").Str(prefix).Str(" from ").Str(name).String()},
 	}, nil
 }
 
@@ -134,7 +134,7 @@ func handleUnitAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	var bData textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": bData.Reset().Str("created unit ").Str(name).Byte('.').Int(int64(vid)).String()},
+		Data:   plugin.Map{fieldMessage: bData.Reset().Str("created unit ").Str(name).Byte('.').Int(int64(vid)).String()},
 	}, nil
 }
 
@@ -157,7 +157,7 @@ func handleUnitDel(ctx *pluginserver.CommandContext, args []string) (*plugin.Res
 	var bMsg textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": bMsg.Reset().Str("deleted unit ").Str(name).Byte('.').Int(int64(vid)).String()},
+		Data:   plugin.Map{fieldMessage: bMsg.Reset().Str("deleted unit ").Str(name).Byte('.').Int(int64(vid)).String()},
 	}, nil
 }
 
@@ -173,7 +173,7 @@ func handleInterfaceUp(ctx *pluginserver.CommandContext, args []string) (*plugin
 	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Str("interface ").Str(name).Str(" up").String()},
+		Data:   plugin.Map{fieldMessage: tb.Str("interface ").Str(name).Str(" up").String()},
 	}, nil
 }
 
@@ -189,7 +189,7 @@ func handleInterfaceDown(ctx *pluginserver.CommandContext, args []string) (*plug
 	var tb textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Str("interface ").Str(name).Str(" down").String()},
+		Data:   plugin.Map{fieldMessage: tb.Str("interface ").Str(name).Str(" down").String()},
 	}, nil
 }
 
@@ -229,7 +229,7 @@ func handleInterfaceMTU(ctx *pluginserver.CommandContext, args []string) (*plugi
 	var bMtu textbuf.Buffer
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": bMtu.Reset().Str("interface ").Str(name).Str(" mtu ").Int(int64(mtu)).String()},
+		Data:   plugin.Map{fieldMessage: bMtu.Reset().Str("interface ").Str(name).Str(" mtu ").Int(int64(mtu)).String()},
 	}, nil
 }
 
@@ -267,6 +267,6 @@ func handleInterfaceMAC(ctx *pluginserver.CommandContext, args []string) (*plugi
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Reset().Str("interface ").Str(name).Str(" mac ").Str(addr).String()},
+		Data:   plugin.Map{fieldMessage: tb.Reset().Str("interface ").Str(name).Str(" mac ").Str(addr).String()},
 	}, nil
 }

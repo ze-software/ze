@@ -3,6 +3,7 @@ package sysrib
 import (
 	"context"
 	"net/netip"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -586,8 +587,8 @@ func (j *testJournal) Record(apply, undo func() error) error {
 
 func (j *testJournal) Rollback() []error {
 	var errs []error
-	for i := len(j.entries) - 1; i >= 0; i-- {
-		if err := j.entries[i](); err != nil {
+	for _, undo := range slices.Backward(j.entries) {
+		if err := undo(); err != nil {
 			errs = append(errs, err)
 		}
 	}

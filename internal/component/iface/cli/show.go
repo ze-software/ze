@@ -18,20 +18,20 @@ import (
 // cmdShow lists interfaces or shows details for a specific one.
 // Returns exit code.
 func cmdShow(args []string) int {
-	fs := flag.NewFlagSet("ze interface show", flag.ContinueOnError)
+	fs := flag.NewFlagSet(cmdPathShow, flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Output in JSON format")
 	fs.Usage = func() {
 		p := helpfmt.Page{
-			Command: "ze interface show",
+			Command: cmdPathShow,
 			Summary: "List all interfaces or show details for a specific interface",
 			Usage:   []string{"ze interface show [options] [name]"},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--json", Desc: "Output in JSON format"},
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
+					{Name: flagJSONLong, Desc: helpDescJSON},
 				}},
 			},
 			Examples: []string{
-				"ze interface show",
+				cmdPathShow,
 				"ze interface show eth0",
 				"ze interface show --json",
 			},

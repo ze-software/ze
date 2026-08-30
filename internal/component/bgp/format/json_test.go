@@ -1602,7 +1602,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 			rd := nlri.RouteDistinguisher{Type: tt.rdType, Value: tt.rdValue}
 			fsv := flowspec.NewFlowSpecVPN(family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}, rd)
 			for _, comp := range tt.components {
-				fsv.AddComponent(comp)
+				require.NoError(t, fsv.AddComponent(comp))
 			}
 
 			// Format using formatNLRIJSONValue (registry-based decode)

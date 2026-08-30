@@ -11,6 +11,9 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// keyName is the response payload key carrying a table, chain or group name.
+const keyName = "name"
+
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{
@@ -98,13 +101,13 @@ func handleShowFirewallRuleset(_ *pluginserver.CommandContext, args []string) (*
 			name := ch.Terms[j].Name
 			tc := ctrs[name]
 			termRows = append(termRows, map[string]any{
-				"name":    name,
+				keyName:   name,
 				"packets": tc.Packets,
 				"bytes":   tc.Bytes,
 			})
 		}
 		chainRows = append(chainRows, map[string]any{
-			"name":    ch.Name,
+			keyName:   ch.Name,
 			"is-base": ch.IsBase,
 			"hook":    ch.Hook.String(),
 			"policy":  ch.Policy.String(),
@@ -156,7 +159,7 @@ func handleShowFirewallGroup(_ *pluginserver.CommandContext, args []string) (*pl
 				total += len(e.set.Elements)
 			}
 			list = append(list, map[string]any{
-				"name":    n,
+				keyName:   n,
 				"tables":  tables,
 				"members": total,
 			})
@@ -196,7 +199,7 @@ func handleShowFirewallGroup(_ *pluginserver.CommandContext, args []string) (*pl
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"name":   wanted,
+			keyName:  wanted,
 			"tables": perTable,
 		},
 	}, nil

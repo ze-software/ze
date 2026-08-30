@@ -61,7 +61,7 @@ var i915FirmwareBlobs = []string{
 
 var _ = env.MustRegister(env.EnvEntry{
 	Key:         kernelURLKey,
-	Type:        "string",
+	Type:        envTypeString,
 	Description: "Base URL for pre-built installer kernel downloads",
 })
 

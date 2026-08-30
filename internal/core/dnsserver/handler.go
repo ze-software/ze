@@ -136,7 +136,7 @@ func send(w dns.ResponseWriter, msg, r *dns.Msg, log *slog.Logger) {
 	}
 	if err := w.WriteMsg(msg); err != nil {
 		recordWriteFailure(transport)
-		log.Debug("dnsserver: reply write failed", "transport", transport, "error", err)
+		log.Debug("dnsserver: reply write failed", "transport", transport, logKeyError, err)
 	}
 }
 

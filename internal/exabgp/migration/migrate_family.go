@@ -12,7 +12,10 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 )
 
-const safiNLRIMPLS = "nlri-mpls"
+const (
+	safiNLRIMPLS = "nlri-mpls"
+	safiVPLS     = "vpls"
+)
 
 // convertFamilyToList converts ExaBGP family syntax to ZeBGP list entries.
 // ExaBGP: "ipv4 unicast;" -> ZeBGP: session > family list: key="ipv4/unicast".

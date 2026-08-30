@@ -25,7 +25,7 @@ import (
 //
 // It states what the COMPARATOR is fed, never what the daemon measures. Every
 // line here is a fixture, and a number in it says nothing about the product:
-// `./le verify-deps alloc` is the one place the daemon's real numbers live.
+// `./le verify deps alloc` is the one place the daemon's real numbers live.
 const sampleBenchOutput = `goos: linux
 goarch: amd64
 pkg: github.com/ze-software/ze/internal/component/bgp/reactor
@@ -162,14 +162,14 @@ func TestAllocGateWorstSample(t *testing.T) {
 	}
 }
 
-// TestAllocGateEnforce is the gate-side reader: `./le verify-deps alloc` runs
+// TestAllocGateEnforce is the gate-side reader: `./le verify deps alloc` runs
 // the selected benchmarks with -benchmem, writes the output to a file, and
 // points ZE_ALLOC_GATE_BENCH at it. When the env var is unset (a normal
 // `go test` run) the test skips.
 func TestAllocGateEnforce(t *testing.T) {
 	path := os.Getenv("ZE_ALLOC_GATE_BENCH")
 	if path == "" {
-		t.Skip("ZE_ALLOC_GATE_BENCH unset; run via `./le verify-deps alloc`")
+		t.Skip("ZE_ALLOC_GATE_BENCH unset; run via `./le verify deps alloc`")
 	}
 	data, err := os.ReadFile(path) //nolint:gosec // path supplied by the native verifier
 	if err != nil {

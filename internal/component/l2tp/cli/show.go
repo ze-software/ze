@@ -75,7 +75,7 @@ func cmdShow(args []string) int {
 	if code != 0 {
 		return code
 	}
-	parts := append([]string{"show", "l2tp"}, rest...)
+	parts := append([]string{"show", commandL2TP}, rest...)
 	return forward(textbuf.Join(parts, " "), user)
 }
 
@@ -91,7 +91,7 @@ func cmdTunnelTeardown(args []string) int {
 		fmt.Fprintln(os.Stderr, "error: ze l2tp tunnel {id <id> | all}")
 		return 1
 	}
-	parts := append([]string{"clear", "l2tp", "tunnel"}, rest...)
+	parts := append([]string{"clear", commandL2TP, "tunnel"}, rest...)
 	return forward(textbuf.Join(parts, " "), user)
 }
 
@@ -106,7 +106,7 @@ func cmdSessionTeardown(args []string) int {
 		fmt.Fprintln(os.Stderr, "error: ze l2tp session {id <id> | all}")
 		return 1
 	}
-	parts := append([]string{"clear", "l2tp", "session"}, rest...)
+	parts := append([]string{"clear", commandL2TP, "session"}, rest...)
 	return forward(textbuf.Join(parts, " "), user)
 }
 

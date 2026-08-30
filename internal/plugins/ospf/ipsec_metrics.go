@@ -24,22 +24,22 @@ func newIPsecMetrics(reg metrics.Registry) *ipsecMetrics {
 		sas: reg.GaugeVec(
 			"ze_ospfv3_ipsec_sas",
 			"Installed OSPFv3 IPsec Security Associations, by interface, protocol, and direction.",
-			[]string{"interface", "protocol", "direction"},
+			[]string{labelInterface, "protocol", labelDirection},
 		),
 		policies: reg.GaugeVec(
 			"ze_ospfv3_ipsec_policies",
 			"Installed OSPFv3 IPsec security policies, by interface and direction.",
-			[]string{"interface", "direction"},
+			[]string{labelInterface, labelDirection},
 		),
 		failures: reg.CounterVec(
 			"ze_ospfv3_ipsec_install_failures_total",
 			"Total OSPFv3 IPsec install failures, by interface and reason.",
-			[]string{"interface", "reason"},
+			[]string{labelInterface, labelReason},
 		),
 		kernelDrops: reg.CounterVec(
 			"ze_ospfv3_ipsec_kernel_drops_total",
 			"Total kernel XFRM inbound drops attributable to OSPFv3 IPsec, by interface (empty=node-global XFRM stat) and reason.",
-			[]string{"interface", "reason"},
+			[]string{labelInterface, labelReason},
 		),
 	}
 }

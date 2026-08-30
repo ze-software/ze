@@ -11,6 +11,21 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
+// ze-bgp JSON member names. These are the keys an external consumer parses, so
+// a change here changes the published format.
+//
+// jsonKeyState is the member that carries "up", "down" or "connected". It is
+// not msgTypeState, which is the VALUE of jsonKeyType that marks an event as a
+// state change. The two spell one word for two positions in the object.
+const (
+	jsonKeyMessage = "message"
+	jsonKeyType    = "type"
+	jsonKeyPeer    = "peer"
+	jsonKeyState   = "state"
+
+	msgTypeState = "state"
+)
+
 // JSONEncoder produces ze-bgp JSON output.
 // Format follows docs/architecture/api/ipc_protocol.md v2.0.
 //
@@ -54,11 +69,11 @@ func peerMap(peer *plugin.PeerInfo) map[string]any {
 func (e *JSONEncoder) message(peer *plugin.PeerInfo, msgType string) (outer, inner map[string]any) {
 	inner = make(map[string]any)
 	outer = map[string]any{
-		"message": map[string]any{
-			"type": msgType,
+		jsonKeyMessage: map[string]any{
+			jsonKeyType: msgType,
 		},
-		"peer":  peerMap(peer),
-		msgType: inner,
+		jsonKeyPeer: peerMap(peer),
+		msgType:     inner,
 	}
 	return outer, inner
 }
@@ -85,11 +100,11 @@ func setMessageDirection(payload map[string]any, direction rpc.MessageDirection)
 // getOrCreateMessage returns the "message" object from the payload,
 // creating it if it doesn't exist.
 func getOrCreateMessage(payload map[string]any) map[string]any {
-	if existing, ok := payload["message"].(map[string]any); ok {
+	if existing, ok := payload[jsonKeyMessage].(map[string]any); ok {
 		return existing
 	}
 	msg := make(map[string]any)
-	payload["message"] = msg
+	payload[jsonKeyMessage] = msg
 	return msg
 }
 
@@ -97,11 +112,11 @@ func getOrCreateMessage(payload map[string]any) map[string]any {
 // ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"up"}.
 func (e *JSONEncoder) StateUp(peer *plugin.PeerInfo) string {
 	payload := map[string]any{
-		"message": map[string]any{
-			"type": "state",
+		jsonKeyMessage: map[string]any{
+			jsonKeyType: msgTypeState,
 		},
-		"peer":  peerMap(peer),
-		"state": "up",
+		jsonKeyPeer:  peerMap(peer),
+		jsonKeyState: "up",
 	}
 	return e.marshal(payload)
 }
@@ -110,12 +125,12 @@ func (e *JSONEncoder) StateUp(peer *plugin.PeerInfo) string {
 // ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"down","reason":"..."}.
 func (e *JSONEncoder) StateDown(peer *plugin.PeerInfo, reason string) string {
 	payload := map[string]any{
-		"message": map[string]any{
-			"type": "state",
+		jsonKeyMessage: map[string]any{
+			jsonKeyType: msgTypeState,
 		},
-		"peer":   peerMap(peer),
-		"state":  "down",
-		"reason": reason,
+		jsonKeyPeer:  peerMap(peer),
+		jsonKeyState: "down",
+		"reason":     reason,
 	}
 	return e.marshal(payload)
 }
@@ -124,11 +139,11 @@ func (e *JSONEncoder) StateDown(peer *plugin.PeerInfo, reason string) string {
 // ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"connected"}.
 func (e *JSONEncoder) stateConnected(peer *plugin.PeerInfo) string {
 	payload := map[string]any{
-		"message": map[string]any{
-			"type": "state",
+		jsonKeyMessage: map[string]any{
+			jsonKeyType: msgTypeState,
 		},
-		"peer":  peerMap(peer),
-		"state": "connected",
+		jsonKeyPeer:  peerMap(peer),
+		jsonKeyState: "connected",
 	}
 	return e.marshal(payload)
 }
@@ -261,8 +276,8 @@ func (e *JSONEncoder) Negotiated(peer *plugin.PeerInfo, neg DecodedNegotiated) s
 // Output: {"type":"bgp","bgp":{...payload...}}.
 func (e *JSONEncoder) marshal(payload map[string]any) string {
 	outer := map[string]any{
-		"type": "bgp",
-		"bgp":  payload,
+		jsonKeyType: "bgp",
+		"bgp":       payload,
 	}
 	data, err := json.Marshal(outer)
 	if err != nil {

@@ -80,7 +80,7 @@ func init() {
 	// listener_defaults.go, for the same self-containment reason as as112. The
 	// name is the schema-path-derived one config.DiscoverListenerServices builds,
 	// not a name chosen here.
-	config.RegisterListenerDefaultIPs("service-geodns-listener", []string{"127.0.0.1", "::1"}, "5300")
+	config.RegisterListenerDefaultIPs("service-geodns-listener", []string{loopbackIPv4, loopbackIPv6}, "5300")
 
 	// DNS binds BOTH transports on every endpoint: dnsserver.Manager.bind
 	// (internal/core/dnsserver/manager.go) calls ListenPacket for udp and Listen

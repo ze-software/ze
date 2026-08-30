@@ -17,6 +17,27 @@ import (
 	_ "github.com/ze-software/ze/internal/component/resolve/yang"
 )
 
+// argType is the CLI argument keyword that introduces a DNS record type.
+const argType = "type"
+
+// The response payload keys. keyType holds the same text as argType and names
+// something else: one is what an operator types, the other is what the JSON
+// carries.
+const (
+	keyAction  = "action"
+	keyCount   = "count"
+	keyEntries = "entries"
+	keyName    = "name"
+	keyRecords = "records"
+	keyType    = "type"
+)
+
+// actionDeleteEntry is the action a cache-record deletion reports.
+const actionDeleteEntry = "delete-entry"
+
+// msgCacheUnavailable is what every handler reports when the DNS cache is absent.
+const msgCacheUnavailable = "DNS cache not available"
+
 // resolvers holds the shared resolver instances. Set once at hub startup
 // via SetResolvers, read by handler functions. Safe because SetResolvers
 // is called before the dispatcher starts accepting requests.
@@ -77,7 +98,7 @@ func dnsResult(records []string, resolveErr error) (*plugin.Response, error) {
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"records": records},
+		Data:   plugin.Map{keyRecords: records},
 	}, nil
 }
 
@@ -148,7 +169,7 @@ func handleCymruASNName(ctx *pluginserver.CommandContext, args []string) (*plugi
 	if name == "" {
 		name = "(unknown)"
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"name": name}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{keyName: name}}, nil
 }
 
 // PeeringDB handlers.

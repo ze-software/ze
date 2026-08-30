@@ -23,6 +23,34 @@ var interfaceByName = net.InterfaceByName
 // so 15 usable characters.
 const ifNameSize = 16
 
+// IPsec diagnostic codes. Each one is declared twice: once in the check that
+// emits it, and once in the Codes list of its DoctorCheckDef (register.go).
+// `ze doctor explain <code>` looks a code up by this spelling.
+const (
+	diagnosticIPsecIface           = "doctor-ipsec-iface"
+	diagnosticIPsecUDPEncap        = "doctor-ipsec-udp-encap"
+	diagnosticIPsecCertURL         = "doctor-ipsec-cert-url"
+	diagnosticIPsecCertURLDenied   = "doctor-ipsec-cert-url-denied"
+	diagnosticIPsecCookieThreshold = "doctor-ipsec-cookie-threshold"
+	diagnosticIPsecXFRMUnavailable = "doctor-ipsec-xfrm-unavailable"
+)
+
+// Severity values rpc.DoctorCheckDiagnostic.Severity takes. rpc states the
+// vocabulary in a comment on that field rather than as constants
+// (pkg/plugin/rpc/types.go), so each producer spells it.
+const (
+	severityError   = "error"
+	severityWarning = "warning"
+)
+
+// Values a DoctorCheckDef declares for its dependency and platform lists.
+// doctorPlatformAny is the only member of validDoctorPlatforms
+// (internal/component/plugin/registry/doctor.go).
+const (
+	doctorDepConfigLoaded = "config-loaded"
+	doctorPlatformAny     = "any"
+)
+
 // checkIPsecInterface reports a `vpn ipsec interface` leaf that names an
 // interface absent from the system.
 //
@@ -68,8 +96,8 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 		// remove.
 		var tb textbuf.Buffer
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     "doctor-ipsec-iface",
-			Severity: "error",
+			Code:     diagnosticIPsecIface,
+			Severity: severityError,
 			Message:  tb.Str("vpn ipsec config could not be parsed, so its interface reference was not checked: ").Err(err).String(),
 		}}
 	}
@@ -92,8 +120,8 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 		}
 		var tb textbuf.Buffer
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     "doctor-ipsec-iface",
-			Severity: "error",
+			Code:     diagnosticIPsecIface,
+			Severity: severityError,
 			Message:  tb.Str("vpn ipsec interface is set to the empty name; IPsec SAs will not bind to any interface").String(),
 		}}
 	}
@@ -112,16 +140,16 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 	// so 15 usable). A name like "br..0" is LEGAL and must reach the resolver.
 	if invalidInterfaceName(cfg.Interface) {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     "doctor-ipsec-iface",
-			Severity: "error",
+			Code:     diagnosticIPsecIface,
+			Severity: severityError,
 			Message:  tb.Str("vpn ipsec interface has an invalid name: ").Str(cfg.Interface).String(),
 		}}
 	}
 
 	if err := cfg.ValidateInterfaceRef(ipsecInterfaceExists); err != nil {
 		return []rpc.DoctorCheckDiagnostic{{
-			Code:     "doctor-ipsec-iface",
-			Severity: "error",
+			Code:     diagnosticIPsecIface,
+			Severity: severityError,
 			Message: tb.Str("vpn ipsec interface not found: ").Str(cfg.Interface).
 				Str(" (peers without an explicit local-address will not establish)").String(),
 		}}

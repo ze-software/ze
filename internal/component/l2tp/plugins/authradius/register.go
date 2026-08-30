@@ -36,13 +36,16 @@ var (
 	activeCoA    *coaListener
 )
 
+// configRootL2TP is the YANG container this plugin reads.
+const configRootL2TP = "l2tp"
+
 func init() {
 	reg := registry.Registration{
 		Name:                    Name,
 		Description:             "RADIUS authentication and accounting for L2TP PPP sessions",
 		Features:                "yang",
 		YANG:                    yang.ZeL2TPAuthRadiusConfYANG,
-		ConfigRoots:             []string{"l2tp"},
+		ConfigRoots:             []string{configRootL2TP},
 		InProcessConfigVerifier: verifyRadiusAuthConfig,
 		RunEngine:               runPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -82,7 +85,7 @@ func init() {
 
 func verifyRadiusAuthConfig(sections []sdk.ConfigSection) error {
 	for _, sec := range sections {
-		if sec.Root != "l2tp" {
+		if sec.Root != configRootL2TP {
 			continue
 		}
 		if _, err := parseConfigFromJSON(sec.Data); err != nil && !errors.Is(err, errNoRADIUSConfig) {
@@ -108,7 +111,7 @@ func runPlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, sec := range sections {
-			if sec.Root != "l2tp" {
+			if sec.Root != configRootL2TP {
 				continue
 			}
 			cfg, err := parseConfigFromJSON(sec.Data)
@@ -148,7 +151,7 @@ func runPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"l2tp"},
+		WantsConfig:  []string{configRootL2TP},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 	}); err != nil {

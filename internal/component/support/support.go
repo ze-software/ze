@@ -28,6 +28,15 @@ import (
 	zeversion "github.com/ze-software/ze/internal/core/version"
 )
 
+// The collector payload keys shared by the modules in this package.
+const (
+	keyAvailable = "available"
+	keyCount     = "count"
+	keyName      = "name"
+	keyPath      = "path"
+	keyReason    = "reason"
+)
+
 // SupportManifest is the top-level metadata written to manifest.json.
 type SupportManifest struct {
 	SchemaVersion int                     `json:"schema-version"`
@@ -350,7 +359,7 @@ func collectVersion(opts *collectOptions) (any, error) {
 		deps := make([]map[string]string, 0, len(info.Deps))
 		for _, dep := range info.Deps {
 			deps = append(deps, map[string]string{
-				"path":    dep.Path,
+				keyPath:   dep.Path,
 				"version": dep.Version,
 			})
 		}
@@ -364,7 +373,7 @@ func collectVersion(opts *collectOptions) (any, error) {
 func collectDoctor(opts *collectOptions) (any, error) {
 	diags := diagnostic.RunDoctorChecks(opts.ConfigPath)
 	if diags == nil {
-		return map[string]any{"available": false, "reason": "no doctor provider registered"}, nil
+		return map[string]any{keyAvailable: false, keyReason: "no doctor provider registered"}, nil
 	}
 	ready := true
 	for i := range diags {
@@ -393,7 +402,7 @@ func collectConfig(opts *collectOptions) (any, error) {
 	var tb textbuf.Buffer
 	store, err := resolve.Storage()
 	if err != nil {
-		return map[string]any{"available": false, "reason": tb.Str("storage: ").Err(err).String()}, nil
+		return map[string]any{keyAvailable: false, keyReason: tb.Str("storage: ").Err(err).String()}, nil
 	}
 	defer func() { _ = store.Close() }()
 
@@ -403,23 +412,23 @@ func collectConfig(opts *collectOptions) (any, error) {
 	if opts.ConfigPath != "" {
 		configData, err = cliio.ReadFile(opts.ConfigPath) // "-" reads stdin
 		if err != nil {
-			return map[string]any{"available": false, "reason": tb.Reset().Str("config file: ").Err(err).String()}, nil
+			return map[string]any{keyAvailable: false, keyReason: tb.Reset().Str("config file: ").Err(err).String()}, nil
 		}
 		configName = opts.ConfigPath
 	} else {
 		configName = resolve.DefaultConfig(store)
 		configData, err = store.ReadFile(configName)
 		if err != nil {
-			return map[string]any{"available": false, "reason": tb.Reset().Str("no config found: ").Err(err).String()}, nil
+			return map[string]any{keyAvailable: false, keyReason: tb.Reset().Str("no config found: ").Err(err).String()}, nil
 		}
 	}
 
 	result, parseErr := config.LoadConfig(string(configData), configName, nil)
 	if parseErr != nil {
 		return map[string]any{
-			"available":   true,
+			keyAvailable:  true,
 			"parse-error": parseErr.Error(),
-			"path":        configName,
+			keyPath:       configName,
 		}, nil
 	}
 
@@ -429,8 +438,8 @@ func collectConfig(opts *collectOptions) (any, error) {
 	}
 
 	return map[string]any{
-		"path": configName,
-		"tree": tree,
+		keyPath: configName,
+		"tree":  tree,
 	}, nil
 }
 
@@ -441,22 +450,22 @@ func collectCrashes(opts *collectOptions) (any, error) {
 	summaries := crashlog.ListCrashes()
 	if len(summaries) == 0 {
 		return map[string]any{
-			"count": 0,
-			"dir":   crashlog.CrashDir(),
+			keyCount: 0,
+			"dir":    crashlog.CrashDir(),
 		}, nil
 	}
 
 	crashes := make([]map[string]any, 0, len(summaries))
 	for _, s := range summaries {
 		entry := map[string]any{
-			"name":    s.Name,
+			keyName:   s.Name,
 			"size":    s.Size,
 			"content": crashlog.ReadCrash(s.Name),
 		}
 		crashes = append(crashes, entry)
 	}
 	return map[string]any{
-		"count":   len(crashes),
+		keyCount:  len(crashes),
 		"dir":     crashlog.CrashDir(),
 		"crashes": crashes,
 	}, nil
@@ -475,7 +484,7 @@ func collectInterfaces(opts *collectOptions) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"interfaces": ifs, "count": len(ifs)}, nil
+	return map[string]any{"interfaces": ifs, keyCount: len(ifs)}, nil
 }
 
 // collectRoutes gathers the kernel routing table.
@@ -486,7 +495,7 @@ func collectRoutes(opts *collectOptions) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := map[string]any{"routes": routes, "count": len(routes)}
+	result := map[string]any{"routes": routes, keyCount: len(routes)}
 	if len(routes) >= routeLimit {
 		result["truncated"] = true
 		result["limit"] = routeLimit
@@ -501,7 +510,7 @@ func collectNeighbors(opts *collectOptions) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"neighbors": neighbors, "count": len(neighbors)}, nil
+	return map[string]any{"neighbors": neighbors, keyCount: len(neighbors)}, nil
 }
 
 // collectEnv gathers Ze's registered environment variables.
@@ -522,7 +531,7 @@ func collectEnv(opts *collectOptions) (any, error) {
 		}
 		result = append(result, entry)
 	}
-	return map[string]any{"variables": result, "count": len(result)}, nil
+	return map[string]any{"variables": result, keyCount: len(result)}, nil
 }
 
 // collectSysctl gathers current values of Ze's registered sysctl keys.

@@ -18,6 +18,11 @@ import (
 // configTrueValue is the canonical boolean true spelling in config leaves.
 const configTrueValue = "true"
 
+// envTypeString is the value env.EnvEntry.Type takes for a string-valued
+// variable. env declares the vocabulary in a comment on that field rather than
+// as constants, so each caller spells it (internal/core/env/registry.go).
+const envTypeString = "string"
+
 func configTimeout(tree *config.Tree, leaf string, def int) time.Duration {
 	if v, ok := tree.Get(leaf); ok {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {

@@ -50,9 +50,9 @@ const (
 func (t ValueType) String() string {
 	switch t {
 	case TypeString:
-		return "string"
+		return valueTypeString
 	case TypeBool:
-		return "bool"
+		return valueTypeBool
 	case TypeUint16:
 		return "uint16"
 	case TypeUint32:
@@ -66,9 +66,9 @@ func (t ValueType) String() string {
 	case TypePrefix:
 		return "prefix"
 	case TypeDuration:
-		return "duration"
+		return valueTypeDuration
 	case TypeInt:
-		return "int"
+		return valueTypeInt
 	case TypeEmpty:
 		return valueTypeEmpty
 	default:

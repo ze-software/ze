@@ -26,7 +26,7 @@ func newMDStatCollector(fs procfs.FS) *mdstatCollector {
 func (c *mdstatCollector) Name() string { return "mdstat" }
 
 func (c *mdstatCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.health = reg.GaugeVec(prefix+"_md_health_disks_average", "MD Array Health", labels)
 	c.disks = reg.GaugeVec(prefix+"_md_disks_disks_average", "MD Array Disks", labels)
 	c.sync = reg.GaugeVec(prefix+"_md_mismatch_cnt_unsynchronized_blocks_average", "MD Mismatch Count", labels)

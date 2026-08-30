@@ -49,16 +49,20 @@ func envRows(withCurrent bool) []envRow {
 	return rows
 }
 
+// keyVariables is the payload key each of the three answers carries its rows
+// under, so a caller parses one shape whichever command it ran.
+const keyVariables = "variables"
+
 // dataList answers `show env list`. The rows carry their effective values,
 // because a reader asking a machine for the list wants what is in force.
 func dataList(_ []string) (any, int) {
-	return map[string]any{"variables": envRows(true)}, 0
+	return map[string]any{keyVariables: envRows(true)}, 0
 }
 
 // dataRegistered answers `show env registered`: what the code declares, with no
 // effective value, which is the difference between the two commands.
 func dataRegistered(_ []string) (any, int) {
-	return map[string]any{"variables": envRows(false)}, 0
+	return map[string]any{keyVariables: envRows(false)}, 0
 }
 
 // dataGet answers `show env get <key>` with the one variable, or refuses by
@@ -71,7 +75,7 @@ func dataGet(args []string) (any, int) {
 	key := args[0]
 	for _, row := range envRows(true) {
 		if row.Key == key {
-			return map[string]any{"variables": []envRow{row}}, 0
+			return map[string]any{keyVariables: []envRow{row}}, 0
 		}
 	}
 	var tb strings.Builder

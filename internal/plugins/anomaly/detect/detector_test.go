@@ -32,8 +32,8 @@ func portSnapOf(entries ...trafficfeature.PortFeatureEntry) *trafficfeature.Snap
 // amplification, no spread.
 func normalPort(port uint16) trafficfeature.PortFeatureEntry {
 	return trafficfeature.PortFeatureEntry{
-		PortKey: trafficfeature.PortKey{Port: port, Proto: 17},
-		FanOut:  1, OutInRatio: 1, SrcEntropy: 0.1,
+		Port: port, Proto: 17,
+		FanOut: 1, OutInRatio: 1, SrcEntropy: 0.1,
 	}
 }
 
@@ -41,8 +41,8 @@ func normalPort(port uint16) trafficfeature.PortFeatureEntry {
 // spread, answering far more than it is asked.
 func spikePort(port uint16) trafficfeature.PortFeatureEntry {
 	return trafficfeature.PortFeatureEntry{
-		PortKey: trafficfeature.PortKey{Port: port, Proto: 17},
-		FanOut:  300, OutInRatio: 80, SrcEntropy: 0.1,
+		Port: port, Proto: 17,
+		FanOut: 300, OutInRatio: 80, SrcEntropy: 0.1,
 	}
 }
 

@@ -50,10 +50,14 @@ var (
 	bgpServer   registry.PluginServerAccessor
 )
 
+// pluginNameBGP is the name the BGP daemon registers under, and the owner it
+// stamps on the config operations it decomposes (operation.go).
+const pluginNameBGP = "bgp"
+
 func init() {
 	// The reactor raises these codes (reactor/session_health.go); the BGP
 	// subsystem owns its health row (ai/rules/plugins.md).
-	health.Register("bgp", report.HealthProbeDegraded(
+	health.Register(pluginNameBGP, report.HealthProbeDegraded(
 		"session-stuck", "session-flap", "eor-timeout"))
 
 	_ = events.RegisterNamespace(bgpevents.Namespace,
@@ -70,11 +74,11 @@ func init() {
 	zeplugin.RegisterDefaultEventNamespace(bgpevents.Namespace)
 
 	reg := registry.Registration{
-		Name:               "bgp",
+		Name:               pluginNameBGP,
 		Description:        "BGP routing daemon",
 		Features:           "yang",
 		YANG:               bgpyang.ZeBGPConfYANG,
-		ConfigRoots:        []string{"bgp"},
+		ConfigRoots:        []string{configRootBGP},
 		FatalOnConfigError: true,
 		RunEngine:          runBGPEngine,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -106,7 +110,7 @@ func runBGPEngine(conn net.Conn) int {
 	log := slogutil.Logger("bgp.plugin")
 	log.Debug("bgp plugin starting")
 
-	p := sdk.NewWithConn("bgp", conn)
+	p := sdk.NewWithConn(pluginNameBGP, conn)
 	defer func() { _ = p.Close() }()
 
 	var bgpReactor registry.BGPReactorHandle
@@ -190,7 +194,7 @@ func runBGPEngine(conn net.Conn) int {
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
-			if s.Root != "bgp" {
+			if s.Root != configRootBGP {
 				continue
 			}
 			// s.Data is the bgp subtree (contents of "bgp { ... }" as
@@ -311,7 +315,7 @@ func runBGPEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig: []string{"bgp"},
+		WantsConfig: []string{configRootBGP},
 		ConfigOperations: []sdk.ConfigOperationDecl{{
 			Root:      configRootBGP,
 			Decompose: true,

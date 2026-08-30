@@ -31,6 +31,15 @@ var (
 	ErrSRPolicyTruncated = errors.New("srpolicy: truncated data")
 )
 
+// The names of the three SR-Policy NLRI key fields. A config route and an
+// encoder argument list spell each field this way on input, and a decoded NLRI
+// carries the same spelling on output.
+const (
+	fieldColor         = "color"
+	fieldDistinguisher = "distinguisher"
+	fieldEndpoint      = "endpoint"
+)
+
 // SRPolicy represents an SR-Policy NLRI (RFC 9830 Section 2.1).
 type SRPolicy struct {
 	distinguisher uint32

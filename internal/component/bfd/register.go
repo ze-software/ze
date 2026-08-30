@@ -11,13 +11,21 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
+// pluginName is the name this plugin registers under, and configRoot is the
+// top-level YANG container it owns. The two hold the same text and name two
+// different things: a rename of one does not rename the other.
+const (
+	pluginName = "bfd"
+	configRoot = "bfd"
+)
+
 func init() {
 	reg := registry.Registration{
-		Name:                    "bfd",
+		Name:                    pluginName,
 		Description:             "Bidirectional Forwarding Detection (RFC 5880, 5881, 5883)",
 		Features:                "yang",
 		RFCs:                    []string{"5880", "5881", "5882", "5883"},
-		ConfigRoots:             []string{"bfd"},
+		ConfigRoots:             []string{configRoot},
 		YANG:                    bfdyang.ZeBFDConfYANG,
 		InProcessConfigVerifier: verifyBFDConfig,
 		RunEngine:               RunBFDPlugin,

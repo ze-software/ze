@@ -591,7 +591,7 @@ func aliasSuggestions(command string) []Suggestion {
 	}
 	suggestions := make([]Suggestion, 0, len(aliases))
 	for _, alias := range aliases {
-		suggestions = append(suggestions, Suggestion{Text: alias.Name, Description: alias.Description, Type: "pipe"})
+		suggestions = append(suggestions, Suggestion{Text: alias.Name, Description: alias.Description, Type: SuggestionPipe})
 	}
 	return suggestions
 }

@@ -18,13 +18,10 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
+// remove-private values. The attribute names themselves are in filter_chain.go.
 const (
-	policyAttrASPath        = "as-path"
-	policyAttrASPathPrepend = "as-path-prepend"
-	policyAttrRemovePrivate = "remove-private"
-	policyAttrMEDRemove     = "med-remove"
-	removePrivateASStrip    = "strip"
-	removePrivateASPeerAS   = "peer-as"
+	removePrivateASStrip  = "strip"
+	removePrivateASPeerAS = "peer-as"
 )
 
 // extractLegacyNLRIOverride compares the nlri field in the original and
@@ -352,43 +349,43 @@ type communityDirective struct {
 }
 
 var communityDirectives = map[string]communityDirective{
-	"community-add":             {attribute.AttrCommunity, filterapi.AttrModAdd, "community", 4},
-	"community-remove":          {attribute.AttrCommunity, filterapi.AttrModRemove, "community", 4},
-	"large-community-add":       {attribute.AttrLargeCommunity, filterapi.AttrModAdd, "large-community", 12},
-	"large-community-remove":    {attribute.AttrLargeCommunity, filterapi.AttrModRemove, "large-community", 12},
-	"extended-community-add":    {attribute.AttrExtCommunity, filterapi.AttrModAdd, "extended-community", 8},
-	"extended-community-remove": {attribute.AttrExtCommunity, filterapi.AttrModRemove, "extended-community", 8},
+	policyAttrCommunityAdd:            {attribute.AttrCommunity, filterapi.AttrModAdd, policyAttrCommunity, 4},
+	policyAttrCommunityRemove:         {attribute.AttrCommunity, filterapi.AttrModRemove, policyAttrCommunity, 4},
+	policyAttrLargeCommunityAdd:       {attribute.AttrLargeCommunity, filterapi.AttrModAdd, policyAttrLargeCommunity, 12},
+	policyAttrLargeCommunityRemove:    {attribute.AttrLargeCommunity, filterapi.AttrModRemove, policyAttrLargeCommunity, 12},
+	policyAttrExtendedCommunityAdd:    {attribute.AttrExtCommunity, filterapi.AttrModAdd, policyAttrExtendedCommunity, 8},
+	policyAttrExtendedCommunityRemove: {attribute.AttrExtCommunity, filterapi.AttrModRemove, policyAttrExtendedCommunity, 8},
 }
 
 // encodeAttrValue converts a text attribute value to wire VALUE bytes.
 // The returned bytes contain only the attribute value (no header).
 func encodeAttrValue(name, value string) ([]byte, error) {
 	switch name {
-	case "origin":
+	case policyAttrOrigin:
 		return encodeOriginValue(value)
-	case "as-path":
+	case policyAttrASPath:
 		return encodeASPathValue(value)
-	case "next-hop":
+	case policyAttrNextHop:
 		return encodeNextHopValue(value)
-	case "med":
+	case policyAttrMED:
 		return encodeUint32Value(value)
-	case "local-preference":
+	case policyAttrLocalPreference:
 		return encodeUint32Value(value)
-	case "atomic-aggregate":
+	case policyAttrAtomicAggregate:
 		return []byte{}, nil // Zero-length value.
-	case "aggregator":
+	case policyAttrAggregator:
 		return encodeAggregatorValue(value)
-	case "community":
+	case policyAttrCommunity:
 		return encodeCommunityValue(value)
-	case "originator-id":
+	case policyAttrOriginatorID:
 		return encodeIPv4Value(value)
-	case "cluster-list":
+	case policyAttrClusterList:
 		return encodeClusterListValue(value)
-	case "extended-community":
+	case policyAttrExtendedCommunity:
 		return encodeExtCommunityValue(value)
-	case "large-community":
+	case policyAttrLargeCommunity:
 		return encodeLargeCommunityValue(value)
-	case "aigp":
+	case policyAttrAIGP:
 		return encodeAIGPValue(value)
 	}
 	return nil, fmt.Errorf("unsupported attribute: %s", name)

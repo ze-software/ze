@@ -31,9 +31,9 @@ func DecodeNLRIHex(familyStr, hexStr string) (any, error) {
 	}
 
 	return map[string]any{
-		"color":         sp.color,
-		"distinguisher": sp.distinguisher,
-		"endpoint":      sp.endpoint.String(),
+		fieldColor:         sp.color,
+		fieldDistinguisher: sp.distinguisher,
+		fieldEndpoint:      sp.endpoint.String(),
 	}, nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/chaos/peer"
@@ -172,7 +173,7 @@ func binarySearch(events []peer.Event, property string, cfg Config) ([]peer.Even
 func singleStepEliminate(events []peer.Event, property string, cfg Config) ([]peer.Event, int) {
 	iterations := 0
 
-	for i := len(events) - 1; i >= 0; i-- {
+	for i := range slices.Backward(events) {
 		candidate := removeWithDependents(events, i)
 		if len(candidate) >= len(events) {
 			// Nothing was actually removed.
@@ -184,8 +185,10 @@ func singleStepEliminate(events []peer.Event, property string, cfg Config) ([]pe
 			verbosef(cfg, "  removed event %d (%s peer %d), %d remaining\n",
 				i, events[i].Type, events[i].PeerIndex, len(candidate))
 			events = candidate
-			// Don't adjust i — events before index i are unchanged,
-			// and we're decrementing, so we'll naturally try i-1 next.
+			// Do not adjust i. Events before index i are unchanged by
+			// the removal, and the iterator descends over the index range
+			// the original slice had, so i-1 comes next and still names
+			// the same event.
 		}
 	}
 

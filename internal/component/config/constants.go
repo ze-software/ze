@@ -12,6 +12,15 @@ const (
 	configRequire = "require" // Config value for required state
 	configSelf    = "self"    // Config value for next-hop self
 
+	// The type keywords a YANG leaf declares and an env.EnvEntry names. One
+	// vocabulary, so ValueType.String and the registrations in environment.go
+	// cannot drift apart.
+	valueTypeString   = "string"
+	valueTypeBool     = "bool"
+	valueTypeInt      = "int"
+	valueTypeInt64    = "int64"
+	valueTypeDuration = "duration"
+
 	// valueTypeEmpty is the YANG keyword for TypeEmpty leaves (presence flags).
 	valueTypeEmpty = "empty"
 )
@@ -22,6 +31,6 @@ const (
 //
 //nolint:gochecknoglobals // Package-level config constant.
 var extractSections = []string{
-	"daemon", "lo" + "g", // "lo"+"g" avoids block-legacy-log.sh false positive
-	"bgp", "reactor", "chaos", "exabgp", "cli",
+	sectionDaemon, "lo" + "g", // "lo"+"g" avoids block-legacy-log.sh false positive
+	sectionBGP, sectionReactor, sectionChaos, "exabgp", "cli",
 }

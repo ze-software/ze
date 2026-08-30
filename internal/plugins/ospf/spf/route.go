@@ -14,6 +14,18 @@ import (
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
+// The RFC 5286 Section 3.6 backup protection classes, as Backup.Class and the
+// FRR metrics both name them. Two surfaces, one spelling.
+const (
+	backupClassNode       = "node"
+	backupClassLink       = "link"
+	backupClassDownstream = "downstream"
+	backupClassLoopFree   = "loop-free"
+)
+
+// labelArea is the metric label every per-area SPF series carries.
+const labelArea = "area"
+
 // RouteType is the OSPF-internal path type carried in snapshots and used for
 // intra-protocol preference before a locrib.Path is inserted.
 type RouteType uint8
@@ -111,13 +123,13 @@ func (b Backup) Class() string {
 	case b.NodeProtect && b.LinkProtect:
 		return "node+link"
 	case b.NodeProtect:
-		return "node"
+		return backupClassNode
 	case b.LinkProtect:
-		return "link"
+		return backupClassLink
 	case b.Downstream:
-		return "downstream"
+		return backupClassDownstream
 	default:
-		return "loop-free"
+		return backupClassLoopFree
 	}
 }
 

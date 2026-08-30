@@ -64,7 +64,7 @@ func trafficNetNSName(testName string) string {
 func addTrafficVeth(t *testing.T, name, peer string) netlink.Link {
 	t.Helper()
 
-	if err := netlink.LinkAdd(&netlink.Veth{LinkAttrs: netlink.LinkAttrs{Name: name}, PeerName: peer}); err != nil {
+	if err := netlink.LinkAdd(&netlink.Veth{Name: name, PeerName: peer}); err != nil {
 		t.Fatalf("add veth %q/%q: %v", name, peer, err)
 	}
 	link, err := netlink.LinkByName(name)
@@ -161,13 +161,11 @@ func replaceRootFQ(t *testing.T, link netlink.Link) {
 	t.Helper()
 
 	qdisc := &netlink.Fq{
-		QdiscAttrs: netlink.QdiscAttrs{
-			LinkIndex: link.Attrs().Index,
-			Handle:    0,
-			Parent:    netlink.HANDLE_ROOT,
-		},
-		Pacing:  1,
-		Quantum: 1514,
+		LinkIndex: link.Attrs().Index,
+		Handle:    0,
+		Parent:    netlink.HANDLE_ROOT,
+		Pacing:    1,
+		Quantum:   1514,
 	}
 	if err := netlink.QdiscReplace(qdisc); err != nil {
 		t.Fatalf("install original fq qdisc: %v", err)

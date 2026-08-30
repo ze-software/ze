@@ -33,7 +33,7 @@ func (c *softNetPerCPUCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_cpu_softnet_stat_events_persec_average",
 		"Per-CPU Softnet Statistics",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

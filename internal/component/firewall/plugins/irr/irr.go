@@ -135,7 +135,7 @@ func runFirewallIRR(conn net.Conn) int {
 
 	if err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			{Name: "show firewall irr", Description: "Show IRR filter status for all cached entries"},
+			{Name: cmdShowIRR, Description: "Show IRR filter status for all cached entries"},
 			{Name: "show firewall irr prefix", Description: "Show IRR-resolved prefixes for a cached entry", Args: []string{"<asn-or-as-set>"}},
 			{Name: "update firewall irr all", Description: "Refresh all cached IRR prefix-lists"},
 			{Name: "update firewall irr asn", Description: "Fetch/refresh IRR prefix-list for an ASN", Args: []string{"<asn>"}},
@@ -143,7 +143,7 @@ func runFirewallIRR(conn net.Conn) int {
 			{Name: "clear firewall irr asn", Description: "Remove the cached IRR prefix-list for an ASN", Args: []string{"<asn>"}},
 			{Name: "clear firewall irr as-set", Description: "Remove the cached IRR prefix-list for an AS-SET", Args: []string{"<as-set>"}},
 		},
-		WantsConfig: []string{"firewall"},
+		WantsConfig: []string{configRoot},
 	}); err != nil {
 		logger().Error("firewall-irr plugin failed", "error", err)
 		return 1
@@ -560,7 +560,7 @@ func markRefreshLearned() {
 }
 
 func extractIfaceRefs(root map[string]any) []irrRef {
-	fw, ok := root["firewall"].(map[string]any)
+	fw, ok := root[configRoot].(map[string]any)
 	if !ok {
 		return nil
 	}

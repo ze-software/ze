@@ -81,7 +81,7 @@ type capturedResp struct {
 
 func doGet(t *testing.T, h http.Handler, path string) capturedResp {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodGet, path, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, http.NoBody)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	res := rec.Result()

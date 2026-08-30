@@ -10,8 +10,13 @@ import (
 	"github.com/ze-software/ze/internal/component/iface"
 )
 
+// backendVPP is the name this plugin answers to: the value of the `interface
+// backend` config leaf, the health check name, and the Component every doctor
+// check reports under.
+const backendVPP = "vpp"
+
 func init() {
-	if err := iface.RegisterBackend("vpp", newVPPBackend); err != nil {
+	if err := iface.RegisterBackend(backendVPP, newVPPBackend); err != nil {
 		fmt.Fprintf(os.Stderr, "iface-vpp: backend registration failed: %v\n", err)
 		os.Exit(1)
 	}

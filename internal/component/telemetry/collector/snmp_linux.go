@@ -40,7 +40,7 @@ func newSNMPCollector(fs procfs.FS, interval time.Duration) *snmpCollector {
 func (c *snmpCollector) Name() string { return "snmp" }
 
 func (c *snmpCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.ipv4Packets = reg.GaugeVec(prefix+"_ipv4_packets_packets_persec_average", "IPv4 Packets", labels)
 	c.ipv4Errors = reg.GaugeVec(prefix+"_ipv4_errors_packets_persec_average", "IPv4 Errors", labels)
 	c.tcpPackets = reg.GaugeVec(prefix+"_ipv4_tcppackets_packets_persec_average", "TCP Packets", labels)

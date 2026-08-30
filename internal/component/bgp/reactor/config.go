@@ -320,6 +320,10 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		if v, ok := mapBool(sessionMap, "accept-srv6-prefix-sid"); ok {
 			ps.AcceptSRv6PrefixSID = v
 		}
+		// RFC 8669 Section 8: propagate PrefixSID to EBGP only when configured.
+		if v, ok := mapBool(sessionMap, "propagate-srv6-prefix-sid"); ok {
+			ps.PropagateSRv6PrefixSID = v
+		}
 	}
 
 	// Send-community control from session > community > send (leaf-list).

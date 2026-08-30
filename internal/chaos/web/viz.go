@@ -11,11 +11,21 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/chaos/peer"
+)
+
+// The three dashboard colors that carry a verdict. Every surface that says
+// "healthy", "degraded" or "failed" uses these, so the names are the roles the
+// dashboard assigns and not the hues.
+const (
+	colorHealthy  = "#3fb950"
+	colorDegraded = "#d29922"
+	colorFailed   = "#f85149"
 )
 
 // escapeAttr escapes a string for safe use in HTML attributes.
@@ -110,9 +120,8 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
 
 	events := s.GlobalEvents.All()
 	// Show most recent first.
-	for i := len(events) - 1; i >= 0; i-- {
-		ev := events[i]
-
+	for i := range slices.Backward(events) {
+		ev := &events[i]
 		// Apply peer filter.
 		if peerFilter != "" {
 			if pidx, err := strconv.Atoi(peerFilter); err == nil && ev.PeerIndex != pidx {
@@ -150,10 +159,10 @@ func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline t
 
 	maxCount := ch.maxCount()
 	bucketColors := []string{
-		"#3fb950", "#3fb950", "#7cc647", // green (fast)
-		"#b8cc3e", "#d29922", "#db8928", // yellow (moderate)
-		"#db6d28", "#f85149", // orange-red (slow)
-		"#f85149", "#da3633", "#b62324", // red (very slow)
+		colorHealthy, colorHealthy, "#7cc647", // green (fast)
+		"#b8cc3e", colorDegraded, "#db8928", // yellow (moderate)
+		"#db6d28", colorFailed, // orange-red (slow)
+		colorFailed, "#da3633", "#b62324", // red (very slow)
 		"#8b1a1a", "#6e1212", // dark red (extremely slow)
 	}
 
@@ -265,7 +274,7 @@ func writeChaosEvents(w io.Writer, s *DashboardState) {
 // chaosDetailStyle returns an inline style attribute for chaos/route-action events,
 // coloring the detail text to match the chaos timeline markers. Returns empty string
 // for non-chaos events.
-func chaosDetailStyle(ev peer.Event) string {
+func chaosDetailStyle(ev *peer.Event) string {
 	if ev.Type != peer.EventChaosExecuted && ev.Type != peer.EventRouteAction {
 		return ""
 	}
@@ -284,11 +293,11 @@ func chaosActionColors() ([]struct{ name, color string }, map[string]string) {
 		{"config-reload", "#79c0ff"},
 		{"connection-collision", "#d2a8ff"},
 		{"disconnect-during-burst", "#ff7b72"},
-		{"hold-timer-expiry", "#d29922"},
+		{"hold-timer-expiry", colorDegraded},
 		{"malformed-update", "#bc8cff"},
 		{"notification-cease", "#ffa657"},
 		{"reconnect-storm", "#db6d28"},
-		{"tcp-disconnect", "#f85149"},
+		{"tcp-disconnect", colorFailed},
 	}
 	m := make(map[string]string, len(ordered))
 	for _, a := range ordered {
@@ -397,7 +406,7 @@ func writeChaosTimeline(w io.Writer, s *DashboardState, warmup time.Duration) {
 // eventTypeNames returns all known event type labels for filter dropdowns.
 func eventTypeNames() []string {
 	return []string{
-		"established", "disconnected", "error", "chaos", "reconnecting",
+		"established", eventLabelDisconnected, eventLabelError, sortChaos, eventLabelReconnecting,
 		"route-sent", "route-recv", "route-withdrawn", "eor", "withdrawal-sent",
 	}
 }
@@ -406,13 +415,13 @@ func eventTypeNames() []string {
 func statusColor(s PeerStatus) string {
 	switch s {
 	case PeerUp:
-		return "#3fb950"
+		return colorHealthy
 	case PeerSyncing:
 		return "#58a6ff"
 	case PeerDown:
-		return "#f85149"
+		return colorFailed
 	case PeerReconnecting:
-		return "#d29922"
+		return colorDegraded
 	case PeerIdle:
 		return "#6e7681"
 	}

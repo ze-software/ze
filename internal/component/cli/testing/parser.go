@@ -96,37 +96,52 @@ type WaitAction struct {
 
 // shorthandKeys maps single-word input shortcuts to key names.
 var shorthandKeys = map[string]bool{
-	"tab":       true,
-	"enter":     true,
-	"up":        true,
-	"down":      true,
-	"left":      true,
-	"right":     true,
-	"esc":       true,
-	"backspace": true,
-	"delete":    true,
-	"home":      true,
-	"end":       true,
-	"pgup":      true,
-	"pgdn":      true,
-	"space":     true,
+	"tab":        true,
+	"enter":      true,
+	"up":         true,
+	"down":       true,
+	"left":       true,
+	"right":      true,
+	"esc":        true,
+	"backspace":  true,
+	"delete":     true,
+	"home":       true,
+	"end":        true,
+	"pgup":       true,
+	"pgdn":       true,
+	keyNameSpace: true,
 }
+
+// The .et vocabulary: the words an editor test file uses for its actions, its
+// options, its expectations and its key names. One spelling each, because the
+// parser, the runner and the expectation table must all agree on them.
+const (
+	etExpect     = "expect"
+	etFile       = "file"
+	etInput      = "input"
+	etMode       = "mode"
+	etRestart    = "restart"
+	etSession    = "session"
+	etStatus     = "status"
+	etWait       = "wait"
+	keyNameSpace = "space"
+)
 
 // validActions lists the recognized action types for .et files.
 // multiKeyExpect lists expectation types that use multiple colon-separated key=value pairs.
 // Other types join remaining segments to preserve colons in values.
 var multiKeyExpect = map[string]bool{
-	"file": true,
+	etFile: true,
 }
 
 var validActions = map[string]bool{
 	"tmpfs":   true,
 	"option":  true,
-	"input":   true,
-	"expect":  true,
-	"wait":    true,
-	"session": true,
-	"restart": true,
+	etInput:   true,
+	etExpect:  true,
+	etWait:    true,
+	etSession: true,
+	etRestart: true,
 }
 
 // parseETFile parses an .et (Editor Test) file content.
@@ -199,7 +214,7 @@ func (tc *TestCase) parseLine(line string, scanner *bufio.Scanner, lineNum *int)
 	if action == "wait" {
 		return tc.parseWait(rest)
 	}
-	if action == "session" {
+	if action == etSession {
 		return tc.parseSession(rest)
 	}
 	if action == "restart" {
@@ -229,7 +244,7 @@ func (tc *TestCase) parseTmpfs(rest string, scanner *bufio.Scanner, lineNum *int
 		kv := strings.SplitN(seg, "=", 2)
 		if len(kv) == 2 {
 			switch kv[0] {
-			case "mode":
+			case etMode:
 				block.Mode = kv[1]
 			case "terminator":
 				terminator = kv[1]

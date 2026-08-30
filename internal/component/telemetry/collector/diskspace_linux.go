@@ -29,7 +29,7 @@ func (c *diskSpaceCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_disk_space_GiB_average",
 		"Disk Space Usage",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

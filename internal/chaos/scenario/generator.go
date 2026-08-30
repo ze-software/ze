@@ -127,8 +127,14 @@ func generateEBGPASNs(rng *rand.Rand, count int, localAS uint32) []uint32 {
 	return available[:count]
 }
 
-// familyIPv4Unicast is the mandatory family present on all peers.
-const familyIPv4Unicast = "ipv4/unicast"
+// The Ze family strings a generated scenario assigns. familyIPv4Unicast is the
+// mandatory family present on all peers.
+const (
+	familyIPv4Unicast   = "ipv4/unicast"
+	familyIPv6Unicast   = "ipv6/unicast"
+	familyIPv4Multicast = "ipv4/multicast"
+	familyIPv6Multicast = "ipv6/multicast"
+)
 
 // rsFamilies are address families that bgp-rs can fully handle (forward + withdraw).
 // Complex families (VPN, EVPN, FlowSpec) require hex-mode withdrawals that bgp-rs
@@ -141,18 +147,18 @@ const familyIPv4Unicast = "ipv4/unicast"
 // When those modes are added, allFamilies should be used for them, and rsFamilies
 // only for route-server mode.
 var rsFamilies = []string{
-	"ipv4/unicast",
-	"ipv6/unicast",
-	"ipv4/multicast",
-	"ipv6/multicast",
+	familyIPv4Unicast,
+	familyIPv6Unicast,
+	familyIPv4Multicast,
+	familyIPv6Multicast,
 }
 
 // allFamilies is the full set of address families for future router/reflector modes.
 var allFamilies = []string{
-	"ipv4/unicast",
-	"ipv6/unicast",
-	"ipv4/multicast",
-	"ipv6/multicast",
+	familyIPv4Unicast,
+	familyIPv6Unicast,
+	familyIPv4Multicast,
+	familyIPv6Multicast,
 	"ipv4/mpls-vpn",
 	"ipv6/mpls-vpn",
 	"l2vpn/evpn",
@@ -163,9 +169,9 @@ var allFamilies = []string{
 // optionalFamilyWeights maps each optional family to its assignment probability.
 // ipv4/unicast is mandatory and always assigned.
 var optionalFamilyWeights = map[string]float64{
-	"ipv6/unicast":   0.7,
-	"ipv4/multicast": 0.3,
-	"ipv6/multicast": 0.2,
+	familyIPv6Unicast:   0.7,
+	familyIPv4Multicast: 0.3,
+	familyIPv6Multicast: 0.2,
 }
 
 // buildFamilyPool returns the set of families available for assignment after

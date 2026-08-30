@@ -44,7 +44,7 @@ func newMemoryCollector(fs procfs.FS) *memoryCollector {
 func (c *memoryCollector) Name() string { return "memory" }
 
 func (c *memoryCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.ram = reg.GaugeVec(prefix+"_system_ram_MiB_average", "System RAM", labels)
 	c.swap = reg.GaugeVec(prefix+"_system_swap_MiB_average", "System Swap", labels)
 	c.available = reg.GaugeVec(prefix+"_mem_available_MiB_average", "Available RAM", labels)

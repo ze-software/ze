@@ -14,6 +14,13 @@ import (
 
 const maxTraceCount = 10000
 
+// Keys in the plugin.Map payload the trace and runtime handlers return: the
+// vppctl command that was run, and what it printed.
+const (
+	fieldCommand = "command"
+	fieldOutput  = "output"
+)
+
 var validNodeName = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 func init() {
@@ -52,9 +59,9 @@ func handleVPPTraceStart(_ *pluginserver.CommandContext, args []string) (*plugin
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"command":    "trace add " + inputNode,
+			fieldCommand: "trace add " + inputNode,
 			"count":      count,
-			"output":     strings.TrimSpace(output),
+			fieldOutput:  strings.TrimSpace(output),
 			"input-node": inputNode,
 		},
 	}, nil
@@ -69,9 +76,9 @@ func handleVPPTraceShow(_ *pluginserver.CommandContext, _ []string) (*plugin.Res
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"command": "show trace",
-			"output":  strings.TrimSpace(output),
-			"lines":   lines,
+			fieldCommand: "show trace",
+			fieldOutput:  strings.TrimSpace(output),
+			"lines":      lines,
 		},
 	}, nil
 }
@@ -84,8 +91,8 @@ func handleVPPTraceClear(_ *pluginserver.CommandContext, _ []string) (*plugin.Re
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"command": "clear trace",
-			"output":  strings.TrimSpace(output),
+			fieldCommand: "clear trace",
+			fieldOutput:  strings.TrimSpace(output),
 		},
 	}, nil
 }
@@ -99,9 +106,9 @@ func handleVPPRuntime(_ *pluginserver.CommandContext, _ []string) (*plugin.Respo
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"command": "show runtime",
-			"output":  strings.TrimSpace(output),
-			"lines":   lines,
+			fieldCommand: "show runtime",
+			fieldOutput:  strings.TrimSpace(output),
+			"lines":      lines,
 		},
 	}, nil
 }

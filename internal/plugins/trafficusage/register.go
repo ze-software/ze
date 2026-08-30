@@ -24,7 +24,7 @@ func init() {
 		// iface rate tracker's per-second callback (RegisterCollectNotify),
 		// which only runs when an interface{} section is present. Declaring the
 		// dependency makes configuring traffic-usage alone enough to start it.
-		Dependencies: []string{"interface"},
+		Dependencies: []string{dependencyInterface},
 		RunEngine:    runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

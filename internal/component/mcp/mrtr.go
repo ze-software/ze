@@ -158,12 +158,12 @@ func newInputRequiredResult(requests map[string]any) map[string]any {
 // prohibition on sensitive information.
 func inputRequiredForMissingCommand() (map[string]any, error) {
 	request, err := newElicitRequest(elicitPromptCommand, map[string]any{
-		"type": "object",
-		"properties": map[string]any{
+		schemaKeyType: elicitTypeObject,
+		schemaKeyProperties: map[string]any{
 			elicitFieldCommand: map[string]any{
-				"type":        elicitTypeString,
-				"title":       "ze command",
-				"description": "The ze command to execute, for example 'show bgp peer list'.",
+				schemaKeyType:        elicitTypeString,
+				"title":              "ze command",
+				schemaKeyDescription: "The ze command to execute, for example 'show bgp peer list'.",
 			},
 		},
 		"required": []any{elicitFieldCommand},
@@ -222,8 +222,22 @@ func (s *server) askForCommand() map[string]any {
 const (
 	schemaKeyInputSchema = "inputSchema"
 	schemaKeyRequired    = "required"
+	schemaKeyProperties  = "properties"
+	schemaKeyType        = "type"
+	schemaKeyDescription = "description"
 	toolKeyName          = "name"
 )
+
+// jsonRPCVersion is the only JSON-RPC version this server speaks.
+const jsonRPCVersion = "2.0"
+
+// contentTypeText names a text content block, and is also the key that block
+// carries its text under.
+const contentTypeText = "text"
+
+// authSchemeBearer is the WWW-Authenticate scheme every authenticated MCP
+// route challenges with.
+const authSchemeBearer = "Bearer"
 
 // gateExecuteCommandRequired marks ze_execute's `command` argument required for
 // a client this server cannot prompt.

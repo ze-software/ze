@@ -27,6 +27,14 @@ type WorkbenchDetailTab struct {
 	Active  bool
 }
 
+// The two tab keys every detail panel offers. The key reaches the browser as
+// the tab's element id, so the peer panel and the interface panel answer to the
+// same anchor.
+const (
+	tabConfig = "config"
+	tabStatus = "status"
+)
+
 // WorkbenchDetailTool describes a related-tool button in the panel footer.
 type WorkbenchDetailTool struct {
 	Label   string

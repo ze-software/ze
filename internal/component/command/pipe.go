@@ -314,7 +314,7 @@ func collectPipeMeta(ops []pipeOp) pipeChainMeta {
 		case pipeMatch:
 			meta = append(meta, pipeChainStep{Op: "match", Arg: op.arg})
 		case pipeCount:
-			meta = append(meta, pipeChainStep{Op: "count"})
+			meta = append(meta, pipeChainStep{Op: pipeNameCount})
 		case pipeFirst:
 			if _, err := strconv.Atoi(op.arg); err == nil {
 				meta = append(meta, pipeChainStep{Op: "first", Arg: op.arg})
@@ -1551,7 +1551,7 @@ func processStreamPipes(input, sessionFormat string, saveAllowed bool) (cmd stri
 	}, flags, saves, ""
 }
 
-var _ = env.MustRegister(env.EnvEntry{Key: "ze.cli.format", Type: "string", Default: "text", Description: "Default CLI output format (text, table, json, yaml, ndjson)"})
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.cli.format", Type: "string", Default: pipeNameText, Description: "Default CLI output format (text, table, json, yaml, ndjson)"})
 
 // configuredDefault returns the default pipe format to use when the input has no
 // explicit format pipe.
@@ -1570,11 +1570,11 @@ func configuredDefault(sessionFormat string) pipeKind {
 		v = env.Get("ze.cli.format")
 	}
 	switch v {
-	case "text":
+	case pipeNameText:
 		return pipeText
 	case "table":
 		return pipeTable
-	case "json":
+	case pipeNameJSON:
 		return pipeJSON
 	case "yaml":
 		return pipeYAML

@@ -34,6 +34,14 @@ func buildBreadcrumbs(path []string) []BreadcrumbSegment {
 // component switches on it and buildLeafField writes it, so both read one name.
 const leafInputSelect = "select"
 
+// The LeafField.InputType values leafInputType returns for a plain value. They
+// are HTML input types, so the browser picks the keyboard and the validation
+// from them.
+const (
+	leafInputText   = "text"
+	leafInputNumber = "number"
+)
+
 // buildLeafField maps a LeafNode to an HTML input field description.
 func buildLeafField(name string, leaf *config.LeafNode, value string, configured bool) LeafField {
 	info := leafInputType(leaf.Type)
@@ -58,51 +66,51 @@ func buildLeafField(name string, leaf *config.LeafNode, value string, configured
 func leafInputType(vt config.ValueType) LeafField {
 	switch vt {
 	case config.TypeString:
-		return LeafField{InputType: "text"}
+		return LeafField{InputType: leafInputText}
 
 	case config.TypeBool:
 		return LeafField{InputType: "checkbox"}
 
 	case config.TypeUint16:
-		return LeafField{InputType: "number", Min: "0", Max: "65535"}
+		return LeafField{InputType: leafInputNumber, Min: "0", Max: "65535"}
 
 	case config.TypeUint32:
-		return LeafField{InputType: "number", Min: "0", Max: "4294967295"}
+		return LeafField{InputType: leafInputNumber, Min: "0", Max: "4294967295"}
 
 	case config.TypeIPv4:
 		return LeafField{
-			InputType:   "text",
+			InputType:   leafInputText,
 			Pattern:     `^(\d{1,3}\.){3}\d{1,3}$`,
 			Placeholder: "e.g., 192.0.2.1",
 		}
 
 	case config.TypeIPv6:
 		return LeafField{
-			InputType:   "text",
+			InputType:   leafInputText,
 			Pattern:     `^[0-9a-fA-F:]+$`,
 			Placeholder: "e.g., 2001:db8::1",
 		}
 
 	case config.TypeIP:
-		return LeafField{InputType: "text", Placeholder: "IPv4 or IPv6 address"}
+		return LeafField{InputType: leafInputText, Placeholder: "IPv4 or IPv6 address"}
 
 	case config.TypePrefix:
 		return LeafField{
-			InputType:   "text",
+			InputType:   leafInputText,
 			Pattern:     `^[0-9a-fA-F.:]+/\d{1,3}$`,
 			Placeholder: "e.g., 10.0.0.0/24",
 		}
 
 	case config.TypeDuration:
-		return LeafField{InputType: "text", Placeholder: "e.g., 5s, 100ms"}
+		return LeafField{InputType: leafInputText, Placeholder: "e.g., 5s, 100ms"}
 
 	case config.TypeInt:
-		return LeafField{InputType: "number"}
+		return LeafField{InputType: leafInputNumber}
 	case config.TypeEmpty:
-		return LeafField{InputType: "text"}
+		return LeafField{InputType: leafInputText}
 	}
 
-	return LeafField{InputType: "text"}
+	return LeafField{InputType: leafInputText}
 }
 
 // configViewComponent resolves the component that renders one config node.
@@ -152,20 +160,20 @@ func renderConfigContent(renderer *Renderer, v *ConfigViewData) template.HTML {
 func nodeKindString(kind config.NodeKind) string {
 	switch kind {
 	case config.NodeContainer:
-		return "container"
+		return nodeKindNameContainer
 	case config.NodeList:
-		return "list"
+		return nodeKindNameList
 	case config.NodeLeaf:
-		return "leaf"
+		return nodeKindNameLeaf
 	case config.NodeFreeform:
-		return "freeform"
+		return nodeKindNameFreeform
 	case config.NodeFlex:
-		return "flex"
+		return nodeKindNameFlex
 	case config.NodeInlineList:
-		return "inline-list"
+		return nodeKindNameInlineList
 	}
 
-	return "unknown"
+	return nodeKindNameUnknown
 }
 
 // isBoolLeaf returns true if the named leaf at the given schema path has

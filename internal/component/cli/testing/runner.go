@@ -141,7 +141,7 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 
 	for _, opt := range tc.Options {
 		switch opt.Type {
-		case "file":
+		case etFile:
 			if path, ok := opt.Values["path"]; ok {
 				configPath = filepath.Join(tmpDir, path)
 			}
@@ -175,11 +175,11 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 			if _, ok := opt.Values["store"]; ok {
 				useHistoryStore = true
 			}
-		case "mode":
+		case etMode:
 			if val, ok := opt.Values["value"]; ok {
 				editorMode = val
 			}
-		case "session":
+		case etSession:
 			if user, ok := opt.Values["user"]; ok {
 				sessionUser = user
 			}
@@ -320,7 +320,7 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 			if sa.User != "" {
 				newHM, sessionErr := newHeadlessModelWithSession(configStore, configPath, sa.User, sa.Origin)
 				result.Steps = append(result.Steps, trace.StepResult{
-					Step: stepNum, Kind: "session", Assert: sa.Name,
+					Step: stepNum, Kind: etSession, Assert: sa.Name,
 					Passed: sessionErr == nil, Detail: trace.ErrString(sessionErr),
 				})
 				if sessionErr != nil {
@@ -335,7 +335,7 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 				existing, ok := sessions[sa.Name]
 				if !ok {
 					result.Steps = append(result.Steps, trace.StepResult{
-						Step: stepNum, Kind: "session", Assert: sa.Name,
+						Step: stepNum, Kind: etSession, Assert: sa.Name,
 						Passed: false, Detail: "unknown session",
 					})
 					var tb textbuf.Buffer
@@ -343,7 +343,7 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 					return result
 				}
 				result.Steps = append(result.Steps, trace.StepResult{
-					Step: stepNum, Kind: "session", Assert: sa.Name, Passed: true,
+					Step: stepNum, Kind: etSession, Assert: sa.Name, Passed: true,
 				})
 				hm = existing
 			}
@@ -354,7 +354,7 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 			hm.settleWait()
 			newHM, restartErr := createModel()
 			result.Steps = append(result.Steps, trace.StepResult{
-				Step: stepNum, Kind: "restart",
+				Step: stepNum, Kind: etRestart,
 				Passed: restartErr == nil, Detail: trace.ErrString(restartErr),
 			})
 			if restartErr != nil {
@@ -372,7 +372,7 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 			msgs, err := input.toMessages()
 			if err != nil {
 				result.Steps = append(result.Steps, trace.StepResult{
-					Step: stepNum, Kind: "input", Assert: inp.Action,
+					Step: stepNum, Kind: etInput, Assert: inp.Action,
 					Passed: false, Detail: err.Error(),
 				})
 				var tb textbuf.Buffer
@@ -420,7 +420,7 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 				}
 			}
 			result.Steps = append(result.Steps, trace.StepResult{
-				Step: stepNum, Kind: "expect", Assert: exp.Type,
+				Step: stepNum, Kind: etExpect, Assert: exp.Type,
 				Passed: lastErr == nil, Detail: trace.ErrString(lastErr),
 			})
 			if lastErr != nil {
@@ -433,7 +433,7 @@ func runTestCaseIn(tc *TestCase, tmpDir string) *TestResult {
 			// Handle wait actions (currently just skip - timer handling needs real time)
 			_ = tc.Waits[step.WaitIndex]
 			result.Steps = append(result.Steps, trace.StepResult{
-				Step: stepNum, Kind: "wait", Passed: true,
+				Step: stepNum, Kind: etWait, Passed: true,
 			})
 		}
 	}

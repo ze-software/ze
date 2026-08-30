@@ -75,15 +75,31 @@ var configVerbs = map[string]bool{
 	"compare":  true,
 }
 
+// The top-level URL prefixes. Each one is also the verb ParseURL reports for a
+// request under it, so knownPrefixes and the switch in ParseURL name one set.
+const (
+	prefixShow    = "show"
+	prefixMonitor = "monitor"
+	prefixConfig  = "config"
+	prefixAdmin   = "admin"
+	prefixPortal  = "portal"
+	prefixLogin   = "login"
+	prefixAssets  = "assets"
+)
+
+// jsonKeyError is the field a JSON response carries its failure in. The admin
+// and L2TP handlers both write it, so a caller reads one name.
+const jsonKeyError = "error"
+
 // knownPrefixes maps top-level URL prefixes to their handler logic.
 var knownPrefixes = map[string]bool{
-	"show":    true,
-	"monitor": true,
-	"config":  true,
-	"admin":   true,
-	"portal":  true,
-	"login":   true,
-	"assets":  true,
+	prefixShow:    true,
+	prefixMonitor: true,
+	prefixConfig:  true,
+	prefixAdmin:   true,
+	prefixPortal:  true,
+	prefixLogin:   true,
+	prefixAssets:  true,
 }
 
 // ParseURL parses an HTTP request URL into a ParsedURL.
@@ -96,7 +112,7 @@ func ParseURL(r *http.Request) (parsedURL, error) {
 	path = strings.TrimSuffix(path, "/")
 
 	if path == "" {
-		return parsedURL{Tier: TierView, Verb: "show", Format: format}, nil
+		return parsedURL{Tier: TierView, Verb: prefixShow, Format: format}, nil
 	}
 
 	parts := strings.SplitN(path, "/", 2)
@@ -116,35 +132,35 @@ func ParseURL(r *http.Request) (parsedURL, error) {
 	}
 
 	switch prefix {
-	case "show":
+	case prefixShow:
 		if err := ValidatePathSegments(segments); err != nil {
 			return parsedURL{}, err
 		}
-		return parsedURL{Tier: TierView, Verb: "show", Path: segments, Format: format}, nil
+		return parsedURL{Tier: TierView, Verb: prefixShow, Path: segments, Format: format}, nil
 
-	case "monitor":
+	case prefixMonitor:
 		if err := ValidatePathSegments(segments); err != nil {
 			return parsedURL{}, err
 		}
-		return parsedURL{Tier: TierView, Verb: "monitor", Path: segments, Format: format}, nil
+		return parsedURL{Tier: TierView, Verb: prefixMonitor, Path: segments, Format: format}, nil
 
-	case "config":
+	case prefixConfig:
 		return parseConfigURL(segments, format)
 
-	case "admin":
+	case prefixAdmin:
 		if err := ValidatePathSegments(segments); err != nil {
 			return parsedURL{}, err
 		}
-		return parsedURL{Tier: TierAdmin, Verb: "admin", Path: segments, Format: format}, nil
+		return parsedURL{Tier: TierAdmin, Verb: prefixAdmin, Path: segments, Format: format}, nil
 
-	case "portal":
-		return parsedURL{Tier: TierView, Verb: "portal", Path: segments, Format: format}, nil
+	case prefixPortal:
+		return parsedURL{Tier: TierView, Verb: prefixPortal, Path: segments, Format: format}, nil
 
-	case "login":
-		return parsedURL{Verb: "login", Format: format}, nil
+	case prefixLogin:
+		return parsedURL{Verb: prefixLogin, Format: format}, nil
 
-	case "assets":
-		return parsedURL{Verb: "assets", Path: segments, Format: format}, nil
+	case prefixAssets:
+		return parsedURL{Verb: prefixAssets, Path: segments, Format: format}, nil
 	}
 
 	// Unreachable: knownPrefixes check above guarantees prefix is in the switch.

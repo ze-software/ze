@@ -34,7 +34,10 @@ type l2tpMetrics struct {
 	bucketState      metrics.GaugeVec
 }
 
-var sessionLabels = []string{"sid", "ifname", "username", "ip", "caller_id"}
+// labelUsername is the Prometheus label carrying the subscriber login.
+const labelUsername = "username"
+
+var sessionLabels = []string{"sid", "ifname", labelUsername, "ip", "caller_id"}
 
 var echoRTTBuckets = []float64{
 	0.001, 0.002, 0.005,
@@ -62,9 +65,9 @@ func bindL2TPMetrics(reg metrics.Registry) {
 		sessionRxPktsTotal:  reg.CounterVec("ze_l2tp_session_rx_packets_total", "Total packets received on session pppN interface.", sessionLabels),
 		sessionTxPktsTotal:  reg.CounterVec("ze_l2tp_session_tx_packets_total", "Total packets transmitted on session pppN interface.", sessionLabels),
 
-		lcpEchoRTTSecs:   reg.HistogramVec("ze_l2tp_lcp_echo_rtt_seconds", "LCP echo round-trip time in seconds.", echoRTTBuckets, []string{"username"}),
-		lcpEchoLossRatio: reg.GaugeVec("ze_l2tp_lcp_echo_loss_ratio", "Current 100s bucket echo loss ratio per login.", []string{"username"}),
-		bucketState:      reg.GaugeVec("ze_l2tp_bucket_state", "Current CQM bucket state per login (established=0, negotiating=1, down=2).", []string{"username"}),
+		lcpEchoRTTSecs:   reg.HistogramVec("ze_l2tp_lcp_echo_rtt_seconds", "LCP echo round-trip time in seconds.", echoRTTBuckets, []string{labelUsername}),
+		lcpEchoLossRatio: reg.GaugeVec("ze_l2tp_lcp_echo_loss_ratio", "Current 100s bucket echo loss ratio per login.", []string{labelUsername}),
+		bucketState:      reg.GaugeVec("ze_l2tp_bucket_state", "Current CQM bucket state per login (established=0, negotiating=1, down=2).", []string{labelUsername}),
 	}
 	l2tpMetricsPtr.Store(m)
 }

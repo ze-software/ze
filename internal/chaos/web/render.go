@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/chaos/peer"
@@ -517,17 +518,17 @@ func writePeerGridFiltered(w io.Writer, state *DashboardState, statusFilter, sea
 func toastForEvent(ev peer.Event) (toastEntry, bool) {
 	switch ev.Type {
 	case peer.EventDisconnected:
-		return toastEntry{PeerIndex: ev.PeerIndex, Label: "disconnected", CSSClass: "toast-error", Time: ev.Time}, true
+		return toastEntry{PeerIndex: ev.PeerIndex, Label: eventLabelDisconnected, CSSClass: "toast-error", Time: ev.Time}, true
 	case peer.EventReconnecting:
-		return toastEntry{PeerIndex: ev.PeerIndex, Label: "reconnecting", CSSClass: "toast-warn", Time: ev.Time}, true
+		return toastEntry{PeerIndex: ev.PeerIndex, Label: eventLabelReconnecting, CSSClass: "toast-warn", Time: ev.Time}, true
 	case peer.EventError:
 		detail := ""
 		if ev.Err != nil {
 			detail = ev.Err.Error()
 		}
-		return toastEntry{PeerIndex: ev.PeerIndex, Label: "error", Detail: detail, CSSClass: "toast-error", Time: ev.Time}, true
+		return toastEntry{PeerIndex: ev.PeerIndex, Label: eventLabelError, Detail: detail, CSSClass: "toast-error", Time: ev.Time}, true
 	case peer.EventChaosExecuted:
-		return toastEntry{PeerIndex: ev.PeerIndex, Label: "chaos", Detail: ev.ChaosAction, CSSClass: "toast-warn", Time: ev.Time}, true
+		return toastEntry{PeerIndex: ev.PeerIndex, Label: sortChaos, Detail: ev.ChaosAction, CSSClass: "toast-warn", Time: ev.Time}, true
 	default:
 		return toastEntry{}, false
 	}
@@ -701,8 +702,8 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool, allFamilies []stri
 
 	events := ps.Events.All()
 	// Show most recent first.
-	for i := len(events) - 1; i >= 0; i-- {
-		ev := events[i]
+	for i := range slices.Backward(events) {
+		ev := &events[i]
 		evClass := eventTypeClass(ev.Type)
 		elapsed := formatElapsed(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
@@ -762,13 +763,13 @@ func eventTypeLabel(t peer.EventType) string {
 	case peer.EventEstablished:
 		return "established"
 	case peer.EventDisconnected:
-		return "disconnected"
+		return eventLabelDisconnected
 	case peer.EventError:
-		return "error"
+		return eventLabelError
 	case peer.EventChaosExecuted:
-		return "chaos"
+		return sortChaos
 	case peer.EventReconnecting:
-		return "reconnecting"
+		return eventLabelReconnecting
 	case peer.EventRouteSent:
 		return "route-sent"
 	case peer.EventRouteReceived:
@@ -788,7 +789,7 @@ func eventTypeLabel(t peer.EventType) string {
 }
 
 // eventDetail returns extra detail text for an event (prefix, error, count).
-func eventDetail(ev peer.Event) string {
+func eventDetail(ev *peer.Event) string {
 	switch ev.Type {
 	case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn:
 		if ev.Prefix.IsValid() {

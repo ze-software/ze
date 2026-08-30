@@ -30,6 +30,15 @@ type TuningResult struct {
 	Errors  []TuningError
 }
 
+// The tuning operations. Each value names one operation in a TuningError and in
+// the Applied line that reports the same operation when it succeeds.
+const (
+	tuningOpEthtoolRing = "ethtool-ring"
+	tuningOpGovernor    = "governor"
+	tuningOpIRQAffinity = "irq-affinity"
+	tuningOpUnsupported = "tuning"
+)
+
 // TuningError records a single failed tuning operation.
 type TuningError struct {
 	Operation string

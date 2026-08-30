@@ -181,7 +181,7 @@ func (in *Installer) SetMetrics(reg metrics.Registry) {
 	gv := reg.GaugeVec(
 		"ze_isis_routes_installed",
 		"Current number of IS-IS routes installed into the Loc-RIB, by level and address family.",
-		[]string{"level", "afi"},
+		[]string{labelLevel, "afi"},
 	)
 	in.metricsMu.Lock()
 	in.routesInstalled = gv

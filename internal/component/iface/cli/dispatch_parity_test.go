@@ -51,8 +51,16 @@ func TestDispatchParity(t *testing.T) {
 }
 
 // dispatchSwitchCases parses fileName in the current package and returns the
-// string-literal case values of the first switch statement found inside the
-// named function. Cases like `case "a", "b":` contribute both "a" and "b".
+// case values of the first switch statement found inside the named function.
+// Cases like `case a, b:` contribute both values.
+//
+// A case value is either a string literal or the name of a string constant
+// declared in the same file, and a name is resolved through that declaration.
+// Resolving is what lets the switch and ifaceCommands read from one set of
+// constants: sharing a constant proves the two spell a command the same way,
+// and it does not prove either list is complete, which is what this test is
+// for. An unresolvable name fails the test rather than being skipped, because
+// a silently dropped case would make the parity check vacuous.
 func dispatchSwitchCases(t *testing.T, fileName, funcName string) []string {
 	t.Helper()
 
@@ -61,6 +69,8 @@ func dispatchSwitchCases(t *testing.T, fileName, funcName string) []string {
 	if err != nil {
 		t.Fatalf("parse %s: %v", fileName, err)
 	}
+
+	constValues := stringConstants(t, file)
 
 	var fn *ast.FuncDecl
 	for _, decl := range file.Decls {
@@ -87,11 +97,19 @@ func dispatchSwitchCases(t *testing.T, fileName, funcName string) []string {
 				continue
 			}
 			for _, expr := range cc.List {
-				lit, ok := expr.(*ast.BasicLit)
-				if !ok || lit.Kind != token.STRING {
-					continue
+				switch e := expr.(type) {
+				case *ast.BasicLit:
+					if e.Kind != token.STRING {
+						continue
+					}
+					cases = append(cases, mustUnquote(t, e.Value))
+				case *ast.Ident:
+					value, ok := constValues[e.Name]
+					if !ok {
+						t.Fatalf("case %q in %q is not a string constant declared in %s", e.Name, funcName, fileName)
+					}
+					cases = append(cases, value)
 				}
-				cases = append(cases, mustUnquote(t, lit.Value))
 			}
 		}
 		return false
@@ -100,6 +118,36 @@ func dispatchSwitchCases(t *testing.T, fileName, funcName string) []string {
 		t.Fatalf("no switch statement found in %q", funcName)
 	}
 	return cases
+}
+
+// stringConstants returns every untyped string constant declared at the top
+// level of file, keyed by name. Only a `name = "literal"` spec is collected: an
+// iota or an expression is not a spelling this test can compare, and leaving it
+// out makes dispatchSwitchCases fail loudly on it.
+func stringConstants(t *testing.T, file *ast.File) map[string]string {
+	t.Helper()
+
+	values := make(map[string]string)
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.CONST {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok || len(vs.Names) != len(vs.Values) {
+				continue
+			}
+			for i, name := range vs.Names {
+				lit, ok := vs.Values[i].(*ast.BasicLit)
+				if !ok || lit.Kind != token.STRING {
+					continue
+				}
+				values[name.Name] = mustUnquote(t, lit.Value)
+			}
+		}
+	}
+	return values
 }
 
 // mustUnquote strips the surrounding double quotes from a Go string literal.

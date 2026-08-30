@@ -35,7 +35,7 @@ const (
 )
 
 var _ = env.MustRegister(env.EnvEntry{
-	Key: passphraseKey, Type: "string",
+	Key: passphraseKey, Type: envTypeString,
 	Description: "Appliance encryption passphrase (CI only, not recommended for production)",
 	Secret:      true,
 })

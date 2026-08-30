@@ -27,6 +27,23 @@ const (
 	sortChaos = "chaos"
 )
 
+// The event type labels the toast, the filter dropdown and eventTypeLabel all
+// spell. One spelling each, so a toast and its filter option cannot disagree.
+const (
+	eventLabelDisconnected = "disconnected"
+	eventLabelReconnecting = "reconnecting"
+	eventLabelError        = "error"
+)
+
+// The visualization names, used as the URL path segment, the panel selection
+// value and the render dispatch key.
+const (
+	vizFamilies     = "families"
+	vizConvergence  = "convergence"
+	vizPeerTimeline = "peer-timeline"
+	vizEvents       = "events"
+)
+
 // handleControlPause handles POST /control/pause.
 func (d *Dashboard) handleControlPause(w http.ResponseWriter, _ *http.Request) {
 	if d.control == nil {

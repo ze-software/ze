@@ -944,7 +944,7 @@ func TestStreamableBearerAuthFailureAuditRecord(t *testing.T) {
 
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
 		metaBlock(ProtocolVersion, capsNone) + `}}`
-	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer alice:wrong")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)

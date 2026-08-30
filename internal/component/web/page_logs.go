@@ -112,9 +112,9 @@ func handleLogWarningsPage(renderer *Renderer, r *http.Request, dispatch Command
 	data := logTableData{
 		Title: "Warnings",
 		Columns: []WorkbenchTableColumn{
-			{Key: "time", Label: "Time"},
-			{Key: "component", Label: labelComponent},
-			{Key: "message", Label: labelMessage},
+			{Key: colTime, Label: labelTime},
+			{Key: colComponent, Label: labelComponent},
+			{Key: colMessage, Label: labelMessage},
 			{Key: "duration", Label: "Duration"},
 		},
 		EmptyMessage: "No active warnings. All systems operating normally.",
@@ -135,9 +135,9 @@ func handleLogErrorsPage(renderer *Renderer, r *http.Request, dispatch CommandDi
 	data := logTableData{
 		Title: "Errors",
 		Columns: []WorkbenchTableColumn{
-			{Key: "time", Label: "Time"},
-			{Key: "component", Label: labelComponent},
-			{Key: "message", Label: labelMessage},
+			{Key: colTime, Label: labelTime},
+			{Key: colComponent, Label: labelComponent},
+			{Key: colMessage, Label: labelMessage},
 		},
 		EmptyMessage: "No recent errors.",
 	}

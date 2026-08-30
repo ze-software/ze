@@ -32,11 +32,11 @@ func BindMetrics(reg metrics.Registry) {
 		return
 	}
 	m := &usageMetrics{
-		ingressBytes:     reg.GaugeVec("ze_traffic_usage_ingress_bytes_total", "Ingress bytes per source IPv4 (requires track-ip)", []string{"interface", "src_ip"}),
-		egressBytes:      reg.GaugeVec("ze_traffic_usage_egress_bytes_total", "Egress bytes per destination IPv4 (requires track-ip)", []string{"interface", "dst_ip"}),
-		ingressPortBytes: reg.GaugeVec("ze_traffic_usage_ingress_port_bytes_total", "Ingress bytes per destination port and protocol", []string{"interface", "dst_port", "protocol"}),
-		egressPortBytes:  reg.GaugeVec("ze_traffic_usage_egress_port_bytes_total", "Egress bytes per source port and protocol", []string{"interface", "src_port", "protocol"}),
-		mapEntries:       reg.GaugeVec("ze_traffic_usage_map_entries", "Live entry count per BPF map", []string{"interface", "map"}),
+		ingressBytes:     reg.GaugeVec("ze_traffic_usage_ingress_bytes_total", "Ingress bytes per source IPv4 (requires track-ip)", []string{labelInterface, "src_ip"}),
+		egressBytes:      reg.GaugeVec("ze_traffic_usage_egress_bytes_total", "Egress bytes per destination IPv4 (requires track-ip)", []string{labelInterface, "dst_ip"}),
+		ingressPortBytes: reg.GaugeVec("ze_traffic_usage_ingress_port_bytes_total", "Ingress bytes per destination port and protocol", []string{labelInterface, "dst_port", labelProtocol}),
+		egressPortBytes:  reg.GaugeVec("ze_traffic_usage_egress_port_bytes_total", "Egress bytes per source port and protocol", []string{labelInterface, "src_port", labelProtocol}),
+		mapEntries:       reg.GaugeVec("ze_traffic_usage_map_entries", "Live entry count per BPF map", []string{labelInterface, "map"}),
 	}
 	metricsPtr.Store(m)
 }

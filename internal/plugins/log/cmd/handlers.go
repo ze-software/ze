@@ -10,6 +10,13 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
+// The CLI keyword the handlers accept, which is also the JSON key they answer
+// with. One spelling for each so a rename cannot reach only one of the two.
+const (
+	fieldCount = "count"
+	fieldLevel = "level"
+)
+
 // RPCs returns the RPC registrations for log commands.
 // The caller is responsible for passing these to pluginserver.RegisterRPCs.
 func RPCs() []pluginserver.RPCRegistration {
@@ -26,8 +33,8 @@ func handleLogLevels(_ *pluginserver.CommandContext, _ []string) (*plugin.Respon
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
-			"levels": levels,
-			"count":  len(levels),
+			"levels":   levels,
+			fieldCount: len(levels),
 		},
 	}, nil
 }
@@ -51,7 +58,7 @@ func handleLogRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	level, component, limit := "", "", 0
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "level":
+		case fieldLevel:
 			if i+1 >= len(args) {
 				return &plugin.Response{
 					Status: plugin.StatusError,
@@ -69,7 +76,7 @@ func handleLogRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 			}
 			i++
 			component = args[i]
-		case "count":
+		case fieldCount:
 			if i+1 >= len(args) {
 				return &plugin.Response{
 					Status: plugin.StatusError,
@@ -97,14 +104,14 @@ func handleLogRecent(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	for i := range entries {
 		out = append(out, map[string]any{
 			"timestamp": entries[i].Timestamp.UTC().Format("2006-01-02T15:04:05Z07:00"),
-			"level":     entries[i].Level,
+			fieldLevel:  entries[i].Level,
 			"component": entries[i].Component,
 			"message":   entries[i].Message,
 		})
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"entries": out, "count": len(out)},
+		Data:   plugin.Map{"entries": out, fieldCount: len(out)},
 	}, nil
 }
 
@@ -120,7 +127,7 @@ func setLevel(subsystem, levelStr string) *plugin.Response {
 		Status: plugin.StatusDone,
 		Data: plugin.Map{
 			"subsystem": subsystem,
-			"level":     levelStr,
+			fieldLevel:  levelStr,
 		},
 	}
 }

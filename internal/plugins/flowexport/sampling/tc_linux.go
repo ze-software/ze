@@ -36,11 +36,9 @@ func SetupSampling(ifaceName string, rate, group, truncSize uint32) error {
 	}
 
 	qdisc := &netlink.Clsact{
-		QdiscAttrs: netlink.QdiscAttrs{
-			LinkIndex: linkIndex,
-			Handle:    netlink.MakeHandle(0xffff, 0),
-			Parent:    netlink.HANDLE_CLSACT,
-		},
+		LinkIndex: linkIndex,
+		Handle:    netlink.MakeHandle(0xffff, 0),
+		Parent:    netlink.HANDLE_CLSACT,
 	}
 	if err := netlink.QdiscAdd(qdisc); err != nil {
 		if !errors.Is(err, unix.EEXIST) {
@@ -54,13 +52,11 @@ func SetupSampling(ifaceName string, rate, group, truncSize uint32) error {
 	action.TruncSize = truncSize
 
 	filter := &netlink.MatchAll{
-		FilterAttrs: netlink.FilterAttrs{
-			LinkIndex: linkIndex,
-			Parent:    netlink.HANDLE_MIN_INGRESS,
-			Priority:  SampleFilterPriority,
-			Protocol:  unix.ETH_P_ALL,
-		},
-		Actions: []netlink.Action{action},
+		LinkIndex: linkIndex,
+		Parent:    netlink.HANDLE_MIN_INGRESS,
+		Priority:  SampleFilterPriority,
+		Protocol:  unix.ETH_P_ALL,
+		Actions:   []netlink.Action{action},
 	}
 	if err := netlink.FilterAdd(filter); err != nil {
 		if errors.Is(err, unix.EEXIST) {
@@ -86,12 +82,10 @@ func RemoveSampling(ifaceName string) error {
 	}
 
 	filter := &netlink.MatchAll{
-		FilterAttrs: netlink.FilterAttrs{
-			LinkIndex: linkIndex,
-			Parent:    netlink.HANDLE_MIN_INGRESS,
-			Priority:  SampleFilterPriority,
-			Protocol:  unix.ETH_P_ALL,
-		},
+		LinkIndex: linkIndex,
+		Parent:    netlink.HANDLE_MIN_INGRESS,
+		Priority:  SampleFilterPriority,
+		Protocol:  unix.ETH_P_ALL,
 	}
 	if err := netlink.FilterDel(filter); err != nil {
 		if !errors.Is(err, unix.ENOENT) {

@@ -22,6 +22,8 @@ const (
 	routeAttributeLargeCommunity    = "large-community"
 	routeAttributeCommunity         = "community"
 	routeAttributeOriginatorID      = "originator-id"
+	routeAttributeASPath            = "as-path"
+	routeAttributeClusterList       = "cluster-list"
 )
 
 // flexAttrKeywords lists path attribute keywords that go in the attribute block
@@ -36,8 +38,8 @@ var flexAttrKeywords = map[string]bool{
 	routeAttributeLargeCommunity:    true,
 	routeAttributeCommunity:         true,
 	routeAttributeOriginatorID:      true,
-	"cluster-list":                  true,
-	"as-path":                       true,
+	routeAttributeClusterList:       true,
+	routeAttributeASPath:            true,
 	"bgp-prefix-sid-srv6":           true,
 }
 
@@ -53,7 +55,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 		}
 
 		// Process each SAFI (unicast, multicast, nlri-mpls, mpls-vpn, flow, vpls, evpn)
-		safis := []string{"unicast", "multicast", safiNLRIMPLS, "mpls-vpn", "flow", "vpls", "evpn"}
+		safis := []string{"unicast", "multicast", safiNLRIMPLS, "mpls-vpn", "flow", safiVPLS, "evpn"}
 		for _, safi := range safis {
 			// With ze:syntax "inline-list", routes are stored as list entries, not container values.
 			// Each list entry has: Key=prefix, Value=Tree containing attributes.
@@ -84,8 +86,8 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 				}
 
 				// Copy common attributes from the route's tree
-				attrFields := []string{routeAttributeNextHop, routeAttributeLocalPreference, routeAttributeMED, "as-path", routeAttributeCommunity,
-					routeAttributeExtendedCommunity, routeAttributeLargeCommunity, "aggregator", routeAttributeOriginatorID, "cluster-list",
+				attrFields := []string{routeAttributeNextHop, routeAttributeLocalPreference, routeAttributeMED, routeAttributeASPath, routeAttributeCommunity,
+					routeAttributeExtendedCommunity, routeAttributeLargeCommunity, "aggregator", routeAttributeOriginatorID, routeAttributeClusterList,
 					"rd", "label", "labels", "path-information"}
 				for _, field := range attrFields {
 					if v, ok := attrTree.Get(field); ok {
@@ -107,7 +109,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 
 		// Handle flex SAFIs (mcast-vpn, mup, vpls) which store values via AppendValue.
 		// These use ze:syntax "flex" in the ExaBGP YANG schema, so GetListOrdered returns nothing.
-		flexSafis := []string{"mcast-vpn", "mup", "vpls", "sr-policy"}
+		flexSafis := []string{"mcast-vpn", "mup", safiVPLS, "sr-policy"}
 		for _, safi := range flexSafis {
 			values := afiBlock.GetMultiValues(safi)
 			if len(values) == 0 {
@@ -294,13 +296,13 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 // Handles both inline VPLS routes (flex multi-values) and named VPLS blocks (list entries).
 func convertL2VPNToUpdate(l2vpn, dst *config.Tree) {
 	// Handle inline VPLS routes (stored via AppendValue by the flex parser).
-	vplsValues := l2vpn.GetMultiValues("vpls")
+	vplsValues := l2vpn.GetMultiValues(safiVPLS)
 	if len(vplsValues) > 0 {
-		convertFlexToUpdate("l2vpn", "vpls", vplsValues, dst)
+		convertFlexToUpdate("l2vpn", safiVPLS, vplsValues, dst)
 	}
 
 	// Handle named VPLS routes (stored via AddListEntry by the flex parser).
-	for _, entry := range l2vpn.GetListOrdered("vpls") {
+	for _, entry := range l2vpn.GetListOrdered(safiVPLS) {
 		convertNamedVPLSToUpdate(entry.Value, dst)
 	}
 }
@@ -321,7 +323,7 @@ func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
 		}
 	}
 	// Array fields: value-or-array strips brackets, so re-wrap multi-word values.
-	arrayFields := []string{"as-path", routeAttributeCommunity, routeAttributeExtendedCommunity, routeAttributeLargeCommunity, "cluster-list"}
+	arrayFields := []string{routeAttributeASPath, routeAttributeCommunity, routeAttributeExtendedCommunity, routeAttributeLargeCommunity, routeAttributeClusterList}
 	for _, field := range arrayFields {
 		if v, ok := vpls.Get(field); ok {
 			if strings.Contains(v, " ") && !strings.HasPrefix(v, "[") {
@@ -373,8 +375,8 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 
 	// Path attributes that go in the attribute block.
 	// Note: rd and label are NOT here — they go inline in the NLRI line.
-	attrFields := []string{routeAttributeNextHop, routeAttributeLocalPreference, routeAttributeMED, "as-path", routeAttributeCommunity,
-		routeAttributeExtendedCommunity, routeAttributeLargeCommunity, "aggregator", routeAttributeOriginatorID, "cluster-list",
+	attrFields := []string{routeAttributeNextHop, routeAttributeLocalPreference, routeAttributeMED, routeAttributeASPath, routeAttributeCommunity,
+		routeAttributeExtendedCommunity, routeAttributeLargeCommunity, "aggregator", routeAttributeOriginatorID, routeAttributeClusterList,
 		"path-information", "labels", "split"}
 	for _, field := range attrFields {
 		if v, ok := attrTree.Get(field); ok {
@@ -545,7 +547,7 @@ func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
 // flexNLRIContent builds NLRI content with the add operation keyword.
 // VPLS parser expects rd before the operation keyword; MVPN/MUP expect add first.
 func flexNLRIContent(safi string, nlriParts []string) string {
-	if safi == "vpls" {
+	if safi == safiVPLS {
 		// Extract rd (if present) and place before add.
 		var parts, rest []string
 		for i := 0; i < len(nlriParts); i++ {

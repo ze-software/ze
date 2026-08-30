@@ -19,14 +19,14 @@ func cmdCreate(args []string) int {
 	}
 
 	switch args[0] {
-	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
+	case subcmdHelp, flagHelpShort, flagHelpLong:
 		createUsage()
 		return 0
-	case "dummy": //nolint:goconst // CLI dispatch strings, constants in internal/component/iface
+	case ifaceTypeDummy:
 		return cmdCreateDummy(args[1:])
-	case "veth": //nolint:goconst // CLI dispatch strings, constants in internal/component/iface
+	case ifaceTypeVeth:
 		return cmdCreateVeth(args[1:])
-	case "bridge": //nolint:goconst // CLI dispatch strings, constants in internal/component/iface
+	case ifaceTypeBridge:
 		return cmdCreateBridge(args[1:])
 	default:
 		fmt.Fprintf(os.Stderr, "error: unknown interface type: %s (expected dummy, veth, or bridge)\n", args[0])

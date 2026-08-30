@@ -19,6 +19,10 @@ const (
 	exitError = 1
 
 	defaultTimeout = 30 * time.Second
+
+	// opASSet is the operation keyword that resolves an AS-SET. Both
+	// `ze resolve irr` and `ze resolve peeringdb` accept it.
+	opASSet = "as-set"
 )
 
 var subcommands = []string{"dns", "cymru", "peeringdb", "irr"}

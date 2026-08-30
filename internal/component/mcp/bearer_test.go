@@ -13,7 +13,7 @@ import (
 
 func TestBearerAuthenticator_ValidToken(t *testing.T) {
 	a := bearerAuthenticator{hash: hashToken("sekret")}
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer sekret")
 
 	id, err := a.Authenticate(r)
@@ -27,7 +27,7 @@ func TestBearerAuthenticator_ValidToken(t *testing.T) {
 
 func TestBearerAuthenticator_MissingHeader(t *testing.T) {
 	a := bearerAuthenticator{hash: hashToken("sekret")}
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 
 	_, err := a.Authenticate(r)
 	if err == nil {
@@ -43,7 +43,7 @@ func TestBearerAuthenticator_MissingHeader(t *testing.T) {
 
 func TestBearerAuthenticator_WrongToken(t *testing.T) {
 	a := bearerAuthenticator{hash: hashToken("sekret")}
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer nope")
 
 	_, err := a.Authenticate(r)
@@ -58,7 +58,7 @@ func TestBearerAuthenticator_WrongToken(t *testing.T) {
 func TestBearerAuthenticator_LowercaseBearerSchemeAccepted(t *testing.T) {
 	// RFC 7235: auth-scheme is case-insensitive.
 	a := bearerAuthenticator{hash: hashToken("sekret")}
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "bearer sekret")
 
 	if _, err := a.Authenticate(r); err != nil {
@@ -68,7 +68,7 @@ func TestBearerAuthenticator_LowercaseBearerSchemeAccepted(t *testing.T) {
 
 func TestBearerAuthenticator_WrongScheme(t *testing.T) {
 	a := bearerAuthenticator{hash: hashToken("sekret")}
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Basic sekret")
 
 	_, err := a.Authenticate(r)
@@ -86,7 +86,7 @@ func TestBearerListAuthenticator_ValidIdentity(t *testing.T) {
 		{name: "alice", hash: hashToken("alice-token"), scopes: []string{"mcp.read", "mcp.write"}},
 		{name: "bob", hash: hashToken("bob-token")},
 	}}
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer alice-token")
 
 	id, err := a.Authenticate(r)
@@ -105,7 +105,7 @@ func TestBearerListAuthenticator_InvalidToken(t *testing.T) {
 	a := bearerListAuthenticator{entries: []bearerListEntry{
 		{name: "alice", hash: hashToken("alice-token")},
 	}}
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer unknown")
 
 	_, err := a.Authenticate(r)
@@ -121,7 +121,7 @@ func TestBearerListAuthenticator_MissingHeader(t *testing.T) {
 	a := bearerListAuthenticator{entries: []bearerListEntry{
 		{name: "alice", hash: hashToken("alice-token")},
 	}}
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 
 	_, err := a.Authenticate(r)
 	if err == nil {
@@ -137,7 +137,7 @@ func TestBearerListAuthenticator_SecondIdentityMatches(t *testing.T) {
 		{name: "alice", hash: hashToken("alice-token")},
 		{name: "bob", hash: hashToken("bob-token")},
 	}}
-	r := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	r.Header.Set("Authorization", "Bearer bob-token")
 
 	id, err := a.Authenticate(r)
@@ -256,7 +256,7 @@ func TestStreamable_BearerListIdentityOnEveryRequest(t *testing.T) {
 	}
 
 	// The scope rides the same Identity value the name does.
-	req := httptest.NewRequest(http.MethodPost, Endpoint, http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, http.NoBody)
 	req.Header.Set("Authorization", "Bearer alice-token")
 	srv, err := NewStreamable(StreamableConfig{
 		AuthMode:   AuthBearerList,
@@ -293,7 +293,7 @@ func TestStreamable_BearerListRejectsInvalidToken(t *testing.T) {
 
 	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
 		metaBlock(ProtocolVersion, capsNone) + `}}`
-	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
 	req.Header.Set("Mcp-Method", "tools/list")

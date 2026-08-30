@@ -346,12 +346,12 @@ func (e *engine) setMetrics(reg metrics.Registry) {
 	e.adjUp = reg.GaugeVec(
 		"ze_isis_adjacencies_up",
 		"Current number of IS-IS adjacencies in the Up state, by level and interface.",
-		[]string{"level", "interface"},
+		[]string{labelLevel, "interface"},
 	)
 	e.adjTotal = reg.GaugeVec(
 		"ze_isis_adjacencies_total",
 		"Current number of IS-IS adjacencies (any state) by level.",
-		[]string{"level"},
+		[]string{labelLevel},
 	)
 	e.mu.Unlock()
 	// The DIS subsystem (isis-8) OWNS and registers exactly these umbrella-canonical
@@ -360,12 +360,12 @@ func (e *engine) setMetrics(reg metrics.Registry) {
 	e.disElections = reg.CounterVec(
 		"ze_isis_dis_elections_total",
 		"Total IS-IS Designated IS elections that changed the elected DIS, by level.",
-		[]string{"level"},
+		[]string{labelLevel},
 	)
 	e.pseudonodeG = reg.GaugeVec(
 		"ze_isis_pseudonode_lsps",
 		"Current number of pseudo-node LSPs this node originates as the elected DIS, by level.",
-		[]string{"level"},
+		[]string{labelLevel},
 	)
 	e.disMu.Unlock()
 	// The authentication subsystem (isis-10) OWNS and registers exactly this
@@ -374,7 +374,7 @@ func (e *engine) setMetrics(reg metrics.Registry) {
 	e.authFailures = reg.CounterVec(
 		"ze_isis_auth_failures_total",
 		"Total IS-IS PDUs rejected because authentication verification failed, by level and interface.",
-		[]string{"level", "interface"},
+		[]string{labelLevel, "interface"},
 	)
 	e.ksMu.Unlock()
 	e.publishPseudonodeMetric()
@@ -403,7 +403,7 @@ func (e *engine) setMetrics(reg metrics.Registry) {
 	e.lspReorigs = reg.CounterVec(
 		"ze_isis_lsp_reoriginations_total",
 		"Total IS-IS own-LSP re-originations driven by redistribution inject/withdraw, by level.",
-		[]string{"level"},
+		[]string{labelLevel},
 	)
 }
 

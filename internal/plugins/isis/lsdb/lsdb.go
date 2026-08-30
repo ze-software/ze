@@ -24,6 +24,10 @@ import (
 	"github.com/ze-software/ze/internal/plugins/isis/types"
 )
 
+// labelLevel is the Prometheus label that carries the IS-IS level (1 or 2) a
+// sample belongs to.
+const labelLevel = "level"
+
 // Level is the routing level a database holds LSPs for (1 or 2). The LSDB keeps
 // one independent database per level; an L1L2 node populates both.
 type Level uint8
@@ -126,11 +130,11 @@ func (d *LSDB) SetMetrics(reg metrics.Registry) {
 		return
 	}
 	d.mu.Lock()
-	d.mLSPs = reg.GaugeVec("ze_isis_lsps", "Current number of LSPs in the IS-IS link-state database, by level.", []string{"level"})
-	d.mFragments = reg.GaugeVec("ze_isis_lsp_fragments", "Current number of own-LSP fragments in the IS-IS link-state database, by level.", []string{"level"})
-	d.mOriginations = reg.CounterVec("ze_isis_lsp_originations_total", "Total IS-IS own-LSP originations (including refreshes and regenerations), by level.", []string{"level"})
-	d.mWraps = reg.CounterVec("ze_isis_sequence_wraps_total", "Total IS-IS LSP sequence-number wraparounds, by level.", []string{"level"})
-	d.mPurges = reg.CounterVec("ze_isis_purges_total", "Total IS-IS LSPs that reached zero Remaining Lifetime and were purged, by level.", []string{"level"})
+	d.mLSPs = reg.GaugeVec("ze_isis_lsps", "Current number of LSPs in the IS-IS link-state database, by level.", []string{labelLevel})
+	d.mFragments = reg.GaugeVec("ze_isis_lsp_fragments", "Current number of own-LSP fragments in the IS-IS link-state database, by level.", []string{labelLevel})
+	d.mOriginations = reg.CounterVec("ze_isis_lsp_originations_total", "Total IS-IS own-LSP originations (including refreshes and regenerations), by level.", []string{labelLevel})
+	d.mWraps = reg.CounterVec("ze_isis_sequence_wraps_total", "Total IS-IS LSP sequence-number wraparounds, by level.", []string{labelLevel})
+	d.mPurges = reg.CounterVec("ze_isis_purges_total", "Total IS-IS LSPs that reached zero Remaining Lifetime and were purged, by level.", []string{labelLevel})
 	d.mu.Unlock()
 	d.publishSizeMetrics()
 }

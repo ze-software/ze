@@ -20,7 +20,7 @@ func cmdAddr(args []string) int {
 	}
 
 	switch args[0] {
-	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
+	case subcmdHelp, flagHelpShort, flagHelpLong:
 		addrUsage()
 		return 0
 	case "add":

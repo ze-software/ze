@@ -29,7 +29,7 @@ const (
 )
 
 var _ = env.MustRegister(env.EnvEntry{
-	Key: sshPasswordKey, Type: "string",
+	Key: sshPasswordKey, Type: envTypeString,
 	Description: "SSH password for appliance init/passwd (CI only)",
 })
 

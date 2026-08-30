@@ -36,7 +36,7 @@ func newSNMP6Collector(fs procfs.FS, interval time.Duration) *snmp6Collector {
 func (c *snmp6Collector) Name() string { return "snmp6" }
 
 func (c *snmp6Collector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.sysIPv6 = reg.GaugeVec(prefix+"_system_ipv6_kilobits_persec_average", "System IPv6 Bandwidth", labels)
 	c.packets = reg.GaugeVec(prefix+"_ipv6_packets_packets_persec_average", "IPv6 Packets", labels)
 	c.errors = reg.GaugeVec(prefix+"_ipv6_errors_packets_persec_average", "IPv6 Errors", labels)

@@ -230,23 +230,27 @@ func ntpSyncInfo() map[string]any {
 	}
 }
 
+// fieldEnabled is the YANG leaf that switches NTP on, and the JSON key the
+// status view answers with.
+const fieldEnabled = "enabled"
+
 // handleShowSystemNTP returns the NTP sync status summary.
 func handleShowSystemNTP(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	st := loadState()
 	if st == nil {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"enabled": false},
+			Data:   plugin.Map{fieldEnabled: false},
 		}, nil
 	}
 	if !st.Enabled {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
-			Data:   plugin.Map{"enabled": false},
+			Data:   plugin.Map{fieldEnabled: false},
 		}, nil
 	}
 	data := map[string]any{
-		"enabled":       true,
+		fieldEnabled:    true,
 		"synced":        st.Synced,
 		"source":        st.Source,
 		"offset":        st.Offset.String(),

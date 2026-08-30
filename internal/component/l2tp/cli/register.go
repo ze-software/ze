@@ -7,8 +7,12 @@ package cli
 
 import "github.com/ze-software/ze/internal/component/command/registry"
 
+// commandL2TP is the root command name, and the daemon grammar token that
+// follows the verb in every command this package forwards.
+const commandL2TP = "l2tp"
+
 func init() {
-	registry.MustRegisterRootHandler("l2tp", func(_ *registry.RuntimeContext, args []string) int {
+	registry.MustRegisterRootHandler(commandL2TP, func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
 	}, registry.Meta{
 		Description: "L2TP tools",

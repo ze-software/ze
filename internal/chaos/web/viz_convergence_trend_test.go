@@ -226,7 +226,7 @@ func TestHandleVizConvergenceTrend(t *testing.T) {
 	d.state.ConvergenceTrend.Push(10 * time.Millisecond)
 	d.state.ConvergenceTrend.Push(50 * time.Millisecond)
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/convergence-trend", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/viz/convergence-trend", http.NoBody)
 	rec := httptest.NewRecorder()
 	d.handleVizConvergenceTrend(rec, req)
 

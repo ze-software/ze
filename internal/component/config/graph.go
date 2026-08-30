@@ -234,20 +234,20 @@ func addListenerNodes(g *Graph, tree *Tree, schema *Schema) {
 // DiscoverListenerServices: "web", "ssh", "plugin-hub", "looking-glass", etc.
 func listenerSectionName(service string) string {
 	switch {
-	case service == "web" || strings.HasPrefix(service, "web "):
-		return "web"
+	case service == sectionWeb || strings.HasPrefix(service, sectionWeb+" "):
+		return sectionWeb
 	case service == listenerServiceSSH || strings.HasPrefix(service, listenerServiceSSH+" "):
 		return listenerServiceSSH
-	case service == "looking-glass" || strings.HasPrefix(service, "looking-glass "):
-		return "looking-glass"
+	case service == sectionLookingGlass || strings.HasPrefix(service, sectionLookingGlass+" "):
+		return sectionLookingGlass
 	case service == "mcp" || strings.HasPrefix(service, "mcp "):
 		return sectionEnvironment
 	case strings.HasPrefix(service, "plugin-hub"):
 		return sectionPlugin
 	case strings.HasPrefix(service, "dns"):
 		return "dns"
-	case strings.HasPrefix(service, "telemetry"):
-		return "telemetry"
+	case strings.HasPrefix(service, sectionTelemetry):
+		return sectionTelemetry
 	case strings.HasPrefix(service, "api-server"):
 		return sectionEnvironment
 	case strings.HasPrefix(service, "wireguard"):
@@ -261,10 +261,16 @@ func listenerSectionName(service string) string {
 }
 
 const (
-	sectionBGP         = "bgp"
-	sectionEnvironment = "environment"
-	sectionInterface   = "interface"
-	sectionPlugin      = "plugin"
+	sectionBGP          = "bgp"
+	sectionEnvironment  = "environment"
+	sectionInterface    = "interface"
+	sectionPlugin       = "plugin"
+	sectionDaemon       = "daemon"
+	sectionReactor      = "reactor"
+	sectionChaos        = "chaos"
+	sectionWeb          = "web"
+	sectionLookingGlass = "looking-glass"
+	sectionTelemetry    = "telemetry"
 )
 
 // addPluginRegistryEdges adds edges from registered plugins to their declared config roots.

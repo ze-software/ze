@@ -39,14 +39,17 @@ func (fakeMonitorOriginResolver) LookupOrigin(_ context.Context, ip string) (com
 	return command.OriginResult{}, errNoFakeRecord
 }
 
+// pingFieldSeq is the sequence number key of a ping reply row.
+const pingFieldSeq = "seq"
+
 // fakePingFactory returns a reply channel pre-filled with three deterministic
 // replies (two ok, one timeout) and already closed: the first poll drains the
 // session and the monitor stops on its own.
 func fakePingFactory(ctx context.Context, _ string, _, _ time.Duration, _, _ int) (<-chan map[string]any, context.CancelFunc, error) {
 	ch := make(chan map[string]any, 3)
-	ch <- map[string]any{"seq": 0, "status": "ok", "rtt-ms": 1.234}
-	ch <- map[string]any{"seq": 1, "status": "ok", "rtt-ms": 2.345}
-	ch <- map[string]any{"seq": 2, "status": "timeout"}
+	ch <- map[string]any{pingFieldSeq: 0, etStatus: "ok", "rtt-ms": 1.234}
+	ch <- map[string]any{pingFieldSeq: 1, etStatus: "ok", "rtt-ms": 2.345}
+	ch <- map[string]any{pingFieldSeq: 2, etStatus: "timeout"}
 	close(ch)
 	_, cancel := context.WithCancel(ctx)
 	return ch, cancel, nil

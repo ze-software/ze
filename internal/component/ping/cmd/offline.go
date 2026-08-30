@@ -26,7 +26,7 @@ func printPingResults(w io.Writer, results map[string]any) {
 	if replies, ok := results["replies"].([]map[string]any); ok {
 		for _, r := range replies {
 			seq, _ := r["seq"].(int)
-			status, _ := r["status"].(string)
+			status, _ := r[fieldStatus].(string)
 			tb.Str("  seq=").Int(int64(seq))
 			if status == "ok" {
 				rtt, _ := r["rtt-ms"].(float64)

@@ -75,12 +75,12 @@ func runDeactivateLike(store storage.Storage, args []string, activate bool) int 
 			Summary: summary,
 			Usage:   []string{tb.Reset().Str("ze config ").Str(verb).Str(" [options] <config-file> <path...>").String()},
 			Sections: []helpfmt.HelpSection{
-				{Title: "Description", Entries: []helpfmt.HelpEntry{
+				{Title: helpSectionDescription, Entries: []helpfmt.HelpEntry{
 					{Name: "", Desc: "Targets a leaf, container, list entry, or leaf-list value."},
 					{Name: "", Desc: "The deactivated node round-trips through save/load and is skipped at apply time."},
 				}},
-				{Title: "Options", Entries: []helpfmt.HelpEntry{
-					{Name: "--dry-run", Desc: "Show what would change without writing"},
+				{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
+					{Name: helpFlagDryRun, Desc: "Show what would change without writing"},
 					{Name: "--reload", Desc: "Notify the running daemon to reload after save"},
 				}},
 			},

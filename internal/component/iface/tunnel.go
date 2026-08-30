@@ -91,16 +91,32 @@ func parseTunnelKind(name string) (TunnelKind, bool) {
 //
 // Related: kernelTunnelKinds (discover.go) maps the same kernel names the other
 // way, for classifying discovered links into the single "tunnel" ze type.
+// Netlink link types, as the kernel reports them for a tunnel device. This is
+// the kernel's driver vocabulary, not the YANG one that tunnelKindNames holds:
+// the two agree on every kind except TunnelKindIPIP6, which is YANG "ipip6" and
+// kernel "ip6tnl". kernelTunnelKinds (discover.go) reads the same constants, so
+// the set it holds cannot drift from the values mapped here.
+const (
+	kernelLinkGRE       = "gre"
+	kernelLinkGRETap    = "gretap"
+	kernelLinkIP6GRE    = "ip6gre"
+	kernelLinkIP6GRETap = "ip6gretap"
+	kernelLinkIPIP      = "ipip"
+	kernelLinkSIT       = "sit"
+	kernelLinkIP6Tnl    = "ip6tnl"
+	kernelLinkVxlan     = "vxlan"
+)
+
 var kernelLinkTypes = map[TunnelKind]string{
-	TunnelKindGRE:       "gre",
-	TunnelKindGRETap:    "gretap",
-	TunnelKindIP6GRE:    "ip6gre",
-	TunnelKindIP6GRETap: "ip6gretap",
-	TunnelKindIPIP:      "ipip",
-	TunnelKindSIT:       "sit",
-	TunnelKindIP6Tnl:    "ip6tnl",
-	TunnelKindIPIP6:     "ip6tnl",
-	TunnelKindVxlan:     "vxlan",
+	TunnelKindGRE:       kernelLinkGRE,
+	TunnelKindGRETap:    kernelLinkGRETap,
+	TunnelKindIP6GRE:    kernelLinkIP6GRE,
+	TunnelKindIP6GRETap: kernelLinkIP6GRETap,
+	TunnelKindIPIP:      kernelLinkIPIP,
+	TunnelKindSIT:       kernelLinkSIT,
+	TunnelKindIP6Tnl:    kernelLinkIP6Tnl,
+	TunnelKindIPIP6:     kernelLinkIP6Tnl,
+	TunnelKindVxlan:     kernelLinkVxlan,
 }
 
 // kernelLinkType returns the netlink link type the kernel reports for this

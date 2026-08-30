@@ -41,10 +41,12 @@ const (
 	// empty baseline (its early values seed the baseline first).
 	warmupTicks = 3
 
-	// featOutInRatio names one feature in three places: its stddev floor, and the
-	// two contribution rows that report it. The name is what the show command and
-	// the tests match on, so the three must not drift apart.
-	featOutInRatio = "out-in-ratio"
+	// featOutInRatio and featPortEntropy each name one feature in three places:
+	// its stddev floor, and the two contribution rows that report it. The name is
+	// what the show command and the tests match on, so the three must not drift
+	// apart.
+	featOutInRatio  = "out-in-ratio"
+	featPortEntropy = "port-entropy"
 )
 
 // baselineUpdate defers folding a value into a feature baseline so the caller can
@@ -62,7 +64,7 @@ func floorFor(name string) float64 {
 		return 1.0
 	case featOutInRatio:
 		return 0.5
-	case "port-entropy", "src-entropy":
+	case featPortEntropy, "src-entropy":
 		// Both are an entropy in bits, on the same scale.
 		return 0.2
 	default: // beaconing
@@ -371,7 +373,7 @@ func sourceSignals(fe trafficfeature.FeatureEntry) entitySignals {
 		fanOut:          float64(fe.FanOut),
 		ratio:           fe.OutInRatio,
 		spread:          fe.PortEntropy,
-		spreadName:      "port-entropy",
+		spreadName:      featPortEntropy,
 		beacon:          fe.Beaconing,
 		fresh:           fe.NewPeer,
 		freshName:       "new-peer",
@@ -388,7 +390,7 @@ func destSignals(fe trafficfeature.FeatureEntry) entitySignals {
 		fanOut:     float64(fe.FanOut),
 		ratio:      fe.OutInRatio,
 		spread:     fe.PortEntropy,
-		spreadName: "port-entropy",
+		spreadName: featPortEntropy,
 		beacon:     fe.Beaconing,
 		fresh:      fe.NewPeer,
 		freshName:  "new-peer",

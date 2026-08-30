@@ -290,7 +290,7 @@ func (m Model) handleTab() (tea.Model, tea.Cmd) {
 
 	if len(m.completions) == 1 {
 		// Skip hint-only completions (e.g., <value>, <string>) -- display-only, not applicable
-		if m.completions[0].Type == "hint" {
+		if m.completions[0].Type == completionHint {
 			return m, nil
 		}
 		// Single completion: apply it and advance
@@ -648,7 +648,7 @@ func appendCLIFormatCompletions(completions []Completion, input string) []Comple
 	const cmd = "set cli format"
 	if input == "" || strings.HasPrefix(cmd, input) {
 		return append(completions, Completion{
-			Text: cmd, Description: "Set default output format", Type: "command",
+			Text: cmd, Description: "Set default output format", Type: completionCommand,
 		})
 	}
 	var tb textbuf.Buffer
@@ -656,7 +656,7 @@ func appendCLIFormatCompletions(completions []Completion, input string) []Comple
 	if input == cmd || input == cmdSpace {
 		for name := range validCLIFormats {
 			completions = append(completions, Completion{
-				Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), Description: tb.Reset().Str(name).Str(" format").String(), Type: "value",
+				Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), Description: tb.Reset().Str(name).Str(" format").String(), Type: completionValue,
 			})
 		}
 		return completions
@@ -666,7 +666,7 @@ func appendCLIFormatCompletions(completions []Completion, input string) []Comple
 		for name := range validCLIFormats {
 			if strings.HasPrefix(name, partial) {
 				completions = append(completions, Completion{
-					Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), Description: tb.Reset().Str(name).Str(" format").String(), Type: "value",
+					Text: tb.Reset().Str(cmd).Byte(' ').Str(name).String(), Description: tb.Reset().Str(name).Str(" format").String(), Type: completionValue,
 				})
 			}
 		}

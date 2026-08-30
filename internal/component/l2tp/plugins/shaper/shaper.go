@@ -40,6 +40,10 @@ type sessionState struct {
 
 var shaperInstance = &shaperPlugin{}
 
+// defaultClassName is the traffic class every shaped session gets, and the HTB
+// qdisc's default class.
+const defaultClassName = "default"
+
 func (s *shaperPlugin) setEventBus(eb ze.EventBus) {
 	s.busMu.Lock()
 	defer s.busMu.Unlock()
@@ -191,10 +195,10 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, ra
 	}
 
 	if qdiscType == traffic.QdiscHTB {
-		qos.Qdisc.DefaultClass = "default"
+		qos.Qdisc.DefaultClass = defaultClassName
 		qos.Qdisc.Classes = []traffic.TrafficClass{
 			{
-				Name: "default",
+				Name: defaultClassName,
 				Rate: rateBps,
 				Ceil: rateBps,
 			},
@@ -202,7 +206,7 @@ func (s *shaperPlugin) applyTC(ifaceName string, qdiscType traffic.QdiscType, ra
 	} else {
 		qos.Qdisc.Classes = []traffic.TrafficClass{
 			{
-				Name: "default",
+				Name: defaultClassName,
 				Rate: rateBps,
 			},
 		}

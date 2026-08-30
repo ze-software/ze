@@ -15,7 +15,7 @@ const vppSocketPath = "/run/vpp/api.sock"
 
 // RegisterHealthCheck registers the VPP health check with the default registry.
 func RegisterHealthCheck() {
-	health.Register("vpp", checkVPPHealth)
+	health.Register(backendVPP, checkVPPHealth)
 }
 
 func checkVPPHealth() (health.Status, string) {

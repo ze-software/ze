@@ -23,10 +23,10 @@ type vizTab struct {
 
 // vizTabs lists all available visualizations for panel selection.
 var vizTabs = []vizTab{
-	{Name: "families", Label: "Families", Interval: "2s"},
-	{Name: "convergence", Label: "Convergence", Interval: "2s"},
-	{Name: "peer-timeline", Label: "Timeline", Interval: "2s"},
-	{Name: "events", Label: "Events", Interval: "1s"},
+	{Name: vizFamilies, Label: "Families", Interval: "2s"},
+	{Name: vizConvergence, Label: "Convergence", Interval: "2s"},
+	{Name: vizPeerTimeline, Label: "Timeline", Interval: "2s"},
+	{Name: vizEvents, Label: "Events", Interval: "1s"},
 	{Name: "all-peers", Label: "All Peers", Interval: "2s"},
 	{Name: "route-matrix", Label: "Route Matrix", Interval: "2s"},
 	{Name: "chaos-timeline", Label: "Chaos Timeline", Interval: "2s"},
@@ -35,7 +35,7 @@ var vizTabs = []vizTab{
 }
 
 // defaultPanelSelections holds the initial viz for each of the 4 panel slots.
-var defaultPanelSelections = [maxPanels]string{"families", "convergence", "peer-timeline", "events"}
+var defaultPanelSelections = [maxPanels]string{vizFamilies, vizConvergence, vizPeerTimeline, vizEvents}
 
 const maxPanels = 4
 
@@ -157,13 +157,13 @@ func writePanelSlot(w io.Writer, d *Dashboard, slot int, selections [maxPanels]s
 // capturing the output in the provided writer.
 func renderVizToBuffer(w io.Writer, d *Dashboard, vizName string) {
 	switch vizName {
-	case "families":
+	case vizFamilies:
 		writeFamilyMatrix(w, d.state)
-	case "convergence":
+	case vizConvergence:
 		writeConvergenceHistogram(w, d.state.Convergence, d.state.ConvergenceDeadline, pagePanel)
-	case "peer-timeline":
+	case vizPeerTimeline:
 		writePeerTimeline(w, d.state, 1, "all")
-	case "events":
+	case vizEvents:
 		writeEventStream(w, d.state, "", "")
 	case "all-peers":
 		writeAllPeers(w, d.state, "id", "asc")

@@ -37,7 +37,7 @@ func handleShowAudit(_ *pluginserver.CommandContext, args []string) (*plugin.Res
 	if fn != nil {
 		entries = fn(filter)
 	}
-	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"entries": entries, "count": len(entries)}}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"entries": entries, keyCount: len(entries)}}, nil
 }
 
 func parseAuditFilter(args []string) (zeaudit.Filter, error) {

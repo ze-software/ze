@@ -56,7 +56,7 @@ func handleShowSystemFD(_ *pluginserver.CommandContext, args []string) (*plugin.
 			details = append(details, map[string]any{
 				"fd":     fd.num,
 				"target": fd.target,
-				"type":   categorizeFDTarget(fd.target),
+				keyType:  categorizeFDTarget(fd.target),
 			})
 		}
 		result["fds"] = details

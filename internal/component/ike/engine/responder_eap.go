@@ -18,6 +18,11 @@ import (
 	"github.com/ze-software/ze/internal/component/pki"
 )
 
+// pemBlockCertificate is the PEM block type of an X.509 certificate
+// (RFC 7468 Section 5). It is what a peer's TLS stack looks for when it parses
+// the chain ze hands it, so the spelling is fixed by that RFC.
+const pemBlockCertificate = "CERTIFICATE"
+
 // eapMethodConfig builds the EAP method configuration (server side) from the peer's
 // auth config: the MSCHAPv2 shared password, or the EAP-TLS server certificate chain.
 func eapMethodConfig(sa *SA) (eap.MethodConfig, error) {
@@ -49,7 +54,7 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 		return eap.MethodConfig{}, fmt.Errorf("ike: marshal EAP-TLS server key: %w", err)
 	}
 	cfg := eap.MethodConfig{
-		ServerCertPEM: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.Raw}),
+		ServerCertPEM: pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: entry.Raw}),
 		ServerKeyPEM:  pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}),
 	}
 	// RFC 5216 Section 5.3: "Both sides MUST perform certificate path validation."
@@ -70,7 +75,7 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 		return eap.MethodConfig{}, fmt.Errorf(
 			"ike: EAP-TLS ca-certificate %q not found in PKI store (peer %q)", caName, sa.PeerName)
 	}
-	cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: ca.Raw})
+	cfg.CACertPEM = pem.EncodeToMemory(&pem.Block{Type: pemBlockCertificate, Bytes: ca.Raw})
 	return cfg, nil
 }
 

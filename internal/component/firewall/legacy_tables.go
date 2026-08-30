@@ -21,6 +21,12 @@ type legacyTable struct {
 	chains []string
 }
 
+// legacyChainIngress is the chain name three of the legacy producers wrote:
+// the ddos-local responder under any hook but forward, and both anomaly-shape
+// tables. It records what an older build already put in the kernel, so it does
+// not follow a rename of the ChainHook name it was derived from.
+const legacyChainIngress = "ingress"
+
 // legacyTables are kernel tables ze wrote before every owner carried
 // tableNamePrefix. A backend decides which kernel tables ze owns by that
 // prefix, so a table without it survived every reconcile and every withdraw:
@@ -49,13 +55,13 @@ var legacyTables = map[string]legacyTable{
 	// follows the victim prefix (familyFromPrefix) and the chain follows the
 	// hook (hookChainName), so an upgraded box can hold this name in either
 	// family with either chain.
-	"ddos-local": {families: []TableFamily{FamilyIP, FamilyIP6}, chains: []string{"forward", "ingress"}},
+	"ddos-local": {families: []TableFamily{FamilyIP, FamilyIP6}, chains: []string{"forward", legacyChainIngress}},
 	// internal/plugins/flowspec-firewall/state.go, now ze_flowspec
 	"flowspec": {families: []TableFamily{FamilyInet}, chains: []string{"flowspec-fwd", "flowspec-in"}},
 	// internal/plugins/anomaly/shape/match.go, now ze_anomaly-shape
-	"anomaly-shape": {families: []TableFamily{FamilyIP}, chains: []string{"ingress"}},
+	"anomaly-shape": {families: []TableFamily{FamilyIP}, chains: []string{legacyChainIngress}},
 	// internal/plugins/anomaly/shape/match.go, now ze_anomaly-shape6
-	"anomaly-shape6": {families: []TableFamily{FamilyIP6}, chains: []string{"ingress"}},
+	"anomaly-shape6": {families: []TableFamily{FamilyIP6}, chains: []string{legacyChainIngress}},
 }
 
 // IsLegacyTableName reports whether a kernel table's name and family match a

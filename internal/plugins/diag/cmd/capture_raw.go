@@ -21,7 +21,20 @@ type BFDRawCaptureProvider interface {
 
 var bfdRawCapture BFDRawCaptureProvider
 
-const captureRawActionStart = "start"
+// The three actions `capture-raw` accepts. Each one is both a CLI token and
+// the action echoed in the response payload.
+const (
+	captureRawActionStart = "start"
+	captureRawActionStop  = "stop"
+	captureRawActionDump  = "dump"
+)
+
+// The response payload keys one captured frame carries.
+const (
+	keyTimestamp = "timestamp"
+	keyDirection = "direction"
+	keyBytes     = "bytes"
+)
 
 func SetBFDRawCaptureProvider(p BFDRawCaptureProvider) {
 	bfdRawCapture = p
@@ -34,7 +47,7 @@ func HandleCaptureRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	limit := 0
 	for _, a := range args {
 		switch a {
-		case captureRawActionStart, "stop", "dump":
+		case captureRawActionStart, captureRawActionStop, captureRawActionDump:
 			action = a
 		case capL2TP, capBGP, capBFD:
 			protocol = a
@@ -48,9 +61,9 @@ func HandleCaptureRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	switch action {
 	case captureRawActionStart:
 		return captureRawStart(ctx, protocol)
-	case "stop":
+	case captureRawActionStop:
 		return captureRawStop(ctx, protocol)
-	case "dump":
+	case captureRawActionDump:
 		return captureRawDump(ctx, protocol, format, limit)
 	default:
 		return &plugin.Response{
@@ -105,7 +118,7 @@ func captureRawStop(ctx *pluginserver.CommandContext, protocol string) (*plugin.
 		}
 	}
 	data := plugin.Map{
-		"action":  "stop",
+		"action":  captureRawActionStop,
 		"stopped": stopped,
 	}
 	if note := captureRawL2TPNote(protocol); note != "" {
@@ -140,9 +153,9 @@ func captureRawDump(ctx *pluginserver.CommandContext, protocol, format string, l
 					rows := make([]map[string]any, 0, len(entries))
 					for _, e := range entries {
 						rows = append(rows, map[string]any{
-							"timestamp": e.Timestamp,
-							"direction": e.Direction,
-							"bytes":     len(e.Data),
+							keyTimestamp: e.Timestamp,
+							keyDirection: e.Direction,
+							keyBytes:     len(e.Data),
 						})
 					}
 					result["bgp"] = rows
@@ -176,9 +189,9 @@ func captureRawDump(ctx *pluginserver.CommandContext, protocol, format string, l
 				rows := make([]map[string]any, 0, len(entries))
 				for _, e := range entries {
 					rows = append(rows, map[string]any{
-						"timestamp": e.Timestamp,
-						"direction": e.Direction,
-						"bytes":     len(e.Data),
+						keyTimestamp: e.Timestamp,
+						keyDirection: e.Direction,
+						keyBytes:     len(e.Data),
 					})
 				}
 				result["bfd"] = rows

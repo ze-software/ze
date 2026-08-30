@@ -69,12 +69,39 @@ const (
 // Section 7. The Length being a single octet is why a route body cannot exceed 255.
 const evpnHeaderLen = 2
 
+// familyNameEVPN is the address family this plugin decodes and encodes.
+const familyNameEVPN = "l2vpn/evpn"
+
 const (
 	RouteNameEthernetAutoDiscovery = "ethernet-auto-discovery"
 	RouteNameMACIPAdvertisement    = "mac-ip-advertisement"
 	RouteNameInclusiveMulticast    = "inclusive-multicast"
 	RouteNameEthernetSegment       = "ethernet-segment"
 	RouteNameIPPrefix              = "ip-prefix"
+)
+
+// Short route-type tokens. The encoder accepts these beside the descriptive
+// RouteName values above. RFC 7432 Section 7 and RFC 9136 Section 3 assign the
+// numbers.
+const (
+	routeTypeToken1 = "type1"
+	routeTypeToken2 = "type2"
+	routeTypeToken3 = "type3"
+	routeTypeToken4 = "type4"
+	routeTypeToken5 = "type5"
+)
+
+// Names of the EVPN route fields. Each name is both an encode keyword and a key
+// of the decoded JSON object, so the two surfaces cannot drift apart.
+const (
+	fieldRD          = "rd"
+	fieldESI         = "esi"
+	fieldEthernetTag = "ethernet-tag"
+	fieldMAC         = "mac"
+	fieldIP          = "ip"
+	fieldPrefix      = "prefix"
+	fieldGateway     = "gateway"
+	fieldLabel       = "label"
 )
 
 // String returns the route type name.
@@ -974,5 +1001,5 @@ func newEVPNType5(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, prefi
 
 // eVPNFamilies returns the address families this plugin can decode.
 func eVPNFamilies() []string {
-	return []string{"l2vpn/evpn"}
+	return []string{familyNameEVPN}
 }

@@ -31,6 +31,11 @@ type BackendOptions struct {
 	IdentityStore     identity.Storage
 }
 
+// statusUnsupported is the FirmwareResult.Status of an operation the active
+// backend does not perform. An operator reads it, so both backends spell it
+// the same way.
+const statusUnsupported = "unsupported"
+
 // FirmwareResult is the structured result for manual firmware operations.
 type FirmwareResult struct {
 	Backend           BackendName
@@ -63,7 +68,7 @@ func (r FirmwareResult) Map() map[string]any {
 func UnsupportedResult(name BackendName) FirmwareResult {
 	return FirmwareResult{
 		Backend: name,
-		Status:  "unsupported",
+		Status:  statusUnsupported,
 		Message: "updates managed by gokrazy",
 	}
 }

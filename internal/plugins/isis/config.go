@@ -345,14 +345,14 @@ func parseISISConfig(sections []configSection) (Config, error) {
 		LSPRefreshInterval: DefaultLSPRefreshInterval,
 	}
 	for _, s := range sections {
-		if s.Root != "isis" || s.Data == "" {
+		if s.Root != configRoot || s.Data == "" {
 			continue
 		}
 		var wrapper map[string]any
 		if err := json.Unmarshal([]byte(s.Data), &wrapper); err != nil {
 			return cfg, fmt.Errorf("isis: invalid config JSON: %w", err)
 		}
-		tree, _ := wrapper["isis"].(map[string]any)
+		tree, _ := wrapper[configRoot].(map[string]any)
 		if tree == nil {
 			continue
 		}

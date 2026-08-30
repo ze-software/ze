@@ -30,7 +30,7 @@ func newNetIfaceCollector() *netIfaceCollector {
 func (c *netIfaceCollector) Name() string { return "netiface" }
 
 func (c *netIfaceCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.speed = reg.GaugeVec(prefix+"_net_speed_kilobits_persec_average", "Interface Speed", labels)
 	c.duplex = reg.GaugeVec(prefix+"_net_duplex_state_average", "Interface Duplex", labels)
 	c.operst = reg.GaugeVec(prefix+"_net_operstate_state_average", "Interface Oper State", labels)

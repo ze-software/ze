@@ -43,9 +43,13 @@ import (
 
 const envTypeString = "string"
 
+// envKeyBaseLevel is the environment variable that sets the base log level for
+// every subsystem. A per-subsystem key extends it with a dotted suffix.
+const envKeyBaseLevel = "ze.log"
+
 // Env var registrations for logging.
 var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log", Type: envTypeString, Default: "warn", Description: "Base log level for all subsystems"})
+	_ = env.MustRegister(env.EnvEntry{Key: envKeyBaseLevel, Type: envTypeString, Default: levelWarn, Description: "Base log level for all subsystems"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.<subsystem>", Type: envTypeString, Description: "Log level for specific subsystem (e.g. ze.log.bgp.fsm)", Private: true})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.backend", Type: envTypeString, Default: "stderr", Description: "Log output: stderr, stdout, or syslog (requires ze.log.destination)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.destination", Type: envTypeString, Description: "Syslog address when backend=syslog (e.g. localhost:514, /dev/log)"})
@@ -129,6 +133,7 @@ const (
 	levelDisabled = "disabled"
 	levelDebug    = "debug"
 	levelInfo     = "info"
+	levelWarn     = "warn"
 	levelError    = "error"
 	backendStdout = "stdout"
 	backendSyslog = "syslog"
@@ -137,7 +142,7 @@ const (
 )
 
 // validLevelNames lists accepted level strings for parseLevel (excluding "disabled").
-var validLevelNames = []string{levelDebug, levelInfo, "warn", "warning", "err", levelError}
+var validLevelNames = []string{levelDebug, levelInfo, levelWarn, "warning", "err", levelError}
 
 // levelRegistry tracks subsystem names to their *slog.LevelVar for runtime level changes.
 // Only loggers created via Logger() or LazyLogger() are registered (not disabled ones).
@@ -157,7 +162,7 @@ func getLogEnv(subsystem string) string {
 	for i := len(parts); i >= 0; i-- {
 		var key string
 		if i == 0 {
-			key = "ze.log"
+			key = envKeyBaseLevel
 		} else {
 			var tb textbuf.Buffer
 			key = tb.Str("ze.log.").Join(parts[:i], ".").String()
@@ -370,7 +375,7 @@ func parseLevel(s string) (slog.Level, bool) {
 		return slog.LevelDebug, true
 	case levelInfo:
 		return slog.LevelInfo, true
-	case "warn", "warning":
+	case levelWarn, "warning":
 		return slog.LevelWarn, true
 	case "err", levelError:
 		return slog.LevelError, true
@@ -448,7 +453,7 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 		switch key {
 		case "level":
 			// Base level for all subsystems
-			envKey = "ze.log"
+			envKey = envKeyBaseLevel
 			isLevel = true
 		case "backend":
 			if err := validateBackends(value); err != nil {
@@ -539,7 +544,7 @@ func levelString(level slog.Level) string {
 	case slog.LevelInfo:
 		return levelInfo
 	case slog.LevelWarn:
-		return "warn"
+		return levelWarn
 	case slog.LevelError:
 		return levelError
 	}

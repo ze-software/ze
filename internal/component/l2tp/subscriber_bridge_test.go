@@ -121,3 +121,67 @@ func TestAccessInterfacePropagationEmpty(t *testing.T) {
 		t.Fatalf("AccessInterface: got %q, want empty (pure LNS)", received.Session.AccessInterface)
 	}
 }
+
+// VALIDATES: AC-1 -- an L2TP teardown reaches the subscriber namespace carrying
+// the pool's allocation key, which is what lets l2tp-pool subscribe to that
+// topic alone and still release L2TP addresses.
+// PREVENTS: a silent loss of L2TP pool release. The pool no longer subscribes
+// to l2tpevents.SessionDown; this re-emit is its only L2TP path, and the
+// reactor and this bridge are created from the same non-nil bus in
+// Subsystem.Start, so one exists whenever the other does.
+func TestBridgeSessionDownCarriesPoolKey(t *testing.T) {
+	bus := newTestBus()
+	reg := subscriber.NewRegistry()
+
+	bridge := newSubscriberBridge(reg, bus, slog.Default())
+	defer bridge.stop()
+
+	var down *subevents.SessionDownPayload
+	subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { down = p })
+
+	if _, err := l2tpevents.SessionUp.Emit(bus, &l2tpevents.SessionUpPayload{
+		TunnelID: 3, SessionID: 8, Interface: "ppp0",
+	}); err != nil {
+		t.Fatalf("emit session-up: %v", err)
+	}
+	if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{
+		TunnelID: 3, SessionID: 8, Username: "alice",
+	}); err != nil {
+		t.Fatalf("emit session-down: %v", err)
+	}
+
+	if down == nil {
+		t.Fatal("L2TP session-down was not re-emitted on the subscriber namespace")
+	}
+	tunnelID, sessionID := down.Session.PPPKey()
+	if tunnelID != 3 || sessionID != 8 {
+		t.Fatalf("PPPKey = (%d, %d), want (3, 8)", tunnelID, sessionID)
+	}
+}
+
+// VALIDATES: the same re-emit happens for a session the registry never held,
+// so a teardown before session-up still reaches the pool.
+func TestBridgeSessionDownCarriesPoolKeyWithoutSessionUp(t *testing.T) {
+	bus := newTestBus()
+	reg := subscriber.NewRegistry()
+
+	bridge := newSubscriberBridge(reg, bus, slog.Default())
+	defer bridge.stop()
+
+	var down *subevents.SessionDownPayload
+	subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { down = p })
+
+	if _, err := l2tpevents.SessionDown.Emit(bus, &l2tpevents.SessionDownPayload{
+		TunnelID: 4, SessionID: 9,
+	}); err != nil {
+		t.Fatalf("emit session-down: %v", err)
+	}
+
+	if down == nil {
+		t.Fatal("L2TP session-down with no registry entry was not re-emitted")
+	}
+	tunnelID, sessionID := down.Session.PPPKey()
+	if tunnelID != 4 || sessionID != 9 {
+		t.Fatalf("PPPKey = (%d, %d), want (4, 9)", tunnelID, sessionID)
+	}
+}

@@ -88,8 +88,9 @@ func withVethPair(t *testing.T, fn func()) {
 	})
 
 	if err := netlink.LinkAdd(&netlink.Veth{
-		LinkAttrs: netlink.LinkAttrs{Name: vethA, MTU: mtuA},
-		PeerName:  vethB,
+		Name:     vethA,
+		MTU:      mtuA,
+		PeerName: vethB,
 	}); err != nil {
 		t.Skipf("add veth (needs CAP_NET_ADMIN): %v", err)
 	}

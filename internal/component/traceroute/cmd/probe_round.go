@@ -36,7 +36,7 @@ func HandleProbeRound(_ *pluginserver.CommandContext, args []string) (*plugin.Re
 		return &plugin.Response{Status: plugin.StatusError, Error: probeErr.Error()}, nil //nolint:nilerr // operational error in Response
 	}
 	return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{
-		"hops": hops,
+		fieldHops: hops,
 	}}, nil
 }
 
@@ -191,8 +191,8 @@ func doProbeRound(dest netip.Addr, maxHops int, deadline time.Duration) ([]map[s
 	hops := make([]map[string]any, limit)
 	for i := range hops {
 		hop := map[string]any{
-			"ttl":  results[i].ttl,
-			"addr": results[i].addr,
+			fieldTTL: results[i].ttl,
+			"addr":   results[i].addr,
 		}
 		if results[i].hasRTT {
 			hop["rtt-ms"] = results[i].rttMS

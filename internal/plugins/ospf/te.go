@@ -56,11 +56,11 @@ func nopTEMetrics() teMetrics {
 // setTEMetrics registers the six ze_ospf_te_* series on the engine's metric registry.
 func (e *engine) setTEMetrics(reg metrics.Registry) {
 	e.te = teMetrics{
-		lsas:         reg.GaugeVec("ze_ospf_te_lsas", "Current OSPF Traffic Engineering LSAs in the TED, by flooding scope and kind.", []string{"scope", "kind"}),
-		databaseLnks: reg.GaugeVec("ze_ospf_te_database_links", "Current OSPF Traffic Engineering Database link entries, by area.", []string{"area"}),
-		originations: reg.CounterVec("ze_ospf_te_originations_total", "Total OSPF Traffic Engineering LSAs originated, by kind.", []string{"kind"}),
-		received:     reg.CounterVec("ze_ospf_te_received_total", "Total OSPF Traffic Engineering LSAs parsed into the TED, by kind and whether usable.", []string{"kind", "usable"}),
-		parseErrors:  reg.CounterVec("ze_ospf_te_parse_errors_total", "Total malformed OSPF Traffic Engineering LSA bodies skipped, by opaque type.", []string{"opaque_type"}),
+		lsas:         reg.GaugeVec("ze_ospf_te_lsas", "Current OSPF Traffic Engineering LSAs in the TED, by flooding scope and kind.", []string{labelScope, labelKind}),
+		databaseLnks: reg.GaugeVec("ze_ospf_te_database_links", "Current OSPF Traffic Engineering Database link entries, by area.", []string{labelArea}),
+		originations: reg.CounterVec("ze_ospf_te_originations_total", "Total OSPF Traffic Engineering LSAs originated, by kind.", []string{labelKind}),
+		received:     reg.CounterVec("ze_ospf_te_received_total", "Total OSPF Traffic Engineering LSAs parsed into the TED, by kind and whether usable.", []string{labelKind, "usable"}),
+		parseErrors:  reg.CounterVec("ze_ospf_te_parse_errors_total", "Total malformed OSPF Traffic Engineering LSA bodies skipped, by opaque type.", []string{labelOpaqueType}),
 		unreachable:  reg.Gauge("ze_ospf_te_unreachable_originators", "Current OSPF Type-11 inter-AS TE entries held unusable because their originator is unreachable (RFC 5250 sec 5)."),
 	}
 	// Fresh trackers for the newly bound gauges so a drained scope/kind or area label set is

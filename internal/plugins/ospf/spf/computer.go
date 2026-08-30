@@ -235,13 +235,13 @@ func (c *Computer) SetMetrics(reg metrics.Registry) {
 	c.mRuns = reg.CounterVec(
 		"ze_ospf_spf_runs_total",
 		"Total OSPF SPF runs, by area.",
-		[]string{"area"},
+		[]string{labelArea},
 	)
 	c.mDuration = reg.HistogramVec(
 		"ze_ospf_spf_duration_seconds",
 		"OSPF SPF run duration in seconds, by area.",
 		spfDurationBuckets,
-		[]string{"area"},
+		[]string{labelArea},
 	)
 	c.mABR = reg.Gauge(
 		"ze_ospf_abr",
@@ -250,7 +250,7 @@ func (c *Computer) SetMetrics(reg metrics.Registry) {
 	c.mSummary = reg.GaugeVec(
 		"ze_ospf_summary_lsas",
 		"Current OSPF self-originated Summary-LSAs, by area.",
-		[]string{"area"},
+		[]string{labelArea},
 	)
 	c.mTransit = reg.CounterVec(
 		"ze_ospf_transit_area_passes_total",
@@ -260,12 +260,12 @@ func (c *Computer) SetMetrics(reg metrics.Registry) {
 	c.mFRRProtected = reg.GaugeVec(
 		"ze_ospf_fast_reroute_protected_prefixes",
 		"Current OSPF prefixes with a fast-reroute backup, by area and protection class.",
-		[]string{"area", "class"},
+		[]string{labelArea, "class"},
 	)
 	c.mFRRUnprotected = reg.GaugeVec(
 		"ze_ospf_fast_reroute_unprotected_prefixes",
 		"Current OSPF prefixes with no fast-reroute backup, by area and reason.",
-		[]string{"area", "reason"},
+		[]string{labelArea, "reason"},
 	)
 	c.mFRRInstalled = reg.GaugeVec(
 		"ze_ospf_fast_reroute_backups_installed",
@@ -276,12 +276,12 @@ func (c *Computer) SetMetrics(reg metrics.Registry) {
 		"ze_ospf_fast_reroute_compute_seconds",
 		"OSPF fast-reroute (LFA/TI-LFA) compute duration in seconds, by area.",
 		spfDurationBuckets,
-		[]string{"area"},
+		[]string{labelArea},
 	)
 	c.mFRRRepairLabels = reg.GaugeVec(
 		"ze_ospf_fast_reroute_ti_lfa_repair_labels",
 		"Current OSPF TI-LFA repair labels pushed, by area.",
-		[]string{"area"},
+		[]string{labelArea},
 	)
 	c.mu.Unlock()
 	c.installer.SetMetrics(reg)

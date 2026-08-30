@@ -105,6 +105,13 @@ func streamTraffic(ctx context.Context, _ *pluginserver.Server, w io.Writer, _ s
 	}
 }
 
+// Keys in the plugin.Map payload snapshotToMap builds. They spell the json
+// tags of the view structs in render.go, which render the same snapshot.
+const (
+	fieldBps  = "bps"
+	fieldName = "name"
+)
+
 func snapshotToMap(snap *trafficstat.Snapshot, filterName string) plugin.Map {
 	m := plugin.Map{
 		"at":       snap.At.Format(time.RFC3339),
@@ -118,11 +125,11 @@ func snapshotToMap(snap *trafficstat.Snapshot, filterName string) plugin.Map {
 			continue
 		}
 		ifaces = append(ifaces, plugin.Map{
-			"name":   ie.Name,
-			"rx-bps": ie.RxBps,
-			"tx-bps": ie.TxBps,
-			"rx-pps": ie.RxPps,
-			"tx-pps": ie.TxPps,
+			fieldName: ie.Name,
+			"rx-bps":  ie.RxBps,
+			"tx-bps":  ie.TxBps,
+			"rx-pps":  ie.RxPps,
+			"tx-pps":  ie.TxPps,
 		})
 	}
 	m["interfaces"] = ifaces
@@ -131,7 +138,7 @@ func snapshotToMap(snap *trafficstat.Snapshot, filterName string) plugin.Map {
 	for _, te := range snap.TopSourceIPs {
 		talkers = append(talkers, plugin.Map{
 			"address": te.Addr.String(),
-			"bps":     te.Bps,
+			fieldBps:  te.Bps,
 		})
 	}
 	m["top-source-ips"] = talkers
@@ -143,7 +150,7 @@ func snapshotToMap(snap *trafficstat.Snapshot, filterName string) plugin.Map {
 			"port":    pe.Port,
 			"service": info.Name,
 			"proto":   pe.Proto,
-			"bps":     pe.Bps,
+			fieldBps:  pe.Bps,
 		}
 		if info.Amplification != "" {
 			entry["amplification"] = info.Amplification
@@ -156,7 +163,7 @@ func snapshotToMap(snap *trafficstat.Snapshot, filterName string) plugin.Map {
 	for _, te := range snap.TopDestIPs {
 		dests = append(dests, plugin.Map{
 			"address": te.Addr.String(),
-			"bps":     te.Bps,
+			fieldBps:  te.Bps,
 		})
 	}
 	m["top-dest-ips"] = dests
@@ -165,8 +172,8 @@ func snapshotToMap(snap *trafficstat.Snapshot, filterName string) plugin.Map {
 	for _, pm := range snap.Protocols {
 		protos = append(protos, plugin.Map{
 			"proto":   pm.Proto,
-			"name":    pm.Name,
-			"bps":     pm.Bps,
+			fieldName: pm.Name,
+			fieldBps:  pm.Bps,
 			"percent": pm.Pct,
 		})
 	}

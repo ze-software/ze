@@ -206,14 +206,14 @@ func (f *Flooder) SetMetrics(reg metrics.Registry) {
 	// concurrent reader on the hot path observes either the old (no-op) set or the
 	// new set in full, never a half-rebound struct (defense in depth).
 	f.mp.Store(&flooderMetrics{
-		lspsRecv:  reg.CounterVec("ze_isis_lsps_received_total", "Total IS-IS Link State PDUs received, by level.", []string{"level"}),
-		lspsTx:    reg.CounterVec("ze_isis_lsps_transmitted_total", "Total IS-IS Link State PDUs transmitted (flooded) on a circuit, by level.", []string{"level"}),
-		csnpSent:  reg.CounterVec("ze_isis_csnp_sent_total", "Total IS-IS Complete Sequence Numbers PDUs sent, by level.", []string{"level"}),
-		csnpRecv:  reg.CounterVec("ze_isis_csnp_received_total", "Total IS-IS Complete Sequence Numbers PDUs received, by level.", []string{"level"}),
-		psnpSent:  reg.CounterVec("ze_isis_psnp_sent_total", "Total IS-IS Partial Sequence Numbers PDUs sent, by level.", []string{"level"}),
-		psnpRecv:  reg.CounterVec("ze_isis_psnp_received_total", "Total IS-IS Partial Sequence Numbers PDUs received, by level.", []string{"level"}),
-		srmResend: reg.CounterVec("ze_isis_srm_resends_total", "Total IS-IS LSP re-floods caused by an unacknowledged SRM flag on the periodic timer, by level.", []string{"level"}),
-		dropped:   reg.CounterVec("ze_isis_lsps_dropped_total", "Total IS-IS Link State PDUs dropped on receive, by level and reason.", []string{"level", "reason"}),
+		lspsRecv:  reg.CounterVec("ze_isis_lsps_received_total", "Total IS-IS Link State PDUs received, by level.", []string{labelLevel}),
+		lspsTx:    reg.CounterVec("ze_isis_lsps_transmitted_total", "Total IS-IS Link State PDUs transmitted (flooded) on a circuit, by level.", []string{labelLevel}),
+		csnpSent:  reg.CounterVec("ze_isis_csnp_sent_total", "Total IS-IS Complete Sequence Numbers PDUs sent, by level.", []string{labelLevel}),
+		csnpRecv:  reg.CounterVec("ze_isis_csnp_received_total", "Total IS-IS Complete Sequence Numbers PDUs received, by level.", []string{labelLevel}),
+		psnpSent:  reg.CounterVec("ze_isis_psnp_sent_total", "Total IS-IS Partial Sequence Numbers PDUs sent, by level.", []string{labelLevel}),
+		psnpRecv:  reg.CounterVec("ze_isis_psnp_received_total", "Total IS-IS Partial Sequence Numbers PDUs received, by level.", []string{labelLevel}),
+		srmResend: reg.CounterVec("ze_isis_srm_resends_total", "Total IS-IS LSP re-floods caused by an unacknowledged SRM flag on the periodic timer, by level.", []string{labelLevel}),
+		dropped:   reg.CounterVec("ze_isis_lsps_dropped_total", "Total IS-IS Link State PDUs dropped on receive, by level and reason.", []string{labelLevel, "reason"}),
 	})
 }
 

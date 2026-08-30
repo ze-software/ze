@@ -21,6 +21,9 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
+// configRoot is the YANG container this plugin reads.
+const configRoot = "fib/kernel"
+
 type fibConfig struct {
 	FlushOnStop bool
 	SweepDelay  time.Duration
@@ -29,7 +32,7 @@ type fibConfig struct {
 func parseFIBConfig(sections []sdk.ConfigSection) (fibConfig, error) {
 	cfg := fibConfig{SweepDelay: sweepDelay}
 	for _, sec := range sections {
-		if sec.Root != "fib/kernel" || sec.Data == "" {
+		if sec.Root != configRoot || sec.Data == "" {
 			continue
 		}
 		var tree map[string]any
@@ -59,7 +62,7 @@ func init() {
 		Description:             "FIB kernel: programs OS routes from system RIB via netlink/route socket",
 		Features:                "yang",
 		YANG:                    fibyang.ZeFibConfYANG,
-		ConfigRoots:             []string{"fib/kernel"},
+		ConfigRoots:             []string{configRoot},
 		Dependencies:            []string{"rib", "sysctl"},
 		InProcessConfigVerifier: verifyFIBConfig,
 		RunEngine:               runFIBKernelPlugin,
@@ -169,7 +172,7 @@ func runFIBKernelPlugin(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
-		WantsConfig:  []string{"fib/kernel"},
+		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
 		ApplyBudget:  1,
 		Commands: []sdk.CommandDecl{

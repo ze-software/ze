@@ -120,7 +120,7 @@ func (a *tacacsAuthorizer) authorize(username, remoteAddr, command string, args 
 		AuthenService: 0x01, // login
 		User:          username,
 		RemAddr:       remoteAddr,
-		Port:          "ssh",
+		Port:          portSSH,
 		Args:          args,
 	}
 

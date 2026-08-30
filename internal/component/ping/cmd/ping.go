@@ -19,6 +19,10 @@ import (
 	"github.com/ze-software/ze/internal/core/probe"
 )
 
+// fieldStatus is the per-probe result key every ping handler writes and reads:
+// "ok" when a reply came back, "timeout" when none did.
+const fieldStatus = "status"
+
 // CLI argument keywords shared across the ping handlers in this package.
 const (
 	argCount    = "count"
@@ -371,7 +375,7 @@ func summarizePingReplies(dest netip.Addr, replies []map[string]any) map[string]
 	received := 0
 	var minMs, maxMs, sumMs float64
 	for _, r := range replies {
-		if status, _ := r["status"].(string); status != "ok" {
+		if status, _ := r[fieldStatus].(string); status != "ok" {
 			continue
 		}
 		rtt, _ := r["rtt-ms"].(float64)

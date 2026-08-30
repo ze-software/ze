@@ -40,18 +40,24 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// The env registry's names for the value types these entries carry.
+const (
+	envTypeInt    = "int"
+	envTypeString = "string"
+)
+
 // Env var registrations for ze-chaos port flags.
 var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.bgp.port", Type: "int", Default: "1850", Description: "Base BGP port for Ze to listen on"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.listen.base", Type: "int", Default: "1950", Description: "Base port for ze-chaos to listen on"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ssh.port", Type: "int", Default: "0", Description: "Ze SSH server port (0 = disabled)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.web.ui.port", Type: "int", Default: "0", Description: "Ze web UI port (0 = disabled)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.lg.port", Type: "int", Default: "0", Description: "Ze looking glass port (0 = disabled)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.web", Type: "string", Default: "", Description: "ze-chaos live web dashboard (addr:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.metrics", Type: "string", Default: "", Description: "ze-chaos Prometheus metrics endpoint (addr:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.pprof", Type: "string", Default: "", Description: "ze-chaos pprof HTTP server (addr:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.mcp", Type: "string", Default: "", Description: "ze-chaos MCP server (addr:port)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ze.mcp.port", Type: "int", Default: "0", Description: "Ze MCP server port injected into generated config (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.bgp.port", Type: envTypeInt, Default: "1850", Description: "Base BGP port for Ze to listen on"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.listen.base", Type: envTypeInt, Default: "1950", Description: "Base port for ze-chaos to listen on"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ssh.port", Type: envTypeInt, Default: "0", Description: "Ze SSH server port (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.web.ui.port", Type: envTypeInt, Default: "0", Description: "Ze web UI port (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.lg.port", Type: envTypeInt, Default: "0", Description: "Ze looking glass port (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.web", Type: envTypeString, Default: "", Description: "ze-chaos live web dashboard (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.metrics", Type: envTypeString, Default: "", Description: "ze-chaos Prometheus metrics endpoint (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.pprof", Type: envTypeString, Default: "", Description: "ze-chaos pprof HTTP server (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.mcp", Type: envTypeString, Default: "", Description: "ze-chaos MCP server (addr:port)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.chaos.ze.mcp.port", Type: envTypeInt, Default: "0", Description: "Ze MCP server port injected into generated config (0 = disabled)"})
 )
 
 // cLIRun is the ze-chaos root handler body. Production entry is the registry

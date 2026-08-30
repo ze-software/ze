@@ -26,13 +26,16 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
+// envTypeString is the EnvEntry type name for a string-valued variable.
+const envTypeString = "string"
+
 var errCannotDetermineDatabaseLocation = errors.New("cannot determine database location")
 
 var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.host", Type: "string", Default: "127.0.0.1", Description: "Override SSH host"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.port", Type: "string", Default: "2222", Description: "Override SSH port"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.username", Type: "string", Description: "Override SSH username (default: zefs super-admin)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.password", Type: "string", Description: "SSH password (zefs stores bcrypt hash)", Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.host", Type: envTypeString, Default: "127.0.0.1", Description: "Override SSH host"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.port", Type: envTypeString, Default: "2222", Description: "Override SSH port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.username", Type: envTypeString, Description: "Override SSH username (default: zefs super-admin)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.password", Type: envTypeString, Description: "SSH password (zefs stores bcrypt hash)", Secret: true})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.insecure", Type: "bool", Default: "false", Description: "Skip host key verification for remote SSH (INSECURE)"})
 )
 

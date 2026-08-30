@@ -278,20 +278,27 @@ func (d *LSDB) notifyContentChange(area types.AreaID, lsType types.LSType) {
 	}
 }
 
+// Metric label names for the OSPF LSDB and flooding series.
+const (
+	labelArea      = "area"
+	labelInterface = "interface"
+	labelLSAType   = "type"
+)
+
 // SetMetrics registers the OSPF LSDB/flooding series owned by spec ospf-7.
 func (d *LSDB) SetMetrics(reg metrics.Registry) {
 	if reg == nil {
 		return
 	}
 	d.mu.Lock()
-	d.mLSAs = reg.GaugeVec("ze_ospf_lsdb_lsas", "Current OSPF LSAs in the link-state database, by area and LSA type.", []string{"area", "type"})
-	d.mOriginations = reg.CounterVec("ze_ospf_lsa_originations_total", "Total OSPF self-originated LSAs, by LSA type.", []string{"type"})
-	d.mRefreshes = reg.CounterVec("ze_ospf_lsa_refreshes_total", "Total OSPF self-originated LSA refreshes, by LSA type.", []string{"type"})
-	d.mPurges = reg.CounterVec("ze_ospf_lsa_purges_total", "Total OSPF LSAs purged at MaxAge, by LSA type.", []string{"type"})
-	d.mUpdatesSent = reg.CounterVec("ze_ospf_lsupdates_sent_total", "Total OSPF Link State Update packets sent by flooding, by interface.", []string{"interface"})
-	d.mUpdatesReceived = reg.CounterVec("ze_ospf_lsupdates_received_total", "Total OSPF Link State Update packets received by flooding, by interface.", []string{"interface"})
-	d.mAcksSent = reg.CounterVec("ze_ospf_lsacks_sent_total", "Total OSPF Link State Acknowledgment packets sent by flooding, by interface.", []string{"interface"})
-	d.mRetransmissions = reg.CounterVec("ze_ospf_retransmissions_total", "Total OSPF LSA retransmissions by area.", []string{"area"})
+	d.mLSAs = reg.GaugeVec("ze_ospf_lsdb_lsas", "Current OSPF LSAs in the link-state database, by area and LSA type.", []string{labelArea, labelLSAType})
+	d.mOriginations = reg.CounterVec("ze_ospf_lsa_originations_total", "Total OSPF self-originated LSAs, by LSA type.", []string{labelLSAType})
+	d.mRefreshes = reg.CounterVec("ze_ospf_lsa_refreshes_total", "Total OSPF self-originated LSA refreshes, by LSA type.", []string{labelLSAType})
+	d.mPurges = reg.CounterVec("ze_ospf_lsa_purges_total", "Total OSPF LSAs purged at MaxAge, by LSA type.", []string{labelLSAType})
+	d.mUpdatesSent = reg.CounterVec("ze_ospf_lsupdates_sent_total", "Total OSPF Link State Update packets sent by flooding, by interface.", []string{labelInterface})
+	d.mUpdatesReceived = reg.CounterVec("ze_ospf_lsupdates_received_total", "Total OSPF Link State Update packets received by flooding, by interface.", []string{labelInterface})
+	d.mAcksSent = reg.CounterVec("ze_ospf_lsacks_sent_total", "Total OSPF Link State Acknowledgment packets sent by flooding, by interface.", []string{labelInterface})
+	d.mRetransmissions = reg.CounterVec("ze_ospf_retransmissions_total", "Total OSPF LSA retransmissions by area.", []string{labelArea})
 	d.mu.Unlock()
 	d.publishAllSizeMetrics()
 }

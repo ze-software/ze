@@ -86,8 +86,8 @@ const (
 func parseReply(response string) (payload string, status replyStatus, detail string) {
 	lines := strings.Split(response, "\n")
 	last := -1
-	for i := len(lines) - 1; i >= 0; i-- {
-		if strings.TrimSpace(lines[i]) != "" {
+	for i, line := range slices.Backward(lines) {
+		if strings.TrimSpace(line) != "" {
 			last = i
 			break
 		}

@@ -54,7 +54,7 @@ func checkGeoDNSListenCapability(ctx registry.DoctorCheckContext) []rpc.DoctorCh
 	for _, lt := range g.GetList("listener") {
 		host, _ := lt.Get("ip")
 		if host == "" {
-			host = "127.0.0.1"
+			host = loopbackIPv4
 		}
 		port := defaultListenPort
 		if portStr, ok := lt.Get("port"); ok {
@@ -65,7 +65,7 @@ func checkGeoDNSListenCapability(ctx registry.DoctorCheckContext) []rpc.DoctorCh
 		targets = append(targets, probeTarget{host: host, port: port})
 	}
 	if len(targets) == 0 {
-		targets = []probeTarget{{host: "127.0.0.1", port: defaultListenPort}, {host: "::1", port: defaultListenPort}}
+		targets = []probeTarget{{host: loopbackIPv4, port: defaultListenPort}, {host: loopbackIPv6, port: defaultListenPort}}
 	}
 	return geodnsListenDiagnostic(enabled == configValueTrue, targets, probeBindable)
 }

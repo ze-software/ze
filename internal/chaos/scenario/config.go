@@ -142,7 +142,7 @@ func PeerSummary(params ConfigParams) string {
 
 		families := p.Families
 		if len(families) == 0 {
-			families = []string{"ipv4/unicast"}
+			families = []string{familyIPv4Unicast}
 		}
 
 		mode := ""
@@ -199,7 +199,7 @@ func writeFullPeerBlock(b *textbuf.Buffer, params ConfigParams, p PeerProfile) {
 	// Family block — per-peer families from profile.
 	families := p.Families
 	if len(families) == 0 {
-		families = []string{"ipv4/unicast"}
+		families = []string{familyIPv4Unicast}
 	}
 	// Prefix maximum: 10% headroom over route count, minimum 10000.
 	maxPrefix := max(p.RouteCount+p.RouteCount/10, 10000)

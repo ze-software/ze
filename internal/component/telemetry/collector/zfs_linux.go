@@ -37,7 +37,7 @@ func newZFSCollector(interval time.Duration) *zfsCollector {
 func (c *zfsCollector) Name() string { return "zfs" }
 
 func (c *zfsCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.arcSize = reg.GaugeVec(prefix+"_zfs_arc_size_MiB_average", "ZFS ARC Size", labels)
 	c.reads = reg.GaugeVec(prefix+"_zfs_reads_reads_persec_average", "ZFS Reads", labels)
 	c.hits = reg.GaugeVec(prefix+"_zfs_hits_percentage_average", "ZFS ARC Hits", labels)

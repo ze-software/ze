@@ -27,7 +27,7 @@ func newPressureCollector(fs procfs.FS) *pressureCollector {
 func (c *pressureCollector) Name() string { return "pressure" }
 
 func (c *pressureCollector) Init(reg metrics.Registry, prefix string) {
-	labels := []string{"chart", "dimension", "family"}
+	labels := chartLabels()
 	c.cpuSome = reg.GaugeVec(prefix+"_system_cpu_some_pressure_percentage_average", "CPU Pressure Some", labels)
 	c.memorySome = reg.GaugeVec(prefix+"_system_memory_some_pressure_percentage_average", "Memory Pressure Some", labels)
 	c.memoryFull = reg.GaugeVec(prefix+"_system_memory_full_pressure_percentage_average", "Memory Pressure Full", labels)

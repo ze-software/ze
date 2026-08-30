@@ -267,15 +267,15 @@ func runPingSession(
 			}
 			rtt := r.at.Sub(p.sentAt)
 			result := map[string]any{
-				"status": "ok",
-				"rtt-ms": float64(rtt.Microseconds()) / 1000.0,
+				fieldStatus: "ok",
+				"rtt-ms":    float64(rtt.Microseconds()) / 1000.0,
 			}
 			if !resolve(r.seq, result) {
 				return
 			}
 		case wire := <-expire:
 			result := map[string]any{
-				"status": "timeout",
+				fieldStatus: "timeout",
 			}
 			if !resolve(wire, result) {
 				return

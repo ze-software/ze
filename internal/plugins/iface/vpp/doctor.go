@@ -40,6 +40,14 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// Diagnostic codes the vpp backend's doctor checks report. `ze explain <code>`
+// resolves each one, so the spelling is an operator-facing surface.
+const (
+	codeWireguard = "doctor-vpp-wireguard"
+	codeLCPPlugin = "doctor-vpp-lcp-plugin"
+	codeLCPNetns  = "doctor-vpp-lcp-netns"
+)
+
 // registerDoctorChecks installs the vpp iface backend's doctor checks. Called
 // from init() in register.go so the checks travel with the plugin.
 func registerDoctorChecks() error {
@@ -48,30 +56,30 @@ func registerDoctorChecks() error {
 			Name:         "vpp-wireguard-plugin",
 			Phase:        diagnostic.DoctorPhasePostConfig,
 			Order:        740,
-			Component:    "vpp",
+			Component:    backendVPP,
 			Dependencies: []string{"vpp-wireguard-plugin"},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{"doctor-vpp-wireguard"},
+			Codes:        []string{codeWireguard},
 			Check:        checkVPPWireguardPlugin,
 		},
 		{
 			Name:         "vpp-lcp-plugin",
 			Phase:        diagnostic.DoctorPhasePostConfig,
 			Order:        742,
-			Component:    "vpp",
+			Component:    backendVPP,
 			Dependencies: []string{"vpp-lcp"},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{"doctor-vpp-lcp-plugin"},
+			Codes:        []string{codeLCPPlugin},
 			Check:        checkVPPLCPPlugin,
 		},
 		{
 			Name:         "vpp-lcp-netns",
 			Phase:        diagnostic.DoctorPhasePostConfig,
 			Order:        741,
-			Component:    "vpp",
+			Component:    backendVPP,
 			Dependencies: []string{"vpp-lcp"},
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
-			Codes:        []string{"doctor-vpp-lcp-netns"},
+			Codes:        []string{codeLCPNetns},
 			Check:        checkVPPLCPNetns,
 		},
 	}
@@ -96,7 +104,7 @@ func checkVPPWireguardPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 	if ifaceTree == nil {
 		return nil
 	}
-	if backend, _ := ifaceTree.Get("backend"); backend != "vpp" {
+	if backend, _ := ifaceTree.Get("backend"); backend != backendVPP {
 		return nil
 	}
 	if len(ifaceTree.GetList("wireguard")) == 0 {
@@ -106,7 +114,7 @@ func checkVPPWireguardPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-vpp-wireguard",
+		Code:     codeWireguard,
 		Severity: diagnostic.SeverityError,
 		Message:  "wireguard interface configured under backend vpp but vpp.plugins.wireguard is not enabled; wireguard_plugin.so will not load and the interface will fail at apply",
 	}}
@@ -189,7 +197,7 @@ func lcpNetnsMarkerDiagnostic(netns string) diagnostic.Diagnostic {
 		Str(" and ze cannot bind on them from its own namespace. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, where ze runs; the other remedy is to run ze in the ").Quoted(netns).
 		Str(" namespace so BGP binds where the TAPs are, or see ze explain doctor-vpp-lcp-netns").String()
 	return diagnostic.Diagnostic{
-		Code:     "doctor-vpp-lcp-netns",
+		Code:     codeLCPNetns,
 		Severity: diagnostic.SeverityWarning,
 		Message:  msg,
 	}
@@ -218,7 +226,7 @@ func lcpNetnsConfigDiagnostic(tree *config.Tree, netns string) (diagnostic.Diagn
 		Str(" is not root-reachable; BGP cannot bind on an LCP-shadowed interface in a separate namespace. VPP resolves the leaf as a namespace name under /var/run/netns/, so no name puts the TAPs where a root-netns ze binds. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, or run ze in the ").Quoted(netns).
 		Str(" namespace so BGP binds where the TAPs are; see ze explain doctor-vpp-lcp-netns").String()
 	return diagnostic.Diagnostic{
-		Code:     "doctor-vpp-lcp-netns",
+		Code:     codeLCPNetns,
 		Severity: diagnostic.SeverityWarning,
 		Message:  msg,
 	}, true
@@ -244,7 +252,7 @@ func lcpNetnsHostDiagnostic(netns string) (diagnostic.Diagnostic, bool) {
 			Str(". VPP opens that path for the LCP TAPs, so a missing namespace fails LCP pair creation at apply. Leave vpp.lcp.netns empty to keep the TAPs in VPP's own network namespace, or run ze in the ").Quoted(netns).
 			Str(" namespace so BGP binds where the TAPs are; see ze explain doctor-vpp-lcp-netns").String()
 		return diagnostic.Diagnostic{
-			Code:     "doctor-vpp-lcp-netns",
+			Code:     codeLCPNetns,
 			Severity: diagnostic.SeverityWarning,
 			Message:  msg,
 		}, true
@@ -254,7 +262,7 @@ func lcpNetnsHostDiagnostic(netns string) (diagnostic.Diagnostic, bool) {
 			Str(" and run ze in the ").Quoted(netns).
 			Str(" namespace so BGP binds where the TAPs are").String()
 		return diagnostic.Diagnostic{
-			Code:     "doctor-vpp-lcp-netns",
+			Code:     codeLCPNetns,
 			Severity: diagnostic.SeverityWarning,
 			Message:  msg,
 		}, true
@@ -444,7 +452,7 @@ func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	var tb textbuf.Buffer
 	if err != nil {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-vpp-lcp-plugin",
+			Code:     codeLCPPlugin,
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Str("vpp.lcp is enabled but the running VPP could not be probed for ").
 				Str(lcpPluginSO).Str(": ").Err(err).String(),
@@ -452,7 +460,7 @@ func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 	}
 	if !strings.Contains(out, vppctlPluginsHeader) {
 		return []diagnostic.Diagnostic{{
-			Code:     "doctor-vpp-lcp-plugin",
+			Code:     codeLCPPlugin,
 			Severity: diagnostic.SeverityWarning,
 			Message: tb.Str("vpp.lcp is enabled but the running VPP could not be probed for ").
 				Str(lcpPluginSO).Str(": the probe exited zero without the \"").Str(vppctlPluginsHeader).
@@ -463,7 +471,7 @@ func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnosti
 		return nil
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-vpp-lcp-plugin",
+		Code:     codeLCPPlugin,
 		Severity: diagnostic.SeverityError,
 		Message: tb.Reset().Str("vpp.lcp is enabled but the running VPP does not load ").Str(lcpPluginSO).
 			Str("; the linux_cp API is unavailable and the config apply will fail at the binapi layer").String(),

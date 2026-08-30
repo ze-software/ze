@@ -15,6 +15,6 @@ import (
 func handleMonitorPing(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data:   plugin.Map{"status": "monitor-ping-configured"},
+		Data:   plugin.Map{fieldStatus: "monitor-ping-configured"},
 	}, nil
 }

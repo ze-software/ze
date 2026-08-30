@@ -15,7 +15,7 @@ import (
 const newPassphraseKey = "ze.appliance.new.passphrase" //nolint:gosec // env var key name
 
 var _ = env.MustRegister(env.EnvEntry{
-	Key: newPassphraseKey, Type: "string",
+	Key: newPassphraseKey, Type: envTypeString,
 	Description: "New encryption passphrase for rekey (CI only)",
 })
 

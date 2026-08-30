@@ -42,6 +42,13 @@ var (
 // subtree walked by the backend feature gate.
 const configRootInterface = "interface"
 
+// componentNameInterface is what this component calls ITSELF: its registry
+// entry, the owner recorded on every config operation it decomposes, and the
+// source it stamps on a sysctl default it emits. It spells the same word as
+// configRootInterface and answers a different question, so a rename of the
+// YANG root would not rename this and the two must not be shared.
+const componentNameInterface = "interface"
+
 // backendLeafPath is the YANG path shown to the user in backend-gate
 // error text so they know where to change the backend leaf.
 const backendLeafPath = "/interface/backend"
@@ -134,11 +141,11 @@ func init() {
 	loggerPtr.Store(d)
 
 	reg := registry.Registration{
-		Name:                    "interface",
+		Name:                    componentNameInterface,
 		Description:             "OS network interface monitoring and management",
 		Features:                "yang",
 		YANG:                    ifaceyang.ZeIfaceConfYANG,
-		ConfigRoots:             []string{"interface"},
+		ConfigRoots:             []string{configRootInterface},
 		Dependencies:            []string{"sysctl"},
 		InProcessConfigVerifier: verifyIfaceConfig,
 		RunEngine:               runEngine,
@@ -281,7 +288,7 @@ func runEngine(conn net.Conn) int {
 	log := loggerPtr.Load()
 	log.Debug("interface plugin starting")
 
-	p := sdk.NewWithConn("interface", conn)
+	p := sdk.NewWithConn(componentNameInterface, conn)
 	defer func() { _ = p.Close() }()
 
 	// pendingCfg holds the validated config between verify and apply phases.
@@ -714,7 +721,7 @@ func runEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 	if err := p.Run(ctx, sdk.Registration{
-		WantsConfig:      []string{"interface"},
+		WantsConfig:      []string{configRootInterface},
 		ConfigOperations: ifaceConfigOperationDecls(),
 		VerifyBudget:     2,
 		ApplyBudget:      10,

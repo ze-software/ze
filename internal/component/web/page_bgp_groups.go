@@ -70,10 +70,10 @@ func extractGroupEntry(name string, groupTree *config.Tree) groupEntry {
 // buildBGPGroupsTableData constructs a WorkbenchTableData for the groups table.
 func buildBGPGroupsTableData(groups []groupEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "name", Label: labelName, Sortable: true},
+		{Key: colName, Label: labelName, Sortable: true},
 		{Key: "peer-count", Label: "Peer Count", Sortable: true},
-		{Key: "remote-as", Label: "Remote AS", Sortable: true},
-		{Key: "families", Label: labelFamilies},
+		{Key: colRemoteAS, Label: labelRemoteAS, Sortable: true},
+		{Key: segFamilies, Label: labelFamilies},
 	}
 
 	rows := make([]WorkbenchTableRow, 0, len(groups))

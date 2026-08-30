@@ -32,7 +32,7 @@ func (c *softIRQsCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_system_softirqs_softirqs_persec_average",
 		"System Soft Interrupts",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

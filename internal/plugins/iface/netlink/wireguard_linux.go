@@ -33,9 +33,7 @@ func (b *netlinkBackend) CreateWireguardDevice(name string) error {
 		return fmt.Errorf("iface: create wireguard %q: %w", name, err)
 	}
 
-	link := &netlink.Wireguard{
-		LinkAttrs: netlink.LinkAttrs{Name: name},
-	}
+	link := &netlink.Wireguard{Name: name}
 
 	if err := netlink.LinkAdd(link); err != nil {
 		return fmt.Errorf("iface: create wireguard %q: %w", name, err)

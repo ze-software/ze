@@ -25,6 +25,10 @@ type ProfileDef struct {
 	Settings    []ProfileSetting
 }
 
+// keyIPv4ARPFilter is the per-interface IPv4 ARP filter key. Two builtin
+// profiles set it, and known_linux.go registers its definition.
+const keyIPv4ARPFilter = "net.ipv4.conf.<iface>.arp_filter"
+
 var (
 	profileMu       sync.RWMutex
 	profileRegistry = map[string]ProfileDef{}
@@ -127,7 +131,7 @@ var builtinProfiles = []ProfileDef{
 		Settings: []ProfileSetting{
 			{Key: "net.ipv4.conf.<iface>.rp_filter", Value: "1"},
 			{Key: "net.ipv4.conf.<iface>.log_martians", Value: "1"},
-			{Key: "net.ipv4.conf.<iface>.arp_filter", Value: "1"},
+			{Key: keyIPv4ARPFilter, Value: "1"},
 		},
 	},
 	{
@@ -135,7 +139,7 @@ var builtinProfiles = []ProfileDef{
 		Description: "Prevent ARP flux on multi-NIC hosts",
 		Builtin:     true,
 		Settings: []ProfileSetting{
-			{Key: "net.ipv4.conf.<iface>.arp_filter", Value: "1"},
+			{Key: keyIPv4ARPFilter, Value: "1"},
 		},
 	},
 	{

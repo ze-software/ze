@@ -187,12 +187,15 @@ func NewFromEnv(name string) (*Plugin, error) {
 	return NewFromTLSEnv(name)
 }
 
+// envTypeString is the env.EnvEntry Type of every plugin transport variable.
+const envTypeString = "string"
+
 // Env var registrations for plugin transport.
 var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.host", Type: "string", Default: "127.0.0.1", Description: "TLS host for plugin-to-engine connection"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.port", Type: "string", Default: "12700", Description: "TLS port for plugin-to-engine connection"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.token", Type: "string", Description: "Auth token for plugin-to-engine TLS (required for external plugins)", Private: true, Secret: true})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.cert.fp", Type: "string", Description: "SHA-256 fingerprint of engine TLS cert for pinning"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.host", Type: envTypeString, Default: "127.0.0.1", Description: "TLS host for plugin-to-engine connection"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.port", Type: envTypeString, Default: "12700", Description: "TLS port for plugin-to-engine connection"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.token", Type: envTypeString, Description: "Auth token for plugin-to-engine TLS (required for external plugins)", Private: true, Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.cert.fp", Type: envTypeString, Description: "SHA-256 fingerprint of engine TLS cert for pinning"})
 )
 
 // Default plugin transport address (matches hub config default listen address).

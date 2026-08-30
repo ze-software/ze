@@ -79,7 +79,7 @@ func testHandler() *dhcpHandler {
 // the test if CAP_NET_ADMIN is unavailable.
 func createDummyForTest(t *testing.T, name string) {
 	t.Helper()
-	link := &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: name}}
+	link := &netlink.Dummy{Name: name}
 	if err := netlink.LinkAdd(link); err != nil {
 		t.Skipf("requires CAP_NET_ADMIN: create dummy %q: %v", name, err)
 	}

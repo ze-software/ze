@@ -35,7 +35,7 @@ func (c *sctpCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_sctp_snmp_packets_persec_average",
 		"SCTP Statistics",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

@@ -14,7 +14,7 @@ import (
 // scrape renders the registry's exposition text via its HTTP handler.
 func scrape(t *testing.T, reg *metrics.PrometheusRegistry) string {
 	t.Helper()
-	req := httptest.NewRequest("GET", "/metrics", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "GET", "/metrics", http.NoBody)
 	w := httptest.NewRecorder()
 	reg.Handler().ServeHTTP(w, req)
 	return w.Body.String()

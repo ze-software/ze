@@ -31,7 +31,7 @@ func (c *fileNRCollector) Init(reg metrics.Registry, prefix string) {
 	c.gauge = reg.GaugeVec(
 		prefix+"_system_file_nr_used_files_average",
 		"Open Files",
-		[]string{"chart", "dimension", "family"},
+		chartLabels(),
 	)
 }
 

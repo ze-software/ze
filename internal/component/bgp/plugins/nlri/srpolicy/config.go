@@ -70,7 +70,7 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 	for i < len(content) {
 		key := content[i]
 		switch key {
-		case "distinguisher":
+		case fieldDistinguisher:
 			if i+1 >= len(content) {
 				return registry.PluginRoute{}, fmt.Errorf("missing value for %s", key)
 			}
@@ -82,7 +82,7 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 			hasDistinguisher = true
 			i += 2
 
-		case "color":
+		case fieldColor:
 			if i+1 >= len(content) {
 				return registry.PluginRoute{}, fmt.Errorf("missing value for %s", key)
 			}
@@ -94,7 +94,7 @@ func parseConfigRoute(req registry.ConfigRouteRequest) (registry.PluginRoute, er
 			hasColor = true
 			i += 2
 
-		case "endpoint":
+		case fieldEndpoint:
 			if i+1 >= len(content) {
 				return registry.PluginRoute{}, fmt.Errorf("missing value for %s", key)
 			}

@@ -1,7 +1,7 @@
 // Design: docs/functional-tests.md -- allocation-ceiling verification
 //
-// `./le verify-deps alloc` parses `go test -benchmem` output for the hot-path
-// ReportAllocs benchmarks selected in internal/le/verifydeps/verifydeps.go and
+// `./le verify deps alloc` parses `go test -benchmem` output for the hot-path
+// ReportAllocs benchmarks selected in internal/le/verify/deps/verifydeps.go and
 // asserts a per-benchmark allocs/op ceiling. allocs/op is machine-independent,
 // so an integer ceiling is a stable regression signal without a stored baseline
 // host.
