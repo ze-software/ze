@@ -56,22 +56,64 @@ func bashWorktreeCopy(ctx context) *verdict {
 	return &verdict{2, "❌ Blocked: copying files from worktree to main repo\nWorktree agents must commit their changes. Use git merge or cherry-pick.\nDirect file copying overwrites uncommitted work from other sessions."}
 }
 
+// gitVerbRun reports whether command RUNS the given git verb, rather than
+// merely naming it.
+//
+// A substring test cannot tell the two apart, and the difference is not
+// academic: a commit message explaining why a verb is banned, a grep for one,
+// and a comment quoting one were all refused, so a session could not write
+// about the rule it was obeying. The verb has to sit where a command starts:
+// at the beginning, or after a separator, a pipe, an opening subshell, or a
+// newline. Quoting it, as `git add`, is then how prose names it safely.
+func gitVerbRun(command, verb string) bool {
+	for offset := 0; ; {
+		at := strings.Index(command[offset:], verb)
+		if at < 0 {
+			return false
+		}
+		at += offset
+		offset = at + len(verb)
+		if at == 0 {
+			return true
+		}
+		switch command[at-1] {
+		case ' ', '\t':
+			// A leading space is only a command position when what precedes
+			// it is a separator rather than another word: `&& git add` runs
+			// it, `about git add` names it.
+			head := strings.TrimRight(command[:at], " \t")
+			if head == "" || strings.HasSuffix(head, "&&") || strings.HasSuffix(head, "||") ||
+				strings.HasSuffix(head, ";") || strings.HasSuffix(head, "|") ||
+				strings.HasSuffix(head, "(") || strings.HasSuffix(head, "\n") {
+				return true
+			}
+		case ';', '&', '|', '(', '\n':
+			return true
+		}
+	}
+}
+
 // ze point: git-safety/before-destructive-actions/never-run-a-destructive-git-verb
 // bashDestructiveGit refuses every git verb that discards work or publishes it.
 // Committing and pushing are allowed, through the prepared script alone, because
 // sessions share one index and a loose verb carries another session's changes.
 func bashDestructiveGit(ctx context) *verdict {
 	command := stringInput(ctx.input, "command")
-	if strings.Contains(command, "git restore --staged") {
-		return nil
-	}
 	for _, pattern := range []string{
 		"git commit", "git push", "git reset", "git checkout --", "git checkout -f",
-		"git checkout HEAD", "git restore", "git revert", "git stash drop",
-		"git stash clear", "git clean", "git push --force", "git push -f", "git merge",
+		"git checkout HEAD", "git restore", "git revert", "git stash",
+		"git clean", "git push --force", "git push -f", "git merge",
+		// The staging verbs. Several sessions share one index, so a loose
+		// stage puts another session's path into your commit, or yours into
+		// theirs. The generated commit script stages inside itself, and it
+		// reaches the tool as `bash <script>`, so this never blocks it.
+		"git add", "git rm", "git mv",
 	} {
-		if strings.Contains(command, pattern) {
-			return &verdict{2, "❌ Blocked: " + pattern + " (run manually)"}
+		if gitVerbRun(command, pattern) {
+			return &verdict{2, "❌ Blocked: " + pattern + " (run manually)\n" +
+				"Staging and committing go through ./le commit create, which writes one\n" +
+				"script that stages, commits and checks the index for another session's paths.\n" +
+				"To delete a tracked file, use plain `rm` and pass the path to `remove`."}
 		}
 	}
 	return nil

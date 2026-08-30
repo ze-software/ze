@@ -33,12 +33,16 @@
   session's work. The native commit command bundles all three into one atomic run.
 - A throwaway script carrying a push, deleted after, is NOT that path: banned.
 
-## git commit, git add, git rm: FORBIDDEN as bare Bash tool calls
-- NEVER invoke `git commit`, `git add`, `git rm`, `git restore --staged`,
+## git commit, git add, git rm, git mv: FORBIDDEN as bare Bash tool calls
+- NEVER invoke `git commit`, `git add`, `git rm`, `git mv`, `git restore --staged`,
   or `git stash` as a direct Bash tool call. Sessions share staging;
   cross-commits result. Commit only via the script that `./le commit create`
   prepares, then run it yourself with `bash` and the exact `script=` path the
   command prints. Committing is allowed. Committing outside that route is not.
+- `git add`, `git rm` and `git mv` are the three verbs that STAGE, and a staged
+  path stops every other session's commit script until its owner clears it.
+  To delete a tracked file use plain `rm` and pass the path to `remove`; to
+  rename one use `rm` plus a new file, and name both.
 - **The command's `script=` line is the only authoritative script path. Copy it;
   never construct the path from the session id.** Every prepared commit gets its
   own script, and its name carries a random suffix so no guess can reach another
