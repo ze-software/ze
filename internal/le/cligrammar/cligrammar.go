@@ -15,7 +15,8 @@
 // definitions. Feeder 6 is le's own command surface, which the first five
 // never saw: le registers into neither the YANG tree nor the wire methods, so
 // its roots drifted into hyphenating an object to its member exactly as ze's
-// roots once did.
+// roots once did. Feeder 7 (flags.go) is the offline surface, where a --flag is
+// LEGAL and the question is which token may wear one.
 //
 // Every population this gate reads is FLOORED and every read error is
 // answered. The retired implementation discarded both: it walked `internal`,
@@ -30,9 +31,6 @@ package cligrammar
 import (
 	"bufio"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -209,11 +207,20 @@ type Floor struct {
 	DemoScripts int
 	// LeRoots is the least registered le commands the registry scan must hold.
 	LeRoots int
+	// GoFiles is the least Go sources the flag scan must parse under cmd/ze
+	// and internal.
+	GoFiles int
+	// FlagSets is the least flag.NewFlagSet call sites it must resolve.
+	FlagSets int
 }
 
-// DefaultFloor is what le passes. The counts on 2026-08-26 were 217 .yang
-// files, 40 roots, and 19 terminal-demo definitions.
-var DefaultFloor = Floor{YANGFiles: 100, Roots: 20, DemoScripts: 10, LeRoots: 60}
+// DefaultFloor is what le passes. The counts on 2026-08-30 were 217 .yang
+// files, 39 roots, 19 terminal-demo definitions, 86 le commands, 4,590 Go
+// sources and 94 resolved flag sets.
+var DefaultFloor = Floor{
+	YANGFiles: 100, Roots: 20, DemoScripts: 10, LeRoots: 60,
+	GoFiles: 1000, FlagSets: 40,
+}
 
 // Check walks every feeder of the grammar gate over tree and answers what it
 // found.
@@ -267,12 +274,19 @@ func Check(tree string, floor Floor, leRoots []string) (Result, error) {
 		namespaces[name] = true
 	}
 
-	roots, err := registeredRootNames(tree)
+	surface, err := scanGoSurface(tree)
 	if err != nil {
 		return Result{}, err
 	}
+	if surface.FilesRead < floor.GoFiles {
+		return Result{}, fmt.Errorf("the Go scan parsed %d sources under %s, below the floor of %d: this tree was not read", surface.FilesRead, tree, floor.GoFiles)
+	}
+	roots := surface.Roots
 	if len(roots) < floor.Roots {
 		return Result{}, fmt.Errorf("the root scan resolved %d registered roots under %s, below the floor of %d: this tree was not read", len(roots), tree, floor.Roots)
+	}
+	if len(surface.FlagSets) < floor.FlagSets {
+		return Result{}, fmt.Errorf("the flag scan resolved %d flag sets under %s, below the floor of %d: this tree was not read", len(surface.FlagSets), tree, floor.FlagSets)
 	}
 	result.RootsChecked = len(roots)
 	for _, finding := range grammar.CheckRootNamespace(roots, namespaces) {
@@ -317,13 +331,22 @@ func Check(tree string, floor Floor, leRoots []string) (Result, error) {
 		result.Findings = append(result.Findings, finding)
 	}
 
+	// Feeder 7: which register a token belongs to. The six feeders above judge
+	// the command MODEL, where a flag is banned outright. This one judges the
+	// offline surface, where a flag is legal and the question is which token
+	// may wear one (internal/le/cligrammar/flags.go).
+	daemonPaths := map[string]bool{}
+	commandPaths(commandTree, "", daemonPaths)
+	checkFlagRegister(surface, daemonPaths, roots, &result)
+
 	sort.Slice(result.Findings, func(i, j int) bool {
 		if result.Findings[i].Command != result.Findings[j].Command {
 			return result.Findings[i].Command < result.Findings[j].Command
 		}
 		return result.Findings[i].Rule < result.Findings[j].Rule
 	})
-	result.Valid = len(result.Findings) == 0 && len(result.FlagInYANG) == 0 && len(result.DemoLaunch) == 0
+	result.Valid = len(result.Findings) == 0 && len(result.FlagInYANG) == 0 &&
+		len(result.DemoLaunch) == 0 && len(result.FlagFindings) == 0
 	return result, nil
 }
 
@@ -578,96 +601,4 @@ func launchTokens(fields []string) []string {
 		tokens = append(tokens, token)
 	}
 	return tokens
-}
-
-// registeredRootNames answers the STRING-LITERAL first argument of every
-// registry.RegisterRootHandler / MustRegisterRootHandler / RegisterRoot call
-// across tree's cmd/ze and internal/. Root handlers register in package main
-// (cmd/ze) or in internal owner packages and never reach the YANG-tree walk, so
-// the gate enumerates them from source -- build-tag independent, mirroring the
-// command-ownership gate.
-//
-// LIMITATION (shared with internal/le/commandownership): this is a static AST scan,
-// so a root registered with a NON-LITERAL name -- e.g. a variable passed through
-// a one-line helper like internal/test/cli's registerRoot(name, ...) -- is not
-// resolved and is not checked. Every real `ze` CLI root is registered with a
-// literal name, so all of them are covered; the invisible cases today are the
-// `ze-test <suite>` roots (SectionTest, a different binary and surface). If a
-// future `ze` root is added through a name-variable wrapper, it escapes this
-// feeder.
-//
-// Local metas (RegisterLocalMeta) are deliberately excluded: `update serve` is a
-// two-token local path, not a compound root.
-func registeredRootNames(tree string) ([]string, error) {
-	var names []string
-	for _, dir := range []string{filepath.Join("cmd", "ze"), "internal"} {
-		err := filepath.WalkDir(filepath.Join(tree, dir), func(path string, entry os.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if entry.IsDir() && entry.Name() == "testdata" {
-				return filepath.SkipDir
-			}
-			if entry.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-				return nil
-			}
-			found, parseErr := rootNamesIn(path)
-			if parseErr != nil {
-				return parseErr
-			}
-			names = append(names, found...)
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-	return names, nil
-}
-
-// rootNamesIn answers the first string-literal argument of every
-// registry.RegisterRoot / (Must)RegisterRootHandler call in one file.
-//
-// A file the parser cannot read is an ERROR rather than an empty answer: a root
-// this scan never resolved is a root the namespace feeder never checked, and
-// the script this replaces returned silently on exactly that path.
-func rootNamesIn(path string) ([]string, error) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, path, nil, 0)
-	if err != nil {
-		return nil, fmt.Errorf("parse %s: %w", path, err)
-	}
-
-	var names []string
-	ast.Inspect(file, func(node ast.Node) bool {
-		call, ok := node.(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-		selector, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok {
-			return true
-		}
-		pkg, ok := selector.X.(*ast.Ident)
-		if !ok || (pkg.Name != "registry" && pkg.Name != "cmdregistry") {
-			return true
-		}
-		switch selector.Sel.Name {
-		case "RegisterRootHandler", "MustRegisterRootHandler", "RegisterRoot":
-		default:
-			return true
-		}
-		if len(call.Args) == 0 {
-			return true
-		}
-		lit, ok := call.Args[0].(*ast.BasicLit)
-		if !ok || lit.Kind != token.STRING {
-			return true
-		}
-		if name, unquoteErr := strconv.Unquote(lit.Value); unquoteErr == nil {
-			names = append(names, name)
-		}
-		return true
-	})
-	return names, nil
 }

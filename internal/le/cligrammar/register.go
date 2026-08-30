@@ -16,15 +16,16 @@ const name = "cli-grammar"
 
 func init() {
 	leroot.Register(name, leroot.GroupGate, Answer, registry.Meta{
-		Description: "every built-in command, every registered root and every demo call site still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form",
+		Description: "every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register",
 		Mode:        "offline",
 		// SectionTest is where ze files a tool rather than a product command;
 		// internal/perf/cli registers ze-perf under it for the same reason.
 		Section: registry.SectionTest,
 	})
 
-	// The answer is ONE document holding three row sets, the grammar findings,
-	// the flag spellings and the dead launch forms, so the row operators are
+	// The answer is ONE document holding five row sets, the grammar findings,
+	// the flag spellings, the dead launch forms, the flag-register findings and
+	// the tracked flag debt, so the row operators are
 	// refused by name while `| json`, `| yaml` and `| table` render it
 	// (internal/component/command/answer_shape.go).
 	leroot.RegisterShape(name, command.ShapeDoc)

@@ -24,9 +24,50 @@ The sibling check fires only when the colliding namespace is a sibling at the
 same tree level. No `traffic` root existed to be `traffic-control`'s sibling,
 which is exactly why the gate stayed green over four violations.
 
-The gate now has four feeders: the static YANG check, plugin registration, the
-runtime guard, and this root-namespace check. `./le cli-grammar` prints
-the number of roots checked.
+This root-namespace check joined the static YANG check, plugin registration and
+the runtime guard as the fourth feeder. Three more followed: the demo call
+sites, le's own root surface, and the flag register below. `./le cli-grammar`
+prints the size of every population it read, because a run that checked nothing
+and a run that found nothing report the same zero findings.
+
+## Decision: a seventh feeder for which register a token belongs to
+
+The six feeders before it read the command MODEL, where a `--flag` is banned
+outright and the check is a string test. The offline surface is the one where a
+flag is LEGAL, so nothing checked it: 57 `flag.NewFlagSet` call sites, 121 flag
+declarations and 78 distinct flag names, and no gate over any of them.
+
+Feeder 7 asks the four questions `ai/rules/cli.md` asks of a flag, from source.
+The checks are pure functions beside `CheckName` and `CheckRootNamespace`; the
+gate collects the populations they judge by parsing every Go source under
+`cmd/ze` and `internal` once.
+
+<!-- source: internal/component/command/grammar/flags.go -- the four flag-register checks -->
+<!-- source: internal/le/cligrammar/flags.go -- the populations they judge, and the tracked debt -->
+
+| Rule | What fails | Why it matters |
+|------|-----------|----------------|
+| F1 | a registered root whose name is a flag | a flag that dispatches enters no tree, so completion, `ze help command` and every grammar feeder are blind to it. `--version`, `-V`, `--help` and `-h` are the stated exception |
+| F2 | a string literal that names a daemon command path and carries a flag | `(*Dispatcher).Dispatch` refuses a flag-shaped token before any handler runs, so the command fails on every invocation while its client half and its daemon-side parser both read as finished code |
+| F3 | `--json`, `--yaml`, `--table`, `--text` or `--format` on a command served by `registry.MustRegisterLocalData` | the answer already reaches the pipe layer, so the flag is a second spelling of `\| json`, and only the operator composes |
+| F4 | a flag the parser reads that `registry.RegisterCommandFlags` never declared, or a declared flag no parser reads | completion offers what the registry holds, and prose drifts from the parser in both directions |
+
+`FlagShaped` is the same predicate the daemon refuses by, called from
+`firstFlagToken`. A gate that judged flag shape differently from the daemon
+would pass a command string the daemon rejects.
+
+## Decision: the debt is a ledger, never an allowlist
+
+The tree carried 50 violations when the feeder landed, so a feeder that failed
+on all of them would block every commit. `flagRegisterDebt` and
+`flagDeclarationDebt` list each one with the reason it is still there, and the
+gate prints the whole ledger and its count on every run. A violation that is not
+listed fails. The F4 entries name the exact flags they forgive, so a listed path
+that starts parsing a NEW flag still fails.
+
+An entry whose violation is gone reports `FIXED, delete this entry` rather than
+failing the gate. Several sessions share this checkout, and a gate that went red
+on somebody else's landed fix is a gate nobody can keep green.
 
 ## Decision: the fixture test lives with the pure function
 
@@ -98,8 +139,9 @@ covered: local registration validates an empty path and a nil handler and never
 checks command-name grammar. A hyphenated local command would not be flagged.
 Extending the gate there is separate work.
 
-Three further items are deliberately untouched. Root-level flags such as
-`ze --plugins` are a different rule's question, and the feeder skips
-leading-hyphen roots. The two `format` value vocabularies, the CLI output format
-and the editor pipe operator, are both preserved and unreconciled. `ze pipe`
-takes one shell-quoted pipe expression rather than repeated operators.
+Three further items are deliberately untouched. A root-level flag is a
+different rule's question, and the feeder skips leading-hyphen roots. No root
+is flag-shaped today: `--plugins` was the last one and is now `show plugins`.
+The two `format` value vocabularies, the CLI output format and the editor pipe
+operator, are both preserved and unreconciled. `ze pipe` takes one shell-quoted
+pipe expression rather than repeated operators.

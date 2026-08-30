@@ -17,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/command/grammar"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -1175,26 +1176,14 @@ func unmatchedDefCount(defs []command.ArgDef, matched map[string]bool) int {
 // none. Flag-shaped means a leading dash followed by a letter ("-u", "-user",
 // "--user"), which no producer of a daemon command emits.
 //
-// Deliberately NOT flag-shaped:
-//   - "-" alone, a conventional stdin/placeholder token;
-//   - "--", the end-of-options marker;
-//   - "-5" and friends, so a value that merely looks negative is passed through
-//     to the handler rather than rejected here.
+// The shape itself is grammar.FlagShaped, so the static gate that hunts a
+// client building a flag into a daemon command string (F2,
+// internal/le/cligrammar) and this refusal read one definition. A gate judging
+// the shape differently from the daemon would pass a command the daemon
+// rejects.
 func firstFlagToken(args []string) string {
 	for _, a := range args {
-		rest, ok := strings.CutPrefix(a, "-")
-		if !ok {
-			continue
-		}
-		// A second dash is still a flag ("--user"); a lone "--" is not.
-		if after, dashdash := strings.CutPrefix(rest, "-"); dashdash {
-			rest = after
-		}
-		if rest == "" {
-			continue
-		}
-		r := rest[0]
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+		if grammar.FlagShaped(a) {
 			return a
 		}
 	}
