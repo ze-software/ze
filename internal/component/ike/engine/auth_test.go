@@ -141,8 +141,16 @@ func TestAuthX509UsesMethod14(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7427-3-4 negative -- method 14 is specific to signature authentication:
-// pre-shared-key authentication uses AUTH method 2 (Shared Key Message Integrity Code), not 14.
+// TestAuthPSKCompute pins that pre-shared-key authentication emits AUTH method 2
+// (Shared Key Message Integrity Code) rather than method 14.
+//
+// It carries NO RFC requirement tag, and the reason is worth stating because it
+// held one until 2026-08-30. As `RFC7427-3-4 negative` it could not fail if that
+// requirement were violated: `computePSKAuth` never reads `sa.RemoteHashAlgos`,
+// and returns `wire.AuthMethodPSK` as a constant selected by
+// `sa.PeerCfg.Auth.Mode`, so deleting the Section 3 gate in `computeX509Auth`
+// leaves every assertion here green. RFC7427-3-4 is proven in both polarities by
+// `TestRFC7427DigitalSignatureNeedsTheNotify`, which asserts the refusal itself.
 func TestAuthPSKCompute(t *testing.T) {
 	sa := testSAWithKeys(t)
 	sa.PeerCfg.Auth.Mode = ipsec.AuthPreSharedSecret
