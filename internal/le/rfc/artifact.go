@@ -180,6 +180,28 @@ func (e Extraction) Mapped() int { return e.countSites(dispositionMapped, "") }
 // sentence are not the same fact.
 func (e Extraction) Excluded() int { return e.countSites(dispositionExcluded, "") }
 
+// Unclassified counts the sites and the sections this artifact leaves with no
+// disposition.
+//
+// A generated skeleton is all of both, and a walk in progress is some of
+// either, so the pair separates "nobody has started" from "three sentences are
+// left". The check leads with this census because the per-site detail that
+// follows it can run to a thousand lines on a long RFC, and a wall of them
+// tells an author less than one sentence naming the file and the count.
+func (e Extraction) Unclassified() (sites, sections int) {
+	for _, site := range e.Sites {
+		if site.Disposition == "" {
+			sites++
+		}
+	}
+	for _, section := range e.Sections {
+		if section.Disposition == "" {
+			sections++
+		}
+	}
+	return sites, sections
+}
+
 func (e Extraction) countSites(disposition, kind string) int {
 	n := 0
 	for _, site := range e.Sites {

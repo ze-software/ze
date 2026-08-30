@@ -1,8 +1,13 @@
 # Extraction sign-offs
 
-One file per RFC, `rfc/extraction/<stem>.json`. Written as an unclassified skeleton by
-`./le rfc extraction-create STEM=<stem>`, classified by hand, and re-checked by
+One file per RFC, `rfc/extraction/<stem>.json`. Derived as a skeleton by
+`./le rfc extraction-create stem <stem>`, classified by hand, and re-checked by
 `./le rfc check` on every run.
+
+**The skeleton is written to this session's scratch, not here.** It reaches
+`rfc/extraction/` only when every site and every section already carries a
+disposition, which happens on a refresh whose decisions all carry forward. The
+command prints the `mv` that ends the walk.
 
 Spec: `plan/spec-rfcgate-1-extraction.md`. Rule: `ai/rules/rfc-compliance.md`,
 "Extraction Completeness".
@@ -58,6 +63,13 @@ unclassified site FAILS the check. There is no `--sign-off` mode, no default dis
 and no bulk classifier, so generating artifacts en masse makes the gate **redder**, never
 greener. That is a structural answer to a social failure mode, which is what the
 2026-07-20 owner ruling in `plan/deferrals/rfc-gate-regression-ratchets.md` asked for.
+
+That answer had one hole, and the owner named it on 2026-08-30: the generator wrote
+its unclassified output HERE, so the command's own product was a gate failure and the
+directory had no defence against a batch of them. It now writes an unclassified skeleton
+to the session scratch, and `./le rfc check` leads with a census naming the file and the
+count when one arrives here by hand. The two guards answer different arrivals: the first
+is what the command can produce, the second is what a person can copy.
 
 ## The register
 
@@ -216,6 +228,20 @@ not the same fact. That line is derived, so it appears exactly when a relocation
 ### Section skip kinds (closed set)
 
 `front-matter`, `references`, `iana`, `acknowledgements`, `appendix-non-normative`.
+
+## Credit is scoped to the enrolled set, and the remainder is published
+
+A sign-off COUNTS when its stem is in `rfc/enrolled.txt`. Credit and the backlog must
+describe one set, or the drain floor compares a credit against a backlog that does not
+contain it, which is the defect `credited` was written to fix.
+
+Signing before enrolling is the normal order, so a valid sign-off for a stem nobody has
+enrolled yet is a finished walk waiting for its RFC. It is parsed, checked and ratcheted
+like any other, and it starts counting the day its stem enrols. What it did NOT do was
+appear in any published figure: `rfc/extraction/` held seven artifacts on 2026-08-30 while
+`./le rfc check` reported six signed off, and nothing named the seventh. `./le rfc check`
+now names that set on its own line, in text and in `| json`, so a completed walk is never
+silently uncounted.
 
 ## Ratchets
 

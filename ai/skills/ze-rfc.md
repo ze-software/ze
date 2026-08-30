@@ -73,16 +73,22 @@ nothing re-checked. Record the walk instead, in an artifact a machine re-checks 
 `./le rfc check`:
 
 ```
-./le rfc extraction-create STEM=$ARGUMENTS     # writes an UNCLASSIFIED skeleton
-                                        # then classify every site and section by hand
-./le rfc check                       # re-derives the inventory and judges it
+./le rfc extraction-create stem $ARGUMENTS   # skeleton to session scratch, never to rfc/extraction/
+                                             # then classify every site and section by hand,
+                                             # then move the file in as the command says
+./le rfc check                               # re-derives the inventory and judges it
 ```
 
 The skeleton lists every normative site of the source (`<section>:<n>` plus the derived
 sentence) and every section, with each disposition `null`. Classify each site `mapped` to
 a requirement id or `excluded` with a kind and a reason, and each section `walked` or
 `skipped`. **An unclassified site fails the check**, so generating the skeleton makes the
-gate redder, never greener; only the walk makes it green.
+gate redder, never greener; only the walk makes it green. That is why the
+skeleton lands in the scratch: an unclassified artifact under `rfc/extraction/`
+reds the gate for the whole corpus, and generating a batch of them would red it
+for everybody at once. The command writes in place only when every site and
+section already carries a disposition, which is the refresh of a walk already
+done.
 
 Two arithmetics run: FORWARD (every derived site is accounted for) catches an obligation
 you missed, and REVERSE (every gated requirement is some site's target, or is listed in a

@@ -114,8 +114,9 @@ that fixes that bound, and it is a precondition of a new enrolment
 
 | Step | Command or file |
 |------|-----------------|
-| Write the unclassified skeleton | `./le rfc extraction-create STEM=<stem>` |
-| Classify every derived site and section by hand | `rfc/extraction/<stem>.json` |
+| Write the skeleton | `./le rfc extraction-create stem <stem>` |
+| Classify every derived site and section by hand | the file the command names, under this session's scratch |
+| Move the classified walk into the corpus | `mv <scratch>/rfc-extraction/<stem>.json rfc/extraction/<stem>.json` |
 | Re-check the arithmetic | `./le rfc check` |
 | Read the published backlog | `ai/RFC-REQUIREMENTS.md`, "Extraction sign-off" |
 | Read the counts machine-readably | `./le rfc extraction-status` |
@@ -126,6 +127,20 @@ and REQUIRED has a checklist row. When `rfc/full/` lacks the source, fetch it
 first, because "verified against the RFC" is not reproducible without it:
 
     curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt
+
+**The skeleton reaches `rfc/extraction/` only when every site and every section
+already carries a disposition.** Anything less is written to this session's
+scratch, and the command prints the `mv` that ends the walk. An unclassified
+artifact under `rfc/extraction/` fails `./le rfc check` for the whole corpus, so
+a generator that wrote one in place made its own output a gate failure, and a
+batch of them a corpus-wide one. A refresh whose every decision carries forward
+IS a sign-off, so that one is written in place as before.
+
+**A sign-off counts when its stem is enrolled, and the rest is named rather than
+hidden.** Credit and the backlog must describe one set, so a walk completed
+before its RFC enrols raises no count. `./le rfc check` prints that set on its
+own line so the walk is never silently uncounted, and it starts counting the day
+its stem enters `rfc/enrolled.txt`.
 
 Summaries enrolled before the gate existed are grandfathered and published as a
 counted backlog. Grandfathering is implemented as SCOPE (new since HEAD), never

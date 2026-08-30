@@ -25,12 +25,18 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// IsGatedLevel, so internal/le/testhealth could delete its own copy of the
 	// same five keywords. No verdict changed; the map and its membership are
 	// untouched.
+	// Re-sealed 2026-08-30, for the extraction-create destination guard: an
+	// unclassified skeleton now goes to the session scratch instead of into
+	// rfc/extraction/, the check leads with an unclassified census, and the
+	// check summary names the valid sign-offs its counts leave out. Five files
+	// moved: actions.go, artifact.go, check.go, extraction_create.go and
+	// signoff.go.
 	//
 	// Computed over the COMMITTED file set, not the working tree. This digest
 	// covers every non-test file in the package, and a second session has
-	// carriers.go, check_compile.go and render.go modified here, so the
-	// working-tree value describes a tree this commit does not make.
-	const want = "09dde99511c4e800f6348f12a5b284b56a83674cfdde61782d66cc4e593dd687"
+	// carriers.go, check_compile.go, inventory.go and render.go modified here,
+	// so the working-tree value describes a tree this commit does not make.
+	const want = "2302ce6d88ec84b932eab3e7f5eb2ce29d5e5f134b51749324d3de08705ed175"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)

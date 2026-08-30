@@ -91,7 +91,7 @@ web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner.
 implementation mistakes: stale source anchors, line-number anchors, unwired
 exported symbols, and incomplete spec AC tables. Run it after `./le verify current mode full` passes,
 before presenting work as complete.
-<!-- source: internal/le/verify/engine/stages.go -- stagesForMode -->
+<!-- source: internal/le/verify/engine/stages.go -- StagesForMode -->
 <!-- source: internal/le/verify/deps/actions.go -- Actions -->
 <!-- source: internal/le/repository/actions.go -- Answer -->
 <!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
@@ -192,7 +192,7 @@ its workflow job added by hand. The full workflow map is
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
 <!-- source: internal/le/evidence/actions.go -- Actions -->
 <!-- source: internal/le/qemu/actions.go -- Actions -->
-<!-- source: internal/le/qemu/alltests.go -- AllTestsRun -->
+<!-- source: internal/le/qemu/alltests.go -- allTestsRun -->
 
 ---
 
@@ -513,7 +513,7 @@ the Docker DUT matrix uses the native Go runner:
 Linux, then run as root inside `./le qemu all-tests`. CAP_NET_ADMIN and real
 interfaces are available in that guest. `TestCapabilityGatedTestsHaveANativeVMHome`
 fails when a capability-gated test has no registered QEMU path.
-<!-- source: internal/le/qemu/alltests.go -- AllTestsRun -->
+<!-- source: internal/le/qemu/alltests.go -- allTestsRun -->
 <!-- source: internal/test/runner/record_parse.go -- capability gate -->
 <!-- source: internal/test/runner/record_parse.go -- caps=net-admin gate and skip reason -->
 
@@ -850,7 +850,7 @@ re-derives the site inventory from the source and re-checks the arithmetic on
 every run.
 
 ```
-./le rfc extraction-create STEM=rfcNNNN     # unclassified skeleton; classify it by hand
+./le rfc extraction-create stem rfcNNNN    # skeleton to session scratch; classify, then move it in
 ./le rfc check                    # re-derives and judges
 ./le rfc extraction-status        # JSON counts, per register, plus the backlog
 ```
@@ -1301,7 +1301,7 @@ VPP functional tests are outside the default release gate. Run them with:
 The suite uses the compiled Go VPP API stub. Each test gets a fresh Unix socket,
 so it needs no DPDK, vfio, root, or Python helper.
 <!-- source: internal/test/cli/cmd_vpp_stub.go -- cmdVPPStub, runVPPStub -->
-<!-- source: internal/test/cli/cmd_vpp.go -- cmdVPP -->
+<!-- source: internal/test/cli/cmd_vpp.go -- cmdVpp -->
 
 Real-daemon evidence uses `./le deployment vpp-test`. It starts VPP in Docker
 and checks FIB, traffic, MPLS, and IKE/IPsec dataplane behavior.

@@ -14,7 +14,10 @@ import (
 
 // actions is the whole command surface.
 var actions = leaction.New(area,
-	leaction.Action{Verb: "extraction-create", Why: "derive one RFC or draft's unsigned extraction skeleton, preserving authored classifications only where the same locator still carries the same sentence",
+	leaction.Action{Verb: "extraction-create", Why: "derive one RFC or draft's extraction skeleton, preserving authored classifications only " +
+		"where the same locator still carries the same sentence. It reaches rfc/extraction/ only when every " +
+		"site and section already carries a disposition; an unclassified skeleton goes to this session's " +
+		"scratch, because one unclassified artifact in the corpus fails `./le rfc check` for all of it",
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyStem, Value: keyStem},

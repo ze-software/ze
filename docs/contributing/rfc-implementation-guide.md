@@ -546,7 +546,10 @@ never sums the two, because a nightly tier is not merge-gate proof.
   - `./le rfc check` gates coverage and validates the audit records.
   - `./le rfc index-update` renders one ledger per RFC and
     `ai/RFC-REQUIREMENTS.md`.
-  - `./le rfc extraction-create stem <stem>` writes an extraction skeleton.
+  - `./le rfc extraction-create stem <stem>` writes an extraction skeleton. It
+    reaches `rfc/extraction/` only when every site and section already carries a
+    disposition; otherwise it lands in this session's scratch and the command
+    prints the `mv` that ends the walk.
   - `./le rfc extraction-status` prints the sign-off counts.
   - `./le rfc reseal` re-stamps an audit verdict after a mechanical edit.
 
@@ -572,7 +575,7 @@ never sums the two, because a nightly tier is not merge-gate proof.
   extraction sign-off whose `register-reason` says why. Second, a Remaining cell that
   spells a gap count immediately before MUST or SHALL must agree with the summary's
   `{gap}` count.
-  <!-- source: internal/le/rfc/actions.go — check_summary_disposition, check_unproven_support, check_gap_count_agreement -->
+  <!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkUnprovenSupport, checkGapCountAgreement -->
 - **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
   exists, but it cannot read the test. The audit reads the RFC itself and each
   tagged test. It then judges whether the test would fail if the code stopped
@@ -586,7 +589,9 @@ never sums the two, because a nightly tier is not merge-gate proof.
   Recording a finding is free, and deleting one is not. `./le rfc check`
   re-stales a verdict when the requirement text, the tagged test's own function,
   or a cited producer changes.
-  <!-- source: internal/le/rfc/actions.go — AUDIT_VERDICTS, check_audit_schema, audit_coverage -->
+  <!-- source: internal/le/rfc/audit.go -- auditVerdicts -->
+  <!-- source: internal/le/rfc/check_audit.go -- checkAuditSchema -->
+  <!-- source: internal/le/rfc/coverage.go -- auditCoverageRows -->
 - **A `SHIFTED` verdict is not your problem to re-read.** When the gate says a
   verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
   moved: a line shift, a sibling test, or a rewritten import. Run
@@ -594,7 +599,8 @@ never sums the two, because a nightly tier is not merge-gate proof.
   `rfc/audit/`, and that is deliberate. A check that also wrote cannot be trusted
   to report. And a regen target that wrote evidence would re-stamp hand-authored
   judgements during unrelated work.
-  <!-- source: internal/le/rfc/actions.go — verdict_freshness, run_reseal -->
+  <!-- source: internal/le/rfc/freshness.go -- AuditFreshness -->
+  <!-- source: internal/le/rfc/reseal.go -- resealTree -->
 - **A `STALE` verdict is.** The tagged unit itself changed, so re-run
   `/ze-rfc-audit <rfc>`. The re-seal refuses that case by design.
 - **Never change a tagged test to make it pass.** Once a test carries an
@@ -636,7 +642,7 @@ Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 [ ] Add Ze implementation notes section
 [ ] Cross-reference related RFCs
 [ ] Every MUST-level line has a stable id (see 9.7); disclose any {gap} in docs/features/rfc-status.md
-[ ] Extraction sign-off recorded: ./le rfc extraction-create STEM=rfcNNNN, then classify
+[ ] Extraction sign-off recorded: ./le rfc extraction-create stem rfcNNNN, then classify
     every derived site and section in rfc/extraction/rfcNNNN.json (see 10.4)
 ```
 
@@ -654,9 +660,10 @@ in it bounds what the summary MISSED, and a green `./le rfc check` is bounded
 by what was extracted. Record the walk in an artifact the gate re-checks:
 
 ```
-./le rfc extraction-create STEM=rfcNNNN     # writes an UNCLASSIFIED skeleton
-                                      # classify every site and section by hand
-./le rfc check                     # re-derives the inventory and judges it
+./le rfc extraction-create stem rfcNNNN   # skeleton to session scratch, never to rfc/extraction/
+                                          # classify every site and section by hand,
+                                          # then move the file in as the command says
+./le rfc check                            # re-derives the inventory and judges it
 ```
 
 Each derived site (`<section>:<n>`, with the sentence it came from) is `mapped`

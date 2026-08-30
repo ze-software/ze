@@ -4,8 +4,15 @@
 //
 // extraction_create.go is ze-rfc-extraction-create. It derives an unsigned
 // skeleton, preserves authored decisions that still govern the same sentence,
-// validates the staged bytes with the production parser, and atomically replaces
-// the artifact only after that validation succeeds.
+// validates the staged bytes with the production parser, and writes the
+// artifact only after that validation succeeds.
+//
+// Where it writes is decided by ONE property: an artifact reaches
+// rfc/extraction/ only when every site and every section already carries a
+// disposition. An unclassified skeleton goes to this session's scratch instead,
+// because an unclassified artifact under rfc/extraction/ fails `./le rfc check`
+// for the whole corpus, and a generator whose own output reds the gate invites
+// exactly one accident: 44 skeletons written in a batch and left there.
 package rfc
 
 import (
@@ -20,18 +27,28 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 const (
 	extractionStagingPrefix = ".staging-"
 	extractionStagingMaxAge = time.Hour
+	// extractionScratchDir is the subdirectory of this session's scratch that
+	// holds skeletons still being walked. One directory per session, so two
+	// agents walking two RFCs never meet.
+	extractionScratchDir = "rfc-extraction"
 )
 
 var extractionStemRE = regexp.MustCompile(`\A[a-z0-9][a-z0-9._-]*\z`)
 
 // extractionCreateReport is the local-data answer for one skeleton write.
+//
+// Path is where the bytes landed and Destination is where a sign-off lives, so
+// a caller reads whether the two agree rather than comparing strings.
 type extractionCreateReport struct {
 	Path                 string `json:"path"`
+	Destination          string `json:"destination"`
+	Placed               bool   `json:"placed"`
 	Register             string `json:"register"`
 	Sites                int    `json:"sites"`
 	Sections             int    `json:"sections"`
@@ -39,16 +56,24 @@ type extractionCreateReport struct {
 	UnclassifiedSections int    `json:"unclassified-sections"`
 }
 
-// Text preserves the writer's two-line human answer. Pipe renderers consume the
-// same fields through the JSON tags above.
+// Text answers what the author must do next. Pipe renderers consume the same
+// fields through the JSON tags above.
 func (r extractionCreateReport) Text() string {
 	var out textbuf.Buffer
-	return out.Str("wrote ").Str(r.Path).Str(": register ").Str(r.Register).Str(", ").
-		Int(int64(r.Sites)).Str(" site(s) in ").Int(int64(r.Sections)).Str(" section(s).\n").
-		Int(int64(r.UnclassifiedSites)).Str(" site(s) and ").
-		Int(int64(r.UnclassifiedSections)).Str(" section(s) are UNCLASSIFIED -- ").
-		Str("`./le rfc check` fails until every one is classified by hand. Generation ").
-		Str("cannot produce a sign-off; only a walk can.\n").String()
+	out.Str("wrote ").Str(r.Path).Str(": register ").Str(r.Register).Str(", ").
+		Int(int64(r.Sites)).Str(" site(s) in ").Int(int64(r.Sections)).Str(" section(s).\n")
+	if r.Placed {
+		return out.Str("Every site and section carried a classification forward from the ").
+			Str("previous sign-off, so the refreshed artifact was written in place.\n").String()
+	}
+	return out.Int(int64(r.UnclassifiedSites)).Str(" site(s) and ").
+		Int(int64(r.UnclassifiedSections)).Str(" section(s) are UNCLASSIFIED, so the ").
+		Str("skeleton was NOT written to ").Str(r.Destination).Str(".\n").
+		Str("Classify every one by hand in the file above, then move it in:\n  mv ").
+		Str(r.Path).Byte(' ').Str(r.Destination).Byte('\n').
+		Str("Generation cannot produce a sign-off; only a walk can, and an unclassified ").
+		Str("artifact under rfc/extraction/ fails `./le rfc check` for the whole corpus.\n").
+		String()
 }
 
 type extractionDocument struct {
@@ -118,18 +143,54 @@ func createExtraction(tree, stem string) (extractionCreateReport, error) {
 	}
 
 	document := newExtractionDocument(inventory, previous)
-	if err := writeExtractionDocument(tree, stem, document); err != nil {
-		return extractionCreateReport{}, err
-	}
-
-	return extractionCreateReport{
-		Path:                 relTo(tree, path),
+	report := extractionCreateReport{
+		Destination:          relTo(tree, path),
 		Register:             document.Register,
 		Sites:                len(document.Sites),
 		Sections:             len(document.Sections),
 		UnclassifiedSites:    countUnclassifiedSites(document.Sites),
 		UnclassifiedSections: countUnclassifiedSections(document.Sections),
-	}, nil
+	}
+
+	// The whole guard, in one condition. A refresh whose every decision carried
+	// forward is already a sign-off and belongs in the corpus; anything else is
+	// a skeleton, and a skeleton in the corpus reds the gate.
+	directory := treePath(tree, extractionRel)
+	if report.UnclassifiedSites+report.UnclassifiedSections > 0 {
+		directory, err = extractionScratch(tree)
+		if err != nil {
+			return extractionCreateReport{}, err
+		}
+	} else {
+		report.Placed = true
+	}
+
+	if err := writeExtractionDocument(tree, directory, stem, document); err != nil {
+		return extractionCreateReport{}, err
+	}
+	report.Path = relTo(tree, filepath.Join(directory, stem+".json"))
+	return report, nil
+}
+
+// extractionScratch answers this session's skeleton directory, created.
+//
+// It is under tmp/session/, which is where every agent writes work in progress
+// (ai/rules/commands.md), so two sessions walking two RFCs never collide and
+// nothing an author has not finished can reach the tree the gate judges.
+func extractionScratch(tree string) (string, error) {
+	paths, err := lepath.ResolveSession(tree, true)
+	if err != nil {
+		var message textbuf.Buffer
+		return "", errors.New(message.Str("cannot resolve this session's scratch directory, ").
+			Str("which is where an unclassified skeleton is written: ").Err(err).String())
+	}
+	directory := treePath(tree, paths.Scratch, extractionScratchDir)
+	if err := os.MkdirAll(directory, 0o750); err != nil {
+		var message textbuf.Buffer
+		return "", errors.New(message.Str(relTo(tree, directory)).
+			Str(": cannot create directory: ").Err(err).String())
+	}
+	return directory, nil
 }
 
 func validateExtractionStem(stem string) error {
@@ -288,18 +349,23 @@ func escapeNonASCII(text string) string {
 	return out.String()
 }
 
-func writeExtractionDocument(tree, stem string, document extractionDocument) error {
-	directory := treePath(tree, extractionRel)
+// writeExtractionDocument replaces one artifact in directory, atomically.
+//
+// directory is absolute, and is either rfc/extraction/ or this session's
+// skeleton scratch. The staging tree is created inside it so the final rename
+// never crosses a filesystem, which is what makes the replacement atomic and
+// keeps a refused document from destroying the artifact it would have replaced.
+func writeExtractionDocument(tree, directory, stem string, document extractionDocument) error {
 	if err := os.MkdirAll(directory, 0o750); err != nil {
 		var message textbuf.Buffer
-		return errors.New(message.Str(extractionRel).Str(": cannot create directory: ").Err(err).String())
+		return errors.New(message.Str(relTo(tree, directory)).Str(": cannot create directory: ").Err(err).String())
 	}
 	sweepExtractionStaging(directory, time.Now())
 
 	staging, err := os.MkdirTemp(directory, extractionStagingPrefix)
 	if err != nil {
 		var message textbuf.Buffer
-		return errors.New(message.Str(extractionRel).Str(": cannot create staging directory: ").Err(err).String())
+		return errors.New(message.Str(relTo(tree, directory)).Str(": cannot create staging directory: ").Err(err).String())
 	}
 	defer os.RemoveAll(staging) //nolint:errcheck // best-effort cleanup after the atomic write or refusal
 
@@ -313,16 +379,15 @@ func writeExtractionDocument(tree, stem string, document extractionDocument) err
 		return errors.New(message.Str(relTo(tree, staged)).Str(": cannot write: ").Err(err).String())
 	}
 
+	path := filepath.Join(directory, stem+".json")
 	if _, err := ParseExtractionArtifact(tree, staged); err != nil {
-		finalRel := extractionRel + "/" + stem + ".json"
-		reason := strings.ReplaceAll(err.Error(), relTo(tree, staged), finalRel)
+		reason := strings.ReplaceAll(err.Error(), relTo(tree, staged), relTo(tree, path))
 		var message textbuf.Buffer
 		return errors.New(message.Str("the skeleton derived for ").Str(stem).
 			Str(" does not satisfy the artifact schema, so it was NOT written: ").Str(reason).
 			Str("\nThis is a defect in the derivation, not in the source text. Nothing was changed on disk").String())
 	}
 
-	path := treePath(tree, extractionRel+"/"+stem+".json")
 	if err := os.Rename(staged, path); err != nil {
 		var message textbuf.Buffer
 		return errors.New(message.Str(relTo(tree, path)).Str(": cannot replace: ").Err(err).String())

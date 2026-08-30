@@ -65,14 +65,21 @@ func TestExtractionCreateWritesTheCommittedNativeSkeletonBytes(t *testing.T) {
 	if report.UnclassifiedSites != 2 || report.UnclassifiedSections != 4 {
 		t.Errorf("the unclassified census is %+v", report)
 	}
-	wantStatus := "wrote rfc/extraction/rfc9999.json: register rfc2119, 2 site(s) in 4 section(s).\n" +
-		"2 site(s) and 4 section(s) are UNCLASSIFIED -- `./le rfc check` fails until every one is classified by hand. " +
-		"Generation cannot produce a sign-off; only a walk can.\n"
+	if report.Placed || report.Destination != "rfc/extraction/rfc9999.json" {
+		t.Fatalf("an unclassified skeleton claimed a place in the corpus: %+v", report)
+	}
+	wantStatus := "wrote " + report.Path + ": register rfc2119, 2 site(s) in 4 section(s).\n" +
+		"2 site(s) and 4 section(s) are UNCLASSIFIED, so the skeleton was NOT written to " +
+		"rfc/extraction/rfc9999.json.\n" +
+		"Classify every one by hand in the file above, then move it in:\n" +
+		"  mv " + report.Path + " rfc/extraction/rfc9999.json\n" +
+		"Generation cannot produce a sign-off; only a walk can, and an unclassified artifact " +
+		"under rfc/extraction/ fails `./le rfc check` for the whole corpus.\n"
 	if report.Text() != wantStatus {
 		t.Errorf("the writer status is %q, want %q", report.Text(), wantStatus)
 	}
 
-	body, err := os.ReadFile(filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
+	body, err := os.ReadFile(filepath.Join(tree, filepath.FromSlash(report.Path)))
 	if err != nil {
 		t.Fatalf("read skeleton: %v", err)
 	}
@@ -124,7 +131,7 @@ func TestExtractionCreateWritesTheCommittedNativeSkeletonBytes(t *testing.T) {
 		t.Errorf("skeleton bytes differ from the committed native fixture:\nwant:\n%s\ngot:\n%s", want, body)
 	}
 
-	artifact, err := ParseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
+	artifact, err := ParseExtractionArtifact(tree, filepath.Join(tree, filepath.FromSlash(report.Path)))
 	if err != nil {
 		t.Fatalf("the production parser refused the skeleton: %v", err)
 	}
@@ -209,7 +216,8 @@ func TestExtractionCreateRefreshPreservesOnlyDecisionsForTheSameSentence(t *test
 	for index := range document.Sections {
 		document.Sections[index].Disposition = &walked
 	}
-	if err := writeExtractionDocument(tree, "rfc9999", document); err != nil {
+	corpus := filepath.Join(tree, "rfc", "extraction")
+	if err := writeExtractionDocument(tree, corpus, "rfc9999", document); err != nil {
 		t.Fatalf("write classified fixture: %v", err)
 	}
 
@@ -218,11 +226,26 @@ func TestExtractionCreateRefreshPreservesOnlyDecisionsForTheSameSentence(t *test
 	if err := os.WriteFile(filepath.Join(tree, "rfc", "full", "rfc9999.txt"), []byte(moved), 0o600); err != nil {
 		t.Fatalf("move fixture sentence: %v", err)
 	}
-	if _, err := createExtraction(tree, "rfc9999"); err != nil {
+	report, err := createExtraction(tree, "rfc9999")
+	if err != nil {
 		t.Fatalf("refresh skeleton: %v", err)
 	}
+	// One sentence moved, so one site is unclassified again and the refreshed
+	// document is a skeleton. The valid sign-off it would replace stays in the
+	// corpus, and the gate stays green while the walk is redone.
+	if report.Placed || report.UnclassifiedSites != 1 {
+		t.Fatalf("a refresh with an unclassified site landed in the corpus: %+v", report)
+	}
+	standing, err := ParseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
+	if err != nil {
+		t.Fatalf("parse the standing artifact: %v", err)
+	}
+	if sites, sections := standing.Unclassified(); sites+sections != 0 {
+		t.Errorf("the refresh left the standing sign-off unclassified: %d site(s), %d section(s)",
+			sites, sections)
+	}
 
-	artifact, err := ParseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
+	artifact, err := ParseExtractionArtifact(tree, filepath.Join(tree, filepath.FromSlash(report.Path)))
 	if err != nil {
 		t.Fatalf("parse refreshed skeleton: %v", err)
 	}
@@ -280,7 +303,8 @@ func TestExtractionCreateRoundTripRefusalIsAtomic(t *testing.T) {
 	}
 	document := newExtractionDocument(inventory, nil)
 	document.Sections = append(document.Sections, document.Sections[1])
-	if err := writeExtractionDocument(tree, "rfc9999", document); err == nil ||
+	corpus := filepath.Join(tree, "rfc", "extraction")
+	if err := writeExtractionDocument(tree, corpus, "rfc9999", document); err == nil ||
 		!strings.Contains(err.Error(), "duplicate section") {
 		t.Fatalf("the staged parser did not refuse the broken document: %v", err)
 	}
@@ -294,7 +318,7 @@ func TestExtractionCreateRoundTripRefusalIsAtomic(t *testing.T) {
 	if err := os.Remove(path); err != nil {
 		t.Fatalf("remove previous artifact: %v", err)
 	}
-	if err := writeExtractionDocument(tree, "rfc9999", document); err == nil {
+	if err := writeExtractionDocument(tree, corpus, "rfc9999", document); err == nil {
 		t.Fatal("the staged parser accepted the broken document without a previous artifact")
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
@@ -331,9 +355,11 @@ func TestExtractionCreateValidatesStemAndSourceBeforeWriting(t *testing.T) {
 
 func TestExtractionCreateSweepsOnlyAbandonedStagingDirectories(t *testing.T) {
 	tree := extractionCreateTree(t)
-	directory := filepath.Join(tree, "rfc", "extraction")
-	if err := os.MkdirAll(directory, 0o750); err != nil {
-		t.Fatalf("artifact directory: %v", err)
+	// The sweep runs in the directory the write targets, and an unclassified
+	// skeleton targets the session scratch.
+	directory, err := extractionScratch(tree)
+	if err != nil {
+		t.Fatalf("resolve the skeleton scratch: %v", err)
 	}
 	stale := filepath.Join(directory, extractionStagingPrefix+"stale")
 	fresh := filepath.Join(directory, extractionStagingPrefix+"fresh")
@@ -396,5 +422,187 @@ func TestExtractionCreateReportUsesKebabCaseStructuredFields(t *testing.T) {
 		if !strings.Contains(string(body), `"`+key+`"`) {
 			t.Errorf("report JSON has no %q field: %s", key, body)
 		}
+	}
+}
+
+// TestAnUnclassifiedSkeletonNeverReachesTheCorpus is the procedural guard the
+// 2026-08-30 owner directive asked for: the generator's own output must not be
+// able to red the gate. It drives the writer over a source with no previous
+// artifact and asserts that rfc/extraction/ is untouched, that the skeleton is
+// under this session's scratch, and that moving it in is what the writer says
+// to do next.
+func TestAnUnclassifiedSkeletonNeverReachesTheCorpus(t *testing.T) {
+	tree := extractionCreateTree(t)
+
+	report, err := createExtraction(tree, "rfc9999")
+	if err != nil {
+		t.Fatalf("createExtraction: %v", err)
+	}
+	if report.Placed {
+		t.Errorf("the writer claims it placed an unclassified skeleton: %+v", report)
+	}
+	if _, err := os.Stat(filepath.Join(tree, "rfc", "extraction", "rfc9999.json")); !os.IsNotExist(err) {
+		t.Fatalf("an unclassified skeleton landed in the corpus: %v", err)
+	}
+	scratch, err := extractionScratch(tree)
+	if err != nil {
+		t.Fatalf("resolve the skeleton scratch: %v", err)
+	}
+	if want := relTo(tree, filepath.Join(scratch, "rfc9999.json")); report.Path != want {
+		t.Errorf("the skeleton is at %q, want %q", report.Path, want)
+	}
+	if _, err := os.Stat(filepath.Join(tree, filepath.FromSlash(report.Path))); err != nil {
+		t.Errorf("the writer named a file it did not write: %v", err)
+	}
+	// A message that says only "something is wrong" teaches nothing. The move
+	// that ends the walk must be in it, spelled out.
+	move := "mv " + report.Path + " rfc/extraction/rfc9999.json"
+	if !strings.Contains(report.Text(), move) {
+		t.Errorf("the writer does not name the move %q:\n%s", move, report.Text())
+	}
+}
+
+// TestAFullyClassifiedRefreshStillLandsInTheCorpus proves the guard cuts the
+// skeleton and nothing else. A source change that leaves every locator and
+// every sentence intact carries every decision forward, so the refreshed
+// document IS a sign-off and belongs where sign-offs live. Deleting the feature
+// was never an option: a walk needs the skeleton, and a re-derive needs the
+// artifact replaced in place.
+func TestAFullyClassifiedRefreshStillLandsInTheCorpus(t *testing.T) {
+	tree := extractionCreateTree(t)
+	inventory, err := NewDeriver(tree).Inventory("rfc9999", 2)
+	if err != nil || inventory == nil {
+		t.Fatalf("derive fixture inventory: %v, %+v", err, inventory)
+	}
+	document := newExtractionDocument(inventory, nil)
+	mapped, walked := dispositionMapped, "walked"
+	document.SignedOff = "2026-08-30"
+	document.Reviewer = "tester"
+	document.Sites[0].Disposition, document.Sites[0].MappedTo = &mapped, "RFC9999-2-1"
+	document.Sites[1].Disposition, document.Sites[1].MappedTo = &mapped, "RFC9999-2-2"
+	for index := range document.Sections {
+		document.Sections[index].Disposition = &walked
+	}
+	corpus := filepath.Join(tree, "rfc", "extraction")
+	if err := writeExtractionDocument(tree, corpus, "rfc9999", document); err != nil {
+		t.Fatalf("write the classified fixture: %v", err)
+	}
+
+	// Whitespace only: every site id and every quote survives it, so every
+	// decision carries forward and only the source fingerprint moves.
+	source := strings.Replace(extractionCreateSource, "3.  References", "3.   References", 1)
+	if err := os.WriteFile(filepath.Join(tree, "rfc", "full", "rfc9999.txt"), []byte(source), 0o600); err != nil {
+		t.Fatalf("rewrite the fixture source: %v", err)
+	}
+
+	report, err := createExtraction(tree, "rfc9999")
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if !report.Placed || report.Path != "rfc/extraction/rfc9999.json" {
+		t.Fatalf("a fully classified refresh did not land in the corpus: %+v", report)
+	}
+	refreshed, err := ParseExtractionArtifact(tree, filepath.Join(corpus, "rfc9999.json"))
+	if err != nil {
+		t.Fatalf("parse the refreshed artifact: %v", err)
+	}
+	if refreshed.SourceSHA != RequirementSHA(source) || refreshed.Mapped() != 2 {
+		t.Errorf("the refresh did not re-stamp a complete sign-off: %+v", refreshed)
+	}
+	if strings.Contains(report.Text(), "UNCLASSIFIED") {
+		t.Errorf("a complete refresh reported unclassified work:\n%s", report.Text())
+	}
+}
+
+// TestTheCheckLeadsWithAnActionableUnclassifiedCensus covers the other half of
+// the guard: an artifact that arrives in the corpus by hand still has to be
+// caught, and the author has to be told what to do about it. The per-site
+// detail runs to one line per sentence, so the census must come FIRST.
+func TestTheCheckLeadsWithAnActionableUnclassifiedCensus(t *testing.T) {
+	tree := extractionCreateTree(t)
+	inventory, err := NewDeriver(tree).Inventory("rfc9999", 2)
+	if err != nil || inventory == nil {
+		t.Fatalf("derive fixture inventory: %v, %+v", err, inventory)
+	}
+	document := newExtractionDocument(inventory, nil)
+	scratch, err := extractionScratch(tree)
+	if err != nil {
+		t.Fatalf("resolve the skeleton scratch: %v", err)
+	}
+	if err := writeExtractionDocument(tree, scratch, "rfc9999", document); err != nil {
+		t.Fatalf("stage the skeleton: %v", err)
+	}
+	corpus := filepath.Join(tree, "rfc", "extraction")
+	if err := os.MkdirAll(corpus, 0o750); err != nil {
+		t.Fatalf("corpus directory: %v", err)
+	}
+	body, err := os.ReadFile(filepath.Join(scratch, "rfc9999.json"))
+	if err != nil {
+		t.Fatalf("read the staged skeleton: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(corpus, "rfc9999.json"), body, 0o600); err != nil {
+		t.Fatalf("hand-place the skeleton: %v", err)
+	}
+
+	requirements, err := parseSummaryText(extractionCreateSummary, "rfc9999", "rfc/short/rfc9999.md")
+	if err != nil {
+		t.Fatalf("parse the fixture summary: %v", err)
+	}
+	signed, errs, err := evaluateExtractions(NewDeriver(tree), requirements)
+	if err != nil {
+		t.Fatalf("evaluateExtractions: %v", err)
+	}
+	if len(signed) != 0 {
+		t.Fatalf("a hand-placed skeleton earned credit: %v", signed)
+	}
+	if len(errs) == 0 {
+		t.Fatal("a hand-placed skeleton did not fail the check")
+	}
+	census := errs[0]
+	for _, want := range []string{
+		"rfc/extraction/rfc9999.json",
+		"2 of 2 site(s) and 4 of 4 section(s) are UNCLASSIFIED",
+		"Classify every one by hand",
+		"./le rfc extraction-create stem rfc9999",
+	} {
+		if !strings.Contains(census, want) {
+			t.Errorf("the leading violation does not say %q:\n%s", want, census)
+		}
+	}
+}
+
+// TestACompletedSignOffIsNeverSilentlyUncounted covers the reporting hole the
+// owner found by counting files: seven artifacts, six credited. credited() is
+// right to count only enrolled stems, so the fix is to name the remainder
+// rather than to move the arithmetic.
+func TestACompletedSignOffIsNeverSilentlyUncounted(t *testing.T) {
+	valid := map[string]Extraction{
+		"rfc1": {Stem: "rfc1", Register: registerProse},
+		"rfc2": {Stem: "rfc2", Register: registerRFC2119},
+		"rfc3": {Stem: "rfc3", Register: registerProse},
+	}
+	enrolled := map[string]bool{"rfc2": true}
+
+	got := uncredited(valid, enrolled)
+	if len(got) != 2 || got[0] != "rfc1" || got[1] != "rfc3" {
+		t.Fatalf("the uncredited set is %v, want [rfc1 rfc3]", got)
+	}
+	if len(credited(valid, enrolled))+len(got) != len(valid) {
+		t.Errorf("credited and uncredited do not partition the valid set")
+	}
+
+	report := CheckReport{
+		Enrolled: 1, Unsigned: 0, SignedByRegister: map[string]int{"rfc2119": 1},
+		SignedUnenrolled: got,
+	}
+	text := report.Text()
+	for _, want := range []string{"valid but uncounted above", "rfc1, rfc3", "rfc/enrolled.txt"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the check summary does not say %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(CheckReport{Enrolled: 1, SignedByRegister: map[string]int{}}.Text(),
+		"valid but uncounted above") {
+		t.Error("the clause renders when no sign-off is uncredited")
 	}
 }

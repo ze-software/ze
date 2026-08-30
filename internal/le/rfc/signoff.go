@@ -217,6 +217,23 @@ func evaluateExtraction(tree string, art Extraction, inv *Inventory, reqs []Requ
 	var errs []string
 	where := art.Path
 
+	// The census leads, because the per-site detail below it is one line per
+	// unclassified sentence and a long RFC has hundreds. A reader who meets
+	// that wall learns that something is wrong; this line names the file, the
+	// count, and the two moves that end it.
+	if sites, sections := art.Unclassified(); sites+sections > 0 {
+		var tb textbuf.Buffer
+		errs = append(errs, tb.Str(where).Str(": ").Int(int64(sites)).Str(" of ").
+			Int(int64(len(art.Sites))).Str(" site(s) and ").Int(int64(sections)).
+			Str(" of ").Int(int64(len(art.Sections))).
+			Str(" section(s) are UNCLASSIFIED. A generated skeleton is not a sign-off, ").
+			Str("and one unclassified artifact reds this gate for the whole corpus. ").
+			Str("Classify every one by hand, or move the file back into this session's ").
+			Str("scratch until the walk is done: ./le rfc extraction-create stem ").
+			Str(art.Stem).Str(" writes an unclassified skeleton to the scratch rather ").
+			Str("than to rfc/extraction/, for exactly this reason").String())
+	}
+
 	if art.SignedOff == "" {
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(where).
@@ -519,6 +536,26 @@ func credited(signed map[string]Extraction, enrolled map[string]bool) map[string
 			out[stem] = signed[stem]
 		}
 	}
+	return out
+}
+
+// uncredited answers the valid sign-offs credited() left out, sorted.
+//
+// Such a walk is complete and correct, and credited() is right to keep it out
+// of the totals: credit and backlog must describe one set. What was missing is
+// the REMAINDER. Nothing named it, so a finished walk sat in rfc/extraction/
+// counting toward nothing and told nobody -- rfc1035 was signed off on
+// 2026-07-30 and appeared in no published figure for a month. Publishing the
+// set beside the totals is what stops that, without moving an arithmetic that
+// is correct.
+func uncredited(signed map[string]Extraction, enrolled map[string]bool) []string {
+	out := make([]string, 0)
+	for stem := range signed {
+		if !enrolled[stem] {
+			out = append(out, stem)
+		}
+	}
+	sort.Strings(out)
 	return out
 }
 

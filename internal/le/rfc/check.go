@@ -30,6 +30,7 @@ type CheckReport struct {
 	Signed           int            `json:"signed,omitempty"`
 	SignedByRegister map[string]int `json:"signed-by-register,omitempty"`
 	Unsigned         int            `json:"unsigned,omitempty"`
+	SignedUnenrolled []string       `json:"signed-unenrolled,omitempty"`
 	AuditProven      int            `json:"audit-proven,omitempty"`
 	AuditFindings    int            `json:"audit-findings,omitempty"`
 	AuditVerdicts    int            `json:"audit-verdicts,omitempty"`
@@ -62,6 +63,15 @@ func (r CheckReport) Text() string {
 	tb.Str("evidence: ").Str(evidencePhrase(r.Evidence)).Str(" (unit evidence proves the algorithm; only a running non-unit test proves the daemon or a peer).\n")
 	tb.Str("extraction: ").Str(registerPhrase(r.SignedByRegister)).Str(" signed off of ").Int(int64(r.Enrolled)).
 		Str(" enrolled; ").Int(int64(r.Unsigned)).Str(" unsigned (grandfathered backlog).\n")
+	// The line above counts the ENROLLED set, so a completed walk for a stem
+	// nobody has enrolled yet lands in no figure on it. Reading the file count
+	// beside the total is then the only way to notice, and nothing said so.
+	if len(r.SignedUnenrolled) > 0 {
+		tb.Str("extraction: ").Int(int64(len(r.SignedUnenrolled))).
+			Str(" further sign-off(s) are valid but uncounted above, because the stem is not enrolled (").
+			Str(strings.Join(r.SignedUnenrolled, ", ")).
+			Str("). The walk is done and starts counting the day its stem enters rfc/enrolled.txt.\n")
+	}
 	tb.Str("audit: ").Int(int64(r.AuditProven)).Str(" proven, ").Int(int64(r.AuditFindings)).
 		Str(" audited-but-not-proven, of ").Int(int64(r.AuditVerdicts)).Str(" verdict(s); ").
 		Int(int64(r.AuditDone)).Str(" of ").Int(int64(r.AuditTotal)).Str(" auditable requirement(s) audited (").
@@ -266,6 +276,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	report.Signed = len(credited)
 	report.SignedByRegister = registerCounts(credited)
 	report.Unsigned = len(collected.Enrolled) - len(credited)
+	report.SignedUnenrolled = uncredited(signed, collected.Enrolled)
 	auditRows, worklist := auditCoverageRows(auditCoverageInput{Requirements: collected.Requirements,
 		Tags: collected.Tags, Enrolled: collected.Enrolled, Carriers: carriers, Audits: audits, States: states})
 	for _, row := range auditRows {
