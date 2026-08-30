@@ -45,7 +45,8 @@ nothing repeats the problem it exists to fix.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/le/` - unions working tree, since-green commits, and reverse deps, and emits Go package directories only
+- [ ] `internal/le/changed/selector.go` - `Selector` unions working tree, since-green commits, and reverse deps, and emits Go package directories only
+  → Constraint: the bullet named the bare directory `internal/le/` until 2026-08-28, which identifies no file. The producer is `Selector` in this file, and `internal/le/changed/scope.go` carries the scope parsing beside it.
 
 **Behavior to preserve:**
 - <to be filled>
@@ -102,7 +103,7 @@ is reported rather than passed over.
 - [ ] Tests written
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
-- [ ] `./le verify current mode full` green
+- [ ] `./le verify worktree` green
 
 ### Integration Checklist
 - [ ] <to be filled>

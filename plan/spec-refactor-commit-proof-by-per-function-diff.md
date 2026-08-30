@@ -45,7 +45,8 @@ and an escape nobody can audit is worse than no gate at all.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE you write this spec)
-- [ ] `internal/le/` - the existing pattern for a repository-wide dev script
+- [ ] `internal/le/register.go` - the composition root every `./le <area> <action>` registers into, which is the current shape of a repository-wide development tool
+  → Constraint: the bullet named the bare directory `internal/le/` until 2026-08-28, which identifies no file. A repository-wide dev tool is now a registered action backed by a callable Go package, not a script.
 
 **Behavior to preserve:**
 - <to be filled>
@@ -85,7 +86,7 @@ and an escape nobody can audit is worse than no gate at all.
 ### Functional Tests
 
 Tooling only, no daemon code. The driving surface is a new dev script beside
-`internal/le/weakened/audit.go`, with a Go-hosted test proving that a
+`internal/le/testweakened/audit.go`, with a Go-hosted test proving that a
 changed body is reported and that a pure move is not.
 
 ## Files to Modify
@@ -101,7 +102,7 @@ changed body is reported and that a pure move is not.
 - [ ] Tests written
 - [ ] Tests FAIL before implementation
 - [ ] Tests PASS after implementation
-- [ ] `./le verify current mode full` green
+- [ ] `./le verify worktree` green
 
 ### Integration Checklist
 - [ ] <to be filled>

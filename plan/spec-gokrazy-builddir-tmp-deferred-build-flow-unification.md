@@ -116,12 +116,9 @@ removes; this spec is their home):
   the gate cannot be green only on fixtures.
 - ~~**Rename the `builddir` directory.**~~ **CANCELLED 2026-08-05: the premise
   is false.** The row called it a "mechanical rename, no behavior change". It is
-  neither. The name is HARDCODED in the gokrazy tool ze vendors:
-
-  ```go
-  // vendor/github.com/gokrazy/tools/packer/gotool.go, BuildDir
-  buildDir := filepath.Join("builddir", importPath)
-  ```
+  neither. The name is HARDCODED in the gokrazy tool ze vendors: `BuildDir`
+  (`vendor/github.com/gokrazy/tools/packer/gotool.go`) joins the literal string
+  `builddir` with the import path to form the build directory.
 
   `BuildDir` takes only an import path. The literal has no parameter, no config
   key and no environment override; the surrounding comment describes granularity
@@ -382,7 +379,7 @@ removes; this spec is their home):
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan — check what exists |
 | 3. Wiring phase | Wiring Test table — register entry points, write failing wiring tests |
 | 4. Implement (TDD) | Implementation phases below (write-test-fail-implement-pass per phase) |
-| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 7. Fix issues | Fix every issue from critical review |
 | 8. Re-verify | Re-run stage 5 |
@@ -518,7 +515,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 
 ### Documentation Updates
 - [Docs updated, with source anchors named, or "None" with grep evidence]
-- [If docs were changed: `./le doc-check verify` result]
+- [If docs were changed: `./le doc check verify` result]
 
 ### Deviations from Plan
 - [Differences from original plan and why]
@@ -628,7 +625,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
