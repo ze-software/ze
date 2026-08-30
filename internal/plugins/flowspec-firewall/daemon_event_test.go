@@ -106,7 +106,7 @@ func daemonFlowSpecEvent(t *testing.T, extComm []byte, withdraw bool, comps ...f
 	fam := flowFamily()
 	fs := flowspec.NewFlowSpec(fam)
 	for _, c := range comps {
-		fs.AddComponent(c)
+		require.NoError(t, fs.AddComponent(c))
 	}
 
 	var attrs []byte

@@ -69,9 +69,10 @@ func decodeFlowSpecNLRI(famName string, data []byte) map[string]any {
 // Format: {"rd": "...", "destination-ipv6": [["prefix/len/offset"]], ...}.
 // Note: "family" is NOT included since it's already in the JSON path when embedded.
 //
-// Multiple components of the same type are merged into a single key with
-// combined OR groups. This enables round-trip: if two "port" components
-// exist in wire format, they become one "port" key with multiple OR groups.
+// One component becomes one key. A component type appears at most once in a
+// FlowSpec (RFC 8955 Section 4.2, enforced by FlowSpec.AddComponent and
+// FlowSpec.parseComponents), so each key is written once and the OR groups of a
+// type all come from formatNumericMatches over that one component.
 func flowSpecToJSON(fs *FlowSpec, family string, rd *RouteDistinguisher) map[string]any {
 	result := make(map[string]any)
 
@@ -85,16 +86,7 @@ func flowSpecToJSON(fs *FlowSpec, family string, rd *RouteDistinguisher) map[str
 
 	for _, comp := range fs.Components() {
 		key, values := componentToJSON(comp, isIPv6)
-		// Merge with existing values if key already exists (multiple components of same type)
-		if existing, ok := result[key]; ok {
-			if existingSlice, ok := existing.([][]string); ok {
-				result[key] = append(existingSlice, values...)
-			} else {
-				result[key] = values
-			}
-		} else {
-			result[key] = values
-		}
+		result[key] = values
 	}
 
 	return result
@@ -451,8 +443,9 @@ func contains(slice []string, val string) bool {
 // a single keyword: "protocol tcp udp" -> one component with OR values.
 //
 // For complex OR-of-AND groups (inner arrays have multiple values), each OR
-// group becomes a separate keyword entry: "port >80 <100 port >443 <500"
-// -> two components that get merged on decode.
+// group becomes a separate keyword entry: "port >80 <100 port >443 <500".
+// The text encoder parses one component per keyword and FlowSpec.AddComponent
+// joins them into the single Type 4 component RFC 8955 Section 4.2 allows.
 func jsonToTextComponents(m map[string]any) ([]string, error) {
 	var args []string
 
@@ -519,9 +512,9 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 				args = append(args, values...)
 			}
 		} else {
-			// Complex OR-of-AND: emit each OR group with its own keyword
-			// "port >80 <100 port >443 <500" -> two components
-			// The decoder merges components with same key into one entry
+			// Complex OR-of-AND: emit each OR group with its own keyword,
+			// "port >80 <100 port >443 <500". AddComponent joins the repeated
+			// keyword's groups back into one component.
 			for _, orGroup := range arr {
 				innerArr, ok := orGroup.([]any)
 				if !ok {

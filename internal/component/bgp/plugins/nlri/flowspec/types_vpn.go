@@ -57,9 +57,11 @@ func (f *FlowSpecVPN) FlowSpec() *FlowSpec {
 	return f.flowSpec
 }
 
-// AddComponent adds a component to the FlowSpec.
-func (f *FlowSpecVPN) AddComponent(c FlowComponent) {
-	f.flowSpec.AddComponent(c)
+// AddComponent adds a component to the wrapped FlowSpec. It returns an error when
+// the component cannot stand beside the components already present. See
+// FlowSpec.AddComponent for the RFC 8955 Section 4.2 rule it enforces.
+func (f *FlowSpecVPN) AddComponent(c FlowComponent) error {
+	return f.flowSpec.AddComponent(c)
 }
 
 // Components returns the FlowSpec components.
@@ -150,13 +152,8 @@ func ParseFlowSpecVPN(fam Family, data []byte) (*FlowSpecVPN, error) {
 	fs := NewFlowSpec(fsFamily)
 
 	remaining := data[offset+8 : offset+nlriLen]
-	for len(remaining) > 0 {
-		comp, rest, err := parseFlowComponent(remaining, fsFamily)
-		if err != nil {
-			return nil, err
-		}
-		fs.components = append(fs.components, comp)
-		remaining = rest
+	if err := fs.parseComponents(remaining, fsFamily); err != nil {
+		return nil, err
 	}
 
 	return &FlowSpecVPN{

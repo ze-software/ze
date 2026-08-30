@@ -433,6 +433,62 @@ func TestEncodeFlowSpecProtocolOperatorEquivalence(t *testing.T) {
 	}
 }
 
+// TestEncodeFlowSpecRepeatedKeywordIsOneComponent verifies the operator-facing text
+// form of an OR of AND groups reaches the wire as one component.
+//
+// VALIDATES: EncodeFlowSpecComponents (plugin_encode_text.go) parses each repeated
+// keyword into its own component and hands both to FlowSpec.AddComponent, which joins
+// them (types.go). "port >80 <100 port >443 <500" therefore emits one Type 4
+// component, and ze parses back what it emitted.
+//
+// PREVENTS: the malformed two-Type-4 NLRI ze announced for this command before the
+// join existed. RFC 8955 Section 4.2 allows a component type exactly once.
+func TestEncodeFlowSpecRepeatedKeywordIsOneComponent(t *testing.T) {
+	t.Parallel()
+
+	// (>80 AND <100) OR (>443 AND <500).
+	wire, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"port", ">80", "<100", "port", ">443", "<500"})
+	require.NoError(t, err)
+
+	want := []byte{0x0b, 0x04, 0x02, 0x50, 0x44, 0x64, 0x12, 0x01, 0xbb, 0xd4, 0x01, 0xf4}
+	assert.Equal(t, want, wire)
+
+	// Both OR groups survive the join: the decoded JSON keeps them as two groups under
+	// one key, which is the round-trip form the JSON encoder reads back.
+	parsed, err := ParseFlowSpec(IPv4FlowSpec, wire)
+	require.NoError(t, err)
+	require.Len(t, parsed.Components(), 1)
+	decoded := flowSpecToJSON(parsed, "ipv4/flow", nil)
+	assert.Equal(t, [][]string{{">80", "<100"}, {">443", "<500"}}, decoded["port"])
+}
+
+// TestEncodeFlowSpecVPNRDAnywhereInTheArguments verifies the rd pair is removed from
+// the argument list wherever the operator wrote it.
+//
+// VALIDATES: parseRDFromArgs (plugin_encode_text.go) returns the arguments with the
+// matched "rd <value>" pair cut out, so the component walk that follows sees every
+// other argument and never meets the rd keyword.
+//
+// PREVENTS: an rd written after a component consuming that component's two arguments
+// instead of its own, which dropped the component and then reached the component walk
+// with an rd it turned into a nil component.
+func TestEncodeFlowSpecVPNRDAnywhereInTheArguments(t *testing.T) {
+	t.Parallel()
+
+	leading, err := EncodeFlowSpecComponents(IPv4FlowSpecVPN, []string{"rd", "100:1", "destination", "10.0.0.0/24"})
+	require.NoError(t, err)
+
+	trailing, err := EncodeFlowSpecComponents(IPv4FlowSpecVPN, []string{"destination", "10.0.0.0/24", "rd", "100:1"})
+	require.NoError(t, err)
+
+	assert.Equal(t, leading, trailing, "rd position must not change the NLRI")
+
+	// An rd on a family that carries no Route Distinguisher is refused rather than
+	// ignored.
+	_, err = EncodeFlowSpecComponents(IPv4FlowSpec, []string{"rd", "100:1", "destination", "10.0.0.0/24"})
+	require.ErrorIs(t, err, errRdOnlyForVpnFamily)
+}
+
 func TestEncodeJSONFormat(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

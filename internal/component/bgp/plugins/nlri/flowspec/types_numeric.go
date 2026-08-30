@@ -27,6 +27,25 @@ func (c *numericComponent) Type() FlowComponentType { return c.compType }
 // Matches returns the match conditions.
 func (c *numericComponent) Matches() []FlowMatch { return c.matches }
 
+// mergeMatches joins other's operator list onto c as a new OR group.
+//
+// RFC 8955 Section 4.2 allows one component of each type, so an OR of AND groups
+// is ONE component whose operator list holds every group, not one component per
+// group. Section 4.2.1.1 gives the AND bit of a group's leading operator no
+// meaning ("In the first operator octet of a sequence, it MUST be encoded as
+// unset"), so the first appended match starts a new OR group and its AND bit is
+// cleared. The end-of-list bit is derived at encode time from the list length, so
+// the merged list carries exactly one.
+func (c *numericComponent) mergeMatches(other *numericComponent) {
+	if len(other.matches) == 0 {
+		return
+	}
+
+	joined := len(c.matches)
+	c.matches = append(c.matches, other.matches...)
+	c.matches[joined].And = false
+}
+
 // Values returns just the match values as a plain slice.
 func (c *numericComponent) Values() []uint64 {
 	vals := make([]uint64, len(c.matches))

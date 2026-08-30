@@ -128,7 +128,7 @@ func TestUnsupportedComponentRejected(t *testing.T) {
 func TestNoActionSkipped(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	fs := flowspec.NewFlowSpec(fam)
-	fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))))
 
 	_, err := translateFlowSpec(fs, flowAction{}, "test-key")
 	assert.ErrorIs(t, err, errNoAction)
@@ -137,7 +137,7 @@ func TestNoActionSkipped(t *testing.T) {
 func TestBuildTerm(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	fs := flowspec.NewFlowSpec(fam)
-	fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))))
 
 	act := flowAction{discard: true}
 	terms, err := translateFlowSpec(fs, act, "key1")
@@ -216,8 +216,8 @@ func TestParseNLRIJSON(t *testing.T) {
 func TestPortAnySplitsTerms(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	fs := flowspec.NewFlowSpec(fam)
-	fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-	fs.AddComponent(flowspec.NewFlowPortComponent(80))
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))))
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowPortComponent(80)))
 
 	act := flowAction{discard: true}
 	terms, err := translateFlowSpec(fs, act, "port-any-key")
@@ -371,8 +371,8 @@ func TestComponentToMatchMultipleProtocolValues(t *testing.T) {
 func TestTranslateFlowSpecMultipleProtocolsBecomeSeparateTerms(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	fs := flowspec.NewFlowSpec(fam)
-	fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-	fs.AddComponent(flowspec.NewFlowIPProtocolComponent(6, 132))
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))))
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowIPProtocolComponent(6, 132)))
 
 	terms, err := translateFlowSpec(fs, flowAction{discard: true}, "multi-proto-key")
 	require.NoError(t, err)
@@ -406,7 +406,7 @@ func TestTranslateFlowSpecMultipleProtocolsBecomeSeparateTerms(t *testing.T) {
 func TestTranslateFlowSpecSingleProtocolKeepsOneTerm(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 	fs := flowspec.NewFlowSpec(fam)
-	fs.AddComponent(flowspec.NewFlowIPProtocolComponent(132))
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowIPProtocolComponent(132)))
 
 	terms, err := translateFlowSpec(fs, flowAction{discard: true}, "single-proto-key")
 	require.NoError(t, err)

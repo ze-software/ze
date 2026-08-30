@@ -29,15 +29,26 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	var dropped []string
 	seen := make(map[string]bool, len(matchCriteria))
 
+	// add records the criterion as dropped when the component cannot join the ones
+	// already built. AddComponent refuses a second component of a type it cannot
+	// merge (RFC 8955 Section 4.2), which is the same fail-loud case as a value
+	// that would not parse: the criterion is present in the config and produced no
+	// match, so the caller must reject the route rather than widen it.
+	add := func(key string, c FlowComponent) {
+		if err := fs.AddComponent(c); err != nil {
+			dropped = append(dropped, key)
+		}
+	}
+
 	// Add destination prefix (first value only - prefix is singular)
 	if vals, ok := matchCriteria[kwDestination]; ok {
 		seen[kwDestination] = true
 		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
 			dropped = append(dropped, kwDestination)
 		} else if prefix.Addr().Is6() && offset > 0 {
-			fs.AddComponent(newFlowDestPrefixComponentWithOffset(prefix, offset))
+			add(kwDestination, newFlowDestPrefixComponentWithOffset(prefix, offset))
 		} else {
-			fs.AddComponent(NewFlowDestPrefixComponent(prefix))
+			add(kwDestination, NewFlowDestPrefixComponent(prefix))
 		}
 	}
 
@@ -47,9 +58,9 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
 			dropped = append(dropped, kwSource)
 		} else if prefix.Addr().Is6() && offset > 0 {
-			fs.AddComponent(newFlowSourcePrefixComponentWithOffset(prefix, offset))
+			add(kwSource, newFlowSourcePrefixComponentWithOffset(prefix, offset))
 		} else {
-			fs.AddComponent(NewFlowSourcePrefixComponent(prefix))
+			add(kwSource, NewFlowSourcePrefixComponent(prefix))
 		}
 	}
 
@@ -58,7 +69,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 		if vals, ok := matchCriteria[key]; ok {
 			seen[key] = true
 			if matches := parse(vals); len(matches) > 0 {
-				fs.AddComponent(newFlowNumericComponent(typ, matches))
+				add(key, newFlowNumericComponent(typ, matches))
 			} else {
 				dropped = append(dropped, key)
 			}
@@ -75,7 +86,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	if vals, ok := matchCriteria[kwDSCP]; ok {
 		seen[kwDSCP] = true
 		if octets := parseFlowOctetsSlice(vals); len(octets) > 0 {
-			fs.AddComponent(NewFlowDSCPComponent(octets...))
+			add(kwDSCP, NewFlowDSCPComponent(octets...))
 		} else {
 			dropped = append(dropped, kwDSCP)
 		}
@@ -83,7 +94,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	if vals, ok := matchCriteria["traffic-class"]; ok {
 		seen["traffic-class"] = true
 		if octets := parseFlowOctetsSlice(vals); len(octets) > 0 {
-			fs.AddComponent(NewFlowDSCPComponent(octets...))
+			add("traffic-class", NewFlowDSCPComponent(octets...))
 		} else {
 			dropped = append(dropped, "traffic-class")
 		}
@@ -91,7 +102,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	if vals, ok := matchCriteria[kwFlowLabel]; ok {
 		seen[kwFlowLabel] = true
 		if labels := parseFlowLabelsSlice(vals); len(labels) > 0 {
-			fs.AddComponent(NewFlowFlowLabelComponent(labels...))
+			add(kwFlowLabel, NewFlowFlowLabelComponent(labels...))
 		} else {
 			dropped = append(dropped, kwFlowLabel)
 		}
@@ -99,7 +110,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	if vals, ok := matchCriteria[kwFragment]; ok {
 		seen[kwFragment] = true
 		if flags := parseFlowFragmentSlice(vals); len(flags) > 0 {
-			fs.AddComponent(NewFlowFragmentComponent(flags...))
+			add(kwFragment, NewFlowFragmentComponent(flags...))
 		} else {
 			dropped = append(dropped, kwFragment)
 		}
@@ -107,7 +118,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	if vals, ok := matchCriteria[kwICMPType]; ok {
 		seen[kwICMPType] = true
 		if types := parseFlowICMPTypesSlice(vals); len(types) > 0 {
-			fs.AddComponent(NewFlowICMPTypeComponent(types...))
+			add(kwICMPType, NewFlowICMPTypeComponent(types...))
 		} else {
 			dropped = append(dropped, kwICMPType)
 		}
@@ -115,7 +126,7 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	if vals, ok := matchCriteria[kwICMPCode]; ok {
 		seen[kwICMPCode] = true
 		if codes := parseFlowICMPCodesSlice(vals); len(codes) > 0 {
-			fs.AddComponent(newFlowICMPCodeComponent(codes...))
+			add(kwICMPCode, newFlowICMPCodeComponent(codes...))
 		} else {
 			dropped = append(dropped, kwICMPCode)
 		}

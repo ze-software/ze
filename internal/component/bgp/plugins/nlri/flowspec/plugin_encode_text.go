@@ -19,6 +19,7 @@ import (
 var (
 	errFlowspecRequiresAtLeastOneComponent = errors.New("flowspec requires at least one component")
 	errRdRequiredForVpnFamily              = errors.New("rd required for VPN family")
+	errRdOnlyForVpnFamily                  = errors.New("rd valid only for a VPN family")
 	errExpectedComponent                   = errors.New("expected component")
 	errIpv4PrefixForIpv6Flowspec           = errors.New("IPv4 prefix for IPv6 flowspec")
 	errIpv6PrefixForIpv4Flowspec           = errors.New("IPv6 prefix for IPv4 flowspec")
@@ -132,34 +133,36 @@ func EncodeFlowSpecComponents(fam Family, args []string) ([]byte, error) {
 
 	// Parse RD first if VPN family
 	if isVPN {
-		var consumed int
 		var err error
-		rd, consumed, err = parseRDFromArgs(args)
+		rd, args, err = parseRDFromArgs(args)
 		if err != nil {
 			return nil, err
 		}
-		args = args[consumed:]
 		fsv = NewFlowSpecVPN(fam, rd)
 	} else {
 		fs = NewFlowSpec(fam)
 	}
 
-	addComponent := func(c FlowComponent) {
+	addComponent := func(c FlowComponent) error {
 		if fsv != nil {
-			fsv.AddComponent(c)
-		} else {
-			fs.AddComponent(c)
+			return fsv.AddComponent(c)
 		}
+		return fs.AddComponent(c)
 	}
 
-	// Parse components
+	// Parse components. A repeated keyword is another OR group of one component,
+	// not a second component: "port >80 <100 port >443 <500" is one Type 4
+	// component whose operator list holds both groups, because RFC 8955 Section 4.2
+	// allows each type exactly once. AddComponent performs that join.
 	i := 0
 	for i < len(args) {
 		comp, consumed, err := parseComponentText(args[i:], fam)
 		if err != nil {
 			return nil, err
 		}
-		addComponent(comp)
+		if err := addComponent(comp); err != nil {
+			return nil, err
+		}
 		i += consumed
 	}
 
@@ -176,18 +179,24 @@ func EncodeFlowSpecComponents(fam Family, args []string) ([]byte, error) {
 	return fs.Bytes(), nil
 }
 
-// parseRDFromArgs parses "rd <value>" from args.
-func parseRDFromArgs(args []string) (RouteDistinguisher, int, error) {
+// parseRDFromArgs parses "rd <value>" from args and returns the arguments with
+// that keyword-value pair removed, so the component walk that follows never meets
+// the rd keyword again.
+func parseRDFromArgs(args []string) (RouteDistinguisher, []string, error) {
 	for i := range len(args) - 1 {
-		if args[i] == kwRD {
-			rd, err := nlri.ParseRDString(args[i+1])
-			if err != nil {
-				return RouteDistinguisher{}, 0, fmt.Errorf("invalid rd: %w", err)
-			}
-			return rd, 2, nil
+		if args[i] != kwRD {
+			continue
 		}
+		rd, err := nlri.ParseRDString(args[i+1])
+		if err != nil {
+			return RouteDistinguisher{}, nil, fmt.Errorf("invalid rd: %w", err)
+		}
+		remaining := make([]string, 0, len(args)-2)
+		remaining = append(remaining, args[:i]...)
+		remaining = append(remaining, args[i+2:]...)
+		return rd, remaining, nil
 	}
-	return RouteDistinguisher{}, 0, errRdRequiredForVpnFamily
+	return RouteDistinguisher{}, nil, errRdRequiredForVpnFamily
 }
 
 // parseComponentText parses a single FlowSpec component from args.
@@ -227,8 +236,10 @@ func parseComponentText(args []string, fam Family) (FlowComponent, int, error) {
 	case kwFlowLabel:
 		return parseNumericComponentText(args[1:], FlowFlowLabel)
 	case kwRD:
-		// Skip rd - already parsed
-		return nil, 2, nil
+		// EncodeFlowSpecComponents removes the rd pair from a VPN family's arguments
+		// before this walk starts, so an rd reaching here names a family that carries
+		// no Route Distinguisher.
+		return nil, 0, errRdOnlyForVpnFamily
 	}
 
 	// Unknown keyword - return error (not silent ignore)

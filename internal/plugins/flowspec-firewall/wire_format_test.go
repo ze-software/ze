@@ -20,7 +20,7 @@ func realNLRIJSON(t *testing.T, fam family.Family, comps ...flowspec.FlowCompone
 	t.Helper()
 	fs := flowspec.NewFlowSpec(fam)
 	for _, c := range comps {
-		fs.AddComponent(c)
+		require.NoError(t, fs.AddComponent(c))
 	}
 	return fs.AppendJSON(nil)
 }

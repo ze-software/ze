@@ -91,8 +91,8 @@ func TestPortListKeepsEveryValue(t *testing.T) {
 func TestPortAnyZeroSplitsTerms(t *testing.T) {
 	fam := flowFamily()
 	fs := flowspec.NewFlowSpec(fam)
-	fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-	fs.AddComponent(flowspec.NewFlowPortComponent(0))
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24"))))
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowPortComponent(0)))
 
 	terms, err := translateFlowSpec(fs, flowAction{discard: true}, "port-any-zero-key")
 	require.NoError(t, err)
@@ -137,7 +137,7 @@ func TestComponentWithNoValueIsRefused(t *testing.T) {
 	}
 
 	fs := flowspec.NewFlowSpec(fam)
-	fs.AddComponent(flowspec.NewFlowPortComponent())
+	require.NoError(t, fs.AddComponent(flowspec.NewFlowPortComponent()))
 	_, err := translateFlowSpec(fs, flowAction{discard: true}, "empty-port-any")
 	assert.ErrorIs(t, err, errUnreadableValue, "port-any with no value must refuse the rule")
 }

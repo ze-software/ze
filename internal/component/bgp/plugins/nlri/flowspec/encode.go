@@ -48,22 +48,34 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 
 	// Add components based on parsed route
 	if parsed.DestPrefix != nil {
-		fs.AddComponent(NewFlowDestPrefixComponent(*parsed.DestPrefix))
+		if err := fs.AddComponent(NewFlowDestPrefixComponent(*parsed.DestPrefix)); err != nil {
+			return nil, nil, err
+		}
 	}
 	if parsed.SourcePrefix != nil {
-		fs.AddComponent(NewFlowSourcePrefixComponent(*parsed.SourcePrefix))
+		if err := fs.AddComponent(NewFlowSourcePrefixComponent(*parsed.SourcePrefix)); err != nil {
+			return nil, nil, err
+		}
 	}
 	if len(parsed.Protocols) > 0 {
-		fs.AddComponent(NewFlowIPProtocolComponent(parsed.Protocols...))
+		if err := fs.AddComponent(NewFlowIPProtocolComponent(parsed.Protocols...)); err != nil {
+			return nil, nil, err
+		}
 	}
 	if len(parsed.Ports) > 0 {
-		fs.AddComponent(NewFlowPortComponent(parsed.Ports...))
+		if err := fs.AddComponent(NewFlowPortComponent(parsed.Ports...)); err != nil {
+			return nil, nil, err
+		}
 	}
 	if len(parsed.DestPorts) > 0 {
-		fs.AddComponent(NewFlowDestPortComponent(parsed.DestPorts...))
+		if err := fs.AddComponent(NewFlowDestPortComponent(parsed.DestPorts...)); err != nil {
+			return nil, nil, err
+		}
 	}
 	if len(parsed.SourcePorts) > 0 {
-		fs.AddComponent(NewFlowSourcePortComponent(parsed.SourcePorts...))
+		if err := fs.AddComponent(NewFlowSourcePortComponent(parsed.SourcePorts...)); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// Get NLRI bytes

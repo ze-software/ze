@@ -11,7 +11,7 @@ package flowspec
 
 import (
 	"errors"
-	"slices"
+	"fmt"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 
@@ -58,6 +58,8 @@ var (
 	ErrFlowSpecTruncated       = errors.New("flowspec: truncated data")
 	ErrFlowSpecInvalidType     = errors.New("flowspec: invalid component type")
 	ErrFlowSpecInvalidOperator = errors.New("flowspec: invalid operator")
+	ErrFlowSpecDuplicateType   = errors.New("flowspec: duplicate component type")
+	ErrFlowSpecTypeOrder       = errors.New("flowspec: component type out of order")
 )
 
 // FlowComponentType identifies a FlowSpec component.
@@ -255,9 +257,49 @@ func (f *FlowSpec) Components() []FlowComponent {
 	return f.components
 }
 
-// AddComponent adds a component to the FlowSpec.
-func (f *FlowSpec) AddComponent(c FlowComponent) {
-	f.components = append(f.components, c)
+// AddComponent adds a component to the FlowSpec. It returns an error when the
+// component cannot stand beside the components already present.
+//
+// RFC 8955 Section 4.2: "A given component type MAY (exactly once) be present in
+// the Flow Specification." A FlowSpec therefore holds at most one component of
+// each type. A second component of a type already present is MERGED into that
+// component rather than appended: two Type 4 components on the wire are malformed,
+// while one Type 4 component whose operator list joins both groups states the same
+// match and is what a peer accepts.
+//
+// Only a numeric or bitmask component (Types 3-13) carries an operator list. A
+// second prefix component (Type 1 or 2) has no list to join, so it is refused
+// rather than silently replacing or duplicating the prefix already present.
+func (f *FlowSpec) AddComponent(c FlowComponent) error {
+	present := f.componentOfType(c.Type())
+	if present == nil {
+		f.components = append(f.components, c)
+		return nil
+	}
+
+	target, ok := present.(*numericComponent)
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrFlowSpecDuplicateType, c.Type())
+	}
+	source, ok := c.(*numericComponent)
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrFlowSpecDuplicateType, c.Type())
+	}
+
+	target.mergeMatches(source)
+	return nil
+}
+
+// componentOfType returns the component of type t already held, or nil when the
+// type is absent. AddComponent keeps at most one component per type, so the first
+// hit is the only one.
+func (f *FlowSpec) componentOfType(t FlowComponentType) FlowComponent {
+	for _, c := range f.components {
+		if c.Type() == t {
+			return c
+		}
+	}
+	return nil
 }
 
 // componentBytes returns the wire-format encoding of components without length prefix.
@@ -265,19 +307,8 @@ func (f *FlowSpec) AddComponent(c FlowComponent) {
 // Components are sorted by type per RFC 8955 Section 4.2:
 // "Components MUST follow strict type ordering by increasing numerical order.".
 func (f *FlowSpec) componentBytes() []byte {
-	// Sort components by type (RFC 8955 Section 4.2 requires strict ordering)
-	sorted := make([]FlowComponent, len(f.components))
-	copy(sorted, f.components)
-	slices.SortFunc(sorted, func(a, b FlowComponent) int {
-		return int(a.Type()) - int(b.Type())
-	})
-
-	// Estimate capacity: each component has at least 2 bytes (type + operator/value)
-	// but typically more. We use 4 bytes per component as a reasonable estimate.
-	data := make([]byte, 0, len(sorted)*4)
-	for _, c := range sorted {
-		data = append(data, c.Bytes()...)
-	}
+	data := make([]byte, f.componentLen())
+	f.writeComponentsSorted(data, 0)
 	return data
 }
 
@@ -372,19 +403,52 @@ func ParseFlowSpec(fam Family, data []byte) (*FlowSpec, error) {
 	fs := NewFlowSpec(fam)
 	remaining := data[offset : offset+nlriLen]
 
-	// Parse components - RFC 8955 Section 4.2:
-	// "A specific packet is considered to match the Flow Specification when
-	// it matches the intersection (AND) of all the components present"
-	for len(remaining) > 0 {
-		comp, rest, err := parseFlowComponent(remaining, fam)
-		if err != nil {
-			return nil, err
-		}
-		fs.components = append(fs.components, comp)
-		remaining = rest
+	if err := fs.parseComponents(remaining, fam); err != nil {
+		return nil, err
 	}
 
 	return fs, nil
+}
+
+// parseComponents parses the component list of an NLRI value into f.
+//
+// RFC 8955 Section 4.2: "A specific packet is considered to match the Flow
+// Specification when it matches the intersection (AND) of all the components
+// present in the Flow Specification. Components MUST follow strict type ordering
+// by increasing numerical order. A given component type MAY (exactly once) be
+// present in the Flow Specification. If present, it MUST precede any component of
+// higher numeric type value." The same section states the consequence: "An NLRI
+// value not encoded as specified here ... is considered malformed and error
+// handling according to Section 10 is performed." Section 10 defers to RFC 7606,
+// and the plugin's decode path drops a malformed NLRI, which is what every other
+// error from this walk already does.
+//
+// Strictly increasing types make one comparison against the previous type enough:
+// an equal type is a repeat, and a lower type is out of order.
+//
+// The walk is bounded by len(data): every component consumes at least its type
+// octet, so parseFlowComponent always shortens the remainder.
+func (f *FlowSpec) parseComponents(data []byte, fam Family) error {
+	previous := FlowComponentType(0)
+
+	for len(data) > 0 {
+		comp, rest, err := parseFlowComponent(data, fam)
+		if err != nil {
+			return err
+		}
+		if comp.Type() == previous {
+			return fmt.Errorf("%w: %s", ErrFlowSpecDuplicateType, comp.Type())
+		}
+		if comp.Type() < previous {
+			return fmt.Errorf("%w: %s after %s", ErrFlowSpecTypeOrder, comp.Type(), previous)
+		}
+
+		previous = comp.Type()
+		f.components = append(f.components, comp)
+		data = rest
+	}
+
+	return nil
 }
 
 // parseFlowComponent parses a single FlowSpec component.
@@ -423,16 +487,20 @@ func (f *FlowSpec) componentLen() int {
 
 // writeComponentsSorted writes components in type order (RFC 8955 requirement).
 // Returns bytes written. Uses iteration over type IDs to avoid allocation.
+//
+// AddComponent and parseComponents both keep at most one component of each type,
+// so this walk emits each type exactly once, which is what RFC 8955 Section 4.2
+// requires of the list it produces.
 func (f *FlowSpec) writeComponentsSorted(buf []byte, off int) int {
 	pos := off
 	// RFC 8955 Section 4.2: Components MUST follow strict type ordering
 	// Iterate type IDs 1-13 to write in sorted order without allocating
 	for typeID := FlowComponentType(1); typeID <= FlowFlowLabel; typeID++ {
-		for _, c := range f.components {
-			if c.Type() == typeID {
-				pos += c.WriteTo(buf, pos)
-			}
+		component := f.componentOfType(typeID)
+		if component == nil {
+			continue
 		}
+		pos += component.WriteTo(buf, pos)
 	}
 	return pos - off
 }

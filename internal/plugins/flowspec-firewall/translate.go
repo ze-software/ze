@@ -525,37 +525,51 @@ func parseNLRIJSON(fam family.Family, data json.RawMessage) (*flowspec.FlowSpec,
 	if pfx, err := firstPrefix(n.Destination, n.DestinationV6, isV6); err != nil {
 		return nil, err
 	} else if pfx.IsValid() {
-		fs.AddComponent(flowspec.NewFlowDestPrefixComponent(pfx))
+		if err := fs.AddComponent(flowspec.NewFlowDestPrefixComponent(pfx)); err != nil {
+			return nil, err
+		}
 	}
 	if pfx, err := firstPrefix(n.Source, n.SourceV6, isV6); err != nil {
 		return nil, err
 	} else if pfx.IsValid() {
-		fs.AddComponent(flowspec.NewFlowSourcePrefixComponent(pfx))
+		if err := fs.AddComponent(flowspec.NewFlowSourcePrefixComponent(pfx)); err != nil {
+			return nil, err
+		}
 	}
 	if vals, err := protocolValues(n.Protocol, n.NextHeader, isV6); err != nil {
 		return nil, err
 	} else if len(vals) > 0 {
-		fs.AddComponent(flowspec.NewFlowIPProtocolComponent(vals...))
+		if err := fs.AddComponent(flowspec.NewFlowIPProtocolComponent(vals...)); err != nil {
+			return nil, err
+		}
 	}
 	if vals, err := firstUint16Vals(n.Port); err != nil {
 		return nil, err
 	} else if len(vals) > 0 {
-		fs.AddComponent(flowspec.NewFlowPortComponent(vals...))
+		if err := fs.AddComponent(flowspec.NewFlowPortComponent(vals...)); err != nil {
+			return nil, err
+		}
 	}
 	if vals, err := firstUint16Vals(n.DestPort); err != nil {
 		return nil, err
 	} else if len(vals) > 0 {
-		fs.AddComponent(flowspec.NewFlowDestPortComponent(vals...))
+		if err := fs.AddComponent(flowspec.NewFlowDestPortComponent(vals...)); err != nil {
+			return nil, err
+		}
 	}
 	if vals, err := firstUint16Vals(n.SourcePort); err != nil {
 		return nil, err
 	} else if len(vals) > 0 {
-		fs.AddComponent(flowspec.NewFlowSourcePortComponent(vals...))
+		if err := fs.AddComponent(flowspec.NewFlowSourcePortComponent(vals...)); err != nil {
+			return nil, err
+		}
 	}
 	if vals, err := firstNumericVals(n.ICMPType, nil, false); err != nil {
 		return nil, err
 	} else if len(vals) > 0 {
-		fs.AddComponent(flowspec.NewFlowICMPTypeComponent(vals...))
+		if err := fs.AddComponent(flowspec.NewFlowICMPTypeComponent(vals...)); err != nil {
+			return nil, err
+		}
 	}
 	if len(n.ICMPCode) > 0 {
 		return nil, fmt.Errorf("%w: icmp-code", errUnsupportedComponent)
@@ -566,7 +580,9 @@ func parseNLRIJSON(fam family.Family, data json.RawMessage) (*flowspec.FlowSpec,
 	if vals, err := firstNumericVals(n.TCPFlags, nil, false); err != nil {
 		return nil, err
 	} else if len(vals) > 0 {
-		fs.AddComponent(flowspec.NewFlowTCPFlagsComponent(vals...))
+		if err := fs.AddComponent(flowspec.NewFlowTCPFlagsComponent(vals...)); err != nil {
+			return nil, err
+		}
 	}
 	if len(n.PacketLength) > 0 {
 		return nil, fmt.Errorf("%w: packet-length", errUnsupportedComponent)
@@ -574,7 +590,9 @@ func parseNLRIJSON(fam family.Family, data json.RawMessage) (*flowspec.FlowSpec,
 	if vals, err := firstNumericVals(n.DSCP, nil, false); err != nil {
 		return nil, err
 	} else if len(vals) > 0 {
-		fs.AddComponent(flowspec.NewFlowDSCPComponent(vals...))
+		if err := fs.AddComponent(flowspec.NewFlowDSCPComponent(vals...)); err != nil {
+			return nil, err
+		}
 	}
 	if len(n.Fragment) > 0 {
 		return nil, fmt.Errorf("%w: fragment", errUnsupportedComponent)

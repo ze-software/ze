@@ -337,39 +337,42 @@ func (f *Flow) Rules() map[int][]FlowRule {
 }
 ```
 
-### Component Order
+### Component Order and Uniqueness
 
-Rules MUST be ordered by component ID in wire format (RFC requirement):
+RFC 8955 Section 4.2 states two rules about the component list. Components MUST
+follow strict type ordering by increasing numerical order, and a given component
+type MAY be present exactly once. An NLRI value that breaks either rule is
+malformed, and Section 10 sends the error to RFC 7606 handling.
 
-<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec struct, component ordering -->
+Ze holds both rules in the FlowSpec model rather than at the wire boundary, so a
+FlowSpec cannot carry two components of one type.
 
-```go
-func (f *Flow) Pack() []byte {
-    var buf bytes.Buffer
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- AddComponent, parseComponents, writeComponentsSorted -->
 
-    // Sort by component ID
-    ids := make([]int, 0, len(f.rules))
-    for id := range f.rules {
-        ids = append(ids, id)
-    }
-    sort.Ints(ids)
+| Direction | Producer | Behavior |
+|-----------|----------|----------|
+| Build | `FlowSpec.AddComponent` | A component whose type is already present is merged into the one already held. Its operator list becomes a new OR group, and the leading AND bit of that group is cleared |
+| Build | `FlowSpec.AddComponent` | A second prefix component (Type 1 or 2) carries no operator list to join, so it is refused with `ErrFlowSpecDuplicateType` |
+| Emit | `FlowSpec.writeComponentsSorted` | Walks type IDs 1 to 13 and writes the one component of each type present, so the emitted list ascends |
+| Decode | `FlowSpec.parseComponents` | Compares each component type against the previous one, refusing a repeat with `ErrFlowSpecDuplicateType` and a descent with `ErrFlowSpecTypeOrder` |
 
-    for _, id := range ids {
-        rules := f.rules[id]
-        // Set EOL on last rule
-        rules[len(rules)-1].operations |= EOL
+An OR of AND groups on one type is therefore ONE component. The text form
+`port >80 <100 port >443 <500` repeats the keyword and emits a single Type 4
+component holding both groups:
 
-        if id != 1 && id != 2 {  // Not prefix
-            buf.WriteByte(byte(id))
-        }
-        for _, rule := range rules {
-            buf.Write(rule.Pack())
-        }
-    }
-    return buf.Bytes()
-}
 ```
+0b                 NLRI value length, 11 octets
+04                 Type 4 (Port)
+02 50              len=1, gt             >80,  AND bit clear
+44 64              len=1, AND, lt        <100
+12 01 bb           len=2, gt             >443, AND bit clear, second OR group
+d4 01 f4           len=2, end, AND, lt   <500
+```
+
+A peer that receives two Type 4 components instead reads the UPDATE as malformed.
+GoBGP 3.31 logs "ipv4-flowspec nlri violate strict type ordering" and resets the
+session.
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-08-30
