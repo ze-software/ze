@@ -7,6 +7,7 @@ import (
 	"iter"
 	"net"
 	"net/netip"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -1444,6 +1445,67 @@ func TestDispatcherPositionalErrorMessage(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, resp.Error, "unexpected argument")
 	assert.Contains(t, resp.Error, "count")
+}
+
+// TestPositionalErrorNamesTheOneOpenDefinition drives the refusal an operator
+// reads when a command declares ONE value and the token does not fit its type.
+//
+// VALIDATES: the message states why the value was refused. `show route lookup`
+// publishes `show route lookup <ip>`, a bare value with no keyword, so a
+// message offering `ip` as a keyword names a spelling the grammar never asks
+// for and drops the only fact the operator needs.
+// PREVENTS: the regression declaring a typed leaf introduced. The handler's own
+// netip.ParseAddr used to answer, and the keyword list replaced it with a list
+// of one (plan/journal/guard-addition-drops-what-it-refuses.md).
+func TestPositionalErrorNamesTheOneOpenDefinition(t *testing.T) {
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d := NewDispatcher()
+	d.RegisterWithOptions("show route lookup", handler, "Route lookup", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "ip", Kind: command.ArgString, Pattern: regexp.MustCompile(`^[0-9a-fA-F:.]+$`), Mandatory: true},
+		},
+	})
+
+	resp, err := d.Dispatch(nil, "show route lookup not-an-ip")
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Contains(t, resp.Error, `"not-an-ip"`, "the message names the value the operator typed")
+	assert.Contains(t, resp.Error, "does not match expected pattern", "the message states why it was refused")
+	assert.NotContains(t, resp.Error, "valid keywords", "a bare value slot has no keyword to offer")
+}
+
+// TestPositionalErrorSkipsAFilledDefinition proves the keyword list drops a
+// definition that already holds a value.
+//
+// VALIDATES: positionalError reads the OPEN definitions. A filled one cannot
+// take a second value, so naming it as a keyword advertises a spelling the
+// dispatcher answers with "duplicate keyword".
+func TestPositionalErrorSkipsAFilledDefinition(t *testing.T) {
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d := NewDispatcher()
+	d.RegisterWithOptions("show ping", handler, "Ping", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "count", Kind: command.ArgUint, UintBits: 32},
+			{Name: "timeout", Kind: command.ArgUint, UintBits: 32},
+			{Name: "size", Kind: command.ArgUint, UintBits: 32},
+		},
+	})
+
+	resp, err := d.Dispatch(nil, "show ping count 5 hello")
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Contains(t, resp.Error, "unexpected argument")
+	assert.NotContains(t, resp.Error, "count", "count already holds a value")
+	assert.Contains(t, resp.Error, "timeout")
+	assert.Contains(t, resp.Error, "size")
 }
 
 // TestTakesInlineSelector proves the predicate MCP relies on agrees with what

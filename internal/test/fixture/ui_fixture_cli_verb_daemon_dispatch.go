@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,7 +38,7 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
 	if err != nil {
 		return fmt.Errorf("create fixture directory: %w", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer os.RemoveAll(workDir) //nolint:errcheck // fixture cleanup
 
 	passwordHash, err := uiCliVerbDaemonDispatchMakePasswordHash(ctx, workDir)
 	if err != nil {
@@ -53,7 +54,7 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
     }
 }
 `
-	if err := os.WriteFile(filepath.Join(workDir, "verb.conf"), []byte(config), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(workDir, "verb.conf"), []byte(config), 0o600); err != nil {
 		return fmt.Errorf("write verb.conf: %w", err)
 	}
 
@@ -71,9 +72,9 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
 	}
 
 	daemonEnv := uiCliVerbDaemonDispatchEnvironment(map[string]string{
-		"ZE_SSH_EPHEMERAL": sshAddrPath,
-		"ZE_READY_FILE":    readyPath,
-		"ZE_CONFIG_DIR":    configDir,
+		envSSHEphemeral: sshAddrPath,
+		envReadyFile:    readyPath,
+		envConfigDir:    configDir,
 	})
 	daemon, err := uiCliVerbDaemonDispatchStartDaemon(ctx, workDir, daemonEnv)
 	if err != nil {
@@ -94,7 +95,7 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
 		return err
 	}
 
-	addrBytes, err := os.ReadFile(sshAddrPath)
+	addrBytes, err := os.ReadFile(sshAddrPath) //nolint:gosec // the path is the fixture's own scratch file
 	if err != nil {
 		return fmt.Errorf("read ssh.addr: %w", err)
 	}
@@ -105,11 +106,11 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
 	}
 	host, port := addr[:colon], addr[colon+1:]
 	cliEnv := uiCliVerbDaemonDispatchEnvironment(map[string]string{
-		"ZE_SSH_HOST":     host,
-		"ZE_SSH_PORT":     port,
-		"ZE_SSH_USERNAME": "ci",
-		"ZE_SSH_PASSWORD": "secret",
-		"ZE_CONFIG_DIR":   configDir,
+		envSSHHost:     host,
+		envSSHPort:     port,
+		envSSHUsername: "ci",
+		envSSHPassword: valueSecret,
+		envConfigDir:   configDir,
 	})
 
 	run := func(args ...string) (uiCliVerbDaemonDispatchCommandResult, error) {
@@ -225,17 +226,23 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
 		return fmt.Errorf("the daemon did not receive the typed value: %s", r.out)
 	}
 
-	// 10. A command whose YANG node has no argument leaf must still receive its
-	// trailing value. The deliberately invalid address fails before any FIB use.
-	verb, err := run("show", "route", "lookup", "not-an-ip")
+	// 10. A declared command's trailing value must reach the handler that reads
+	// it. `show route lookup` states one `ip` leaf whose pattern admits this
+	// token, so the daemon binds it and netip.ParseAddr is what refuses it. The
+	// address is malformed on purpose, so nothing reaches the FIB.
+	//
+	// The token used to be `not-an-ip`, from before the leaf existed. The leaf
+	// declares a pattern that token fails, so the daemon now refuses it ahead of
+	// the handler and check 10b covers that half.
+	verb, err := run("show", "route", "lookup", "1.2.3.4.5")
 	if err != nil {
 		return err
 	}
 	if verb.code != 1 {
-		return fmt.Errorf("ze show route lookup not-an-ip exit=%d, want 1: %s", verb.code, verb.out)
+		return fmt.Errorf("ze show route lookup 1.2.3.4.5 exit=%d, want 1: %s", verb.code, verb.out)
 	}
 	if strings.Contains(verb.out, "unknown command") {
-		return fmt.Errorf("a leafless value command answered unknown command: %s", verb.out)
+		return fmt.Errorf("a declared value command answered unknown command: %s", verb.out)
 	}
 	if strings.Contains(verb.out, "usage:") {
 		return fmt.Errorf("the value never reached the handler: %s", verb.out)
@@ -243,13 +250,38 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
 	if !strings.Contains(verb.out, "invalid destination") {
 		return fmt.Errorf("the value did not reach netip.ParseAddr: %s", verb.out)
 	}
-	if !strings.Contains(verb.out, "not-an-ip") {
+	if !strings.Contains(verb.out, "1.2.3.4.5") {
 		return fmt.Errorf("the daemon did not receive the typed value: %s", verb.out)
+	}
+
+	// 10b. A value the declared type refuses is refused by the daemon, and the
+	// message says why. The published form is `show route lookup <ip>`, a bare
+	// value with no keyword, so a message offering `ip` as a valid keyword names
+	// a spelling the grammar never asks for and drops the only fact the operator
+	// needs (plan/journal/guard-addition-drops-what-it-refuses.md).
+	typed, err := run("show", "route", "lookup", "not-an-ip")
+	if err != nil {
+		return err
+	}
+	if typed.code != 1 {
+		return fmt.Errorf("ze show route lookup not-an-ip exit=%d, want 1: %s", typed.code, typed.out)
+	}
+	if strings.Contains(typed.out, "unknown command") {
+		return fmt.Errorf("a value the type refuses answered unknown command: %s", typed.out)
+	}
+	if !strings.Contains(typed.out, "not-an-ip") {
+		return fmt.Errorf("the refusal does not name the value: %s", typed.out)
+	}
+	if !strings.Contains(typed.out, "does not match expected pattern") {
+		return fmt.Errorf("the refusal does not say why the value was refused: %s", typed.out)
+	}
+	if strings.Contains(typed.out, "valid keywords") {
+		return fmt.Errorf("a bare value slot was offered as a keyword: %s", typed.out)
 	}
 
 	// 11. The verb resolver and the daemon's raw-line resolver must agree. Reuse
 	// the verb run from check 10 so this remains one verb launch, as before.
-	dashC, err := run("cli", "-c", "show route lookup not-an-ip")
+	dashC, err := run("cli", "-c", "show route lookup 1.2.3.4.5")
 	if err != nil {
 		return err
 	}
@@ -291,13 +323,13 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
 	// 14. A short local registration must not swallow commands declared below
 	// it. Expectations come from raw daemon dispatch, not rendered live values.
 	interfaceCases := [][]string{
-		{"show", "interface", "brief"},
-		{"show", "interface", "scan"},
-		{"show", "interface", "errors"},
-		{"show", "interface", "type", "no-such-type"},
-		{"show", "interface", "rate", "no-such-interface"},
-		{"show", "interface", "name", "no-such-interface", "detail"},
-		{"show", "interface", "name", "no-such-interface", "counters"},
+		{argShow, argInterface, "brief"},
+		{argShow, argInterface, "scan"},
+		{argShow, argInterface, fieldErrors},
+		{argShow, argInterface, argType, "no-such-type"},
+		{argShow, argInterface, "rate", nameNoSuchInterface},
+		{argShow, argInterface, argName, nameNoSuchInterface, "detail"},
+		{argShow, argInterface, argName, nameNoSuchInterface, "counters"},
 	}
 	for _, argv := range interfaceCases {
 		line := strings.Join(argv, " ")
@@ -328,11 +360,11 @@ func runCLIVerbDaemonDispatch(ctx context.Context) (retErr error) {
 	// 9. The same bare host argv must use its in-process fallback after the
 	// daemon has stopped, rather than being treated as a grouping container.
 	offlineEnv := uiCliVerbDaemonDispatchEnvironment(map[string]string{
-		"ZE_SSH_HOST":     host,
-		"ZE_SSH_PORT":     port,
-		"ZE_SSH_USERNAME": "ci",
-		"ZE_SSH_PASSWORD": "secret",
-		"ZE_CONFIG_DIR":   configDir,
+		envSSHHost:     host,
+		envSSHPort:     port,
+		envSSHUsername: "ci",
+		envSSHPassword: valueSecret,
+		envConfigDir:   configDir,
 	})
 	r, err = uiCliVerbDaemonDispatchRunZE(ctx, workDir, offlineEnv, "show", "host")
 	if err != nil {
@@ -384,7 +416,7 @@ func uiCliVerbDaemonDispatchStartDaemon(ctx context.Context, workDir string, env
 }
 
 func pollDaemonReady(ctx context.Context, daemon *uiCliVerbDaemonDispatchDaemonProcess, sshAddrPath, readyPath string) error {
-	for attempt := 0; attempt < 200; attempt++ {
+	for attempt := range 200 {
 		if exited, _ := daemon.pollExit(); exited {
 			return fmt.Errorf("daemon exited early\nstdout:\n%s\nstderr:\n%s", daemon.stdout.String(), daemon.stderr.String())
 		}
@@ -471,7 +503,7 @@ func (d *uiCliVerbDaemonDispatchDaemonProcess) wait(timeout time.Duration) bool 
 }
 
 func uiCliVerbDaemonDispatchRunZE(ctx context.Context, workDir string, env []string, args ...string) (uiCliVerbDaemonDispatchCommandResult, error) {
-	cmd := exec.CommandContext(ctx, "ze", args...)
+	cmd := exec.CommandContext(ctx, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	cmd.Dir = workDir
 	cmd.Env = env
 	var stdout bytes.Buffer
@@ -484,8 +516,7 @@ func uiCliVerbDaemonDispatchRunZE(ctx context.Context, workDir string, env []str
 	if err == nil {
 		return uiCliVerbDaemonDispatchCommandResult{code: 0, out: out}, nil
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return uiCliVerbDaemonDispatchCommandResult{code: exitErr.ExitCode(), out: out}, nil
 	}
 	return uiCliVerbDaemonDispatchCommandResult{}, fmt.Errorf("run ze %s: %w", strings.Join(args, " "), err)
@@ -499,9 +530,7 @@ func uiCliVerbDaemonDispatchEnvironment(updates map[string]string) []string {
 			values[key] = value
 		}
 	}
-	for key, value := range updates {
-		values[key] = value
-	}
+	maps.Copy(values, updates)
 
 	keys := make([]string, 0, len(values))
 	for key := range values {

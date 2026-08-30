@@ -1089,7 +1089,7 @@ func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[st
 			if unmatchedDefCount(defs, matched) == 0 {
 				continue
 			}
-			return nil, positionalError(arg, defs)
+			return nil, positionalError(arg, defs, matched)
 		}
 		matched[def.Name] = true
 		if spare == 1 {
@@ -1201,18 +1201,37 @@ func firstFlagToken(args []string) string {
 	return ""
 }
 
-// positionalError builds an error for an unmatched positional arg.
-// Uses the first enum/union ArgDef for a specific message, or lists
-// available keyword names when no enum/union exists.
-func positionalError(arg string, defs []command.ArgDef) error {
+// positionalError builds an error for a token no OPEN definition accepts. Its
+// caller has already found at least one definition still waiting for a value,
+// so the list below is never empty.
+//
+// A definition that is still open is the one the operator's token was meant
+// for, so when exactly one is open the error is that definition's own refusal.
+// `show route lookup <ip>` publishes a bare value and no keyword, and the
+// keyword list answered "valid keywords: ip" for a value that simply was not an
+// address: it named a word the grammar never asks anybody to type and dropped
+// the reason the value was refused (plan/journal/guard-addition-drops-what-it-refuses.md).
+//
+// A definition already filled is named by neither branch. It cannot take this
+// token, so offering it as a keyword is an answer the dispatcher would reject.
+func positionalError(arg string, defs []command.ArgDef, matched map[string]bool) error {
+	open := make([]*command.ArgDef, 0, len(defs))
 	for i := range defs {
-		if defs[i].Kind == command.ArgEnum || defs[i].Kind == command.ArgUnion {
-			return command.ValidateArgString(arg, &defs[i])
+		if !matched[defs[i].Name] {
+			open = append(open, &defs[i])
 		}
 	}
-	names := make([]string, 0, len(defs))
-	for i := range defs {
-		names = append(names, defs[i].Name)
+	if len(open) == 1 {
+		return command.ValidateArgString(arg, open[0])
+	}
+	for _, def := range open {
+		if def.Kind == command.ArgEnum || def.Kind == command.ArgUnion {
+			return command.ValidateArgString(arg, def)
+		}
+	}
+	names := make([]string, 0, len(open))
+	for _, def := range open {
+		names = append(names, def.Name)
 	}
 	return fmt.Errorf("unexpected argument %q, valid keywords: %s", arg, textbuf.Join(names, ", "))
 }
