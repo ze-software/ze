@@ -75,7 +75,7 @@ func siteFixture(t *testing.T) (root, output string) {
 // records the route each one wrote. Nothing in the retired build could name its
 // render steps, which is why five surfaces out of thirty-eight reported success.
 func TestBuildRunsEveryRegisteredProducer(t *testing.T) {
-	stubLiveCommandCatalog(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	stubLiveInputs(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
 	var ran []string
 	stubProducers(t,
 		Producer{Name: "labs", Render: func(paths Paths) ([]string, error) {

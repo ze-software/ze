@@ -40,12 +40,21 @@ type Plugin struct {
 	Families     []string `json:"families,omitempty"`
 	Capabilities []uint8  `json:"capabilities,omitempty"`
 	Dependencies []string `json:"dependencies,omitempty"`
-	ConfigRoots  []string `json:"config-roots,omitempty"`
-	RFCs         []string `json:"rfcs,omitempty"`
-	Features     string   `json:"features,omitempty"`
-	HasYANG      bool     `json:"has-yang"`
-	HasDecoder   bool     `json:"has-decoder"`
-	HasEncoder   bool     `json:"has-encoder"`
+	// OptionalDependencies are plugins this one uses when they are loaded and
+	// runs without when they are not.
+	OptionalDependencies []string `json:"optional-dependencies,omitempty"`
+	ConfigRoots          []string `json:"config-roots,omitempty"`
+	RFCs                 []string `json:"rfcs,omitempty"`
+	Features             string   `json:"features,omitempty"`
+	// SourceDir is the repository-relative package directory this plugin
+	// registers from, and YANGFiles are the repository-relative paths of every
+	// YANG file beside it. plugins.go derives both from the registration; a
+	// registry.Registration states neither.
+	SourceDir  string   `json:"source-dir,omitempty"`
+	YANGFiles  []string `json:"yang-files,omitempty"`
+	HasYANG    bool     `json:"has-yang"`
+	HasDecoder bool     `json:"has-decoder"`
+	HasEncoder bool     `json:"has-encoder"`
 }
 
 // YANGModule is one loaded module and where it came from: "infrastructure", or

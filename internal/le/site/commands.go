@@ -349,7 +349,7 @@ func commandPipeSummary(command *catalogCommand) string {
 		parts = append(parts, plural(count, "address field"))
 	}
 	if len(parts) == 0 {
-		return "None"
+		return nothingDeclared
 	}
 	return strings.Join(parts, " · ")
 }
@@ -472,7 +472,7 @@ func commandMirrorPipes(command *catalogCommand) string {
 		}
 	}
 	if len(parts) == 0 {
-		return "None"
+		return nothingDeclared
 	}
 	return strings.Join(parts, "<br>")
 }

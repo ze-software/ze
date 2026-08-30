@@ -9,36 +9,71 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/featuretags"
 )
 
-const schemaExtractionTimeout = 2 * time.Minute
+const schemaExtractionTimeout = 5 * time.Minute
+
+// daemonCoreTag is the build tag the shipped daemon always carries, beside
+// every feature gate feature-gates.txt declares.
+const daemonCoreTag = "ze_core"
 
 type yangNode struct {
 	Name string `json:"name"`
 }
 
-// extractYANGConfigTree runs the production binary's typed schema command and
-// writes the top-level-name-indexed JSON consumed by the site.
-func extractYANGConfigTree(repository, output, binary string) (int, error) {
+// liveYANGConfigTree answers `ze yang tree --json --config` for one checkout.
+// It is a variable so a test can state a tree rather than compile the daemon.
+var liveYANGConfigTree = runYANGConfigTree
+
+// runYANGConfigTree runs the daemon's typed schema command and answers its JSON.
+//
+// A named binary is run as it stands. With no binary named, the command is
+// built from THIS checkout's sources, with the feature gates the shipped daemon
+// carries, because a bin/ze somebody left behind was built at an unknown commit
+// with unknown gates and would publish a configuration reference for a daemon
+// nobody ships. That is the staleness the site build exists to remove.
+func runYANGConfigTree(repository, binary string) ([]byte, error) {
+	name, args := binary, []string{"yang", "tree", "--json", "--config"}
 	if binary == "" {
-		binary = filepath.Join(repository, "bin", "ze")
-	}
-	if info, err := os.Stat(binary); err != nil || !info.Mode().IsRegular() {
+		tags, err := featuretags.DaemonTags(repository)
+		if err != nil {
+			return nil, err
+		}
+		name = "go"
+		args = append([]string{"run", "-tags",
+			strings.Join(append([]string{daemonCoreTag}, tags...), ","), "./cmd/ze"}, args...)
+	} else if info, err := os.Stat(binary); err != nil || !info.Mode().IsRegular() {
 		if err == nil {
 			err = fmt.Errorf("not a regular file")
 		}
-		return 0, fmt.Errorf("ze binary %s: %w", binary, err)
+		return nil, fmt.Errorf("ze binary %s: %w", binary, err)
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), schemaExtractionTimeout)
 	defer cancel()
-	command := exec.CommandContext(ctx, binary, "yang", "tree", "--json", "--config")
+	// #nosec G204 -- the argv is fixed apart from the build tags, which are read
+	// from the checkout's own feature-gates.txt.
+	command := exec.CommandContext(ctx, name, args...)
 	command.Dir = repository
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
 	raw, err := command.Output()
 	if err != nil {
-		return 0, fmt.Errorf("%s yang tree --json --config: %w: %s", binary, err, stderr.String())
+		return nil, fmt.Errorf("%s yang tree --json --config: %w: %s", name, err, stderr.String())
+	}
+	return raw, nil
+}
+
+// extractYANGConfigTree writes the top-level-name-indexed configuration tree
+// the site publishes, and answers how many roots it holds.
+func extractYANGConfigTree(repository, output, binary string) (int, error) {
+	raw, err := liveYANGConfigTree(repository, binary)
+	if err != nil {
+		return 0, err
 	}
 	return writeYANGConfigTree(output, raw)
 }

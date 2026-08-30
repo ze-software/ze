@@ -1,5 +1,5 @@
 // The tool is called as a function here, which is the whole point of compiling
-// it. Its predecessor, internal/le/commandlist/commandlist_test.go, forked `go run` and
+// it. Its predecessor, internal/le/command/list/commandlist_test.go, forked `go run` and
 // asserted on the process's combined output; every case below says what the old
 // assertion proved and where that proof now lives.
 
@@ -134,7 +134,7 @@ func TestCollectFailsOnAFileItCannotRead(t *testing.T) {
 }
 
 // TestCollectFailsOnALineTooLongToScan is what
-// internal/le/commandlist/commandlist_test.go's TestInventoryStopsOnUnreadableFile
+// internal/le/command/list/commandlist_test.go's TestInventoryStopsOnUnreadableFile
 // proved, as a function call. bufio.Scanner stops on a line above
 // MaxScanTokenSize, so the rpc below it is never counted; the tool must report
 // that rather than publish the short count.

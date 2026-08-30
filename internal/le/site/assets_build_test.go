@@ -16,7 +16,7 @@ import (
 // ABSENT, so the seeded bundle survived every build and no stylesheet edit ever
 // reached a reader.
 func TestAnAssetEditReachesTheArtifact(t *testing.T) {
-	stubLiveCommandCatalog(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	stubLiveInputs(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
 	stubProducers(t)
 	root, output := siteFixture(t)
 
@@ -61,7 +61,7 @@ func TestAnAssetEditReachesTheArtifact(t *testing.T) {
 // wrote a command page.
 func TestNoBuildStagePublishesTheCommandFixture(t *testing.T) {
 	catalog := `[{"path":"show test","description":"Show rows","mode":"read-only"}]`
-	stubLiveCommandCatalog(t, catalog)
+	stubLiveInputs(t, catalog)
 	stubProducers(t)
 	root, output := siteFixture(t)
 

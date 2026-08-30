@@ -64,10 +64,14 @@ type registryPlugin struct {
 
 // configNode is one node of the YANG-derived configuration tree.
 type configNode struct {
-	Description string       `json:"description"`
-	Kind        string       `json:"kind"`
-	Name        string       `json:"name"`
-	Children    []configNode `json:"children"`
+	Description string `json:"description"`
+	Kind        string `json:"kind"`
+	Name        string `json:"name"`
+	// Type is the YANG type a leaf or a leaf-list holds, and is empty for a
+	// container and for a list. The configuration reference shows it as the
+	// node's badge, which is the one place a reader learns what to write.
+	Type     string       `json:"type"`
+	Children []configNode `json:"children"`
 }
 
 // siteNav is the curated navigation the site's own header is built from.

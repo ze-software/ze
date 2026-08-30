@@ -5,10 +5,10 @@
 | Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | 6 of 10 |
+| Phase | 7 of 10 |
 | Deferral shard | `plan/deferrals/site-renderers-in-go.md` |
 | Handoff | - |
-| Updated | 2026-08-29 |
+| Updated | 2026-08-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -554,7 +554,31 @@ and its carry-over are untouched.
 | `TestADataFileThatIsNotJSONIsRefused` | `internal/le/site/datapages_test.go` | AC-8, the decoder's own complaint reaches the build | pass |
 | `TestACuratedModuleNamedTwiceIsRefused` | `internal/le/site/dependencies_test.go` | AC-8, a doubled curated entry | pass |
 | `TestAGoModWithNoDirectRequirementIsRefused` | `internal/le/site/dependencies_test.go` | AC-8, an all-indirect go.mod | pass |
-| `TestPluginCatalogCarriesTheFieldsThePageShows` | `internal/le/site/plugins_test.go` | AC-9 | |
+| `TestPluginCatalogCarriesTheFieldsThePageShows` | `internal/le/site/plugins_test.go` | AC-9 | pass |
+| `TestAPluginPageReadsAsThePublishedPage` | `internal/le/site/plugins_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror on one detail page | pass |
+| `TestThePluginCatalogReadsAsThePublishedCatalog` | `internal/le/site/plugins_test.go` | AC-3, AC-4, AC-5, rendered parity and a byte-identical mirror on the catalog | pass |
+| `TestEveryPluginGroupIsLabelledByItsOwnHeading` | `internal/le/site/plugins_test.go` | AC-3, the attributes visibleText cannot see | pass |
+| `TestTheCatalogOrdersAreasByLabelWithTheTestHarnessLast` | `internal/le/site/plugins_test.go` | AC-9, the three orderings a Go port loses | pass |
+| `TestTwoPluginsSharingASlugAreSeparatedByNameOrder` | `internal/le/site/plugins_test.go` | AC-9, the slug rule no published pair can reach | pass |
+| `TestACardNamesThreeDependenciesAndCountsTheRest` | `internal/le/site/plugins_test.go` | AC-9, the two caps the published fixture cannot reach | pass |
+| `TestAPluginThatDeclaresNothingSaysSo` | `internal/le/site/plugins_test.go` | AC-9, the empty-badge branch | pass |
+| `TestAPipeInAPluginDescriptionStaysInItsCell` | `internal/le/site/plugins_test.go` | AC-5, a pipe does not split a mirror row | pass |
+| `TestARetiredPluginLosesItsPage` | `internal/le/site/plugins_test.go` | AC-2, a producer removes what it stops owning | pass |
+| `TestAnUnusableRegistryIsRefusedByName` | `internal/le/site/plugins_test.go` | AC-9, three unusable registries each refused by name | pass |
+| `TestThePublishedRegistryStatesEveryFieldTheCatalogShows` | `internal/le/site/plugins_test.go` | AC-9, AC-16, the published data file | pass |
+| `TestThePluginCatalogClaimsOnlyPublishedRoutes` | `internal/le/site/plugins_test.go` | AC-1, 97 of 712 plus the configuration reference | pass |
+| `TestAPluginCarriesItsSourceDirectoryYANGFilesAndOptionalDependencies` | `internal/le/inventory/plugins_test.go` | AC-9, the three fields the registration does not carry | pass |
+| `TestAPluginWithNoRegisteredModuleTakesTheYANGBesideItsPackage` | `internal/le/inventory/plugins_test.go` | AC-9, the fallback for a registration naming no module | pass |
+| `TestEveryYANGPathAPluginAnswersResolvesUnderTheCheckout` | `internal/le/inventory/plugins_test.go` | AC-9, the scratch copies that shadowed every real module | pass |
+| `TestTheConfigurationReferenceReadsAsThePublishedPage` | `internal/le/site/config_test.go` | AC-3, AC-4, rendered parity | pass |
+| `TestTheConfigurationPayloadsCarryTheSchemaAndItsOwners` | `internal/le/site/config_test.go` | AC-4, the two payloads the browser reads | pass |
+| `TestTheConfigurationMirrorReadsAsThePublishedMirror` | `internal/le/site/config_test.go` | AC-5, the whole tree, section by section | pass |
+| `TestTheGuideLinkResolvesOnBothSurfaces` | `internal/le/site/config_test.go` | AC-4, one target and it resolves | pass |
+| `TestTheConfigurationSectionsAreInNameOrder` | `internal/le/site/config_test.go` | AC-8, no output order comes from a Go map | pass |
+| `TestAConfigRootWithNoSchemaNodeIsRefused` | `internal/le/site/config_test.go` | AC-9, ownership drift refused by name | pass |
+| `TestAnEmptyConfigurationTreeIsRefused` | `internal/le/site/config_test.go` | AC-4, an absent tree is refused rather than published empty | pass |
+| `TestANodeReadsAsAnOperatorWouldTypeIt` | `internal/le/site/config_test.go` | AC-4, the head and the badge of each node kind | pass |
+| `TestAClosingScriptTagInASchemaDescriptionCannotEndThePayload` | `internal/le/site/config_test.go` | AC-4, the embedded payload cannot escape its element | pass |
 | `TestFactsSnapshotKeepsTheStarCountOffline` | `internal/le/site/facts/sitefacts_test.go` | AC-11 | |
 | `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12 | |
 | `TestLLMSFullCarriesEveryPublishedMirror` | `internal/le/site/derived_test.go` | AC-15 | |
@@ -772,6 +796,67 @@ and its carry-over are untouched.
 7. **Phase: Plugin catalog and config reference** -- extend `inventory.Collect`,
    then render both pages
    - Files: `plugins.go`, `config.go`, `internal/le/inventory/inventory.go`
+     -> Landed 2026-08-30. 98 routes claimed against the PUBLISHED registry, 97
+     for the catalog and its 96 plugins and 1 for the configuration reference,
+     which leaves 19 for phases 8 to 10. Two named non-route artifacts are
+     written and AC-16 must name each: `data/plugin-registry.json` and
+     `data/yang-config-tree.json`.
+     -> Decision 2026-08-30: the two derived fields come from the REGISTRATION,
+     not from a new field each plugin would type out. `source_dir` is the
+     package the plugin's `RunEngine` was compiled in, read with
+     `runtime.FuncForPC`; `yang_files` is every `.yang` beside the module the
+     registration carries, and beside the package when it carries none. Both
+     were checked against all 96 published entries and reproduce them exactly:
+     the 9 that differ are plugins the registry has since RENAMED, and each
+     resolves to the path its old name published. A `SourceDir` field on
+     `registry.Registration` was rejected as a second statement of a fact the
+     compiler already holds.
+     -> Decision 2026-08-30: the SIX test-only plugins the catalog published
+     lose their pages, and so do `iface-dhcp` and `iface-ra`, which the registry
+     no longer carries. `registry.All()` is the product's composition root and
+     `internal/component/plugin/all/all_test.go` asserts that it excludes
+     `internal/test/plugins`, so no build can see a fixture. The producer
+     REMOVES a detail directory whose plugin is not in the registry it just
+     read, which is what the retired `clean_detail_dirs` did and what phases 5
+     and 6 settled for a retired article and a retired week. No registration is
+     invented to make a count match. A live build therefore claims 90 routes
+     where the published registry claims 98: 17 published detail routes stop
+     being published (6 fixtures, 2 retired plugins, 9 renamed slugs) and 9 new
+     slugs appear, so the coverage arithmetic still leaves 19.
+     -> Decision 2026-08-30: `data/plugin-registry.json` and
+     `data/yang-config-tree.json` are written by `refreshNativeSurfaces`, beside
+     `data/cli-commands.json`, and NOT by the producers that read them. Three
+     surfaces read the first (the catalog, the configuration reference and
+     llms.txt) and two the second, and a producer runs in registration order, so
+     an input a producer writes cannot be an input another producer reads.
+     -> Decision 2026-08-30: `extractYANGConfigTree` no longer defaults to
+     `bin/ze`. With no binary named it builds `cmd/ze` from this checkout with
+     the shipped feature gates, as `docvalid.LiveCommandCatalog` already does
+     for the command catalog. A `bin/ze` somebody left behind was built at an
+     unknown commit with unknown gates, which is the staleness this spec exists
+     to remove. `./le site config-tree binary=<path>` still runs a named one.
+     -> Decision 2026-08-30: the configuration guide is linked at
+     `features/bgp-configuration/` on BOTH surfaces. The published page linked
+     `docs/features/configuration/`, a redirect stub, and the published mirror
+     linked `reference/feature-status/configuration/`, which the site has never
+     published: the retired build's legacy-URL rewriting matched the
+     `features.md` prefix and rewrote a path it did not own. One target, and it
+     resolves. `TestTheGuideLinkResolvesOnBothSurfaces` holds it.
+     -> Decision 2026-08-30: a config root that resolves to no node of the
+     schema now REFUSES the build by name, as phases 5 and 6 turned their warned
+     inputs into refusals. The retired renderer warned and `website/tools/build.py`
+     exited non-zero on any warning, so such a tree never reached a reader.
+     Measured 2026-08-30: this checkout has no orphan root, against both the
+     published and the live registry.
+     -> Constraint: `discoverYANGPaths` walked the WHOLE checkout keyed by base
+     name, and this checkout holds 475 `.yang` files under `tmp/` against 237
+     under `internal/`. Lexical walk order meant every real module was shadowed
+     by a session scratch copy, so the paths it answered named `tmp/`. The walk
+     is now scoped to `internal`, `pkg` and `cmd`.
+     -> Constraint: an untagged `go test` registers 12 plugins where the shipped
+     daemon registers 88, so no test may read the live registry. The catalog
+     reads `data/plugin-registry.json` from the ARTIFACT, and a build's three
+     live readers are stubbed together by `stubLiveInputs`.
 8. **Phase: Quality pages** -- test-health and RFC-compliance, re-sourced
    - Files: `quality.go`
 9. **Phase: Facts and homepage** -- the facts snapshot, then the homepage that
@@ -859,6 +944,11 @@ and its carry-over are untouched.
   of the page rather than at their section. Accepted by the owner, 2026-08-29.
 - `PLUGIN.md` front matter is not restored. No such file exists and all 96
   published catalog entries carry an empty doc object.
+- Six test-only plugin pages and two retired plugin pages leave the site with
+  phase 7. `registry.All()` cannot see `internal/test/plugins`, by a decision
+  `internal/component/plugin/all/all_test.go` asserts, and `iface-dhcp` and
+  `iface-ra` are no longer registered at all. Nine more detail routes move,
+  because the registry renamed the plugin behind them.
 - The RFC-compliance page's agent-guard block counted text in a hook file, a
   Makefile and a status script that no longer exist. It is redefined against the
   registered action table rather than ported.
@@ -869,10 +959,10 @@ and its carry-over are untouched.
   explains it. Removing a published file is the owner's call and is not done
   here.
 - The command pages read `data/site-facts.json`, `data/plugin-registry.json` and
-  `data/yang-config-tree.json` for three of llms.txt's sections, and no producer
-  writes those three yet: phase 7 writes the plugin registry and phase 9 the
-  facts snapshot. Until then llms.txt states what the seed carries for those
-  sections. The producer refuses an ABSENT input rather than writing a shorter
+  `data/yang-config-tree.json` for three of llms.txt's sections. Phase 7 writes
+  the second and the third from `refreshNativeSurfaces`; phase 9 owes the facts
+  snapshot. Until then llms.txt states what the seed carries for that one
+  section. The producer refuses an ABSENT input rather than writing a shorter
   file, so a fresh artifact fails loudly instead of publishing a partial claim.
 - The published `Usage` row and the description prose still say the same thing
   for 32 of 379 commands, because the YANG descriptions carrying the authored

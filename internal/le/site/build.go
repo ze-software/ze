@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/docvalid"
+	"github.com/ze-software/ze/internal/le/inventory"
 )
 
 const sourceListTimeout = 30 * time.Second
@@ -343,6 +344,12 @@ func refreshNativeSurfaces(paths Paths) error {
 	if err := publishCommandCatalog(paths); err != nil {
 		return err
 	}
+	if err := publishPluginRegistry(paths); err != nil {
+		return err
+	}
+	if err := publishYANGConfigTree(paths); err != nil {
+		return err
+	}
 	if err := renderCSS(paths.Source, paths.Output); err != nil {
 		return err
 	}
@@ -385,6 +392,41 @@ func publishCommandCatalog(paths Paths) error {
 	}
 	if err := os.WriteFile(catalog, raw, 0o644); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return fmt.Errorf("publish command catalog %s: %w", catalog, err)
+	}
+	return nil
+}
+
+// livePluginRegistry answers the plugin registrations this checkout carries. It
+// is a variable so a test can state a registry rather than depend on the
+// feature gates its own test binary was built with: an untagged `go test`
+// registers twelve plugins where the shipped daemon registers eighty-eight.
+var livePluginRegistry = inventory.Plugins
+
+// publishPluginRegistry republishes the plugin registry read from this
+// process's own plugin registrations.
+//
+// It is written here rather than by the catalog producer for the reason
+// publishCommandCatalog is: three surfaces read it, the catalog, the
+// configuration reference and llms.txt, and a producer runs in registration
+// order, so an input a producer writes cannot be an input another producer
+// reads.
+func publishPluginRegistry(paths Paths) error {
+	plugins, err := livePluginRegistry(paths.Repository)
+	if err != nil {
+		return err
+	}
+	content, err := marshalPluginRegistry(plugins)
+	if err != nil {
+		return err
+	}
+	return writeNamedArtifact(paths.Output, pluginFile, content)
+}
+
+// publishYANGConfigTree republishes the configuration tree the live YANG schema
+// answers, which the configuration reference and llms.txt both read.
+func publishYANGConfigTree(paths Paths) error {
+	if _, err := extractYANGConfigTree(paths.Repository, paths.Output, ""); err != nil {
+		return err
 	}
 	return nil
 }

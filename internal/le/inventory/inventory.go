@@ -144,27 +144,17 @@ func Collect(root string) (Inventory, error) {
 		Capabilities: capabilityCodes(),
 	}
 
-	for _, reg := range registry.All() {
-		inv.Plugins = append(inv.Plugins, Plugin{
-			Name:         reg.Name,
-			Description:  reg.Description,
-			Families:     reg.Families,
-			Capabilities: reg.CapabilityCodes,
-			Dependencies: reg.Dependencies,
-			ConfigRoots:  reg.ConfigRoots,
-			RFCs:         reg.RFCs,
-			Features:     reg.Features,
-			HasYANG:      reg.YANG != "",
-			HasDecoder:   reg.InProcessNLRIDecoder != nil,
-			HasEncoder:   reg.InProcessNLRIEncoder != nil,
-		})
-	}
-	inv.FamilySupport = collectFamilySupport()
-
 	yangPaths, err := discoverYANGPaths(root)
 	if err != nil {
 		return Inventory{}, err
 	}
+
+	inv.Plugins, err = pluginsFrom(root, registry.All(), yangPaths)
+	if err != nil {
+		return Inventory{}, err
+	}
+	inv.FamilySupport = collectFamilySupport()
+
 	inv.YANGModules = describeModules(yangPaths)
 
 	inv.RPCsByModule, inv.RPCList, err = extractRPCs(root)
@@ -249,21 +239,33 @@ func pluginDirOf(path string) (dir string, under bool) {
 	return dir, true
 }
 
+// yangSuffix is the extension a YANG document carries.
+const yangSuffix = ".yang"
+
 // discoverYANGPaths maps every .yang file's base name to its path relative to
 // root. The base name is the key because that is what a module is named by, and
 // two files sharing one name leave the last one walked.
+//
+// The walk covers the CODE AREAS rather than the whole checkout, because a base
+// name is a weak key and the checkout holds copies of the tree that are not the
+// tree. Measured on 2026-08-30: 237 .yang files under internal/, 475 more under
+// tmp/ in session scratch copies, and 27 under gokrazy/. A walk of the whole
+// root visits them in lexical order, so every real module was shadowed by a
+// scratch copy and the paths this answers named tmp/ rather than the source.
 func discoverYANGPaths(root string) (map[string]string, error) {
 	paths := make(map[string]string)
-	err := walkFiles(root, ".yang", func(path string, entry fs.DirEntry) error {
-		rel, err := filepath.Rel(root, path)
+	for _, area := range codeAreas {
+		err := walkFiles(filepath.Join(root, area), yangSuffix, func(path string, entry fs.DirEntry) error {
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return fmt.Errorf("locating %s under %s: %w", path, root, err)
+			}
+			paths[entry.Name()] = filepath.ToSlash(rel)
+			return nil
+		})
 		if err != nil {
-			return fmt.Errorf("locating %s under %s: %w", path, root, err)
+			return nil, err
 		}
-		paths[entry.Name()] = rel
-		return nil
-	})
-	if err != nil {
-		return nil, err
 	}
 	return paths, nil
 }

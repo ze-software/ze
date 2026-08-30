@@ -152,7 +152,7 @@ func TestCarryPublicationStampsKeepsTheStampOfAnUnchangedPage(t *testing.T) {
 // pages verbatim and the published site lost the stamp on 409 pages, because
 // the retired Python build was the only thing that had ever written one.
 func TestBuildStampsEveryPublishedPage(t *testing.T) {
-	stubLiveCommandCatalog(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	stubLiveInputs(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
 	// This build is about staging, so the page producers are stubbed out: a
 	// synthetic checkout carries no docs/ tree for them to publish, and
 	// TestBuildRunsEveryRegisteredProducer already pins the registry itself.

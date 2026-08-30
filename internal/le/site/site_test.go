@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/leroot"
+
+	"github.com/ze-software/ze/internal/le/inventory"
 )
 
 // VALIDATES: every former website launcher has a native site action.
@@ -202,7 +204,7 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 		t.Fatal(err)
 	}
 	catalog := `[{"path":"show test","description":"Show rows","mode":"read-only","operators":[{"name":"json","class":"global","available":"always","description":"JSON"}]}]`
-	stubLiveCommandCatalog(t, catalog)
+	stubLiveInputs(t, catalog)
 	// This build is about staging, so the page producers are stubbed out: a
 	// synthetic checkout carries no docs/ tree for them to publish, and
 	// TestBuildRunsEveryRegisteredProducer already pins the registry itself.
@@ -259,19 +261,41 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 	}
 }
 
-// stubLiveCommandCatalog makes a build read the given catalog instead of
-// building the daemon, and restores the real reader when the test ends.
-func stubLiveCommandCatalog(t *testing.T, catalog string) {
+// stubLiveInputs makes a build read stated inputs instead of building the
+// daemon, and restores the real readers when the test ends.
+//
+// A build refreshes three data files from the live product before any producer
+// runs: the command catalog, the plugin registry and the YANG configuration
+// tree. Each costs a compile of cmd/ze, and each needs a real checkout, so a
+// test over a synthetic tree states all three together rather than one at a
+// time: a build test that stubbed one and forgot another would fail on a
+// missing feature-gates.txt rather than on what it set out to check.
+func stubLiveInputs(t *testing.T, catalog string) {
 	t.Helper()
-	previous := liveCommandCatalog
-	t.Cleanup(func() { liveCommandCatalog = previous })
+	previousCatalog := liveCommandCatalog
+	previousPlugins := livePluginRegistry
+	previousTree := liveYANGConfigTree
+	t.Cleanup(func() {
+		liveCommandCatalog = previousCatalog
+		livePluginRegistry = previousPlugins
+		liveYANGConfigTree = previousTree
+	})
 	liveCommandCatalog = func(string) ([]byte, error) { return []byte(catalog), nil }
+	livePluginRegistry = func(string) ([]inventory.Plugin, error) {
+		return []inventory.Plugin{{
+			Name: "static", Description: "Static routes",
+			ConfigRoots: []string{"static"}, SourceDir: "internal/plugins/static",
+		}}, nil
+	}
+	liveYANGConfigTree = func(string, string) ([]byte, error) {
+		return []byte(`[{"name":"static","kind":"container","description":"Static routes."}]`), nil
+	}
 }
 
 // VALIDATES: a normal full build snapshots the current Pages checkout before
 // cleaning it, so a page the build does not write keeps its exact bytes.
 func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
-	stubLiveCommandCatalog(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	stubLiveInputs(t, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
 	parent := t.TempDir()
 	root := filepath.Join(parent, "main")
 	source := filepath.Join(root, "website")
@@ -334,7 +358,7 @@ func TestBuildPreservesExistingArtifactSeed(t *testing.T) {
 // The fixture carries no head, no title, no navigation and no vendor
 // equivalents, so it is a comparison input and never a page.
 func TestBuildLeavesAPublishedPageAlone(t *testing.T) {
-	stubLiveCommandCatalog(t, `[{"path":"show live","description":"Show live rows","mode":"read-only"}]`)
+	stubLiveInputs(t, `[{"path":"show live","description":"Show live rows","mode":"read-only"}]`)
 	parent := t.TempDir()
 	root := filepath.Join(parent, "main")
 	output := filepath.Join(parent, "gh-pages")
