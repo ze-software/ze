@@ -2,9 +2,12 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
-	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/command"
 )
 
 // TestDataTreeAnswersRows pins the shape the command DECLARES against the shape
@@ -66,8 +69,15 @@ func TestDataCompletionAnswersCollisions(t *testing.T) {
 	}
 }
 
-// TestTreeCommandFormsShareOptionSemantics drives both the printed root command
-// and local-data handler, then compares their selected JSON data and failures.
+// TestTreeCommandFormsShareOptionSemantics drives both the printed root
+// command and the local-data handler over the same option words, then compares
+// what each selected.
+//
+// The two forms share parseTreeOptions and buildUnifiedTree, and differ only
+// in their formatter. The check is therefore that the printed form printed
+// every top-level node the data answer carries. Both once answered JSON, and
+// the comparison was byte-for-byte. The printed form renders text alone now,
+// because `show yang tree | json` renders the answer.
 func TestTreeCommandFormsShareOptionSemantics(t *testing.T) {
 	valid := []struct {
 		name string
@@ -82,18 +92,27 @@ func TestTreeCommandFormsShareOptionSemantics(t *testing.T) {
 			if localCode != 0 {
 				t.Fatalf("dataTree exited %d", localCode)
 			}
+			rows, ok := local.([]any)
+			if !ok || len(rows) == 0 {
+				t.Fatalf("dataTree answered %T with no rows", local)
+			}
 
-			printedArgs := append([]string(nil), tt.args...)
-			printedArgs = append(printedArgs, "--json")
-			printed, printedCode := captureJSONOutput(t, func() int {
-				return cmdTree(printedArgs)
-			})
+			printed, printedCode := captureText(t, func() int { return cmdTree(tt.args) })
 			if printedCode != 0 {
 				t.Fatalf("cmdTree exited %d", printedCode)
 			}
-			if !reflect.DeepEqual(printed, local) {
-				t.Errorf("printed and local tree selections differ\nprinted: %v\nlocal: %v",
-					printed, local)
+			for _, row := range rows {
+				node, isRecord := row.(map[string]any)
+				if !isRecord {
+					t.Fatalf("a tree row is %T, want a record", row)
+				}
+				name, _ := node["name"].(string)
+				if name == "" {
+					t.Fatalf("a tree row carries no name: %v", node)
+				}
+				if !strings.Contains(printed, name) {
+					t.Errorf("the printed tree omits %q, which the data answer carries", name)
+				}
 			}
 		})
 	}
@@ -118,7 +137,9 @@ func TestTreeCommandFormsShareOptionSemantics(t *testing.T) {
 }
 
 // TestCompletionCommandFormsShareOptionSemantics drives both command forms at
-// every range boundary and compares the structured data at valid boundaries.
+// every range boundary, and compares the counts each form reports at the valid
+// ones. The printed form ends with a Summary line. It carries the two numbers
+// the data answer carries as fields, so a drift between the forms shows there.
 func TestCompletionCommandFormsShareOptionSemantics(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -138,24 +159,28 @@ func TestCompletionCommandFormsShareOptionSemantics(t *testing.T) {
 				t.Errorf("dataCompletion exited %d, want %d", localCode, tt.code)
 			}
 
-			printedArgs := append([]string(nil), args...)
-			printedArgs = append(printedArgs, "--json")
 			if tt.code != 0 {
-				if code := cmdCompletion(printedArgs); code != tt.code {
+				if code := cmdCompletion(args); code != tt.code {
 					t.Errorf("cmdCompletion exited %d, want %d", code, tt.code)
 				}
 				return
 			}
 
-			printed, printedCode := captureJSONOutput(t, func() int {
-				return cmdCompletion(printedArgs)
-			})
+			printed, printedCode := captureText(t, func() int { return cmdCompletion(args) })
 			if printedCode != tt.code {
 				t.Fatalf("cmdCompletion exited %d, want %d", printedCode, tt.code)
 			}
-			if !reflect.DeepEqual(printed, local) {
-				t.Errorf("printed and local completion selections differ\nprinted: %v\nlocal: %v",
-					printed, local)
+			envelope, ok := local.(map[string]any)
+			if !ok {
+				t.Fatalf("dataCompletion answers %T, want an envelope", local)
+			}
+			summary, _ := envelope["summary"].(map[string]any)
+			groups, _ := summary["total-groups"].(float64)
+			affected, _ := summary["total-affected"].(float64)
+			want := fmt.Sprintf("Summary: %d collision groups, %d affected nodes",
+				int(groups), int(affected))
+			if !strings.Contains(printed, want) {
+				t.Errorf("the printed form does not report %q", want)
 			}
 		})
 	}
@@ -169,18 +194,84 @@ func TestCompletionCommandFormsShareOptionSemantics(t *testing.T) {
 	}
 }
 
-// TestLocalDataRejectsPrintedRenderingFlag proves the structured handlers do
-// not silently ignore a rendering flag that only the printed form can honor.
-func TestLocalDataRejectsPrintedRenderingFlag(t *testing.T) {
+// TestBothFormsRefuseTheDeletedRenderingOption proves `--json` is REFUSED on
+// both forms rather than dropped in silence. Rendering belongs to the pipe
+// layer. A token a parser drops would print a tree the caller cannot parse,
+// while the exit code reported that the request was honored.
+func TestBothFormsRefuseTheDeletedRenderingOption(t *testing.T) {
+	if code := cmdTree([]string{"--json"}); code != 1 {
+		t.Errorf("cmdTree --json exited %d, want 1", code)
+	}
 	if _, code := dataTree([]string{"--json"}); code != 1 {
 		t.Errorf("dataTree --json exited %d, want 1", code)
+	}
+	if code := cmdCompletion([]string{"--json"}); code != 1 {
+		t.Errorf("cmdCompletion --json exited %d, want 1", code)
 	}
 	if _, code := dataCompletion([]string{"--json"}); code != 1 {
 		t.Errorf("dataCompletion --json exited %d, want 1", code)
 	}
 }
 
-func captureJSONOutput(t *testing.T, run func() int) (any, int) {
+// TestYANGAnswersRenderThroughThePipeLayer proves both answers are served in
+// this process and reach `| json`, which is what replaced the deleted option.
+func TestYANGAnswersRenderThroughThePipeLayer(t *testing.T) {
+	answer, code, served := command.ServeLocal("show yang tree "+flagCommands+" | json", "")
+	if !served {
+		t.Fatal("show yang tree was not served in this process")
+	}
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 (answer: %q)", code, answer)
+	}
+	var nodes []map[string]any
+	if err := json.Unmarshal([]byte(answer), &nodes); err != nil {
+		t.Fatalf("| json answered something no JSON decoder takes: %v (answer: %q)", err, answer)
+	}
+	if len(nodes) == 0 {
+		t.Fatalf("| json answered no nodes: %q", answer)
+	}
+
+	answer, code, served = command.ServeLocal("show yang completion | json", "")
+	if !served {
+		t.Fatal("show yang completion was not served in this process")
+	}
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 (answer: %q)", code, answer)
+	}
+	// The completion answer keeps its envelope through `| json` because it
+	// carries two keys: the collision rows and the summary counted over them.
+	// The tree above is unwrapped because its answer is the rows alone.
+	var envelope map[string]any
+	if err := json.Unmarshal([]byte(answer), &envelope); err != nil {
+		t.Fatalf("| json answered something no JSON decoder takes: %v (answer: %q)", err, answer)
+	}
+	if _, has := envelope["collisions"]; !has {
+		t.Errorf("the rendered answer carries no collisions key: %q", answer)
+	}
+	if _, has := envelope["summary"]; !has {
+		t.Errorf("the rendered answer carries no summary key: %q", answer)
+	}
+}
+
+// TestShowYANGTreeRefusesAddressOperatorsByName proves the declared shape is
+// load-bearing. No field of a tree node holds an address, so `| resolve` is
+// refused by name.
+func TestShowYANGTreeRefusesAddressOperatorsByName(t *testing.T) {
+	answer, code, served := command.ServeLocal("show yang tree | resolve", "")
+	if !served {
+		t.Fatal("show yang tree was not served in this process")
+	}
+	if code == 0 {
+		t.Fatalf("| resolve was accepted over an answer holding no address (answer: %q)",
+			strings.SplitN(answer, "\n", 2)[0])
+	}
+	if !strings.Contains(answer, "resolve") {
+		t.Errorf("the refusal does not name the operator: %q", answer)
+	}
+}
+
+// captureText runs a printing command and answers what it wrote to stdout.
+func captureText(t *testing.T, run func() int) (string, int) {
 	t.Helper()
 
 	output, err := os.CreateTemp(t.TempDir(), "yang-command-output")
@@ -196,13 +287,9 @@ func captureJSONOutput(t *testing.T, run func() int) (any, int) {
 		t.Fatalf("close output file: %v", err)
 	}
 
-	data, err := os.ReadFile(output.Name())
+	written, err := os.ReadFile(output.Name())
 	if err != nil {
 		t.Fatalf("read output file: %v", err)
 	}
-	var payload any
-	if err := json.Unmarshal(data, &payload); err != nil {
-		t.Fatalf("decode command output: %v\noutput: %s", err, data)
-	}
-	return payload, code
+	return string(written), code
 }

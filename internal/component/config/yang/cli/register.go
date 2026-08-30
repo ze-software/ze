@@ -13,9 +13,21 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// Subcommand names that appear in more than one place: the switch in Run, the
+// help page, and the list below.
+const (
+	subTree       = "tree"
+	subCompletion = "completion"
+	subDoc        = "doc"
+)
+
+// modeOffline marks a command that answers from the compiled-in YANG modules
+// without a running daemon. The help output groups commands by this tag.
+const modeOffline = "offline"
+
 // yangCommands lists the user-facing subcommand names, kept in sync with the
 // switch cases in Run (main.go). "help" is excluded.
-var yangCommands = []string{"tree", "completion", "doc"}
+var yangCommands = []string{subTree, subCompletion, subDoc}
 
 // subcommands returns the sorted, comma-separated list of user-facing
 // subcommands (single source of truth for Meta.Subs and error messages).
@@ -31,7 +43,7 @@ func init() {
 		return Run(args)
 	}, registry.Meta{
 		Description: "YANG tree analysis",
-		Mode:        "offline",
+		Mode:        modeOffline,
 		Section:     registry.SectionConfiguration,
 		Subs:        subcommands(),
 	})
@@ -40,19 +52,19 @@ func init() {
 	// wire method for each that no daemon handler implements.
 	registry.MustRegisterLocalData("show yang tree", dataTree, registry.Meta{
 		Description: "The unified config and command tree. Narrow it with --commands or --config.",
-		Mode:        "offline",
+		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalData("show yang completion", dataCompletion, registry.Meta{
 		Description: "Prefix collisions in the config and command trees.",
-		Mode:        "offline",
+		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 
-	// `show yang doc` renders documentation PROSE for a reader, it has no
-	// --json path to lift, and the same facts already reach a machine through
-	// `ze help command --json`. Inventing a second record for them would be a
-	// second surface to keep true, so it keeps its plain handler.
+	// `show yang doc` renders documentation PROSE for a reader, and the same
+	// facts already reach a machine through `ze help command --json`.
+	// Inventing a second record for them would be a second surface to keep
+	// true, so it keeps its plain handler.
 	registry.MustRegisterLocal("show yang doc", func(args []string) int {
-		return Run(append([]string{"doc"}, args...))
+		return Run(append([]string{subDoc}, args...))
 	})
 
 	// Both answer ROWS. The tree's rows are its TOP-LEVEL nodes, each carrying

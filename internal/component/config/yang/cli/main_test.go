@@ -69,16 +69,13 @@ func TestRunCompletionMinPrefixMax(t *testing.T) {
 	assert.Equal(t, 0, code)
 }
 
-// PREVENTS: JSON output crash through CLI dispatch.
-func TestRunCompletionJSON(t *testing.T) {
-	code := Run([]string{"completion", "--json"})
-	assert.Equal(t, 0, code)
-}
-
-// PREVENTS: JSON tree output crash through CLI dispatch.
-func TestRunTreeJSON(t *testing.T) {
-	code := Run([]string{"tree", "--json"})
-	assert.Equal(t, 0, code)
+// PREVENTS: the deleted rendering option being dropped in silence by the CLI
+// dispatch. `show yang completion | json` and `show yang tree | json` render
+// these answers now, so the token has to fail rather than print text a caller
+// asked to receive as JSON.
+func TestRunRefusesTheRenderingOption(t *testing.T) {
+	assert.Equal(t, 1, Run([]string{"completion", "--json"}))
+	assert.Equal(t, 1, Run([]string{"tree", "--json"}))
 }
 
 // PREVENTS: --commands filter crash through CLI dispatch.
