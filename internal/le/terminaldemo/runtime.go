@@ -102,7 +102,11 @@ func demoStateRoot() string {
 	return filepath.Join(demoRoot(), "tmp", "terminal-demos", "state")
 }
 
-func demoDir(id string) string   { return filepath.Join(demoRoot(), "demos", "terminal", id) }
+// demoTree is the directory every demo lives under, and the base a tape's own
+// relative paths resolve against: the shared common.tape and the mounted
+// artifacts directory both sit here.
+func demoTree() string           { return filepath.Join(demoRoot(), "demos", "terminal") }
+func demoDir(id string) string   { return filepath.Join(demoTree(), id) }
 func demoState(id string) string { return filepath.Join(demoStateRoot(), id) }
 func demoBinary(name string) string {
 	return filepath.Join(demoRoot(), "tmp", "terminal-demos", "bin", name)

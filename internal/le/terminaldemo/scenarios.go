@@ -398,9 +398,9 @@ func runConfigViews(action string) error {
 		return err
 	}
 	commands := [][]string{
-		{commandConfig, commandMigrate, flagFormat, "set", "-o", filepath.Join(state, "router.set"), config},
-		{commandConfig, commandMigrate, flagFormat, "hierarchical", "-o", filepath.Join(state, "roundtrip.conf"), filepath.Join(state, "router.set")},
-		{commandConfig, commandMigrate, flagFormat, "set", "-o", filepath.Join(state, "roundtrip.set"), filepath.Join(state, "roundtrip.conf")},
+		{commandConfig, commandMigrate, "-o", filepath.Join(state, "router.set"), keywordFormat, "set", config},
+		{commandConfig, commandMigrate, "-o", filepath.Join(state, "roundtrip.conf"), keywordFormat, "hierarchical", filepath.Join(state, "router.set")},
+		{commandConfig, commandMigrate, "-o", filepath.Join(state, "roundtrip.set"), keywordFormat, "set", filepath.Join(state, "roundtrip.conf")},
 	}
 	for _, args := range commands {
 		if _, err := runZe(args, demoEnvironment(), nil); err != nil {
@@ -590,7 +590,7 @@ const (
 	demoZefsConfig     = "zefs-config"
 	flagBind           = "--bind"
 	flagASN            = "--asn"
-	flagFormat         = "--format"
+	keywordFormat      = "format"
 	tapeSleepDirective = "@sleep"
 	tapeSleepCommand   = "Sleep"
 	showPeerListRaw    = "show bgp peer list | raw"

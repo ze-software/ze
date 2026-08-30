@@ -582,9 +582,24 @@ type castWriter struct {
 }
 
 func newCastWriter(path string, columns, rows int) (*castWriter, error) {
+	// Unlink before create. The recorder writes into a directory the host shares
+	// with this container, and renderDemo deletes the previous recording from the
+	// HOST side just before the container starts. A virtiofs guest keeps its own
+	// dentry for that name, so an O_CREAT that reuses the name resolves to the
+	// inode the host removed and fails ENOENT. Removing the name here is a guest
+	// operation, so the guest's cache agrees with what the create then does.
+	// Measured under colima: 9 failures in 10 without this line, 0 in 10 with it.
+	_ = os.Remove(path)
 	file, err := os.Create(path) // #nosec G304 -- path comes from the checked-in tape's Output directive.
 	if err != nil {
-		return nil, err
+		// A tape names its Output relative to the demo tree, so the path alone
+		// does not say where the recorder looked. The directory it ran in is what
+		// the reader needs to see.
+		where, cwdErr := os.Getwd()
+		if cwdErr != nil {
+			where = cwdErr.Error()
+		}
+		return nil, fmt.Errorf("create the recording %s from %s: %w", path, where, err)
 	}
 	writer := &castWriter{file: file, origin: time.Now()}
 	header, _ := json.Marshal(map[string]int{commandVersion: 2, "width": columns, "height": rows})
@@ -910,7 +925,11 @@ func readUntilPTY(master *os.File, pattern *regexp.Regexp, timeout time.Duration
 	search := append([]byte(nil), seen...)
 	var output bytes.Buffer
 	for {
-		if pattern.Match(search) {
+		// The pattern describes what a reader SEES, so it is matched with the
+		// escape sequences removed. A phrase that carries a style change inside
+		// it ("> show" changes color after the cursor) never matches the raw
+		// stream, and the failure reads as a phrase that is plainly on screen.
+		if pattern.Match(ansiPattern.ReplaceAll(search, nil)) {
 			return output.Bytes(), nil
 		}
 		ready, err := pollPTY(master, deadline)

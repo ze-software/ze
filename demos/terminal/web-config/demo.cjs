@@ -96,11 +96,17 @@ function pause(milliseconds) {
       const input = document.querySelector("#field-hostname");
       return input && input.value === "edge-demo";
     });
+    // Unlink before write, for the reason newCastWriter states in
+    // internal/le/terminaldemo/pty.go: renderDemo deletes the previous artifact
+    // from the HOST, and a virtiofs guest keeps its own dentry for that name, so
+    // a write that reuses the name resolves to the inode the host removed.
+    fs.rmSync(poster, { force: true });
     await page.screenshot({ path: poster });
     await pause(8000);
 
     await context.close();
     const recorded = await video.path();
+    fs.rmSync(output, { force: true });
     fs.copyFileSync(recorded, output);
   } finally {
     if (browser) {

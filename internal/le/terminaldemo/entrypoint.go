@@ -53,7 +53,12 @@ func runContainerEntrypoint(args []string, stdout, stderr io.Writer) (err error)
 		arguments = append([]string{"--tape", name}, arguments...)
 		name = demoBinary("ze-terminal-pty")
 	}
-	process := newProcess(name, arguments, commandOptions{stdin: os.Stdin, stdout: stdout, stderr: stderr, env: environ, dir: demoRoot()})
+	// The demo tree is the directory a tape's own paths are written against: the
+	// shared `Source common.tape` and each `Output artifacts/<id>.<ext>`, which is
+	// the mounted artifact directory. `containerCommand` passes it as --workdir for
+	// that reason, and running the child anywhere else writes the recording outside
+	// the mount. The image's own WORKDIR is /src, so this cannot be left to inherit.
+	process := newProcess(name, arguments, commandOptions{stdin: os.Stdin, stdout: stdout, stderr: stderr, env: environ, dir: demoTree()})
 	if err := process.Run(); err != nil {
 		if exitError, ok := errors.AsType[*os.PathError](err); ok {
 			return exitError

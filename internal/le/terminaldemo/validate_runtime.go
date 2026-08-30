@@ -70,8 +70,11 @@ func requireNone(value string, unexpected ...string) error {
 	return nil
 }
 
-func runPTYFixture(args ...string) (string, error) {
-	output, err := runCommand(demoBinary("ze-terminal-pty"), args, commandOptions{env: demoEnvironment()})
+// runPTYFixture drives ze-terminal-pty under environ. A fixture that reaches the
+// daemon over SSH MUST be given the scenario environment: sshpass reads the
+// password from SSHPASS, which scenarioEnv sets and demoEnvironment does not.
+func runPTYFixture(environ []string, args ...string) (string, error) {
+	output, err := runCommand(demoBinary("ze-terminal-pty"), args, commandOptions{env: environ})
 	return string(output), err
 }
 
@@ -93,7 +96,7 @@ func validateCLIDashboard() error {
 	if strings.Count(peers, `"state": "established"`) != 3 {
 		return fmt.Errorf("validation failed: expected three established sessions\n%s", peers)
 	}
-	output, err := runPTYFixture("--timeout", "20", "--command", "exit", "--command", `@wait operational\]`, "--command", "monitor bgp", "--command", `@wait 127\.0\.0\.4`, "--command", "@type s", "--command", `@wait ASN \^`, "--command", "@key down", "--command", "@key enter", "--command", `@wait Peer Detail: 127\.0\.0\.2`, "--command", "@escape", "--command", "@type q", "--command", `@wait operational\]`, "--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
+	output, err := runPTYFixture(env, "--timeout", "20", "--command", "exit", "--command", `@wait operational\]`, "--command", "monitor bgp", "--command", `@wait 127\.0\.0\.4`, "--command", "@type s", "--command", `@wait ASN \^`, "--command", "@key down", "--command", "@key enter", "--command", `@wait Peer Detail: 127\.0\.0\.2`, "--command", "@escape", "--command", "@type q", "--command", `@wait operational\]`, "--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
 	if err != nil {
 		return err
 	}
@@ -131,7 +134,7 @@ func validateZeFSConfig() error {
 	if err := requireNone(before, "┌"); err != nil {
 		return err
 	}
-	output, err := runPTYFixture("--command", "set environment cli format default table", "--command", "show | compare", "--command", "commit", "--command", "@wait Session committed", "--command", "exit", "--command", `@wait operational\]`, "--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
+	output, err := runPTYFixture(env, "--command", "set environment cli format default table", "--command", "show | compare", "--command", "commit", "--command", "@wait Session committed", "--command", "exit", "--command", `@wait operational\]`, "--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
 	if err != nil {
 		return err
 	}
@@ -217,7 +220,7 @@ func validateTraceroute() error {
 }
 
 func validateLauncher() error {
-	output, err := runPTYFixture("--ready", "Operations", "--command", "@type show", "--command", "@wait filter: show", "--command", "@key enter", "--command", "@wait > show", "--command", "@escape", "--command", "@wait Operations", "--command", "@type doctor", "--command", "@wait filter: doctor", "--command", "@escape", "--command", "@escape", "--", "ze")
+	output, err := runPTYFixture(demoEnvironment(), "--ready", "Operations", "--command", "@type show", "--command", "@wait filter: show", "--command", "@key enter", "--command", "@wait > show", "--command", "@escape", "--command", "@wait Operations", "--command", "@type doctor", "--command", "@wait filter: doctor", "--command", "@escape", "--command", "@escape", "--", "ze")
 	if err != nil {
 		return err
 	}
@@ -305,7 +308,7 @@ func validateCommitConfirmed() error {
 	if err := os.WriteFile(config, data, 0o600); err != nil {
 		return err
 	}
-	output, err := runPTYFixture("--delay", "2", "--command", "show system host", "--command", "set system host edge-trial", "--command", "show | compare", "--command", "commit confirmed 5", "--command", "@wait Confirm within", "--command", "show system host", "--command", "@wait automatically rolled back", "--command", "show system host", "--command", "set system host edge-confirmed", "--command", "commit confirmed 5", "--command", "@wait Confirm within", "--command", "confirm", "--command", "@wait confirmed and saved permanently", "--command", "@sleep 7", "--command", "show system host", "--command", "exit", "--command", `@wait operational\]`, "--command", "@escape", "--command", `@wait Quit\?`, "--command", "@escape", "--", "ze", "config", "edit", "-f", config)
+	output, err := runPTYFixture(demoEnvironment(), "--delay", "2", "--command", "show system host", "--command", "set system host edge-trial", "--command", "show | compare", "--command", "commit confirmed 5", "--command", "@wait Confirm within", "--command", "show system host", "--command", "@wait automatically rolled back", "--command", "show system host", "--command", "set system host edge-confirmed", "--command", "commit confirmed 5", "--command", "@wait Confirm within", "--command", "confirm", "--command", "@wait confirmed and saved permanently", "--command", "@sleep 7", "--command", "show system host", "--command", "exit", "--command", `@wait operational\]`, "--command", "@escape", "--command", `@wait Quit\?`, "--command", "@escape", "--", "ze", "config", "edit", "-f", config)
 	if err != nil {
 		return err
 	}
@@ -545,7 +548,7 @@ func validateConfigViews() error {
 	if err := requireAll(tree, "local ip 192.0.2.1", "remote ip 192.0.2.2"); err != nil {
 		return err
 	}
-	setView, err := pipeline([][]string{{"ze", commandConfig, commandMigrate, flagFormat, ipSet, config}, {"ze", pipeKeyword, matchKeyword, "bgp peer transit-a"}}, demoEnvironment())
+	setView, err := pipeline([][]string{{"ze", commandConfig, commandMigrate, keywordFormat, ipSet, config}, {"ze", pipeKeyword, matchKeyword, "bgp peer transit-a"}}, demoEnvironment())
 	if err != nil {
 		return err
 	}
@@ -782,7 +785,16 @@ func validateHostInventory() error {
 			break
 		}
 	}
-	if err := requireAll(cpu, fmt.Sprintf(`"logical-cpus": %d`, logical), `"model-name": "`+model+`"`); err != nil {
+	// An aarch64 /proc/cpuinfo carries no `model name` line, and the product
+	// builds the name from `CPU implementer` and `CPU part`
+	// (internal/component/host/cpu_linux.go). `model-name` is omitempty, so
+	// requiring the key alone requires a name, and the demo does not restate a
+	// derivation the product owns.
+	modelAssertion := `"model-name": "`
+	if model != "" {
+		modelAssertion = modelAssertion + model + `"`
+	}
+	if err := requireAll(cpu, `"logical-cpus": `+strconv.Itoa(logical), modelAssertion); err != nil {
 		return err
 	}
 	memInfo, _ := os.ReadFile("/proc/meminfo")

@@ -116,6 +116,30 @@ func TestNativeRecorderDrivesARealPTYAndWritesAsciicastV2(t *testing.T) {
 	}
 }
 
+// VALIDATES: a wait pattern matches a phrase that carries a style change inside
+// it, which is what a highlighted menu row paints.
+// PREVENTS: matching the raw stream again, where an escape between two words of
+// the pattern makes a phrase that is plainly on screen never match, and the
+// recorder times out naming text its own error message then prints.
+func TestPTYWaitMatchesAPhraseWithAnEscapeInsideIt(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	code := RunPTY([]string{
+		"--ready", "READY",
+		"--timeout", "5",
+		"--command", "open",
+		"--command", "@wait > show",
+		"--command", "done",
+		"--",
+		"sh", "-c", `printf 'READY\n'; read first; printf '> \033[32mshow\033[0m\n'; read second; printf 'got:%s\n' "$second"`,
+	}, &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("RunPTY code = %d, stderr = %s", code, stderr.String())
+	}
+	if got := stdout.String(); !strings.Contains(got, "> show") || !strings.Contains(got, "got:done") {
+		t.Fatalf("output = %q, want the styled phrase and the command that followed the wait", got)
+	}
+}
+
 func TestLegacyPTYCommandsPreserveWaitWindowsAndStripANSI(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	code := RunPTY([]string{
