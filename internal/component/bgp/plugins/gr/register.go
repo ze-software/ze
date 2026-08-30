@@ -19,6 +19,9 @@ import (
 // operator writes in `use bgp-gr` or `run "ze plugin bgp-gr"`.
 const grPluginName = "bgp-gr"
 
+// configRootBGP is the configuration root this plugin reads its peers from.
+const configRootBGP = "bgp"
+
 func init() {
 	// Register LLGR well-known community names (RFC 9494).
 	for _, c := range []struct {
@@ -63,10 +66,10 @@ func init() {
 		RFCs:            []string{"4724", "9494"},
 		SupportsCapa:    true,
 		Features:        "capa yang",
-		ConfigRoots:     []string{"bgp"},
+		ConfigRoots:     []string{configRootBGP},
 		YANG:            gryang.ZeGracefulRestartYANG,
 		CapabilityCodes: []uint8{64, 71},
-		Dependencies:    []string{"bgp", "bgp-rib"},
+		Dependencies:    []string{configRootBGP, "bgp-rib"},
 		RunEngine:       RunGRPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)
