@@ -29,30 +29,60 @@ type Producer struct {
 	Render func(Paths) ([]string, error)
 }
 
-// registeredProducers holds every producer in registration order, which is the
-// order Go runs this package's init functions. A build renders in that order,
-// so one checkout renders the same site every time.
+// registeredProducers holds every page producer in registration order, which is
+// the order Go runs this package's init functions. A build renders in that
+// order, so one checkout renders the same site every time.
 var registeredProducers []Producer
 
-// registerProducer adds one producer to the registry, from the init() of the
-// file that owns it.
+// derivedProducers holds the producers that read the FINISHED artifact, and
+// every one of them runs after every page producer.
+//
+// Four producers need that: the search index and llms-full.txt read the Markdown
+// mirror of every published page, the sitemap walks every published page, and
+// the redirect stubs replace the index.html of a retired route and remove the
+// mirror beside it. Init order is file-name order, which no producer can state
+// its dependency in, so the two lists say which pass a producer belongs to.
+var derivedProducers []Producer
+
+// registerProducer adds one page producer to the registry, from the init() of
+// the file that owns it.
 //
 // A bad registration is a programmer error rather than an operating one: it
 // would publish a site with a silent hole, which is the failure this registry
 // exists to make impossible. So it panics at init instead.
 func registerProducer(producer Producer) {
+	checkProducer(producer)
+	registeredProducers = append(registeredProducers, producer)
+}
+
+// registerDerivedProducer adds one producer that reads the finished artifact.
+func registerDerivedProducer(producer Producer) {
+	checkProducer(producer)
+	derivedProducers = append(derivedProducers, producer)
+}
+
+// checkProducer refuses a registration no build could run.
+func checkProducer(producer Producer) {
 	if producer.Name == "" {
 		panic("BUG: site.registerProducer: a producer needs a name; see the init frame above")
 	}
 	if producer.Render == nil {
 		panic("BUG: site.registerProducer: producer " + producer.Name + " has no Render")
 	}
-	for _, existing := range registeredProducers {
+	for _, existing := range allProducers() {
 		if existing.Name == producer.Name {
 			panic("BUG: site.registerProducer: two producers are named " + producer.Name)
 		}
 	}
-	registeredProducers = append(registeredProducers, producer)
+}
+
+// allProducers answers every registered producer in the order a build runs
+// them: the page producers first, then the producers that read what they wrote.
+func allProducers() []Producer {
+	producers := make([]Producer, 0, len(registeredProducers)+len(derivedProducers))
+	producers = append(producers, registeredProducers...)
+	producers = append(producers, derivedProducers...)
+	return producers
 }
 
 // writeNamedArtifact writes one published file that is not a route: a feed, a
@@ -70,6 +100,51 @@ func writeNamedArtifact(output, name, content string) error {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
 	return nil
+}
+
+// namedArtifacts are the published files that are not routes.
+//
+// A producer answers routes, so the coverage arithmetic cannot see any of
+// these: each one could stop being written and every check the artifact carries
+// would still pass. llms.txt is why this list exists. It lost seventeen of its
+// eighteen sections when a second writer took the path, and the site published
+// the shorter file for a day with nothing to say so.
+//
+// The list is the whole population, not a sample. A file added here that no
+// build writes turns the check red, which is the correct answer: either the
+// producer is missing or the name is wrong.
+var namedArtifacts = []string{
+	"assets/header.html",
+	blogFeedDest,
+	catalogFile,
+	changesFeedDest,
+	changesIndexFile,
+	changesLegacyFeedDest,
+	configTreeFile,
+	factsFile,
+	llmsFile,
+	pluginFile,
+	rfcComplianceSnapshot,
+	robotsFile,
+	searchIndexFile,
+	sitemapFile,
+}
+
+// checkNamedArtifacts answers every named artifact the artifact does not carry
+// as a file with content, in the order the list states them.
+//
+// An empty file counts as absent. A producer that wrote nothing and a producer
+// that never ran leave a reader the same blank page, so the check answers the
+// same way for both.
+func checkNamedArtifacts(output string) []string {
+	var missing []string
+	for _, name := range namedArtifacts {
+		info, err := os.Stat(filepath.Join(output, filepath.FromSlash(name)))
+		if err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+			missing = append(missing, name)
+		}
+	}
+	return missing
 }
 
 // Claim names one route and every producer that wrote it.
@@ -122,7 +197,7 @@ func (coverage Coverage) Red() bool {
 // the way past does not expose it.
 func renderProducers(paths Paths) ([]Claim, error) {
 	byRoute := make(map[string][]string)
-	for _, producer := range registeredProducers {
+	for _, producer := range allProducers() {
 		routes, err := producer.Render(paths)
 		if err != nil {
 			return nil, fmt.Errorf("site producer %s: %w", producer.Name, err)
@@ -149,7 +224,7 @@ func coverageOf(output string, claims []Claim) (Coverage, error) {
 	if err != nil {
 		return Coverage{}, err
 	}
-	coverage := Coverage{Producers: len(registeredProducers), Published: len(pages), Written: len(claims)}
+	coverage := Coverage{Producers: len(allProducers()), Published: len(pages), Written: len(claims)}
 	writers := make(map[string]int, len(claims))
 	for _, claim := range claims {
 		writers[claim.Route] = len(claim.Producers)

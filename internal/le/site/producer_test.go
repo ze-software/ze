@@ -14,9 +14,9 @@ import (
 // restores the compiled-in registry when the test ends.
 func stubProducers(t *testing.T, chosen ...Producer) {
 	t.Helper()
-	previous := registeredProducers
-	t.Cleanup(func() { registeredProducers = previous })
-	registeredProducers = nil
+	previousPages, previousDerived := registeredProducers, derivedProducers
+	t.Cleanup(func() { registeredProducers, derivedProducers = previousPages, previousDerived })
+	registeredProducers, derivedProducers = nil, nil
 	for _, producer := range chosen {
 		registerProducer(producer)
 	}
