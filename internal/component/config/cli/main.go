@@ -27,9 +27,26 @@ import (
 
 // Exit codes for config commands.
 const (
-	exitOK    = 0 // Success
-	exitError = 2 // Error (file not found, parse error, etc.)
+	exitOK      = 0 // Success
+	exitInvalid = 1 // The configuration was read and is not usable
+	exitError   = 2 // Error (file not found, parse error, etc.)
 )
+
+// Section titles and repeated entries of the help pages that every subcommand
+// builds. One spelling for each keeps the pages consistent across subcommands.
+const (
+	helpSectionDescription = "Description"
+	helpSectionOptions     = "Options"
+	helpSectionExitCodes   = "Exit codes"
+
+	helpFlagDryRun = "--dry-run"
+
+	helpDescSuccess = "Success"
+)
+
+// modeOffline marks a command that reads or writes config files without a
+// running daemon. The help output groups commands by this tag.
+const modeOffline = "offline"
 
 // storageHandlers maps subcommand names to handler functions that receive storage.
 var storageHandlers = map[string]func(storage.Storage, []string) int{
@@ -130,7 +147,7 @@ func usage() {
 			}},
 			{Title: "Inspection", Entries: []helpfmt.HelpEntry{
 				{Name: "validate <file>", Desc: "Validate configuration file"},
-				{Name: "fix --plan --json <file>", Desc: "Generate repair plan for diagnostics"},
+				{Name: "fix --plan <file>", Desc: "Generate repair plan for diagnostics"},
 				{Name: "show <file> [path...]", Desc: "Show the config tree at a path (one-shot)"},
 				{Name: "dump <file>", Desc: "Parse and display config"},
 				{Name: "diff <f1> <f2>", Desc: "Compare two configs"},
@@ -146,7 +163,7 @@ func usage() {
 			{Title: "Migration", Entries: []helpfmt.HelpEntry{
 				{Name: "migrate <file>", Desc: "Convert old format to current"},
 			}},
-			{Title: "Options", Entries: []helpfmt.HelpEntry{
+			{Title: helpSectionOptions, Entries: []helpfmt.HelpEntry{
 				{Name: "-f", Desc: "Bypass database, use filesystem directly"},
 			}},
 		},

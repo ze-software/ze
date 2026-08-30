@@ -71,6 +71,16 @@ const (
 	cmdPathRoutes    = "ze interface routes"
 )
 
+// cmdPathShowInterfaceScan is the path the scan's ANSWER is registered under,
+// which the renderer reads the declared column order from. register.go spells
+// it again as a string literal, because `./le docvalid command-contract` and
+// the local-data coverage scan bind a command by parsing that literal and a
+// const identifier reaches them as no path at all.
+const cmdPathShowInterfaceScan = "show interface scan"
+
+// backendNetlink is the interface backend every subcommand here runs against.
+const backendNetlink = "netlink"
+
 // ifaceCommands lists the user-facing subcommand names, kept in sync
 // with the switch cases in Run below. Used by the known-subcommand gate,
 // suggestion hints, and Meta.Subs in register.go.
@@ -114,7 +124,7 @@ func Run(args []string) int {
 		return 1
 	}
 
-	if err := ifacepkg.LoadBackend("netlink"); err != nil {
+	if err := ifacepkg.LoadBackend(backendNetlink); err != nil {
 		fmt.Fprintf(os.Stderr, "error: load netlink backend: %v\n", err)
 		return 1
 	}
@@ -166,7 +176,7 @@ func usage() {
 		Sections: []helpfmt.HelpSection{
 			{Title: "Commands", Entries: []helpfmt.HelpEntry{
 				{Name: "show [name]", Desc: "List interfaces or show one"},
-				{Name: "scan [--config|--json|--yaml]", Desc: "Scan OS for interfaces and classify by Ze type"},
+				{Name: "scan [--config] [--managed]", Desc: "Scan OS for interfaces and classify by Ze type"},
 				{Name: "create dummy <name>", Desc: "Create a dummy interface"},
 				{Name: "create veth <name> <peer>", Desc: "Create a veth pair"},
 				{Name: "create bridge <name>", Desc: "Create a Linux bridge"},
