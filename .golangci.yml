@@ -2,7 +2,13 @@
 version: "2"
 
 run:
-  timeout: 10m
+  # 10m was the budget for ONE pass. `./le verify lint run` drives sixteen
+  # flavors over 756 packages with `-j` at a quarter of the machine's cores,
+  # and on a checkout several sessions are working it ran out at the last
+  # flavor, having already found and reported 210 files. A budget that expires
+  # after the work is done reports "Timeout exceeded" and throws the findings
+  # away, which is the most expensive way to fail.
+  timeout: 30m
   # The worker cap is not static YAML. `./le verify-lint run` passes `-j` from
   # internal/le/gotoolchain, which assigns one quarter of the machine's cores.
   #
