@@ -254,3 +254,46 @@ grep -rnE '\-\-[a-z]' internal --include='*.yang' | grep -vE 'urn:|http|xml'
 The rule and this check live in [`ai/rules/cli.md`](../../../ai/rules/cli.md)
 ("No Flag Syntax in YANG"). `--flags` are legitimate only in the offline
 `cmd/ze/` flag tooling described in [`ai/rules/cli.md`](../../../ai/rules/cli.md).
+
+## Which register a token belongs to
+
+A filter is keyword grammar because of a wider model. Every token an operator
+types belongs to one of three registers. The register decides its spelling.
+The daemon states the cut in the error it returns when a flag reaches it,
+`flags are interpreted by the client, not the daemon` (`firstFlagToken`,
+`internal/component/plugin/server/command.go`).
+
+Apply these tests in order. The first that answers yes places the token.
+
+| Test | Register | Form |
+|------|----------|------|
+| Does it change WHICH answer is produced: the object, the sub-section, the selector, the filter, the variant? | Command grammar | bare keyword, declared in YANG or a `CommandDecl` |
+| Does it change how an answer already in hand is rendered or reduced? | Pipe operator | `\| json`, `\| count`, `\| match` |
+| Does it change how this process STARTS, before any command exists? Which config, daemon, credentials, plugins, listener or colors | Process option | `--flag` |
+
+A filter names part of the question, so it is the first register and never the
+third: `show bgp neighbor ipv6`, not `--family ipv6`.
+
+### What a `--flag` is never
+
+| Not this | Why | Use instead |
+|----------|-----|-------------|
+| A command name | A flag that dispatches is a verb in disguise. It enters no tree, so completion, `ze help command` and the grammar feeders never see it | a registered root, or a path under a read verb |
+| One of a mutually exclusive set | Several booleans, exactly one legal, is a closed keyword set the type system does not check | one keyword slot |
+| A second spelling of a pipe operator | `--json` and `\| json` are one job under two names. Only the operator composes. One shape is allowed: a session default that lowers into the operator, as `commandWithFormat` does | `\| json`, over an answer registered through `registry.MustRegisterLocalData` |
+| A filter that exists as grammar elsewhere | The operator learns one concept twice, and the two surfaces then disagree about it | the keyword |
+| Silently ignored when unknown | The operator's intent is dropped and the exit code reports it was honored | name the token in the error and exit non-zero |
+
+Rendering belongs to the pipe layer on every command. Whether a command reaches
+that layer is a fact about how it was registered. It is therefore the defect,
+never the exemption: register the answer, then delete the flag.
+
+Feeder 7 of the grammar gate checks all of this.
+[`root-namespace-grammar.md`](root-namespace-grammar.md) records what each of
+its four findings means.
+
+**`--version`, `-V`, `--help` and `-h` are the one exception, and they are
+additive.** Every Unix program answers them. A person meeting `ze` types one
+before any help exists to say otherwise. `ze version` and `ze help` stay the
+canonical commands. The four spellings answer beside them, and nothing else
+joins the set.
