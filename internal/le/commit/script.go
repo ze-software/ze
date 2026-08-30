@@ -39,14 +39,24 @@ func renderBlock(block commitBlock, scriptPath string) string {
 	if block.ReviewCheck != "" {
 		lines = append(lines, "# critical-review gate re-check", block.ReviewCheck)
 	}
+	// The guard runs BEFORE anything stages. A script that adds first and
+	// refuses second leaves the index dirtier than it found it: the abort
+	// reports the other session's paths while this session's are now staged
+	// too, so both scripts refuse each other and neither can proceed. Clearing
+	// that needs `git restore --staged`, which no agent may run, so the
+	// deadlock reaches the owner.
+	//
+	// The guard reads the same index either way. Its exclusion list names this
+	// commit's own paths, which are simply not staged yet at this point, so
+	// moving it up costs it nothing and it still sees every foreign path.
+	if guard := renderStagingGuard(all, scriptPath); guard != "" {
+		lines = append(lines, guard)
+	}
 	if len(block.Paths) != 0 {
 		lines = append(lines, renderAdd(block.Paths))
 	}
 	if len(block.Removed) != 0 {
 		lines = append(lines, "git rm -- "+quotePaths(block.Removed))
-	}
-	if guard := renderStagingGuard(all, scriptPath); guard != "" {
-		lines = append(lines, guard)
 	}
 	lines = append(lines, "git commit -F "+shellQuote(block.MessagePath))
 	return strings.Join(lines, "\n") + "\n"

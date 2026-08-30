@@ -187,6 +187,49 @@ func TestStagingGuardRefusesForeignIndexAndAcceptsItsOwn(t *testing.T) {
 	}
 }
 
+// TestRefusedBlockLeavesTheIndexAsItFoundIt runs a whole generated block
+// against a repository another session has already staged into, and asserts
+// the refusal stages nothing of its own.
+//
+// VALIDATES: the concurrency guard is emitted BEFORE the add and the rm, so a
+// refused script leaves the index exactly as it found it.
+// PREVENTS: the deadlock of 2026-08-30. The guard used to run after staging,
+// so a refused script added its own paths on the way to reporting somebody
+// else's. Two sessions then held one index between them, each script refusing
+// the other's paths, and neither could proceed. Clearing that needs
+// `git restore --staged`, which no agent may run, so it reached the owner.
+func TestRefusedBlockLeavesTheIndexAsItFoundIt(t *testing.T) {
+	root := newCommitRepository(t)
+	writeCommitFixture(t, root, "mine.txt", "mine\n")
+	writeCommitFixture(t, root, "gone.txt", "removed by this block\n")
+	runCommitGit(t, root, "add", "--", "gone.txt")
+	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t",
+		"-c", "commit.gpgsign=false", "commit", "-q", "-m", "add gone.txt")
+
+	// The other session got there first.
+	writeCommitFixture(t, root, "tracked.txt", "foreign edit\n")
+	runCommitGit(t, root, "add", "--", "tracked.txt")
+
+	block := commitBlock{
+		Tag: "a", Subject: "refused", Paths: []string{"mine.txt"},
+		Removed: []string{"gone.txt"}, MessagePath: "tmp/message.txt",
+	}
+	command := exec.CommandContext(t.Context(), "bash", "-c", renderBlock(block, "tmp/commit-mine.sh"))
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err == nil {
+		t.Fatalf("the block committed over a foreign index: %s", output)
+	}
+	if !strings.Contains(string(output), "ABORT: index has staged files") {
+		t.Fatalf("refusal did not name the guard: %s", output)
+	}
+
+	staged := strings.Fields(runCommitGitOutput(t, root, "diff", "--cached", "--name-only"))
+	if !slices.Equal(staged, []string{"tracked.txt"}) {
+		t.Fatalf("the refusal changed the index: staged = %q, want only the foreign path", staged)
+	}
+}
+
 func TestCreateDryRunBuildsExactScriptWithoutTouchingSharedIndex(t *testing.T) {
 	root := newCommitRepository(t)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-create-fixture")
