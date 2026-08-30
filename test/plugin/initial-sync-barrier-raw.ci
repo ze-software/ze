@@ -1,0 +1,87 @@
+# Test: the initial-sync End-of-RIB waits for a route pushed through the RAW rail
+#
+# VALIDATES: RFC 4724 Section 4 -- "The End-of-RIB marker MUST be sent by a BGP
+#            speaker to its peer once it completes the initial routing update
+#            (including the case when there is no update to send) for an address
+#            family after the BGP session is established". A route a plugin
+#            injects belongs to that initial routing update (owner ruling,
+#            2026-08-30), so the marker is owed AFTER it, never before it.
+#
+# PREVENTS: the undercount that let a hand-built UPDATE sit outside the barrier.
+#           `ze-bgp:peer-raw` used to be gated on ATTACHMENT alone, so a
+#           raw-capable binding was invisible to a count keyed on
+#           `send [ update ]` (peer_run.go, ProcessBinding.MayPushRoutes). The
+#           marker then went out at establishment and the injected route arrived
+#           after a marker that had already claimed the update was complete.
+#
+# WHY RAW IS THE RAIL HERE. The attach block below grants `send [ raw ]` and
+# nothing else, so the ONLY reason ze counts this process is the raw arm of
+# MayPushRoutes. Remove that arm and the count is zero, the barrier never runs,
+# and seq=1 below is diffed against the marker instead of the route.
+#
+# NON-VACUITY. The observer waits for ESTABLISHMENT, not for eor-sent, which is
+# the opposite of what mup-ipv4-announce.ci and plugin-nexthop.ci do: those take
+# the marker as their go-ahead, so they cannot observe a marker that failed to
+# wait. This one races the marker deliberately and the barrier decides the race.
+# It then dispatches `plugin session ready`, so the marker is released by the
+# SIGNAL rather than by the sync timeout, and a daemon that never waited cannot
+# reach this order by luck.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+# seq=1 -- the injected route. ORIGIN=IGP, AS_PATH empty (iBGP, both sides
+# 65000), NEXT_HOP=10.0.1.254, LOCAL_PREF=200, NLRI 10.0.1.0/24.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0001
+# seq=2 -- ze's own initial-sync End-of-RIB for ipv4/unicast, the legacy
+# encoding RFC 7606 Section 5.2 names: a completely empty UPDATE.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external raw-injector {
+		run "ze-test fixture plugin/initial-sync-barrier-raw"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 10.0.0.1
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		attach process raw-injector {
+			send [ raw ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=ZE-OBSERVER-FAIL

@@ -43,6 +43,11 @@ const (
 	// one branch earlier, before any peer is read, so a test built on it would
 	// never reach the attach block at all.
 	railRefused = "stranger"
+	// railOther is attached with a send type the rail under test does not ask
+	// for, so it separates "attached" from "permitted". The raw rail needs it:
+	// raw used to be gated on attachment alone, so an attached-but-unpermitted
+	// process is exactly the case that changed.
+	railOther = "bystander"
 	// railDest is the destination peer every rail below addresses.
 	railDest = "10.0.0.2"
 )
@@ -173,21 +178,24 @@ func TestCacheForwardEntryPointRefusesAnUnattachedProcess(t *testing.T) {
 	require.Len(t, env.items(), 1, "the attached process must be served")
 }
 
-// TestPeerRawEntryPointRefusesAnUnattachedProcess drives `peer <addr> raw`
-// through the registered command.
+// TestPeerRawEntryPointNeedsTheRawSendWord drives `peer <addr> raw` through the
+// registered command.
 //
-// Raw is gated on ATTACHMENT rather than on a send type (rawOrigin), so the
-// acceptance here is the same block the forward rails read and the refusal is
-// the peer naming nobody.
+// Raw is gated on `send [ raw ]`, the word the owner added to the send
+// vocabulary on 2026-08-30. Until then it was gated on ATTACHMENT alone, and
+// this test pinned that: a process attached with `send [ update ]` reached the
+// socket. The ruling overturned the rule, so the case it used to accept is the
+// sharp negative here.
 //
-// VALIDATES: the raw rail refuses a process the peer does not attach, and the
-// bytes reach no socket.
+// VALIDATES: the raw rail refuses a process the peer does not attach AND a
+// process attached with another send type, and the bytes reach no socket in
+// either case.
 // PREVENTS: a connected process writing a BGP message of its own choosing, a
-// forged NOTIFICATION included, into a session it was never attached to.
-func TestPeerRawEntryPointRefusesAnUnattachedProcess(t *testing.T) {
+// forged NOTIFICATION included, into a session that granted it routes only.
+func TestPeerRawEntryPointNeedsTheRawSendWord(t *testing.T) {
 	resetSendPermissionMetrics(t)
 
-	peer, conn := newAttachedPeer(t, railDest, sendUpdateOnly(railGranted))
+	peer, conn := newAttachedPeer(t, railDest, sendUpdateOnly(railOther), sendRawOnly(railGranted))
 	api := newSendPermissionReactor(peer)
 
 	refused := railServer(t, api, plugin.ProcessSender(railRefused))
@@ -197,11 +205,19 @@ func TestPeerRawEntryPointRefusesAnUnattachedProcess(t *testing.T) {
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Empty(t, conn.written(), "a refused raw injection must put nothing on the peer's socket")
 
+	updateOnly := railServer(t, api, plugin.ProcessSender(railOther))
+	resp, err = updateOnly.Server.Dispatcher().Dispatch(updateOnly, "peer "+railDest+" raw update hex DEADBEEF")
+	require.ErrorIs(t, err, errSendNotPermitted,
+		"`send [ update ]` permits routes ze builds, never a message the process builds itself")
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Empty(t, conn.written(), "an attached process without `send [ raw ]` must reach no socket")
+
 	granted := railServer(t, api, plugin.ProcessSender(railGranted))
 	resp, err = granted.Server.Dispatcher().Dispatch(granted, "peer "+railDest+" raw update hex DEADBEEF")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
-	assert.NotEmpty(t, conn.written(), "the attached process must reach the socket")
+	assert.NotEmpty(t, conn.written(), "the process the peer grants `send [ raw ]` must reach the socket")
 }
 
 // TestForwardCachedRailRefusesAnUnattachedProcess is the forward-cached rail,

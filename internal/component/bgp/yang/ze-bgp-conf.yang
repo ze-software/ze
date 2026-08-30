@@ -987,7 +987,8 @@ module ze-bgp-conf {
                     type string;
                     ze:validate "send-message-type";
                     description "Message types this program may send toward the
-                        peer. Valid: update, refresh, enhanced-refresh
+                        peer. Valid: update, refresh, raw (a whole BGP message
+                        the program builds itself), enhanced-refresh
                         (BORR/EORR markers, RFC 7313), and '*' for every type.
                         A direction has no meaning here, because every send
                         type is sent.
