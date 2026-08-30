@@ -6,6 +6,7 @@ package site
 import (
 	"encoding/json"
 	"html"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -274,4 +275,71 @@ func rewriteLegacyPublicURLs(text string, routes []legacyRoute) string {
 		text = strings.ReplaceAll(text, siteBase+route.From, siteBase+route.To)
 	}
 	return text
+}
+
+// rewriteArtifactLegacyURLs replaces every retired absolute URL the artifact
+// carries with the address it moved to, and answers how many files changed.
+//
+// Five of them sit in docs/history.md today. A published page that links
+// https://ze-software.net/changes/ sends its reader through a redirect stub to
+// reach the page this same build wrote at project/changes/, and a machine
+// reader following the Markdown mirror gets the retired address with no stub to
+// follow at all. The retired build ran this pass over the finished artifact
+// (website/tools/build.py, step_links) and the Go port left the function it
+// needs unreached.
+//
+// It runs BETWEEN the page producers and the producers that read what they
+// wrote, so the search index and llms-full.txt carry the current addresses
+// rather than the retired ones. renderProducers states that order.
+//
+// A frozen talk deck is skipped, as it is by every other pass: a deck is
+// published exactly as its author wrote it.
+func rewriteArtifactLegacyURLs(paths Paths) (int, error) {
+	routes, err := legacyRoutes(paths.Source)
+	if err != nil {
+		return 0, err
+	}
+	rewritten := 0
+	err = filepath.WalkDir(paths.Output, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, relErr := filepath.Rel(paths.Output, path)
+		if relErr != nil {
+			return relErr
+		}
+		name := filepath.ToSlash(relative)
+		if entry.IsDir() {
+			if name == gitMetadataDir {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !rewritableArtifactFile(entry.Name()) || isFrozenTalkPath(name) {
+			return nil
+		}
+		content, readErr := os.ReadFile(path) //nolint:gosec // the artifact this build just wrote
+		if readErr != nil {
+			return readErr
+		}
+		updated := rewriteLegacyPublicURLs(string(content), routes)
+		if updated == string(content) {
+			return nil
+		}
+		if writeErr := os.WriteFile(path, []byte(updated), 0o644); writeErr != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
+			return writeErr
+		}
+		rewritten++
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return rewritten, nil
+}
+
+// rewritableArtifactFile reports whether one artifact file carries links a
+// reader follows: a published page, or the Markdown mirror beside it.
+func rewritableArtifactFile(name string) bool {
+	return strings.HasSuffix(name, ".html") || name == pageMirrorFile
 }

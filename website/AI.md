@@ -248,6 +248,34 @@ Every published page needs an AI-readable `index.md` sibling generated from
 the same Markdown or structured data as the HTML. `llms.txt` links the Markdown
 page first and includes the human web URL.
 
+`llms-full.txt` is the same curation with the bodies inlined: every published
+page's Markdown mirror, each preceded by its title and its canonical URL. The
+frozen talk decks are left out, because a deck publishes no mirror.
+
+Every section opens with `## Section: <name>` and every page with
+`### Page: <title>` followed by its URL. A page body carries headings of its
+own, and those two prefixes are what tells the file's structure apart from the
+pages it holds.
+
+Its ORDER is a contract stated in `internal/le/site/llmsfull.go`, in
+`llmsFullReadingOrder`. What Ze is and why it is worth evaluating comes first,
+how to use it comes second. `data/nav.json` supplies each section's membership
+and the order WITHIN a section, and supplies neither the section order nor what
+a section is for: a menu is ordered for a menu. The build refuses four things by
+name -- a page in no section, a page in two, a declared section no page fills,
+and a menu whose dropdown order runs a usage section before an evaluation one.
+
+The last section of `llms-full.txt` REFERENCES the Ze wiki: one title, one
+public URL and one summary for each page, and no page body. The wiki stays its
+own source of truth (`plan/spec-website-wiki-content-migration.md`,
+2026-07-22). It is read from the committed `data/wiki.json`, so the build never
+opens a wiki checkout and a machine without the sibling directory writes the
+same artifact. `./le site wiki update` refreshes that file from a checkout and
+`./le site wiki check` reports it stale. The order and the grouping are the
+wiki's own `_Sidebar.md`, and a wiki page the sidebar does not list is refused
+by name unless `accountedUnlisted` in `internal/le/site/wiki/index.go` already
+states why it is out.
+
 Changes to feature cards, audience data, navigation or command equivalents are
 made in `data/*.json`, followed by `./le site build`. Command paths still come
 from the live CLI catalogue, while vendor mappings remain curated in

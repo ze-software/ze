@@ -653,12 +653,30 @@ and its carry-over are untouched.
 | `TestTheSharedHeaderRefusesACountItCannotAnswer` | `internal/le/site/nav_test.go` | a placeholder never reaches a reader | pass |
 | `TestTheSharedHeaderReadsAsThePublishedHeader` | `internal/le/site/nav_test.go` | AC-4, parity with the published fragment | pass |
 | `TestTheHeaderProducerWritesTheNamedArtifact` | `internal/le/site/nav_test.go` | AC-16, the fragment gains a producer | pass |
-| `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12 | |
-| `TestLLMSFullCarriesEveryPublishedMirror` | `internal/le/site/derived_test.go` | AC-15 | |
-| `TestLLMSFullPutsEvaluationBeforeUsage` | `internal/le/site/derived_test.go` | AC-15a, AC-15d | |
-| `TestLLMSFullRefusesAnUnsectionedPage` | `internal/le/site/derived_test.go` | AC-15b | |
-| `TestLLMSFullRefusesAnEmptySection` | `internal/le/site/derived_test.go` | AC-15c | |
-| `TestCheckRefusesAMissingNamedArtifact` | `internal/le/site/producer_test.go` | AC-16 | |
+| `TestRedirectsApplyInTheRecordedOrder` | `internal/le/site/redirect_test.go` | AC-12, the order decides the answer | pass |
+| `TestTheLegacyTableCarriesTheAddressesTheSourcesStillLink` | `internal/le/site/redirect_test.go` | AC-12, the five absolute URLs `docs/history.md` carries | pass |
+| `TestTheLegacyRewriteReachesEveryPageAndMirror` | `internal/le/site/redirect_test.go` | AC-12, the pass reaches the artifact and skips a frozen deck | pass |
+| `TestTheLegacyRewriteRunsBeforeTheDerivedProducers` | `internal/le/site/redirect_test.go` | AC-12, the rewrite runs between the two producer passes | pass |
+| `TestLLMSFullCarriesEveryPublishedMirror` | `internal/le/site/llmsfull_test.go` | AC-15 | pass |
+| `TestLLMSFullPutsEvaluationBeforeUsage` | `internal/le/site/llmsfull_test.go` | AC-15a, AC-15d | pass |
+| `TestLLMSFullRefusesAnUnsectionedPage` | `internal/le/site/llmsfull_test.go` | AC-15b | pass |
+| `TestLLMSFullRefusesAPageTwoSectionsClaim` | `internal/le/site/llmsfull_test.go` | AC-15b, the doubly-claimed half | pass |
+| `TestLLMSFullRefusesAnEmptySection` | `internal/le/site/llmsfull_test.go` | AC-15c | pass |
+| `TestLLMSFullRefusesANavOrderThatPutsUsageFirst` | `internal/le/site/llmsfull_test.go` | AC-15d | pass |
+| `TestLLMSFullRefusesANavDropdownTheReadingOrderDoesNotDeclare` | `internal/le/site/llmsfull_test.go` | AC-15d, a dropdown with no declared kind cannot be placed | pass |
+| `TestEveryPublishedRouteBelongsToOneSection` | `internal/le/site/llmsfull_test.go` | AC-15b over the whole 712-route population | pass |
+| `TestEveryDeclaredSectionNamesAKindAndOneMembershipSource` | `internal/le/site/llmsfull_test.go` | AC-15a, the reading-order table itself | pass |
+| `TestTheWikiSectionReferencesTheWikiRatherThanRepublishingIt` | `internal/le/site/llmsfull_test.go` | AC-17, AC-17b | pass |
+| `TestTheBuildReadsTheCommittedWikiIndexAndNeverTheCheckout` | `internal/le/site/llmsfull_test.go` | AC-17a, the build never opens `../wiki` | pass |
+| `TestTheWikiIndexTakesTheSidebarsOwnOrder` | `internal/le/site/wiki/index_test.go` | AC-17b | pass |
+| `TestAPageTheSidebarListsTwiceGetsOneEntry` | `internal/le/site/wiki/index_test.go` | AC-17, one page gets one entry | pass |
+| `TestEveryReferencedWikiPageCarriesASummary` | `internal/le/site/wiki/index_test.go` | AC-17 | pass |
+| `TestTheWikiIndexRefusesAPageTheSidebarDoesNotList` | `internal/le/site/wiki/index_test.go` | AC-17c | pass |
+| `TestAJudgedOmissionIsPublishedWithItsReason` | `internal/le/site/wiki/index_test.go` | AC-17c, the omission is stated rather than silent | pass |
+| `TestTheWikiIndexRefusesASidebarLinkWithNoPage` | `internal/le/site/wiki/index_test.go` | AC-17b, a link to no page is refused | pass |
+| `TestTheCommittedIndexRoundTrips` | `internal/le/site/wiki/index_test.go` | AC-17a | pass |
+| `TestTheCommittedIndexStatesTheLiveWiki` | `internal/le/site/wiki/index_test.go` | AC-17a, the committed file is not stale | pass |
+| `TestCheckRefusesAMissingNamedArtifact` | `internal/le/site/producer_test.go` | AC-16 | pass |
 | `TestASecondBuildChangesNothing` | `internal/le/site/site_test.go` | AC-14 | |
 
 ### Functional Tests
@@ -1027,6 +1045,47 @@ and its carry-over are untouched.
       `TestCheckRefusesAMissingNamedArtifact`
     - Files: `derived.go`, `redirect.go`, `producer.go`
     - Verify: the unclaimed list is empty and `./le site check` goes green
+    -> Decision 2026-08-30: `llms-full.txt` gets its own file, `llmsfull.go`,
+    rather than joining `derived.go`. The two share one curation and nothing
+    else: `llms.txt` links pages and reads the published data files, while
+    `llms-full.txt` inlines mirrors and runs as a DERIVED producer because it
+    reads what the page producers wrote.
+    -> Decision 2026-08-30: the reading order is a slice in the code,
+    `llmsFullReadingOrder`, and nav.json supplies MEMBERSHIP alone. Eight
+    sections: Overview, then the six nav dropdowns in their declared order, then
+    "About this site". The last two are code-owned because the menu carries
+    neither the site root nor the six pages under it (`code-of-conduct/`,
+    `demos/`, `license/`, `search/`, `style-guide/`, `zeledon/`). A catch-all
+    would be exactly the failure AC-15b names, so each route is listed and a new
+    page in no section is refused by name.
+    -> Decision 2026-08-30: a nav entry claims its page AND its subtree, and the
+    LONGEST matching entry wins; a code-owned route claims that page alone. The
+    site root would otherwise prefix every route on the site. Measured
+    2026-08-30 over the 712 published routes: Overview 1, Start 13, Evaluate 30,
+    Docs 78, Examples 22, Reference 500, Project 60, About this site 6, plus the
+    2 frozen decks.
+    -> Decision 2026-08-30: `rewriteLegacyPublicURLs` IS wired. It had no
+    caller, so AC-12's second half was unmet: the retired build ran it over
+    every page and every mirror (`website/tools/build.py`, `step_links`) and the
+    Go port stopped at the stubs. `renderProducers` now runs three passes --
+    page producers, the rewrite, then the derived producers -- so the search
+    index and `llms-full.txt` carry the address a reader reaches.
+    -> Decision 2026-08-30: the wiki section reads the committed
+    `website/data/wiki.json`, written by the new `./le site wiki` area
+    (`internal/le/site/wiki`). The build never opens `../wiki`. A wiki page the
+    sidebar does not list is refused by name unless `accountedUnlisted` states
+    why it is out; four do today, and two of those four (`community-filters`,
+    `telemetry`) are DEBT whose fix is one line each in the wiki's own
+    `_Sidebar.md`.
+    -> Decision 2026-08-30: a page the sidebar lists twice keeps its first
+    position and is dropped at every later one. Twelve pages sit under two
+    groups and `vpp` under four, because a menu offers two ways to one page; the
+    index is not a menu, and 179 entries would say the wiki is larger than the
+    167 pages it holds.
+    -> Constraint: the wiki base URL is `https://codeberg.org/thomas-mangin/ze/wiki/`,
+    stored in the committed file rather than in code, because the wiki is
+    mirrored to Codeberg and to GitHub and the two serve different page URLs.
+    `le site wiki update base-url <url>` changes every link in one command.
 
 ### Triple Challenge
 

@@ -603,6 +603,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/setup` | install and verify every tool a Ze dev or test workflow needs |  |
 | `internal/le/site` | build, check, and render the public website and presentation artifacts without an interpreter |  |
 | `internal/le/site/facts` | derives the numbers the website publishes ABOUT this repository, and writes them into one committed file that the site build reads |  |
+| `internal/le/site/wiki` | the wiki page index the website references: derive it into website/data/wiki.json from a wiki checkout, or check what has gone stale in it |  |
 | `internal/le/sourcerewrite` | keeps the repository's four source-maintenance workflows together while exposing each workflow as its own native action |  |
 | `internal/le/spec/citation` | checks references from active specs to sibling specs |  |
 | `internal/le/spec/session` | owns spec claims, state paths, review artifacts, and the transcript facts those contracts use |  |

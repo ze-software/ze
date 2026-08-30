@@ -280,3 +280,49 @@ func TestExactlyOneProducerClaimsEachCommandRoute(t *testing.T) {
 		t.Errorf("llms.txt was not written by the producer that claims no route: %v", err)
 	}
 }
+
+// VALIDATES: AC-16 -- a named non-route artifact that disappears is refused by
+// name.
+//
+// A producer answers ROUTES, so the coverage arithmetic cannot see a published
+// file that is not a page: each one could stop being written and every other
+// check the artifact carries would still pass. llms.txt is why the list exists,
+// having lost seventeen of its eighteen sections with nothing to say so, and
+// llms-full.txt is the file this phase adds to it.
+func TestCheckRefusesAMissingNamedArtifact(t *testing.T) {
+	if !slices.Contains(namedArtifacts, llmsFullFile) {
+		t.Errorf("%s is published and no check answers for it", llmsFullFile)
+	}
+	output := t.TempDir()
+	for _, name := range namedArtifacts {
+		if err := writeNamedArtifact(output, name, "content\n"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if missing := checkNamedArtifacts(output); len(missing) != 0 {
+		t.Fatalf("a complete artifact was reported as missing %v", missing)
+	}
+
+	for _, name := range namedArtifacts {
+		if err := os.Remove(filepath.Join(output, filepath.FromSlash(name))); err != nil {
+			t.Fatal(err)
+		}
+		missing := checkNamedArtifacts(output)
+		if len(missing) != 1 || missing[0] != name {
+			t.Errorf("removing %s was reported as %v", name, missing)
+		}
+		if err := writeNamedArtifact(output, name, "content\n"); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// An empty file and an absent one leave a reader the same blank page, so
+	// the check answers the same way for both.
+	if err := writeNamedArtifact(output, llmsFullFile, ""); err != nil {
+		t.Fatal(err)
+	}
+	missing := checkNamedArtifacts(output)
+	if len(missing) != 1 || missing[0] != llmsFullFile {
+		t.Errorf("an empty %s was reported as %v", llmsFullFile, missing)
+	}
+}

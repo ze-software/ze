@@ -65,6 +65,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/setup"
 	_ "github.com/ze-software/ze/internal/le/site"
 	_ "github.com/ze-software/ze/internal/le/site/facts"
+	_ "github.com/ze-software/ze/internal/le/site/wiki"
 	_ "github.com/ze-software/ze/internal/le/sourcerewrite"
 	_ "github.com/ze-software/ze/internal/le/spec/citation"
 	_ "github.com/ze-software/ze/internal/le/spec/session"

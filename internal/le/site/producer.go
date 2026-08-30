@@ -123,6 +123,7 @@ var namedArtifacts = []string{
 	configTreeFile,
 	factsFile,
 	llmsFile,
+	llmsFullFile,
 	pluginFile,
 	rfcComplianceSnapshot,
 	robotsFile,
@@ -192,19 +193,26 @@ func (coverage Coverage) Red() bool {
 // renderProducers runs every registered producer against one artifact and
 // answers what they wrote, one entry for each route.
 //
+// The three passes are ordered here, because the order is a property of the
+// build rather than of any one producer. The page producers write the pages and
+// their Markdown mirrors. The legacy-URL rewrite then replaces every retired
+// absolute address those pages carry. Only then do the producers that READ the
+// finished artifact run, so the search index, llms-full.txt and the sitemap
+// carry the addresses a reader reaches rather than the ones that moved.
+//
 // A producer that fails stops the build. A site published with one family of
 // pages missing is the failure this registry exists to expose, and a warning on
 // the way past does not expose it.
 func renderProducers(paths Paths) ([]Claim, error) {
 	byRoute := make(map[string][]string)
-	for _, producer := range allProducers() {
-		routes, err := producer.Render(paths)
-		if err != nil {
-			return nil, fmt.Errorf("site producer %s: %w", producer.Name, err)
-		}
-		for _, route := range routes {
-			byRoute[route] = append(byRoute[route], producer.Name)
-		}
+	if err := renderInto(byRoute, registeredProducers, paths); err != nil {
+		return nil, err
+	}
+	if _, err := rewriteArtifactLegacyURLs(paths); err != nil {
+		return nil, fmt.Errorf("site legacy-url rewrite: %w", err)
+	}
+	if err := renderInto(byRoute, derivedProducers, paths); err != nil {
+		return nil, err
 	}
 	claims := make([]Claim, 0, len(byRoute))
 	for route, names := range byRoute {
@@ -215,6 +223,20 @@ func renderProducers(paths Paths) ([]Claim, error) {
 	// producer list is already in registration order.
 	sort.Slice(claims, func(left, right int) bool { return claims[left].Route < claims[right].Route })
 	return claims, nil
+}
+
+// renderInto runs one pass of producers and records the route each one wrote.
+func renderInto(byRoute map[string][]string, producers []Producer, paths Paths) error {
+	for _, producer := range producers {
+		routes, err := producer.Render(paths)
+		if err != nil {
+			return fmt.Errorf("site producer %s: %w", producer.Name, err)
+		}
+		for _, route := range routes {
+			byRoute[route] = append(byRoute[route], producer.Name)
+		}
+	}
+	return nil
 }
 
 // coverageOf compares the routes one artifact publishes against the claims its
