@@ -109,6 +109,10 @@ Never require physical hardware. Use kernel virtual devices:
 | Network interface | dummy or veth | `ip link add ze0 type dummy` in a network namespace |
 | Firewall table | nftables in netns | `nft add table ip ze_test` in an isolated namespace |
 | Kernel routes | netlink in netns | `route.Add(...)` inside `netns.NewNamed(...)` |
+| Block device | loop device on a tmpfs file | `losetup` |
+
+A focused VM run that needs an extra Alpine package, such as `strace` or
+`util-linux`, passes it after the `packages` keyword to `./le qemu run`.
 
 ### Network Namespace Isolation
 

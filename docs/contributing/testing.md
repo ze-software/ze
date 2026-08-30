@@ -139,8 +139,28 @@ Files with custom build tags and `cmd/ze/` are excluded via `.gomuignore` becaus
 gomu has no `--tags` support. Reports land in `tmp/` (gitignored). Mutation score
 history is tracked in `test/mutation/history.ndjson`.
 
-Tuning: `GOMU_WORKERS` (default: half CPU cores), `GOMU_TIMEOUT` (default: 120s),
-`GOMU_THRESHOLD` (default: 0%).
+gomu is vendored and runs through `go run`, so it needs no install.
+
+| Command | Purpose |
+|---------|---------|
+| `go run github.com/sivchari/gomu/cmd/gomu run --output json --incremental=false --fail-on-gate=false` | Full advisory mutation run |
+| `go run github.com/sivchari/gomu/cmd/gomu run --output json --incremental --base-branch=main --fail-on-gate=false` | Changed-file advisory mutation run |
+| `./le mutation combine` | Combine the per-package JSON reports |
+
+Tuning is by flag on `gomu run`, not by environment variable. gomu reads only
+`GITHUB_TOKEN` and `GITHUB_REPOSITORY`, both for its GitHub integration.
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--workers` | 4 | Parallel workers |
+| `--timeout` | 30 | Test timeout in seconds |
+| `--incremental` | true | Analyse changed files only |
+| `--base-branch` | `main` | Base branch for the incremental analysis |
+| `--fail-on-gate` | true | Fail the build when the quality gate is not met |
+| `--output` | `console` | `console`, `json`, `html`, or `text` |
+
+<!-- source: vendor/github.com/sivchari/gomu/cmd/gomu/main.go -- runCmd flag defaults -->
+
 
 ### Interop and integration tests
 
@@ -205,7 +225,7 @@ Common case (one group changed): ~2 min total instead of 6+.
 
 ### The builds the linter reads
 
-<!-- source: internal/le/verifylint/actions.go -- Answer -->
+<!-- source: internal/le/verify/lint/actions.go -- Answer -->
 
 golangci-lint analyzes ONE build for each run: one GOOS, one GOARCH, one tag
 set. `./le verify lint run` therefore runs more than one.
@@ -214,7 +234,7 @@ set. `./le verify lint run` therefore runs more than one.
 |------|-------|--------------------|
 | 1 | the host GOOS, `.golangci.yml` tags | the shipped daemon |
 | 2 | `GOOS=linux`, plus `integration` | every kernel-facing `//go:build integration` test |
-| 3..N | one for each row of `FLAVORS` (`internal/le/verifylint.Answer`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
+| 3..N | one for each row of `FLAVORS` (`internal/le/verify/lint.Answer`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
 
 Each flavor pass lints only the packages holding a file the two passes above do
 not load. That package set is DERIVED from the tree with `go list` on every run.
@@ -273,7 +293,7 @@ build flavors.
 ### The one stage that does not read your working tree
 
 Every stage above compiles and runs the files on your disk, uncommitted ones
-included. `./le repository tracked-build check` (`internal/le/repositorytrackedbuild.Answer`) is the
+included. `./le repository tracked-build check` (`internal/le/repository/trackedbuild.Answer`) is the
 exception: it extracts the commit with `git archive` and compiles the extracted
 tree, so it sees only what git holds.
 
@@ -286,7 +306,7 @@ clones. Run it after the commit script when the commit carried Go:
 REV=7abe8a07e ./le repository tracked-build check
 ```
 
-The action builds every flavor in `internal/le/repositorytrackedbuild/matrix.go` over
+The action builds every flavor in `internal/le/repository/trackedbuild/matrix.go` over
 `./...`. Each row pins its tags, operating system where required, and a
 tag-gated anchor file that proves the flavor selected code. Naming the package
 alone is insufficient because `go build ./...` can skip every constrained file

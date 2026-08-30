@@ -178,15 +178,6 @@ debugging-failures ## Debugging Failures
   rerun-the-smallest-useful-scope-never-pipe-to-tail
 editor-tests-et-format ## Editor Tests (.et format)
   what-et-tests-are-and-how-to-run-them
-  et-directives
-  every-et-directive-and-what-it-does
-  the-named-keys-an-et-test-can-press
-  expectations
-  every-et-expectation-and-what-it-checks
-  when-to-use-et-vs-ci-vs-go-tests
-  which-format-suits-which-test-need
-  the-editor-test-directory-layout
-  the-concerns-editor-tests-are-grouped-by
 os-specific-tests ## OS-Specific Tests
   how-to-gate-a-test-by-os
   a-darwin-fail-from-an-unsupported-stub-is-a-setup-bug
@@ -239,14 +230,9 @@ compiled-observer-api ## Compiled Observer API (`internal/test/fixture`)
   where-the-compiled-fixture-api-and-examples-live
   the-declarative-form-of-a-ci-engine-step
 mutation-testing ## Mutation Testing
-  what-mutation-testing-does-and-that-it-is-advisory
-  gomu-is-vendored-and-needs-no-install
-  the-mutation-testing-commands
-  the-environment-variables-that-tune-gomu
-  what-is-excluded-because-gomu-has-no-tag-support
+  a-test-failing-to-test-is-worse-than-none
   mutate-a-file-you-own-never-a-shared-one
   state-whether-a-discrimination-re-run-was-real
-  a-test-failing-to-test-is-worse-than-none
 pre-commit ## Pre-Commit
   where-the-full-pre-commit-workflow-lives
   native-verify-is-the-only-acceptable-pre-commit-check

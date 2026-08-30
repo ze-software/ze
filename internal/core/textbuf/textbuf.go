@@ -1,4 +1,4 @@
-// Design: ai/rules/performance.md — zero-allocation text formatting helpers
+// Design: docs/architecture/textbuf-string-building.md -- zero-allocation text formatting helpers
 
 package textbuf
 

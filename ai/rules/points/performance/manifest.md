@@ -107,38 +107,9 @@ patterns-that-must-not-be-converted ## Patterns That Must NOT Be Converted
   patterns-that-must-stay-as-they-are
 textbuf-buffer-canonical-string-builder ## textbuf.Buffer (canonical string builder)
   use-textbuf-buffer-for-all-string-building
-  how-textbuf-buffer-stays-off-the-heap
-  recheck-the-noescape-trick-on-every-go-update
-  allocation-tiers
-  tier-0-zero-allocations
-  zero-allocation-buffer-examples
-  tier-1-one-allocation
-  one-allocation-buffer-examples
-  never-slice-a-pooled-buffer-without-releasing-it
-  choosing-an-init
-  how-to-init-and-extract-for-each-pattern
-  methods-all-return-buffer-for-chaining
-  the-buffer-methods
-  string-vs-slice
-  use-slice-when-the-string-is-consumed-immediately
   prefer-slice-by-default
-  pick-string-or-slice-by-result-lifetime
-  slice-versus-string-examples
-  reusing-a-buffer-with-reset
-  reuse-one-buffer-across-loop-iterations
-  a-buffer-reset-between-loop-iterations
-  pooled-buffers-use-get-and-release
-  a-pooled-buffer-in-a-loop
-  standalone-functions-for-single-value-returns
-  the-standalone-string-helpers
-  when-to-use-the-append-into-buffer-helpers
-  the-append-into-buffer-helpers
-  which-textbuf-form-to-use-for-each-pattern
-  banned
-  string-building-anti-patterns-and-their-fixes
-  keybuilder-for-grouping-keys-with-separators
-  embed-strings-builder-in-a-key-builder
-  a-key-builder-type
+  never-slice-a-pooled-buffer-without-releasing-it
+  recheck-the-noescape-trick-on-every-go-update
 types-own-their-serialization ## Types Own Their Serialization
   give-every-named-type-an-appendto-method
   give-a-domain-concept-its-own-named-type

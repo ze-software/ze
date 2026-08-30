@@ -112,59 +112,13 @@ than blocks; you MUST run the QEMU target locally when you add a test, and say s
 
 ## How to Write a QEMU Integration Test
 
-### 1. File naming and build tags
+**A test that touches the kernel MUST carry `integration && linux`, and bare `linux` MUST be used only when the test imports linux-only types and makes no syscall.** Which tag runs where, and the file-name pattern each one takes, is `docs/architecture/testing/qemu-integration.md`.
 
-```go
-//go:build integration && linux
+**An integration test MUST NOT require physical hardware.** The QEMU VM provides the kernel features, so a virtual device stands in for the hardware. The substitute for each device is `docs/architecture/testing/qemu-integration.md`.
 
-package mypkg  // internal package, not _test, to access unexported functions
-```
+**A test whose prerequisite is absent MUST call `t.Skip`, never `t.Fatal`.** One test file runs in environments with different capabilities, and a fatal there reports a broken product for a missing capability. The worked example is `docs/architecture/testing/qemu-integration.md`.
 
-File name: `<feature>_integration_linux_test.go`
-
-Two build tag patterns exist in the codebase:
-
-| Tag | When to use | Runs during |
-|-----|------------|-------------|
-| `//go:build linux` | Test only needs Linux types (imports linux-only packages) but no kernel capabilities | `go test` on any Linux host, including QEMU |
-| `//go:build integration && linux` | Test needs kernel capabilities (root, /dev, netns, ioctl) | `./le qemu all-tests` (passes `-tags integration`) |
-
-Use `integration && linux` for anything that touches the kernel. Use bare
-`linux` only when the test imports linux-only types but makes no syscalls.
-
-### 2. Virtual substitutes for hardware
-
-Never require physical hardware. The QEMU VM provides kernel features; use
-virtual devices.
-
-| Hardware | Virtual substitute | Example |
-|----------|--------------------|---------|
-| Serial port (`/dev/ttyS*`) | PTY pair via `creack/pty` | `master, slave, _ := pty.Open()` then `applyTermios(slave.Name(), 9600)` |
-| Network interface | `veth` pair or `dummy` in a netns | `ip link add ze0 type dummy` |
-| Firewall table | `nftables` in a netns | `nft add table ip ze_test` |
-| Kernel route | Netlink in a netns | `route.Add(...)` |
-| Block device | Loop device on tmpfs file | `losetup` |
-
-### 3. Graceful skip when capabilities are missing
-
-The same test file may run in environments with different capabilities. Use
-`t.Skip`, not `t.Fatal`, when a prerequisite is absent:
-
-```go
-master, slave, err := pty.Open()
-if err != nil {
-    t.Skipf("cannot open pty: %v", err)
-}
-```
-
-```go
-newNS, err := netns.NewNamed(name)
-if err != nil {
-    t.Skipf("requires CAP_NET_ADMIN: %v", err)
-}
-```
-
-### 4. Dataplane counters need a real remote peer
+**A new integration package MUST be added to `integrationPackages` in `internal/le/qemu/alltests.go`.** `./le qemu all-tests` runs that closed list, so a package absent from it never runs and nothing goes red.
 
 **A probe that asserts on a counter sitting behind state written for a remote
 peer MUST send its traffic over an egress that really carries it, and MUST carry
@@ -190,19 +144,6 @@ if the mechanism were deleted.
 any key, including a wrong one, because sending is not proof of acceptance. The
 receiver's inbound counter advances only after it has accepted what arrived, so
 it is the one that answers the question the probe is really asking.
-
-### 5. Register the package in the native QEMU inventory
-
-Add your package to `integrationPackages` in `internal/le/qemu/alltests.go`. `./le qemu all-tests` runs that closed list with the `integration` tag and refuses a path that does not exist.
-
-```go
-var integrationPackages = []string{
-    "./internal/component/iface/...",
-    "./internal/component/config/system/...", // add the package here
-}
-```
-
-If a focused VM run needs extra Alpine packages such as `strace` or `util-linux`, pass them after the `packages` keyword to `./le qemu run`.
 
 ## Interop Labs and Docker-Based Tests Need a QEMU Runner Too
 

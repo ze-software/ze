@@ -84,9 +84,9 @@ Every AC-N MUST have a test whose assertion directly verifies the AC's **expecte
 ### Rules (test-first)
 
 - If you debug something, MUST add a test so it's never re-investigated
-- Implementation before test exists → MUST delete impl, write test
+- Implementation written before its test → MUST back-fill the test. Working product code MUST NOT be deleted to restore the ordering (`ai/rules/pre-release.md`)
 - Test passes immediately → invalid test, MUST add failing assertion
-- Claiming "done" without test output → MUST run it, paste it
+- Claiming "done" without test output → MUST run it once, paste it
 
 ## Draft a Functional Test Before It Is Live (BLOCKING)
 
@@ -890,63 +890,6 @@ line plus fresh artifacts. Never `| tail`.
 Infrastructure: `internal/component/cli/testing/` (parser, expect, headless, input, runner).
 Run `./le functional editor`. Use focused Go tests under the compiled runner when iterating.
 
-### Directives
-
-| Directive | Purpose | Example |
-|-----------|---------|---------|
-| `tmpfs=<path>:terminator=<TERM>` | Embedded config file | `tmpfs=test.conf:terminator=EOF` |
-| `option=file:path=<name>` | Config file to load (required) | `option=file:path=test.conf` |
-| `option=timeout:value=<dur>` | Test timeout (default 30s) | `option=timeout:value=10s` |
-| `option=width:value=N` | Editor width (default 80) | `option=width:value=120` |
-| `option=height:value=N` | Editor height (default 24) | `option=height:value=30` |
-| `option=reload:mode=success\|fail` | Mock reload notifier | `option=reload:mode=success` |
-| `option=monitor:ping=fake` | Deterministic ping monitor + fake PTR/origin resolvers (offline pipe-enrichment tests; see `internal/component/cli/testing/fake_monitor.go`) | `option=monitor:ping=fake` |
-| `option=session:user=X:origin=Y` | Session identity | `option=session:user=alice:origin=ssh` |
-| `option=storage:value=blob` | Config storage is a zefs blob, as in the daemon, instead of the filesystem. The tmpfs `*.conf` files migrate into the blob, so `option=file:path=` still names the config. `expect=file:` is refused with it: the editor writes the blob, so the temp directory keeps its migrated state | `option=storage:value=blob` |
-| `session=<name>` | Switch to named session | `session=bob` |
-| `input=type:text=<string>` | Type text | `input=type:text=show` |
-| `input=<keyname>` | Press key | `input=enter`, `input=tab`, `input=up` |
-| `input=ctrl:key=<char>` | Ctrl+key | `input=ctrl:key=c` |
-
-**Named keys an `.et` test MAY press:** `tab`, `enter`, `esc`, `up`, `down`, `left`, `right`, `backspace`, `delete`, `home`, `end`, `pgup`, `pgdn`, `space`, `shift+tab`
-
-### Expectations
-
-| Type | Example | What it checks |
-|------|---------|----------------|
-| `expect=input:value=<text>` | `expect=input:value=show` | Text input buffer |
-| `expect=input:empty` | | Input is empty |
-| `expect=context:root` | | At root context |
-| `expect=context:path=bgp.peer` | | At nested context |
-| `expect=dirty:true\|false` | | Unsaved changes |
-| `expect=error:none\|contains=<text>` | | Command error state |
-| `expect=status:contains=<text>\|empty` | | Status message |
-| `expect=mode:is=config\|operational` | | Editor mode |
-| `expect=completion:contains=a,b` | | Tab completions include items |
-| `expect=completion:empty\|count=N\|exact=a,b` | | Completion list state |
-| `expect=ghost:text=<text>\|empty` | | Ghost text preview |
-| `expect=content:contains=<text>` | | Config content |
-| `expect=viewport:contains=<text>` | | Displayed output |
-| `expect=dropdown:visible\|hidden` | | Dropdown shown |
-| `expect=file:path=<rel>:contains=<text>` | | On-disk file content |
-| `expect=file:path=<rel>:absent` | | File does not exist |
-| `expect=timer:active\|inactive` | | Commit confirm timer |
-| `expect=errors:count=N\|contains=<text>` | | Validation errors |
-| `expect=warnings:count=N\|contains=<text>` | | Validation warnings |
-| `expect=prompt:contains=<text>` | | Prompt text |
-
-### When to use .et vs .ci vs Go tests
-
-| Test need | Format | Why |
-|-----------|--------|-----|
-| TUI behavior (keystrokes, completions, history) | `.et` | Headless model simulates real TUI |
-| BGP wire, config parsing, CLI commands | `.ci` | Process-level testing |
-| Internal logic, persistence wiring | Go `_test.go` | Direct API access |
-
-### Structure
-
-Tests organized by concern in `test/editor/`: `commands/`, `completion/`, `lifecycle/`, `mode/`, `navigation/`, `pipe/`, `session/`, `validation/`, `workflow/`.
-
 ## OS-Specific Tests
 
 | Situation | Do |
@@ -1215,26 +1158,43 @@ First-class `.ci` engine steps have the symmetric declarative form
 
 ## Mutation Testing
 
-Mutation testing uses [gomu](https://github.com/sivchari/gomu) to verify that
-tests actually catch code changes. It modifies the AST (arithmetic, conditional,
-logical, bitwise, branch, return value, error handling operators) and checks
-whether the test suite detects each mutation. Advisory only, never gates
-`./le verify current mode full`.
+**A test that cannot fail is worse than no test, because it also spends the
+attention that would have found the gap.** So before a test is offered as
+evidence for a requirement, MUST establish that it would go red if the behavior
+it names stopped happening. Reading the assertion is not that establishment: an
+assertion can be true for a reason unrelated to the code under test.
 
-gomu is vendored in `tools.go` and invoked via `go run`. No install needed.
+**Five shapes recur, and each is invisible to a gate that checks only whether a
+test EXISTS.** MUST check for them by name:
 
-| Command | Purpose |
-|---------|---------|
-| `go run github.com/sivchari/gomu/cmd/gomu run --output json --incremental=false --fail-on-gate=false` | Full advisory mutation run |
-| `go run github.com/sivchari/gomu/cmd/gomu run --output json --incremental --base-branch=main --fail-on-gate=false` | Changed-file advisory mutation run |
-| `./le mutation combine` | Combine per-package JSON reports |
+- A value asserted into memory that already held it. Any assertion that
+  something is zero, empty, or absent is suspect when the buffer or structure
+  was freshly allocated: deleting the code that writes the value changes
+  nothing.
+- The happy branch alone, where the justification for a missing case cites the
+  very branch no test enters. When an annotation explains why one polarity is
+  absent, that explanation names the case most worth writing.
+- A property strictly weaker than the one the requirement states. "Not a
+  constant" is not "unpredictable"; "present" is not "correct"; "non-empty" is
+  not "complete". A test can only assert what it can observe, so where the
+  requirement's own word is unobservable, MUST assert the structural fact the
+  requirement depends on and say that is what is proven.
+- One clause of a requirement that states two, with the tag claiming both. A
+  requirement joined by "and" needs both halves asserted or the tag overstates.
+- A negative confounded by a guard that fires first. When the input crafted to
+  violate one rule also violates an earlier one, the earlier rule does the
+  failing and the rule under test is never reached.
 
-Tuning via environment: `GOMU_WORKERS` (default: `GO_TEST_PROCS`),
-`GOMU_TIMEOUT` (default: 120s per test), `GOMU_THRESHOLD` (default: 0%).
+**Mutation is the cheap answer and MUST be preferred to argument.** Revert the
+behavior in a throwaway copy and run the test. A verdict reached that way costs
+one edit and one run, and it is the only kind that survives someone reading the
+test differently later. Where a test and the code it checks share an
+implementation, the mutation MUST change them together: a test that recomputes
+the answer the same way agrees with any error the implementation makes.
 
-gomu has no `--tags` support. Files with custom build tags (`ze_test`,
-`ze_chaos`, `ze_perf`, `ze_analyze`) and `cmd/ze/` are excluded via
-`.gomuignore`. Reports go to `tmp/` (gitignored).
+**When a test is repaired this way, its coverage MUST rise rather than move.**
+A rewrite that pins the new contract is worth more than a deletion, and it keeps
+the requirement proven while the contract changes underneath it.
 
 **Proving a test discriminates means breaking the mechanism on purpose, and in a
 shared checkout that mutation MUST land in a file this session owns.** Every
@@ -1308,51 +1268,13 @@ one.** It disables the cache for every test in the run, and a gate that already
 costs tens of minutes pays that in full. The obligation is to know which category
 a proof is in, not to spend the cache to avoid thinking about it.
 
-**A test that cannot fail is worse than no test, because it also spends the
-attention that would have found the gap.** So before a test is offered as
-evidence for a requirement, MUST establish that it would go red if the behavior
-it names stopped happening. Reading the assertion is not that establishment: an
-assertion can be true for a reason unrelated to the code under test.
-
-**Five shapes recur, and each is invisible to a gate that checks only whether a
-test EXISTS.** MUST check for them by name:
-
-- A value asserted into memory that already held it. Any assertion that
-  something is zero, empty, or absent is suspect when the buffer or structure
-  was freshly allocated: deleting the code that writes the value changes
-  nothing.
-- The happy branch alone, where the justification for a missing case cites the
-  very branch no test enters. When an annotation explains why one polarity is
-  absent, that explanation names the case most worth writing.
-- A property strictly weaker than the one the requirement states. "Not a
-  constant" is not "unpredictable"; "present" is not "correct"; "non-empty" is
-  not "complete". A test can only assert what it can observe, so where the
-  requirement's own word is unobservable, MUST assert the structural fact the
-  requirement depends on and say that is what is proven.
-- One clause of a requirement that states two, with the tag claiming both. A
-  requirement joined by "and" needs both halves asserted or the tag overstates.
-- A negative confounded by a guard that fires first. When the input crafted to
-  violate one rule also violates an earlier one, the earlier rule does the
-  failing and the rule under test is never reached.
-
-**Mutation is the cheap answer and MUST be preferred to argument.** Revert the
-behavior in a throwaway copy and run the test. A verdict reached that way costs
-one edit and one run, and it is the only kind that survives someone reading the
-test differently later. Where a test and the code it checks share an
-implementation, the mutation MUST change them together: a test that recomputes
-the answer the same way agrees with any error the implementation makes.
-
-**When a test is repaired this way, its coverage MUST rise rather than move.**
-A rewrite that pins the new contract is worth more than a deletion, and it keeps
-the requirement proven while the contract changes underneath it.
-
 ## Pre-Commit
 
 See `ai/rules/git-safety.md` for the full pre-commit workflow.
 
-`./le verify worktree` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
-During development: `./le job run label unit-pkg command go test PKG=<what you are changing>`, component groups
-(`./le test-unit bgp`), and `./le test-unit` are fine for fast iteration. A BARE `go test`
+A commit owes NO verification pass at all (`ai/rules/pre-release.md`). `./le verify worktree` is the full gate and it is owed before a PUSH. What a commit owes is the focused test for what you changed, run once.
+Run that focused test through a native action: `./le job run label unit-pkg command go test PKG=<what you are changing>`, a component group
+(`./le test-unit bgp`), or `./le test-unit`. A BARE `go test`
 is not: `internal/le/gotoolchain.Toolchain` gives native actions the repository
 `GOCACHE`, while a shell run uses ambient toolchain state and shares nothing
 with `./le verify current mode full`. It also drops the feature tags, which is

@@ -25,25 +25,11 @@ linux-only-functional-ci-tests-run-via-qemu-never-natively ## Linux-only functio
   know-that-a-caps-test-moves-to-the-nightly-run
   never-use-skip-os-in-place-of-needs-linux
 how-to-write-a-qemu-integration-test ## How to Write a QEMU Integration Test
-  file-naming-and-build-tags
-  the-build-tag-header-and-package-line
-  the-integration-test-file-name-pattern
-  the-build-tag-patterns-in-the-codebase
-  when-to-use-each-build-tag
   use-integration-linux-for-anything-that-touches-the-kernel
-  virtual-substitutes-for-hardware
   never-require-physical-hardware
-  the-virtual-substitute-for-each-hardware-device
-  graceful-skip-when-capabilities-are-missing
   skip-not-fail-when-a-prerequisite-is-absent
-  skip-example-for-a-missing-pty
-  skip-example-for-a-missing-net-admin-capability
-  dataplane-counters-need-a-real-remote-peer
-  a-dataplane-counter-owes-an-egress-and-a-positive-control
-  register-the-package-in-the-native-qemu-inventory
   add-your-package-to-the-native-qemu-inventory
-  where-to-add-a-package-in-the-native-inventory
-  add-extra-alpine-packages-to-packages
+  a-dataplane-counter-owes-an-egress-and-a-positive-control
 interop-labs-and-docker-based-tests-need-a-qemu-runner-too ## Interop Labs and Docker-Based Tests Need a QEMU Runner Too
   ship-a-qemu-path-beside-every-docker-interop-lab
   the-pattern-do-every-step-in-the-same-change

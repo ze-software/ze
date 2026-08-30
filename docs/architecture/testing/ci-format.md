@@ -1379,6 +1379,12 @@ Editor tests simulate user input sequences against the headless configuration ed
 | `input=ctrl:key=<c>` | Ctrl+key | `input=ctrl:key=u` |
 | `input=space` | Space key | `input=space` |
 
+Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
+`up`, `down`, `left`, `right`, `backspace`, `delete`, `home`, `end`, `pgup`,
+`pgdn`, `pgdown`, `space`. `shift+tab` is handled separately as a modifier.
+<!-- source: internal/component/cli/testing/input.go -- keyNameToCode, toKeyMessages -->
+
+
 ### Expectations
 
 | Expectation | Purpose | Example |
