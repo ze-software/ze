@@ -30,7 +30,7 @@ needs. Nothing here is blocked on anything except the model.
 | `1ebdb35cc` | WP-8, four rows landed and two held |
 
 Four structural gates were red at HEAD when this session started and are green now:
-`./le rfc check`, `./le doc-check verify`, `./le repository generated-check`, and `go test ./scripts/dev`. The
+`./le rfc check`, `./le doc check verify`, `./le repository generated-check`, and `go test ./scripts/dev`. The
 cause of all four was a stale generated index, not a code defect.
 
 ## Owner decisions, 2026-07-31 (BINDING, do not re-open)

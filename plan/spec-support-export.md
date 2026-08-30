@@ -39,6 +39,11 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/api/commands.md` - the verb-first API command paths, with JSON or text encoding
+- [ ] `docs/architecture/config/environment.md` - the reference of ze environment variables and their central registration
+- [ ] `docs/architecture/config/yang-config-design.md` - YANG (RFC 7950) as the schema language for config, CLI commands and API operations
+- [ ] `docs/architecture/system-architecture.md` - the legacy note on hub/orchestrator mode with separate plugin processes
+- [ ] `docs/architecture/web-interface.md` - the HTTPS server rendering YANG-driven config views with HTMX components
 - [ ] `docs/architecture/core-design.md` - establishes small core plus registration.
   → Decision: Reuse the support component and command pipe machinery. Do not add a second support bundle producer.
   → Constraint: Command and config surfaces must register through their owning packages.
@@ -347,7 +352,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
    - Files: pipe users, support runner, help metadata
    - Verify: functional tests pass through user entry points.
 5. **Phase: Docs and generated surfaces** - update command docs, feature row, command catalogue, and any generated help data.
-   - Tests: `./le doc-check verify`, `./le doc-wiring`, and any generated-file check required by changed files
+   - Tests: `./le doc check verify`, `./le doc wiring`, and any generated-file check required by changed files
    - Files: docs listed above and generated outputs if required
    - Verify: doc checks pass.
 
@@ -375,7 +380,7 @@ Ze config/data directory, streamed to syslog, or copied by SSH.
 | Named destinations parse and validate | `./le functional parse` with `support-export-destination` pattern |
 | SSH credential reference is checked | owning unit test and doctor test |
 | Syslog behavior is bounded and tested | owning unit test and functional or fixture-backed test |
-| Documentation reflects shipped command shape | `./le doc-check verify` and `./le doc-wiring` |
+| Documentation reflects shipped command shape | `./le doc check verify` and `./le doc wiring` |
 | Changed Go code is linted | `./le changed scope` |
 
 ### Security Review Checklist
@@ -434,7 +439,7 @@ N-A. No protocol behavior changes.
 - [ ] AC-1..AC-13 demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row has a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Critical Review passes
 - [ ] Every A-N assumption confirmed or broken, none unvalidated

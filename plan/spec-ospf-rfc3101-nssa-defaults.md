@@ -44,6 +44,12 @@ conformance row become true as written.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/ospf/ospf-10-as-external-asbr.md` - ASBR Type 5 origination, redistribution and default-information
+- [ ] `docs/architecture/ospf/ospf-11-stub-nssa.md` - stub and totally-stubby areas (RFC 2328 Section 3.6) and NSSA (RFC 3101)
+- [ ] `docs/architecture/ospf/ospf-4-component-config.md` - the OSPF config-to-engine backbone: the plugin root, the YANG tree, the SDK
+- [ ] `docs/architecture/ospf/ospf-7-lsdb-flooding.md` - raw-byte LSA storage, freshness comparison, origination and flooding
+- [ ] `docs/architecture/ospf/ospf-8-spf-rib.md` - the shortest-path tree computation and the route table install
+- [ ] `docs/architecture/ospf/ospfv3-6-interop-coverage.md` - OSPFv3 stub-area default origination and export hygiene
 - [ ] `docs/architecture/core-design.md` - OSPF engine placement and the address-family seam
   → Decision: ONE `ospf` engine carries both families through Transport, Codec and
     AFPrefixStrategy seams. Never create a second OSPFv3 engine.
@@ -446,7 +452,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
    - Files: `test/interop/scenarios/`
    - Verify: each scenario FAILS when the corresponding production change is reverted. Record which revert was used for each, per `ai/rules/interop-and-goal-validation.md`
 9. **Phase: RFC ledger and docs**
-   - Tests: `./le rfc check`, `./le doc-check verify`, `./le repository check`
+   - Tests: `./le rfc check`, `./le doc check verify`, `./le repository check`
    - Files: `rfc/short/rfc3101.md`, `docs/features/rfc-status.md`, `docs/guide/ospf.md`, `docs/architecture/wire/ospfv3.md`, `docs/features.md`, `docs/guide/configuration.md`, `docs/comparison.md`, `docs/functional-tests.md`, `docs/architecture/core-design.md`
    - Verify: every new binding ADDS rather than substitutes, so `check_evidence_ratchet` stays green (R-5)
 
@@ -454,7 +460,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 
 | # | Action | Why it is the owner's |
 |---|--------|----------------------|
-| O-1 | Supply the `rfc-test-change-approved:` token for `internal/plugins/ospf/nssa_ac14_16_test.go` and `internal/plugins/ospf/spf/area_type_test.go`, which `internal/le/weakened/audit.go` reports as `[WEAKENED]` | The gate reserves RFC-tagged test edits to the owner. Coverage was verified intact by review: no RFC3101-3.2-2 or 2.7-1 assertion was lost |
+| O-1 | Supply the `rfc-test-change-approved:` token for `internal/plugins/ospf/nssa_ac14_16_test.go` and `internal/plugins/ospf/spf/area_type_test.go`, which `internal/le/testweakened/audit.go` reports as `[WEAKENED]` | The gate reserves RFC-tagged test edits to the owner. Coverage was verified intact by review: no RFC3101-3.2-2 or 2.7-1 assertion was lost |
 | O-2 | Sequence the `ai/RFC-REQUIREMENTS.md` regeneration against the concurrent session | `./le rfc index-update` would sweep that session's uncommitted rfc9190 work into this commit (R-4) |
 
 ### Critical Review Checklist
@@ -479,7 +485,7 @@ never arrived", which is the vacuity trap `ai/rules/interop-and-goal-validation.
 | Both gate polarities proven against FRR | `./le integration interop INTEROP_SCENARIO=ospf-nssa-two-abr-frr` and the v6 twin |
 | Functional coverage of the daemon | `./le functional` covering the `ospf` and `ospfv3` suites |
 | RFC ledger consistent | `./le rfc check` exits 0 for rfc3101 (the rfc9190 and staleness violations are O-2's, not this spec's) |
-| Docs consistent | `./le doc-check verify`, `./le repository check` |
+| Docs consistent | `./le doc check verify`, `./le repository check` |
 | No test weakened | `./le test-weakened check` clean for OSPF paths, or O-1 token supplied |
 
 ### Security Review Checklist
@@ -561,7 +567,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -579,7 +585,7 @@ constraints, message ordering, and every MUST/MUST NOT.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

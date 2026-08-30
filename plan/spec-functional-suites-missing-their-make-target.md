@@ -42,6 +42,7 @@ replacement is `./le functional <suite>`, and current source is
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/testing/ci-format.md` - the `.ci` test file format: embedded files, options, expectations and commands
 - [ ] `ai/rules/commands.md` - the rule that a suite runs through `make`, not
   through the runner binary
   → Constraint: the "Running this session's `ze-test` binary yourself" paragraph
@@ -161,7 +162,7 @@ failure, and `make ze-<suite>-test` typed by an operator for one suite.
 | R-1 | the retired `ze-install-test` (current: `./le functional install`) trips the 600s cap the aggregate shares | exit code 124 from `timeout` | the cap is shared with the aggregate on purpose. Do not raise `ZE_SUITE_TIMEOUT` for the new target alone: that makes the standalone and the aggregate disagree, which is the defect this spec closes. Record the measured duration and report it |
 | R-2 | A suite is red for a reason this change did not cause | the same `.ci` fails inside `./le functional` | attribute the red by test name (`ai/rules/commands.md`), then fix it or report it. Do not weaken the suite, and do not close the spec over it |
 | R-3 | Two suites run at once and poison each other through shared ports or the throwaway root | flaky failures that do not reproduce | run the three targets one at a time, and never beside a verify run (`ai/rules/commands.md`) |
-| R-4 | A doc edit goes stale against a source anchor | `./le doc-check verify` fails on an anchor | the four anchors naming `internal/le/functional/suites.go` cover the suite list, the non-gated targets, the isolated-binary block, and `ze-functional-isis-test`. None of the four claims changes. Run `./le doc-check verify` after the doc edits |
+| R-4 | A doc edit goes stale against a source anchor | `./le doc check verify` fails on an anchor | the four anchors naming `internal/le/functional/suites.go` cover the suite list, the non-gated targets, the isolated-binary block, and `ze-functional-isis-test`. None of the four claims changes. Run `./le doc check verify` after the doc edits |
 
 ## Blast Radius
 
@@ -279,7 +280,7 @@ None.
 | 13 | Route metadata keys added/changed? | No | none touched |
 | 14 | Prometheus counters added/changed? | No | none added |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | the suite inventory (`all_suites`) is unchanged. Only the per-suite entry points grow |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes, checked | `docs/functional-tests.md` carries four anchors naming `internal/le/functional/suites.go`: the `./le functional` suite list (still 24), the non-gated functional targets (unchanged), the isolated-binary block (unchanged), and `ze-functional-isis-test` (unchanged). Every claim still holds. Re-check with `./le doc-check verify` |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes, checked | `docs/functional-tests.md` carries four anchors naming `internal/le/functional/suites.go`: the `./le functional` suite list (still 24), the non-gated functional targets (unchanged), the isolated-binary block (unchanged), and `ze-functional-isis-test` (unchanged). Every claim still holds. Re-check with `./le doc check verify` |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/functional-tests.md` shows `bin/ze-test install --all` as the way to run the install suite. That example is now incomplete, and row 10 fixes it |
 
 ## Implementation Steps
@@ -319,7 +320,7 @@ None.
      though the target resolved
 4. **Phase: Aggregate and docs**
    - Tests: `./le functional` for AC-5, or read it from this session's
-     verify log if that run already happened. Then `./le doc-check verify` for the doc
+     verify log if that run already happened. Then `./le doc check verify` for the doc
      edits
    - Files: `ai/patterns/functional-test.md`, `docs/functional-tests.md`
    - Verify: AC-5, and the two documentation rows answered Yes above
@@ -349,7 +350,7 @@ None.
 | Each target runs its suite | the three recorded runs with their pass counts: 3, 5, and the install suite with 0 failures |
 | The aggregate is unchanged at 24 suites | the `[24/24]` progress line and the `PASS  all 24 suites` line from `./le functional` |
 | `.PHONY` names every target in the file | `grep '^.PHONY' internal/le/functional/suites.go`, compared against the target definitions |
-| Docs match the file | `./le doc-check verify` |
+| Docs match the file | `./le doc check verify` |
 
 ### Security Review Checklist
 
@@ -365,7 +366,7 @@ None.
 | A new target runs zero tests | the suite name is misspelled against the runner's own name. Compare it with the `run_suite` line |
 | A suite is red | attribute it by test name. Red inside the aggregate too means it predates this change: report it under `ai/rules/completion.md`. Red only standalone means the target is wrong: fix the target |
 | `./le functional install` exits 124 | R-1. Record the duration and report it. Do not raise the cap |
-| `./le doc-check verify` fails | a stale source anchor. Fix the doc claim, never the anchor |
+| `./le doc check verify` fails | a stale source anchor. Fix the doc claim, never the anchor |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
@@ -403,7 +404,7 @@ None.
 ### Goal Gates (MUST pass)
 - [ ] AC-1 to AC-7 each proven by a recorded command and its output
 - [ ] Wiring Test table complete: every row a concrete command, none deferred
-- [ ] `./le verify current mode full` passes, or a scoped attribution is recorded per `ai/rules/git-safety.md`
+- [ ] `./le verify worktree` passes, or a scoped attribution is recorded per `ai/rules/git-safety.md`
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
 - [ ] Every A-N confirmed or broken, none `unvalidated`
@@ -419,7 +420,7 @@ None.
 
 ### Quality Gates
 - [ ] `./le functional` reaches `[24/24]`
-- [ ] `./le doc-check verify`
+- [ ] `./le doc check verify`
 - [ ] `./le verify current mode full`
 
 ### Closure

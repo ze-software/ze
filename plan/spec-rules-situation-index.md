@@ -221,7 +221,7 @@ Not applicable. No protocol code.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD
@@ -230,7 +230,7 @@ Not applicable. No protocol code.
 - [ ] Tests PASS (paste output)
 
 ### Closure
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only
@@ -262,7 +262,7 @@ for the tagged sections, so the invariant needs its real form.
 
 → Constraint: a PROHIBITION stays eager; only a PROCEDURE is stage-scoped. The
 ban on the bare push verb is in the `ai/INSTRUCTIONS.md` DANGER block and refused
-by `.claude/hooks/pretool-bash.py` besides, so dropping the 4,701 tokens of
+by `.claude/hooks/pretool-bash.py` (retired; now `internal/le/hookruntime/bash.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> besides, so dropping the 4,701 tokens of
 commit-helper procedure from a research agent removes a how-to, never a ban.
 
 → Constraint: `TRIGGERS.md` is never stage-scoped. Stage decides what is

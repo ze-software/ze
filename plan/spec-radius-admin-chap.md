@@ -173,7 +173,7 @@ spec may reduce to "documented as N/A" with the rationale recorded.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-3 demonstrated
 - [ ] Open design question resolved
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 
 ### TDD
 - [ ] Tests written

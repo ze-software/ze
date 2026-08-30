@@ -41,6 +41,7 @@ Add a hardware watchdog:
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/appliance/kernel-profiles.md` - a kernel profile is a pair of files in an open registry
 - [ ] `internal/appliance/kernelreq.go` - the runtime kernel requirement floor (`runtimeKernelRequirements`).
   -> Constraint: add the watchdog kernel option(s) to the floor so the built kernel actually exposes `/dev/watchdog`.
 - [ ] `internal/component/host/doc.go` - the host layer is documented as read-only, stateless inventory.
@@ -258,7 +259,7 @@ Add a hardware watchdog:
 - [ ] End-to-End User Stories: working path + passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 
@@ -274,5 +275,5 @@ Add a hardware watchdog:
 
 ### Post-wave corrections (2026-07-10)
 
-- New gate obligation: the followup wave added `ze-platform-vet` (`internal/le/` native action tables), which vets `./internal/component/host/...`, `./internal/component/iface/...`, and `./internal/plugins/iface/...` under GOOS=darwin and GOOS=freebsd; it runs in the live `./le verify current mode full` stage list in both branches (`internal/le/verify/run.go`, `:141`). The `/dev/watchdog` open/ioctl/pet code is Linux-only, so the new component MUST follow the `_linux.go`/`_other.go` split convention regardless (a macOS dev host builds the tree). Additionally, this spec plans the component as a sibling of `internal/component/host/` (Files to Create: `internal/component/watchdog/`), which is NOT in the gate's current package list -- the design must either extend the `ze-platform-vet` package list to the new tree or place the platform-split code under an already-vetted tree, so the non-Linux stubs cannot rot silently.
+- New gate obligation: the followup wave added `ze-platform-vet` (`internal/le/` native action tables), which vets `./internal/component/host/...`, `./internal/component/iface/...`, and `./internal/plugins/iface/...` under GOOS=darwin and GOOS=freebsd; it runs in the live `./le verify current mode full` stage list in both branches (`internal/le/verify/engine/run.go`, `:141`). The `/dev/watchdog` open/ioctl/pet code is Linux-only, so the new component MUST follow the `_linux.go`/`_other.go` split convention regardless (a macOS dev host builds the tree). Additionally, this spec plans the component as a sibling of `internal/component/host/` (Files to Create: `internal/component/watchdog/`), which is NOT in the gate's current package list -- the design must either extend the `ze-platform-vet` package list to the new tree or place the platform-split code under an already-vetted tree, so the non-Linux stubs cannot rot silently.
 - `ze-system-conf.yang` (Files to Modify) was restructured by the wave: it gained resolver-related leaves including `dnssec-validation` (`internal/component/config/system/yang/ze-system-conf.yang`). No `watchdog` symbol exists anywhere in that file (grep 2026-07-10), so there is no conflict, but the planned `watchdog` container edit must rebase onto the current file layout at design time.

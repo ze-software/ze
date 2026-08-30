@@ -37,6 +37,8 @@ deterministic simulation.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/testing/ci-format.md` - the `.ci` test file format: embedded files, options, expectations and commands
+- [ ] `plan/spec-improve-3-event-replay.md` - this spec: protocol event capture and replay
 - [ ] `plan/deterministic-simulation-analysis.md` - Sections on state capture and clock control
   → Decision: adopt only the Option-D clock-injection slice (Phase 1 of its roadmap) + event capture; the FSM event queue, fault injection, and scheduler layers stay in the analysis doc (read by research agent 2026-07-10; digest in tmp/session/session-state-improve-3-event-replay-56997.md)
   → Constraint: full timer determinism per that doc needs an event queue; replay asserts FSM/RIB outcomes, not exact interleaving (see A-2)
@@ -448,7 +450,7 @@ function. Restored (`config.go`).
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 
 ### TDD
 - [ ] Tests written

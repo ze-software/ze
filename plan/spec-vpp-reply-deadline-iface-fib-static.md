@@ -62,6 +62,9 @@ for does not exist.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/static-routes.md` - the static plugin, which programs operator-declared routes straight into the FIB
+- [ ] `docs/features/interfaces.md` - interface management through pure netlink, with no iproute2 shell-outs
+- [ ] `docs/research/vpp-deployment-reference.md` - the VPP deployment reference drawn from 83 ipng.ch articles
 - [ ] `ai/rules/evidence.md` - the rule this change is governed by: the deadline is a guard
   → Constraint: a computed-but-uninstalled deadline is indistinguishable from having none. The test MUST prove the deadline is installed BEFORE the first request, not that a helper computed it.
 - [ ] `ai/rules/goroutine-lifecycle.md` - the lock held across an unbounded wait is the failure, not the wait itself
@@ -396,7 +399,7 @@ timeout arm deterministically.
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated in all three plugins, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -414,7 +417,7 @@ timeout arm deterministically.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

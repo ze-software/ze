@@ -233,6 +233,7 @@ was retired with the learned corpus, so they need a live design target
     `./internal/plugins/firewall/vpp/...` on line 325.
 
 ### Architecture Docs
+- [ ] `docs/architecture/testing/interop.md` - live session interop against production daemons, and byte-level ExaBGP comparison
 
 - [ ] `ai/rules/platform-linux.md` - linux-only code needs QEMU integration tests
   → Constraint: MANDATORY for this spec; "needs hardware" is not an accepted skip. Two rails
@@ -607,8 +608,8 @@ None deferred. Scope is set above and every AC is assigned.
 | 10 | Test infrastructure changed? | [ ] Check. A new `needs-linux` `.ci` and a new integration package are additive, but `ai/rules/platform-linux.md` step 5 is stale for `ze-qemu-integration-test` (the list auto-discovers, `internal/le/integration/gates.go`) | `docs/functional-tests.md`, `ai/rules/platform-linux.md` |
 | 12 | Internal architecture changed? | [ ] Yes. `network.go`'s package doc and `listener.go`'s `// Design:` anchor both describe listener creation; a namespace concept changes that contract | `docs/architecture/core-design.md` |
 | 15 | Registered diagnostic code changed? | [ ] Yes: `doctor-vpp-lcp-netns` description reworded for the narrowed check | `internal/core/diagnostic/codes.go`, `docs/guide/vpp.md` |
-| 16 | Any changed source file referenced by doc source anchors? | [ ] Grep `docs/` for the changed files. Known: `network.go` anchors `docs/architecture/chaos-web-dashboard.md`; `lcp.go` anchors `docs/research/vpp-deployment-reference.md`; `doctor.go` anchors `ai/rules/repo-maintenance.md`. Run `internal/le/doccheck/links.go --design-only` | per grep |
-| 17 | Design doc declared by a changed file's `// Design:` header? | [ ] **No change owed.** `internal/core/diagnostic/codes.go` declares `docs/features/ai-first.md`. That document specifies the `ze explain <code>` contract and states that every diagnostic carries a stable code, naming codes only by example. It holds no enumeration of doctor codes. Row 15 rewords one existing description through that documented mechanism and changes neither the contract nor a list, so the design it declares is unaffected. Recorded because `internal/le/docwiring/sources.go` requires every declared design doc to be named | `docs/features/ai-first.md` (unaffected) |
+| 16 | Any changed source file referenced by doc source anchors? | [ ] Grep `docs/` for the changed files. Known: `network.go` anchors `docs/architecture/chaos-web-dashboard.md`; `lcp.go` anchors `docs/research/vpp-deployment-reference.md`; `doctor.go` anchors `ai/rules/repo-maintenance.md`. Run `internal/le/doc/check/links.go --design-only` | per grep |
+| 17 | Design doc declared by a changed file's `// Design:` header? | [ ] **No change owed.** `internal/core/diagnostic/codes.go` declares `docs/features/ai-first.md`. That document specifies the `ze explain <code>` contract and states that every diagnostic carries a stable code, naming codes only by example. It holds no enumeration of doctor codes. Row 15 rewords one existing description through that documented mechanism and changes neither the contract nor a list, so the design it declares is unaffected. Recorded because `internal/le/doc/wiring/sources.go` requires every declared design doc to be named | `docs/features/ai-first.md` (unaffected) |
 
 ## Files to Create
 
@@ -634,7 +635,7 @@ None deferred. Scope is set above and every AC is assigned.
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan |
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
-| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 13. /ze-review gate | Review Gate section |
 
@@ -913,7 +914,7 @@ observe which namespace the socket was created in. See "Interop Tests" for the e
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete (every row has a concrete test name, none deferred)
 - [ ] `/ze-review` gate clean (Review Gate section filled: 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] QEMU integration test for the linux-only netns leg (`ai/rules/platform-linux.md`)
 - [ ] `./le tier check` passes (core import direction)

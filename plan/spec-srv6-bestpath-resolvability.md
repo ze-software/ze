@@ -204,7 +204,7 @@ itself be subject to best-path selection.
 - [ ] AC-1..AC-3 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated (or N/A confirmed)

@@ -44,7 +44,7 @@ identifiers in any importer; hardcoded fixture paths in
 **BLOCKED until the rib-arch spec set closes:** rib-arch reworks the NLRI and
 decode paths that import this package (`plan/spec-rib-arch-8-nlri-rewrite.md`
 and siblings); a 124-file rename would conflict with every in-flight branch.
-Check the retired `ze-spec-status` (current: `./le spec-status`) before starting.
+Check the retired `ze-spec-status` (current: `./le spec status`) before starting.
 
 ## Required Reading
 
@@ -56,7 +56,7 @@ Check the retired `ze-spec-status` (current: `./le spec-status`) before starting
 - [ ] `ai/rules/protocol.md` - BGP probe row lists `message`+`wireu` as the pre-SDK codec pair
   → Constraint: probe row + exceptions table change here (message) and again in spec-rename-3 (wireu)
 - [ ] `docs/architecture/wire/messages.md` - the `// Design:` anchor for this package's files
-  → Constraint: prose + anchors updated in the same commit; `./le doc-check verify` gates
+  → Constraint: prose + anchors updated in the same commit; `./le doc check verify` gates
 - [ ] `ai/rules/performance.md` - the encoding architecture this package implements
   → Constraint: rename must not disturb WriteTo(buf, off) patterns; mechanical hunks only
 
@@ -113,9 +113,9 @@ Check the retired `ze-spec-status` (current: `./le spec-status`) before starting
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | rib-arch set closed before this starts | Depends field; user ordering decision 2026-07-08 | rename conflicts with in-flight branches | the retired `ze-spec-status` (current: `./le spec-status`) at start | unvalidated (checked at start) |
+| A-1 | rib-arch set closed before this starts | Depends field; user ordering decision 2026-07-08 | rename conflicts with in-flight branches | the retired `ze-spec-status` (current: `./le spec status`) at start | unvalidated (checked at start) |
 | A-2 | No local `packet` identifier in any of the 124 importers | grep audit 2026-07-08: zero declarations | compile errors after rewrite | `go build ./...` | confirmed (2026-07-08 snapshot; re-grep at start) |
-| A-3 | 34 doc source anchors point into `bgp/message` | anchor grep 2026-07-08 | doc-test reveals more | `./le doc-check verify` after sweep | confirmed (2026-07-08 snapshot) |
+| A-3 | 34 doc source anchors point into `bgp/message` | anchor grep 2026-07-08 | doc-test reveals more | `./le doc check verify` after sweep | confirmed (2026-07-08 snapshot) |
 | A-4 | No string literal, YANG node, metric, or CLI word depends on the package name | quoted-literal grep 2026-07-08 found none; `pkg/` zero refs | user-visible break | post-rename repo grep AC | confirmed (2026-07-08 snapshot) |
 | A-5 | Only the historical hook-parity producer hardcoded paths into this package | 2026-07-08 snapshot | a native hook check breaks post-rename | run `./le hook-check unit` at the start and `./le verify current mode full` after the rename | confirmed (2026-07-08 snapshot) |
 
@@ -141,7 +141,7 @@ Check the retired `ze-spec-status` (current: `./le spec-status`) before starting
 | AC-1 | after rename | `internal/component/bgp/message/` does not exist; `internal/component/bgp/packet/` builds; package clause `packet` in all files |
 | AC-2 | repo-wide grep for the old import path | zero hits in code, scripts, docs/ and ai/ living surfaces (plan/learned history exempt) |
 | AC-3 | `internal/le/protocolskeleton/protocolskeleton.go` | summary `legacy 2` (after spec-1's 3); `--verbose` shows `bgp: ... packet=canonical`; `--selftest` OK with fixtures updated |
-| AC-4 | `./le doc-check verify` | green after the 34-anchor + prose sweep |
+| AC-4 | `./le doc check verify` | green after the 34-anchor + prose sweep |
 | AC-5 | rule surfaces | go-standards.md `message` row marked retired/historical; protocol.md BGP row no longer lists `message` |
 | AC-6 | `internal/le/` | passes with fixture paths updated to `bgp/packet/` |
 | AC-7 | `./le verify current mode full` | green, including regenerated `ai/PACKAGE-MAP.md` |
@@ -215,7 +215,7 @@ Check the retired `ze-spec-status` (current: `./le spec-status`) before starting
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered inventory changed? | [ ] | No |
-| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 34 anchors; gated by `./le doc-check verify` |
+| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 34 anchors; gated by `./le doc check verify` |
 | 17 | Docs show examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -230,7 +230,7 @@ Check the retired `ze-spec-status` (current: `./le spec-status`) before starting
 | 2. Audit | rerun A-1..A-5 validations; re-measure importer set |
 | 3. Wiring phase | Wiring Test table (existing chains; nothing new to register) |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 6-9. Reviews + fixes | Critical Review Checklist below |
 | 10. Deliverables review | Deliverables Checklist below |
 | 11. Security review | Security Review Checklist below |
@@ -239,7 +239,7 @@ Check the retired `ze-spec-status` (current: `./le spec-status`) before starting
 | 14. Present summary + close | two-commit closure |
 
 ### Implementation Phases
-1. **Phase: gate check + re-measure** — confirm rib-arch closed (`./le spec-status`); rerun the importer/anchor/literal greps; update scope numbers here if drifted.
+1. **Phase: gate check + re-measure** — confirm rib-arch closed (`./le spec status`); rerun the importer/anchor/literal greps; update scope numbers here if drifted.
    - Tests: paste grep evidence into this spec
    - Files: this spec (annotations)
    - Verify: A-1 confirmed; scope current
@@ -252,7 +252,7 @@ Check the retired `ze-spec-status` (current: `./le spec-status`) before starting
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
 4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 34 anchors + prose, PACKAGE-MAP regen.
-   - Tests: `./le doc-check verify`
+   - Tests: `./le doc check verify`
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
 5. **Full verification** — `./le verify current mode full`; AC-7.
@@ -407,7 +407,7 @@ Not applicable: no RFC-covered behavior changes.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

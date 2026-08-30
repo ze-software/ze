@@ -37,13 +37,14 @@ The ingredients for a correct answer exist and nothing joins them:
 
 | Ingredient | Producer | What it gives |
 |---|---|---|
-| package to build tag | `feature-gates.txt`, parsed by `loadFeatureTags` (`internal/le/pluginimports/pluginimports.go`) and `load_feature_gates` (`internal/le/`) | 142 package rows over 36 tags |
+| package to build tag | `feature-gates.txt`, parsed by `loadFeatureTags` (`internal/le/plugin/imports/pluginimports.go`) and `load_feature_gates` (`internal/le/`) | 142 package rows over 36 tags |
 | first-party reverse import graph | `collect_edges` (`internal/le/`) | built fresh on every run, never persisted, no tag awareness |
 | per-file build constraint | `file_requires_tag` (`internal/le/`) | the dimension the graph lacks |
 
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/testing/verify-freshness-scope.md` - the certificate and per-path manifest one verification run records
 - [ ] `ai/rules/architecture.md` - tier rules and where a new tool belongs
   → Constraint: a config-driven engine belongs in `internal/component/`; a build tool belongs under `internal/le/`
 - [ ] `ai/rules/evidence.md` - a guard must fail closed
@@ -51,7 +52,7 @@ The ingredients for a correct answer exist and nothing joins them:
 
 **Key insights:**
 - `dep_audit.py` already does the prefix match a selector needs, in `_same_feature_importer`.
-- `tagFor` (`internal/le/pluginimports/pluginimports.go`) resolves an import path to its tag by suffix-with-boundary match, and `loadFeatureTags` derives both `<pkg>` and `<pkg>/yang`.
+- `tagFor` (`internal/le/plugin/imports/pluginimports.go`) resolves an import path to its tag by suffix-with-boundary match, and `loadFeatureTags` derives both `<pkg>` and `<pkg>/yang`.
 - `all_ze_radius_ze_l2tp.go` proves tag membership is not one tag per file. The selector must handle a multi-tag combination.
 
 ## Current Behavior (MANDATORY)
@@ -60,7 +61,7 @@ The ingredients for a correct answer exist and nothing joins them:
 - [ ] `internal/le/` - the transitive, untagged expansion, and the `PATHSPECS` / `PYTHON_TEST_PKG` mapping
 - [ ] `internal/le/` - the coarse six-group mapping used by `ze-unit-test-race-changed`
 - [ ] `internal/le/` - `collect_edges`, `load_feature_gates`, `_same_feature_importer`, `file_requires_tag`
-- [ ] `internal/le/pluginimports/pluginimports.go` - `loadFeatureTags`, `tagFor`
+- [ ] `internal/le/plugin/imports/pluginimports.go` - `loadFeatureTags`, `tagFor`
 - [ ] `feature-gates.txt` - the manifest itself
 
 **Behavior to preserve:**
@@ -345,14 +346,14 @@ measurement which would let a later spec take depth 1 safely, and
 | `TestSelectorBoundsCoreFanOut` | `internal/le/changed/selector_test.go` | AC-2: a core change stays well under the closure and says what it dropped | PASS |
 | `TestSelectorRunsUnderBudget` | `internal/le/changed/selector_test.go` | AC-6: 2.43s measured against the 30s budget | PASS |
 | `TestSelectorReadsManifestAtRunTime` | `internal/le/changed/selector_test.go` | AC-5: no copy of `feature-gates.txt` | PASS |
-| `TestVerifyRunSelectsTheChangeSetOncePerRun` | `internal/le/verify/verify_test.go` | The run selects once and names the answer to every stage | PASS |
-| `TestVerifyRunPublishesTheChangeSetPerRun` | `internal/le/verify/verify_test.go` | Two runs of one checkout publish at different paths | PASS |
-| `TestVerifyRunWidensWhenTheChangeSetCannotBeSelected` | `internal/le/verify/verify_test.go` | An unanswered selection widens to `./...`, never to nothing | PASS |
-| `TestChangedPkgsReadsThePublishedChangeSet` | `internal/le/verify/verify_test.go` | The script the recipes call answers from the published file | PASS |
+| `TestVerifyRunSelectsTheChangeSetOncePerRun` | `internal/le/verify/engine/verifyengine_test.go` | The run selects once and names the answer to every stage | PASS |
+| `TestVerifyRunPublishesTheChangeSetPerRun` | `internal/le/verify/engine/verifyengine_test.go` | Two runs of one checkout publish at different paths | PASS |
+| `TestVerifyRunWidensWhenTheChangeSetCannotBeSelected` | `internal/le/verify/engine/verifyengine_test.go` | An unanswered selection widens to `./...`, never to nothing | PASS |
+| `TestChangedPkgsReadsThePublishedChangeSet` | `internal/le/verify/engine/verifyengine_test.go` | The script the recipes call answers from the published file | PASS |
 | `TestChangedPkgs*` (9 tests) | `internal/le/` | The recipes' answer comes from the selector, committed-since-green term included | PASS |
 | `TestChangedPkgsWidensWithNoTrustedGreenBaseline` | `internal/le/` | No green commit widens to `./...`, on each of the three conditions that produce one | PASS |
 | `TestChangedPkgsReadsAnAbsoluteStatusFileOverride` | `internal/le/` | `ZE_VERIFY_STATUS_FILE` naming an absolute path is read at that path | PASS |
-| `TestSelectScopePackagesRunsTheRealSelector` | `internal/le/verify/verify_test.go` | The production selector call, not the injected stub | PASS |
+| `TestSelectScopePackagesRunsTheRealSelector` | `internal/le/verify/engine/verifyengine_test.go` | The production selector call, not the injected stub | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -386,7 +387,7 @@ measurement which would let a later spec take depth 1 safely, and
 ## Files to Modify
 - `internal/le/` - becomes a thin caller of the selector, or is deleted in favor of it
 - `internal/le/` native action tables - `_./le changed scope`, `_ze-unit-test-changed-impl`, and the new `ze-verify-scope-selector` target
-- `internal/le/verify/run.go` - run the selector once before the first stage
+- `internal/le/verify/engine/run.go` - run the selector once before the first stage
 
 ## Files to Create
 - `internal/le/changed/selector.go` - the selector
@@ -450,8 +451,8 @@ measurement which would let a later spec take depth 1 safely, and
    - Verify: AC-2 and AC-6 hold
 5. **Phase: Consumers** -- the two existing make recipes read the selector
    - Tests: `TestChangedPkgsConsumersReadTheSelector`, `verify-scope-selector.ci`
-   - Files: `internal/le/` native action tables, `internal/le/`, `internal/le/verify/run.go`
-   - Verify: `./le changed scope` and `./le verify-deps unit-race-changed` still lint and test the right set
+   - Files: `internal/le/` native action tables, `internal/le/`, `internal/le/verify/engine/run.go`
+   - Verify: `./le changed scope` and `./le verify deps unit-race-changed` still lint and test the right set
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -509,7 +510,7 @@ measurement which would let a later spec take depth 1 safely, and
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -527,7 +528,7 @@ measurement which would let a later spec take depth 1 safely, and
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

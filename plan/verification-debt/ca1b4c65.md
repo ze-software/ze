@@ -8,7 +8,7 @@ run exits 0. Most of those gates judge the WORKING TREE, so a cleared
 row says the gate was green in this checkout, other sessions'
 uncommitted files included. It does not say the gate is green over the
 commit alone: `discovery-index freshness` and
-`./le repository-tracked-build check` are the two gates re-judged over
+`./le repository tracked-build check` are the two gates re-judged over
 what git holds. A human MAY delete the
 shard once every row is cleared.
 the retired `scripts/dev/commit_helper.py create --push` (current producer: `internal/le/commit/prepare.go`) refuses while any row here

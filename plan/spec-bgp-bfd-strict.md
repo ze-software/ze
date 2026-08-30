@@ -41,6 +41,7 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `rfc/short/rfc5882.md` - how BFD clients request, react to and coexist with BFD sessions
 - [ ] `docs/architecture/core-design.md` - reactor/FSM and plugin service discovery
   → Constraint: the BGP reactor reaches the BFD plugin via `api.GetService()` (in-process), never by importing the BFD package.
 
@@ -280,7 +281,7 @@ held down) until the BFD session to that neighbour is Up, optionally bounded by 
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

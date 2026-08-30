@@ -26,9 +26,9 @@ Pre-existing test failures tracked here per `ai/rules/git-safety.md` ("Before An
 Commit" -> pre-existing failures >10 min): logged, not blocking unrelated commits.
 
 **Scope: TEST reds whose MECHANISM you could not determine.** Deterministic
-structural gates (`./le verify-lint run`, `./le changed scope`, `./le tier check`, `ze-evidence-vet`,
-`./le plugin-boundary check`, `ze-iface-resolution-check`, `./le repository generated-check`,
-`./le doc-wiring`) are NEVER logged here -- a red means the tree is
+structural gates (`./le verify lint run`, `./le changed scope`, `./le tier check`, `ze-evidence-vet`,
+`./le plugin boundary check`, `ze-iface-resolution-check`, `./le repository generated-check`,
+`./le doc wiring`) are NEVER logged here -- a red means the tree is
 structurally broken; fix it at the source. the retired `scripts/dev/commit_helper.py` (current producer: `internal/le/commit/prepare.go`) enforces
 this by refusing `--unverified` while a structural gate is red (see
 `ai/rules/git-safety.md` "Structural Gates Are Never Known-Red").
@@ -51,7 +51,7 @@ from `feature-gates.txt`; a bare run silently drops those plugins, so their
 registrations, validators and listeners never exist and unrelated tests fail
 with phantom reds.
 
-Run `./le verify-deps unit-cached` for the full cacheable package pass, or the
+Run `./le verify deps unit-cached` for the full cacheable package pass, or the
 owning `./le test-unit <group>` action for a named race-instrumented group.
 
 This is not hypothetical: on 2026-07-15 two of the four entries below (7 tests)

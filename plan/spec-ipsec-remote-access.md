@@ -418,6 +418,10 @@ gates exists. This spec owns both.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/ike/ipsec-14-responder.md` - the IKE responder role
+- [ ] `docs/architecture/ike/ipsec-3-data-model.md` - the typed model between the YANG schema and the IKE engine
+- [ ] `docs/architecture/ike/ipsec-7-ikev2-engine.md` - the native IKEv2 state machine above the wire codec and the crypto layer
+- [ ] `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` - EAP authentication and NAT traversal, for site-to-site and road-warrior peers
 - [ ] `ai/rules/plugins.md` - registration and proximity
   -> Constraint: no new communication mechanism; the engine already owns its dispatch loop.
 - [ ] `ai/rules/goroutine-lifecycle.md`
@@ -956,7 +960,7 @@ exhaustion-by-churn failure. Neither depends on the CP consumer.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken

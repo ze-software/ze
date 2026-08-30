@@ -226,7 +226,7 @@ lint-invisible dead code; only symbols the parent spec touches are covered.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 
 ### TDD
 - [ ] Tests written: none new; existing package tests and `./le functional encode` /

@@ -310,7 +310,7 @@ lacks from a mechanism an operator did not configure.
 | R-1 | The set is read as a conformance claim that Ze "implements BCP 194" | A doc or release note says Ze is BCP 194 compliant | The ledger decision forbids enrolment. Documentation states mechanism and default per recommendation, never a blanket claim |
 | R-2 | Children 1 and 2 both touch role resolution and collide | Two specs editing the role plugin at once | Child 1 reads the resolver and adds no mechanism to it. Child 2 owns any change to it |
 | R-3 | Shipped default lists go stale and become worse than none | An operator reports a bogon list rejecting allocated space | Child 4 must ship a refresh path with any list derived from a registry, per §6.1.2.1 |
-| R-4 | Four skeleton children are never written and become invisible scope reduction | The umbrella stays `ready` while children stay `skeleton` for weeks | Each child is a real file with a `## Task` on disk, so `./le spec-status` counts it |
+| R-4 | Four skeleton children are never written and become invisible scope reduction | The umbrella stays `ready` while children stay `skeleton` for weeks | Each child is a real file with a `## Task` on disk, so `./le spec status` counts it |
 | R-5 | The audit's verdicts go stale before a child is implemented | A child's research finds a producer that has changed | Each child re-verifies its own rows at its research gate. The inventory records the producer, not the conclusion alone |
 
 ## Blast Radius
@@ -444,7 +444,7 @@ is listed there.
 1. **Phase: Wiring (MANDATORY FIRST)** -- the set exists and is discoverable
    - Tests: `TestBCP194InventoryOwnership`
    - Files: this file and the five child specs
-   - Verify: `./le spec-status` lists all six, and every inventory row names a
+   - Verify: `./le spec status` lists all six, and every inventory row names a
      child that exists on disk
 2. **Phase: Child 1** -- communities, per its own Implementation Steps
    - Verify: its Review Gate is clean and `./le rfc check` passes
@@ -544,7 +544,7 @@ id from `rfc/short/rfc7454.md` beside each mechanism it adds.
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -564,7 +564,7 @@ id from `rfc/short/rfc7454.md` beside each mechanism it adds.
 ### Closure
 
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

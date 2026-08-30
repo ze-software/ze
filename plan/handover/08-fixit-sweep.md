@@ -98,7 +98,7 @@ is judged against. Read it before assuming a red is yours.
 - `internal/plugins/iface/vpp/{ifacevpp.go,mirror.go}` — `CreateDummy`, `recordMirror`
 - `internal/component/resolve/irr/{client.go,store/store.go}` — `RefreshPrefixes`
 - `internal/core/dnsserver/{handler.go,metrics.go}` — `send`, the write-failure counter
-- the retired `scripts/dev/review_gate.py` (current producer: `internal/le/specsession/review.go`) — `cmd_record`, the three refusals
+- the retired `scripts/dev/review_gate.py` (current producer: `internal/le/spec/session/review.go`) — `cmd_record`, the three refusals
 
 ## The pattern this session found, which matters more than any single fix
 
@@ -118,7 +118,7 @@ signal in the corpus) and `plan/journal/concurrent-session-corruption.md`.
 
 ## Gate friction worth reporting to the owner, who is reviewing gates
 - `commit_helper.py`'s structural-red refusal asserts those gates "never fail for flaky
-  or environmental reasons". Both of this session's did: `./le verify-lint run` lost golangci-lint's
+  or environmental reasons". Both of this session's did: `./le verify lint run` lost golangci-lint's
   single-instance lock to a concurrent session, and `./le staticcheck-feature-matrix check`
   exceeded its 25-minute deadline on a loaded box. The message then reports a
   structurally broken tree that is not broken.
@@ -129,7 +129,7 @@ signal in the corpus) and `plan/journal/concurrent-session-corruption.md`.
 
 ## Then
 ```
-./le verify-status check
+./le verify status check
 ```
 FRESH means the 13:16Z run finished and its record is current; judge every red against
 `tmp/ze-verify-failures.log` before charging it to your own work. Then pick one spec and

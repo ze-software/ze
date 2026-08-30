@@ -37,6 +37,9 @@ Add IKEv2 reauthentication:
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/ike/ipsec-3-data-model.md` - the typed model between the YANG schema and the IKE engine
+- [ ] `docs/architecture/ike/ipsec-7-ikev2-engine.md` - the native IKEv2 state machine above the wire codec and the crypto layer
+- [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - ESP Child SA creation after IKE_AUTH, and the dataplane abstraction
 - [ ] `docs/architecture/core-design.md` - IKE component placement, reconnect loop
   → Constraint: full re-establishment already exists as *failure recovery* via the run/reconcile reconnect loop; reauth must be a *scheduled* teardown+re-establish, deterministic and distinct from backoff-driven recovery.
 
@@ -287,7 +290,7 @@ teardown+re-establish orchestration, distinguishing it from the §1.3.3 rekey.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

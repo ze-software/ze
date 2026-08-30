@@ -203,7 +203,7 @@ A reader looking for what proved child 2's acceptance criteria.
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 
 ### TDD

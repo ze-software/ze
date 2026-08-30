@@ -77,9 +77,9 @@ Two notes from the 2026-07 implementation wave (verified against current code):
    fail-fast closes. The version design and its tests must not attribute a watchdog-triggered
    close to a version mismatch (or vice versa).
 
-2. **`./le plugin-boundary check` does NOT satisfy AC-5, despite the name.** The verify gate
-   `./le plugin-boundary check` (the native action tables under `internal/le/`:287, :294, :319) runs
-   `internal/le/pluginboundary/pluginboundary.go`, which guards same-process-effect direct calls
+2. **`./le plugin boundary check` does NOT satisfy AC-5, despite the name.** The verify gate
+   `./le plugin boundary check` (the native action tables under `internal/le/`:287, :294, :319) runs
+   `internal/le/plugin/boundary/pluginboundary.go`, which guards same-process-effect direct calls
    that bypass DirectBridge/DispatchCommand (its header, plugin_process_boundary.go). It
    does not inspect exported `pkg/plugin/**` signatures for `internal/` types. AC-5 still
    requires its own new mechanical guard; name it distinctly to avoid collision with the
@@ -88,6 +88,7 @@ Two notes from the 2026-07 implementation wave (verified against current code):
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/api/ipc_protocol.md` - correlated, bidirectional RPC between the engine and its plugins
 <!-- NEVER tick [ ] to [x] — checkboxes are template markers, not progress trackers. -->
 - [ ] `docs/architecture/api/process-protocol.md` - the 5-stage plugin handshake and wire framing
   → Decision: Stage 1 is plugin-initiated declare-registration; it is the earliest structured message and the natural version-negotiation point.
@@ -411,7 +412,7 @@ a peer-facing protocol. The functional `.ci` tests above are the cross-binary pr
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`pkg/*`, `internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

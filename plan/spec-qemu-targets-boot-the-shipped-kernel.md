@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | 5/5 |
-| Deferral shard | `plan/deferrals/qemu-targets-boot-the-shipped-kernel.md` |
+| Deferral shard | `plan/deferrals/qemu-targets-boot-the-shipped-kernel.md` <!-- doc-links: ignore (nothing was deferred, so this shard was never created) --> |
 | Handoff | - |
 | Updated | 2026-08-24 |
 
@@ -16,7 +16,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 Seven of the thirteen `qemu-run.py` invocations in `internal/le/integration/gates.go` boot
 the stock Alpine kernel while `internal/appliance/kernel.version` reads 7.2 and
-`validate_version` (`tools/kernel-builder/build.py`) refuses anything below 7.0.
+`validate_version` (`tools/kernel-builder/build.py` (retired; now `internal/le/deployment/hostkernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) refuses anything below 7.0.
 Their verdicts are true of Alpine 6.12.13-0-virt and silently untrue of the
 product. Six of the seven state no reason for it.
 
@@ -24,7 +24,7 @@ Make every QEMU target boot the kernel ze ships, and remove the friction that
 made stock the quick path.
 
 The friction is one omission. The `docker run` argument list in
-`tools/kernel-builder/run.py` passes no `--user`, so the kernel build runs as
+`tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> passes no `--user`, so the kernel build runs as
 root and leaves `tmp/kernel/build/lib/modules/<version>/` owned `root:root` in a
 scratch tree every other target owns as the invoking user. The next
 `ze appliance kernel` then cannot clean it and needs a `sudo rm` no
@@ -56,8 +56,8 @@ stages the kernel this way (`.github/workflows/qemu-nightly.yml`).
 
 - [ ] `internal/le/integration/gates.go` - the thirteen invocations, `ze-qemu-kernel-guard`, `ZE_QEMU_KERNEL`
 - [ ] `internal/appliance/cmd_build.go` - `ze-kernel-vmlinuz-stage` and the durable-cache materialize path
-- [ ] `tools/kernel-builder/run.py` - the `docker run` argument list, and where a `--user` belongs
-- [ ] `tools/kernel-builder/build.py` - `validate_version`, the 7.0 floor
+- [ ] `tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - the `docker run` argument list, and where a `--user` belongs
+- [ ] `tools/kernel-builder/build.py` (retired; now `internal/le/deployment/hostkernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `validate_version`, the 7.0 floor
 - [ ] `internal/appliance/cache.go` - `copyTree`, the atomicity the the native action tables under `internal/le/` staging mirrors
 - [ ] `.github/workflows/qemu-nightly.yml` - how CI stages a kernel without an appliance build
 
@@ -72,7 +72,7 @@ Source read for this section:
 
 - [ ] `internal/le/integration/gates.go`
 - [ ] `internal/appliance/cmd_build.go`
-- [ ] `tools/kernel-builder/run.py`
+- [ ] `tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->
 - [ ] `internal/le/deployment/`
 
 Thirteen real `qemu-run.py` invocations. Six pass `--kernel $(ZE_QEMU_KERNEL)`
@@ -136,7 +136,7 @@ absent cache entry.
 | The guard had exactly six call sites, one per `--kernel` invocation | yes, before the change | `grep -c` over `internal/le/integration/gates.go` returned 6 guard call sites, 6 `--kernel` flags and 13 `qemu-run.py` invocations. All three now read 13 |
 | No target passes `--kernel` without also taking the guard | yes | derived rather than counted: `TestQemuTargetsGuardTheStagedKernel` iterates `qemuRunTargets`, which fails when it attributes fewer invocations than the file holds. That vacuity check fired for real at 12 of 13 and exposed `recipeOf` reading only `ze-qemu-debug`'s first rule line |
 | A cache HIT costs a copy and no rebuild | yes | in `ze-kernel-vmlinuz-stage` (`internal/appliance/cmd_build.go`) the HIT branch runs `mktemp -d`, `cp -R`, `mv`, and only the MISS branch reaches `$(MAKE) -C gokrazy/kernel`. Measured: MISS 22 min, the following HIT 1.4 s |
-| The `docker run` argv passes no `--user` | yes, and it must not | `run_docker` (`tools/kernel-builder/run.py`) builds the argv with no `--user`, and A-1 below shows that adding one denies the build its source tree. `repair_out_dir_ownership` is what replaces it |
+| The `docker run` argv passes no `--user` | yes, and it must not | `run_docker` (`tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) builds the argv with no `--user`, and A-1 below shows that adding one denies the build its source tree. `repair_out_dir_ownership` is what replaces it |
 | Nothing outside the container needs root-owned output | yes | `ze-kernel-vmlinuz-stage` `rm -rf`s and `cp -R`s the tree as the invoking user, and `write_provenance` (`run.py`) writes `kernel.version` into it from the host afterwards. Both need it uid-owned and neither needs it root-owned. A real build through the patched driver exited 0 with all 30 output paths `thomas:thomas` |
 | A test may drive the real kernel stage without isolating the durable cache | NO -- broken | `test/install/ze-kernel-overlay.ci` did. One `./le functional install` wrote a 518-byte fake `vmlinuz` into `~/.cache/ze/runtime-kernel/`, after which `ze-qemu-kernel-guard` refused every QEMU target. Fixed here; row in `plan/journal/suite-shares-one-persistent-store.md` |
 
@@ -153,7 +153,7 @@ absent cache entry.
   fresh pair as on the old. `--user` therefore denies the build its source tree
   on a clean machine too, and no ordering or migration makes it work without a
   privileged recursive chown of those volumes. The fix is the spec's own
-  fallback: `repair_out_dir_ownership` (`tools/kernel-builder/run.py`) chowns
+  fallback: `repair_out_dir_ownership` (`tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->) chowns
   `/out` from a `finally`. AC-1's second clause is met and its first is void.
 - A-2: **CONFIRMED, with a caveat worth stating.** `kernelCacheVariantFor`
   (`internal/appliance/cache.go`) hashes the resolved fragments, their manifests
@@ -200,13 +200,13 @@ prerequisite. A target added later carrying one but not the others must go red.
 | `./le qemu run` | → | `internal/le/integration/gates.go` recipe, `--kernel $(ZE_QEMU_KERNEL)` | `TestQemuFunctionalTargetsBootTheRuntimeKernel` |
 | `./le qemu run command "./le functional isis"` | → | same recipe, `$(ze-qemu-kernel-guard)` | `TestQemuTargetsGuardTheStagedKernel` |
 | `./le qemu netns-test` | → | same recipe, `: ./le build-artifacts host` prerequisite | `TestQemuTargetsDependOnHostBuild` |
-| the retired `ze-kernel-vmlinuz-stage` (current: `ze appliance kernel`) | → | `docker run` argv in `tools/kernel-builder/run.py` | `test/install/kernel-build-output-ownership.ci` (A-1 broke `--user`, so the test asserts the ownership REPAIR argv and its ordering, and asserts it after a FAILED build too) |
+| the retired `ze-kernel-vmlinuz-stage` (current: `ze appliance kernel`) | → | `docker run` argv in `tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> | `test/install/kernel-build-output-ownership.ci` (A-1 broke `--user`, so the test asserts the ownership REPAIR argv and its ordering, and asserts it after a FAILED build too) |
 | any booted VM | → | the kernel the VM booted | `assert_runtime_kernel_booted` (`internal/le/qemu/run.go`), run at every boot that passes `--kernel` |
 | a workflow JOB running a guarded target | → | a kernel staged in that same job | `TestQemuKernelPreconditionIsMetInTheSameJob` (`internal/le/`), revived from a dead file path |
 
 ## Acceptance Criteria
 
-- AC-1: `tools/kernel-builder/run.py` runs the container as the invoking user,
+- AC-1: `tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> runs the container as the invoking user,
   and a kernel build leaves no root-owned path under `tmp/`.
 - AC-2: All thirteen `qemu-run.py` invocations pass `--kernel $(ZE_QEMU_KERNEL)`.
 - AC-3: All thirteen recipes take `$(ze-qemu-kernel-guard)`.
@@ -243,12 +243,12 @@ A developer deletes `tmp/` and re-runs any QEMU target without `sudo`.
 
 | Test | Location | Scenario |
 |------|----------|----------|
-| the guest is running ze's kernel | `assert_runtime_kernel_booted` (`internal/le/qemu/run.go`) | reads `uname -r` over SSH right after the VM comes up and refuses to go on unless it matches `internal/appliance/kernel.version`. This is the check that would have caught the whole defect. It replaces the planned `test/qemu/runtime-kernel-booted.ci`, and is STRONGER than it: a `.ci` runs only in the four targets that run `.ci` suites, while this runs at all thirteen boots, needs no new suite, no new runner option and no registration. A `.ci` would also have needed a QEMU-only marker, which the runner has no equivalent of -- `option=needs-linux` still runs on a Linux HOST, where `uname -r` is the host's kernel and the assertion is meaningless |
+| the guest is running ze's kernel | `assert_runtime_kernel_booted` (`internal/le/qemu/run.go`) | reads `uname -r` over SSH right after the VM comes up and refuses to go on unless it matches `internal/appliance/kernel.version`. This is the check that would have caught the whole defect. It replaces the planned `test/qemu/runtime-kernel-booted.ci` <!-- doc-links: ignore (a suite this spec considered and did not create) -->, and is STRONGER than it: a `.ci` runs only in the four targets that run `.ci` suites, while this runs at all thirteen boots, needs no new suite, no new runner option and no registration. A `.ci` would also have needed a QEMU-only marker, which the runner has no equivalent of -- `option=needs-linux` still runs on a Linux HOST, where `uname -r` is the host's kernel and the assertion is meaningless |
 | a kernel build leaves no root-owned scratch | `test/install/kernel-build-output-ownership.ci`, plus a real build | the `.ci` asserts the repair argv, its ordering after the build, and its presence after a FAILED build, with only docker faked. The real build is the end-to-end evidence: `run.py` drove an amd64 7.2 build to exit 0 and left 30 output paths, every one owned by the invoking user |
 
 ## Files to Modify
 
-- `tools/kernel-builder/run.py` - `repair_out_dir_ownership`, called from a `finally` in `run_docker`. Not `--user`: A-1 broke
+- `tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `repair_out_dir_ownership`, called from a `finally` in `run_docker`. Not `--user`: A-1 broke
 - `internal/le/integration/gates.go` - seven recipes gain `--kernel`, the guard and the prerequisite; three literal `--kernel tmp/kernel/vmlinuz` become `$(ZE_QEMU_KERNEL)`; the vrrp comment corrected, and three more comments that went false with it
 - `internal/le/deployment/` - the three properties, each its own test over a derived population; two parser defects fixed (a recipe ends at a make conditional, a target's prerequisites come from one rule line)
 - `internal/le/qemu/run.go` - `assert_runtime_kernel_booted`, the guest-side check
@@ -262,7 +262,7 @@ A developer deletes `tmp/` and re-runs any QEMU target without `sudo`.
 ## Files to Create
 
 - `test/install/kernel-build-output-ownership.ci` - the ownership repair's argv, ordering, and its presence after a failed build
-- `plan/deferrals/qemu-targets-boot-the-shipped-kernel.md` - nothing deferred, so not created
+- `plan/deferrals/qemu-targets-boot-the-shipped-kernel.md` <!-- doc-links: ignore (nothing was deferred, so this shard was never created) --> - nothing deferred, so not created
 
 ### Integration Checklist
 
@@ -352,7 +352,7 @@ lab was already red.
 | Decision | Rationale |
 |----------|-----------|
 | Repair `/out`'s ownership rather than run the container with `--user` | A-1 broke. Docker creates a named volume owned `root:root 0755`, measured on a volume created FRESH for the probe, so `--user` denies the build `/build` and `/tmp/kbuild` on a clean machine as well as on an old one. Making `--user` work needs a privileged recursive chown of two pre-existing volumes on every machine, which is more machinery than the one container the repair costs, and reaches the same host-visible outcome |
-| The guest-side check lives in `qemu-run.py`, not in a new `test/qemu/` suite | It covers all 13 boots instead of the 4 targets that run `.ci` suites, and needs no new suite, no runner option and no registration. A `.ci` would also have needed a QEMU-only marker the runner has no equivalent of: `option=needs-linux` still runs on a Linux HOST, where `uname -r` is the host's kernel and the assertion says nothing |
+| The guest-side check lives in `qemu-run.py`, not in a new `test/qemu/` <!-- doc-links: ignore (a suite this spec considered and did not create) --> suite | It covers all 13 boots instead of the 4 targets that run `.ci` suites, and needs no new suite, no runner option and no registration. A `.ci` would also have needed a QEMU-only marker the runner has no equivalent of: `option=needs-linux` still runs on a Linux HOST, where `uname -r` is the host's kernel and the assertion says nothing |
 | Three separate tests over one derived population, not one compound check | Removing any one property must name which one went missing. Proven: six mutations, each reddening exactly one test and leaving the other two green |
 | The vacuity guard compares attributed invocations against a raw line count | It is self-calibrating, so a parser that silently loses a target takes the file red instead of reporting a shrunken population as fully wired. It fired for real at 12 of 13 and found `recipeOf` reading only `ze-qemu-debug`'s first rule line |
 | MPLS added to the shipped kernel rather than the LDP lab left red | The lab failing on ze's kernel is the defect this spec exists to surface, not a cost of surfacing it. `dumpMPLSRoutes` and `addMPLSSwap` program `AF_MPLS` on a kernel that carried no MPLS symbol at all |
@@ -365,7 +365,7 @@ lab was already red.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -383,7 +383,7 @@ lab was already red.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

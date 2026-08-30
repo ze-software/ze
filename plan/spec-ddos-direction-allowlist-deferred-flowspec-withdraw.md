@@ -345,7 +345,7 @@ Stage 4 is the defect: the branch knows mitigation is exempt and is the only pla
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/plugins/ddos/*`)
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)
 

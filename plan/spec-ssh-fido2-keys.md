@@ -40,6 +40,7 @@ are the config surface and the per-key policy applied at the auth callback.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/system-architecture.md` - the legacy note on hub/orchestrator mode with separate plugin processes
 - [ ] `internal/component/ssh/pubkey.go` - `parseConfiguredKey` reconstructs an `authorized_keys` line and calls `ssh.ParseAuthorizedKey`; `matchPublicKey` compares with `ssh.KeysEqual`.
   -> Constraint: `ParseAuthorizedKey` already accepts `sk-*` lines; the block is purely the YANG enum, so do not fork the parser.
 - [ ] `internal/component/ssh/ssh.go` - the `wish.WithPublicKeyAuth` callback that returns a bool.
@@ -255,7 +256,7 @@ are the config surface and the per-key policy applied at the auth callback.
 - [ ] End-to-End User Stories: working path + passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

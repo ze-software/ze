@@ -94,6 +94,13 @@ claimed done until it exists.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/ospf/ospf-10-as-external-asbr.md` - ASBR Type 5 origination, redistribution and default-information
+- [ ] `docs/architecture/ospf/ospf-11-stub-nssa.md` - stub and totally-stubby areas (RFC 2328 Section 3.6) and NSSA (RFC 3101)
+- [ ] `docs/architecture/ospf/ospf-13-cli-diag-interop.md` - the presentation and observability layer over the OSPF engine
+- [ ] `docs/architecture/ospf/ospf-4-component-config.md` - the OSPF config-to-engine backbone: the plugin root, the YANG tree, the SDK
+- [ ] `docs/architecture/ospf/ospf-7-lsdb-flooding.md` - raw-byte LSA storage, freshness comparison, origination and flooding
+- [ ] `docs/architecture/ospf/ospf-9-inter-area-abr.md` - ABR detection, and Type 3 network and Type 4 ASBR Summary-LSA origination
+- [ ] `docs/features/ai-first.md` - register once, expose everywhere: one command and discovery surface
 <!-- NEVER tick [ ] to [x] — checkboxes are template markers, not progress trackers. -->
 <!-- Capture insights as → Decision: / → Constraint: annotations — these survive compaction. -->
 <!-- Track reading progress in session-state.md, not here. -->
@@ -438,7 +445,7 @@ claimed done until it exists.
 | 3. Wiring phase | Wiring Test table -- config flag + failing wiring tests |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist |
 | 8. Fix issues | from critical review |
 | 9. Re-verify | re-run stage 6 |
@@ -692,7 +699,7 @@ MUST document on:
 - [ ] End-to-End User Stories: every non-gated story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/plugins/ospf/*`, `internal/core/diagnostic/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

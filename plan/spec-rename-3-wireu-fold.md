@@ -111,8 +111,8 @@ audit snapshot and implementation.
 | A-1 | Zero identifier clashes between the two packages | comm audit 2026-07-08 (exported 60+81 vs 24+7; unexported 108 vs 34; tests included) | clash needs a rename first; fold design holds otherwise | rerun both comm audits at start | confirmed (2026-07-08 snapshot; MUST rerun at start) |
 | A-2 | Only doc.go and errors.go collide by filename | directory-listing comm 2026-07-08 | more file renames in the move | rerun listing comm at start | confirmed (2026-07-08 snapshot) |
 | A-3 | wireu -> message is the only cross-import between the pair | import grep 2026-07-08 (split.go; no reverse edge) | cycle would block the fold | grep both directions at start | confirmed (2026-07-08 snapshot) |
-| A-4 | 17 doc anchors point into `bgp/wireu` | anchor grep 2026-07-08 | doc-test reveals more | `./le doc-check verify` after sweep | confirmed (2026-07-08 snapshot) |
-| A-5 | spec-rename-2 closed; destination is `bgp/packet` | Depends field | fold target absent | `./le spec-status` + `ls internal/component/bgp/packet` at start | unvalidated (checked at start) |
+| A-4 | 17 doc anchors point into `bgp/wireu` | anchor grep 2026-07-08 | doc-test reveals more | `./le doc check verify` after sweep | confirmed (2026-07-08 snapshot) |
+| A-5 | spec-rename-2 closed; destination is `bgp/packet` | Depends field | fold target absent | `./le spec status` + `ls internal/component/bgp/packet` at start | unvalidated (checked at start) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -135,7 +135,7 @@ audit snapshot and implementation.
 | AC-1 | after fold | `internal/component/bgp/wireu/` does not exist; its files live in `internal/component/bgp/packet/` with package clause `packet`; `errors.go` collision resolved (e.g. `errors_update.go`); doc.go content merged into the destination doc.go |
 | AC-2 | repo-wide grep for the old import path and `wireu.` qualifier | zero hits in code and living docs (plan/learned history exempt) |
 | AC-3 | `internal/le/protocolskeleton/protocolskeleton.go` | summary `legacy 1` (only `bgp/reactor`); `--selftest` OK with ("bgp","wireu") fixtures removed |
-| AC-4 | `./le doc-check verify` | green after the 17-anchor + prose sweep |
+| AC-4 | `./le doc check verify` | green after the 17-anchor + prose sweep |
 | AC-5 | rule surfaces | go-standards.md glossary `wireu` row removed (decision recorded as superseded); protocol.md BGP row updated |
 | AC-6 | fuzz | `FuzzRewriteASPath` seed corpus found and passing from its new location |
 | AC-7 | `./le verify current mode full` | green, including regenerated `ai/PACKAGE-MAP.md` |
@@ -210,7 +210,7 @@ audit snapshot and implementation.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered inventory changed? | [ ] | No |
-| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 17 anchors; gated by `./le doc-check verify` |
+| 16 | Changed source referenced by doc anchors? | [ ] | Yes - 17 anchors; gated by `./le doc check verify` |
 | 17 | Docs show examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -225,7 +225,7 @@ audit snapshot and implementation.
 | 2. Audit | rerun A-1..A-5 (clash audits are phase 1, BLOCKING) |
 | 3. Wiring phase | Wiring Test table (existing chains) |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 6-9. Reviews + fixes | Critical Review Checklist below |
 | 10. Deliverables review | Deliverables Checklist below |
 | 11. Security review | Security Review Checklist below |
@@ -247,7 +247,7 @@ audit snapshot and implementation.
    - Files: per Files to Modify
    - Verify: AC-1, AC-2 (code), AC-3, AC-6
 4. **Phase: rule + doc sweep** — go-standards.md, protocol.md, 17 anchors + prose, PACKAGE-MAP regen.
-   - Tests: `./le doc-check verify`
+   - Tests: `./le doc check verify`
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
 5. **Full verification** — `./le verify current mode full`; AC-7.
@@ -403,7 +403,7 @@ Not applicable: existing `// RFC 4271/4760/7911` comments move verbatim with the
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

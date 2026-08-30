@@ -72,6 +72,7 @@ The pcap half of the original request is `plan/spec-bgp-pcap-decode.md`.
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
 ### Architecture Docs
+- [ ] `docs/architecture/config/environment.md` - the reference of ze environment variables and their central registration
 
 - [ ] `ai/rules/simplicity.md` - whether the "interface every BGP component implements" that prompted this work is justified
   → Decision: it is NOT. An interface with one implementation is refused, and the wire interfaces (`message.Message`, `attribute.Attribute`, `capability.Capability`) are `WriteTo`-shaped hot-path contracts over pooled, lazily-parsed data. A mandatory `Describe()` would put an allocating method on the forwarding path and force every NLRI codec plugin to implement rendering it never uses.
@@ -380,7 +381,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
    - Verify: AC-6 to AC-11, including the zero-allocation assertion and the syslog backend
 5. **Phase: documentation and discovery** -- every row of the Documentation checklist
    - Files: the docs listed under Files to Modify, plus `ai/INDEX.md`
-   - Verify: `./le doc-check verify`, `./le doc-wiring`
+   - Verify: `./le doc check verify`, `./le doc wiring`
 
 ### Critical Review Checklist
 
@@ -407,7 +408,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 | The web tool page still works | `./le functional ui` |
 | The runtime tap | `./le functional plugin` for `test-bgp-wire-decode-log.ci` |
 | Core tier respected | `./le tier check` |
-| Docs and discovery | `./le doc-check verify`, `./le doc-wiring` |
+| Docs and discovery | `./le doc check verify`, `./le doc wiring` |
 
 ### Security Review Checklist
 
@@ -460,7 +461,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 - [ ] AC-1..AC-11 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -478,7 +479,7 @@ hop is this peer's own address`. If it appears, it is that guard, not this spec.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

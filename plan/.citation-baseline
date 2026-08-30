@@ -7,7 +7,7 @@
 # closed while still cited) is not listed here and fails the gate.
 #
 # Shrink this list by cleaning up the citing reference, then removing
-# the entry, then run: ./le spec-citation
+# the entry, then run: ./le spec citation
 plan/spec-anomaly-1-detect.md
 plan/spec-doctor-coverage.md
 plan/spec-filter-wire-1-protocol.md

@@ -39,6 +39,8 @@ byte-expiry scaffolding that is currently never fed by config; this wires it.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/ike/ipsec-3-data-model.md` - the typed model between the YANG schema and the IKE engine
+- [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - ESP Child SA creation after IKE_AUTH, and the dataplane abstraction
 - [ ] `docs/architecture/core-design.md` - IKE engine and SA lifecycle.
   → Constraint: reuse the existing `lifetimeState.softExpired` byte path; do not add a parallel timer system.
 - [ ] `ai/rules/config.md` / `ai/rules/config.md` - the new leaves.
@@ -284,7 +286,7 @@ noting time/volume are alternative expressions of the same lifetime.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

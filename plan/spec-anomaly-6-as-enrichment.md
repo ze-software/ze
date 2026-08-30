@@ -42,6 +42,7 @@ matching prefix) the field is `0` and downstream degrades to prefix cohorts (umb
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/flowexport/flow-export-1-counter-export.md` - interface counter export: sFlow v5 counter samples, NetFlow v9 and IPFIX
 <!-- NEVER tick [ ] to [x]. Capture insights as → Decision: / → Constraint: annotations. -->
 - [ ] `ai/rules/architecture.md` - the tier taxonomy and the `./le tier check` gate this spec must pass
   → Constraint: tier = dependency direction. `internal/core` (observation) is imported by everyone; `internal/component` (trafficfeature) is depended on by plugins; `internal/plugins` (flowexport, anomaly) is an edge nobody depends on. Adding a field to a core or component struct is tier-safe; a plugin importing another plugin's engine subtree is not.
@@ -392,7 +393,7 @@ by construction, not by exception.
 ### Deviations from Plan
 - The two producer tests live in a new `internal/plugins/flowexport/exporter_srcas_test.go` rather than
   in `exporter_test.go` as the TDD plan named. `exporter_test.go` carries RFC-tagged NetFlow and sFlow
-  proofs, and `.claude/hooks/pretool-writeedit.py` refuses any edit to such a file without owner
+  proofs, and `.claude/hooks/pretool-writeedit.py` (retired; now `internal/le/hookruntime/writeedit.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> refuses any edit to such a file without owner
   approval. A sibling file in the same package runs under the same target and touches no RFC proof.
 - The `Phase` metadata row keeps its value `B`: in this family it names the umbrella's phase, which the
   umbrella's child table reads, not an implementation phase counter.
@@ -462,7 +463,7 @@ by construction, not by exception.
 - [ ] End-to-End User Stories: story 1 and 2 have a working path + passing test; story 3 documented as child 7
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests, incl. `./le tier check`)
+- [ ] `./le verify worktree` passes (lint + all ze tests, incl. `./le tier check`)
 - [ ] Feature code integrated (`internal/core/observation`, `internal/plugins/flowexport`, `internal/component/trafficfeature`)
 - [ ] Integration completeness proven end-to-end (facts surface carries `SrcAS`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

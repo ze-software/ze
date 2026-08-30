@@ -133,7 +133,7 @@ the argument for doing it: see "Also fix while in here" below.
 ## THEN
 
 ```
-./le rules points-roundtrip-check && ./le rules coverage-report && ./le doc-check verify
+./le rules points-roundtrip-check && ./le rules coverage-report && ./le doc check verify
 ```
 
 ## Already done 2026-08-06, no action owed

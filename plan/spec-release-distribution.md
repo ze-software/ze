@@ -48,6 +48,11 @@ The excluded binaries are host/developer, test/evidence, or target/appliance art
 
 ### Architecture Docs and Rules
 
+- [ ] `docs/architecture/appliance/self-update.md` - the device downloads a new `ze` binary, verifies its SHA-256 and replaces itself
+- [ ] `docs/architecture/config/system-update.md` - the system update backend, and the version check
+- [ ] `docs/architecture/hub-architecture.md` - the standalone orchestrator in `internal/component/hub/`
+- [ ] `docs/architecture/system-architecture.md` - the legacy note on hub/orchestrator mode with separate plugin processes
+- [ ] `docs/features/ai-first.md` - register once, expose everywhere: one command and discovery surface
 - [ ] `ai/rules/architecture.md` - explicit behavior, simple ownership, and no speculative surfaces.
   -> Decision: use checked-in deterministic release tooling around the existing Make/Go build instead of adding GoReleaser as a second build model.
   -> Constraint: nFPM is limited to native package assembly; it does not own version derivation, release policy, signing, or publication.
@@ -910,7 +915,7 @@ All Python unit symbols run through `./le evidence release-candidate`, defined a
 | AC-32 | both retention units; both credential units; staging `retention` |
 | AC-33 | stable-delete/private-route unit; both retention units; staging `storage-isolation` |
 | AC-34 | both monitor units plus stale-clock credential unit; staging `monitoring` |
-| AC-35 | `DocumentationPolicyTest.test_user_and_operator_contract`; `./le doc-check verify`; both successful public probes executing guide commands |
+| AC-35 | `DocumentationPolicyTest.test_user_and_operator_contract`; `./le doc check verify`; both successful public probes executing guide commands |
 | AC-36 | `DependencyClosurePolicyTest.test_exact_candidate_closure`; `ActivationPolicyTest.test_dependency_canary_completion_gate`; public canary-failures scenario; all evidence/staging/successful public modes; signed first-public-canary record |
 
 ### Interop Tests
@@ -1270,7 +1275,7 @@ Not applicable. This spec does not add or change a network protocol.
 
 ### Documentation Updates
 
-- Fill during implementation with source anchors and `./le doc-check verify` evidence.
+- Fill during implementation with source anchors and `./le doc check verify` evidence.
 
 ### Deviations from Plan
 
@@ -1437,7 +1442,7 @@ Not applicable. This spec does not add or change a network protocol.
 - [ ] Tests fail for the intended missing behavior.
 - [ ] Tests pass after implementation.
 - [ ] Tests FAIL first and Tests PASS after, with output pasted per phase (`ai/rules/testing.md`).
-- [ ] `./le verify current mode full` passes (lint + all ze tests) in addition to the release gates above.
+- [ ] `./le verify worktree` passes (lint + all ze tests) in addition to the release gates above.
 - [ ] Boundary tests cover syntax/trusted date/clock, entropy, doctor deadline/output, SHA, size, path/envelope, workflow artifact/evidence sets, cache/freshness, retention credentials/batches, key/monitor thresholds, scriptlet count, storage/architecture/generation, and one-per-day limits.
 - [ ] Functional tests cover every user/operator entry point and every AC maps to exact evidence.
 - [ ] Six native package-manager cells and two full booted-systemd lifecycle tests pass.

@@ -724,7 +724,7 @@ and `rfc/short/rfc5838.md` / `rfc/short/rfc4552.md` (consumed by ext-15 / ext-16
 - [ ] End-to-End User Stories each map to a child + a downstream test
 - [ ] Wiring Test table complete (umbrella-level; detailed wiring per child)
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes (downstream, per child)
+- [ ] `./le verify worktree` passes (downstream, per child)
 - [ ] Feature code integrated (`internal/plugins/ospf/` + `internal/plugins/ospf/v3/`) (downstream, per child)
 - [ ] Documentation Update Checklist answered (per child as each lands)
 - [ ] Critical Review passes

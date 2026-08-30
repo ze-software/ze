@@ -56,6 +56,14 @@ behavior.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/config/syntax.md` - the JUNOS-like config syntax: blocks, terminators, comments and inheritance
+- [ ] `docs/architecture/dns/as112.md` - the AS112 sink answering the RFC 7534 and RFC 7535 zones
+- [ ] `docs/architecture/dns/geodns.md` - answering a query with the record set that matches the client
+- [ ] `docs/architecture/dns/secure-transports.md` - DNS-over-TLS (RFC 7858), DNS-over-HTTPS (RFC 8484) and DNSSEC stub validation
+- [ ] `docs/architecture/hub-architecture.md` - the standalone orchestrator in `internal/component/hub/`
+- [ ] `docs/architecture/pki/tls-listeners.md` - a TLS listener serving an operator certificate from the PKI store
+- [ ] `docs/architecture/web-interface.md` - the HTTPS server rendering YANG-driven config views with HTMX components
+- [ ] `docs/features/ai-first.md` - register once, expose everywhere: one command and discovery surface
 - [ ] `internal/component/web/` - web server implementation
   → Constraint: `WebServer` builds one `tls.Config` at construction (`server.go`) and wraps every listener with it (`server.go`, `:337`); reload only migrates listen addresses (`cmd/ze/hub/listener_migrate.go`), never TLS material.
 - [ ] `internal/component/pki/` - PKI certificate management
@@ -383,7 +391,7 @@ None deferred.
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan -- check what exists |
 | 3. Wiring phase | Wiring Test table -- register entry points, write failing wiring tests |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 7. Fix issues | Fix every issue from critical review |
 | 8. Re-verify | Re-run stage 5 |
@@ -417,7 +425,7 @@ None deferred.
    - Files: `pki/tls.go` (helper), plugin doctor files + registrations, web doctor registration, `diagnostic/codes.go`
    - Verify: `doctor-tls-reference` registered and explainable; checks fire only when the leaf is set
 6. **Functional tests** -- fill the `.ci` files (`test/plugin/as112-dot-pki.ci`, `geodns-dot-pki.ci`, `test/reload/pki-reference-reload.ci`, complete the parse ones)
-7. **Full verification** -- `./le verify current mode full` (respect `internal/le/verifystatus/answer.go check` freshness)
+7. **Full verification** -- `./le verify current mode full` (respect `internal/le/verify/status/answer.go check` freshness)
 8. **Complete spec** -- audit tables, learned summary `plan/learned/NNN-pki-full-chain.md`, two-commit closure
 
 ### Critical Review Checklist (/implement stage 6)
@@ -732,7 +740,7 @@ shape for core-hosted listeners like dnsserver.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

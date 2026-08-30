@@ -259,7 +259,7 @@ N/A. CGNAT is a local dataplane feature, not a wire protocol. The IPFIX export i
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Fix issues | Fix every issue from critical review |
 | 9. Re-verify | Re-run stage 6 |

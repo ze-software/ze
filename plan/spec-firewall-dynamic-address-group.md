@@ -40,6 +40,7 @@ target set actually holds runtime entries with expiry.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] `ai/rules/plugins.md` - firewall lowering is self-contained in the nft backend.
   → Constraint: the new action registers as another `firewall.Action` case in `lowerAction`; no core change.
 - [ ] `ai/rules/config.md`, `ai/rules/config.md` - the new rule-action leaf.
@@ -278,7 +279,7 @@ target set actually holds runtime entries with expiry.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

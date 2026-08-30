@@ -29,7 +29,7 @@ Ranked by what each one would catch, not by cost.
 |---|-----|----------|-------------|
 | G-1 | Nothing asserts that an out-of-band target EXISTS on the page meant to receive it. A swap aimed at an absent element does nothing, silently | `#cli-prompt`, `#cli-path-bar` and `#breadcrumb-bar` are swapped into nothing. Each appears only in fixtures that are themselves out-of-band responses, every one carrying `hx-swap-oob`, and in no page fixture. The layout renders `#breadcrumb` instead. Dead before the cutover and dead after | main thread, against the rendered fixtures |
 | G-2 | `attributePattern` in `internal/le/webassets/webassets.go` is `\s(hx-[a-z:-]+)=`, whose class holds no digit. Any htmx attribute carrying a digit is invisible to the per-page asset generator and to the check that reads its output | `hx-status:4xx` is the live case: htmx 4 supports it, and the generator cannot see it. The report that found it counted three copies of that regex | main thread read the producer; the three-copy count is the phase's |
-| G-3 | `./le repository-tracked-build check` compiles what git holds with `go build`, which compiles no `_test.go`. A commit that breaks only tests leaves HEAD red and the check green | It bit twice in one day. Once when this session deleted a directory three test files still embedded, and once when a closure found four uncommitted files leaving HEAD red on a test-only failure | main thread, both incidents |
+| G-3 | `./le repository tracked-build check` compiles what git holds with `go build`, which compiles no `_test.go`. A commit that breaks only tests leaves HEAD red and the check green | It bit twice in one day. Once when this session deleted a directory three test files still embedded, and once when a closure found four uncommitted files leaving HEAD red on a test-only failure | main thread, both incidents |
 | G-4 | The htmx upgrade gate keys on file plus category, so a NEW issue of an explained category in an already-explained file passes silently | 16 explained rows exist. The trade was deliberate: no defect-bearing category has an explained row anywhere, so a new event or extension issue still reds. It is still a hole for inheritance | reported by the closure that made the trade |
 | G-5 | Two chaos targets cannot discriminate a dead stream. `#stats` and `#events` carry a 500ms poll BESIDE their SSE swap, so they refresh whether or not the stream works. Any future test written against them is vacuous | Found while choosing a target for the streaming proof, which used the toast container instead because no poll fills it | reported by the SSE phase |
 | G-6 | The `.wb` runner cannot kill a server mid-test, so no automated browser proof exists for the branch that fires when a request gets no answer at all | Measured by hand on chaos, and covered by a unit test. No acceptance criterion rests on it | reported by the error-surface phase |
@@ -240,7 +240,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -258,7 +258,7 @@ every test-only breakage invisible to the one check that reads what git holds.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

@@ -172,13 +172,13 @@ Consequences you will meet and should **not** "fix":
 
 - `./le changed scope` is red: 9 misspell findings, all in their
   `toplugin_order_test.go`.
-- `./le doc-check verify` is red: `ai/PACKAGE-MAP.md` stale from their untracked
+- `./le doc check verify` is red: `ai/PACKAGE-MAP.md` stale from their untracked
   packages, plus a source anchor in `docs/guide/web-interface.md` broken by a
   third session's uncommitted edit to `cmd/ze/hub/aaa_authenticator_web.go`.
 - **Regenerating `ai/PACKAGE-MAP.md` would carry their packages into your
   commit.** I did that once already today and had to recover with
   `git show HEAD:<path> > <path>`. Leave it.
-- `./le doc-check links` is red on 7 references, 5 of them stranded by the
+- `./le doc check links` is red on 7 references, 5 of them stranded by the
   `8f3a80bf9` closure. None is ours.
 
 Four journal rows in my own `87645d0db` cite files from that untracked set. My
@@ -187,7 +187,7 @@ was mine. **If a doc gate reddens on a citation, attribute by the row's Spec
 cell and subject, not by the commit that carried it** — the carrier is nearly
 always innocent, and `git log -S` cannot tell you the difference.
 
-Related and unbuilt: `path_resolves` in `internal/le/doccheck/links.go` uses
+Related and unbuilt: `path_resolves` in `internal/le/doc/check/links.go` uses
 `os.path.exists`, so it measures the *checkout*, not the tracked corpus. A row
 citing untracked code is therefore not red, it is **latent**: green on every
 machine carrying the work, broken only in a fresh clone or CI. That is a

@@ -394,7 +394,7 @@ These four have no file yet. Routing stalls on them until one exists.
 | `1010-verify-producer-before-claiming.md` | C | `ai/rules/evidence.md` | "it is a hypothesis, not a finding." |
 | `1012-root-layout-reorg.md` | C | `ai/rules/testing.md` | "returned 0 files, and hit 't.Skip('no config files found')'." |
 | `1014-functional-test-timeout-flakiness.md` | A | `docs/architecture/testing/runner-architecture.md` | "Load-induced timeout flakiness is not 'raise this one timeout.'" |
-| `1018-registration-over-hardcoding.md` | B | `ai/rules/plugins.md` | "Enforced in 'the retired `.claude/hooks/validate-spec.sh` (current producer: `internal/le/hookruntime/lifecycle.go`)' as a WARNING, not a hard ERROR," |
+| `1018-registration-over-hardcoding.md` | B | `ai/rules/plugins.md` | "Enforced in 'the retired `.claude/hooks/validate-spec.sh` (retired; now `internal/le/hookruntime/lifecycle.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> (current producer: `internal/le/hookruntime/lifecycle.go`)' as a WARNING, not a hard ERROR," |
 | `1020-tiers-5-structure-tidy.md` | B | `ai/rules/architecture.md` | "Did NOT cluster AAA (platform infra consumed by api, bgp, ssh, web)," |
 | `1023-installer-network-rescue-gate.md` | B | `docs/architecture/installer.md` | "**NIC selection** — pin to the NIC iPXE booted from, carried on the kernel" |
 | `1025-installer-dhcp-broadcast-flag.md` | A | `ai/rules/protocol.md` | "**A DHCP client doing DORA from 0.0.0.0 must set the BOOTP broadcast flag**" |
@@ -406,7 +406,7 @@ These four have no file yet. Routing stalls on them until one exists.
 | `1063-ownership-1-rs-invariant.md` | A | `ai/digests/config-pipeline.md` | "Config-validation schema is a UNION of ALL init()-registered YANG modules" |
 | `1064-ownership-2-coordinator-types.md` | A | `docs/architecture/plugin-manager-wiring.md` | "The registry leaf now has one component->component lateral edge ('config/storage')." |
 | `1065-ownership-3-reactor-modes.md` | A | `ai/digests/bgp-reactor.md` | "Any future reactor consumer must now state its mode." |
-| `1067-generated-discovery-indexes.md` | B | `ai/rules/repo-maintenance.md` | "Folding into './le doc-check verify' alone would have been a no-op gate" |
+| `1067-generated-discovery-indexes.md` | B | `ai/rules/repo-maintenance.md` | "Folding into './le doc check verify' alone would have been a no-op gate" |
 | `1068-digest-anchor-validator.md` | C | `ai/rules/repo-maintenance.md` | "The resolver fails closed on cross-base ambiguity" |
 | `1073-ddos-flowspec-wire.md` | C | `ai/rules/testing.md` | "a peer-based functional test is not optional for origination features -- parsing green != sending works." |
 | `1076-structural-gate-known-red.md` | C | `ai/rules/git-safety.md` | "A structural gate red is not 'pre-existing noise' to scope around." |
@@ -475,7 +475,7 @@ These four have no file yet. Routing stalls on them until one exists.
 | `1191-fixit-plugin-event-subscription.md` | A | `ai/digests/plugin-transport.md` | "**EventTypeID is GLOBAL, not per-namespace**" |
 | `1194-fixit-private-asn-leak-deferred-nil-api-fail-open.md` | C | `ai/rules/testing.md` | "**Trap for the next agent:** 'reactorLogger()' warns are NOT capturable via" |
 | `1195-fixit-supply-chain-hardening.md` | C | `ai/rules/repo-maintenance.md` | "Do not trust spec file paths for a 'fresh area': verify the package exists before" |
-| `1197-fixit-agent-tooling-misleads.md` | C | `plan/learned/HOOK-FRICTION.md` | "'./le verify-lint run --help' REGENERATES 'ai/LEARNED-FULL-INDEX.md'" |
+| `1197-fixit-agent-tooling-misleads.md` | C | `plan/learned/HOOK-FRICTION.md` | "'./le verify lint run --help' REGENERATES 'ai/LEARNED-FULL-INDEX.md'" |
 | `1198-fixit-perf-alloc-ci-gate.md` | A | `ai/rules/performance.md` | "**allocs/op is the stable column; B/op is not.**" |
 | `1200-fixit-mgmt-listener-auth-guard.md` | A | `docs/architecture/hub-architecture.md` | "Non-loopback classification must fail closed on UNPARSEABLE hosts, not just on" |
 | `1205-fixit-show-ping-serial-pacing.md` | C | `ai/rules/testing.md` | "**Fake-clock test trap: RTT timestamp races a post-inject clock advance.**" |

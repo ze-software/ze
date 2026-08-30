@@ -38,6 +38,8 @@ Sibling OSPF already exposes configurable SPF timers (`spf-delay-ms`,
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/isis/isis-4-component-config.md` - the IS-IS component wiring backbone every runtime layer builds on
+- [ ] `docs/architecture/isis/isis-9-spf-rib.md` - the IS-IS shortest-path computation and the route install
 - [ ] `internal/plugins/isis/spf/computer.go` - `DefaultDebounce` and `NewComputer`; the single debounce timer.
   -> Constraint: the Computer already exposes a `Debounce` config field that the engine never sets; extend it to a delay/hold/max back-off rather than adding a parallel timer.
 - [ ] `internal/plugins/isis/spf_wiring.go` - `initSPF` constructs the Computer without any timer config.
@@ -263,7 +265,7 @@ Sibling OSPF already exposes configurable SPF timers (`spf-delay-ms`,
 - [ ] End-to-End User Stories: working path + passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

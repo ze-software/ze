@@ -76,6 +76,10 @@ from configured unit addresses, `show interface` RA state surface.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `ai/rules/repo-maintenance.md` - which check enforces a rule when a feature, tool, gate or generated file changes
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
+- [ ] `docs/architecture/testing/interop.md` - live session interop against production daemons, and byte-level ExaBGP comparison
+- [ ] `docs/features/ai-first.md` - register once, expose everywhere: one command and discovery surface
 - [ ] `internal/component/l2tp/ppp/ra_linux.go` - the existing RA raw-socket sender, RS listener, and send loop.
   → Constraint: reuse the `BuildRA` + raw-socket/RS-listener pattern, but generalise it to a LAN interface and add prefix options.
 - [ ] `internal/core/sysctl/known_linux.go` - host-side RA acceptance sysctls (accept_ra, autoconf, forwarding).
@@ -368,7 +372,7 @@ QEMU Go integration tests (`//go:build integration && linux`, run by `./le qemu 
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan - check what exists; validate cheap assumptions (A-2, A-5, A-7) |
 | 3. Wiring phase | Wiring Test table - YANG container + parse + failing parse `.ci`, factory seam registered |
 | 4. Implement (TDD) | Implementation Phases below |
-| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` (+ `./le iface-resolution check` for AC-11) |
+| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` (+ `./le iface-resolution check` for AC-11) |
 | 6. Critical review | Critical Review Checklist below |
 | 7. Fix issues | Fix every issue from critical review |
 | 8. Re-verify | Re-run stage 5 |
@@ -542,7 +546,7 @@ the solicited-RA delay and rate limit (4861 Section 6.2.6), preferred <= valid (
 ## Implementation Summary
 ### What Was Implemented
 (2026-08-03 implementation session; spec Status stays `ready` because
-`internal/le/speclifecycle/session.go claim` refused the claim on the WIP cap, and
+`internal/le/spec/session/session.go claim` refused the claim on the WIP cap, and
 hand-editing Status to route around that check is banned.)
 
 - `internal/core/ndp` (`ra.go`): the RFC 4861 / RFC 8106 encoder. `BuildRA`
@@ -687,7 +691,7 @@ mutation of the producing code turned that test red.)
 ### Goal Gates (MUST pass)
 - [ ] Full `/ze-spec` DESIGN completed ~~and approved~~ before implementation (design filled 2026-07-10; user instruction 2026-07-10 authorized conversion to ready)
 - [ ] QEMU SLAAC test passes (`TestRASenderPeerAutoconfigures` + `test/plugin/iface-ra-slaac.ci`)
-- [ ] `./le verify current mode full` passes (after implementation)
+- [ ] `./le verify worktree` passes (after implementation)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] `./le iface-resolution check` passes with no new allowlist entries (AC-11)
 

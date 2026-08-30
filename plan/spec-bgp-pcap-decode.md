@@ -68,9 +68,12 @@ specs share the `ze bgp decode` entry point and nothing else.
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
 ### Architecture Docs
+- [ ] `ai/rules/plugins.md` - the plugin rule: registration, placement, transport, command surface and process boundary
+- [ ] `docs/architecture/api/commands.md` - the verb-first API command paths, with JSON or text encoding
+- [ ] `docs/architecture/mrt.md` - the three areas MRT (Multi-Threaded Routing Toolkit) support covers
 
 - [ ] `docs/architecture/diagnostics/packet-capture.md` - the design doc for the capture feature this spec fixes
-  → Constraint: the page carries `source:` anchors for `pcap.go`, `capture_raw.go`, `capture.go`, `capture_common.go`, both raw rings and both interface-capture files. Every anchor must be repointed when code moves, and `./le doc-check verify` plus `./le doc-wiring` own that.
+  → Constraint: the page carries `source:` anchors for `pcap.go`, `capture_raw.go`, `capture.go`, `capture_common.go`, both raw rings and both interface-capture files. Every anchor must be repointed when code moves, and `./le doc check verify` plus `./le doc wiring` own that.
   → Decision: the page's `LINKTYPE_RAW` justification is false and is corrected here, not preserved. It does not mention `internal/analyze/convert.go` at all, which is how a second pcap writer stayed invisible.
 
 - [ ] `ai/rules/architecture.md` - tier placement and the core import direction
@@ -404,7 +407,7 @@ the generated pcap describe a session from a host to itself.
    - Verify: `./le dash-stdio check`, `./le functional decode`
 7. **Phase: documentation and discovery** -- every row of the Documentation checklist
    - Files: the docs listed under Files to Modify, plus `ai/INDEX.md`
-   - Verify: `./le doc-check verify`, `./le doc-wiring`
+   - Verify: `./le doc check verify`, `./le doc wiring`
 
 ### Critical Review Checklist
 
@@ -431,7 +434,7 @@ the generated pcap describe a session from a host to itself.
 | Round trip | `./le functional plugin` for `test-bgp-pcap-roundtrip.ci` |
 | stdin honoured | `./le dash-stdio check` |
 | Core tier respected | `./le tier check` |
-| Docs corrected | `./le doc-check verify`, `./le doc-wiring` |
+| Docs corrected | `./le doc check verify`, `./le doc wiring` |
 
 ### Security Review Checklist
 
@@ -487,7 +490,7 @@ the generated pcap describe a session from a host to itself.
 - [ ] AC-1..AC-18 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -505,7 +508,7 @@ the generated pcap describe a session from a host to itself.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

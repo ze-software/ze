@@ -397,7 +397,7 @@ lacked.
 | Unit of analysis is the requirement, not the test | Flag every self-oracled test | A vacuous test beside a known-answer test is harmless. Test-level judging would have manufactured work on RFC 1994 |
 | Tranche = L2TP, not IKE | IKE is rank 1 by defect density | Another session is reviewing `internal/component/ike/**`. Editing under a live review costs more than it buys. IKE is named as the next tranche |
 | Landed only positive assertions | Also land the zero-tunnel-id and reserved-bit-on-receive negatives | Both would have been absence assertions, the exact vacuity trap in `ai/rules/interop-and-goal-validation.md`. Both revealed conformance questions instead, raised below |
-| Did not strip an RFC tag to reshape my own draft | Edit the draft in place | `.claude/hooks/pretool-writeedit.py` refused it, correctly: it cannot tell my uncommitted draft from a committed proof, and self-approval is not user approval. Wrote a second file instead |
+| Did not strip an RFC tag to reshape my own draft | Edit the draft in place | `.claude/hooks/pretool-writeedit.py` (retired; now `internal/le/hookruntime/writeedit.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> refused it, correctly: it cannot tell my uncommitted draft from a committed proof, and self-approval is not user approval. Wrote a second file instead |
 
 ## Owner questions (`ai/rules/rfc-compliance.md`: raised, not annotated)
 
@@ -437,7 +437,7 @@ unit-only by decision?
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -455,7 +455,7 @@ unit-only by decision?
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

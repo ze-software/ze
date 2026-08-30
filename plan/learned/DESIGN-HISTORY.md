@@ -1269,7 +1269,7 @@ Three test flavors:
 
 - **`test/*/*.ci`** — functional: `stdin=config`, `tmpfs=script.py`,
   `cmd=background/foreground`, `expect=bgp:hex/json/text/contains=`,
-  `action=sighup/rewrite`. Python plugin scripts via `test/scripts/ze_api.py`.
+  `action=sighup/rewrite`. Python plugin scripts via `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) -->.
 - **`test/editor/**/*.et`** — headless TUI replay with keystrokes and
   expectations.
 - **Go unit/integration tests** — `_test.go` alongside sources.
@@ -1376,7 +1376,7 @@ for benchmarks.
 | Plugin subprocess stderr is consumed by `relayStderrFrom()` | `process.go` | Never reaches test runner's stderr match. (451) |
 | Background `.ci` processes do NOT get `ZE_READY_FILE` | `runner_exec.go` | Only foreground path writes daemon.pid + daemon.ready. (623) |
 | `parse/` test runner only extracts `stdin=config` and runs `ze validate` | `internal/test/runner/` | `cmd=foreground`, `tmpfs=`, `expect=stdout:contains=` are silently skipped. (449) |
-| Python test library (`test/scripts/ze_api.py`) must track Go protocol | Python SDK | Changing engine RPC without updating Python hangs 129+ tests. (291, 397, 497) |
+| Python test library (`test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) -->) must track Go protocol | Python SDK | Changing engine RPC without updating Python hangs 129+ tests. (291, 397, 497) |
 | Stored test state (registry, `sync.Once`) must Snapshot/Restore | `t.Cleanup` | `Reset` empties all globally registered decoders; fresh registry breaks tests. (240, 533) |
 | `net.Pipe()` deadlocks sequential write-then-read | test setup | Zero buffering. Wrap writes in goroutines or start reader first. (210, 264, 459, 609) |
 | A `.ci` using `action=sighup` must contain at least one `tmpfs=` block | functional runner sighup path | `daemon.pid` is only written when a tmpfs directory exists, so the signal can never be delivered. (234) |

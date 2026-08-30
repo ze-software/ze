@@ -184,7 +184,7 @@ examples in `docs/guide/route-reflection.md`), an unresolved `gr` binding
 
 | Case | Status | Evidence |
 |------|--------|----------|
-| `bgp-route-refresh` alone (`api-route-refresh.ci`) | **DEMONSTRATED** | Recorded in `plan/spec-fixit-redistribute-establishment-stall.md` rows E1/E2 (run 2026-07-16 by the investigating session; **NOT re-run by this spec's author**). E1: log shows `sleeping for API routes duration=500ms` @14.187, `waiting for API sync expected=1` @14.688, then NO `API sync complete` and NO `sent EOR`. E2: raising the test plugin's sleep to 2.0/3.0/4.0s makes the EOR arrive and both expectations match. The EOR is LATE, not absent. |
+| `bgp-route-refresh` alone (`api-route-refresh.ci`) | **DEMONSTRATED** | Recorded in `spec-fixit-redistribute-establishment-stall` <!-- doc-links: ignore (spec closed on 2026-08-23 by 8f3a80bf9 and deleted from plan/) --> rows E1/E2 (run 2026-07-16 by the investigating session; **NOT re-run by this spec's author**). E1: log shows `sleeping for API routes duration=500ms` @14.187, `waiting for API sync expected=1` @14.688, then NO `API sync complete` and NO `sent EOR`. E2: raising the test plugin's sleep to 2.0/3.0/4.0s makes the EOR arrive and both expectations match. The EOR is LATE, not absent. |
 | `[bgp-gr, bgp-rib]` two-binding peers (10) | **THEORETICAL** | Producer chain read end to end (`peer_run.go` -> `peer.go` -> `peer.go`); no `bgp-gr` signaller exists (grep). No repro run. This is the highest-value experiment to run next: it would show `5c4421541` did not close these. |
 | `bgp-persist`, `bgp-rs`, `bgp-gr` alone | **THEORETICAL** | Same chain, no signaller in those packages (grep). No repro run. |
 | External/test plugins bound `send [ update ]` (10) | **THEORETICAL** | No `plugin session ready` emitter in any `.ci` python body (grep over `test/`). No repro run. Suspected cost: 2.5s per affected peer of functional-suite wall clock. |
@@ -573,7 +573,7 @@ recording that the deferral is a local policy choice and not an RFC deadline.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

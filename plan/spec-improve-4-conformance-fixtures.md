@@ -41,6 +41,7 @@ explicitly follow-up work, not this spec.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/testing/verify-freshness-scope.md` - the certificate and per-path manifest one verification run records
 - [ ] `docs/functional-tests.md` - .ci harness capabilities and conventions
   → Decision: dedicated fixture runner hosted as a ze-test subcommand (`registerRoot` pattern, `internal/test/cli/register.go`) + make target; the .ci dialect stays untouched -- fixtures are data directories, not a second script dialect (satisfies the no-layering row below). Directives/parser surveyed 2026-07-10 (parser `internal/test/runner/record_parse.go` parseAndAdd; executor `runner_exec.go,:557`; directives `docs/functional-tests.md`)
 - [ ] `plan/spec-improve-3-event-replay.md` - capture/replay machinery this reuses
@@ -105,7 +106,7 @@ explicitly follow-up work, not this spec.
 ### Integration Points
 - spec-improve-3 replay harness - drives the input stream.
 - Existing state dump commands (adj-rib-in dump and peers/summary equivalents) - expected-state probes.
-- `internal/le/` test targets + `internal/le/verify/run.go` stage list - runner invocation.
+- `internal/le/` test targets + `internal/le/verify/engine/run.go` stage list - runner invocation.
 
 ### Architectural Verification
 - [ ] No bypassed layers (fixtures exercise the real read/process path via replay)
@@ -179,7 +180,7 @@ explicitly follow-up work, not this spec.
 
 ## Files to Modify
 - `internal/le/` test makefiles - `ze-conformance-test` target
-- `internal/le/verify/run.go` - add stage (design decision: default vs opt-in) (`stagesForMode` :214-280 stage lists)
+- `internal/le/verify/engine/run.go` - add stage (design decision: default vs opt-in) (`stagesForMode` :214-280 stage lists)
 - `docs/functional-tests.md` - document the fixture format
 
 ## Files to Create
@@ -341,7 +342,7 @@ state before diffing:
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Wiring Test table complete
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 
 ### TDD
 - [ ] Tests written
@@ -353,6 +354,6 @@ state before diffing:
 
 Re-verified against the followup implementation wave (unpushed origin/main..HEAD commits):
 
-- The live producer of the `./le verify current mode full` stage list is `stagesForMode` (`internal/le/verify/run.go`, consumed at `:137` and `:192`). The wave inserted `./le port-defaults check` and `ze-platform-vet` into BOTH branches (`./le verify current mode changed` branch at `:233`/`:235`, default branch at `:255`/`:257`); the function now spans `:214-280` (Files to Modify updated to match).
+- The live producer of the `./le verify current mode full` stage list is `stagesForMode` (`internal/le/verify/engine/run.go`, consumed at `:137` and `:192`). The wave inserted `./le port-defaults check` and `ze-platform-vet` into BOTH branches (`./le verify current mode changed` branch at `:233`/`:235`, default branch at `:255`/`:257`); the function now spans `:214-280` (Files to Modify updated to match).
 - The planned conformance stage must be added to BOTH branches of `stagesForMode`, and NOT to the the native action tables under `internal/le/` `_ze-verify-impl` / `_ze-verify-changed-impl` targets: those have zero callers and are documented as dead (`internal/le/` native action tables comment); a stage added only there never runs under `./le verify current mode full` or CI.
 - `docs/functional-tests.md` (Required Reading item 1) has grown since this spec was written, e.g. the MCP GET-SSE section (`docs/functional-tests.md`), and new `.ci` suites exist under `test/plugin/` (`as112-dot.ci`, `as112-doh.ci`, `exabgp-bridge-internal.ci`, `exabgp-bridge-sdk.ci`). The Current Behavior test-layout survey must be redone against the current tree at design time.

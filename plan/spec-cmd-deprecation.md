@@ -83,6 +83,11 @@ Design constraint: ze uses date-based versioning, so `Since` is simply the date 
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/api/commands.md` - the verb-first API command paths, with JSON or text encoding
+- [ ] `docs/architecture/api/process-protocol.md` - the plugin communication protocol and process lifecycle
+- [ ] `docs/architecture/config/yang-config-design.md` - YANG (RFC 7950) as the schema language for config, CLI commands and API operations
+- [ ] `docs/architecture/system-architecture.md` - the legacy note on hub/orchestrator mode with separate plugin processes
+- [ ] `docs/guide/command-reference.md` - the two command categories: shell commands, and the CLI command tree
 - [ ] `docs/architecture/core-design.md` - registration pattern
   → Constraint: all metadata attaches at registration site via init()
 - [ ] `ai/patterns/registration.md` - init + registry + blank import
@@ -431,7 +436,7 @@ The stderr formatter lives in `internal/component/command/` as well (it formats 
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Fix issues | Fix every issue from critical review |
 | 9. Re-verify | Re-run stage 6 |
@@ -623,7 +628,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

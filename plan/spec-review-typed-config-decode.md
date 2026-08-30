@@ -58,6 +58,7 @@ removed for the BGP subtree, establishing the pattern for other consumers.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/config/syntax.md` - the JUNOS-like config syntax: blocks, terminators, comments and inheritance
 <!-- NEVER tick [ ] to [x] — checkboxes are template markers, not progress trackers. -->
 - [ ] `docs/architecture/core-design.md` (config pipeline section) - how File -> Tree ->
   ResolveBGPTree -> map[string]any -> PeersFromTree flows
@@ -369,7 +370,7 @@ Peer-facing behavior is unchanged; existing BGP interop scenarios must remain gr
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

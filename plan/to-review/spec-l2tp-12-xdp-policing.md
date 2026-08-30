@@ -322,7 +322,7 @@ unavailable.
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan -- check what exists |
 | 3. Implement (TDD) | Implementation phases below |
 | 4. /ze-review gate | Review Gate section |
-| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 6. Critical review | Critical Review Checklist below |
 | 7. Fix issues | Fix every issue from critical review |
 | 8. Re-verify | Re-run stage 5 |
@@ -373,7 +373,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 8. **Phase: ./le repository generate** -- update all.go (blank import). cilium/ebpf is already in `go.mod` (added by `trafficusage`); do NOT add it again.
    - Files: `internal/component/plugin/all/all.go` (and `go.mod`/`go.sum` only if a newer minor is genuinely required)
-   - Verify: `./le repository generate`, `./le verify-lint run` pass; `git diff go.mod` is empty unless a version bump was justified
+   - Verify: `./le repository generate`, `./le verify lint run` pass; `git diff go.mod` is empty unless a version bump was justified
 
 9. **Full verification** -- `./le verify current mode full`
 10. **Complete spec** -- Fill audit tables, write learned summary

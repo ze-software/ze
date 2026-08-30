@@ -73,6 +73,7 @@ and the Section 4.2 four are that spec's.
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] `ai/rules/config.md` - YANG versus environment variables, and what a config leaf owes
   → Constraint: a leaf that documents a behaviour owes that behaviour. Two enums that produce identical output are a configuration surface making a promise the engine does not keep.
 - [ ] `ai/rules/config.md` - naming for config leaves
@@ -438,7 +439,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -456,7 +457,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-bgp-local-as-options.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-bgp-local-as-options.md` only (commit A preserves the spec in history)

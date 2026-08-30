@@ -124,7 +124,7 @@ joining two sources you already keep:
 **Cost.** Low. Extend the retired `scripts/dev/arch_map.py` (current producer: `internal/le/archmap/archmap.go`) (already walks the trees) or
 the retired `scripts/inventory/inventory.go` (current producer: `internal/le/inventory/inventory.go`) (already imports the registry and renders a
 Description column, `inventory.go`), and wire it into the existing
-`./le doc-check verify` / `./le repository generate` freshness gate (the retired `mk/check-docs.mk` (current producer: `internal/le/doccheck/actions.go`)) so it cannot rot.
+`./le doc check verify` / `./le repository generate` freshness gate (the retired `mk/check-docs.mk` (current producer: `internal/le/doc/check/actions.go`)) so it cannot rot.
 
 **Why first.** It is the literal answer to your complaint, it is ~90% generatable from
 metadata you maintain, and the freshness gate keeps it honest. This is the single best

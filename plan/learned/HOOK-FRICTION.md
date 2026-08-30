@@ -13,13 +13,16 @@ a workaround that another session already documented.
 hook's regex so the false positive disappears. Until that happens,
 the catalog saves rediscovery cost.
 
-Companion: `RECURRING-PATTERNS.md` names `c_silent_ignore` as the
+Companion: `RECURRING-PATTERNS.md` names `c_silent_ignore` as the <!-- doc-links: ignore (c_silent_ignore is the retired Python dispatcher's check name, kept as the historical record) -->
 highest-frequency trap, with over 30 appearances in the corpus.
 
-Every per-check shell hook was consolidated into a Python dispatcher. The check
-survives under a new name, so an entry below names the live function and its
-dispatcher. The old `.sh` filename is kept only in the Retired section, where
-it is the historical record of a false positive that is gone.
+**Two renames separate this catalog from the tree.** Every per-check shell hook
+was first consolidated into a Python dispatcher, which is why an older entry
+names a `c_*` or `check_*` function rather than a `.sh` file. The Python
+dispatchers were then retired on 2026-08-28 by commit `eae282592`, and every
+hook now runs in the compiled `le` command under `internal/le/hookruntime/`.
+So a name below is the name the check carried when the friction was filed. The
+native owner of each hook family is listed in `.claude/hooks/README.md`.
 
 ---
 
@@ -30,56 +33,58 @@ it is the historical record of a false positive that is gone.
 | `auto_linter.sh` (goimports post-hook) | 25+ | Retired 2026-04-19 | [Retired](#retired) |
 | `block-silent-ignore.sh` | 30+ | Retired 2026-04-19 | [Retired](#retired) |
 | `check-existing-patterns.sh` | 15+ | Retired 2026-04-19 | [Retired](#retired) |
-| `c_require_related_refs` | 7 | Active | [c_require_related_refs](#c_require_related_refs) |
-| `c_test_weakening` | 8 | Active | [c_test_weakening](#c_test_weakening) |
+| `c_require_related_refs` | 7 | Retired 2026-08-28 | [c_require_related_refs](#retired-c_require_related_refs) |
+| `c_test_weakening` | 8 | Retired 2026-08-28 | [c_test_weakening](#retired-c_test_weakening) |
 | `block-legacy-log.sh` | 4 | Retired 2026-04-19 | [Retired](#retired) |
-| `c_ignored_errors` | 4 | Active | [c_ignored_errors](#c_ignored_errors) |
-| `c_temp_debug` | 3 | Active | [c_temp_debug](#c_temp_debug) |
-| `check_root_build` | 3 | Active | [check_root_build](#check_root_build) |
-| `check_pipe_tail` | 2 | Active | [check_pipe_tail](#check_pipe_tail) |
-| `c_init_register` | 2 | Active | [c_init_register](#c_init_register) |
-| `c_encoding_alloc` | 2 | Active | [c_encoding_alloc](#c_encoding_alloc) |
+| `c_ignored_errors` | 4 | Retired 2026-08-28 | [c_ignored_errors](#retired-c_ignored_errors) |
+| `c_temp_debug` | 3 | Retired 2026-08-28 | [c_temp_debug](#retired-c_temp_debug) |
+| `check_root_build` | 3 | Retired 2026-08-28 | [check_root_build](#retired-check_root_build) |
+| `check_pipe_tail` | 2 | Retired 2026-08-28 | [check_pipe_tail](#retired-check_pipe_tail) |
+| `c_init_register` | 2 | Retired 2026-08-28 | [c_init_register](#retired-c_init_register) |
+| `c_encoding_alloc` | 2 | Retired 2026-08-28 | [c_encoding_alloc](#retired-c_encoding_alloc) |
 | `block-system-tmp.sh` | 1 | Retired earlier | [Retired](#retired) |
-| `c_panic` | 1 | Active | [c_panic](#c_panic) |
+| `c_panic` | 1 | Retired 2026-08-28 | [c_panic](#retired-c_panic) |
 | `block-layering.sh` | 1 | Retired 2026-04-19 | [Retired](#retired) |
-| `pretool-writeedit.py` `c_design_without_lsp` | 1 (2026-07-16) | Fixed 2026-07-16 at the source | [c_design_without_lsp](#pretool-writeeditpy--c_design_without_lsp) |
-| `validate-spec.sh` argv false-green | 3 (2026-07-16) | Fixed 2026-07-16 at the source | [F1](#f1-validate-specsh-false-greened-when-invoked-via-argv) |
-| `validate-spec.sh` Current Behavior citation regex | 1 (2026-07-16) | Active | [F2](#f2-validate-specsh-rejects-the-citation-form-the-rules-mandate) |
-| `validate-spec.sh` RFC-existence check dead (regex typo) | 1 (2026-07-22) | Active | [F11](#f11-validate-specsh-rfc-existence-check-is-dead-code-regex-typo) |
-| `spec-closure-check.py` slice-scoped learned false-positive | 1 (2026-07-22) | Active | [F12](#f12-spec-closure-checkpy-high-confidence-signal-misfires-on-slice-scoped-learned-summaries) |
-| `spec-closure-check.py` cannot enforce umbrella closure at the last child | 1 (2026-08-02) | Active | [F21](#f21-spec-closure-checkpy-cannot-enforce-umbrella-closure-at-the-last-child) |
-| `pretool-writeedit.py` `_rfc_tagged_change_err` traps its own author | 1 (2026-07-31) | Active | [F20](#f20-_rfc_tagged_change_err-traps-its-own-author-on-a-draft-that-has-never-compiled) |
-| `pretool-bash.py` `check_poll_loop` blocks a QUOTED wait loop | 1 (2026-08-02) | Active | [F22](#f22-check_poll_loop-blocks-a-command-that-quotes-a-wait-loop) |
-| `commit_helper.py create` leaks a `ze` daemon and stalls | 6+ (2026-07-26) | Active | [F15](#f15-commit_helperpy-create-leaks-a-ze-daemon-and-stalls-forever) |
-| `GOCACHE` relocation is make-scoped (disk exhaustion) | 1 (2026-07-26) | Active | [F16](#f16-gocache-relocation-is-make-scoped-so-the-recommended-workflow-bypasses-it) |
-| `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Active | [F5](#f5-c_throwaway_tests-blocks-legitimate-scriptsdev-test-filenames) |
-| `session-end-summary.sh` clobbers hand-written digests | 1 (2026-07-22) | Active | [F9](#f9-session-end-summarysh-destroys-the-digests-post-compactionmd-asks-for) |
+| `pretool-writeedit.py` `c_design_without_lsp` | 1 (2026-07-16) | Fixed 2026-07-16 at the source | [c_design_without_lsp](#retired-pretool-writeeditpy--c_design_without_lsp) |
+| `validate-spec.sh` argv false-green | 3 (2026-07-16) | Fixed 2026-07-16 at the source | [F1](#retired-f1-validate-specsh-false-greened-when-invoked-via-argv) |
+| `validate-spec.sh` Current Behavior citation regex | 1 (2026-07-16) | Retired 2026-08-28 | [F2](#retired-f2-validate-specsh-rejects-the-citation-form-the-rules-mandate) |
+| `validate-spec.sh` RFC-existence check dead (regex typo) | 1 (2026-07-22) | Retired 2026-08-28 | [F11](#retired-f11-validate-specsh-rfc-existence-check-is-dead-code-regex-typo) |
+| `spec-closure-check.py` slice-scoped learned false-positive | 1 (2026-07-22) | Retired 2026-08-28 | [F12](#f12-spec-closure-checkpy-high-confidence-signal-misfires-on-slice-scoped-learned-summaries) |
+| `spec-closure-check.py` cannot enforce umbrella closure at the last child | 1 (2026-08-02) | Retired 2026-08-28 | [F21](#f21-spec-closure-checkpy-cannot-enforce-umbrella-closure-at-the-last-child) |
+| `pretool-writeedit.py` `_rfc_tagged_change_err` traps its own author | 1 (2026-07-31) | Retired 2026-08-28 | [F20](#retired-f20-_rfc_tagged_change_err-traps-its-own-author-on-a-draft-that-has-never-compiled) |
+| `pretool-bash.py` `check_poll_loop` blocks a QUOTED wait loop | 1 (2026-08-02) | Retired 2026-08-28 | [F22](#retired-f22-check_poll_loop-blocks-a-command-that-quotes-a-wait-loop) |
+| `commit_helper.py create` leaks a `ze` daemon and stalls | 6+ (2026-07-26) | Retired 2026-08-28 | [F15](#f15-commit_helperpy-create-leaks-a-ze-daemon-and-stalls-forever) |
+| `GOCACHE` relocation is make-scoped (disk exhaustion) | 1 (2026-07-26) | Retired 2026-08-28 | [F16](#f16-gocache-relocation-is-make-scoped-so-the-recommended-workflow-bypasses-it) |
+| `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Retired 2026-08-28 | [F5](#retired-f5-c_throwaway_tests-blocks-legitimate-test-filenames-under-the-retired-scriptsdev-current-internalle) |
+| `session-end-summary.sh` clobbers hand-written digests | 1 (2026-07-22) | Retired 2026-08-28 | [F9](#retired-f9-session-end-summarysh-destroys-the-digests-post-compactionmd-asks-for) |
 | `stress-repro.py` broken argv / crash-only detection | 1 (2026-07-22) | Fixed 2026-07-22 at the source | [F10](#f10-stress-repropy-was-broken-for-every-sub-suite-and-said-so-as-reproduced) |
 
 ### Renamed checks
 
 An entry that a learned summary or an older session cites by its shell filename
-is listed here with the live check that replaced it. The check still runs. Only
-the name is gone.
+is listed here with the Python check name that replaced it, and with the native
+Go file that owns the hook family today. Both names are historical: the shell
+file went first, the Python dispatcher went on 2026-08-28. The family owners
+come from `.claude/hooks/README.md`.
 
-| Retired name | Live check | Dispatcher |
-|--------------|------------|------------|
-| Retired: `require-related-refs.sh` | `c_require_related_refs` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `block-test-deletion.sh` | `c_test_weakening` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `block-ignored-errors.sh` | `c_ignored_errors` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `block-temp-debug.sh` | `c_temp_debug` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `block-root-build.sh` | `check_root_build` | `.claude/hooks/pretool-bash.py` |
-| Retired: `block-pipe-tail.sh` | `check_pipe_tail` | `.claude/hooks/pretool-bash.py` |
-| Retired: `block-init-register.sh` | `c_init_register` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `block-encoding-alloc.sh` | `c_encoding_alloc` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `block-panic-error.sh` | `c_panic` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `auto_linter.sh` | `c_auto_lint` | `.claude/hooks/posttool-writeedit.py` |
-| Retired: `block-silent-ignore.sh` | `c_silent_ignore` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `check-existing-patterns.sh` | `c_check_existing_patterns` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `block-legacy-log.sh` | `c_legacy_log` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `block-layering.sh` | `c_layering` | `.claude/hooks/pretool-writeedit.py` |
-| Retired: `block-system-tmp.sh` | `c_system_tmp_we`, `check_system_tmp` | `.claude/hooks/pretool-writeedit.py`, `.claude/hooks/pretool-bash.py` |
-| Retired: `block-format-alloc.sh` | `c_format_alloc` | `.claude/hooks/pretool-writeedit.py` |
+| Retired shell name | Retired Python check | Native owner today |
+|--------------------|----------------------|--------------------|
+| Retired: `require-related-refs.sh` | `c_require_related_refs` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `block-test-deletion.sh` | `c_test_weakening` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `block-ignored-errors.sh` | `c_ignored_errors` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `block-temp-debug.sh` | `c_temp_debug` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `block-root-build.sh` | `check_root_build` | `internal/le/hookruntime/bash.go` |
+| Retired: `block-pipe-tail.sh` | `check_pipe_tail` | `internal/le/hookruntime/bash.go` |
+| Retired: `block-init-register.sh` | `c_init_register` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `block-encoding-alloc.sh` | `c_encoding_alloc` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `block-panic-error.sh` | `c_panic` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `auto_linter.sh` | `c_auto_lint` | `internal/le/hookruntime/postwrite.go` |
+| Retired: `block-silent-ignore.sh` | `c_silent_ignore` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `check-existing-patterns.sh` | `c_check_existing_patterns` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `block-legacy-log.sh` | `c_legacy_log` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `block-layering.sh` | `c_layering` | `internal/le/hookruntime/writeedit.go` |
+| Retired: `block-system-tmp.sh` | `c_system_tmp_we`, `check_system_tmp` | `internal/le/hookruntime/writeedit.go`, `internal/le/hookruntime/bash.go` |
+| Retired: `block-format-alloc.sh` | `c_format_alloc` | `internal/le/hookruntime/writeedit.go` |
 
 Non-hook tooling friction filed the same day (the LSP gate, the commit gate's
 advice, `commit_helper.py --body`, and rule/gate vocabulary drift) is in the same
@@ -93,7 +98,7 @@ because that is where a reader looking for "why did the tooling fight me" goes.
 
 ---
 
-## `pretool-writeedit.py` — `c_design_without_lsp`
+## Retired: `pretool-writeedit.py` — `c_design_without_lsp`
 
 **Trigger.** `Write`/`Edit` on `plan/spec-*.md` or `plan/design-*.md` when no
 marker for the spec's SUBJECT exists: `tmp/session/.lsp-invoked-<sid>` or
@@ -261,7 +266,7 @@ batch at the end of a session instead of one at a time as they were hit.
 
 ---
 
-### F1: `validate-spec.sh` false-greened when invoked via argv
+### Retired: F1: `validate-spec.sh` false-greened when invoked via argv
 
 **Friction:** The retired `bash .claude/hooks/validate-spec.sh plan/spec-foo.md`
 invocation exited **0** without running a single check, which read as "spec valid".
@@ -306,7 +311,7 @@ can only mean no check ran. the retired `ze-unit-hook-test` (current: `./le hook
 
 ---
 
-### F2: `validate-spec.sh` rejects the citation form the rules mandate
+### Retired: F2: `validate-spec.sh` rejects the citation form the rules mandate
 
 **Friction:** The Current Behavior check requires a source-file
 bullet matching `` `path.(go|py|rs|ts|js)` `` with the closing backtick
@@ -354,7 +359,7 @@ to confirm it does not turn ~40 legacy specs red. Filed rather than fixed.
 
 ---
 
-### F3: LSP is unavailable to subagents, and the rule shames them for it
+### Retired: F3: LSP is unavailable to subagents, and the rule shames them for it
 
 **Friction:** `.claude/rules/session-start.md` makes
 `ToolSearch query="select:LSP"` the "UNCONDITIONAL FIRST ACTION", BLOCKING, with
@@ -400,9 +405,9 @@ here: `.claude/rules/session-start.md` was out of scope for this task.
 "re-run `make " + gate_reds[0] + "` (or `./le verify current mode full`) until green. If you
 already fixed it, that re-run refreshes tmp/ze-verify-failures.json and clears
 this." It does not. `gate_reds[0]` is a stage name from `STRUCTURAL_GATES`
-(`:492-503`: `./le verify-lint run`, `./le changed scope`, `./le tier check`, ...), and running that
+(`:492-503`: `./le verify lint run`, `./le changed scope`, `./le tier check`, ...), and running that
 stage directly never writes the JSON. Verified at the producer: the only writer of
-`tmp/ze-verify-failures.json` is the retired `scripts/status/verify_run.go` (current producer: `internal/le/verify/run.go`)
+`tmp/ze-verify-failures.json` is the retired `scripts/status/verify_run.go` (current producer: `internal/le/verify/engine/run.go`)
 (`os.WriteFile(filepath.Join(root, failuresJSONPath), ...)`, path constant at
 `:28`), and `verify_run.go` is invoked only by `./le verify current mode full` (the retired Makefile (current producers: `internal/le/` native action tables):279-280) and
 `./le verify current mode changed`. `./le changed scope` is
@@ -432,9 +437,9 @@ this task (it changed today).
 
 ---
 
-### F5: `c_throwaway_tests` blocks legitimate the retired `scripts/dev/` (current producer: `internal/le/`) test filenames
+### Retired: F5: `c_throwaway_tests` blocks legitimate test filenames under the retired `scripts/dev/` (current: `internal/le/`)
 
-**Friction:** `c_throwaway_tests` in `.claude/hooks/pretool-writeedit.py`
+**Friction:** `c_throwaway_tests` in the retired `pretool-writeedit.py` (current: `internal/le/hookruntime/writeedit.go`)
 (`:1225-1233`) blocks a `Write` whose basename matches `test_.*\.(go|py|sh)$` OR
 `_test_.*\.(go|py|sh)$` unless the path contains `/internal/`, `/test/`, or
 `/cmd/`. the retired `scripts/dev/` (current producer: `internal/le/`) is none of those, so `audit_test_relaxation_test.py` was
@@ -585,7 +590,7 @@ the evidence the mechanical version is owed.
 
 ## Filed 2026-07-22: two frictions, one session
 
-### F9: `session-end-summary.sh` destroys the digests `post-compaction.md` asks for
+### Retired: F9: `session-end-summary.sh` destroys the digests `post-compaction.md` asks for
 
 **Friction:** `.claude/rules/post-compaction.md` tells every agent to write file
 digests and `-> Decision:` annotations into the per-session state file
@@ -609,7 +614,7 @@ for each). It was recoverable only because the authoring agent still had it in
 context. After a compaction it would simply have been gone -- which is exactly
 the case post-compaction.md exists to cover.
 
-**Exact mechanism** (the retired `.claude/hooks/session-end-summary.sh` (current producer: `internal/le/hookruntime/lifecycle.go`)): the write is
+**Exact mechanism** (the retired `session-end-summary.sh`, current: `internal/le/hookruntime/lifecycle.go`): the write is
 `{ echo "# Session State"; echo "$NEW_SNAPSHOT"; ...previous... } > "$STATE_FILE"`
 -- a truncating redirect. What it carries forward is only what its awk at
 `:60-66` extracts from the old file: printing starts at the FIRST line matching
@@ -689,7 +694,7 @@ as the sanctioned form -- exited 2 with the "refusing to run under make -n"
 message. GNU make 3.81 (the macOS system make) writes a command-line variable
 override into MAKEFLAGS as the FIRST word with no `--` separator
 (`MAKEFLAGS="ZE_VERIFY_LOG=tmp/ze-verify-gate12.log"`, captured), and
-`makeDryRun` (scripts/status/verify_run.go (retired; current producer: `internal/le/verify/run.go`)) read that word as concatenated
+`makeDryRun` (scripts/status/verify_run.go (retired; current producer: `internal/le/verify/engine/run.go`)) read that word as concatenated
 short flags: `ContainsAny(field, "ntq")` matched the 't' in "tmp".
 
 **Pattern:** the guard's negative-side test table was built from GNU make 4.x
@@ -846,9 +851,9 @@ semantics change, and it would have removed the whole investigation both times.
 
 ## Filed 2026-07-22 (plan-review session): two frictions
 
-### F11: `validate-spec.sh` RFC-existence check is dead code (regex typo)
+### Retired: F11: `validate-spec.sh` RFC-existence check is dead code (regex typo)
 
-**Friction:** the RFC-summary existence check at the retired `.claude/hooks/validate-spec.sh` (current producer: `internal/le/hookruntime/lifecycle.go`)
+**Friction:** the RFC-summary existence check at the retired `validate-spec.sh`, current: `internal/le/hookruntime/lifecycle.go`,
 greps with the pattern `'\rfc/short/rfc[0-9]+\.md'`. The leading `\r` is a
 carriage-return escape in grep -E, so the pattern can never match a literal
 `rfc/short/...` path; `RFC_REFS` is always empty and the check silently
@@ -866,7 +871,7 @@ block unrelated edits; treat missing summaries as a warning or fix them first.
 
 ### F12: `spec-closure-check.py` high-confidence signal misfires on slice-scoped learned summaries
 
-**Friction:** the closure advisory (surfaced by `./le spec-status`) listed
+**Friction:** the closure advisory (surfaced by `./le spec status`) listed
 four specs as "Completed but not closed -- high confidence" because a committed
 `plan/learned/NNN-<exact-spec-slug>.md` exists while the spec is in-progress.
 For three of the four (`fixit-bgp-session-fsm-lifecycle` learned 1202,
@@ -891,7 +896,7 @@ section to be filled before claiming high confidence.
 
 ---
 
-## `c_require_related_refs`
+## Retired: `c_require_related_refs`
 
 **Trigger.** `Edit` or `Write` on a `.go` file whose post-edit content
 still contains a `// Related:` / `// Detail:` / `// Overview:` comment
@@ -917,7 +922,7 @@ forward-ref block still fires by design.
 
 ---
 
-## `c_test_weakening`
+## Retired: `c_test_weakening`
 
 **Trigger.** `Edit`, `Write` or `MultiEdit` on a test file that loses a
 one-directional signal: a deleted `Test`/`Fuzz`/`Benchmark` func, an added
@@ -962,7 +967,7 @@ line counter).
 
 ---
 
-## `c_ignored_errors`
+## Retired: `c_ignored_errors`
 
 **Trigger.** Regex matching `_\s*=\s*\w+\.Close\(\)` or
 `_,\s*_\s*=\s*\w+\.\w+\(...\)`.
@@ -980,7 +985,7 @@ line counter).
 
 ---
 
-## `c_temp_debug`
+## Retired: `c_temp_debug`
 
 **Trigger.** A debug-MARKER print (`DEBUG`/`TRACE`/`>>>`/`<<<`/`***`/`XXX`/
 `FIXME`), a bare `println(...)`, or a short bare `fmt.Println("...")`, in a
@@ -1019,7 +1024,7 @@ session; `./le hook-check unit` 131/131 golden + 33/33 fixtures still green afte
 
 ---
 
-## `check_root_build`
+## Retired: `check_root_build`
 
 **Trigger.** `go build` without an `-o` flag from the repository root.
 
@@ -1034,7 +1039,7 @@ session; `./le hook-check unit` 131/131 golden + 33/33 fixtures still green afte
 
 ---
 
-## `check_pipe_tail`
+## Retired: `check_pipe_tail`
 
 **Trigger.** A `Bash` command containing `| tail` or `| head` applied
 to output of `make`, `go`, `golangci-lint`, or `bin/ze-*`.
@@ -1057,7 +1062,7 @@ build.
 
 ---
 
-## `c_init_register`
+## Retired: `c_init_register`
 
 **Trigger.** An `init()` function body containing the substring
 `Register`.
@@ -1089,7 +1094,7 @@ func registerFamilyOnce() bool {
 
 ---
 
-## `c_encoding_alloc`
+## Retired: `c_encoding_alloc`
 
 **Trigger.** `append(` or `make([]byte,` in files matching
 `update_build*`, `message/pack*`, `reactor_wire*`.
@@ -1116,7 +1121,7 @@ that the hook flags:
 
 ---
 
-## `c_panic`
+## Retired: `c_panic`
 
 **Trigger.** A `panic(` call in a new or modified `.go` file outside
 `_test.go`.
@@ -1187,7 +1192,7 @@ import, then add usage" lost the import between Edit 1 and Edit 2,
 producing an `undefined` compile error.
 
 **Fix.** The formatter (then `auto_linter.sh`, today the `auto-lint`
-check in `.claude/hooks/posttool-writeedit.py`) invokes
+check in the retired `posttool-writeedit.py`, current: `internal/le/hookruntime/postwrite.go`) invokes
 `goimports -format-only -w`. `-format-only` groups imports but
 neither adds nor removes them. Unused imports are still caught —
 by `golangci-lint`, which the same check runs next, so the failure
@@ -1253,11 +1258,11 @@ before `/tmp` (start of line, whitespace, or one of `=`, `'`, `"`,
 `$`, `(`, backtick, `:`, `,`). `test/tmp/` and `~/tmp/` no longer
 collide.
 
-## Filed 2026-07-29 (spec-mcp2026-2-mrtr): `c_layering` blocks quoting a normative specification sentence
+## Retired checks, filed 2026-07-29 (spec-mcp2026-2-mrtr): `c_layering` blocks quoting a normative specification sentence
 
 ### F-mrtr-1: a MUST-adjacent spec quote cannot be written in a Go comment
 
-**Trigger.** `c_layering` (`.claude/hooks/pretool-writeedit.py`) blocks any
+**Trigger.** `c_layering` (the retired `pretool-writeedit.py`, current: `internal/le/hookruntime/writeedit.go`) blocks any
 non-test `.go` file whose text matches `backwards.?compatib` or
 `backward.?compatib`, anywhere, including inside a quotation.
 
@@ -1287,7 +1292,7 @@ remedy.
 
 ### F-rfcgate1b-1: a newly authored RFC-tagged test cannot be iterated on
 
-**Trigger.** `c_test_weakening` (`.claude/hooks/pretool-writeedit.py`) calls
+**Trigger.** `c_test_weakening` (the retired `pretool-writeedit.py`, current: `writeWeakening` in `internal/le/hookruntime/writeedit.go`) calls
 `_rfc_tagged_change_err` for any test file carrying `RFC requirement:`. Once the
 tag is on disk, every later Edit whose hunk changes behavior bytes is refused,
 and removing the tag is refused first. The check has no notion of whether the
@@ -1316,11 +1321,11 @@ gate reads and drops this class of false positive.
 
 ## Filed 2026-07-30 (STE rewrite of the MCP prose): two `ste_check.py` defects, both FIXED
 
-### F-ste-1: `GERUND_CLAUSE` matches any word that ends in `ing`, including `nothing`
+### Retired: F-ste-1: `GERUND_CLAUSE` matches any word that ends in `ing`, including `nothing`
 
 **Status: FIXED** in commit `0a5de3eb3`.
 
-**Trigger.** `check_frozen_verbs` (the retired `scripts/dev/ste_check.py` (current producer: `internal/le/ste/ste.go`)) scans with
+**Trigger.** `check_frozen_verbs` (the retired `scripts/dev/ste_check.py`, current: `internal/le/ste/ste.go`) scans with
 `GERUND_CLAUSE`, which is
 `\b(before|after|while|without|when)\s+([a-z]+ing)\b`. The second group accepts
 any lowercase word that ends in `ing`, so a pronoun after one of the five
@@ -1469,10 +1474,10 @@ case to land in the retired `scripts/dev/ste_check_test.py` (current producer: `
 
 ---
 
-### F20: `_rfc_tagged_change_err` traps its own author on a draft that has never compiled
+### Retired: F20: `_rfc_tagged_change_err` traps its own author on a draft that has never compiled
 
 **Hook.** The `rfc-tagged-test` guard, which is `_rfc_tagged_change_err` in
-`.claude/hooks/pretool-writeedit.py`, called from `c_test_weakening` and
+the retired `pretool-writeedit.py` (current: `internal/le/hookruntime/writeedit.go`), called from `c_test_weakening` and
 reading scope through `_enclosing_tagged_scope`.
 
 **Seen.** 2026-07-31, WP-1 of the RFC 7296 gate pilot (rfcgate-1b).
@@ -1508,7 +1513,7 @@ and never compiles. A tag in a file that fails `go vet` is not evidence.
 1. Let the guard pass when the file does not currently build. `go vet` on the
    package before the comparison answers "is this proof today". A file that fails
    to compile proves nothing, so nothing can be weakened by editing it.
-2. Make `check_coverage_ratchet` refuse a tag whose file does not compile. It is
+2. Make `checkCoverageRatchet` (`internal/le/rfc/check_ratchets.go`) refuse a tag whose file does not compile. It is
    the difference between a green gate and a green gate that means something.
 
 ### F21: `spec-closure-check.py` cannot enforce umbrella closure at the last child
@@ -1518,9 +1523,9 @@ and never compiles. A tag in a file that fails `go vet` is not evidence.
 **Impact:** The umbrella stays open until a manual audit notices the contradiction.
 **Rule decision:** No new rule. The closure workflow already assigns this transition to the final child.
 **Proposed fix:** Treat an exact umbrella summary plus closed children as a high-confidence signal.
-<!-- source: internal/le/specstatus/closure.go -- closureCompletedNotClosed, closureNeedsVerification -->
+<!-- source: internal/le/spec/status/closure.go -- closureCompletedNotClosed, closureNeedsVerification -->
 
-### F22: `check_poll_loop` blocks a command that QUOTES a wait loop
+### Retired: F22: `check_poll_loop` blocks a command that QUOTES a wait loop
 
 **Friction:** `echo`-ing or here-doc-ing a `while`/`until` + `sleep` string to test the gate is refused, because the check matches the command TEXT.
 **Pattern:** Same class as the git-verb false positive in `ai/rules/commands.md`: a coarse text match cannot tell a loop you RUN from one you QUOTE.
@@ -1570,10 +1575,10 @@ uses the closed keyword grammar:
 3. Treat "exit non-zero with empty output" as a tooling error rather than a
    reproduction: no test ran, so nothing was reproduced.
 
-## `check_test_deletion` has no path for an agent-created file the operator authorised
+## Retired: `check_test_deletion` has no path for an agent-created file the operator authorised
 
 **Date:** 2026-08-01
-**Hook:** `check_test_deletion`, `.claude/hooks/pretool-bash.py`
+**Hook:** `check_test_deletion`, the retired `pretool-bash.py` (current: `bashTestDeletion` in `internal/le/hookruntime/bash.go`)
 **Category:** tooling friction, blocking with no escape
 
 **What happened.** A `.ci` was copied from `test/draft/ipsec/` into `test/ipsec/`
@@ -1659,7 +1664,7 @@ captured their in-flight `file:line` positions.
 
 Committing it would have swept their work into a commit titled as a BGP fix.
 Omitting it left the ledger stale, which reds four `./le verify current mode full` stages at once
-(`./le rfc check`, `./le doc-check verify`, `./le doc-wiring` and `ze-unit-test-cached`,
+(`./le rfc check`, `./le doc check verify`, `./le doc wiring` and `ze-unit-test-cached`,
 all one cause).
 
 **How it resolved, which is the interesting part.** The other session committed
@@ -1684,7 +1689,7 @@ uncommitted sources for it. The rule as written assumes a quiet checkout.
 
 ---
 
-## F: the RFC-tagged-test guard blocks the author repairing a file it just wrote
+## Retired hook names, F: the RFC-tagged-test guard blocks the author repairing a file it just wrote
 
 **Date.** 2026-08-02, during the RFC 5216 Section 2.1.3 extraction of
 `spec-rfcgate-1b-rfc7296-pilot`.
@@ -1693,7 +1698,7 @@ uncommitted sources for it. The rule as written assumes a quiet checkout.
 `RFC requirement:` tags, and it did not compile: a `const` in it duplicated one
 already declared elsewhere in the package. Both repair routes were shut.
 `Edit` and `Write` were refused by `_rfc_tagged_change_err`, which
-`c_test_weakening` calls (`.claude/hooks/pretool-writeedit.py`), because the tag
+`c_test_weakening` calls (the retired `pretool-writeedit.py`, current: `internal/le/hookruntime/writeedit.go`), because the tag
 sits outside every function and so widens the guard's scope to the whole file.
 `rm` was refused by `check_test_deletion` in `pretool-bash.py`.
 
@@ -1741,7 +1746,7 @@ the native contract and its fixtures.
 
 **Trigger.** `pretool-writeedit.py` refuses a code edit with
 `No session state (tmp/session/<date>-<SID>/state/session-state-<spec-stem>-<SID>.md)`.
-The stem comes from the retired `scripts/dev/spec-session.sh current` (current producer: `internal/le/speclifecycle/session.go`), which is ONE marker per
+The stem comes from the retired `scripts/dev/spec-session.sh current` (current: `./le spec session current`, `internal/le/spec/session/session.go`), which is ONE marker per <!-- doc-links: ignore (spec-session.sh was retired on 2026-08-28; the line names its native successor) -->
 Claude session id -- and one session id now runs many subagents concurrently.
 
 **What happens.** Agent A is running `/ze-implement` on spec X and has

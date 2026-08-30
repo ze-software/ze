@@ -29,7 +29,7 @@ derivation. Every AC, assumption, test and file below that named a suite says
 where it went.
 
 **The staticcheck matrix: 38 rows, one process, 874s.** `deriveFeatureMatrix`
-(`internal/le/staticcheckmatrix/staticcheckmatrix.go`) emits `all_features`,
+(`internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go`) emits `all_features`,
 `core_only`, and one `without_ze_<tag>` row per tag, 38 in total, verified by
 `./le staticcheck-feature-matrix check --print-matrix`.
 `judgeStaticcheckFeatureMatrix` spawns ONE `staticcheck -checks=-all -matrix
@@ -67,9 +67,9 @@ so nothing here touches the derivation, and sub-spec 5 owns it as its AC-7.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/le/staticcheckmatrix/staticcheckmatrix.go` - `deriveFeatureMatrix`, `matrixRowsForTags`, `judgeStaticcheckFeatureMatrix`
+- [ ] `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go` - `deriveFeatureMatrix`, `matrixRowsForTags`, `judgeStaticcheckFeatureMatrix`
 - [ ] `internal/le/changed/selector.go` - `reachedTags`, `tagForPackage`, `emit`
-- [ ] `internal/le/verify/run.go` - `execStage`, `selectChangeSet`, and the scope environment it exports
+- [ ] `internal/le/verify/engine/run.go` - `execStage`, `selectChangeSet`, and the scope environment it exports
 - [ ] `internal/le/functional/suites.go` - `all_suites`, `run_suite`, `ZE_SKIP_SUITES`, `SUITE_RUN` (read while the functional half was in scope; it moved to sub-spec 5 unchanged)
 - [ ] `internal/le/rfc/rfc.go` - `functional_suites`, `_suite_carriers`, `check_evidence_ratchet` (same; no edit is made here)
 
@@ -174,7 +174,7 @@ constraint and the inherited environment.
 | `TestMatrixRowFilterCatchesAGatedBreak` | `internal/le/repository/` | AC-3, AC-4: the retained rows still catch a real break, driven by the selector's own answer | pass |
 | `TestSelectorTagAnswerHoldsTheFeaturesAChangedFileNegates` | `internal/le/changed/selector_test.go` | AC-4: a negated tag joins the answer, and an unreadable changed file widens | pass |
 | `TestMatrixTestsJudgeTheFixtureNotTheRunThatStartedThem` | `internal/le/repository/` | AC-5: no `ZE_VERIFY_` variable reaches a child | pass |
-| `TestVerifyRunNamesTheFeatureScopeToEveryStage` | `internal/le/verify/verify_test.go` | the runner publishes the answer this spec's consumer reads | pass |
+| `TestVerifyRunNamesTheFeatureScopeToEveryStage` | `internal/le/verify/engine/verifyengine_test.go` | the runner publishes the answer this spec's consumer reads | pass |
 
 `TestFunctionalSuitesScopeToChangedPackages` and
 `test_functional_tier_reads_the_suite_map` moved to
@@ -202,16 +202,16 @@ constraint and the inherited environment.
 | N-A | - | - | Scope is tooling. No wire-visible behavior changes. The RFC ledger is regenerated, not re-judged | |
 
 ## Files to Modify
-- `internal/le/verify/run.go` - the largest edit: run the selector once, write both answers, and name the tag answer to every stage (`selectChangeSet`, `execStage`)
-- `internal/le/staticcheckmatrix/staticcheckmatrix.go` - the row filter and its floor
+- `internal/le/verify/engine/run.go` - the largest edit: run the selector once, write both answers, and name the tag answer to every stage (`selectChangeSet`, `execStage`)
+- `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go` - the row filter and its floor
 - `internal/le/changed/selector.go` - `reachedTags` unions the tags a changed file negates
-- `internal/le/repository/`, `internal/le/changed/selector_test.go`, `internal/le/verify/verify_test.go` - the tests for all three
+- `internal/le/repository/`, `internal/le/changed/selector_test.go`, `internal/le/verify/engine/verifyengine_test.go` - the tests for all three
 - `ai/INDEX.md`, `docs/functional-tests.md`, `docs/contributing/testing.md`, `docs/architecture/testing/tracked-build-gate.md`, `docs/architecture/testing/verify-freshness-scope.md` - the row count is no longer unconditional
 
 The suite half's files moved to `plan/spec-verify-scope-5-suite-coverage-map.md`:
 `internal/le/functional/suites.go`, `internal/le/rfc/rfc.go`, `ai/rules/testing.md`
 and the regenerated ledger. `FUNCTIONAL_SUITE_BY_AREA`
-(`internal/le/docwiring/wiring.go`) stays exactly as it is, four advisory
+(`internal/le/doc/wiring/wiring.go`) stays exactly as it is, four advisory
 entries used by no selection: superseding it needs the derived map, which is
 sub-spec 5's deliverable, and no spec supersedes it before that map exists.
 
@@ -259,11 +259,11 @@ sub-spec 5's deliverable, and no spec supersedes it before that map exists.
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- the run publishes the answer and the matrix reads it
    - Tests: `TestMatrixRowsScopeToChangedTags`, `TestVerifyRunNamesTheFeatureScopeToEveryStage`
-   - Files: `internal/le/verify/run.go`, `internal/le/staticcheckmatrix/staticcheckmatrix.go`
+   - Files: `internal/le/verify/engine/run.go`, `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go`
    - Verify: the answer reaches the stage, and the matrix judges every row while it is discarded
 2. **Phase: Matrix row filter** -- subtract the rows the change cannot move
    - Tests: `TestMatrixRowsScopeToChangedTags`, `TestMatrixRowFilterCatchesAGatedBreak`
-   - Files: `internal/le/staticcheckmatrix/staticcheckmatrix.go`
+   - Files: `internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go`
    - Verify: AC-1, AC-2, AC-3 hold, and the floor of 2 rows is enforced
 3. **Phase: Review fixes** -- close the two holes the review found in phase 2
    - Tests: `TestSelectorTagAnswerHoldsTheFeaturesAChangedFileNegates`, `TestMatrixTestsJudgeTheFixtureNotTheRunThatStartedThem`
@@ -331,7 +331,7 @@ measures the assumption they rested on before anything is built.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -349,7 +349,7 @@ measures the assumption they rested on before anything is built.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

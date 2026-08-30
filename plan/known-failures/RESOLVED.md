@@ -353,7 +353,7 @@ never at fault.
 
 **Lesson: bare `go test` is not equivalent to the native repository test actions.**
 Feature-gated plugins compile out (`//go:build ze_isis`, `ze_ospf`, `ze_web`, ...).
-Reproduce with `./le verify-deps unit-cached` or the owning
+Reproduce with `./le verify deps unit-cached` or the owning
 `./le test-unit <group>` action before logging a failure here.
 
 ### ~~`internal/component/config/schema/cli` `TestCmdMethods`~~ -- FIXED 2026-07-15
@@ -798,7 +798,7 @@ Environment deps (skip-env tagged): policy-routes-show, wireguard-invalid.
 
 **Resolved 2026-06-10.** Namespace-aware subscribe + event polling.
 
-### 2026-06-11 -- `./le doc-wiring` command validation drift
+### 2026-06-11 -- `./le doc wiring` command validation drift
 
 **Resolved 2026-06-11.** Wiring, doc, and inventory gates all green.
 

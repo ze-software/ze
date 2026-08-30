@@ -72,6 +72,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] The closed knowledge-0 umbrella (record retired with the learned corpus) - the previous pass and its measurements
   → Constraint: dead-path rate is now about 5% and `./le journal validate` holds it with a zero-slack ceiling. Routing must not raise it.
   → Decision: age-band retirement is DONE and is not repeated. This spec routes by content.
@@ -95,7 +96,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 - [ ] `internal/component/bgp/reactor/session_connection.go` - the `INVARIANT` comment at line 330 is the exemplar of a routed invariant: it names the rule, the dependent readers, and the failure mode
 - [ ] `internal/le/journal/validate.go` - `check`, `enforce`, `write_baseline`; the zero-slack ceiling routing must not disturb
 - [ ] `ai/skills/ze-close.md` - step 6a writes a summary only when the work produced a lesson; this spec adds the routing step after it
-- [ ] `internal/le/doccheck/links.go` - `check_index_budget`, `check_hook_names`; the closest sibling for a new markdown-corpus gate
+- [ ] `internal/le/doc/check/links.go` - `check_index_budget`, `check_hook_names`; the closest sibling for a new markdown-corpus gate
 - [ ] `plan/learned/DESIGN-HISTORY.md` - one of the routing destinations, rebuilt and now gated
 
 **Behavior to preserve:**
@@ -130,7 +131,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 
 ### Integration Points
 - `ai/skills/ze-close.md` step 6, where the summary is written.
-- `internal/le/doccheck/actions.go` `./le doc-check verify`, where a queue-depth gate would join.
+- `internal/le/doc/check/actions.go` `./le doc check verify`, where a queue-depth gate would join.
 - `ai/INDEX.md` Dev Tools, where any new tool must appear in the same phase.
 
 ### Architectural Verification
@@ -174,7 +175,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
 | `./le journal report` | → | the queue-depth reporter | `test_queue_reports_unrouted_age` in `internal/le/` |
-| `./le doc-check verify` | → | the gate declared in `internal/le/doccheck/actions.go` | `test_target_declared_in_doc_test` in `internal/le/` |
+| `./le doc check verify` | → | the gate declared in `internal/le/doc/check/actions.go` | `test_target_declared_in_doc_test` in `internal/le/` |
 | `/ze-close` on a spec that produced a lesson | → | the routing step in `ai/skills/ze-close.md` | `test_close_skill_names_the_routing_step` in `internal/le/` |
 
 ## Acceptance Criteria
@@ -187,7 +188,7 @@ These are not anecdotes. Each one changes a design decision in this spec.
 | AC-4 | `docs/architecture/` is measured before and after the pilot | Growth is under 3 lines per routed item, proving merge rather than append (A-3, R-1) |
 | AC-5 | Two independent agents route the same 5 summaries | Their destinations agree on at least 4 of 5, or the disagreement is reported as a taxonomy defect (A-4) |
 | AC-6 | `./le journal report` runs | It reports how many summaries are unrouted and how old the oldest is, and names the destination taxonomy in its help |
-| AC-7 | A summary sits unrouted past the agreed age | `./le doc-check verify` reports it. The gate counts unrouted AGE, never total count (R-5) |
+| AC-7 | A summary sits unrouted past the agreed age | `./le doc check verify` reports it. The gate counts unrouted AGE, never total count (R-5) |
 | AC-8 | The pilot's numbers do not justify the full pass | The spec records that plainly and the full pass is not done. A pilot that says no is a successful pilot |
 | AC-9 | Any tool this spec adds | Appears in `ai/INDEX.md` Dev Tools in the same phase that creates it |
 | AC-10 | Any tool this spec adds that rewrites a file | Preserves the file's mode, with a test that fails when the restoration is removed |
@@ -221,7 +222,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 
 - `ai/skills/ze-close.md` - a routing step after the summary is written
 - `ai/rules/planning.md` - "Writing Learned Summaries" states the lifecycle: written, routed, removed
-- `internal/le/doccheck/actions.go` - declare `ze-learned-queue`, add it to `./le doc-check verify`
+- `internal/le/doc/check/actions.go` - declare `ze-learned-queue`, add it to `./le doc check verify`
 - `ai/INDEX.md` - Dev Tools row, in the same phase (AC-9)
 - `ai/rules/repo-maintenance.md` - discovery-surface row
 
@@ -355,7 +356,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled
 - [ ] Every A-N confirmed or broken, none `unvalidated`
@@ -371,7 +372,7 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

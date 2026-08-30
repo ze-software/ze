@@ -67,6 +67,7 @@ The work splits into five child specs:
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/config/syntax.md` - the JUNOS-like config syntax: blocks, terminators, comments and inheritance
 - [ ] `docs/architecture/core-design.md` - component registration, policy filter chain
   -> Constraint: filters piped via PolicyFilterChain, text format, delta modify
 - [ ] `ai/patterns/registration.md` - plugin init/registry/blank-import pattern
@@ -690,7 +691,7 @@ Detailed in child specs. Summary:
 | 3. Wiring phase | Wiring Test table in child spec |
 | 4. Implement (TDD) | Implementation phases in child spec |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Fix issues | Fix every issue from critical review |
 | 9. Re-verify | Re-run stage 6 |
@@ -867,7 +868,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] AC-1..AC-16 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

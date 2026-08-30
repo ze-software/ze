@@ -43,6 +43,8 @@ identity the other two lack.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/api/architecture.md` - API programs own all RIB data and logic; the engine is a minimal BGP speaker
+- [ ] `docs/architecture/web-interface.md` - the HTTPS server rendering YANG-driven config views with HTMX components
 - [ ] `ai/rules/evidence.md` - the rule this change is governed by: both auth paths are guards
   → Constraint: an unset auth mode MUST NOT silently mean "open". A surface that cannot resolve its mode MUST refuse to serve rather than serve unauthenticated.
 - [ ] `ai/rules/config.md` - the YANG-versus-env-var decision for the new looking-glass mode leaf
@@ -312,7 +314,7 @@ map cannot prove a real client can produce it.
 | The public looking glass survives | `lg-open-mode-stays-public` on a config that selects open |
 | No second user list | `grep -rn 'ExtractAuthUsers' internal/component/lg internal/component/gnmi` shows the shared source and nothing else parses users |
 | Lint | `./le changed scope` |
-| Schema | `./le doc-check verify`, `./le cli-grammar` |
+| Schema | `./le doc check verify`, `./le cli-grammar` |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -372,7 +374,7 @@ map cannot prove a real client can produce it.
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated on both surfaces, not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -389,7 +391,7 @@ map cannot prove a real client can produce it.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

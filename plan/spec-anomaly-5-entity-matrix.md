@@ -38,6 +38,7 @@ prerequisite) and 7 (as-entities-cohorts). This spec adds no AS field and no flo
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/anomaly/anomaly-2-shape.md` - the shadow-first responder, the response tier of the behavioral security chain
 - [ ] `plan/spec-anomaly-0-umbrella.md` (child 5 row; R-1 line 182; R-7 line 188; AC-3 line 206; Design Insight lines 290-292)
   → Constraint: umbrella verdict is "mostly a FACTS-layer change; dest carries only `inBytes` today, port is a per-source histogram; the detector re-key is the smaller half." Budget the bulk in `trafficfeature/feature.go`, not `detect`.
   → Constraint: R-1/R-7 -- the `10000` cap is PER MAP; child 5 must decide per-dimension vs shared cap and size the ceiling; early signal is `ze_anomaly_tracked_entities`.
@@ -194,7 +195,7 @@ They were added on 2026-08-18 by an independent review of
 (`internal/component/trafficfeature`, `internal/core/anomalyevent`,
 `detector.go`, `show.go`, `responder.go`) from another session's working tree,
 because a commit there took `detector.go` as a CONSUMER and broke
-`./le repository-tracked-build check`. The code is this spec's; only the landing
+`./le repository tracked-build check`. The code is this spec's; only the landing
 was somebody else's, and the three rows are what that review found unproven.
 
 ## End-to-End User Stories
@@ -365,7 +366,7 @@ was somebody else's, and the three rows are what that review found unproven.
 | Responder guard | `go test ./internal/plugins/anomaly/shape/ -run NonSource` |
 | Source path unchanged | `go test ./internal/component/trafficfeature/ ./internal/plugins/anomaly/detect/ -run 'FanOut|ConfirmClear|FreezeLearn'` (existing tests, unmodified) |
 | Per-dimension gauge | `grep -n 'GaugeVec' internal/plugins/anomaly/detect/detector.go` |
-| Docs updated | `./le doc-check verify`; grep `docs/features.md` source anchors resolve |
+| Docs updated | `./le doc check verify`; grep `docs/features.md` source anchors resolve |
 
 ### Security Review Checklist (/implement stage 11)
 | Check | What to look for |
@@ -525,7 +526,7 @@ Widening the entity axis is not "teach the detector new keys" -- it is "teach th
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled - 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/component/trafficfeature`, `internal/plugins/anomaly/detect`, `internal/core/anomalyevent`)
 - [ ] Integration completeness proven end-to-end (`TestChainDestOutlier`/`TestChainPortOutlier`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

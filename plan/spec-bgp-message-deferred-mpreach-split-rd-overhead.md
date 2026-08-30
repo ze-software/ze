@@ -265,7 +265,7 @@ given. That gap is what makes the test discriminate.
 4. **Phase: Land it** -- gates, commit, stop
    - Tests: `go test -race ./internal/component/bgp/message`, then `./le changed scope`
    - Files: the two files above, plus this spec and the deferral shard row
-   - Verify: prepare the commit with `internal/le/commit/prepare.go create`, run the script it prints, then `./le repository-tracked-build check` because the commit carries Go. Set this spec's Status to `verification` in the same commit and STOP: `Handoff | verify` gives the close to a later Opus 5 session
+   - Verify: prepare the commit with `internal/le/commit/prepare.go create`, run the script it prints, then `./le repository tracked-build check` because the commit carries Go. Set this spec's Status to `verification` in the same commit and STOP: `Handoff | verify` gives the close to a later Opus 5 session
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -334,7 +334,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] AC-1..AC-5 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes, or the scoped gates plus an attribution are recorded per `ai/rules/git-safety.md` for a shared checkout
+- [ ] `./le verify worktree` passes, or the scoped gates plus an attribution are recorded per `ai/rules/git-safety.md` for a shared checkout
 - [ ] Feature code integrated (`internal/*`), not test-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -352,7 +352,7 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

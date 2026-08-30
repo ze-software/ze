@@ -58,6 +58,7 @@ rather than skipping honestly.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/testing/ci-format.md` - the `.ci` test file format: embedded files, options, expectations and commands
 - [x] The deployment-readiness-review record (retired with the learned corpus) - established ./le evidence release-candidate
   → Decision: Docker-based clean-clone verify is a permanent gate target
   → Constraint: ZE_SKIP_SUITES mechanism for container-incompatible suites
@@ -85,8 +86,8 @@ rather than skipping honestly.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [x] `test/interop/run.py` - BGP interop test runner, Docker-based, runs scenarios against FRR/BIRD/GoBGP
-- [x] `test/perf/run.py` - perf benchmark runner, Docker-based, runs all DUTs with results to JSON
+- [x] `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - BGP interop test runner, Docker-based, runs scenarios against FRR/BIRD/GoBGP
+- [x] `test/perf/run.py` (retired; now `internal/test/perfrunner`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - perf benchmark runner, Docker-based, runs all DUTs with results to JSON
 - [x] `internal/le/deployment/` - clean-clone Docker verify, ZE_SKIP_SUITES, 1200s timeout
 - [x] `internal/le/qemu/run.go` - QEMU VM runner for integration tests on macOS
 
@@ -272,7 +273,7 @@ Run in this order (fast/no-infra first, slow/heavy last):
 - [ ] AC-1..AC-8 all demonstrated
 - [x] `make -n ze-evidence-release-verify` shows correct target expansion
 - [x] Feature code integrated (`internal/le/evidence/evidence.go`, `internal/le/` native action tables)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 
 ### Design
 - [x] No premature abstraction
@@ -298,7 +299,7 @@ Run in this order (fast/no-infra first, slow/heavy last):
 | AC-6 no QEMU skip | PASS | `make MAKE=true ZE_RELEASE_QEMU_BIN=definitely-not-qemu ZE_RELEASE_SKIP=interop,ipsec-interop,l2tp-interop,perf,vpp-deployment,live ze-evidence-release-verify` skipped qemu and exited 0 |
 | AC-7 help output | PASS | `make help-test` shows `ze-evidence-release-preflight`, `ze-evidence-release-verify`, and `ze-evidence-perf-record` |
 | AC-8 all categories pass | FAIL | Not demonstrated. `make ZE_RELEASE_SKIP=verify ze-evidence-release-verify` failed 7 of 10 attempted categories |
-| Required final gate | FAIL | `./le verify current mode full` fails at `./le verify-lint run` on unrelated `cmd/ze/service` errcheck/modernize/unused issues and `internal/component/web/handler_config_test.go` gofmt |
+| Required final gate | FAIL | `./le verify current mode full` fails at `./le verify lint run` on unrelated `cmd/ze/service` errcheck/modernize/unused issues and `internal/component/web/handler_config_test.go` gofmt |
 
 ## Unblock record (2026-07-10)
 
@@ -309,12 +310,12 @@ against current code (followup-wave impact review):
 |--------------------|-----------------------------------|
 | `wireManagedCommit` undefined breaks `go build ./cmd/ze` | resolved: defined `cmd/ze/hub/managed.go` (takes `audit.Recorder`), called `cmd/ze/hub/main.go` |
 | `buildSessionModelFactory` call sites missing `audit.Recorder` | resolved: signature carries `recorder audit.Recorder` at `cmd/ze/hub/session_factory.go` |
-| `./le verify current mode full` blocked at ./le verify-lint run (service/web lint reds) | to be proven by the next full `./le verify current mode full` (./le verify-lint run is a stage of it); a green run supersedes this row |
+| `./le verify current mode full` blocked at ./le verify lint run (service/web lint reds) | to be proven by the next full `./le verify current mode full` (./le verify lint run is a stage of it); a green run supersedes this row |
 
 Additional post-wave corrections:
 - Required Reading cites `internal/le/` native action tables for verify composition; `./le verify current mode full` is now
   at `internal/le/` native action tables and `_ze-verify-impl` carries a longer gate list
-  (./le tier check, ze-iface-resolution-check, ./le plugin-boundary check,
+  (./le tier check, ze-iface-resolution-check, ./le plugin boundary check,
   ./le port-defaults check, ze-platform-vet, ./le cli-grammar, ...).
 - The evidence matrix categories predate wave-added heavy suites; the re-run should
   fold in `./le deployment vpp-iface-test` (`internal/le/integration/gates.go`) and the new

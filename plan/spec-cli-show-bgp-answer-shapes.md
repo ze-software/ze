@@ -177,7 +177,7 @@ producing function, and each changed what was declared.
 
 | Row | What the table says | What the producer does |
 |-----|--------------------|------------------------|
-| missing row | — | `show bgp peer rib` is a sixteenth in-tree path. `forwardRibRoutes` (`cmd/rib/rib.go`) sends it to `show bgp rib` with a peer selector, so it answers route rows and declares what `show bgp rib` declares. `TestEveryShowBgpPathDeclaresAShape` found it, which is what deriving the population buys |
+| missing row | — | `show bgp peer rib` is a sixteenth in-tree path. `forwardRibRoutes` (`internal/component/bgp/plugins/cmd/rib/rib.go`) sends it to `show bgp rib` with a peer selector, so it answers route rows and declares what `show bgp rib` declares. `TestEveryShowBgpPathDeclaresAShape` found it, which is what deriving the population buys |
 | `show bgp peer detail` | rows under "the answer itself, keyed by address" | `handleBgpPeerDetail` answers `plugin.Map{"peers": result}`, an ENVELOPE holding the keyed map, exactly as `show bgp peer list` does |
 | `show bgp peer detail` | address field `router-id` | RFC 6286 Section 2.1 makes the BGP Identifier a 4-octet unsigned integer that need not be an IPv4 address, and RFC 4456 Section 7 says the same of CLUSTER_ID. Neither is declared. The two fields that hold a real address are `local-ip` and `next-hop-address`; `next-hop` holds the MODE ("auto", "self", "unchanged", "explicit") |
 | `show bgp rib best` | address fields `prefix`, `best-peer`, `multipath-peers` | `best-peer` and the `next-hop` inside `attributes`, which is what AC-15 says. `prefix` is a prefix and fails `netip.ParseAddr`; `multipath-peers` is an ARRAY, and both transforms walk past an array element |
@@ -261,8 +261,8 @@ producing function, and each changed what was declared.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | No path in the tree is declared twice with two DIFFERENT non-empty values, in any of the five registries, other than `show bgp rib` | Read of every `RegisterShape`, `RegisterColumns`, `RegisterAddressFields`, `RegisterPipeFilters` and `RegisterAliases` call site: 23 sites, of which one pair collides | The conflict guard panics at daemon start on an unrelated path, taking the daemon down | A unit test over the composition root, plus a daemon start in a `.ci` | confirmed (Phase 1): the `cmd/peer` test binary imports `internal/component/plugin/all` (`all_import_test.go`) and every test ran; `bin/ze help command --json` built and answered 395 commands. The guard fired on no path |
-| A-2 | An empty declaration is never the intended ANSWER for a path another package declares non-empty | `column_order.go` states an empty declaration exists to stop inheritance, never to describe an answer. `RegisterColumns` already discards an empty order | The floor rule silently overrides a deliberate emptiness | Read of every empty-registration site and its comment | confirmed (Phase 1): five empty-registration sites exist, in `registerColumns`, `registerShapes` and `registerAliases` in `cmd/peer/peer.go`, `registerPipeFilters` in `cmd/rib/rib.go`, and the barrier loop in `RegisterPluginAliases`. Every comment states the same purpose, which is to stop inheritance |
+| A-1 | No path in the tree is declared twice with two DIFFERENT non-empty values, in any of the five registries, other than `show bgp rib` | Read of every `RegisterShape`, `RegisterColumns`, `RegisterAddressFields`, `RegisterPipeFilters` and `RegisterAliases` call site: 23 sites, of which one pair collides | The conflict guard panics at daemon start on an unrelated path, taking the daemon down | A unit test over the composition root, plus a daemon start in a `.ci` | confirmed (Phase 1): the `internal/component/bgp/plugins/cmd/peer` test binary imports `internal/component/plugin/all` (`all_import_test.go`) and every test ran; `bin/ze help command --json` built and answered 395 commands. The guard fired on no path |
+| A-2 | An empty declaration is never the intended ANSWER for a path another package declares non-empty | `column_order.go` states an empty declaration exists to stop inheritance, never to describe an answer. `RegisterColumns` already discards an empty order | The floor rule silently overrides a deliberate emptiness | Read of every empty-registration site and its comment | confirmed (Phase 1): five empty-registration sites exist, in `registerColumns`, `registerShapes` and `registerAliases` in `internal/component/bgp/plugins/cmd/peer/peer.go`, `registerPipeFilters` in `internal/component/bgp/plugins/cmd/rib/rib.go`, and the barrier loop in `RegisterPluginAliases`. Every comment states the same purpose, which is to stop inheritance |
 | A-3 | `handleBgpPeerCapabilities` and `handleBgpPeerStatistics` have no caller depending on the single-peer object form | Both are reached only through the dispatcher, from a command path | A caller breaks on the row form | `gopls references` on both, and a grep of `test/`, `internal/component/web/` and `internal/component/api/` for the two command paths | confirmed (Phase 3): `gopls references` answers the `RPCRegistration` line in `summary.go` and test files only. No production caller decodes either answer. `rest/server.go` builds `show bgp` and `show bgp peer <name> detail`, never these two, and `handleToolOverlay` in `internal/component/web/handler_tools.go` renders whatever the dispatcher answers as text. The one consumer that read the object form was `test/plugin/api-peer-capabilities.ci`, which asserted the defect and is corrected |
 | A-4 | Declaring a shape on a path that also declares pipe filters does not change how `foldFilters` rewrites them | The two registries are read at different steps and neither reads the other | `show bgp rib best \| count` stops answering | The existing rib `.ci` tests, run before and after Phase 4 | confirmed (Phase 4): `TestRibBestFiltersSurviveDeclaration` was green BEFORE the declaration and green after, over `count`, `graph`, `histogram` and `reason`. Each still folds into the command and is answered by the producer, and the formatter does not fold the rows into a number of its own |
 | A-5 | `show bgp rib status` genuinely has no row set, because two identity-keyed maps in one answer is the ambiguous case `rowsInKeyed` refuses | Read of `rowsInKeyed` and of `RIBManager.status` | Declaring `doc` refuses a row operator that used to answer | A `.ci` asserting the refusal names the operator | **broken in its REASON, confirmed in its CONCLUSION (Phase 4).** `RIBManager.status` (`internal/component/bgp/plugins/rib/rib_commands.go`) writes `gr-state` only when `len(r.grState) > 0`, so the answer holds TWO identity-keyed maps only while a peer is in graceful restart. With none, `route-counts` is the single row set and `rowsInKeyed` answers ROWS, so `\| count` answered the peer count; with an empty `route-counts` it answers neither. The derived shape therefore had three readings for one command, which is a stronger reason to declare than the one assumed. Declaring `doc` makes the refusal the answer in all three |
@@ -345,7 +345,7 @@ producing function, and each changed what was declared.
 | `TestPeerStatisticsAnswersRowsForOnePeer` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-8, and AC-9 through `ParsePipe` plus `ApplyPipes`, which is the row-counting path an operator's `\| count` reaches | red then green (Phase 3). It also pins the several-peer answer, so a change that moved both branches to one new shape cannot pass on the equalities alone |
 | `TestPeerCapabilitiesAnswersRowsForOnePeer` | `internal/component/bgp/plugins/cmd/peer/summary_test.go` | AC-10, over the same helper | red then green (Phase 3) |
 | `TestEveryShowBgpPathDeclaresAShape` | `internal/component/bgp/plugins/cmd/peer/peer_shape_test.go` | AC-20: the population is derived from the registered command list, so a path added later fails until it declares | red then green (Phase 4). The derivation joins `pluginserver.AllBuiltinRPCs` to `yang.WireMethodToPaths` and answers 16 paths, one of which the Current Behavior table above missed: `show bgp peer rib` |
-| `TestDeclaredColumnsExistInPayload` | `internal/component/bgp/plugins/cmd/peer/peer_shape_test.go`, `cmd/rib/rib_shape_test.go`, `filter_irr/cmd_irr_shape_test.go` | AC-21: every declared name is a key the handler writes for a fixture | red then green (Phase 4). One test of that name per declaring package. The peer and irr ones run the REAL producers; the rib producers live in the plugin process, so those are fixtures that each name the producing function |
+| `TestDeclaredColumnsExistInPayload` | `internal/component/bgp/plugins/cmd/peer/peer_shape_test.go`, `internal/component/bgp/plugins/cmd/rib/rib_shape_test.go`, `filter_irr/cmd_irr_shape_test.go` | AC-21: every declared name is a key the handler writes for a fixture | red then green (Phase 4). One test of that name per declaring package. The peer and irr ones run the REAL producers; the rib producers live in the plugin process, so those are fixtures that each name the producing function |
 | `TestDeclaredAddressFieldsHoldAnAddress` | `internal/component/bgp/plugins/cmd/peer/peer_shape_test.go` | Every declared address field is a bare address string in a row, which is the one form `resolveJSON` and `originJSON` decorate | red then green (Phase 4) |
 | `TestRibScalarPathsDeclareForThemselves` | `internal/component/bgp/plugins/cmd/rib/rib_shape_test.go` | AC-16, over the three rib paths that Phase 1 left inheriting the route declaration | red then green (Phase 4) |
 | `TestRibBestDeclaresItsOwnRows` | `internal/component/bgp/plugins/cmd/rib/rib_shape_test.go` | AC-15, and AC-14 in the form the payload supports | red then green (Phase 4) |
@@ -433,7 +433,7 @@ capability changes, no route changes. The scope is the operator surface.
 | 13 | Route metadata keys? | No | |
 | 14 | Prometheus counters? | No | |
 | 15 | Registered command or capability changed? | No | The set of registered commands is unchanged |
-| 16 | Changed source file referenced by doc source anchors? | DERIVED | Run `./le spec-citation anchors spec plan/spec-cli-show-bgp-answer-shapes.md` at the start of each phase. `docs/architecture/bgp/filter-irr.md` is declared by `filter_irr/cmd_irr.go` and is UNAFFECTED: that file gains a registration helper stating what the three `show bgp irr` answers already hold, and the doc describes what the IRR filter does to routes. No behavior the doc records changes |
+| 16 | Changed source file referenced by doc source anchors? | DERIVED | Run `./le spec citation anchors spec plan/spec-cli-show-bgp-answer-shapes.md` at the start of each phase. `docs/architecture/bgp/filter-irr.md` is declared by `filter_irr/cmd_irr.go` and is UNAFFECTED: that file gains a registration helper stating what the three `show bgp irr` answers already hold, and the doc describes what the IRR filter does to routes. No behavior the doc records changes |
 | 17 | Existing docs show examples for this area? | Yes | Checked (Phase 5). `docs/architecture/api/commands.md` shows no payload for either changed command: its "Peer Commands" block lists spellings alone, and the two JSON examples below it are `show neighbor` and `show adj-rib`. Two STALE claims were found elsewhere and corrected: `docs/features/formatting.md` said only `show bgp` and `show bgp peer list` declare an order, and `docs/guide/command-reference.md` said `show bgp rib` renders alphabetically |
 
 ## Implementation Steps
@@ -458,7 +458,7 @@ capability changes, no route changes. The scope is the operator surface.
      it already declares, and `show bgp peer list` declares one of its own.
    - Tests: `TestShowBgpChildrenDeclareNoAddressField`,
      `TestPeerListRefusesResolveAndAnswersCount`
-   - Files: `cmd/peer/peer.go`
+   - Files: `internal/component/bgp/plugins/cmd/peer/peer.go`
    - Verify: AC-5 and AC-6 in full. AC-7 in half, and the other half is Phase
      4's: `validateDeclaredShape` returns at `if !declared` before it reads the
      address fields (`internal/component/command/pipe.go`), so a path declaring
@@ -471,7 +471,7 @@ capability changes, no route changes. The scope is the operator surface.
      one matched peer as they do for several. Confirm A-3 first.
    - Tests: `TestPeerStatisticsAnswersRowsForOnePeer`,
      `TestPeerCapabilitiesAnswersRowsForOnePeer`, `test/ui/show-bgp-peer-rows.ci`
-   - Files: `cmd/peer/summary.go`
+   - Files: `internal/component/bgp/plugins/cmd/peer/summary.go`
    - Verify: AC-8, AC-9, AC-10
 4. **Phase 4: Every in-tree `show bgp` path declares**
    - Each path gains a shape, a column order where it answers rows, and an
@@ -483,7 +483,7 @@ capability changes, no route changes. The scope is the operator surface.
    - Tests: `TestEveryShowBgpPathDeclaresAShape`,
      `TestDeclaredColumnsExistInPayload`, `TestRibBestFiltersSurviveDeclaration`,
      `test/ui/show-bgp-declared-shapes.ci`
-   - Files: `cmd/peer/peer.go`, `cmd/peer/health.go`, `cmd/rib/rib.go`,
+   - Files: `internal/component/bgp/plugins/cmd/peer/peer.go`, `internal/component/bgp/plugins/cmd/peer/health.go`, `internal/component/bgp/plugins/cmd/rib/rib.go`,
      `filter_irr/cmd_irr.go`
    - Verify: AC-11 to AC-22
 5. **Phase 5: Documentation**
@@ -509,7 +509,7 @@ capability changes, no route changes. The scope is the operator surface.
 | Every in-tree `show bgp` path declares a shape | `TestEveryShowBgpPathDeclaresAShape` |
 | The registry refuses a conflicting declaration | `TestRegisterConflictPanics` |
 | Every declared column name exists in the payload | `TestDeclaredColumnsExistInPayload` |
-| The published catalog states each command's operators | `./le command-list | json`, read a `show bgp` entry |
+| The published catalog states each command's operators | `./le command list | json`, read a `show bgp` entry |
 | No operator is accepted and ignored | The two `.ci` files assert a refusal BY NAME for each unsupported operator |
 
 ### Security Review Checklist
@@ -580,7 +580,7 @@ capability changes, no route changes. The scope is the operator surface.
 - [ ] AC-1..AC-22 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated, not library-only
 - [ ] Integration and Documentation checklists answered with evidence
 - [ ] Architectural Verification table filled
@@ -598,7 +598,7 @@ capability changes, no route changes. The scope is the operator surface.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-cli-show-bgp-answer-shapes.md` only

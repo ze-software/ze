@@ -48,7 +48,7 @@ the log for the "plugin rpc write stalled past watchdog window" warning and the
 
 - [ ] `internal/component/cmd/show/show.go` (empty-bus handlers, proven benign at :101,:118)
   -> Constraint: verify current behaviour against this source before designing.
-- [ ] `test/scripts/ze_api.py` (`wait_for_shutdown` - suspected hang site)
+- [ ] `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> (`wait_for_shutdown` - suspected hang site)
   -> Constraint: verify current behaviour against this source before designing.
 - [ ] `internal/test/runner/` (shutdown/IPC lifecycle)
   -> Constraint: verify current behaviour against this source before designing.
@@ -174,7 +174,7 @@ the log for the "plugin rpc write stalled past watchdog window" warning and the
 ### Goal Gates (MUST pass)
 - [ ] Every chosen work item has feature code + test
 - [ ] Wiring Test table complete (concrete test names, none deferred)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Registration over hardcoding respected
 
 ### TDD

@@ -491,7 +491,7 @@ intolerant owner loop dies anyway, and the capability then looks present and doe
      reads the state. R-1 is closed here
 7. **Phase: Interoperability and documentation**
    - Tests: scenarios `auth-piggyback` and `auth-piggyback-attach`,
-     `./le doc-check verify`, `./le rfc check`
+     `./le doc check verify`, `./le rfc check`
    - Files: the two scenario directories, the documentation checklist rows
    - Verify: both strongSwan scenarios pass, and no RFC row lost a polarity
 
@@ -598,7 +598,7 @@ MAY, so a later reader does not read the code as a mandatory behavior.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -616,7 +616,7 @@ MAY, so a later reader does not read the code as a mandatory behavior.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

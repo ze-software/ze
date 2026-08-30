@@ -101,6 +101,8 @@ Phases are strictly ordered within dependencies. Independent specs (5, 7) can pr
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/api/process-protocol.md` - the plugin communication protocol and process lifecycle
+- [ ] `docs/features/interfaces.md` - interface management through pure netlink, with no iproute2 shell-outs
 - [ ] `docs/architecture/core-design.md` -- overall architecture, reactor, plugin model
   --> Constraint: reactor is the central event loop; plugins connect via hub
 - [ ] `ai/rules/plugins.md` -- plugin registration, 5-stage protocol, proximity principle
@@ -564,7 +566,7 @@ standard TDD cycle (write test, fail, implement, pass) inside its own spec.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-23 all demonstrated (across the child specs vrf-1..vrf-8)
 - [ ] Wiring Test table complete -- every row has a concrete `.ci` test, none deferred
-- [ ] `./le verify current mode full` passes (lint + all ze tests) after each child lands
+- [ ] `./le verify worktree` passes (lint + all ze tests) after each child lands
 - [ ] Feature code integrated (`internal/*`) and reachable from the config/CLI entry points
 - [ ] Backwards compatibility proven: config with no VRF block behaves exactly as today (AC-3)
 

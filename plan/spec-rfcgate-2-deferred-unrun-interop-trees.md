@@ -49,8 +49,8 @@ fix: it keeps false evidence out, and it also keeps real evidence unavailable.
 
 The work: give each tree an automated caller (the BGP tree's own advisory job in
 `.github/workflows/evidence-nightly.yml` is the pattern), confirm each runner
-fails closed on a missing lab the way `test/interop/run.py` and
-`test/interop-ipsec/run.py` now do, then change that tree's row in `CARRIERS`
+fails closed on a missing lab the way `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> and
+`test/interop-ipsec/run.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> now do, then change that tree's row in `CARRIERS`
 from `TIER_UNRUN` to a real tier so its scenarios can carry evidence.
 
 **Research changed the shape of this work. It is three problems, not two.** A
@@ -72,6 +72,7 @@ that pass with the dataplane broken.
      survive compaction; track reading progress in the session state file. -->
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] `ai/rules/testing.md` - the carrier table and the two evidence axes (kind, tier)
   → Constraint: "A tag in `test/interop-ipsec/`, `test/interop-l2tp/`,
     `test/interop-pppoe/`, or any other `check.py` tree is REFUSED ... wire the
@@ -129,14 +130,14 @@ that pass with the dataplane broken.
   names is real. `parseMakeTargets()` is the shared extractor.
 - [ ] `internal/le/integration/gates.go` - `./le integration interop`, `./le integration interop-ipsec`,
   `./le deployment docker-l2tp-ppp-test`, `./le deployment docker-pppoe-accel-test`.
-- [ ] `test/interop-ipsec/run.py` - `build_images()` cross-compiles ze on the HOST
+- [ ] `test/interop-ipsec/run.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `build_images()` cross-compiles ze on the HOST
   (`CGO_ENABLED=0 GOOS=linux go build`) into the gitignored `test/interop-ipsec/ze-linux`,
   then Docker COPYs it. Preflight is `docker info` only; a missing daemon exits 1.
-- [ ] `test/interop-l2tp/lab.py` `preflight_strict()` / `test/interop-pppoe/lab.py`
+- [ ] `test/interop-l2tp/lab.py` (retired; now `internal/le/interoplab/l2tp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> `preflight_strict()` / `test/interop-pppoe/lab.py` (retired; now `internal/le/interoplab/pppoe/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->
   `preflight_strict()` - run a privileged alpine probe against the host's
   `/lib/modules`, then `raise SystemExit("host kernel missing ... requirements: %s")`.
   Both refuse a skip override.
-- [ ] `test/interop-ipsec/scenarios/eap-tls/check.py` and
+- [ ] `test/interop-ipsec/scenarios/eap-tls/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> and
   `.../ipsec-bgp-redistribute-frr/check.py` - the Ze-side XFRM assertion is
   wrapped in `except (AssertionError, Exception)`. eap-tls calls `log_pass(...)` in the
   handler, so a real ESP failure is reported as a PASS.
@@ -335,8 +336,8 @@ bound to this tree yet, so no false evidence is created either way.
 - `internal/le/` - add `TestEvidenceNightlyRunsIpsecInterop`
   and `TestWorkflowTargetExtractorsAgree`.
 - `internal/le/` - the seven unit tests above.
-- `test/interop-ipsec/scenarios/eap-tls/check.py` - remove the fail-open handler.
-- `test/interop-ipsec/scenarios/ipsec-bgp-redistribute-frr/check.py` - same.
+- `test/interop-ipsec/scenarios/eap-tls/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - remove the fail-open handler.
+- `test/interop-ipsec/scenarios/ipsec-bgp-redistribute-frr/check.py` (retired; now `internal/le/interoplab/ipsec/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - same.
 - `docs/labs/pppoe-interop.md` - line 58 reads "Docker Desktop on macOS typically
   cannot pass this check (its Linux VM lacks the ... modules)". Measured
   2026-08-01 on Docker Desktop: `PPPOE=ok`, `DEV_PPP=ok`. The sentence is hedged
@@ -417,7 +418,7 @@ avoid, so the checks are fixed before the tier is available.
    - Verify: `./le rfc selftest` green; the phase-1 carrier test now PASSES; removing the BGP `interop` job from a fixture refuses the BGP tags
 4. **Phase: Docs and ledger** -- correct the stale claims, regenerate
    - Files: `ai/rules/testing.md`, `docs/labs/pppoe-interop.md`, `ai/RFC-REQUIREMENTS.md`
-   - Verify: `./le rfc index-update && ./le rfc check && ./le doc-check verify`
+   - Verify: `./le rfc index-update && ./le rfc check && ./le doc check verify`
 5. **Phase: l2tp / pppoe (AC-4, AC-5) -- BLOCKED, needs the owner ruling below**
    - Do not start until A-6/A-7 are settled. Wiring a lab whose kernel prerequisite
      the runner lacks produces a nightly red, which earns no tier and trains people
@@ -523,7 +524,7 @@ avoid, so the checks are fixed before the tier is available.
   an interop scenario is proven nightly, not on every push. That is a property of
   the tier, not a gap in this work.
 - The `interop` tier remains unavailable to the four other `check.py` trees
-  (`test/stress/scenarios/`, `test/l2tp-scale/`, and the two named above). The
+  (`test/stress/scenarios/`, `test/l2tp-scale/` (retired; now `internal/le/interoplab/l2tp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, and the two named above). The
   `scenario-check` catch-all keeps refusing them, which is the fail-closed default.
 
 ## RFC Documentation (Scope: protocol)
@@ -537,7 +538,7 @@ N-A. Scope is tooling. This spec changes which carriers may hold an
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes (the pre-commit gate; `ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes (the pre-commit gate; `ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -555,7 +556,7 @@ N-A. Scope is tooling. This spec changes which carriers may hold an
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

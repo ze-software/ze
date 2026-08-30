@@ -488,7 +488,7 @@ needed, which would carry `units bytes`. Second, whether the algorithm enumerati
    - Verify: `ze doctor --json` reports the check, the QEMU target passes, and both strongSwan
      scenarios pass
 8. **Phase: Compliance rows and documentation**
-   - Tests: `./le rfc check`, `./le doc-check verify`
+   - Tests: `./le rfc check`, `./le doc check verify`
    - Files: `rfc/short/rfc7296.md`, `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`,
      the documentation checklist rows
    - Verify: the four rows land in one commit at `-1` through `-4`, and the regenerated ledger
@@ -599,7 +599,7 @@ informational builders, and the dataplane compression call.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -617,7 +617,7 @@ informational builders, and the dataplane compression call.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

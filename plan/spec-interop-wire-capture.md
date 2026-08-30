@@ -41,7 +41,7 @@ capture capability here, rather than grow the harness inside a scenario spec.
 
 | Piece | Note |
 |-------|------|
-| A capture mechanism in the interop harness | Where it runs (peer container, ze container, or the bridge) is the design question. `test/interop/interop.py`, `Scenario.setup` starts every container and is the integration point |
+| A capture mechanism in the interop harness | Where it runs (peer container, ze container, or the bridge) is the design question. `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, `Scenario.setup` starts every container and is the integration point |
 | A helper a `check.py` can call | The check contract is `mod.check()` with no arguments (`Scenario.run_check`), so the helper is imported from `interop`, like `docker_exec` and the daemon classes |
 | An assertion over a decoded UPDATE | Attribute type codes in the order they appear. Decoding belongs to the helper, never to each scenario |
 | Proof it discriminates | Revert `emit`'s `sortByCode()` and the capture assertion MUST fail (`ai/rules/interop-and-goal-validation.md`). Without this the capability is unproven |
@@ -51,15 +51,15 @@ capture capability here, rather than grow the harness inside a scenario spec.
 <!-- NEVER tick [ ] to [x] -- these checkboxes are template markers, not progress. -->
 
 - [ ] `ai/rules/interop-and-goal-validation.md` - the vacuity traps and the discrimination requirement
-- [ ] `test/interop/interop.py` - `Scenario.setup`, `Scenario.run_check`, `docker_exec`
+- [ ] `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `Scenario.setup`, `Scenario.run_check`, `docker_exec`
 - [ ] `docs/architecture/testing/interop.md` - the harness contract as documented
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (re-read at design time; verify before trusting)
 
-- [ ] `test/interop/interop.py` (the harness: container lifecycle and the check contract)
-- [ ] `test/interop/run.py` (scenario discovery)
+- [ ] `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> (the harness: container lifecycle and the check contract)
+- [ ] `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> (scenario discovery)
 - [ ] `internal/component/bgp/reactor/announce_build.go` (`(*announceAttrs).emit`, the producer whose output a capture would observe)
 
 **Behavior to preserve:** every existing scenario keeps passing unchanged. Capture
@@ -88,7 +88,7 @@ is opt-in per scenario, never a cost every scenario pays.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A capture can run in the scenario containers without a privileged flag the harness does not already grant. | `test/interop/interop.py` starts containers with the options it sets today. | Capture needs a capability change on every scenario container, widening blast radius. | Read the container run options, then run one capture. | unvalidated |
+| A-1 | A capture can run in the scenario containers without a privileged flag the harness does not already grant. | `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> starts containers with the options it sets today. | Capture needs a capability change on every scenario container, widening blast radius. | Read the container run options, then run one capture. | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -100,7 +100,7 @@ is opt-in per scenario, never a cost every scenario pays.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| A scenario asks the harness to capture, then asserts attribute order | -> | the capture helper in `test/interop/interop.py` | the first scenario to adopt it, named at design time |
+| A scenario asks the harness to capture, then asserts attribute order | -> | the capture helper in `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> | the first scenario to adopt it, named at design time |
 
 ## Acceptance Criteria
 
@@ -133,11 +133,11 @@ or AS4_PATH (17) before NEXT_HOP (3).
      and stays where it is (`test/plugin/wire-edit-api-origin-order.ci`). -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test/interop/run.py`, driving the first scenario to adopt capture | `test/interop/scenarios/` | a live peer receives attributes in ascending type-code order | |
+| `test/interop/run.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, driving the first scenario to adopt capture | `test/interop/scenarios/` | a live peer receives attributes in ascending type-code order | |
 | `test/interop/run_test.go` | `test/interop/` | the runner still fails closed when Docker is absent | |
 
 ## Files to Modify
-- `test/interop/interop.py` - the capture helper and the container lifecycle it hooks
+- `test/interop/interop.py` (retired; now `internal/le/interoplab/bgp/`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - the capture helper and the container lifecycle it hooks
 - `docs/architecture/testing/interop.md` - the harness contract a scenario author reads; a capability nobody can discover is a capability nobody uses
 - `docs/functional-tests.md` - test infrastructure changed (Documentation Update Checklist row 10)
 
@@ -171,7 +171,7 @@ or AS4_PATH (17) before NEXT_HOP (3).
 
 ### Goal Gates (MUST pass)
 - [ ] Every AC demonstrated
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Every A-N confirmed or broken, none `unvalidated`
 - [ ] Feature code integrated, not library-only
 

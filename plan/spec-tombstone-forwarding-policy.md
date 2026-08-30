@@ -214,6 +214,7 @@ is still being confirmed.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/wire/attributes.md` - the BGP path attribute wire format: header, flags, codes and ASN4 encoding
 - [ ] `docs/architecture/route-selection.md` - names the draft at `:54`
   → Constraint: a marker does not change route selection; the route continues.
 - [ ] `ai/rules/config.md` + `ai/rules/config.md` - the policy leaf is operator-facing per-neighbor config
@@ -589,7 +590,7 @@ MUST document: the inherit MUST-clear-Transitive rule, the strip MUST-rebuild-fo
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)

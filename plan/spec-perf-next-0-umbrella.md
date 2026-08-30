@@ -110,6 +110,8 @@ socket-layer write coalescing), not to remaining low-hanging fruit.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
+- [ ] `docs/architecture/plugin/rib-storage-design.md` - the pool-based RIB storage design for API programs, which the engine does not implement
 - [ ] `ai/rules/performance.md` - allocation strategy and pool inventory
   → Constraint: copies happen only at sanctioned boundaries (pool entry, ContextID mismatch, filter modify, JSON for external plugins)
 - [ ] `docs/architecture/perf-round-3.md` - the third campaign, and the two before it in outline
@@ -419,7 +421,7 @@ preserve RFC 4271 semantics byte-for-byte, asserted by existing unit tests).
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete (per child)
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

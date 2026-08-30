@@ -23,10 +23,10 @@ pattern below).
 
 ## Tooling friction
 
-### `c_silent_ignore` rejects bare `default:`
+### Retired: `c_silent_ignore` rejects bare `default:`
 
 **Symptom.** A `Write` or `Edit` is rejected by `c_silent_ignore`
-(`.claude/hooks/pretool-writeedit.py`), even though the `default:` branch body
+(`.claude/hooks/pretool-writeedit.py` (retired; now `internal/le/hookruntime/writeedit.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->), even though the `default:` branch body
 returns an error, logs a warning, or panics.
 
 **Cause.** The hook regex is `default:\s*$`, which matches any
@@ -47,7 +47,7 @@ suppress the hook.
 
 ---
 
-### `c_check_existing_patterns` blocks duplicate type or function names
+### Retired: `c_check_existing_patterns` blocks duplicate type or function names
 
 **Symptom.** `Write` of a new `.go` file is rejected because the first
 exported `type` or `func` identifier already exists somewhere under
@@ -92,7 +92,7 @@ flagged by the user across sessions. Occurrence count lives in
 **The `pkg/` blind spot, and how to count a family (2026-08-22,
 spec-record-answers-1-sdk-path).** A move from `internal/` to `pkg/` is a one-way
 door. It also moves the symbol OUT of the gate below.
-`check_cross_package_wiring` in the retired `scripts/dev/validate.py` (current producer: `internal/le/docwiring/checks.go`) collects symbols only
+`checkCrossPackageWiring` in `internal/le/repository/wiring.go` collects symbols only
 from changed files under `internal/` and `cmd/`. So a `pkg/` export is unwired
 where it is most expensive and least checked. One such move made three symbols
 public and two had no caller: `CheckRowArity`, which only its own package called,
@@ -132,8 +132,8 @@ of a family, count the family's callers before you accept that it belongs there.
 4. `architecture.md` item 5: name the entry point and file:line
    before writing any feature code.
 
-**Gated by.** `./le doc-wiring`, which runs `check_wiring` in
-the retired `scripts/dev/verify_wiring_docs.py` (current producer: `internal/le/docwiring/wiring.go`). It fails when a new exported symbol under
+**Gated by.** `./le doc wiring`, which runs `checkWiring` in
+the retired `scripts/dev/verify_wiring_docs.py` (current producer: `internal/le/doc/wiring/wiring.go`). It fails when a new exported symbol under
 `internal/` or `cmd/` has no non-test caller. Read the scope literally: the gate
 covers `internal/` and `cmd/` and nothing else, so `pkg/` is caught at review
 time or not at all.
@@ -803,13 +803,13 @@ shard with a named destination spec.
 ### An inventory command is not the population it reports on
 
 **Symptom.** You build the list of every command under a prefix from
-`./le command-list`, register something against each entry, and ship. Live
+`./le command list`, register something against each entry, and ship. Live
 paths the list never named keep the old behavior, and no gate goes red.
 
 **Cause.** Ze resolves a typed command from THREE registries: the builtin RPCs,
 the plugin names, and the local handlers `registry.MustRegisterLocal` owns
 (`internal/component/bgp/cli/register.go`). `collect`
-(the retired `scripts/inventory/commands.go` (current producer: `internal/le/commandlist/commandlist.go`)) walks `AllBuiltinRPCs` and the streaming
+(the retired `scripts/inventory/commands.go` (current producer: `internal/le/command/list/commandlist.go`)) walks `AllBuiltinRPCs` and the streaming
 prefixes, which is the first of the three. A verification tool blind to two
 thirds of the population answers "complete" about the third it can see.
 
@@ -826,7 +826,7 @@ land (2026-08-22, spec-record-answers-2-only-encoding).** Files to Modify is
 written before the work, from what the author saw, and it is then read for
 eight phases as though it were the population. Every phase of that spec found a
 file the list omitted, and two of them were load-bearing SPEAKERS of the wire
-being rewritten: `test/scripts/ze_api.py`, the harness reader 156 fixtures reach,
+being rewritten: `test/scripts/ze_api.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) -->, the harness reader 156 fixtures reach,
 and `internal/exabgp/bridge`. Neither appears anywhere in the list. The tell is
 the same as above: the list is a record of a search, and the population is
 whoever the runtime actually routes through. Derive it from the seam rather than
@@ -995,7 +995,7 @@ mid-run.
 
 **Symptom.** `./le rfc check` fails with the violation
 `rfc/requirements/<stem>.md is stale vs its sources`. You changed no tagged
-test. `./le doc-check verify`, `./le doc-wiring`, `./le repository generated-check`
+test. `./le doc check verify`, `./le doc wiring`, `./le repository generated-check`
 and `TestRFCLedgerFresh` all go red at the same time, because each one
 reads the same freshness fact.
 
@@ -1075,7 +1075,7 @@ corrupted the shared log file).
 2. Before invoking `./le verify current mode full`, `git status` and confirm
    only expected files appear as modified.
 3. Only one `./le verify current mode full*` may run at a time across the tree;
-   `verify-lock.sh` enforces this via `flock`.
+   `internal/le/verify/lock` enforces this via `flock`.
 
 **Recover if you hit it.** `git stash` is forbidden (see
 memory rule `feedback_parallel_sessions_no_stash`). Identify which

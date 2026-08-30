@@ -35,6 +35,7 @@ Two changes:
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/pki/pki-store.md` - shared certificate infrastructure: CA certificates and device certificates
 - [ ] `docs/architecture/cli/color-system.md` - if output/warnings are styled, use the semantic roles.
   → Constraint: sensitive-material output should carry a clear operator warning.
 - [ ] `ai/rules/plugins.md` - pki-cmd owns its command surface.
@@ -263,7 +264,7 @@ Two changes:
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

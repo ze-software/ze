@@ -33,6 +33,9 @@ destination hostname (and, consequently, the socket family).
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/api/commands.md` - the verb-first API command paths, with JSON or text encoding
+- [ ] `docs/architecture/diagnostics/active-probes.md` - ping, traceroute and route lookup, which validate a forwarding path
+- [ ] `docs/architecture/resolve.md` - the resolution component, which consolidates external data resolution under one tree
 - [ ] `docs/architecture/core-design.md` - probe/traceroute component placement.
   → Constraint: traceroute uses Ze's own ICMP engine (raw socket), not a shell-out; AF selection is internal.
 
@@ -292,7 +295,7 @@ answer :65) are all current. Two material precision corrections:
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

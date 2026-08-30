@@ -58,8 +58,8 @@ one registry against one table.
 **Source files read:**
 - [ ] `internal/le/docvalid/drift.go` - `checkDesignMD` compares `registryPluginNames()` against the Shipped Plugins table; `registryPluginNames` reads `registry.All()`; a missing `docs/DESIGN.md` returns nil, so the check fails open
 - [ ] `internal/le/docstocode/codetodocs.go` - `main()` check mode reports an anchor whose path is gone, never a package with no anchor
-- [ ] `.claude/hooks/pretool-writeedit.py` - `c_require_design_ref` returns None once the literal `// Design:` appears, whatever it points at
-- [ ] `internal/le/doccheck/links.go` - `check_design_refs` resolves the target path and never opens the target
+- [ ] `.claude/hooks/pretool-writeedit.py` (retired; now `internal/le/hookruntime/writeedit.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - `c_require_design_ref` returns None once the literal `// Design:` appears, whatever it points at
+- [ ] `internal/le/doc/check/links.go` - `check_design_refs` resolves the target path and never opens the target
 
 **Behavior to preserve:**
 - Every existing check keeps its coverage. This adds a direction, it relaxes nothing.
@@ -76,8 +76,8 @@ one registry against one table.
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- `./le doc-check verify` runs `internal/le/docvalid/drift.go`, and `./le doc-check verify` is a
-  stage of `./le verify current mode full` (`stagesForMode` in `internal/le/verify/run.go`).
+- `./le doc check verify` runs `internal/le/docvalid/drift.go`, and `./le doc check verify` is a
+  stage of `./le verify current mode full` (`stagesForMode` in `internal/le/verify/engine/run.go`).
 
 ### Transformation Path
 1. A check enumerates package directories from `git ls-files`.
@@ -129,8 +129,8 @@ one registry against one table.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| `./le doc-check verify` | → | the package-without-a-doc check in `doc_drift.go` | `TestPackageWithNoDocumentationHomeIsReported` |
-| `./le doc-check verify` | → | plugin discovery across both registries | `TestPluginRegisteringACLIRootIsSeen` |
+| `./le doc check verify` | → | the package-without-a-doc check in `doc_drift.go` | `TestPackageWithNoDocumentationHomeIsReported` |
+| `./le doc check verify` | → | plugin discovery across both registries | `TestPluginRegisteringACLIRootIsSeen` |
 
 This is agent tooling with no user-facing surface, so the existing test suite
 carries the proof: the Go test beside the check, plus the gate over the real tree.
@@ -162,7 +162,7 @@ target over the real tree.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `./le doc-check verify` | `internal/le/doccheck/actions.go` | an agent cannot land a package with no documentation home | |
+| `./le doc check verify` | `internal/le/doc/check/actions.go` | an agent cannot land a package with no documentation home | |
 
 ## Files to Modify
 - `internal/le/docvalid/drift.go` - the check
@@ -214,7 +214,7 @@ target over the real tree.
 
 1. **Phase: Classify the 85** -- every undocumented directory gets a page, a reason, or an exclusion with a stated property
    - Verify: A-1 answered with numbers
-2. **Phase: Wiring** -- the check exists, reachable from `./le doc-check verify`, reporting nothing
+2. **Phase: Wiring** -- the check exists, reachable from `./le doc check verify`, reporting nothing
    - Tests: `TestRecordedReasonSuppressesTheFinding`
 3. **Phase: Both registries** -- the class-b check sees a CLI-root plugin
    - Tests: `TestPluginRegisteringACLIRootIsSeen`
@@ -235,7 +235,7 @@ target over the real tree.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | The check exists and reports a package with no doc | `go test ./scripts/docvalid/` |
-| The tree is clean under it | `./le doc-check verify` |
+| The tree is clean under it | `./le doc check verify` |
 | The escape is counted, not silent | the published reason count |
 
 ### Security Review Checklist
@@ -278,7 +278,7 @@ target over the real tree.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled
 - [ ] Critical Review passes (all 6 checks in `ai/rules/quality.md`)
@@ -294,7 +294,7 @@ target over the real tree.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Journal row written for anything this teaches
 - [ ] **Commit A:** code + tests + docs + spec + journal row
 - [ ] **Commit B:** `git rm plan/spec-code-can-land-with-no-design-doc.md` only

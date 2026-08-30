@@ -6,7 +6,7 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | 7/7 |
-| Deferral shard | `plan/deferrals/rfc-superseded-requirements-carry-their-successor.md` |
+| Deferral shard | `plan/deferrals/rfc-superseded-requirements-carry-their-successor.md` <!-- doc-links: ignore (shard created only on the first deferral, and none has happened) --> |
 | Handoff | - |
 | Updated | 2026-08-25 |
 
@@ -44,6 +44,8 @@ why three summaries can carry it and still be gated as current.
 - [ ] `rfc/extraction/README.md` - the contract the derived-not-authored rule comes from
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
+- [ ] `docs/architecture/testing/test-health.md` - how ze answers whether a regression would actually be caught
 
 - [ ] `ai/rules/rfc-compliance.md` - the forward-lineage rule, and that annotations are the owner's to decide
 
@@ -259,7 +261,7 @@ end-to-end evidence is the gate itself:
 
 ## Files to Create
 
-- `plan/deferrals/rfc-superseded-requirements-carry-their-successor.md` - if anything defers
+- `plan/deferrals/rfc-superseded-requirements-carry-their-successor.md` <!-- doc-links: ignore (shard created only on the first deferral, and none has happened) --> - if anything defers
 
 ### Integration Checklist
 
@@ -431,7 +433,7 @@ new one.
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -449,7 +451,7 @@ new one.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

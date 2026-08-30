@@ -45,6 +45,7 @@ Note this is specifically the custom `X-Ze-Version` header. Ze sends no standard
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/web-interface.md` - the HTTPS server rendering YANG-driven config views with HTMX components
 - [ ] `internal/component/web/auth.go` - `addSecurityHeaders` sets the version header alongside the other security headers.
   -> Constraint: gate only the version header; leave the other security headers (frame-options, CSP, HSTS, no-store) untouched.
 - [ ] `internal/component/lg/server.go` - the looking-glass sets the same header independently.
@@ -278,7 +279,7 @@ All refs re-verified against current code:
 - [ ] End-to-End User Stories: working path + passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

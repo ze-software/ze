@@ -4,7 +4,7 @@ Written 2026-08-24 by session `d8974112` (`feature`). Both specs are
 implementation-complete and committed. Neither is closed, and neither can be
 closed by the session that wrote them: `ai/rules/planning.md` requires the
 Review Gate to run in a context that did not write the code, and
-`review_gate.py record` and `.claude/hooks/pretool-agent-skill.py` enforce it at
+`review_gate.py record` and `.claude/hooks/pretool-agent-skill.py` (retired; now `internal/le/hookruntime/agent.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> enforce it at
 both ends.
 
 Everything below was measured against the tree, not read off an audit. Where I
@@ -23,7 +23,7 @@ produces the two closure commits.
 
 ## The commits to review
 
-Ten, in order. `./le repository-tracked-build check` was run and passed after
+Ten, in order. `./le repository tracked-build check` was run and passed after
 every one that carried Go.
 
 | SHA | Subject |

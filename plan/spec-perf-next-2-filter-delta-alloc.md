@@ -115,6 +115,7 @@ fast path (already zero-alloc), and `rewritePrivateASSegments` semantic changes
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] `ai/rules/performance.md` - banned `make` in encoding helpers
   → Constraint: encoders must write into caller-provided buffers; this spec brings filter_delta.go into compliance
 - [ ] `ai/rules/performance.md` - sanctioned copies + sync.Pool guidance
@@ -463,7 +464,7 @@ protocol-enforcing code.
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] `go test -race ./internal/component/bgp/reactor/...` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

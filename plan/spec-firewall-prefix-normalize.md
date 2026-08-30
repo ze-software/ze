@@ -34,6 +34,7 @@ network address.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] `docs/architecture/config/syntax.md` - config idempotency expectations.
   → Constraint: the resolved config model should be canonical so re-reading it produces no spurious diff.
 - [ ] `ai/rules/config.md` - firewall address matches are operator config.
@@ -258,7 +259,7 @@ network address.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

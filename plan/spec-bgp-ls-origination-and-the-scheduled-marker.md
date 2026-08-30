@@ -101,7 +101,7 @@ stays valid for exactly that long and not one commit longer.
 - [ ] `internal/component/bgp/plugins/nlri/ls/types_descriptor.go` -
       `LinkDescriptor.WriteTo` and `PrefixDescriptor.WriteTo` emit no TLV 263, so
       no Multi-Topology Identifier reaches the wire from ze.
-- [ ] `internal/component/bgp/plugins/nlri/role/yang/ze-role.yang` - the shape a
+- [ ] `internal/component/bgp/plugins/role/yang/ze-role.yang` - the shape a
       BGP plugin's YANG takes: a `grouping`, then three `augment` statements onto
       `/bgp:bgp/bgp:peer`, `/bgp:bgp/bgp:group/bgp:peer` and `/bgp:bgp/bgp:group`.
 
@@ -155,7 +155,7 @@ Two, one per phase.
   kind and its spec field.
 - `internal/component/bgp/plugins/nlri/ls/plugin.go` `main` - the registration
   whose Mode changes.
-- `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls.yang` - the Instance-ID
+- `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls.yang` - the Instance-ID <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
   leaf, augmenting the same three points `ze-role.yang` augments.
 
 ### Architectural Verification
@@ -201,8 +201,8 @@ Two, one per phase.
 | `./le rfc check` over a marker whose spec file is absent | → | the precondition check | `test_scheduled_marker_refuses_an_absent_spec` |
 | `./le rfc index-update` | → | `render_shards` | `test_scheduled_row_publishes_as_debt_naming_its_spec` |
 | operator configures a BGP-LS Instance-ID | → | the ls plugin's config parse | `TestBGPLSInstanceIDReachesTheOriginator` |
-| operator runs the RFC gate over a scheduled row | → | `./le rfc check` | `test/plugin/rfc-scheduled-marker.ci` |
-| operator configures origination and watches the wire | → | `originate.go` → `WriteTo` | `test/decode/bgp-ls-originate.ci` |
+| operator runs the RFC gate over a scheduled row | → | `./le rfc check` | `test/plugin/rfc-scheduled-marker.ci` | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| operator configures origination and watches the wire | → | `originate.go` → `WriteTo` | `test/decode/bgp-ls-originate.ci` | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 
 ## Acceptance Criteria
 
@@ -243,9 +243,9 @@ Two, one per phase.
 | `test_scheduled_does_not_escape_the_coverage_ratchet` | `internal/le/` | AC-6 | |
 | `test_closing_a_spec_that_owns_a_scheduled_row_is_refused` | `internal/le/` | AC-7 | |
 | `test_status_remaining_count_covers_scheduled_rows` | `internal/le/` | AC-8 | |
-| `TestBGPLSInstanceIDReachesTheOriginator` | `internal/component/bgp/plugins/nlri/ls/config_test.go` | AC-10 wiring | |
-| `TestBGPLSOriginationRefusesWithoutAnInstanceID` | `internal/component/bgp/plugins/nlri/ls/originate_test.go` | AC-11 | |
-| `TestBGPLSNodeKeyIsUniquePerNode` | `internal/component/bgp/plugins/nlri/ls/originate_test.go` | AC-12 | |
+| `TestBGPLSInstanceIDReachesTheOriginator` | `internal/component/bgp/plugins/nlri/ls/config_test.go` | AC-10 wiring | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestBGPLSOriginationRefusesWithoutAnInstanceID` | `internal/component/bgp/plugins/nlri/ls/originate_test.go` | AC-11 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestBGPLSNodeKeyIsUniquePerNode` | `internal/component/bgp/plugins/nlri/ls/originate_test.go` | AC-12 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -255,8 +255,8 @@ Two, one per phase.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `rfc-scheduled-marker` | `test/plugin/rfc-scheduled-marker.ci` | an operator runs the RFC gate over a summary carrying a scheduled row and sees debt, not a violation | |
-| `bgp-ls-originate` | `test/decode/bgp-ls-originate.ci` | an operator configures an Instance-ID and sees ze advertise link-state NLRI carrying it | |
+| `rfc-scheduled-marker` | `test/plugin/rfc-scheduled-marker.ci` | an operator runs the RFC gate over a summary carrying a scheduled row and sees debt, not a violation | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `bgp-ls-originate` | `test/decode/bgp-ls-originate.ci` | an operator configures an Instance-ID and sees ze advertise link-state NLRI carrying it | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -279,22 +279,22 @@ Two, one per phase.
   the descriptor TLVs ze emits all land here
 
 ## Files to Create
-- `ai/rules/points/rfc-compliance/rfc-summaries-rfc-short/a-scheduled-requirement-names-the-live-spec-that-owns-it.md` - the rule point
-- `internal/component/bgp/plugins/nlri/ls/originate.go` - the producer
-- `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls.yang` - the Instance-ID leaf
-- `test/plugin/rfc-scheduled-marker.ci` - functional test for Phase 1
-- `test/decode/bgp-ls-originate.ci` - functional test for Phase 2
+- `ai/rules/points/rfc-compliance/rfc-summaries-rfc-short/a-scheduled-requirement-names-the-live-spec-that-owns-it.md` - the rule point <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `internal/component/bgp/plugins/nlri/ls/originate.go` - the producer <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls.yang` - the Instance-ID leaf <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `test/plugin/rfc-scheduled-marker.ci` - functional test for Phase 1 <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `test/decode/bgp-ls-originate.ci` - functional test for Phase 2 <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls.yang` for the Instance-ID leaf |
+| YANG schema (new RPCs/config) | Yes | `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls.yang` for the Instance-ID leaf | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 | YANG validation constraints | Yes | `uint64`, the full 8-octet range, no default: §5.2 recommends 0 only for a single-instance network, and a default would silently pick that for a multi-instance one |
 | YANG custom validators | No | the native `uint64` range is the whole constraint |
 | CLI commands/flags | No | configuration only; no new verb |
 | CLI grammar (keyword before value) | N-A | no new command |
 | Editor autocomplete | Yes | automatic for a typed YANG leaf |
-| Functional test for new RPC/API | Yes | `test/decode/bgp-ls-originate.ci` |
+| Functional test for new RPC/API | Yes | `test/decode/bgp-ls-originate.ci` | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 | Pipe completeness | N-A | no new command output |
 | Env var registration | No | the leaf is per-instance config, not an environment default |
 | Doctor check for runtime dependencies | No | no new file, socket, port, module or binary |
@@ -309,7 +309,7 @@ Two, one per phase.
 | 3 | CLI command added/changed? | No | no new verb |
 | 4 | API/RPC added/changed? | No | no new RPC |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`, the ls plugin gains an encode mode |
-| 6 | Has a user guide page? | Yes | `docs/guide/bgp-ls.md` |
+| 6 | Has a user guide page? | Yes | `docs/guide/bgp-ls.md` | <!-- doc-links: ignore (page this open spec plans and has not written yet) -->
 | 7 | Wire format changed? | Yes | `docs/architecture/wire/nlri-bgpls.md`, which every changed ls file declares in its `// Design:` header |
 | 8 | Plugin SDK/protocol changed? | No | the SDK already carries encode registration |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc9552.md` and the RFC 9552 row of `docs/features/rfc-status.md` |
@@ -319,7 +319,7 @@ Two, one per phase.
 | 13 | Route metadata keys added/changed? | No | no new metadata key |
 | 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | `docs/plugin-overview.md`, `docs/features/plugins.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | run `./le spec-citation anchors spec plan/spec-bgp-ls-origination-and-the-scheduled-marker.md` at implementation time |
+| 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | run `./le spec citation anchors spec plan/spec-bgp-ls-origination-and-the-scheduled-marker.md` at implementation time |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | verify every BGP-LS example against the new YANG |
 
 ## Implementation Steps
@@ -338,15 +338,15 @@ Two, one per phase.
    - Verify: `./le rfc index-update` names the owning spec on each scheduled row
 4. **Phase: Adopt the three rows** -- Phase 1 closes here and MAY be committed alone
    - Tests: `rfc-scheduled-marker`, and `./le rfc check` exits 0 on rfc9552 (AC-9)
-   - Files: `rfc/short/rfc9552.md`, `ai/rules/rfc-compliance.md`, the new rule point, `test/plugin/rfc-scheduled-marker.ci`
+   - Files: `rfc/short/rfc9552.md`, `ai/rules/rfc-compliance.md`, the new rule point, `test/plugin/rfc-scheduled-marker.ci` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
    - Verify: the three rows carry `{scheduled}` naming this spec, and the gate is green on them
 5. **Phase: The Instance-ID leaf** -- config before origination
    - Tests: `TestBGPLSInstanceIDReachesTheOriginator`, `TestBGPLSOriginationRefusesWithoutAnInstanceID`
-   - Files: `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls.yang`, the plugin's config parse
+   - Files: `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls.yang`, the plugin's config parse <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
    - Verify: the leaf reaches the plugin, and origination without it is refused
 6. **Phase: Origination** -- descriptors, keys, and the wire
    - Tests: `TestBGPLSNodeKeyIsUniquePerNode`, `bgp-ls-originate`, `bgp-ls-originate-gobgp`
-   - Files: `internal/component/bgp/plugins/nlri/ls/originate.go`, `types_descriptor.go`, `plugin.go`
+   - Files: `internal/component/bgp/plugins/nlri/ls/originate.go`, `types_descriptor.go`, `plugin.go` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
    - Verify: GoBGP accepts the NLRI and reports one node per key
 
 ### Critical Review Checklist
@@ -427,7 +427,7 @@ the Instance-ID's use in the Identifier field (§5.2).
 - [ ] AC-1..AC-12 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -445,7 +445,7 @@ the Instance-ID's use in the Identifier field (§5.2).
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

@@ -48,6 +48,7 @@ context dimensions and add targets for the uncovered context-consuming surfaces.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] `ai/rules/testing.md` - fuzz test conventions
   → Constraint: seed corpora are inline `f.Add(...)` with VALIDATES/PREVENTS/SECURITY doc comments (repo convention; no testdata/fuzz seed dirs exist)
 - [ ] `ai/rules/repo-maintenance.md` - new targets must reach the fuzz enumeration
@@ -429,7 +430,7 @@ feasibility reference; they are no longer tied to a shipping target.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (fuzz targets + make enumeration)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

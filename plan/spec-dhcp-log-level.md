@@ -36,6 +36,7 @@ dhcp-server log-level debug|info|warning|error`.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/provisioning/dhcp-server.md` - the DHCP server, which serves LAN leases per RFC 2131 and RFC 2132
 - [ ] `ai/rules/config.md` - YANG leaf vs env var decision.
   → Constraint: a per-service runtime log verbosity is operator-facing config; YANG leaf, not env var.
 - [ ] `ai/rules/plugins.md` - dhcpserver owns its config surface.
@@ -287,7 +288,7 @@ logger IS levelable at runtime through its registered `LevelVar`.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

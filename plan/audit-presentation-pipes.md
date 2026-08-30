@@ -903,7 +903,7 @@ rows and have lost all three operators without anybody noticing.
 The population is the same 465 command paths the earlier audit derived, from the
 same three registries: YANG nodes carrying `ze:command`, `[]sdk.CommandDecl`
 literals outside `_test.go`, and `registry.MustRegisterLocal` path literals.
-`./le command-list` was not used. It walks `AllBuiltinRPCs` plus the
+`./le command list` was not used. It walks `AllBuiltinRPCs` plus the
 streaming prefixes and reports neither plugin-registered commands nor local
 ones.
 

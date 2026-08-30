@@ -1,5 +1,5 @@
 | Date | Spec | Surface | Symptom | Fix |
 |---|---|---|---|---|
 | 2026-08-16 | weakened-followups | RFC requirement Python tests | `rfc_requirements_test.py` exceeded the 180-second package-test limit because `go_func_scopes` parsed the same 495 file contents 10,278 times. | Cache immutable spans by exact content in a bounded LRU. The full script now runs 792 tests in 36.750 seconds. |
-| 2026-08-16 | staticcheck-feature-tag-matrix | agent verification | The agent reran `ze-precommit-verify-changed` for one known edited test and caused 600+ unrelated tests to run. | Exact package and test reruns now precede one final aggregate pass. |
+| 2026-08-16 | staticcheck-feature-tag-matrix | agent verification | The agent reran `./le verify current mode changed` for one known edited test and caused 600+ unrelated tests to run. | Exact package and test reruns now precede one final aggregate pass. |
 | 2026-08-16 | - | Python unit-test wrapper | The wrapper killed passing `session_bin_dir_test.py` at 180 seconds, but the package already owned a `20m` timeout. A direct run passed 33/33 tests in 267.745 seconds. | Derive each child context from the package deadline and end it before the package alarm so CommandContext kills and reaps the direct Python process. |

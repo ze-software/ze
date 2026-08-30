@@ -48,6 +48,7 @@ children 6 and 5 respectively and are consumed, not modified, here.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/traffic/traffic-analysis-layers.md` - traffic analysis split into facts, judgment and response
 - [ ] `plan/spec-anomaly-0-umbrella.md` - shared framing and the verified constraints for AS work
   → Constraint: no `detect -> flowexport/enrich` import (fails `./le tier check`, umbrella A-3);
     origin-AS must ride the facts surface, stamped by the producer (child 6). This child reads
@@ -353,7 +354,7 @@ N/A -- this child adds no wire-protocol behavior. It reads a fact and emits an i
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7-13 | Critical / Deliverables / Security review, re-verify |
 | 14. Present summary | Executive Summary + learned summary |
 
@@ -547,7 +548,7 @@ Each phase ends with a Self-Critical Review. Fix issues before proceeding.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled -- 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

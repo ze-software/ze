@@ -33,6 +33,8 @@ Add AS-notation support:
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/config/syntax.md` - the JUNOS-like config syntax: blocks, terminators, comments and inheritance
+- [ ] `docs/architecture/wire/attributes.md` - the BGP path attribute wire format: header, flags, codes and ASN4 encoding
 - [ ] `ai/rules/performance.md` - the attribute text formatters are buffer-first and config-free.
   → Constraint: `core/bgp/attribute` is a leaf package and must NOT import config; the notation choice must be passed in as a parameter, not read from global state.
 - [ ] `ai/rules/config.md`, `ai/rules/config.md` - the new BGP-global leaf.
@@ -264,7 +266,7 @@ Add AS-notation support:
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

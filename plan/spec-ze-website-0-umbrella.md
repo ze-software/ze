@@ -585,7 +585,7 @@ integration with two real Ze protocol engines.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| Six child specifications | `./le spec-status` plus exact child path checks |
+| Six child specifications | `./le spec status` plus exact child path checks |
 | Shared CLI session | Child 1 package tests, editor tests, web tests, and parity contract |
 | General backend gates | Feature matrix, dependency audit, generated import check, and native present/absent artifact tests |
 | Browser ZeFS | Unit tests plus real-browser persistence, quota, corruption, lock, and import/export tests |
@@ -704,5 +704,5 @@ integration with two real Ze protocol engines.
 - [ ] Commit A contains each child's code, tests, docs, and child spec
 - [ ] Commit B removes each closed child spec
 - [ ] Final umbrella commit records integrated evidence
-- [ ] `./le verify current mode full` passes before the final implementation commit
+- [ ] `./le verify worktree` passes before the final implementation commit
 - [ ] Final cleanup commit removes this umbrella only after all children close

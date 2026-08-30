@@ -110,14 +110,14 @@ The name dies with the decomposition, whichever destination that work gets.
 | A-1 | No identifier clashes between `message` and `wireu` (fold is a clean merge) | comm audit 2026-07-08: 0 clashes across exported (60+81 vs 24+7) and unexported (108 vs 34) top-level names, tests included | fold needs renames first; child 3 redesign | audit rerun at child-3 start (packages may drift before then) | confirmed (2026-07-08 snapshot; re-check at child-3 start) |
 | A-2 | No local identifiers named `packet` shadow the new qualifier in any importer | grep audit 2026-07-08 over all importer files of the three packages: zero `packet :=` / `var packet` / `packet []byte` declarations | qualifier rewrite produces compile errors; rename locals first | `go build ./...` after each rename | confirmed (2026-07-08 snapshot; recompile validates) |
 | A-3 | No external surface carries the legacy names | `pkg/` grep: zero references; no quoted string literal ties telemetry/config/API to the package names; ExaBGP topic "bgp.reactor" (`internal/exabgp/topics/topics.go`) names a topic, not the package | a rename would break users | grep audit rerun per child | confirmed |
-| A-4 | The rib-arch spec set owns the BGP trees until it closes | `plan/spec-rib-arch-*.md` uncommitted in another session; rib-arch-8 lists `reactor` and NLRI-path files | children 2-3 conflict with in-flight branches | the retired `ze-spec-status` (current: `./le spec-status`) shows rib-arch set closed before starting child 2 | satisfied (rechecked 2026-07-22: rib-arch set fully closed -- no `spec-rib-arch-*.md` remains in plan/, learned 1128 + children 1123-1154 on disk; child 2 flipped to ready the same day) |
+| A-4 | The rib-arch spec set owns the BGP trees until it closes | `plan/spec-rib-arch-*.md` uncommitted in another session; rib-arch-8 lists `reactor` and NLRI-path files | children 2-3 conflict with in-flight branches | the retired `ze-spec-status` (current: `./le spec status`) shows rib-arch set closed before starting child 2 | satisfied (rechecked 2026-07-22: rib-arch set fully closed -- no `spec-rib-arch-*.md` remains in plan/, learned 1128 + children 1123-1154 on disk; child 2 flipped to ready the same day) |
 | A-5 | Only `doc.go` and `errors.go` collide by filename between `message` and `wireu` | comm over both directory listings 2026-07-08 | more file merges needed in child 3 | rerun listing comm at child-3 start | confirmed (2026-07-08 snapshot) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | Concurrent sessions have uncommitted work touching renamed files; a big rename conflicts with everything in flight | `git status` shows other-session modifications in the affected trees | Land each child as one atomic commit pair in a quiet window; children 2-3 stay blocked until rib-arch closes |
-| R-2 | Doc sweep fixes anchors (gated by `./le doc-check verify`) but misses prose mentions of old paths | prose still says `bgp/message` after anchors are green | Per child, grep docs/ and ai/ for the old path in BOTH anchor and prose form; the AC requires zero hits |
+| R-2 | Doc sweep fixes anchors (gated by `./le doc check verify`) but misses prose mentions of old paths | prose still says `bgp/message` after anchors are green | Per child, grep docs/ and ai/ for the old path in BOTH anchor and prose form; the AC requires zero hits |
 | R-3 | Mixing logic edits into a rename commit destroys `git log --follow` usability and bloats review | diff shows non-mechanical hunks | Pure rename/merge commits only; any discovered logic fix goes in a separate commit before or after |
 | R-4 | Historical records (plan/learned/, rfc-may-decisions, learned summaries) mention old paths | grep hits under plan/learned/ | Leave history untouched; it describes the past accurately. Only living docs (docs/, ai/) are updated |
 
@@ -203,7 +203,7 @@ The name dies with the decomposition, whichever destination that work gets.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered plugin/event/send/command/capability inventory changed? | [ ] | No |
-| 16 | Any changed source file referenced by existing doc source anchors? | [ ] | Yes - the per-child anchor sweep IS the doc work; `./le doc-check verify` gates it |
+| 16 | Any changed source file referenced by existing doc source anchors? | [ ] | Yes - the per-child anchor sweep IS the doc work; `./le doc check verify` gates it |
 | 17 | Existing docs show config/CLI/API examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -231,7 +231,7 @@ The name dies with the decomposition, whichever destination that work gets.
 ### Deliverables Checklist (/implement stage 10)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| three closed children | `./le spec-status` shows none of the rename children open |
+| three closed children | `./le spec status` shows none of the rename children open |
 | legacy count 1 | run `internal/le/protocolskeleton/protocolskeleton.go`, read summary line |
 
 ### Security Review Checklist (/implement stage 11)
@@ -368,7 +368,7 @@ Not applicable: no RFC-covered behavior changes.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

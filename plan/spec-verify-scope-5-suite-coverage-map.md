@@ -47,6 +47,7 @@ package at all.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/testing/ci-format.md` - the `.ci` test file format: embedded files, options, expectations and commands
 - [ ] `ai/rules/testing.md` - the four carriers, and how a `.ci` earns `functional/verify`
   → Constraint: non-unit evidence is monotonic per requirement and per tier. `check_evidence_ratchet` fires when a `.ci` loses its tier, and no annotation satisfies it
 - [ ] `docs/functional-tests.md` - the suites, the runner, and the isolated binary set
@@ -353,7 +354,7 @@ and 2236s of wall clock against 1472s (+52%).
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -371,7 +372,7 @@ and 2236s of wall clock against 1472s (+52%).
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

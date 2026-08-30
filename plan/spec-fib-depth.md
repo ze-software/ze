@@ -71,6 +71,7 @@ Ze must reach parity on the attributes that matter for production routing.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/research/vpp-deployment-reference.md` - the VPP deployment reference drawn from 83 ipng.ch articles
 - [ ] `docs/architecture/core-design.md` -- FIB plugin architecture
   → Constraint: FIB plugins subscribe to sysrib events; they do not poll
 - [ ] `docs/architecture/plugin/rib-storage-design.md` -- RIB best-path
@@ -298,7 +299,7 @@ Ze must reach parity on the attributes that matter for production routing.
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Fix issues | Fix every issue from critical review |
 | 9. Re-verify | Re-run stage 6 |
@@ -513,7 +514,7 @@ Add `// RFC 4271 Section 9.1.2.2 Step 6: "prefer the route with the lowest IGP m
 - [ ] AC-1..AC-15 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

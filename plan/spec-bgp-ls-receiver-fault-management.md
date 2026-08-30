@@ -199,7 +199,7 @@ configuration, declaring a peer's BGP-LS role.
 | the same UPDATE on an established session | → | `Session.enforceRFC7606` | `TestEnforceRFC7606ActsOnAMalformedBGPLSNLRI` |
 | a valid Link-State NLRI | → | `Session.enforceRFC7606` | `TestValidBGPLSNLRIReachesThePlugins` |
 | a peer declared Consumer-facing | → | the config-apply filter append | `TestConsumerFacingPeerDropsBGPLSOnImport` |
-| an operator runs a session against a peer sending malformed BGP-LS | → | the whole receive path | `test/decode/bgp-ls-malformed-nlri.ci` |
+| an operator runs a session against a peer sending malformed BGP-LS | → | the whole receive path | `test/decode/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (planned test this open spec has not built yet) --> |
 
 ## Acceptance Criteria
 
@@ -223,26 +223,26 @@ configuration, declaring a peer's BGP-LS role.
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | peers with a BGP-LS speaker that sends a truncated NLRI | wire → `enforceRFC7606` → `validateMPNLRISyntax` → action ladder | `test/decode/bgp-ls-malformed-nlri.ci` |
+| 1 | peers with a BGP-LS speaker that sends a truncated NLRI | wire → `enforceRFC7606` → `validateMPNLRISyntax` → action ladder | `test/decode/bgp-ls-malformed-nlri.ci` <!-- doc-links: ignore (planned test this open spec has not built yet) --> |
 | 2 | peers with a healthy BGP-LS speaker | wire → `enforceRFC7606` → plugins → RIB | `bgp-ls-receive-gobgp` interop scenario |
-| 3 | declares a peer Consumer-facing and reloads | config → config-apply → import filter → no BGP-LS in the RIB | `test/decode/bgp-ls-consumer-facing.ci` |
+| 3 | declares a peer Consumer-facing and reloads | config → config-apply → import filter → no BGP-LS in the RIB | `test/decode/bgp-ls-consumer-facing.ci` <!-- doc-links: ignore (planned test this open spec has not built yet) --> |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBGPLSNLRIWithOverrunningTLVIsMalformed` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-1, AC-4 | |
-| `TestBGPLSMPReachTLVLengthsMustSumToTheAttribute` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-2 | |
-| `TestBGPLSMPUnreachTLVLengthsMustSumToTheAttribute` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-3 | |
-| `TestBGPLSNLRITLVsOutOfOrderAreDiscarded` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-5 | |
-| `TestBGPLSNodeDescriptorRefusesARepeatedSubTLV` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-6 | |
-| `TestBGPLSSemanticOddityIsNotMalformed` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-9 | |
-| `TestEnforceRFC7606ActsOnAMalformedBGPLSNLRI` | `internal/component/bgp/reactor/session_validation_bgpls_test.go` | AC-7, AC-8 | |
-| `TestValidBGPLSNLRIReachesThePlugins` | `internal/component/bgp/reactor/session_validation_bgpls_test.go` | AC-10 | |
-| `TestConsumerFacingPeerDropsBGPLSOnImport` | `internal/component/bgp/plugins/nlri/ls/role_test.go` | AC-11 | |
-| `TestUndeclaredPeerStillPropagatesBGPLS` | `internal/component/bgp/plugins/nlri/ls/role_test.go` | AC-12 | |
-| `TestConsumerFacingPeerKeepsItsOtherFamilies` | `internal/component/bgp/plugins/nlri/ls/role_test.go` | AC-13 | |
+| `TestBGPLSNLRIWithOverrunningTLVIsMalformed` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-1, AC-4 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestBGPLSMPReachTLVLengthsMustSumToTheAttribute` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-2 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestBGPLSMPUnreachTLVLengthsMustSumToTheAttribute` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-3 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestBGPLSNLRITLVsOutOfOrderAreDiscarded` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-5 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestBGPLSNodeDescriptorRefusesARepeatedSubTLV` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-6 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestBGPLSSemanticOddityIsNotMalformed` | `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` | AC-9 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestEnforceRFC7606ActsOnAMalformedBGPLSNLRI` | `internal/component/bgp/reactor/session_validation_bgpls_test.go` | AC-7, AC-8 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestValidBGPLSNLRIReachesThePlugins` | `internal/component/bgp/reactor/session_validation_bgpls_test.go` | AC-10 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestConsumerFacingPeerDropsBGPLSOnImport` | `internal/component/bgp/plugins/nlri/ls/role_test.go` | AC-11 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestUndeclaredPeerStillPropagatesBGPLS` | `internal/component/bgp/plugins/nlri/ls/role_test.go` | AC-12 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `TestConsumerFacingPeerKeepsItsOtherFamilies` | `internal/component/bgp/plugins/nlri/ls/role_test.go` | AC-13 | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -254,8 +254,8 @@ configuration, declaring a peer's BGP-LS role.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-ls-malformed-nlri` | `test/decode/bgp-ls-malformed-nlri.ci` | an operator's peer sends a truncated Link-State NLRI and ze does not propagate it | |
-| `bgp-ls-consumer-facing` | `test/decode/bgp-ls-consumer-facing.ci` | an operator declares a peer Consumer-facing and BGP-LS from it stops reaching the RIB | |
+| `bgp-ls-malformed-nlri` | `test/decode/bgp-ls-malformed-nlri.ci` | an operator's peer sends a truncated Link-State NLRI and ze does not propagate it | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+| `bgp-ls-consumer-facing` | `test/decode/bgp-ls-consumer-facing.ci` | an operator declares a peer Consumer-facing and BGP-LS from it stops reaching the RIB | | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -277,20 +277,20 @@ configuration, declaring a peer's BGP-LS role.
   documented there
 
 ## Files to Create
-- `internal/component/bgp/message/rfc7606_bgpls_nlri.go` - the NLRI walk, beside
+- `internal/component/bgp/message/rfc7606_bgpls_nlri.go` - the NLRI walk, beside <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
   `rfc7606_bgpls.go` and for the same reason: `rfc7606.go` is past its line limit
-- `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` - the six NLRI tests
-- `internal/component/bgp/reactor/session_validation_bgpls_test.go` - the two session tests
-- `internal/component/bgp/plugins/nlri/ls/role.go` - the declared role and its filter append
-- `internal/component/bgp/plugins/nlri/ls/role_test.go` - the three role tests
-- `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls-role.yang` - the role leaf
-- `test/decode/bgp-ls-malformed-nlri.ci` - functional test for the validator
-- `test/decode/bgp-ls-consumer-facing.ci` - functional test for the role
+- `internal/component/bgp/message/rfc7606_bgpls_nlri_test.go` - the six NLRI tests <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `internal/component/bgp/reactor/session_validation_bgpls_test.go` - the two session tests <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `internal/component/bgp/plugins/nlri/ls/role.go` - the declared role and its filter append <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `internal/component/bgp/plugins/nlri/ls/role_test.go` - the three role tests <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls-role.yang` - the role leaf <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `test/decode/bgp-ls-malformed-nlri.ci` - functional test for the validator <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
+- `test/decode/bgp-ls-consumer-facing.ci` - functional test for the role <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | Yes | `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls-role.yang`, augmenting peer, group/peer and group as `ze-role.yang` does |
+| YANG schema (new RPCs/config) | Yes | `internal/component/bgp/plugins/nlri/ls/yang/ze-bgp-ls-role.yang`, augmenting peer, group/peer and group as `ze-role.yang` does | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 | YANG validation constraints | Yes | an `enumeration`, so an unknown role is refused by the schema rather than by a handler |
 | YANG custom validators | No | the enumeration is the whole constraint |
 | CLI commands/flags | No | configuration only |
@@ -311,7 +311,7 @@ configuration, declaring a peer's BGP-LS role.
 | 3 | CLI command added/changed? | No | no new verb |
 | 4 | API/RPC added/changed? | No | no new RPC |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`, the ls plugin gains config |
-| 6 | Has a user guide page? | Yes | `docs/guide/bgp-ls.md` |
+| 6 | Has a user guide page? | Yes | `docs/guide/bgp-ls.md` | <!-- doc-links: ignore (page this open spec plans and has not written yet) -->
 | 7 | Wire format changed? | No | no byte ze writes changes; what changes is which received bytes it refuses |
 | 8 | Plugin SDK/protocol changed? | No | no SDK change |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc9552.md` and the RFC 9552 row of `docs/features/rfc-status.md`, with source anchors |
@@ -321,7 +321,7 @@ configuration, declaring a peer's BGP-LS role.
 | 13 | Route metadata keys added/changed? | No | no new metadata key |
 | 14 | Prometheus counters added/changed? | Yes | `docs/plugin-development/metrics.md` |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | No | nothing new registers; the ls plugin's registration is unchanged |
-| 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | run `./le spec-citation anchors spec plan/spec-bgp-ls-receiver-fault-management.md` at implementation time |
+| 16 | Any changed source file referenced by existing doc source anchors? | DERIVED | run `./le spec citation anchors spec plan/spec-bgp-ls-receiver-fault-management.md` at implementation time |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | verify every BGP-LS example against the new YANG |
 
 ## Implementation Steps
@@ -333,11 +333,11 @@ configuration, declaring a peer's BGP-LS role.
    - Also settle A-1, A-2 and A-4 here: read the §5.4 typed-NLRI discard branch whole, grep the reactor for a per-family disable, and read §5.1's ordering sentence against §8.2.2's opening constraint. All three change what the next phases build
 2. **Phase: The length walk** -- the four length bullets
    - Tests: `TestBGPLSMPReachTLVLengthsMustSumToTheAttribute`, `TestBGPLSMPUnreachTLVLengthsMustSumToTheAttribute`, `TestBGPLSSemanticOddityIsNotMalformed`
-   - Files: `internal/component/bgp/message/rfc7606_bgpls_nlri.go`
+   - Files: `internal/component/bgp/message/rfc7606_bgpls_nlri.go` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
    - Verify: each malformed shape is caught and the semantically odd one is not
 3. **Phase: Ordering and descriptor uniqueness** -- the two structural bullets
    - Tests: `TestBGPLSNLRITLVsOutOfOrderAreDiscarded`, `TestBGPLSNodeDescriptorRefusesARepeatedSubTLV`
-   - Files: `internal/component/bgp/message/rfc7606_bgpls_nlri.go`
+   - Files: `internal/component/bgp/message/rfc7606_bgpls_nlri.go` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
    - Verify: ordering is a skipable error and reaches NLRI discard, not session reset
 4. **Phase: The action ladder** -- skipable, disable, reset
    - Tests: `TestEnforceRFC7606ActsOnAMalformedBGPLSNLRI`, `bgp-ls-malformed-nlri`
@@ -345,7 +345,7 @@ configuration, declaring a peer's BGP-LS role.
    - Verify: a BGP-LS-only session resets and a mixed session disables the family
 5. **Phase: The declared role** -- §8.2.6 enforced rather than documented
    - Tests: `TestConsumerFacingPeerDropsBGPLSOnImport`, `TestUndeclaredPeerStillPropagatesBGPLS`, `TestConsumerFacingPeerKeepsItsOtherFamilies`, `bgp-ls-consumer-facing`
-   - Files: `internal/component/bgp/plugins/nlri/ls/role.go`, `yang/ze-bgp-ls-role.yang`, `plugin.go`
+   - Files: `internal/component/bgp/plugins/nlri/ls/role.go`, `yang/ze-bgp-ls-role.yang`, `plugin.go` <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
    - Verify: declaring the role drops BGP-LS on import with no filter written, and omitting it changes nothing
 6. **Phase: Interop and the ledger** -- proof against a real peer
    - Tests: `bgp-ls-receive-gobgp`
@@ -369,7 +369,7 @@ configuration, declaring a peer's BGP-LS role.
 |-------------|---------------------|
 | BGP-LS NLRI is validated | `grep -n 'AFIBGPLS' internal/component/bgp/message/rfc7606.go` names the branch |
 | the four rows are proven | `./le rfc check` exits 0 on rfc9552's 8.2.2 and 8.2.6 rows |
-| the role enforces itself | `test/decode/bgp-ls-consumer-facing.ci` PASS with no `family-filter` in its config |
+| the role enforces itself | `test/decode/bgp-ls-consumer-facing.ci` PASS with no `family-filter` in its config | <!-- doc-links: ignore (file this open spec plans and has not created yet) -->
 | no false positive against a real peer | `./le integration interop` with `bgp-ls-receive-gobgp` PASS |
 
 ### Security Review Checklist
@@ -430,7 +430,7 @@ classes. The declared role's apply path quotes §8.2.6 and §10.
 - [ ] AC-1..AC-13 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -448,7 +448,7 @@ classes. The declared role's apply path quotes §8.2.6 and §10.
 
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
-- [ ] `/ze-review` gate clean, recorded via `internal/le/speclifecycle/review.go`
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)

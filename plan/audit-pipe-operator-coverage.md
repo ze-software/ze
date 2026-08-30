@@ -453,7 +453,7 @@ generated: see 8.2.
 
 `ze help ai --json` and the MCP surface carry no pipe metadata at all. The REST
 `/api/v1/commands` and its generated OpenAPI, the gRPC `DescribeCommand`, and
-gNMI carry none either. `./le command-list` walks `AllBuiltinRPCs` plus the
+gNMI carry none either. `./le command list` walks `AllBuiltinRPCs` plus the
 streaming prefixes and reports no pipe data and no plugin or local command.
 
 ### 8.2 The wiki is already generated, and it is still wrong
@@ -581,9 +581,9 @@ generator carry none of it.
 | the wiki page | `gen_wiki_commands.py` prints the list it is given and holds no literal |
 | the website | `website/tools/render-cli-catalog.py` already consumes the same JSON and renders no pipe information at all. It renders this |
 | the docs pages | `docs/features/formatting.md` keeps the prose and takes the operator table from a generated include. Every other page links to it rather than re-listing |
-| the gate | `./le doc-check verify` already runs `doc_drift.go`, which compares documentation claims against the registry. It grows one check: every operator name in `docs/` and in the wiki is in the exported set, and no command's published list disagrees with what the command declares |
+| the gate | `./le doc check verify` already runs `doc_drift.go`, which compares documentation claims against the registry. It grows one check: every operator name in `docs/` and in the wiki is in the exported set, and no command's published list disagrees with what the command declares |
 
-`./le doc-check verify` is the right home because it already owns "docs claims vs
+`./le doc check verify` is the right home because it already owns "docs claims vs
 registry" and already fails a build. A new parallel generator would be a sixth
 copy of the problem this section exists to end.
 
@@ -594,7 +594,7 @@ copy of the problem this section exists to end.
 The population is the 465 paths of `plan/audit-command-pipe-vs-subcommand.md`,
 re-derived here only for the local registry (46 production paths from
 `MustRegisterLocal` and `MustRegisterLocalMeta` literals outside `_test.go`).
-`./le command-list` was not used, for the reason that audit records.
+`./le command list` was not used, for the reason that audit records.
 
 A `ze` binary was built from this tree with the repository's feature tags and
 driven two ways. `ze pipe` ran the operator chain over fixed JSON with no daemon,

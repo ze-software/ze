@@ -95,6 +95,7 @@ that existing metrics table and its watchdog prose, not open a parallel section.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/api/ipc_protocol.md` - correlated, bidirectional RPC between the engine and its plugins
 <!-- NEVER tick [ ] to [x] — checkboxes are template markers, not progress trackers. -->
 - [ ] `docs/architecture/core-design.md` sections 1 and 15 - the stale standalone-Bus diagram
   vs the real EventBus and the separate Operational Report Bus
@@ -228,7 +229,7 @@ that existing metrics table and its watchdog prose, not open a parallel section.
 |---|-----------|--------------------|-----------------------|
 | 1 | runs a redistribution burst against a slow reactor | producer -> `Emit` -> async drain -> N RPCs | `test/plugin/bus-slow-consumer-nonblocking.ci` |
 | 2 | a plugin floods inbound requests | `mux.readLoop` -> bounded `requestCh` -> metric | `test/plugin/bus-inbound-overflow-metric.ci` |
-| 3 | an operator reads the architecture doc | core-design.md §1 + glossary | `./le doc-check verify` on the updated doc |
+| 3 | an operator reads the architecture doc | core-design.md §1 + glossary | `./le doc check verify` on the updated doc |
 
 ## 🧪 TDD Test Plan
 
@@ -318,7 +319,7 @@ protocol. Existing BGP/redistribution interop scenarios are the regression gate.
 4. **Phase: Explicit ordering contract** — replace the emergent `defer` ordering with a
    documented, tested contract; verify the replay coordinator.
    - Tests: `TestDeliveryOrderingContract`.
-5. **Phase: Docs + glossary** — fix core-design.md §1; add the naming glossary; `./le doc-check verify`.
+5. **Phase: Docs + glossary** — fix core-design.md §1; add the naming glossary; `./le doc check verify`.
 6. **Full verification** → `./le verify current mode full` (with `-race` on the new tests).
 7. **Complete spec** → learned summary `plan/learned/NNN-bus-async-fanout.md`; two commits.
 
@@ -432,7 +433,7 @@ protocol. Existing BGP/redistribution interop scenarios are the regression gate.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests, `-race` on new concurrency tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests, `-race` on new concurrency tests)
 - [ ] Feature code integrated (`internal/*`, `pkg/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

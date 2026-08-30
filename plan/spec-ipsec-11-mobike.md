@@ -89,6 +89,10 @@ address events, but wiring them to the IKE engine is deferred to a future spec.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/ike/ipsec-3-data-model.md` - the typed model between the YANG schema and the IKE engine
+- [ ] `docs/architecture/ike/ipsec-7-ikev2-engine.md` - the native IKEv2 state machine above the wire codec and the crypto layer
+- [ ] `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md` - ESP Child SA creation after IKE_AUTH, and the dataplane abstraction
+- [ ] `docs/architecture/wire/buffer-writer.md` - the fixed session buffer and writer interface that replaces `append()`
 - [ ] `docs/architecture/core-design.md` -- component isolation, registration pattern
   -> Constraint: IKE engine is a registered plugin. Address monitoring must integrate via the same event/bus pattern, not direct coupling.
 - [ ] `rfc/short/rfc4555.md` -- MOBIKE protocol
@@ -417,7 +421,7 @@ The `Scenario.teardown()` must also clean up the mobility network.
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7. Critical review | Critical Review Checklist below |
 | 8. Fix issues | Fix every issue from critical review |
 | 9. Re-verify | Re-run stage 6 |
@@ -639,7 +643,7 @@ MUST document: capability negotiation, UPDATE_SA_ADDRESSES handling, COOKIE2 ver
 - [ ] AC-1..AC-13 all demonstrated
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

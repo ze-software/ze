@@ -182,7 +182,7 @@ likely needs a transport-level design decision before any RADIUS code.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-4 demonstrated
 - [ ] EAP transport-relay design question resolved
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 
 ### TDD
 - [ ] Tests written

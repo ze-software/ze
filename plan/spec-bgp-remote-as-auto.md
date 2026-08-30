@@ -41,6 +41,7 @@ can be brought up without pinning its AS in advance.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
 - [ ] `internal/component/bgp/reactor/reactor_dynamic.go` - how dynamic peers learn AS from OPEN.
   → Constraint: `auto` must reuse this resolution, not add a second AS-learning path.
 - [ ] `ai/rules/config.md`, `ai/rules/config.md` - the remote-as mode option.
@@ -277,7 +278,7 @@ can be brought up without pinning its AS in advance.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

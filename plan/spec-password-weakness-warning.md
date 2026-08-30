@@ -60,6 +60,8 @@ placeholder "N". Neither is a final decision.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/config/syntax.md` - the JUNOS-like config syntax: blocks, terminators, comments and inheritance
+- [ ] `docs/architecture/system-architecture.md` - the legacy note on hub/orchestrator mode with separate plugin processes
 - [ ] `ai/rules/config.md` - warning vs error semantics on commit.
   → Constraint: this is a warning, not a rejection; the password is still set.
 - [ ] `ai/rules/plugins.md` - the check must live with the password logic.
@@ -347,7 +349,7 @@ re-approving the design.
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 

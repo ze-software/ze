@@ -138,6 +138,10 @@ implement it deliberately rather than half-land it.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/api/commands.md` - the verb-first API command paths, with JSON or text encoding
+- [ ] `docs/architecture/api/process-protocol.md` - the plugin communication protocol and process lifecycle
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
+- [ ] `docs/architecture/web-interface.md` - the HTTPS server rendering YANG-driven config views with HTMX components
 <!-- NEVER tick [ ] to [x]. Capture insights as → Decision: / → Constraint: annotations. -->
 - [ ] `docs/architecture/bgp/reactor.md` - reactor lock discipline and session goroutine ownership
   → Constraint: `prefixCounts` is owned by the session read goroutine and mutated without `r.mu`; any cross-goroutine read must be lock-free (atomic) or copied under a barrier.
@@ -384,7 +388,7 @@ Facts established while auditing; carry these into any re-design.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes (or `./le verify current mode changed` when scoped, with rationale)
+- [ ] `./le verify worktree` passes (or `./le verify current mode changed` when scoped, with rationale)
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 

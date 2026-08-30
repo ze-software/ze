@@ -227,7 +227,7 @@ Not applicable: config-apply lifecycle work, no wire protocol behavior changes.
 - [ ] Audit classification table filled with producer `file:line` for every participant
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)
 
 ### Quality Gates (SHOULD pass - defer with user approval)

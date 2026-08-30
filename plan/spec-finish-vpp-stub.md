@@ -18,7 +18,7 @@
 
 ## Task
 
-Extend `test/scripts/vpp_stub.py` (Python VPP binary-API emulator) and add the `test/vpp/*.ci` tests that depend on the richer stub. Unblocks AC-2..16 iface/telemetry coverage that is currently unit-only.
+Extend `test/scripts/vpp_stub.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> (Python VPP binary-API emulator) and add the `test/vpp/*.ci` tests that depend on the richer stub. Unblocks AC-2..16 iface/telemetry coverage that is currently unit-only.
 
 This is a consolidation skeleton created from verified deferral survivors (backlog triage 2026-07-06). Each item below was confirmed still-open against the codebase with a producing `file:line`. Split into phases when picked up; the sections after Task are lightweight scaffolding to be filled at design time.
 
@@ -46,7 +46,7 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
 
 | # | Skeleton said | Reality after the wave | Evidence |
 |---|--------------|------------------------|----------|
-| 1 | HANDLERS at `test/scripts/vpp_stub.py` | HANDLERS dict now at `test/scripts/vpp_stub.py` (the wave inserted `handle_classify_add_del_table` at :517-546) | read 2026-07-10 |
+| 1 | HANDLERS at `test/scripts/vpp_stub.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> | HANDLERS dict now at `test/scripts/vpp_stub.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> (the wave inserted `handle_classify_add_del_table` at :517-546) | read 2026-07-10 |
 | 2 | Scope = iface handlers + stats + inject + route dump + 2 `.ci` | Scope EXPANDED: wave added span/wireguard/lcp/gre/gretap/ipip/vxlan/tunnel_types binapi surface and traffic classify/policer messages; vendored govpp binapi packages; 49 of 57 sent request messages unhandled | Message inventory below |
 | 3 | (not stated) | The wave chose real-VPP Docker evidence (`internal/le/deployment/vppiface.go`, `./le deployment vpp-iface-test`) instead of stub coverage for its new surface; the stub gap is this spec's to close | the followup-vpp-iface record, Consequences; `internal/le/integration/gates.go` |
 | 4 | `test/vpp` has 001,002,005,006,007 | Confirmed: exactly `vpp-boot.ci`, `vpp-fib-route.ci`, `vpp-mpls-push.ci`, `vpp-iface-create.ci`, `vpp-fib-route-lookup.ci`; 003/004/008+ absent | `ls test/vpp/` 2026-07-10 |
@@ -55,9 +55,12 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
 
 ## Required Reading
 
+### Architecture Docs
+- [ ] `docs/architecture/core-design.md` - the canonical architecture reference: the design principles all new code follows
+
 ### Source files / docs
 
-- [ ] ~~`test/scripts/vpp_stub.py` (HANDLERS)~~ `test/scripts/vpp_stub.py` (HANDLERS) -- line drifted, see Post-Wave Corrections #1
+- [ ] ~~`test/scripts/vpp_stub.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> (HANDLERS)~~ `test/scripts/vpp_stub.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> (HANDLERS) -- line drifted, see Post-Wave Corrections #1
   → Constraint: verify current behaviour against this source before designing. (Done 2026-07-10; full file read, see Current Behavior.)
   → Constraint: dispatch is by negotiated message name; unhandled requests hit the generic fallback at :609-617 (retval=0 i32 reply IF `<name>_reply` exists in the scraped table, logged with `"unhandled": true`; dump requests get NO reply so streams end empty at the client's control_ping).
   → Constraint: the stub truncates its JSONL log at startup (:152-154) -- a restarted stub instance on the same log path wipes prior evidence; `004-vpp-restart.ci` must use a distinct log per instance.
@@ -85,7 +88,7 @@ Corrections against the 2026-07 followup wave (see `tmp/review-followup/context.
 
 **Source files read:** (all read firsthand 2026-07-10)
 
-- [ ] `test/scripts/vpp_stub.py` (724 lines, full read)
+- [ ] `test/scripts/vpp_stub.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> (724 lines, full read)
   -> Constraint: 8 handlers registered at :549-558: sockclnt_create, sockclnt_delete, control_ping, ip_route_add_del, ip_route_lookup_v2, mpls_route_add_del, sw_interface_set_mpls_enable, classify_add_del_table.
   -> Constraint: reply framing helper `build_reply` (:229-253) already supports RequestMessage (10-byte), ReplyMessage/EventMessage (6-byte) headers -- event push needs no new framing code.
   -> Constraint: message table is scraped from the vendored binapi (`scrape_binapi` :76-120), so handler names must match wire names exactly.
@@ -209,7 +212,7 @@ Beyond requests, two non-request surfaces are unemulated:
 
 ### Stub wiring (how .ci runs reach the stub)
 
-- The drivers embedded in each `test/vpp/*.ci` locate `test/scripts/vpp_stub.py` via the repo root and spawn it per-test with `--socket <tmp>/api.sock --log <tmp>/vpp-requests.jsonl --deadline N -v`.
+- The drivers embedded in each `test/vpp/*.ci` locate `test/scripts/vpp_stub.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> via the repo root and spawn it per-test with `--socket <tmp>/api.sock --log <tmp>/vpp-requests.jsonl --deadline N -v`.
 - `ze-test vpp` (registered `internal/test/cli/register.go`, implemented `cmd_vpp.go`) discovers `test/vpp/*.ci`; `./le functional vpp` = `bin/ze-test vpp --all` (`internal/le/functional/suites.go`).
 - The vpp suite is non-gating: absent from the `./le functional` suite list (`internal/le/functional/suites.go`), present in `ze-evidence-functional-test` (`internal/le/evidence/evidence.go`).
 
@@ -246,7 +249,7 @@ Beyond requests, two non-request surfaces are unemulated:
 | source tree -> parity gate | `internal/le/repository/repository.go` scans non-test Go for binapi request constructions and vpp_stub.py for HANDLERS keys | [ ] |
 
 ### Integration Points
-- `test/scripts/vpp_stub.py`
+- `test/scripts/vpp_stub.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) -->
 - `internal/plugins/iface/vpp/`
 - `internal/plugins/traffic/vpp/`
 - (design 2026-07-10) `internal/plugins/fib/vpp/`, `internal/plugins/firewall/vpp/`, `internal/plugins/static/vpp/`, `internal/component/vpp/` (session, stats, telemetry)
@@ -265,7 +268,7 @@ Beyond requests, two non-request surfaces are unemulated:
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The verified `file:line` evidence in the Task items still holds at design time | 2026-07-06 backlog triage | Re-scope the item | grep/LSP at design time | confirmed (2026-07-10 full re-inventory; only drift: HANDLERS :517 -> :549, scope grew per Post-Wave Corrections) |
 | A-2 | Extra-field fallback replies fail the request in ze without crashing it (decode error, not panic) | `vendor/go.fd.io/govpp/codec/codec.go` recover in DecodeMsg | Fallback would crash ze; handlers become even more urgent but tests must guard crashes | read of codec.go 2026-07-10 | confirmed |
-| A-3 | Stub message IDs are stable across stub restart (same binapi -> same sorted assignment), so govpp reconnect works against a NEW stub process | `test/scripts/vpp_stub.py` deterministic assignment; govpp re-runs sockclnt_create on reconnect | 004-vpp-restart infeasible against a fresh process; would need in-process socket re-listen instead | read of stub + `connection.go` reconnect loop | confirmed (code-read; runtime-proven by 004 itself) |
+| A-3 | Stub message IDs are stable across stub restart (same binapi -> same sorted assignment), so govpp reconnect works against a NEW stub process | `test/scripts/vpp_stub.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> deterministic assignment; govpp re-runs sockclnt_create on reconnect | 004-vpp-restart infeasible against a fresh process; would need in-process socket re-listen instead | read of stub + `connection.go` reconnect loop | confirmed (code-read; runtime-proven by 004 itself) |
 | A-4 | The govpp reconnect window under ze's settings is ~10s (10 attempts x 1s), enough for a driver to restart the stub | `internal/component/vpp/vpp.go` Connect(ctx, 10, 1s); `conn.go` passes both to core.AsyncConnect | 004 flaky; driver must restart faster or the test is redesigned around a held socket | 004 driver logs reconnect timing; run under load | unvalidated |
 | A-5 | With sw_interface_dump + policer/classify handlers, the traffic vpp Apply path completes against the stub (WaitConnected satisfied, name resolution finds the seeded interface) | 1096 Consequences names exactly these handlers as the A-6 blocker; Apply gates on `Connector.WaitConnected` + interface dump (`ops_linux.go`) | Apply needs more than listed; extend stub state until Apply completes; scope unchanged (parity list is closed) | 016-traffic-apply.ci green | unvalidated |
 | A-6 | Python on CI supports SOCK_SEQPACKET + `socket.send_fds` (3.9+) for the stats emulation | statsclient requires seqpacket + SCM_RIGHTS (`statsclient.go`); repo CI uses modern python3 | Implement fd-passing via `sendmsg` ancillary data manually (works on any 3.x) | `python3 -c` probe in the 012 driver; implementation-time check | unvalidated |
@@ -378,7 +381,7 @@ Not applicable with justification: the VPP binary API is not a wire protocol bet
 
 - ~~`internal/plugins/iface/vpp/ifacevpp.go` - see Task work items~~ struck at design 2026-07-10: this spec does not modify the backends; they are the code the stub EXERCISES. Listed originally by the skeleton as context, not as edits.
 - ~~`internal/plugins/traffic/vpp/backend_linux.go` - see Task work items~~ struck at design 2026-07-10: same reason.
-- `test/scripts/vpp_stub.py` - stateful interface/route/policer/classify/acl-nat/wireguard tables; 49 new handlers; sw_interface_event emission; `--inject`; `--strict`; stats-segment serving (`--stats-socket`)
+- `test/scripts/vpp_stub.py` (retired, no successor) <!-- doc-links: ignore (deleted 2026-08-28 by eae282592 with no replacement) --> - stateful interface/route/policer/classify/acl-nat/wireguard tables; 49 new handlers; sw_interface_event emission; `--inject`; `--strict`; stats-segment serving (`--stats-socket`)
 - `internal/test/peer/message.go`, `internal/test/peer/peer.go` (+ the option parser file that consumes `option=update:value=...`) - `send-withdraw` directive
 - `internal/le/` native action tables (or the owning `internal/le/`) - `ze-vpp-stub-parity-check` target, wired into the `_ze-verify-impl` check family (`internal/le/` native action tables) next to the sibling checks; help text
 - `docs/functional-tests.md` - vpp suite runbook: new tests, stub flags, stats emulation, parity gate
@@ -470,7 +473,7 @@ Not applicable with justification: the VPP binary API is not a wire protocol bet
 | 2. Audit | Files to Modify, Files to Create, TDD Test Plan, Message inventory |
 | 3. Wiring phase | Wiring Test table -- Phase W below (parity gate RED) |
 | 4. Implement (TDD) | Phases 1-7 below |
-| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` + `./le functional vpp` |
+| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` + `./le functional vpp` |
 | 6-9. Reviews | Critical Review Checklist below; fix; re-verify |
 | 10-12. Deliverables/security/docs | Checklists below |
 | 13. /ze-review gate | Review Gate section |
@@ -662,7 +665,7 @@ Each phase: write test -> fail -> implement -> pass. Each ends with a self-criti
 ### Goal Gates (MUST pass)
 - [ ] Every chosen work item has feature code + test
 - [ ] Wiring Test table complete (concrete test names, none deferred)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Registration over hardcoding respected
 - [ ] AC-1..AC-15 all demonstrated; parity gate GREEN and wired into ./le verify current mode full
 - [ ] End-to-End User Stories 1-12 each have a passing test

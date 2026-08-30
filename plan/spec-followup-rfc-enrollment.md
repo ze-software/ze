@@ -107,7 +107,7 @@ tests gain `RFC requirement:` tags; the 9 zero-capture summaries are re-authored
    every MUST-level requirement is covered or annotated.
 2. Tagging enforcing tests (`RFC requirement: <id> <polarity>`) makes the derived ledger show the
    requirement→test link; the gate turns green for that RFC.
-3. `./le rfc index-update` regenerates `ai/RFC-REQUIREMENTS.md`; `./le doc-check verify` fails if it is stale.
+3. `./le rfc index-update` regenerates `ai/RFC-REQUIREMENTS.md`; `./le doc check verify` fails if it is stale.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -182,7 +182,7 @@ and the enforcing test carries the machine-checked `// RFC requirement: <id> <po
 - [ ] Tests written for each newly tagged requirement
 - [ ] Tests FAIL before the enforcing code/tag exists
 - [ ] Tests PASS after
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] `./le rfc check` green for every enrolled RFC
 
 ### Quality Gates (SHOULD pass)

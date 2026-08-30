@@ -48,6 +48,7 @@ This work was homed from the 2026-08-07 row of
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/testing/interop.md` - live session interop against production daemons, and byte-level ExaBGP comparison
 
 - [ ] `docs/architecture/traffic/fw-7b-backend-hardening.md` - the `vppOps` seam this change constructs
   → Decision: `vppOps` is the seam that lets the apply path be tested without VPP; `govppOps` is the one production implementation of it.
@@ -359,7 +360,7 @@ any wire; it installs a client-side deadline.
    - Verify: `./le qemu run command "./le qemu all-tests"`, and read the output for a line naming `internal/plugins/traffic/vpp`. A zero exit alone does not satisfy AC-5 (R-3)
 5. **Phase: documentation** -- the seam doc, and any stale source anchor the checklist grep finds.
    - Files: `docs/architecture/traffic/fw-7b-backend-hardening.md`
-   - Verify: `./le doc-check verify`
+   - Verify: `./le doc check verify`
 6. **Full verification** -- `./le verify current mode full`, then set Status to `verification`, commit, and stop. Closure belongs to a later Opus 5 session (`Handoff | verify`).
 
 ### Critical Review Checklist
@@ -468,7 +469,7 @@ any wire; it installs a client-side deadline.
 - [ ] AC-1 to AC-6 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [ ] Feature code integrated (`internal/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding
@@ -489,4 +490,4 @@ any wire; it installs a client-side deadline.
 
 - [ ] Status set to `verification` before the commit
 - [ ] ONE commit: code, tests, docs, the deferral shard row, and this spec. No `plan/learned/` file and no spec removal, or `commit_helper.py` reads it as a closure commit
-- [ ] `internal/le/speclifecycle/session.go release`, report the SHA, then stop. A later Opus 5 session runs the Review Gate over the committed diff and closes
+- [ ] `internal/le/spec/session/session.go release`, report the SHA, then stop. A later Opus 5 session runs the Review Gate over the committed diff and closes

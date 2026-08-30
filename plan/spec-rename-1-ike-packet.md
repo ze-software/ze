@@ -42,7 +42,7 @@ identifiers in any importer.
 - [ ] `ai/rules/protocol.md` - IKE probe row + exceptions
   → Constraint: after this spec, IKE maps cleanly with no exceptions; probe row and exceptions table both change
 - [ ] `docs/architecture/bfd.md` is NOT affected; the 2 anchors into `ike/wire` live elsewhere - grep `source: internal/component/ike/wire` to locate them at implementation time
-  → Constraint: `./le doc-check verify` gates the anchor sweep (`internal/le/docstocode/codetodocs.go` does literal path-exists checks)
+  → Constraint: `./le doc check verify` gates the anchor sweep (`internal/le/docstocode/codetodocs.go` does literal path-exists checks)
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] Not applicable: no protocol behavior changes; RFC 7296 semantics are untouched (rename only).
@@ -100,7 +100,7 @@ identifiers in any importer.
 |----|-----------|-------|----------|--------------|--------|
 | A-1 | All importers live under `internal/component/ike/` | repo-wide import grep 2026-07-08 listed 17 files, all in `ike/engine` | wider rewrite needed | rerun the import grep at implementation start | confirmed (2026-07-08 snapshot) |
 | A-2 | No local `packet` identifier in any importer | grep audit 2026-07-08: zero declarations | compile errors after rewrite | `go build ./internal/component/ike/...` | confirmed (2026-07-08 snapshot) |
-| A-3 | Exactly 2 doc source anchors point into `ike/wire` | anchor grep 2026-07-08 | doc-test failures reveal more | `./le doc-check verify` after sweep | confirmed (2026-07-08 snapshot) |
+| A-3 | Exactly 2 doc source anchors point into `ike/wire` | anchor grep 2026-07-08 | doc-test failures reveal more | `./le doc check verify` after sweep | confirmed (2026-07-08 snapshot) |
 | A-4 | No string literal, YANG node, metric, or CLI word depends on the package name | pkg/ grep zero refs; no quoted literals found carrying the name | user-visible break | repo grep for `ike/wire` after rename must return only history (plan/learned) | confirmed (2026-07-08 snapshot) |
 
 ### Risks
@@ -123,7 +123,7 @@ identifiers in any importer.
 | AC-1 | after rename | `internal/component/ike/wire/` does not exist; `internal/component/ike/packet/` builds; package clause is `packet` in all 34 files |
 | AC-2 | repo-wide grep for the old import path | zero hits in code, scripts, docs/ and ai/ (living surfaces); history under plan/learned/ exempt |
 | AC-3 | `internal/le/protocolskeleton/protocolskeleton.go` | summary shows `legacy 3`; `--verbose` shows `ike: ... packet=canonical`; `--selftest` OK with ("ike", "wire") fixtures removed and `ospf/wire == domain` retained |
-| AC-4 | `./le doc-check verify` | green after the 2 anchors (and any prose mentions) are updated |
+| AC-4 | `./le doc check verify` | green after the 2 anchors (and any prose mentions) are updated |
 | AC-5 | rule surfaces | `ai/rules/go-standards.md` `wire` row no longer carries an ike exception; `ai/rules/protocol.md` IKE probe row says "none" under Exceptions |
 | AC-6 | `./le verify current mode full` | green, including regenerated `ai/PACKAGE-MAP.md` |
 
@@ -194,7 +194,7 @@ identifiers in any importer.
 | 13 | Route metadata keys added/changed? | [ ] | No |
 | 14 | Prometheus counters added/changed? | [ ] | No |
 | 15 | Registered inventory changed? | [ ] | No |
-| 16 | Changed source referenced by doc anchors? | [ ] | Yes - the 2 anchors; gated by `./le doc-check verify` |
+| 16 | Changed source referenced by doc anchors? | [ ] | Yes - the 2 anchors; gated by `./le doc check verify` |
 | 17 | Docs show examples for this area? | [ ] | No examples carry package paths |
 
 ## Files to Create
@@ -209,7 +209,7 @@ identifiers in any importer.
 | 2. Audit | Files to Modify; rerun A-1..A-4 greps |
 | 3. Wiring phase | Wiring Test table (existing chains; no new entry points to register) |
 | 4. Implement (TDD) | Implementation phases below |
-| 5. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 5. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 6-9. Reviews + fixes | Critical Review Checklist below |
 | 10. Deliverables review | Deliverables Checklist below |
 | 11. Security review | Security Review Checklist below |
@@ -227,7 +227,7 @@ identifiers in any importer.
    - Files: `internal/component/ike/packet/`, `internal/component/ike/engine/*.go`, `internal/le/protocolskeleton/protocolskeleton.go`
    - Verify: AC-1, AC-2 (code), AC-3
 3. **Phase: rule + doc sweep** — go-standards.md, protocol.md, the 2 anchors + prose, regenerate PACKAGE-MAP.
-   - Tests: `./le doc-check verify`, `./le rules index-update` if rule headers changed
+   - Tests: `./le doc check verify`, `./le rules index-update` if rule headers changed
    - Files: per Files to Modify
    - Verify: AC-4, AC-5
 4. **Full verification** — `./le verify current mode full`; AC-6.
@@ -379,7 +379,7 @@ Not applicable: no RFC-covered behavior changes.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

@@ -47,6 +47,8 @@ direction; dual-representation is the documented fallback.
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/api/architecture.md` - API programs own all RIB data and logic; the engine is a minimal BGP speaker
+- [ ] `docs/architecture/api/ipc_protocol.md` - correlated, bidirectional RPC between the engine and its plugins
 <!-- NEVER tick [ ] to [x]. -->
 - [ ] `docs/architecture/core-design.md` (Ingress Filter Pipeline; Route Metadata / ModAccumulator, ~628-699) - the two filter mechanisms and the mod-op apply model
   -> Decision: in-process filters use `func(source, payload []byte, meta) (accept, modifiedPayload []byte)` and write `mods.Op(code, action, valueBytes)`; the external chain is the only text-based holdout. The redesign unifies the external chain onto this existing model, it does NOT invent a new algebra.
@@ -294,7 +296,7 @@ umbrella stays open until every child closes.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (Review Gate section filled — 0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `pkg/*`)
 - [ ] Documentation Update Checklist answered Yes/No with source evidence
 - [ ] Risks & Assumptions: every A-N confirmed or broken (none `unvalidated`)

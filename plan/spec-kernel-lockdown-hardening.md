@@ -17,7 +17,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. The kernel build-consolidation and build-convergence records (retired with the learned corpus) - kernel build system
-4. `tools/kernel-builder/run.py`, `tools/kernel-builder/build.py` - build driver + engine (signing hooks here)
+4. `tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) -->, `tools/kernel-builder/build.py` (retired; now `internal/le/deployment/hostkernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> - build driver + engine (signing hooks here)
 5. `gokrazy/kernel/{kernel,runtime}.{config,require}`, `tools/installer-kernel/hardware.config` - config fragments + floor enforcement
 
 ## Task
@@ -80,19 +80,22 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/appliance/build-artifacts.md` - how an ISO build resolves its installer kernel and installer initrd
+- [ ] `docs/architecture/appliance/kernel-profiles.md` - a kernel profile is a pair of files in an open registry
+- [ ] `docs/features/ai-first.md` - register once, expose everywhere: one command and discovery surface
 - [ ] The kernel build-consolidation and build-convergence records (retired with the learned corpus) — kernel build system
-  → Constraint: one driver `tools/kernel-builder/run.py` resolves fragments and calls `build.py` in docker/qemu; both Makefiles AND `ze appliance kernel` go through it. Any signing step lives in `build.py` (runs in-container), not on the host.
+  → Constraint: one driver `tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> resolves fragments and calls `build.py` in docker/qemu; both Makefiles AND `ze appliance kernel` go through it. Any signing step lives in `build.py` (runs in-container), not on the host.
   → Constraint: config floors enforced by paired `.require` files; the Go path `internal/appliance/kernelreg.go` resolves fragments+manifests, the actual `=y` assertion is `build.py:enforce_required_symbols` (143-160). A missing required `=y` symbol fails the build.
   → Constraint: resolved `.config` (defconfig + merge_config + olddefconfig) is the cheaply-diffable artifact; unrelated symbols must stay byte-identical.
 - [ ] `ai/rules/repo-maintenance.md` — runtime-dependency readiness checks
   → Constraint: a new runtime dependency (here: the `/sys/kernel/security/lockdown` procfs/securityfs path) requires a registered `ze doctor` check. The appliance is a component, not a plugin, so register via `diagnostic.RegisterDoctorCheck()` from the owning package init(); add a `doctor-<component>-<condition>` code to `internal/core/diagnostic/codes.go`, explainable via `ze explain`. Needs a Linux-tagged unit test + a `ze doctor --json` functional test + QEMU coverage.
 
 ### Source Files Read (Current Behavior)
-- [ ] `tools/kernel-builder/build.py` (407L)
+- [ ] `tools/kernel-builder/build.py` (retired; now `internal/le/deployment/hostkernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> (407L)
   → Constraint: `enforce_required_symbols` (143-160) and `required_symbols_for_fragments` (119-140) only understand `CONFIG_X` / `CONFIG_X=y`. They CANNOT enforce string-valued (`CONFIG_LSM="..."`) or `=n` symbols. The floor can mandate `LOCKDOWN_LSM=y`, `MODULE_SIG_FORCE=y`, `KEXEC_SIG=y`, `RANDOMIZE_BASE=y`, `DMESG_RESTRICT=y` but NOT that lockdown is in `CONFIG_LSM` nor that confidentiality is not forced.
   → Constraint: build order is download → extract/restore tree → patches → `merge_config` → `olddefconfig` → `enforce_required_symbols` → `build_kernel` → copy outputs (353-401). Module/image signing must hook AFTER `build_kernel` (384) and BEFORE `copy_runtime_outputs` (389). `modules_install` (copy_runtime_outputs, 287-292) is where `MODULE_SIG_ALL=y` would auto-sign.
   → Constraint: `validate_arch` (51-56) maps amd64→`bzImage`, arm64→`Image`. KEXEC bzImage verification is x86-only; arm64 image-sig differs. Signing is arch-asymmetric.
-- [ ] `tools/kernel-builder/run.py` (498L)
+- [ ] `tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> (498L)
   → Constraint: docker run mounts named volumes `ze-kernel-work:/build` and `ze-kernel-build:/tmp/kbuild` (273-276); `build.py:restore_or_extract_tree` (192-219) REUSES an existing build tree. A kernel-auto-generated `certs/signing_key.pem` would PERSIST in the volume across builds — NOT ephemeral, and present on the build host. "Destroy privkey" must be explicit.
 - [ ] `gokrazy/kernel/kernel.config` (91L) — runtime base. `CONFIG_KEXEC_FILE=y` (81), `CONFIG_SECURITY_LANDLOCK=y` (90), `IKCONFIG_PROC` (77-78). No lockdown/sig/secureboot. No `CONFIG_KEXEC=y` (legacy kexec_load absent — good).
 - [ ] `gokrazy/kernel/runtime.config` (129L) — `CONFIG_MODULES=y` (2-3); all NIC/L2TP/PPP/BPF built-in (`=y`). `CONFIG_BPF_SYSCALL=y`/`BPF_JIT=y` (76,80).
@@ -114,8 +117,8 @@ stable-key path as primary per the gate decision; the fallback remains a one-lin
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (full annotations in Required Reading → Source Files Read)
-- [ ] `tools/kernel-builder/build.py` — build engine; floor enforces `=y` only; signing must hook after `build_kernel`
-- [ ] `tools/kernel-builder/run.py` — docker/qemu driver; named-volume build-tree cache (key-persistence hazard)
+- [ ] `tools/kernel-builder/build.py` (retired; now `internal/le/deployment/hostkernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> — build engine; floor enforces `=y` only; signing must hook after `build_kernel`
+- [ ] `tools/kernel-builder/run.py` (retired; now `internal/le/deployment/gokrazykernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> — docker/qemu driver; named-volume build-tree cache (key-persistence hazard)
 - [ ] `gokrazy/kernel/runtime.config` — `CONFIG_MODULES=y`; NIC/L2TP/PPP/BPF all built-in
 - [ ] `gokrazy/kernel/kernel.config` — `KEXEC_FILE=y`, `LANDLOCK=y`, no lockdown/sig
 - [ ] `internal/appliance/kernelreg.go` — Go-side fragment + `.require` manifest resolver
@@ -275,7 +278,7 @@ N/A — no wire-protocol change. Justification: this is a kernel build/config + 
 - `gokrazy/kernel/runtime.require` — add ONLY the arch-common mandatory `=y` symbols (lockdown, module-sig, KASLR, dmesg); NOT the amd64 image-sign symbols (AC-3, R-5)
 - `tools/installer-kernel/hardware.config` + `kernel.config` — add `RANDOMIZE_BASE` + `DMESG_RESTRICT` (AC-2)
 - `tools/installer-kernel/hardware.require` (and/or base require) — mandate KASLR+dmesg on installer
-- `tools/kernel-builder/build.py` — signing: provision both certs BEFORE `build_kernel` (384); sign modules via `MODULE_SIG_ALL` during `modules_install` (in `copy_runtime_outputs`); sbsign the amd64 `bzImage` with the stable key; destroy the ephemeral module key LAST; never let it persist in the `/tmp/kbuild` tree (C-3, R-3)
+- `tools/kernel-builder/build.py` (retired; now `internal/le/deployment/hostkernel.go`) <!-- doc-links: ignore (retired 2026-08-28 by eae282592) --> — signing: provision both certs BEFORE `build_kernel` (384); sign modules via `MODULE_SIG_ALL` during `modules_install` (in `copy_runtime_outputs`); sbsign the amd64 `bzImage` with the stable key; destroy the ephemeral module key LAST; never let it persist in the `/tmp/kbuild` tree (C-3, R-3)
 - `tools/kernel-builder/Dockerfile` — add `sbsigntool` + `openssl` for image + key handling
 - `internal/appliance/doctor_checks.go` — register `doctor-appliance-lockdown`; gate it on a **running-on-appliance** signal so it is a no-op (not a warning) on a dev host where `/sys/kernel/security/lockdown` is absent or `[none]` (C-8)
 - `internal/appliance/dev_setup_drift_test.go` — add `appliance-lockdown` to the `buildArtifactChecks` skip-set; it is a runtime check, not a host build prerequisite, so it does NOT belong in `dev-setup.py` (C-7, `dev_setup_drift_test.go`)
@@ -418,7 +421,7 @@ gap), NOTE (worth stating). The C-N numbering here is the one referenced through
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Doctor check `doctor-appliance-lockdown` registered + explainable; QEMU evidence green
 - [ ] Registration over hardcoding — doctor check registers and is core-discovered; no core/shared switch added
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

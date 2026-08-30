@@ -59,12 +59,13 @@ In-memory ring only (no durable store exists in the repo; verified). No web card
 ## Required Reading
 
 ### Architecture Docs
+- [ ] `docs/architecture/anomaly/anomaly-3-observe.md` - the incident lifecycle store, the history tier of the behavioral security chain
 - [ ] `ai/patterns/plugin.md` - system-plugin structural template
   → Constraint: logger is `atomic.Pointer[slog.Logger]` (not a plain var) because tests run in-process plugin instances concurrently; `register.go` init() calls `registry.Register`; `./le repository generate` regenerates `all.go` blank imports.
   → Constraint: plugins NEVER import sibling plugins; cross-plugin data rides typed events / DispatchCommand. `anomaly-observe` reaches the detector's output ONLY via the `ze.EventBus` typed events, never by importing `anomaly/detect`.
 - [ ] `ai/patterns/registration.md` - all registration mechanisms
   → Decision: the show command uses TWO registries at once: the RPC handler via `pluginserver.RegisterRPCs(RPCRegistration{WireMethod, Handler})` in `show.go`, and the CLI path via a `ze:command "ze-show:anomaly-observe"` node in a `cmd/yang/` module (`configyang.RegisterModule`). WireMethod→CLI-path is unioned by the YANG loader.
-  → Constraint: a NEW `<plugin>/yang/` and `<plugin>/cmd/yang/` package (each with a `register.go` importing `config/yang`) is auto-discovered; run `go run internal/le/pluginimports/pluginimports.go` (or `./le repository generate`) to refresh `all.go`, then `-update` the `plugins`/`wire-methods` snapshots.
+  → Constraint: a NEW `<plugin>/yang/` and `<plugin>/cmd/yang/` package (each with a `register.go` importing `config/yang`) is auto-discovered; run `go run internal/le/plugin/imports/pluginimports.go` (or `./le repository generate`) to refresh `all.go`, then `-update` the `plugins`/`wire-methods` snapshots.
 - [ ] `ai/rules/plugins.md` - the removal test
   → Constraint: deleting `internal/plugins/anomaly/observe/` + its `all.go` imports MUST remove the config subtree, the `show anomaly observe` node, its handler, its YANG, and its store together, leaving `anomaly/detect`, `anomaly/shape`, and the core building green. The command schema lives in the plugin's own `cmd/yang/`, NOT any central `show` verb schema.
   → Constraint: `anomaly` is a shared namespace container: `show anomaly detect` (detect plugin), `show anomaly shape` (shape plugin), and `show anomaly observe` (this plugin) each container-merge one child node onto the same `container show { container anomaly {...} }`. Add a `self_containment_test.go` in `cmd/yang/` asserting the `ze:command` + container tokens are declared here (mirror `ddos/observe/cmd/yang/self_containment_test.go`).
@@ -244,7 +245,7 @@ N/A - this child touches no wire protocol (no SAFI/capability/attribute; no BGP 
 - None. All ACs have a test above.
 
 ## Files to Modify
-- `internal/component/plugin/all/all.go` - add 3 blank imports (`anomaly/observe`, `anomaly/observe/yang`, `anomaly/observe/cmd/yang`) via `./le repository generate` / `go run internal/le/pluginimports/pluginimports.go` (generated file - never hand-edit).
+- `internal/component/plugin/all/all.go` - add 3 blank imports (`anomaly/observe`, `anomaly/observe/yang`, `anomaly/observe/cmd/yang`) via `./le repository generate` / `go run internal/le/plugin/imports/pluginimports.go` (generated file - never hand-edit).
 - `internal/component/plugin/all/testdata/plugins.snapshot` - add `anomaly-observe` via `-update`.
 - `internal/component/plugin/all/testdata/wire-methods.snapshot` - add `ze-show:anomaly-observe` via `-update`.
 - `docs/guide/command-reference.md` - document `show anomaly observe`.
@@ -315,7 +316,7 @@ N/A - this child touches no wire protocol (no SAFI/capability/attribute; no BGP 
 | 3. Wiring phase | Wiring Test table |
 | 4. Implement (TDD) | Implementation Phases below |
 | 5. /ze-review gate | Review Gate section |
-| 6. Full verification | `./le verify-lint run && ./le test-unit  && ./le functional` |
+| 6. Full verification | `./le verify lint run && ./le test-unit  && ./le functional` |
 | 7-10. Critical review loop | Critical Review Checklist |
 | 11. Deliverables | Deliverables Checklist |
 | 12. Security review | Security Review Checklist |
@@ -513,7 +514,7 @@ N/A - no RFC/protocol behavior.
 - [ ] End-to-End User Stories: every story has a working path and a passing test
 - [ ] Wiring Test table complete - every row has a concrete test name
 - [ ] `/ze-review` gate clean (0 BLOCKER, 0 ISSUE)
-- [ ] `./le verify current mode full` passes (lint + all ze tests)
+- [ ] `./le verify worktree` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/plugins/anomaly/observe/`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Documentation Update Checklist answered Yes/No with source evidence

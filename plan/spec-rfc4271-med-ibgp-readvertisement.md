@@ -191,7 +191,7 @@ Closure is blocked: no current runnable normal BGP RIB-selected route-to-peer pr
 | 1 | Receives an EBGP route with MED and readvertises it over IBGP after raw egress policy | Unit path: selected source payload to egress policy to peer wire. Functional and interop path: route-server rail to egress policy to peer wire. Normal BGP selected-route peer egress is blocked on a missing producer. | `TestRFC4271IBGPReadvertisementRejectsRawMEDRemoval`, `test/plugin/med-ibgp-post-selection-removal.ci`, and scenario 62 prove the common boundary and route-server rail only |
 | 2 | Removes MED with the existing import syntax | Import policy to pre-selection payload to route-server relay to IBGP wire | Existing `med-removal-before-decision.ci` and scenario 61 cover Section 5.1.4 only |
 
-## TDD Test Plan
+## 🧪 TDD Test Plan
 
 ### Unit Tests
 
@@ -374,7 +374,7 @@ If implementation proceeds, add the RFC 4271 Section 9.1.2.2 requirement comment
 - [ ] AC-1 through AC-9 demonstrated for normal BGP selected-route readvertisement
 - [ ] Every user story has a working normal BGP path and a passing test
 - [x] Wiring Test table complete for the common egress boundary
-- [ ] `./le verify current mode full` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
+- [ ] `./le verify worktree` passes. It is the pre-commit gate (`ai/rules/git-safety.md`)
 - [x] Feature code integrated through the applicable forward rail
 - [x] Integration and Documentation checklists revalidated for the route-server rail
 - [x] Architectural Verification revalidated

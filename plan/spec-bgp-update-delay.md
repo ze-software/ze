@@ -289,7 +289,7 @@ This is a local-process startup feature. It is distinct from graceful restart
 - [ ] End-to-End User Stories: every story has a working path and passing test
 - [ ] Wiring Test table complete — every row has a concrete test name
 - [ ] `/ze-review` gate clean
-- [ ] `./le verify current mode full` passes
+- [ ] `./le verify worktree` passes
 - [ ] Feature code integrated (`internal/*`)
 - [ ] Documentation Update Checklist answered
 
