@@ -199,25 +199,38 @@ func Usage(path []string, node *Node) []UsageToken {
 	}
 
 	// Two passes over the definitions, so every value the command needs comes
-	// before every group it runs without.
-	for _, wantMandatory := range [...]bool{true, false} {
-		kind := UsageValue
-		if !wantMandatory {
-			kind = UsageOption
-		}
-		for i := range node.ArgDefs {
-			def := &node.ArgDefs[i]
-			if anchored[def.Name] || def.Mandatory != wantMandatory {
-				continue
-			}
-			tokens = append(tokens, usageToken(def, kind))
-		}
-	}
+	// before every value it runs without.
+	tokens = appendLeafTokens(tokens, node, anchored, true)
+	tokens = appendLeafTokens(tokens, node, anchored, false)
 
+	// The groups follow in the order the module DECLARES them, needed and
+	// optional alike. A module that wants `filter` read before `update` says
+	// so by declaring it first, which is the only place that reading order is
+	// known: `[filter <name>] update <hex>` names the chain before the payload
+	// it feeds through the chain, and no property of the two containers can
+	// tell a renderer that.
 	for _, child := range modifierChildren(node) {
 		tokens = appendGroupTokens(tokens, child)
 	}
 
+	return tokens
+}
+
+// appendLeafTokens adds the node's own values, either the ones the command
+// needs or the ones it runs without. A value already placed after the path
+// keyword that anchors it is never placed a second time.
+func appendLeafTokens(tokens []UsageToken, node *Node, anchored map[string]bool, wantMandatory bool) []UsageToken {
+	kind := UsageValue
+	if !wantMandatory {
+		kind = UsageOption
+	}
+	for i := range node.ArgDefs {
+		def := &node.ArgDefs[i]
+		if anchored[def.Name] || def.Mandatory != wantMandatory {
+			continue
+		}
+		tokens = append(tokens, usageToken(def, kind))
+	}
 	return tokens
 }
 
@@ -249,9 +262,9 @@ func appendGroupTokens(tokens []UsageToken, node *Node) []UsageToken {
 // line. Children is a map, so the order comes from ModifierOrder, and a name
 // breaks a tie no module should produce.
 //
-// Every group the command NEEDS comes before every group it runs without, for
-// the reason the two leaf passes above give: an operator reads what is owed
-// first.
+// Nothing is hoisted for being required. A module that declares its groups in
+// the order an operator types them already answers the question, and a
+// required-first sort could only override that answer with a worse one.
 func modifierChildren(node *Node) []*Node {
 	groups := make([]*Node, 0, len(node.Children))
 	for _, child := range node.Children {
@@ -262,9 +275,6 @@ func modifierChildren(node *Node) []*Node {
 	}
 	sort.Slice(groups, func(i, j int) bool {
 		left, right := groups[i], groups[j]
-		if (left.Modifier == ModifierRequired) != (right.Modifier == ModifierRequired) {
-			return left.Modifier == ModifierRequired
-		}
 		if left.ModifierOrder != right.ModifierOrder {
 			return left.ModifierOrder < right.ModifierOrder
 		}

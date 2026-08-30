@@ -3,6 +3,7 @@ module ze-policy-cmd {
     prefix policycmd;
     import ze-extensions { prefix ze; }
     description "Policy chain inspection and dry-run testing commands. Owned by the BGP plugin because these handlers read per-peer policy chains and test UPDATE processing through the reactor. See ai/rules/plugin-self-containment.md.";
+    revision 2026-08-30 { description "State filter, update and source-asn4 as keyword groups rather than leaves. Each is a keyword the operator types before its value, so a leaf published update as a bare positional the parser refuses, and the declaration order is what puts the chain being tested in front of the payload."; }
     revision 2026-08-29 { description "Declare the peer selector both policy commands read, and the filter, update and source-asn4 values show policy test peer takes as keyword pairs."; }
     revision 2026-06-06 { description "Relocated show policy chain/test out of the central show schema (plugin self-containment)."; }
 
@@ -56,10 +57,10 @@ Feed a hex-encoded BGP UPDATE through a peer's filter chain and see
 the accept/reject result plus attribute modifications at each stage.
 Read-only: no routes are actually forwarded. Great for validating
 policy changes before you commit.
-Usage: show policy test peer <selector> import|export [filter <name>]
-update <hex> [source-asn4 true|false]. The selector and the
-import/export/filter/update/source-asn4 tokens are parsed by the
-handler so the peer selector can be a free-form name or address.";
+Usage: show policy test peer <selector> <import|export> [filter <name>] update <hex> [source-asn4 <true|false>].
+The selector and the direction, filter, update and source-asn4 tokens are
+parsed by the handler, so the peer selector can be a free-form name or
+address and the tokens can arrive in any order.";
                     leaf selector { type string; mandatory true; description "Peer selector"; }
                     // The handler refuses a call with no direction (errMissingDirection in
                     // handler.go), so this leaf is mandatory. Undeclared, positionalDef had
@@ -67,13 +68,52 @@ handler so the peer selector can be a free-form name or address.";
                     // the filter leaf instead, which refused the documented form outright and
                     // silently read the direction as a filter NAME in the form it accepted.
                     leaf direction { type enumeration { enum import; enum export; } mandatory true; description "Which half of the chain to test"; }
-                    leaf filter { type string { length "1..64"; } description "Test one named filter instead of the whole chain"; }
+                    // A group rather than a leaf, and declared before update, because
+                    // parsePolicyTestArgs reads `filter` as a keyword introducing the
+                    // name. Declaration order is what puts the chain being tested in
+                    // front of the payload fed through it.
+                    container filter {
+                        config false;
+                        ze:modifier "once";
+                        description "Test one named filter instead of the whole chain.";
+                        leaf name {
+                            type string {
+                                length "1..64";
+                            }
+                            mandatory true;
+                            description "The filter to test on its own.";
+                        }
+                    }
                     // parsePolicyTestArgs answers errMissingUpdateHex when this is
-                    // absent, so the handler has always required it. Undeclared, the
-                    // renderer published it as optional and the model understated
-                    // what the command takes.
-                    leaf update { type string { pattern '(0[xX])?[0-9a-fA-F]+'; } mandatory true; description "The BGP UPDATE to feed through the chain, hex-encoded"; }
-                    leaf source-asn4 { type enumeration { enum true; enum false; } description "Read the UPDATE as though the sender had four-byte AS support"; }
+                    // absent, so the handler has always required it. Declared as a
+                    // leaf, the renderer published a bare positional and told an
+                    // operator to type a hex string the parser refuses: the keyword
+                    // introduces the value, so the model states a required group.
+                    container update {
+                        config false;
+                        ze:modifier "required";
+                        description "The BGP UPDATE to feed through the chain.";
+                        leaf hex {
+                            type string {
+                                pattern '(0[xX])?[0-9a-fA-F]+';
+                            }
+                            mandatory true;
+                            description "The UPDATE octets, hex-encoded.";
+                        }
+                    }
+                    container source-asn4 {
+                        config false;
+                        ze:modifier "once";
+                        description "How to read the sender's AS support.";
+                        leaf enabled {
+                            type enumeration {
+                                enum true;
+                                enum false;
+                            }
+                            mandatory true;
+                            description "Read the UPDATE as though the sender had four-byte AS support.";
+                        }
+                    }
                 }
             }
         }

@@ -371,6 +371,33 @@ func TestUsageRendersModifierGroup(t *testing.T) {
 	}
 }
 
+// VALIDATES: a required group renders where the module DECLARES it, among the
+// optional groups rather than hoisted in front of them.
+// PREVENTS: `show policy test peer <selector> <import|export> update <hex>
+// [filter <name>]`, which prints the payload before the chain it is fed
+// through. Nothing about the two containers says which an operator reads
+// first, so the module's declaration order is the only answer, and a
+// required-first sort could only override it with a worse one.
+func TestUsageKeepsARequiredGroupInDeclarationOrder(t *testing.T) {
+	node := &Node{
+		Name:       "peer",
+		WireMethod: "ze-show:policy-test",
+		ArgDefs: []ArgDef{
+			{Name: "selector", Kind: ArgString, Mandatory: true, Anchor: "peer"},
+			{Name: "direction", Kind: ArgEnum, EnumValues: []string{"import", "export"}, Mandatory: true},
+		},
+		Children: map[string]*Node{
+			"filter":      {Name: "filter", Modifier: ModifierOnce, ModifierOrder: 1, ArgDefs: []ArgDef{{Name: "name", Kind: ArgString, Mandatory: true}}},
+			"update":      {Name: "update", Modifier: ModifierRequired, ModifierOrder: 2, ArgDefs: []ArgDef{{Name: "hex", Kind: ArgString, Mandatory: true}}},
+			"source-asn4": {Name: "source-asn4", Modifier: ModifierOnce, ModifierOrder: 3, ArgDefs: []ArgDef{{Name: "enabled", Kind: ArgEnum, EnumValues: []string{"true", "false"}, Mandatory: true}}},
+		},
+	}
+	want := "show policy test peer <selector> <import|export> [filter <name>] update <hex> [source-asn4 <true|false>]"
+	if got := UsageLine(Usage([]string{"show", "policy", "test", "peer"}, node)); got != want {
+		t.Errorf("the line reads %q, want %q", got, want)
+	}
+}
+
 // VALIDATES: a child container that runs a command of its own is a SUBCOMMAND,
 // never a modifier group, whatever else it carries.
 // PREVENTS: the `withdraw tag` shape being swept into its parent's usage line.
