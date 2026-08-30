@@ -37,6 +37,16 @@ var (
 	errNoCertificate   = errors.New("ike auth: no certificate configured")
 	errUnsupportedKey  = errors.New("ike auth: unsupported key type")
 	errSignatureFailed = errors.New("ike auth: signature verification failed")
+
+	// RFC 7427 Section 3 permits the Digital Signature method only when a
+	// SIGNATURE_HASH_ALGORITHMS notify "has been sent and received by each peer".
+	errNoSignatureHashAlgos = errors.New(
+		"ike auth: the peer sent no SIGNATURE_HASH_ALGORITHMS notify, so RFC 7427 Section 3 " +
+			"does not permit the Digital Signature authentication method")
+
+	// RFC 7427 Section 4 requires the signer to pick an algorithm the peer sent.
+	errNoMutualHashAlgo = errors.New(
+		"ike auth: the peer offered no signature hash algorithm this key can sign with")
 )
 
 // computeSignedOctets builds the signed octets for AUTH payload computation.
@@ -317,7 +327,19 @@ func computePSKAuth(sa *SA) (*wire.PayloadAUTH, error) {
 }
 
 // computeX509Auth computes AUTH using X.509 digital signature (RFC 7427 method 14).
+//
+// RFC 7427 Section 3 states the method as a conditional permission, and the condition
+// is checked here: "As the authentication methods are not negotiated in IKEv2, the
+// peer is only allowed to use this authentication method if the Notify payload of type
+// SIGNATURE_HASH_ALGORITHMS has been sent and received by each peer." Ze sends that
+// notify in every IKE_SA_INIT it writes, as an initiator (initiator.go) and as a
+// responder (responder.go), so the half left to establish is reception.
+// sa.RemoteHashAlgos holds what arrived, and it is empty exactly when nothing did.
 func computeX509Auth(sa *SA) (*wire.PayloadAUTH, error) {
+	if len(sa.RemoteHashAlgos) == 0 {
+		return nil, fmt.Errorf("%w: peer %q", errNoSignatureHashAlgos, sa.PeerName)
+	}
+
 	certName := sa.PeerCfg.Auth.Certificate
 	if certName == "" {
 		return nil, errNoCertificate
@@ -779,32 +801,75 @@ func algorithmIdentifierEC(oid asn1.ObjectIdentifier) []byte {
 	return der
 }
 
+// Hash algorithm identifiers of IANA's IKEv2 "Hash Algorithms" registry, which is what
+// a SIGNATURE_HASH_ALGORITHMS notify carries (RFC 7427 Section 4). Identifier 0 is
+// RESERVED, so no valid identifier is the zero value. SHA-1 (1) has no constant here
+// because Ze emits no SHA-1 signature: a peer that offers it alone offers nothing Ze
+// can sign with.
+const (
+	hashAlgoSHA2256 uint16 = 2
+	hashAlgoSHA2384 uint16 = 3
+	hashAlgoSHA2512 uint16 = 4
+)
+
+// selectSignatureAlgorithm picks the algorithm for one Digital Signature AUTH payload
+// out of the hash algorithms the peer sent in its SIGNATURE_HASH_ALGORITHMS notify.
+//
+// RFC 7427 Section 4 MUST: "Both ends send their list of supported hash algorithms.
+// When calculating the digital signature, a peer MUST pick one algorithm sent by the
+// other peer." The offered list is therefore the whole population to choose from, and
+// a local capability that is not in it is not a candidate.
+//
+// When the peer offered nothing this key can sign with, the answer is an error rather
+// than a signature. Two narrower answers were available and both are refused here. An
+// RSA key is not signed with SHA-1 to satisfy a SHA-1-only peer, because Ze emits no
+// SHA-1 signature. An ECDSA key is not paired with a hash its curve does not name,
+// because that pairing is one Ze has never emitted and never tested against a peer.
 func selectSignatureAlgorithm(key crypto.PrivateKey, remoteHashAlgos []uint16) (algID []byte, h crypto.Hash, err error) {
 	switch k := key.(type) {
 	case *rsa.PrivateKey:
-		_ = k
-		if containsHashAlgo(remoteHashAlgos, 4) {
+		// Strongest offered first.
+		if containsHashAlgo(remoteHashAlgos, hashAlgoSHA2512) {
 			return algIDSHA512WithRSA, crypto.SHA512, nil
 		}
-		if containsHashAlgo(remoteHashAlgos, 3) {
+		if containsHashAlgo(remoteHashAlgos, hashAlgoSHA2384) {
 			return algIDSHA384WithRSA, crypto.SHA384, nil
 		}
-		return algIDSHA256WithRSA, crypto.SHA256, nil
+		if containsHashAlgo(remoteHashAlgos, hashAlgoSHA2256) {
+			return algIDSHA256WithRSA, crypto.SHA256, nil
+		}
+		return nil, 0, fmt.Errorf("%w: an RSA key needs SHA2-256, SHA2-384 or SHA2-512, and the peer sent %v",
+			errNoMutualHashAlgo, remoteHashAlgos)
 	case *ecdsa.PrivateKey:
-		switch k.Curve {
-		case elliptic.P384():
-			return algIDECDSASHA384, crypto.SHA384, nil
-		default:
+		// The curve names the hash, as it did before this selection consulted the
+		// peer's list at all. What the list decides is whether that one hash is a
+		// choice the RFC allows here.
+		if k.Curve == elliptic.P384() {
+			if containsHashAlgo(remoteHashAlgos, hashAlgoSHA2384) {
+				return algIDECDSASHA384, crypto.SHA384, nil
+			}
+			return nil, 0, fmt.Errorf("%w: a P-384 key signs with SHA2-384, and the peer sent %v",
+				errNoMutualHashAlgo, remoteHashAlgos)
+		}
+		if containsHashAlgo(remoteHashAlgos, hashAlgoSHA2256) {
 			return algIDECDSASHA256, crypto.SHA256, nil
 		}
+		return nil, 0, fmt.Errorf("%w: a %s key signs with SHA2-256, and the peer sent %v",
+			errNoMutualHashAlgo, k.Curve.Params().Name, remoteHashAlgos)
 	}
 	return nil, 0, errUnsupportedKey
 }
 
+// containsHashAlgo reports whether the peer sent target in its
+// SIGNATURE_HASH_ALGORITHMS notify.
+//
+// An EMPTY list is answered false for every target, because a peer that sent no
+// notify offered no algorithm. This function used to answer true for every target
+// instead, which made "no notify arrived" indistinguishable from "every algorithm is
+// acceptable" and let Ze sign with an algorithm no peer had ever named. RFC 7427
+// Section 4 gives the list the opposite force: a signer MUST pick one algorithm the
+// other peer sent, and nothing sent leaves nothing to pick.
 func containsHashAlgo(algos []uint16, target uint16) bool {
-	if len(algos) == 0 {
-		return true
-	}
 	return slices.Contains(algos, target)
 }
 

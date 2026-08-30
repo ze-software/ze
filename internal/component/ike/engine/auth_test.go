@@ -69,7 +69,7 @@ func testSAWithKeys(t *testing.T) *SA {
 // AUTH method 14 (Digital Signature) -- the method used when both peers exchange
 // SIGNATURE_HASH_ALGORITHMS, which ze always sends (buildSignatureHashAlgosNotify).
 //
-// RFC requirement: RFC7427-4-1 positive -- signature (certificate) authentication produces an
+// RFC requirement: RFC7427-3-4 positive -- signature (certificate) authentication produces an
 // AUTH payload with method 14 (Digital Signature), not a legacy RSA/DSA method.
 func TestAuthX509UsesMethod14(t *testing.T) {
 	// A CA and a device certificate signed by it (pki.Load validates the chain).
@@ -128,6 +128,9 @@ func TestAuthX509UsesMethod14(t *testing.T) {
 	sa := testSAWithKeys(t)
 	sa.PeerCfg.Auth.Mode = ipsec.AuthX509
 	sa.PeerCfg.Auth.Certificate = "rfc7427-dev"
+	// The peer's SIGNATURE_HASH_ALGORITHMS notify. RFC 7427 Section 3 permits method 14
+	// only once one has been sent and received, and the device key above is P-256.
+	sa.RemoteHashAlgos = []uint16{hashAlgoSHA2256}
 
 	auth, err := computeX509Auth(sa)
 	if err != nil {
@@ -138,7 +141,7 @@ func TestAuthX509UsesMethod14(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7427-4-1 negative -- method 14 is specific to signature authentication:
+// RFC requirement: RFC7427-3-4 negative -- method 14 is specific to signature authentication:
 // pre-shared-key authentication uses AUTH method 2 (Shared Key Message Integrity Code), not 14.
 func TestAuthPSKCompute(t *testing.T) {
 	sa := testSAWithKeys(t)
@@ -365,7 +368,7 @@ func TestContainsHashAlgo(t *testing.T) {
 	if containsHashAlgo(algos, 1) {
 		t.Fatal("should not contain 1")
 	}
-	if !containsHashAlgo(nil, 99) {
-		t.Fatal("empty list should allow all")
+	if containsHashAlgo(nil, 99) {
+		t.Fatal("a peer that sent no notify offered nothing, so no algorithm is in its list")
 	}
 }

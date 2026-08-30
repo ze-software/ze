@@ -77,8 +77,11 @@ func TestRFC7427AuthAlgorithmIdentifierIsWellFormed(t *testing.T) {
 	cases := []struct {
 		name string
 		key  any
-		// hashAlgos is the peer's SIGNATURE_HASH_ALGORITHMS list, which selects
-		// the RSA variant. 2 is SHA-256, 3 SHA-384, 4 SHA-512 (RFC 7427 Section 4).
+		// hashAlgos is the peer's SIGNATURE_HASH_ALGORITHMS list, which every
+		// selection is drawn from. 2 is SHA-256, 3 SHA-384, 4 SHA-512 (RFC 7427
+		// Section 4). Each case offers the one algorithm its key type and curve
+		// signs with, because selectSignatureAlgorithm returns an error rather
+		// than an identifier when the peer offered none.
 		hashAlgos []uint16
 		wantOID   asn1.ObjectIdentifier
 		wantNull  bool
@@ -86,8 +89,8 @@ func TestRFC7427AuthAlgorithmIdentifierIsWellFormed(t *testing.T) {
 		{"rsa-sha256", rsaKey, []uint16{2}, asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}, true},
 		{"rsa-sha384", rsaKey, []uint16{3}, asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 12}, true},
 		{"rsa-sha512", rsaKey, []uint16{4}, asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 13}, true},
-		{"ecdsa-p256", ecKey256, nil, asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2}, false},
-		{"ecdsa-p384", ecKey384, nil, asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 3}, false},
+		{"ecdsa-p256", ecKey256, []uint16{2}, asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2}, false},
+		{"ecdsa-p384", ecKey384, []uint16{3}, asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 3}, false},
 	}
 
 	for _, tc := range cases {
