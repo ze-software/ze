@@ -5,5 +5,5 @@ read from `plan/deferrals/` by `/ze-status`; nothing stores it (`ai/rules/planni
 
 | Date | Source | What | Reason | Destination | Status |
 |------|--------|------|--------|-------------|--------|
-| 2026-07-19 | spec-fixit-pppoe-orphaned-tests functional-proof | docs/features.md PPPoE row left Partial (reflects feature completeness, not tests) | live-server/QEMU constraint, deferred to CI | plan/future/spec-ci-coverage-remaining-surfaces.md | deferred |
+| 2026-07-19 | spec-fixit-pppoe-orphaned-tests functional-proof | docs/features.md PPPoE row left Partial (reflects feature completeness, not tests) | live-server/QEMU constraint, deferred to CI. **Triaged 2026-08-30 as an improvement, not a release defect:** the row is a documentation status cell over working code | plan/future/spec-ci-coverage-remaining-surfaces.md | deferred |
 
