@@ -1,6 +1,7 @@
-// Design: reserved RTR PDU fields are zero because the WRITER zeroes them, and
-// only a dirty output buffer can tell that apart from a buffer that was already
-// zero.
+// Design: docs/guide/rpki.md -- the writer zeroes reserved RTR PDU fields
+// Detail: a reserved field reads zero either because the writer zeroed it or
+// because the buffer already was. Only a DIRTY output buffer tells the two
+// apart, so the test supplies one.
 // Related: rtr_pdu_test.go -- the rest of the RTR PDU wire-format tests.
 // Related: rtr_pdu.go -- writeResetQuery, the producer under test.
 package rpki

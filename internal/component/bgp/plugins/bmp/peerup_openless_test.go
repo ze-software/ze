@@ -1,6 +1,7 @@
-// Design: a Peer Up that cannot carry the two OPEN PDUs RFC 7854 Section 4.10
-// requires is not sent at all, and the proof is what the collector reads off the
-// socket rather than the absence of a panic.
+// Design: docs/guide/bmp.md -- Peer Up carries two OPEN PDUs, or is not sent
+// Detail: RFC 7854 Section 4.10 requires both OPEN PDUs, so a Peer Up that
+// cannot carry them is not sent at all. The proof is what the collector reads
+// off the socket, never the absence of a panic.
 // Related: bmp_events.go -- handleSenderState, the producer under test.
 // Related: event_test.go -- TestBMPPeerUpSkippedOnCacheMiss, the earlier form.
 package bmp

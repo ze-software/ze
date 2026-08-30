@@ -99,7 +99,7 @@ func TestPluginCatalogCarriesTheFieldsThePageShows(t *testing.T) {
 		"| YANG modules | 2 |",
 		"- Optional: [`bgp-adj-rib-in`](../bgp-adj-rib-in/index.md)",
 		"YANG files: `internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang`, " +
-			"`internal/component/bgp/plugins/rs/yang/ze-rs-api.yang`",
+			"`internal/component/bgp/plugins/rs/yang/ze-rs-api.yang`", // <!-- doc-links: ignore (fixture data: the second name is deliberately out of alphabetical order and never existed on disk) -->
 	} {
 		if !strings.Contains(mirror, want) {
 			t.Errorf("the bgp-rs mirror is missing %q", want)

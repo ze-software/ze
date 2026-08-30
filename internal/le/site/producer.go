@@ -261,9 +261,9 @@ func checkCoverage(paths Paths) (Coverage, error) {
 //
 // It lives in the CHECKOUT and never in the artifact, because the artifact is
 // published: a bookkeeping file written there is served to a reader of the
-// public site. `plan/verification-debt/c7beceff.md` is live on the site today
-// for exactly this reason, and the artifact is trimmed of source-only paths
-// AFTER a producer runs, so the exclusion list cannot fix it either.
+// public site. A verification-debt shard reached the live site for exactly this
+// reason, and the artifact is trimmed of source-only paths AFTER a producer
+// runs, so the exclusion list cannot fix it either.
 const producerRecordDirectory = "tmp/site"
 
 // producerRecordPath names the record describing one artifact.

@@ -1,5 +1,6 @@
-// Design: one constant for each string literal that this package repeats, named
-// for the value it carries rather than for its Go type.
+// Design: docs/architecture/testing/ci-format.md -- the compiled fixture API
+// Detail: one constant for each string literal this package repeats, named for
+// the value it carries rather than for its Go type.
 // Detail: a literal that means two unrelated things here gets one constant for
 // each meaning, so the text repeats and the names do not. Each such constant
 // states its meaning on its own line.
