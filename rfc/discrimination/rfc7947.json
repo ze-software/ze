@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7947",
+  "records": [
+    {
+      "rid": "RFC7947-2.2.2.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressAcceptsNonAdjacentLeftmostAS",
+      "unit-sha": "eaf5062ef7eab48f",
+      "claim-sha": "e52c11702d92f718",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/filter/loop.go::LoopIngress",
+      "producer-sha": "3d7d83d30c08e517",
+      "break": "line 120: \"==\" -\u003e \"!=\""
+    },
+    {
+      "rid": "RFC7947-2.2.2.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/filter/loop_test.go::TestLoopIngressRejectsLocalASFromRouteServer",
+      "unit-sha": "29c632474fef022c",
+      "claim-sha": "6cbb48d3de1f6a65",
+      "route": "mutant",
+      "producer": "internal/component/bgp/reactor/filter/loop.go::LoopIngress",
+      "producer-sha": "3d7d83d30c08e517",
+      "break": "line 120: \"==\" -\u003e \"\u003c\""
+    }
+  ]
+}

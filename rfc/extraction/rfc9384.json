@@ -1,0 +1,93 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9384",
+  "register": "prose",
+  "source-path": "rfc/full/rfc9384.txt",
+  "source-sha": "bb7702e0b362aaeb",
+  "signed-off": "2026-09-01",
+  "reviewer": "rfcgate-6-supported-extraction-signoff",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates Section 1 and Section 3 and binds nobody on its own."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. It states why a BGP speaker uses BFD for faster failure detection and announces the subcode Section 3 allocates. No obligation of its own."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The RFC 2119 / RFC 8174 key-words paragraph, which tells a reader how to read the other sentences. It is the document's only capitalised MUST-level keyword line and the site scan excludes it."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "BFD Cease NOTIFICATION Subcode. Two sentences: the IANA value, and the one SHOULD this document exists for. The site scan reads must, shall and required and cannot see a SHOULD, so the obligation is recorded as unsourced.",
+      "unsourced-ids": ["RFC9384-3-1"]
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Operational Considerations. Three paragraphs carrying two SHOULDs. The Hard Reset sentence is the one site the scan sees, on its lowercase 'are required'; the operational-state SHOULD carries no scanned modal and is recorded as unsourced.",
+      "unsourced-ids": ["RFC9384-4-1"]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. It states that the subcode is purely informational and has no impact on the BGP Finite State Machine beyond RFC 4271 Sections 6.6 and 6.7. A property of the subcode, not an obligation."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. It records that IANA has assigned the value 10 with the name 'BFD Down'. The value is captured as a constant in the summary."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References, the parent heading of 7.1 and 7.2. It carries no text of its own."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References. Citation entries for RFC 2119, RFC 4271, RFC 5880, RFC 5882, RFC 8174 and RFC 8538."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References, followed by the Acknowledgments and the Author's Address, which the derivation attributes to this section because neither carries a numbered heading."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Revised BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Revised BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The IETF Trust Legal Provisions copyright notice, which the site scan reaches on its lowercase 'must'. It binds a person who republishes code from the document, and it states no protocol behavior. The scan strips the RFC 2119 key-words paragraph and does not strip this one."
+    },
+    {
+      "id": "4:1",
+      "quote": "When the procedures in [RFC8538] for sending a NOTIFICATION message with a \"Cease\" code and \"Hard Reset\" subcode are required, and the BGP connection is being terminated because BFD has gone into the Down state, the \"BFD Down\" subcode SHOULD be encapsulated in the Hard Reset's data portion of the NOTIFICATION message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9384-4-2"
+    }
+  ]
+}

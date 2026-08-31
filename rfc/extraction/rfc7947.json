@@ -1,0 +1,188 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7947",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7947.txt",
+  "source-sha": "6d8434457eff580c",
+  "signed-off": "2026-09-01",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc7947",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates section 1 and directs no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction to Multilateral Interconnection. Indicative prose: why dense bilateral peering scales badly at an IXP, what a route server is, that it forwards no traffic and is therefore not a router, that it is similar in function to a route reflector but runs eBGP, and that route server functionality is not mandatory in BGP implementations. The last paragraph fixes the term 'route server' against 'route collector'. No sentence directs a speaker."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Notational Conventions. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Technical Considerations for Route Server Implementations. One paragraph saying a route server brokers reachability with BGP, that its behavior differs from a speaker strictly compliant with RFC 4271, and that the differences follow. No directive."
+    },
+    {
+      "id": "2.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Client UPDATE Messages. Carries the document's only MUST that binds the route server itself, site 2.1:1 below. Ze does not meet it: notifyMessageReceiver (internal/component/bgp/reactor/reactor_notify.go) returns false at the ordered ingress step loop's non-accept branch, ahead of the recentUpdates cache add, ahead of reactorForwardRS and ahead of the plugin dispatch that feeds handleReceivedStructured (internal/component/bgp/plugins/adj_rib_in/rib.go), so a denied UPDATE from a route server client never reaches the Adj-RIB-In. The obligation is homed by owner ruling of 2026-08-30 in plan/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md, which reserves the id RFC7947-2.1-1 for it, and the site below is the relocation. Section 2.1's remaining directives carry no MUST-level keyword, so the site scan cannot see them: the MAY that lets a configured policy filter omit an UPDATE from the Loc-RIB, the SHOULD to perform one or more BGP Decision Processes, and the SHOULD to forward UPDATE messages from the Loc-RIB to the clients as determined by local policy. RFC7947-x-4 is read from that last SHOULD and from the MAY beside it, which is why it is declared unsourced here rather than mapped from a site; note that the summary states it at [MUST] while this section states it at SHOULD.",
+      "unsourced-ids": [
+        "RFC7947-x-4"
+      ]
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Attribute Transparency. Three advisory sentences and no MUST-level keyword, so the site scan sees nothing here: contrary to RFC 4271 Section 5, route servers SHOULD NOT by default update well-known BGP attributes received from clients before redistributing them; optional recognized and unrecognized attributes SHOULD NOT be updated unless enforced by local IXP operator configuration; and those attributes SHOULD be passed on to the other clients. rfc/short/rfc7947.md carries the AS_PATH and MULTI_EXIT_DISC instances of this rule as RFC7947-x-1 and RFC7947-x-3. The general well-known and optional attribute recommendation has no id of its own; Ze meets it by relaying an RS client's received bytes unchanged (TestReactorForwardRSTransparent, internal/component/bgp/reactor/forward_rs_test.go)."
+    },
+    {
+      "id": "2.2.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "NEXT_HOP Attribute. Defines the attribute, then states the transparency MUST mapped below to RFC7947-x-2."
+    },
+    {
+      "id": "2.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "AS_PATH Attribute. One sentence saying what AS_PATH identifies. No directive: the two AS_PATH rules are stated in 2.2.2.1 and 2.2.2.2."
+    },
+    {
+      "id": "2.2.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Route Server AS_PATH Management. The route server SHOULD NOT prepend its own AS number nor modify the AS_PATH segment in any other way, which rfc/short/rfc7947.md carries as RFC7947-x-1 at [SHOULD NOT]. The section says outright that this 'is a recommendation rather than a requirement', existing solely for backwards compatibility with legacy clients that do not yet support Section 2.2.2.2, so no MUST-level keyword appears and the site scan sees nothing here."
+    },
+    {
+      "id": "2.2.2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Route Server client AS_PATH Management. States that route server clients need to accept UPDATEs whose leftmost AS is not the sending route server's AS, then puts a conditional MUST and a conditional SHOULD on the client's own BGP implementation. That MUST is site 2.2.2.2:1 below, excluded as binding a role Ze does not implement."
+    },
+    {
+      "id": "2.2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MULTI_EXIT_DISC Attribute. Defines the attribute, then states, contrary to RFC 4271 Section 5.1.4, that a metric applied to an NLRI UPDATE sent to a route server SHOULD be propagated to the other clients and that the route server SHOULD NOT modify its value. rfc/short/rfc7947.md carries both halves as RFC7947-x-3 at [SHOULD]. No MUST-level keyword, so no site."
+    },
+    {
+      "id": "2.2.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Communities Attributes. Transitive and non-transitive Communities and Extended Communities applied to an UPDATE sent to a route server SHOULD NOT be modified, processed, or removed except as defined by local policy, and a Communities attribute intended for processing by the route server itself MAY be modified or removed. Both are advisory, so the site scan sees nothing here, and neither has an id in rfc/short/rfc7947.md. Ze meets the recommendation the same way it meets section 2.2, by relaying the client's received bytes unchanged to the other RS clients."
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Per-Client Policy Control in Multilateral Interconnection. Introduces per-client path distribution control and names its consequence, 'path hiding'. Its last paragraph states that neither this section nor its subsections form part of the normative specification, so nothing under 2.3 can bind a speaker."
+    },
+    {
+      "id": "2.3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Path Hiding on a Route Server. Figure 1 and a worked example of how a single best path plus a per-client outbound filter hides an alternative path. Descriptive, and inside the non-normative scope its parent declares."
+    },
+    {
+      "id": "2.3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Mitigation of Path Hiding. One sentence saying several approaches exist. Non-normative by its parent's declaration."
+    },
+    {
+      "id": "2.3.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Multiple Route Server RIBs. Describes per-client Loc-RIBs with filtering between the Adj-RIB-In and each per-client Loc-RIB, and the delta optimization. RFC7947-x-5 reads its 'multi-RIB per client' mitigation from here. Non-normative by its parent's declaration."
+    },
+    {
+      "id": "2.3.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Advertising Multiple Paths. Describes how sending more than one path per prefix would remove path hiding, and announces the two methods below. Non-normative by its parent's declaration."
+    },
+    {
+      "id": "2.3.2.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Diverse BGP Path Approach. Describes RFC 6774: one BGP session per distributed path, bounded by the number of sessions, and not guaranteed to remove path hiding. Non-normative by its parent's declaration."
+    },
+    {
+      "id": "2.3.2.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "BGP ADD-PATH Approach. Describes RFC 7911 and the send-only mode a route server 'should enforce' toward its clients. The keyword is lower case, so under section 1.1 it carries no RFC 2119 level and the site scan sees nothing. RFC7947-x-6 reads its [MAY] from this subsection. Non-normative by its parent's declaration."
+    },
+    {
+      "id": "2.3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Implementation Suggestions. Authors 'may wish to consider' one of the methods in 2.3.2, and operational recommendations are deferred to RFC 7948. Non-normative by its parent's declaration."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Three statements, none a MUST-level keyword: route server operators should be aware that path hiding can be used to block third-party announcements, the AS_PATH check of Section 2.2.2 SHOULD NOT be disabled by IXP participants unless it is needed to bring up a route server session, and operators should consider the practices in RFC 7454. The second binds the IXP participant configuring its own router, which is the same role site 2.2.2.2:1 is excluded against."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. A heading over 4.1 and 4.2."
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 1997, RFC 2119, RFC 4271, RFC 4360."
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 1863, RFC 4223, RFC 4456, RFC 6774, RFC 7454, RFC 7911, RFC 7948. The derived section list ends here, so the Acknowledgments and Authors' Addresses that follow in the source are read under this heading; neither states an obligation."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1:1",
+      "quote": "A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In.",
+      "disposition": "excluded",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md",
+      "reserved-id": "RFC7947-2.1-1",
+      "reason": "The obligation IS owed and Ze does not produce it, so this is not a dismissal. notifyMessageReceiver (internal/component/bgp/reactor/reactor_notify.go) walks the ordered ingress steps and returns false on the first step that answers accept false, with the comment 'Route rejected by filter; don't cache or dispatch.'. That return precedes the recentUpdates cache add, the reactorForwardRS fast path and the plugin dispatch, so nothing reaches handleReceivedStructured (internal/component/bgp/plugins/adj_rib_in/rib.go) and the Adj-RIB-In holds the post-policy population where this sentence requires the pre-policy one. The path is reachable by default: LoopIngress (internal/component/bgp/reactor/filter/loop.go) denies on the local AS in AS_PATH with no operator configuration at all. Thomas ruled on 2026-08-30 that Ze inserts into the Adj-RIB-In first for a route-server client peer, marking the stored entry filtered, and homed that work in plan/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md, which reserves the id RFC7947-2.1-1 for it and carries fifteen acceptance criteria, a new event type and a new rpc.EventKind ordinal. The id is deliberately absent from rfc/short/rfc7947.md until that spec lands it."
+    },
+    {
+      "id": "2.2.1:1",
+      "quote": "As the route server does not participate in the actual routing of traffic, the NEXT_HOP attribute MUST be passed unmodified to the route server clients, similar to the \"third-party\" next-hop feature described in Section 5.1.3. of [RFC4271].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7947-x-2",
+      "reason": "The route server's NEXT_HOP transparency obligation, carried verbatim by RFC7947-x-2 at [MUST NOT]. Ze relays an RS client's received next hop unchanged: precomputeNextHop (internal/component/bgp/reactor/peer_forward_facts.go) fixes the peer's next-hop mode at nhModeNone, 'no next-hop ops', for the default NextHopAuto and for NextHopUnchanged, so only an explicit per-peer next-hop-self or next-hop address moves it off that mode. The RS forward rail therefore emits the source's own octets, proven byte-identical by TestReactorForwardRSTransparent (internal/component/bgp/reactor/forward_rs_test.go)."
+    },
+    {
+      "id": "2.2.2.2:1",
+      "quote": "If the route server client BGP system has implemented a check for this, the BGP implementation MUST allow this check to be disabled and SHOULD allow the check to be disabled on a per-peer basis.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7947-2.2.2.2-1",
+      "reason": "The obligation binds a route server CLIENT's BGP implementation, and Ze IS one: a Ze speaker peers with an IXP route server over ordinary eBGP, so the role is not another party's. The MUST is conditional on that implementation having built the RFC 4271 Section 6.3 leftmost-AS check, and Ze has not built it, so the acceptance the section exists to guarantee is produced unconditionally rather than by a switch. LoopIngress (internal/component/bgp/reactor/filter/loop.go) is the whole ingress loop-detection surface and tests three conditions, none of them this one: the local ASN anywhere in AS_PATH, ORIGINATOR_ID equal to the local Router ID, and the local CLUSTER_ID in CLUSTER_LIST. The only other reader of the leading ASN is firstASInPath (internal/component/bgp/plugins/rib/bestpath.go), which supplies the neighbor-AS equality test of the MED comparison and rejects nothing. This is mapped rather than excluded on purpose. binds-another-role would assert Ze never acts as a route server client, which is false. feature-out-of-scope would assert Ze decided not to offer the check, which is also false: plan/spec-bcp194-0-umbrella.md row P4 records the absent enforce-first-as as work its child 2 plans. Mapping puts a tripwire on the ledger instead, so the day an ingress first-AS check lands with no way to disable it, TestLoopIngressAcceptsNonAdjacentLeftmostAS goes red."
+    }
+  ],
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 1.1 and capitalised MUST-level keywords in sections 2.1, 2.2.1 and 2.2.2.2. The derivation grades the source 'rfc2119' and this artifact claims exactly that grade."
+}

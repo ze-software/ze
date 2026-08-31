@@ -322,3 +322,49 @@ func TestLoopIngressDisabledAcceptsClusterLoop(t *testing.T) {
 	src.LoopDisabled = true
 	assert.True(t, accept(src, body), "LoopDisabled should bypass CLUSTER_LIST check")
 }
+
+// --- Route Server Client: the leftmost AS is not the sender's AS ---
+
+// routeServerPeer is the session ze holds with an IXP route server: an eBGP peer in the
+// route server's own AS, brokering routes that other clients originated. RFC 7947
+// Section 2.2.2.2 is about what arrives on exactly this session.
+func routeServerPeer() filterapi.PeerFilterInfo {
+	return filterapi.PeerFilterInfo{
+		Address:  netip.MustParseAddr("192.0.2.10"),
+		PeerAS:   65010,
+		LocalAS:  65001,
+		RouterID: 0x01020301,
+	}
+}
+
+// TestLoopIngressAcceptsNonAdjacentLeftmostAS proves the ingress loop filter takes an UPDATE
+// whose leftmost AS_PATH AS is not the sending peer's AS. That is the shape of every route a
+// route server brokers, because the server does not prepend its own AS (RFC 7947
+// Section 2.2.2.1).
+//
+// RFC requirement: RFC7947-2.2.2.2-1 positive -- LoopIngress accepts an UPDATE received from a
+// route server peer in AS 65010 whose AS_PATH is [65002, 65003]: the leftmost AS is not the AS
+// of the peer that sent the message.
+//
+// The wider fact behind the requirement is that no ingress step tests that equality at all, so
+// there is no check to allow to be disabled. LoopIngress is the whole ingress loop-detection
+// surface and tests three other conditions; the only other reader of the leading ASN is
+// firstASInPath (internal/component/bgp/plugins/rib/bestpath.go), which supplies the MED
+// neighbor-AS comparison and rejects nothing.
+func TestLoopIngressAcceptsNonAdjacentLeftmostAS(t *testing.T) {
+	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65003}, false))
+	assert.True(t, accept(routeServerPeer(), body),
+		"leftmost AS 65002 is not the sending route server's AS 65010, and must still be accepted")
+}
+
+// TestLoopIngressRejectsLocalASFromRouteServer proves the acceptance above is a decision about
+// the leftmost-AS condition rather than a filter that reads AS_PATH and takes everything.
+//
+// RFC requirement: RFC7947-2.2.2.2-1 negative -- on the SAME route server session, LoopIngress
+// denies an UPDATE whose AS_PATH is [65002, 65001] and so carries the local AS 65001. The
+// filter does read AS_PATH and does reject on what it finds there.
+func TestLoopIngressRejectsLocalASFromRouteServer(t *testing.T) {
+	body := makeUpdateBody(buildASPathAttr([]uint32{65002, 65001}, false))
+	assert.False(t, accept(routeServerPeer(), body),
+		"the local AS 65001 in AS_PATH is a loop and must be rejected on a route server session too")
+}
