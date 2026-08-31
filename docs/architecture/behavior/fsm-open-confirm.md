@@ -72,7 +72,11 @@ running).
 Specifically, `handleKeepalive`:
 
 1. If the current FSM state is `StateOpenConfirm`, starts the keepalive
-   timer and starts the RFC 9687 send-hold timer.
+   timer and starts the RFC 9687 send-hold timer. Both are conditional on a
+   non-zero negotiated hold time: `StartKeepaliveTimer` returns early at zero,
+   and `startSendHoldTimer` stops the send-hold timer instead of arming it, per
+   RFC 9687 §4.3. A peering that negotiated a hold time of zero sends nothing,
+   so neither timer has anything to measure.
 2. Fires `fsm.Event(EventKeepaliveMsg)`. The FSM handler
    (`handleOpenConfirm` case `EventKeepaliveMsg`) calls
    `timers.ResetHoldTimer()` per RFC 4271 §8.2.2 Event 26, then
@@ -153,7 +157,8 @@ transition.
 - **Timer setup spans OpenConfirm even though the state is short.**
   `handleKeepalive` is where the keepalive and RFC 9687 send-hold timers
   come online. By the time Established is reached, those timers are
-  already running.
+  already running, unless the negotiated hold time is zero, which stops
+  both.
 - **`handleNotification` always stops all timers before firing the FSM
   event.** This is consistent across OpenConfirm, Established, and any
   other state where a NOTIFICATION might arrive.

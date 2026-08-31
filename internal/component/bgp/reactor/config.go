@@ -207,6 +207,16 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 			if v != 0 && v < 480 {
 				return nil, fmt.Errorf("peer %s: invalid send-hold-time %d: RFC 9687 requires 0 (auto) or >= 480 seconds", name, v)
 			}
+			// RFC 9687 Section 4.4: "If SendHoldTime is non-zero, then it MUST be
+			// greater than the value of HoldTime". HoldTime is the negotiated
+			// value, min(local, peer), so a send-hold-time above the LOCAL
+			// receive-hold-time is above the negotiated value for every peer this
+			// configuration can reach. Refusing here is what makes the FSM
+			// attribute conformant for all of them.
+			if v != 0 && time.Duration(v)*time.Second <= ps.ReceiveHoldTime {
+				return nil, fmt.Errorf("peer %s: invalid send-hold-time %d: RFC 9687 requires it to be greater than receive-hold-time %d seconds",
+					name, v, uint32(ps.ReceiveHoldTime/time.Second))
+			}
 			ps.SendHoldTime = time.Duration(v) * time.Second
 		}
 		if v, ok := mapUint32(timerMap, "keepalive"); ok {

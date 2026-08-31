@@ -431,7 +431,7 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `local { ip; as; }` | Local bind address and AS | Yes (ip can be `auto`) |
 | `router-id` | BGP router ID | Yes (or inherited) |
 | `description` | Human-readable description | No |
-| `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0), `connect-retry` (seconds, default 120) | No |
+| `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0, and a non-zero value must be greater than `receive-hold-time` per RFC 9687 Section 4.4), `connect-retry` (seconds, default 120) | No |
 | `remote { connect }` | Initiate outbound TCP connections: `true` or `false` (default: true) | No |
 | `local { accept }` | Accept inbound TCP connections: `true` or `false` (default: true) | No |
 | `port` | TCP port | No (default: 179) |

@@ -102,7 +102,7 @@ any state, transitions to IDLE.
 | Hold | Negotiated (min of local and peer, 0 disables) | Detect dead peer. Reset on KEEPALIVE/UPDATE received. |
 | Keepalive | Hold / 3 | Send periodic KEEPALIVE messages |
 | Open Wait | 60s | Timeout waiting for OPEN in OPENSENT |
-| Send Hold | max(8min, 2x hold) | Detect inability to send (RFC 9687). Not configurable. |
+| Send Hold | max(8min, 2x hold) | Detect inability to send (RFC 9687). Set per peer with `send-hold-time`, which RFC 9687 Section 4.4 requires to exceed the hold time. Stopped when the negotiated hold time is zero, because such a session sends nothing by design. |
 <!-- source: internal/component/bgp/fsm/state.go -- EventHoldTimerExpires, EventKeepaliveTimerExpires, EventConnectRetryTimerExpires -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- sendHoldTimerExpired, Send Hold Timer (RFC 9687) -->
 
@@ -179,7 +179,7 @@ wire side effects, RFC deviations, tests):
 ## RFC References
 
 - **RFC 4271** Section 8: BGP FSM specification. See [rfc/short/rfc4271.md](../rfc/short/rfc4271.md).
-- **RFC 9687**: Send Hold Timer. Ze implements this as `max(8min, 2x hold-time)`.
+- **RFC 9687**: Send Hold Timer. Ze implements this as `max(8min, 2x hold-time)` unless `send-hold-time` names a value, and stops it when the negotiated hold time is zero.
 - **RFC 5082**: TTL Security / GTSM for session protection.
 - **RFC 2385**: TCP MD5 authentication.
 

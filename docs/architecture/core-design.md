@@ -927,7 +927,10 @@ The sequence is: flush `bufio.Writer` -> `CloseWrite` (FIN) -> drain unread data
 Ze implements the Send Hold Timer to detect when the local side cannot send data to a peer (e.g., the peer's TCP window is full). The timer starts when the session reaches Established and is reset on every successful write. On expiry, ze sends NOTIFICATION code 8 (Send Hold Timer Expired) and closes the session.
 <!-- source: internal/component/bgp/reactor/session_write.go -- sendHoldTimerExpired, resetSendHoldTimer -->
 
-Duration: `max(8 minutes, 2x hold-time)`. Not configurable per RFC 9687.
+Duration: `max(8 minutes, 2x hold-time)`, or the per-peer `send-hold-time` when it is set. RFC 9687 Section 4.4 requires a configured value to be greater than the hold time, and `parsePeerFromTree` refuses a pairing that is not.
+
+The timer is stopped, not armed, when the negotiated hold time is zero. RFC 4271 Section 4.2 permits that hold time and it stops KEEPALIVEs in both directions, so an idle session writes nothing at all and an armed Send Hold Timer would drop a session that is behaving as configured (RFC 9687 Section 4.3).
+<!-- source: internal/component/bgp/reactor/session_write.go -- startSendHoldTimer, sendHoldDuration -->
 
 ### Write Deadline
 

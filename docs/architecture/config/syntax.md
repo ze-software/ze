@@ -540,7 +540,7 @@ Peer configuration is organized into nested containers by concern.
 | Keyword | Type | Description |
 |---------|------|-------------|
 | `description` | string | Peer description |
-| `timer { receive-hold-time; send-hold-time; connect-retry; }` | container | Timer settings (defaults: 90s, 0/auto, 120s) |
+| `timer { receive-hold-time; send-hold-time; connect-retry; }` | container | Timer settings (defaults: 90s, 0/auto, 120s). A non-zero `send-hold-time` must be greater than `receive-hold-time` (RFC 9687 Section 4.4) |
 | `rib { adj { in; out; } out { ... } }` | container | RIB configuration (adj-rib-in/out, outbound batching) |
 | `attach process <name> { ... }` | list | Plugin process bindings |
 | `update { ... }` | container | Route announcements |

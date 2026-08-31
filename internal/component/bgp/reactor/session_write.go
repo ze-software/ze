@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — wire write primitives and Send* methods
+// RFC: rfc/short/rfc9687.md — the Send Hold Timer, Sections 4.3 and 5
 // Overview: session.go — BGP session struct and lifecycle
 // Related: session_read.go — inbound message reading (symmetric counterpart)
 // Related: session_connection.go — session connect, accept, teardown
@@ -195,8 +196,26 @@ func (s *Session) sendHoldDuration() time.Duration {
 // startSendHoldTimer starts the RFC 9687 Send Hold Timer.
 // Called when session enters ESTABLISHED. The timer is reset on every
 // successful write. On expiry, the session is torn down.
+//
+// RFC 9687 Section 4.3, added to the RFC 4271 Section 8.2.2 Established state:
+// "Each time the local system sends a BGP message, it restarts the
+// SendHoldTimer unless the SendHoldTime value is zero or the negotiated
+// HoldTime value is zero, in which case the SendHoldTimer is stopped."
+// Neither case may arm it here either: a timer this section stops on the first
+// message sent must not run before that message.
+//
+// The negotiated zero is the case an operator reaches. RFC 4271 Section 4.2
+// lets a speaker propose a Hold Time of zero, which stops KEEPALIVEs in both
+// directions, so an idle session writes nothing at all. An armed SendHoldTimer
+// would then expire and drop a session that is behaving exactly as configured.
+// Timers.HoldTime is the negotiated value: negotiateWith stores min(local,
+// peer) there before OpenConfirm can see a KEEPALIVE.
 func (s *Session) startSendHoldTimer() {
 	d := s.sendHoldDuration()
+	if d == 0 || s.timers.HoldTime() == 0 {
+		s.stopSendHoldTimer()
+		return
+	}
 	s.sendHoldMu.Lock()
 	defer s.sendHoldMu.Unlock()
 	s.stopSendHoldTimerLocked()
