@@ -19,7 +19,7 @@ type unitSpec struct {
 
 func buildUnitFile(spec unitSpec) string {
 	var b strings.Builder
-	b.Grow(920 + len(spec.BinaryPath) + len(spec.ConfigDir)*2)
+	b.Grow(945 + len(spec.BinaryPath) + len(spec.ConfigDir)*2)
 	b.WriteString("[Unit]\n")
 	b.WriteString("Description=Ze Network OS\n")
 	b.WriteString("After=network-online.target\n")
@@ -37,6 +37,10 @@ func buildUnitFile(spec unitSpec) string {
 	b.WriteString("RestartSec=5\n")
 	b.WriteString("LimitNOFILE=65536\n")
 	b.WriteString("LimitCORE=infinity\n")
+	// The memlock plugin locks the whole ze executable in memory, and the entire
+	// mapped size is charged against RLIMIT_MEMLOCK. The systemd default of 8 MiB
+	// is smaller than the binary, so the lock would fail under it.
+	b.WriteString("LimitMEMLOCK=infinity\n")
 	b.WriteString("WorkingDirectory=")
 	b.WriteString(spec.ConfigDir)
 	b.WriteByte('\n')

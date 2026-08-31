@@ -89,6 +89,7 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/iface/ra"
 	_ "github.com/ze-software/ze/internal/plugins/kernel"
 	_ "github.com/ze-software/ze/internal/plugins/log/cmd"
+	_ "github.com/ze-software/ze/internal/plugins/memlock"
 	_ "github.com/ze-software/ze/internal/plugins/meta/cmd"
 	_ "github.com/ze-software/ze/internal/plugins/routingtable"
 	_ "github.com/ze-software/ze/internal/plugins/static"

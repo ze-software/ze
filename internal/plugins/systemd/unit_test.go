@@ -53,6 +53,18 @@ func TestUnitFileHardening(t *testing.T) {
 	assertContains(t, unit, "RestartSec=5")
 }
 
+// TestUnitFileMemoryLock verifies the unit lifts RLIMIT_MEMLOCK.
+//
+// VALIDATES: the generated unit lets the memlock plugin lock the whole ze
+// executable, which the systemd default of 8 MiB is far too small for.
+// PREVENTS: a daemon whose pages the kernel can evict under memory pressure,
+// reported only as a doctor warning nobody reads.
+func TestUnitFileMemoryLock(t *testing.T) {
+	unit := buildUnitFile(unitSpec{BinaryPath: "/usr/bin/ze", ConfigDir: "/etc/ze"})
+
+	assertContains(t, unit, "LimitMEMLOCK=infinity")
+}
+
 func TestUnitFileRuntimeDir(t *testing.T) {
 	// VALIDATES: AC-13 generated unit file puts sockets and runtime files under /run/ze.
 	// PREVENTS: daemon sockets falling back to /tmp/ze.socket under the ze user.

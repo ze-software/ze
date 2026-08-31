@@ -81,12 +81,14 @@ Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
 LimitCORE=infinity
+LimitMEMLOCK=infinity
 WorkingDirectory=<config-dir>
 Environment=ZE_CONFIG_DIR=<config-dir>
 Environment=XDG_RUNTIME_DIR=/run/ze
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
+ProtectSystem=true
 ProtectHome=true
 RuntimeDirectory=ze
 

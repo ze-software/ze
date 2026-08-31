@@ -132,6 +132,7 @@ The deployment container runs on a scratch base. Features that require kernel ac
 | L2TP tunnels | `--cap-add NET_ADMIN` + host networking |
 | nftables / firewall | `--cap-add NET_ADMIN` + `--cap-add NET_RAW` |
 | Binding port 179 | Works by default (container runs as root) |
+| Locking the executable in memory (`memlock` plugin) | `--ulimit memlock=-1` or `--cap-add IPC_LOCK`. Docker grants neither by default, so the lock fails and `ze doctor` reports `doctor-memlock-not-locked` |
 
 For BGP peering without interface management (route server, looking glass, policy testing), no extra capabilities are needed.
 

@@ -175,6 +175,7 @@ plugin list. The groups below mirror the current registrations in
 | `rib` | System RIB: selects best route across protocols by admin distance |
 | `static` | Static route management |
 | `sysctl` | Kernel sysctl tuning |
+| `memlock` | Locks the running ze executable in memory, so its pages survive memory pressure |
 | `routing-table` | Named routing table registry |
 | `connected` | Connected route redistribution |
 | `kernel` | Kernel route redistribution |

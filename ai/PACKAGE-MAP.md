@@ -771,6 +771,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/plugins/local` | implements the ze install and uninstall local-mode commands that copy the binary and scaffold its config directory |  |
 | `internal/plugins/log/cmd` | implements the log plugin's command handlers for listing, setting, and reading runtime log levels |  |
 | `internal/plugins/log/yang` | embeds and registers the log plugin's YANG command schema |  |
+| `internal/plugins/memlock` | locks the running executable's own file-backed pages in memory, so the kernel cannot evict them under memory pressure | memlock |
 | `internal/plugins/meta/cmd` | implements the meta plugin's command discovery, help, event-monitor, and plugin-configuration handlers |  |
 | `internal/plugins/meta/yang` | embeds and registers the command-meta plugin's YANG API, command, and monitor schemas |  |
 | `internal/plugins/mpls-cmd/yang` | embeds and registers the MPLS command plugin's YANG schema |  |

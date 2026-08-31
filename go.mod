@@ -14,6 +14,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.6
 	charm.land/ssh v0.4.3
 	charm.land/wish/v2 v2.0.3
+	filippo.io/mlockexe v1.0.0
 	github.com/a-h/templ v0.3.1020
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be
 	github.com/beevik/ntp v1.5.0

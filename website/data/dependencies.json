@@ -96,6 +96,10 @@
                 {
                     "module": "github.com/cilium/ebpf",
                     "why": "Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin."
+                },
+                {
+                    "module": "filippo.io/mlockexe",
+                    "why": "Locks the running ze executable's own file-backed pages in memory with mlock2(2) and MLOCK_ONFAULT, so the kernel cannot evict the daemon's text under memory pressure. A router short of memory reclaims page cache, and the running daemon IS page cache: without the lock it waits on the disk holding its own binary at the moment it must keep sessions alive."
                 }
             ]
         },
