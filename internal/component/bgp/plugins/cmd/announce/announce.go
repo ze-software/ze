@@ -37,10 +37,11 @@ const (
 	kwSelf      = "self"
 )
 
-// fieldWithdrawn is the payload key the four withdraw handlers answer with, and
-// it holds the number of tracked announcements the handler removed. Naming it
-// once is what keeps the four answers reading the same to an operator who asks
-// for one of them by name.
+// fieldWithdrawn is the payload key every withdraw command answers with. It
+// holds the number of tracked announcements the command removed.
+//
+// Three commands build a response at four places. Naming the key once is what
+// keeps those answers reading the same to an operator.
 const fieldWithdrawn = "withdrawn"
 
 const maxTagLen = 128
@@ -534,7 +535,7 @@ func handleWithdrawTag(ctx *pluginserver.CommandContext, args []string) (*plugin
 	if err != nil {
 		return errResp, err
 	}
-	return withdrawByTag(reg, args)
+	return withdrawByTag(reg, ctx.PeerSelector(), args)
 }
 
 // handleWithdrawID answers `withdraw id <id>`.
@@ -550,26 +551,32 @@ func handleWithdrawID(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 	if err != nil {
 		return errResp, err
 	}
-	return withdrawByID(reg, ctx.Selector("id"))
+	return withdrawByID(reg, ctx.PeerSelector(), ctx.Selector("id"))
 }
 
-// handleWithdrawAll answers `withdraw all [selector <selector>]`.
-func handleWithdrawAll(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+// handleWithdrawAll answers `withdraw all`, and `peer <selector> withdraw all`
+// for one fan-out.
+//
+// It reads no argument. The peer arrives through ctx.PeerSelector(), from the
+// `peer` container the model anchors it to. That is why `withdraw all` takes no
+// tail: the scope is the prefix an operator typed, never a keyword after the
+// verb.
+func handleWithdrawAll(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	reg, errResp, err := withdrawRegistry(ctx)
 	if err != nil {
 		return errResp, err
 	}
-	return withdrawEvery(reg, args)
+	return withdrawEvery(reg, ctx.PeerSelector())
 }
 
-func withdrawByTag(reg *Registry, args []string) (*plugin.Response, error) {
+func withdrawByTag(reg *Registry, peer string, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return nil, errors.New("withdraw tag requires <key> [<value|*>]")
 	}
 
 	key := args[0]
 	if key == "*" {
-		n, err := reg.withdrawAllTags()
+		n, err := reg.withdrawAll(peer)
 		if err != nil {
 			return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 		}
@@ -596,9 +603,9 @@ func withdrawByTag(reg *Registry, args []string) (*plugin.Response, error) {
 	var n int
 	var wErr error
 	if value == "*" {
-		n, wErr = reg.withdrawTagKey(key)
+		n, wErr = reg.withdrawTagKey(peer, key)
 	} else {
-		n, wErr = reg.withdrawTag(key, value)
+		n, wErr = reg.withdrawTag(peer, key, value)
 	}
 	if wErr != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: wErr.Error()}, wErr
@@ -610,7 +617,7 @@ func withdrawByTag(reg *Registry, args []string) (*plugin.Response, error) {
 	}, nil
 }
 
-func withdrawByID(reg *Registry, idArg string) (*plugin.Response, error) {
+func withdrawByID(reg *Registry, peer, idArg string) (*plugin.Response, error) {
 	if idArg == "" {
 		return nil, errors.New("withdraw id requires <id>")
 	}
@@ -620,7 +627,7 @@ func withdrawByID(reg *Registry, idArg string) (*plugin.Response, error) {
 		return nil, fmt.Errorf("invalid id: %w", err)
 	}
 
-	found, wErr := reg.withdrawEntryByID(id)
+	found, wErr := reg.withdrawEntryByID(peer, id)
 	if !found {
 		var tb textbuf.Buffer
 		msg := tb.Str("announcement id ").Uint(id).Str(" not found").String()
@@ -647,18 +654,8 @@ func withdrawByID(reg *Registry, idArg string) (*plugin.Response, error) {
 	}, nil
 }
 
-func withdrawEvery(reg *Registry, args []string) (*plugin.Response, error) {
-	selFilter := ""
-	if len(args) >= 2 {
-		for i := range len(args) - 1 {
-			if strings.EqualFold(args[i], kwSelector) {
-				selFilter = args[i+1]
-				break
-			}
-		}
-	}
-
-	n, err := reg.withdrawAll(selFilter)
+func withdrawEvery(reg *Registry, peer string) (*plugin.Response, error) {
+	n, err := reg.withdrawAll(peer)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}

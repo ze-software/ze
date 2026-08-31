@@ -100,7 +100,7 @@ func TestRegistrywithdrawTag(t *testing.T) {
 	mustAnnounce(t, r, "mitigation", "ddos-udp", "peer-a", family.IPv4Unicast, "cli", 0)
 	mustAnnounce(t, r, "other", "x", "*", family.IPv4Unicast, "cli", 0)
 
-	n, err := r.withdrawTag("mitigation", "ddos-udp")
+	n, err := r.withdrawTag("", "mitigation", "ddos-udp")
 	require.NoError(t, err)
 	assert.Equal(t, 2, n)
 	assert.Equal(t, 2, rec.count())
@@ -114,13 +114,19 @@ func TestRegistrywithdrawTagKey(t *testing.T) {
 	mustAnnounce(t, r, "mitigation", "b", "*", family.IPv4Unicast, "cli", 0)
 	mustAnnounce(t, r, "other", "x", "*", family.IPv4Unicast, "cli", 0)
 
-	n, err := r.withdrawTagKey("mitigation")
+	n, err := r.withdrawTagKey("", "mitigation")
 	require.NoError(t, err)
 	assert.Equal(t, 2, n)
 	assert.Equal(t, 2, rec.count())
 	assert.Equal(t, 1, r.Len())
 }
 
+// TestRegistrywithdrawAllTags drives `withdraw tag *`, which withdraws every
+// tagged announcement.
+//
+// It walks the same entries TestRegistrywithdrawAll does. That is the point
+// rather than a duplicate. Only a tagged announcement enters the registry, so
+// the two verbs name one set and one function answers both.
 func TestRegistrywithdrawAllTags(t *testing.T) {
 	r, rec := newTestRegistry()
 
@@ -128,7 +134,7 @@ func TestRegistrywithdrawAllTags(t *testing.T) {
 	mustAnnounce(t, r, "other", "b", "*", family.IPv4Unicast, "cli", 0)
 	mustAnnounce(t, r, "third", "c", "*", family.IPv4Unicast, "cli", 0)
 
-	n, err := r.withdrawAllTags()
+	n, err := r.withdrawAll("")
 	require.NoError(t, err)
 	assert.Equal(t, 3, n)
 	assert.Equal(t, 3, rec.count())
@@ -144,13 +150,13 @@ func TestRegistrywithdrawEntryByID(t *testing.T) {
 	// The error return came back when the send permission made a withdraw
 	// refusable. It was dropped as an always-nil value to satisfy unparam, which
 	// was true of the reactor of the day and is not true of this one.
-	found, err := r.withdrawEntryByID(id1)
+	found, err := r.withdrawEntryByID("", id1)
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, 1, rec.count())
 	assert.Equal(t, 1, r.Len())
 
-	found, err = r.withdrawEntryByID(999)
+	found, err = r.withdrawEntryByID("", 999)
 	require.NoError(t, err, "an id that was never tracked is not-found, not a failed withdraw")
 	assert.False(t, found)
 }
@@ -169,6 +175,9 @@ func TestRegistrywithdrawAll(t *testing.T) {
 	assert.Equal(t, 0, r.Len())
 }
 
+// TestRegistrywithdrawAllWithSelector proves the peer filter. The value is the
+// selector each announcement was MADE with, so naming one fan-out leaves the
+// announcements of every other fan-out in place.
 func TestRegistrywithdrawAllWithSelector(t *testing.T) {
 	r, rec := newTestRegistry()
 
@@ -235,7 +244,7 @@ func TestRegistryDurationCancelledByExplicitWithdraw(t *testing.T) {
 
 	id := mustAnnounce(t, r, "mitigation", "ddos", "upstream", family.IPv4Unicast, "cli", 500*time.Millisecond)
 
-	found, err := r.withdrawEntryByID(id)
+	found, err := r.withdrawEntryByID("", id)
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, 0, r.Len())
@@ -243,4 +252,59 @@ func TestRegistryDurationCancelledByExplicitWithdraw(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 	assert.Equal(t, 1, rec.count())
+}
+
+// TestRegistryPeerNarrowsEveryWithdrawForm proves the peer prefix reaches all
+// three forms, not just the one that used to carry a selector leaf.
+//
+// VALIDATES: naming a fan-out withdraws only the announcements made to it, for
+// tag, for tag key, and for id.
+// PREVENTS: a prefix the grammar offers on three commands and one of them
+// honors, which reads to an operator as a withdraw that went nowhere.
+func TestRegistryPeerNarrowsEveryWithdrawForm(t *testing.T) {
+	r, rec := newTestRegistry()
+
+	mustAnnounce(t, r, "mitigation", "ddos", "upstream", family.IPv4Unicast, "cli", 0)
+	mustAnnounce(t, r, "mitigation", "ddos", "peer-a", family.IPv4Unicast, "cli", 0)
+
+	n, err := r.withdrawTag("upstream", "mitigation", "ddos")
+	require.NoError(t, err)
+	assert.Equal(t, 1, n, "only the announcement made to upstream is withdrawn")
+	assert.Equal(t, 1, rec.count())
+	assert.Equal(t, 1, r.Len())
+
+	n, err = r.withdrawTagKey("upstream", "mitigation")
+	require.NoError(t, err)
+	assert.Equal(t, 0, n, "the announcement left is peer-a's, and upstream does not name it")
+	assert.Equal(t, 1, r.Len())
+
+	n, err = r.withdrawTagKey("peer-a", "mitigation")
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, 0, r.Len())
+}
+
+// TestRegistryPeerNarrowsWithdrawByID proves an id scoped to the wrong fan-out
+// is reported as not found rather than withdrawn.
+//
+// VALIDATES: the id is looked up, then the peer filter refuses it, and the entry
+// stays in the registry.
+// PREVENTS: a scoped withdraw reaching an announcement the operator did not
+// name, which is the failure a filter exists to stop.
+func TestRegistryPeerNarrowsWithdrawByID(t *testing.T) {
+	r, rec := newTestRegistry()
+
+	id := mustAnnounce(t, r, "mitigation", "ddos", "upstream", family.IPv4Unicast, "cli", 0)
+
+	found, err := r.withdrawEntryByID("peer-a", id)
+	require.NoError(t, err)
+	assert.False(t, found, "peer-a did not receive this announcement")
+	assert.Equal(t, 0, rec.count(), "nothing reached the wire")
+	assert.Equal(t, 1, r.Len(), "the entry is still tracked")
+
+	found, err = r.withdrawEntryByID("upstream", id)
+	require.NoError(t, err)
+	assert.True(t, found)
+	assert.Equal(t, 1, rec.count())
+	assert.Equal(t, 0, r.Len())
 }

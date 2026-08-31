@@ -73,9 +73,12 @@ func TestWithdrawFormsAreSeparateCommands(t *testing.T) {
 }
 
 // TestWithdrawFormsRenderTheirOwnUsage proves each form states its grammar in
-// the model, including the two things the authored prose got wrong: the tag
-// value is OPTIONAL, because handleWithdrawTag defaults it to "*", and
-// `withdraw all` takes a selector filter the prose never mentioned.
+// the model, at both paths it is reachable at.
+//
+// The tag value is OPTIONAL, which the authored prose got wrong: handleWithdrawTag
+// defaults it to "*". `withdraw all` takes no tail at all. It carried a
+// `selector <pattern>` leaf until 2026-08-31, when the peer prefix replaced it
+// so that one scope reaches all three forms rather than one.
 func TestWithdrawFormsRenderTheirOwnUsage(t *testing.T) {
 	root := withdrawTree(t)
 	for _, tc := range []struct {
@@ -84,7 +87,10 @@ func TestWithdrawFormsRenderTheirOwnUsage(t *testing.T) {
 	}{
 		{path: []string{"withdraw", "tag"}, want: "withdraw tag <key> [value <value>]"},
 		{path: []string{"withdraw", "id"}, want: "withdraw id <id>"},
-		{path: []string{"withdraw", "all"}, want: "withdraw all [selector <selector>]"},
+		{path: []string{"withdraw", "all"}, want: "withdraw all"},
+		{path: []string{"peer", "withdraw", "tag"}, want: "peer <selector> withdraw tag <key> [value <value>]"},
+		{path: []string{"peer", "withdraw", "id"}, want: "peer <selector> withdraw id <id>"},
+		{path: []string{"peer", "withdraw", "all"}, want: "peer <selector> withdraw all"},
 	} {
 		node := command.FindNode(root, tc.path)
 		if node == nil {

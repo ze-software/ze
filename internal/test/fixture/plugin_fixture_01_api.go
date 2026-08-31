@@ -428,10 +428,20 @@ func plugin01APIAnnounceUnicast(ctx context.Context, plugin *sdk.Plugin) error {
 	// The peer-scoped form is the same wire method at a second command path. It
 	// proves the dispatcher fills the selector slot the model declares on the
 	// peer container.
-	if _, err := plugin01RequireDone(ctx, plugin, "peer 127.0.0.1 announce unicast 203.0.113.0/24 next-hop 10.0.1.254"); err != nil {
+	//
+	// The tag is what makes the announcement TRACKED, so the withdraw below has
+	// something to find. An untagged announce is fire-and-forget and never
+	// enters the registry.
+	if _, err := plugin01RequireDone(ctx, plugin, "peer 127.0.0.1 announce unicast 203.0.113.0/24 next-hop 10.0.1.254 tag scope peer"); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "OK: announce unicast dispatched, bare and peer-scoped")
+	// The same prefix on the withdraw side. It withdraws the announcement made
+	// to this fan-out and leaves the untagged one alone, which the peer block
+	// asserts by expecting exactly one withdraw.
+	if _, err := plugin01RequireDone(ctx, plugin, "peer 127.0.0.1 withdraw all"); err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stderr, "OK: announce and withdraw dispatched, bare and peer-scoped")
 	return nil
 }
 

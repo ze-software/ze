@@ -435,7 +435,7 @@ func TestWithdrawByTagKeyValue(t *testing.T) {
 	mustAnnounce(t, r, "m", "b", "*", family.IPv4Unicast, "cli", 0)
 	mustAnnounce(t, r, "other", "x", "*", family.IPv4Unicast, "cli", 0)
 
-	resp, err := withdrawByTag(r, []string{"m", "a"})
+	resp, err := withdrawByTag(r, "", []string{"m", "a"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	data := respData(t, resp)
@@ -449,7 +449,7 @@ func TestWithdrawByTagKeyWildcard(t *testing.T) {
 	mustAnnounce(t, r, "m", "b", "*", family.IPv4Unicast, "cli", 0)
 	mustAnnounce(t, r, "other", "x", "*", family.IPv4Unicast, "cli", 0)
 
-	resp, err := withdrawByTag(r, []string{"m", "*"})
+	resp, err := withdrawByTag(r, "", []string{"m", "*"})
 	require.NoError(t, err)
 	data := respData(t, resp)
 	assert.Equal(t, 2, data["withdrawn"])
@@ -461,7 +461,7 @@ func TestWithdrawByTagKeyOnly(t *testing.T) {
 	mustAnnounce(t, r, "m", "a", "*", family.IPv4Unicast, "cli", 0)
 	mustAnnounce(t, r, "m", "b", "*", family.IPv4Unicast, "cli", 0)
 
-	resp, err := withdrawByTag(r, []string{"m"})
+	resp, err := withdrawByTag(r, "", []string{"m"})
 	require.NoError(t, err)
 	data := respData(t, resp)
 	assert.Equal(t, 2, data["withdrawn"])
@@ -472,7 +472,7 @@ func TestWithdrawByTagStar(t *testing.T) {
 	mustAnnounce(t, r, "a", "1", "*", family.IPv4Unicast, "cli", 0)
 	mustAnnounce(t, r, "b", "2", "*", family.IPv4Unicast, "cli", 0)
 
-	resp, err := withdrawByTag(r, []string{"*"})
+	resp, err := withdrawByTag(r, "", []string{"*"})
 	require.NoError(t, err)
 	data := respData(t, resp)
 	assert.Equal(t, 2, data["withdrawn"])
@@ -481,7 +481,7 @@ func TestWithdrawByTagStar(t *testing.T) {
 
 func TestWithdrawByTagMissingArgs(t *testing.T) {
 	r, _ := newTestRegistry()
-	_, err := withdrawByTag(r, nil)
+	_, err := withdrawByTag(r, "", nil)
 	assert.Error(t, err)
 }
 
@@ -489,7 +489,7 @@ func TestWithdrawByIDValid(t *testing.T) {
 	r, _ := newTestRegistry()
 	id := mustAnnounce(t, r, "a", "1", "*", family.IPv4Unicast, "cli", 0)
 
-	resp, err := withdrawByID(r, "1")
+	resp, err := withdrawByID(r, "", "1")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	_ = id
@@ -498,27 +498,27 @@ func TestWithdrawByIDValid(t *testing.T) {
 
 func TestWithdrawByIDNotFound(t *testing.T) {
 	r, _ := newTestRegistry()
-	_, err := withdrawByID(r, "999")
+	_, err := withdrawByID(r, "", "999")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestWithdrawByIDInvalid(t *testing.T) {
 	r, _ := newTestRegistry()
-	_, err := withdrawByID(r, "abc")
+	_, err := withdrawByID(r, "", "abc")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid id")
 }
 
 func TestWithdrawByIDMissing(t *testing.T) {
 	r, _ := newTestRegistry()
-	_, err := withdrawByID(r, "")
+	_, err := withdrawByID(r, "", "")
 	assert.Error(t, err)
 }
 
 func TestWithdrawEveryEmpty(t *testing.T) {
 	r, _ := newTestRegistry()
-	resp, err := withdrawEvery(r, nil)
+	resp, err := withdrawEvery(r, "")
 	require.NoError(t, err)
 	data := respData(t, resp)
 	assert.Equal(t, 0, data["withdrawn"])
@@ -529,7 +529,7 @@ func TestWithdrawEveryWithEntries(t *testing.T) {
 	mustAnnounce(t, r, "a", "1", "upstream", family.IPv4Unicast, "cli", 0)
 	mustAnnounce(t, r, "b", "2", "peer-a", family.IPv4Unicast, "cli", 0)
 
-	resp, err := withdrawEvery(r, nil)
+	resp, err := withdrawEvery(r, "")
 	require.NoError(t, err)
 	data := respData(t, resp)
 	assert.Equal(t, 2, data["withdrawn"])
@@ -541,7 +541,7 @@ func TestWithdrawEveryWithSelector(t *testing.T) {
 	mustAnnounce(t, r, "a", "1", "upstream", family.IPv4Unicast, "cli", 0)
 	mustAnnounce(t, r, "b", "2", "peer-a", family.IPv4Unicast, "cli", 0)
 
-	resp, err := withdrawEvery(r, []string{"selector", "upstream"})
+	resp, err := withdrawEvery(r, "upstream")
 	require.NoError(t, err)
 	data := respData(t, resp)
 	assert.Equal(t, 1, data["withdrawn"])

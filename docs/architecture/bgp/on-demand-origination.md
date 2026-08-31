@@ -66,8 +66,7 @@ new state, and it is the shared code path for the CLI, for the plugin API
 
 **Every withdraw starts with a keyword, and each keyword is its own command.**
 The three commands are `withdraw tag <key> [value <value>]`, `withdraw id <id>`
-and `withdraw all [selector <selector>]`. Bare positional arguments were
-rejected for clarity.
+and `withdraw all`. Bare positional arguments were rejected for clarity.
 
 They were one command until 2026-08-29, with the three forms behind a keyword
 switch on `args[0]`. That put the grammar in a handler and in a description,
@@ -76,10 +75,23 @@ Splitting it moved the grammar into the model, and the switch was deleted rather
 than kept beside the three (`ai/rules/no-layering.md`). The handler functions did
 not change: each already took the tail after its keyword.
 
-**The tag value is OPTIONAL, and `withdraw all` takes a selector filter.** Both
-were true in the code and false in the prose that documented it. An absent value
-withdraws every value of the key, and an absent selector withdraws every
-announcement.
+**The tag value is OPTIONAL.** It was true in the code and false in the prose
+that documented it. An absent value withdraws every value of the key.
+
+**One peer prefix scopes every withdraw form, and no form states a scope of its
+own (owner directive, 2026-08-31).** `withdraw all` carried a
+`selector <pattern>` leaf until then. One form of three took a scope and the
+other two took none. `peer <selector> withdraw all` replaces it, and the same
+prefix narrows `withdraw tag` and `withdraw id`.
+
+The value is compared against the selector each announcement was MADE with,
+rather than resolved against the peer table. An entry records the fan-out it went
+to, so naming a peer asks for the announcements sent to that fan-out. An operator
+who names a peer that received nothing withdraws nothing.
+
+`withdraw tag *` and `withdraw all` walk one set rather than two. Only a tagged
+announcement enters the registry, so every tracked announcement is a tagged one,
+and `withdrawAll` answers both.
 
 An `UpdateRoute` call that carries no `tag.` meta stays fire-and-forget.
 

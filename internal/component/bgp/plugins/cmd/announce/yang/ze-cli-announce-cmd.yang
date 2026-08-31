@@ -3,7 +3,7 @@ module ze-cli-announce-cmd {
     prefix cliannouncecmd;
     import ze-extensions { prefix ze; }
     description "On-demand route origination and lifecycle management";
-    revision 2026-08-31 { description "Every announce form is reachable at two paths. A bare announce reaches every peer. peer <selector> announce reaches the peers the selector matches. That is the ExaBGP order an operator already types. The forms are one grouping instantiated twice, so the second path restates no grammar. The selector is declared on the peer container the operator types it after."; }
+    revision 2026-08-31 { description "Every announce and withdraw form is reachable at two paths. A bare form reaches every peer. peer <selector> announce and peer <selector> withdraw reach the peers the selector matches. That is the ExaBGP order an operator already types. Each set of forms is one grouping instantiated twice, so the second path restates no grammar. The selector is declared on the peer container the operator types it after. withdraw all loses its own selector leaf: the peer prefix states that scope for every form rather than one form stating it in its tail."; }
     revision 2026-08-30 { description "announce is three commands, one per form: unicast, blackhole and flowspec. The arguments after the form word differ between them, so one node could state at most one of the three and the description spelled the rest in prose. This is what withdraw was already split into. unicast and blackhole now state their whole grammar; flowspec states its trailing options only, because the match components are the flowspec NLRI plugin's vocabulary."; }
     revision 2026-08-29 { description "Declare the announce trailing groups: tag carries a key AND a value, so it is one group rather than two leaves, and for carries a duration whose keyword differs from its value name."; }
     revision 2026-08-29 { description "withdraw is three commands, one per form: tag, id and all. Each states its own arguments, so the grammar is in the model rather than in a handler's switch and in a description."; }
@@ -145,17 +145,25 @@ between them, and one node cannot state three grammars.";
 
         container announce {
             config false;
-        description "Announce a route on demand to selected peers.
+            description "Announce a route on demand to selected peers.
 Each form is a command of its own: the arguments after the form word differ
 between them, and one node cannot state three grammars.";
             uses announce-forms;
         }
+
+        container withdraw {
+            config false;
+            description "Withdraw on-demand announcements.";
+            uses withdraw-forms;
+        }
     }
 
 
-    container withdraw {
-        config false;
-        description "Withdraw on-demand announcements.";
+    grouping withdraw-forms {
+        description "The three withdraw forms, declared once and instantiated
+twice, the same way the announce forms are. A bare withdraw reaches every
+announcement. peer <selector> withdraw reaches the announcements made to the
+peers that selector names.";
 
         container tag {
             config false;
@@ -175,9 +183,14 @@ between them, and one node cannot state three grammars.";
         container all {
             config false;
             ze:command "ze-bgp:withdraw-all";
-            description "Withdraw every on-demand announcement, or every one whose peer selector matches a pattern.";
-            leaf selector { type string; description "Peer selector pattern; every announcement when absent"; }
+            description "Withdraw every on-demand announcement. Type it after peer <selector> to withdraw only the announcements made to those peers.";
         }
+    }
+
+    container withdraw {
+        config false;
+        description "Withdraw on-demand announcements.";
+        uses withdraw-forms;
     }
 
     container show {

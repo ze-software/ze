@@ -92,84 +92,27 @@ func (r *Registry) Announce(key, value string, sel *selector.Selector, batch typ
 	return id, nil
 }
 
-// withdrawTag withdraws all entries matching the given tag key+value.
-func (r *Registry) withdrawTag(key, value string) (int, error) {
-	r.mu.Lock()
-	var matched []*tagEntry
-	for _, e := range r.entries {
-		if e.TagKey == key && e.TagValue == value {
-			matched = append(matched, e)
-		}
-	}
-	for _, e := range matched {
-		r.removeEntryLocked(e)
-	}
-	r.mu.Unlock()
-
-	return r.withdrawEntries(matched)
-}
-
-// withdrawTagKey withdraws all entries under a tag key (all values).
-func (r *Registry) withdrawTagKey(key string) (int, error) {
-	r.mu.Lock()
-	var matched []*tagEntry
-	for _, e := range r.entries {
-		if e.TagKey == key {
-			matched = append(matched, e)
-		}
-	}
-	for _, e := range matched {
-		r.removeEntryLocked(e)
-	}
-	r.mu.Unlock()
-
-	return r.withdrawEntries(matched)
-}
-
-// withdrawAllTags withdraws all tagged entries across all keys.
-func (r *Registry) withdrawAllTags() (int, error) {
-	r.mu.Lock()
-	matched := make([]*tagEntry, 0, len(r.entries))
-	for _, e := range r.entries {
-		matched = append(matched, e)
-	}
-	for _, e := range matched {
-		r.removeEntryLocked(e)
-	}
-	r.mu.Unlock()
-
-	return r.withdrawEntries(matched)
-}
-
-// withdrawEntryByID withdraws a single entry by ID.
+// withdrawMatching withdraws every entry the peer filter and the predicate both
+// accept, and answers how many it withdrew.
 //
-// The second result reports a withdraw the wire refused. The entry has already
-// been dropped from the registry by then, so a discarded error left the route on
-// the peer while `show announcements` said it was gone. That became reachable
-// when the send permission made a withdraw refusable: a reload that removes a
-// peer's attach block turns every later withdraw for that peer into a refusal
-// (reactor/send_permission.go).
-func (r *Registry) withdrawEntryByID(id uint64) (found bool, err error) {
-	r.mu.Lock()
-	e, ok := r.entries[id]
-	if ok {
-		r.removeEntryLocked(e)
-	}
-	r.mu.Unlock()
-
-	if !ok {
-		return false, nil
-	}
-
-	return true, r.withdraw(e.Selector, e.Batch, e.Sender)
-}
-
-// withdrawAll withdraws all entries, optionally filtered by selector string.
-func (r *Registry) withdrawAll(selFilter string) (int, error) {
+// peer is the selector the operator typed BEFORE the verb, or "" when they typed
+// none. It is compared against the selector each announcement was MADE with,
+// rather than resolved against the peer table.
+//
+// An entry records the fan-out it went to. So `peer 192.0.2.9 withdraw all` asks
+// for the announcements sent to that fan-out and nothing else, and an operator
+// who names a peer that received nothing withdraws nothing.
+//
+// The removal happens under the lock and the wire withdraw happens after it, so
+// a slow or refusing peer never holds the registry.
+func (r *Registry) withdrawMatching(peer string, match func(*tagEntry) bool) (int, error) {
 	r.mu.Lock()
 	var matched []*tagEntry
 	for _, e := range r.entries {
-		if selFilter != "" && e.Selector.String() != selFilter {
+		if peer != "" && e.Selector.String() != peer {
+			continue
+		}
+		if !match(e) {
 			continue
 		}
 		matched = append(matched, e)
@@ -180,6 +123,59 @@ func (r *Registry) withdrawAll(selFilter string) (int, error) {
 	r.mu.Unlock()
 
 	return r.withdrawEntries(matched)
+}
+
+// withdrawTag withdraws the entries carrying one tag key and one tag value.
+func (r *Registry) withdrawTag(peer, key, value string) (int, error) {
+	return r.withdrawMatching(peer, func(e *tagEntry) bool {
+		return e.TagKey == key && e.TagValue == value
+	})
+}
+
+// withdrawTagKey withdraws every entry under a tag key, whatever its value.
+func (r *Registry) withdrawTagKey(peer, key string) (int, error) {
+	return r.withdrawMatching(peer, func(e *tagEntry) bool { return e.TagKey == key })
+}
+
+// withdrawAll withdraws every entry the registry holds.
+//
+// It answers both `withdraw all` and `withdraw tag *`. Those two name one set
+// rather than two. An announcement enters the registry only when the operator
+// gave it a tag (announceAndTrack), so every tracked announcement is a tagged
+// one. A second function for the tagged subset would differ from this one in
+// name only.
+func (r *Registry) withdrawAll(peer string) (int, error) {
+	return r.withdrawMatching(peer, func(*tagEntry) bool { return true })
+}
+
+// withdrawEntryByID withdraws a single entry by ID.
+//
+// peer narrows the same way it does for every other form. An id whose
+// announcement went to a different fan-out is reported as not found. A scoped
+// withdraw therefore never reaches an announcement the operator did not name.
+//
+// The second result reports a withdraw the wire refused. The entry has already
+// been dropped from the registry by then, so a discarded error left the route on
+// the peer while `show announcements` said it was gone. That became reachable
+// when the send permission made a withdraw refusable: a reload that removes a
+// peer's attach block turns every later withdraw for that peer into a refusal
+// (reactor/send_permission.go).
+func (r *Registry) withdrawEntryByID(peer string, id uint64) (found bool, err error) {
+	r.mu.Lock()
+	e, ok := r.entries[id]
+	if ok && peer != "" && e.Selector.String() != peer {
+		ok = false
+	}
+	if ok {
+		r.removeEntryLocked(e)
+	}
+	r.mu.Unlock()
+
+	if !ok {
+		return false, nil
+	}
+
+	return true, r.withdraw(e.Selector, e.Batch, e.Sender)
 }
 
 // listFilter controls which entries List returns.

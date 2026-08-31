@@ -4,10 +4,14 @@
 # PREVENTS: four tail grammars behind one handler, which no model can state and
 #           no operator can discover from help
 #
-# The line each form states is the one the MODEL renders, so the two facts the
-# authored prose got wrong are pinned here: the tag value is optional, because
-# the handler defaults it to "*", and `withdraw all` takes a selector filter that
-# the prose never mentioned.
+# The line each form states is the one the MODEL renders. The tag value is
+# optional, because the handler defaults it to "*", which the authored prose got
+# wrong. `withdraw all` takes no tail: it carried a selector filter until
+# 2026-08-31, when the peer prefix replaced it so one scope reaches all three
+# forms rather than one.
+#
+# Each form is reachable at two paths, bare and under `peer <selector>`, the same
+# as the announce forms.
 
 cmd=foreground:seq=1:exec=ze withdraw help
 expect=exit:code=0
@@ -28,4 +32,17 @@ expect=stderr:contains=ze withdraw id <id>
 
 cmd=foreground:seq=4:exec=ze withdraw all help
 expect=exit:code=0
-expect=stderr:contains=ze withdraw all [selector <selector>]
+expect=stderr:contains=ze withdraw all
+reject=stderr:pattern=withdraw all \[selector
+
+cmd=foreground:seq=5:exec=ze peer withdraw tag help
+expect=exit:code=0
+expect=stderr:contains=ze peer <selector> withdraw tag <key> [value <value>]
+
+cmd=foreground:seq=6:exec=ze peer withdraw id help
+expect=exit:code=0
+expect=stderr:contains=ze peer <selector> withdraw id <id>
+
+cmd=foreground:seq=7:exec=ze peer withdraw all help
+expect=exit:code=0
+expect=stderr:contains=ze peer <selector> withdraw all
