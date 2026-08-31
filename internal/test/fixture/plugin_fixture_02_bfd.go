@@ -15,6 +15,11 @@ import (
 	"time"
 )
 
+// bfdSimplePasswordTooLong02 is the substring parseAuthConfig
+// (internal/component/bfd/config.go) writes when a Simple Password exceeds the
+// sixteen bytes RFC 5880 Section 6.7.2 allows.
+const bfdSimplePasswordTooLong02 = "simple-password secret is 17 bytes"
+
 const bfdRunBudget02 = 12 * time.Second
 const bfdShutdownBudget02 = 5 * time.Second
 
@@ -165,7 +170,7 @@ func (p *storeProbe02) seq02(deadline time.Time) int {
 		return 0
 	}
 	if p.key == "" {
-		listing, err := commandOutput02(deadline, "ze", "data", "--path", p.store, "ls")
+		listing, err := commandOutput02(deadline, "ze", "data", "--path", p.store, "list")
 		if err != nil {
 			return 0
 		}
@@ -259,6 +264,10 @@ func bfdAuthMeticulousPersist02(ctx context.Context, args []string) error {
 	return nil
 }
 
+// bfdAuthMismatch02 drives the one auth configuration the parser refuses on a
+// length ground: a Simple Password of seventeen bytes. RFC 5880 Section 6.7.2
+// bounds the password at 1 to 16 bytes, because the Auth Len field carries the
+// password length plus three, so a longer password has no wire encoding.
 func bfdAuthMismatch02(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return fmt.Errorf("bfd auth mismatch fixture takes no arguments")
@@ -268,11 +277,11 @@ func bfdAuthMismatch02(ctx context.Context, args []string) error {
 
 bfd {
 	enabled true;
-	profile insecure {
+	profile too-long {
 		auth {
 			type simple-password
 			key-id 1
-			secret "plaintext"
+			secret "seventeen bytes!!"
 		}
 	}
 }
@@ -289,7 +298,7 @@ bfd {
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 	deadline := time.Now().Add(8 * time.Second)
-	for !strings.Contains(stderr.String(), "simple-password rejected") && time.Now().Before(deadline) {
+	for !strings.Contains(stderr.String(), bfdSimplePasswordTooLong02) && time.Now().Before(deadline) {
 		select {
 		case <-done:
 			deadline = time.Now()
@@ -315,9 +324,9 @@ bfd {
 	if captured != "" {
 		fmt.Fprint(os.Stderr, captured)
 	}
-	if !strings.Contains(captured, "simple-password rejected") {
-		return fmt.Errorf("missing required pattern: simple-password rejected")
+	if !strings.Contains(captured, bfdSimplePasswordTooLong02) {
+		return fmt.Errorf("missing required pattern: %s", bfdSimplePasswordTooLong02)
 	}
-	fmt.Fprintln(os.Stderr, "OK: simple-password rejection observed")
+	fmt.Fprintln(os.Stderr, "OK: over-long simple-password rejection observed")
 	return nil
 }

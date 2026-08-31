@@ -65,12 +65,12 @@ func TestRFC5880BothSHA1VariantsSupported(t *testing.T) {
 }
 
 // RFC requirement: RFC5880-6.7-1 negative -- support is an enumerated set, not
-// a blanket accept: NewSigner and NewVerifier (signer.go:106-113,118-125) fall
-// through to ErrUnsupportedType for the reserved type 0, the Simple Password
-// type 1, and any undefined value, so the SHA1 support above is a real switch
-// arm rather than a catch-all.
+// a blanket accept: NewSigner and NewVerifier fall through to
+// ErrUnsupportedType for the reserved type 0 and for any value RFC 5880
+// Section 4.1 leaves undefined, so the SHA1 support above is a real switch arm
+// rather than a catch-all.
 func TestRFC5880UnsupportedAuthTypesRejected(t *testing.T) {
-	for _, at := range []uint8{packet.AuthTypeReserved, packet.AuthTypeSimplePassword, 6, 200} {
+	for _, at := range []uint8{packet.AuthTypeReserved, 6, 200} {
 		if _, err := NewSigner(Settings{Type: at, Secret: rfc5880Secret}); !errors.Is(err, ErrUnsupportedType) {
 			t.Fatalf("NewSigner type %d: got %v, want ErrUnsupportedType", at, err)
 		}
@@ -558,5 +558,232 @@ func TestRFC5880MeticulousRejectsUnincrementedSequence(t *testing.T) {
 		if err := v.Verify(next, nc, &state); err != nil {
 			t.Fatalf("type %d: incremented sequence rejected: %v", at, err)
 		}
+	}
+}
+
+// rfc5880Password is the Simple Password used by the tests below. It is eight
+// bytes, which sits between the one-byte minimum and the sixteen-byte maximum
+// so a length change in either direction is visible in the Auth Len field.
+var rfc5880Password = []byte("passw0rd")
+
+// rfc5880SimpleSigned returns a freshly signed Simple Password packet for the
+// given key id and password, along with the parsed Control the verifier reads.
+func rfc5880SimpleSigned(t *testing.T, keyID uint8, password []byte) ([]byte, packet.Control) {
+	t.Helper()
+	cfg := Settings{Type: packet.AuthTypeSimplePassword, KeyID: keyID, Secret: password}
+	signer, err := NewSigner(cfg)
+	if err != nil {
+		t.Fatalf("NewSigner(simple password, %d-byte password): %v", len(password), err)
+	}
+	buf := make([]byte, packet.MandatoryLen+signer.BodyLen())
+	c := controlBytes(buf, signer.BodyLen())
+	signer.Sign(buf, packet.MandatoryLen, 0)
+	return buf, c
+}
+
+// RFC requirement: RFC5880-6.7.2-8 positive -- the transmitted section carries
+// Auth Type 1 and an Auth Len equal to the password length plus three, which
+// is the "proper length (4 to 19 bytes)" the RFC names. simpleSigner.Sign
+// (internal/component/bfd/auth/simple.go) writes both bytes and
+// newSimpleSigner derives sectionLen from the configured password.
+// RFC requirement: RFC5880-4.2-1 positive -- the one-byte and sixteen-byte
+// passwords are both configured and both encoded, so the whole permitted range
+// reaches the wire.
+func TestRFC5880SimplePasswordSectionHeader(t *testing.T) {
+	for _, octets := range []int{1, 8, 16} {
+		password := bytes.Repeat([]byte{'p'}, octets)
+		buf, _ := rfc5880SimpleSigned(t, 3, password)
+		off := packet.MandatoryLen
+		if buf[off] != packet.AuthTypeSimplePassword {
+			t.Fatalf("%d-byte password: Auth Type = %d, want 1", octets, buf[off])
+		}
+		wantLen := packet.SimplePasswordHeaderLen + octets
+		if int(buf[off+1]) != wantLen {
+			t.Fatalf("%d-byte password: Auth Len = %d, want %d", octets, buf[off+1], wantLen)
+		}
+		if wantLen < packet.AuthLenSimplePasswordMin || wantLen > packet.AuthLenSimplePasswordMax {
+			t.Fatalf("%d-byte password: Auth Len %d outside the 4 to 19 the RFC allows", octets, wantLen)
+		}
+	}
+}
+
+// RFC requirement: RFC5880-6.7.2-8 negative -- the pairing is enforced on
+// reception rather than assumed: simpleVerifier.Verify compares the Auth Type
+// byte against 1 and the Auth Len byte against the password length plus three,
+// so a section carrying a keyed-MD5 shape, or a length one byte off in either
+// direction, is discarded.
+func TestRFC5880SimplePasswordRejectsForeignSectionShape(t *testing.T) {
+	buf, c := rfc5880SimpleSigned(t, 3, rfc5880Password)
+	v := rfc5880Verifier(t, Settings{
+		Type:   packet.AuthTypeSimplePassword,
+		KeyID:  3,
+		Secret: rfc5880Password,
+	})
+	off := packet.MandatoryLen
+
+	wrongType := bytes.Clone(buf)
+	wrongType[off] = packet.AuthTypeKeyedMD5
+	if err := v.Verify(wrongType, c, nil); !errors.Is(err, ErrPasswordMismatch) {
+		t.Fatalf("Auth Type 2 offered to a Simple Password session: got %v", err)
+	}
+
+	for _, delta := range []int{-1, +1} {
+		wrongLen := bytes.Clone(buf)
+		wrongLen[off+1] = byte(int(wrongLen[off+1]) + delta)
+		if err := v.Verify(wrongLen, c, nil); !errors.Is(err, ErrPasswordMismatch) {
+			t.Fatalf("Auth Len off by %d accepted: got %v", delta, err)
+		}
+	}
+}
+
+// RFC requirement: RFC5880-6.7.2-3 positive -- "The currently selected password
+// and Key ID for the session MUST be stored in the Authentication Section of
+// each outgoing BFD Control packet." simpleSigner.Sign writes the configured
+// Key ID at offset 2 and copies the password from offset 3, and it writes the
+// same section on every packet, so the pair is present on each transmission.
+func TestRFC5880SimplePasswordSectionCarriesPasswordAndKeyID(t *testing.T) {
+	const keyID = 42
+	first, _ := rfc5880SimpleSigned(t, keyID, rfc5880Password)
+	second, _ := rfc5880SimpleSigned(t, keyID, rfc5880Password)
+	off := packet.MandatoryLen
+
+	if first[off+2] != keyID {
+		t.Fatalf("Auth Key ID = %d, want %d", first[off+2], keyID)
+	}
+	carried := first[off+packet.SimplePasswordHeaderLen : off+packet.SimplePasswordHeaderLen+len(rfc5880Password)]
+	if !bytes.Equal(carried, rfc5880Password) {
+		t.Fatalf("password on the wire = %q, want %q", carried, rfc5880Password)
+	}
+	if !bytes.Equal(first[off:], second[off:]) {
+		t.Fatal("the authentication section differs between two packets of the same session")
+	}
+}
+
+// RFC requirement: RFC5880-6.7.2-7 positive -- "The receiving system accepts the
+// packet if the Password and Key ID matches one of the Password/ID pairs
+// configured in that system." simpleVerifier.Verify returns nil once the type,
+// key id, length and password all match the configured pair.
+func TestRFC5880SimplePasswordMatchAccepted(t *testing.T) {
+	for _, octets := range []int{1, 8, 16} {
+		password := bytes.Repeat([]byte{'q'}, octets)
+		buf, c := rfc5880SimpleSigned(t, 9, password)
+		v := rfc5880Verifier(t, Settings{
+			Type:   packet.AuthTypeSimplePassword,
+			KeyID:  9,
+			Secret: password,
+		})
+		if err := v.Verify(buf, c, nil); err != nil {
+			t.Fatalf("%d-byte password round trip: %v", octets, err)
+		}
+	}
+}
+
+// RFC requirement: RFC5880-6.7.2-7 negative -- "If the Password field does not
+// match the password selected by the key ID, the packet MUST be discarded."
+// The constant-time compare in simpleVerifier.Verify rejects a password that
+// differs in one byte, one that differs in length, and the empty tail a
+// truncated section leaves behind.
+func TestRFC5880SimplePasswordMismatchDiscarded(t *testing.T) {
+	v := rfc5880Verifier(t, Settings{
+		Type:   packet.AuthTypeSimplePassword,
+		KeyID:  9,
+		Secret: rfc5880Password,
+	})
+
+	oneByteOff := bytes.Clone(rfc5880Password)
+	oneByteOff[len(oneByteOff)-1] ^= 0x01
+	buf, c := rfc5880SimpleSigned(t, 9, oneByteOff)
+	if err := v.Verify(buf, c, nil); !errors.Is(err, ErrPasswordMismatch) {
+		t.Fatalf("a password differing in one byte was accepted: %v", err)
+	}
+
+	shorter, sc := rfc5880SimpleSigned(t, 9, rfc5880Password[:len(rfc5880Password)-1])
+	if err := v.Verify(shorter, sc, nil); !errors.Is(err, ErrPasswordMismatch) {
+		t.Fatalf("a shorter password was accepted: %v", err)
+	}
+
+	longer := append(bytes.Clone(rfc5880Password), 'x')
+	lbuf, lc := rfc5880SimpleSigned(t, 9, longer)
+	if err := v.Verify(lbuf, lc, nil); !errors.Is(err, ErrPasswordMismatch) {
+		t.Fatalf("a longer password was accepted: %v", err)
+	}
+}
+
+// RFC requirement: RFC5880-6.7.2-5 negative -- "If the Auth Key ID field does
+// not match the ID of a configured password, the received packet MUST be
+// discarded." simpleVerifier.Verify compares the byte at offset 2 against the
+// configured key id before it looks at the password, so a packet carrying the
+// right password under the wrong key id is still discarded.
+func TestRFC5880SimplePasswordWrongKeyIDDiscarded(t *testing.T) {
+	buf, c := rfc5880SimpleSigned(t, 7, rfc5880Password)
+	v := rfc5880Verifier(t, Settings{
+		Type:   packet.AuthTypeSimplePassword,
+		KeyID:  8,
+		Secret: rfc5880Password,
+	})
+	if err := v.Verify(buf, c, nil); !errors.Is(err, ErrPasswordMismatch) {
+		t.Fatalf("key id 7 accepted by a session configured for key id 8: %v", err)
+	}
+}
+
+// RFC requirement: RFC5880-6.7.2-5 positive -- the same producer accepts the
+// packet once the key id does match, so the check above is a comparison and
+// not a blanket refusal.
+func TestRFC5880SimplePasswordMatchingKeyIDAccepted(t *testing.T) {
+	buf, c := rfc5880SimpleSigned(t, 7, rfc5880Password)
+	v := rfc5880Verifier(t, Settings{
+		Type:   packet.AuthTypeSimplePassword,
+		KeyID:  7,
+		Secret: rfc5880Password,
+	})
+	if err := v.Verify(buf, c, nil); err != nil {
+		t.Fatalf("matching key id rejected: %v", err)
+	}
+}
+
+// RFC requirement: RFC5880-4.2-1 negative -- "The password is a binary string,
+// and MUST be from 1 to 16 bytes in length." NewSigner and NewVerifier refuse a
+// zero-byte and a seventeen-byte password with ErrKeyLengthInvalid, so no
+// session can be built that would encode an Auth Len outside 4 to 19.
+func TestRFC5880SimplePasswordLengthOutOfRangeRefused(t *testing.T) {
+	for _, octets := range []int{0, packet.SimplePasswordLenMax + 1, 32, 255} {
+		cfg := Settings{
+			Type:   packet.AuthTypeSimplePassword,
+			KeyID:  1,
+			Secret: bytes.Repeat([]byte{'p'}, octets),
+		}
+		if _, err := NewSigner(cfg); !errors.Is(err, ErrKeyLengthInvalid) {
+			t.Fatalf("NewSigner with a %d-byte password: got %v, want ErrKeyLengthInvalid", octets, err)
+		}
+		if _, err := NewVerifier(cfg); !errors.Is(err, ErrKeyLengthInvalid) {
+			t.Fatalf("NewVerifier with a %d-byte password: got %v, want ErrKeyLengthInvalid", octets, err)
+		}
+	}
+}
+
+// VALIDATES: the Simple Password verifier treats a truncated or over-long
+// section as an operating error and returns, because the bytes arrive from an
+// unauthenticated peer.
+// PREVENTS: an index out of range on the receive path when a peer sends a
+// Control Length that does not describe the datagram it sent.
+func TestRFC5880SimplePasswordMalformedSectionRejected(t *testing.T) {
+	buf, c := rfc5880SimpleSigned(t, 9, rfc5880Password)
+	v := rfc5880Verifier(t, Settings{
+		Type:   packet.AuthTypeSimplePassword,
+		KeyID:  9,
+		Secret: rfc5880Password,
+	})
+
+	for cut := range buf {
+		if err := v.Verify(buf[:cut], c, nil); err == nil {
+			t.Fatalf("a %d-byte packet claiming Length %d was accepted", cut, c.Length)
+		}
+	}
+
+	trailing := append(bytes.Clone(buf), 0xFF, 0xFF)
+	over := c
+	over.Length = uint8(len(trailing))
+	if err := v.Verify(trailing, over, nil); !errors.Is(err, ErrPasswordMismatch) {
+		t.Fatalf("trailing bytes behind a matching password were accepted: %v", err)
 	}
 }

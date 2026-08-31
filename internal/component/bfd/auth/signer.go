@@ -21,13 +21,17 @@ import (
 // possible.
 var (
 	// ErrUnsupportedType is returned when an operator configures an
-	// Auth Type the package does not implement. In ze this is
-	// Simple Password (1) at the moment; adding future types means
-	// adding a new constructor and a switch arm.
+	// Auth Type the package does not implement. Ze implements the
+	// five types RFC 5880 defines, so this covers the reserved type
+	// 0 and any value IANA has not assigned; adding a future type
+	// means adding a new constructor and a switch arm.
 	ErrUnsupportedType = errors.New("bfd auth: unsupported auth type")
 
 	// ErrKeyLengthInvalid is returned when the provided secret is
-	// outside the range the selected Auth Type accepts.
+	// outside the range the selected Auth Type accepts. Only Simple
+	// Password has such a range (1 to 16 bytes, RFC 5880 Section
+	// 6.7.2); the keyed digests pad or truncate any secret to their
+	// fixed key slot.
 	ErrKeyLengthInvalid = errors.New("bfd auth: invalid key length")
 
 	// ErrDigestMismatch is returned by Verifier.Verify when the
@@ -42,9 +46,16 @@ var (
 	ErrSequenceRegress = errors.New("bfd auth: sequence regress")
 
 	// ErrShortAuthBody is returned when the auth section body is
-	// shorter than the fixed layout expected for the configured
-	// Auth Type.
+	// shorter than the layout expected for the configured Auth Type.
 	ErrShortAuthBody = errors.New("bfd auth: short auth body")
+
+	// ErrPasswordMismatch is returned by the Simple Password verifier
+	// for every discard RFC 5880 Section 6.7.2 requires on reception:
+	// a wrong Auth Type, a wrong Auth Key ID, an Auth Len that is not
+	// the password length plus three, and a password that does not
+	// match. Simple Password computes no digest, so ErrDigestMismatch
+	// would name a check that never runs.
+	ErrPasswordMismatch = errors.New("bfd auth: password mismatch")
 )
 
 // Settings is the operator-facing authentication configuration for one
@@ -65,9 +76,11 @@ type Signer interface {
 	// AuthType returns the RFC 5880 Auth Type this signer emits.
 	AuthType() uint8
 
-	// BodyLen returns the fixed length of the authentication
-	// section payload (including the Auth Type + Auth Len
-	// header). The caller uses this to size the outbound buffer
+	// BodyLen returns the length of the authentication section
+	// payload (including the Auth Type + Auth Len header). It is
+	// fixed for the life of the signer: the keyed digests fix it by
+	// algorithm, and Simple Password fixes it from the configured
+	// password. The caller uses this to size the outbound buffer
 	// and set packet.Control.Length.
 	BodyLen() int
 
@@ -109,6 +122,11 @@ func NewSigner(cfg Settings) (Signer, error) {
 		return newSHA1Signer(cfg), nil
 	case packet.AuthTypeKeyedMD5, packet.AuthTypeMeticulousKeyedMD5:
 		return newMD5Signer(cfg), nil
+	case packet.AuthTypeSimplePassword:
+		if !simplePasswordLenValid(len(cfg.Secret)) {
+			return nil, ErrKeyLengthInvalid
+		}
+		return newSimpleSigner(cfg), nil
 	}
 	return nil, ErrUnsupportedType
 }
@@ -121,6 +139,11 @@ func NewVerifier(cfg Settings) (Verifier, error) {
 		return newSHA1Verifier(cfg), nil
 	case packet.AuthTypeKeyedMD5, packet.AuthTypeMeticulousKeyedMD5:
 		return newMD5Verifier(cfg), nil
+	case packet.AuthTypeSimplePassword:
+		if !simplePasswordLenValid(len(cfg.Secret)) {
+			return nil, ErrKeyLengthInvalid
+		}
+		return newSimpleVerifier(cfg), nil
 	}
 	return nil, ErrUnsupportedType
 }

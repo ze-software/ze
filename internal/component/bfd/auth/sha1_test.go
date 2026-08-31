@@ -190,14 +190,15 @@ func TestVerifier_RejectsLengthWithTrailingBytes(t *testing.T) {
 	}
 }
 
-// VALIDATES: NewSigner / NewVerifier reject Auth Type 1 (Simple
-// Password) so the package surface cannot be used to send it.
-// PREVENTS: accidental enablement of an insecure type via
-// configuration drift.
+// VALIDATES: NewSigner / NewVerifier reject the reserved Auth Type 0
+// and any value RFC 5880 Section 4.1 does not define, so the package
+// surface only produces the five assigned types.
+// PREVENTS: a typo in the type enum silently selecting a signer, or a
+// reserved value being treated as a usable algorithm.
 func TestUnsupportedTypes(t *testing.T) {
 	cases := []uint8{
 		packet.AuthTypeReserved,
-		packet.AuthTypeSimplePassword,
+		6,
 		99,
 	}
 	for _, at := range cases {

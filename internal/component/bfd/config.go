@@ -253,10 +253,13 @@ func parseEchoConfig(profileName string, fields map[string]any) (*echoConfig, er
 }
 
 // authTypeFromEnum resolves the YANG `auth type` enum string to the
-// RFC 5880 wire type and the meticulous flag. Simple Password is
-// explicitly rejected because RFC 5880 §6.7.2 warns it provides no
-// cryptographic protection.
+// RFC 5880 wire type and the meticulous flag. The enum is the sole
+// source of truth for the accepted names; an unknown one returns
+// ok=false so the caller fails the load instead of defaulting.
 func authTypeFromEnum(s string) (wire uint8, meticulous, ok bool) {
+	if s == "simple-password" {
+		return packet.AuthTypeSimplePassword, false, true
+	}
 	if s == "keyed-md5" {
 		return packet.AuthTypeKeyedMD5, false, true
 	}
@@ -273,14 +276,13 @@ func authTypeFromEnum(s string) (wire uint8, meticulous, ok bool) {
 }
 
 // parseAuthConfig decodes the `auth { ... }` block inside a profile.
-// Simple Password is rejected here with a descriptive error.
+// Every leaf is mandatory and every failure returns an error: a profile
+// that names authentication and cannot build a usable key stops the
+// load rather than running unauthenticated.
 func parseAuthConfig(profileName string, fields map[string]any) (*authConfig, error) {
 	typeStr := stringField(fields, "type")
 	if typeStr == "" {
 		return nil, fmt.Errorf("bfd: profile %q: auth block missing type", profileName)
-	}
-	if typeStr == "simple-password" {
-		return nil, fmt.Errorf("bfd: profile %q: auth type simple-password rejected (RFC 5880 Section 6.7.2 warns against use)", profileName)
 	}
 	wire, meticulous, ok := authTypeFromEnum(typeStr)
 	if !ok {
@@ -297,6 +299,16 @@ func parseAuthConfig(profileName string, fields map[string]any) (*authConfig, er
 	secret := stringField(fields, "secret")
 	if secret == "" {
 		return nil, fmt.Errorf("bfd: profile %q: auth block missing secret", profileName)
+	}
+	// RFC 5880 Section 6.7.2: "The password is a binary string, and MUST
+	// be 1 to 16 bytes in length." The Auth Len field is one byte holding
+	// the password length plus three, so a longer password has no wire
+	// encoding. The keyed digests carry no such bound: they pad or
+	// truncate the secret to their fixed key slot.
+	if wire == packet.AuthTypeSimplePassword && len(secret) > packet.SimplePasswordLenMax {
+		return nil, fmt.Errorf(
+			"bfd: profile %q: auth type simple-password secret is %d bytes, RFC 5880 Section 6.7.2 allows %d to %d",
+			profileName, len(secret), packet.SimplePasswordLenMin, packet.SimplePasswordLenMax)
 	}
 	return &authConfig{
 		authType:   wire,

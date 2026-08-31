@@ -100,6 +100,15 @@ var scenarioOperations = map[string][]operation{
 		{kind: opRequireContains, peer: peerBIRD, command: []string{cmdBirdc, "show route for " + aggregatorDowngradePrefix + " all"}, contains: []string{aggregatorDowngradePrefix, aggregatorDowngradeAS}},
 		{kind: opBIRDSession, argument: birdZeProtocol},
 	},
+	// RFC 5880 Section 6.7.2 Simple Password, judged by BIRD rather than by ze's
+	// own verifier. The session reaches Up only when BIRD accepts the section ze
+	// signs AND ze accepts the section BIRD signs, so a disagreement over the
+	// Auth Len arithmetic, the Key ID placement, or where the password starts
+	// leaves it down. ze's unit tests pin the bytes ze writes; only a second
+	// implementation says whether they can be read.
+	"bfd-simple-password-bird": {
+		{kind: opWaitContains, peer: peerBIRD, command: []string{cmdBirdc, birdShowBFDSessions}, contains: []string{zeLabAddress, birdBFDStateUp}, timeout: 90 * time.Second},
+	},
 	scenarioAddPathFRR: {
 		{kind: opFRRSession, argument: zeLabAddress},
 		{kind: opFRRRoute, argument: injectPrefixFirst},

@@ -134,12 +134,26 @@ module ze-bfd-conf {
                      Sessions inheriting this profile sign every
                      outgoing Control packet with the configured type
                      and verify incoming packets using the same key.
-                     Simple Password (type 1) is rejected at parse
-                     time -- it provides no cryptographic protection
-                     and RFC 5880 warns against using it.";
+                     There is no default type: authentication runs
+                     only on the type the operator names here.";
 
                 leaf type {
                     type enumeration {
+                        enum simple-password {
+                            description
+                                "RFC 5880 Section 6.7.2 Simple Password.
+                                 The password travels in clear in every
+                                 Control packet and the section never
+                                 changes, so it protects against a
+                                 misconfigured neighbour and against
+                                 nothing else. It does not protect
+                                 against a listener on the path, who
+                                 reads the password from one packet, and
+                                 it carries no Sequence Number, so a
+                                 captured packet can be replayed. Choose
+                                 a keyed type wherever the path is not
+                                 already trusted.";
+                        }
                         enum keyed-md5 {
                             description "RFC 5880 Section 6.7.3 Keyed MD5.";
                         }
@@ -155,8 +169,9 @@ module ze-bfd-conf {
                     }
                     mandatory true;
                     description
-                        "Authentication type. Simple Password is
-                         intentionally absent from the enum.";
+                        "Authentication type. There is no default: the
+                         operator names the type, and simple-password is
+                         never selected on their behalf.";
                 }
 
                 leaf key-id {
@@ -170,10 +185,14 @@ module ze-bfd-conf {
                     mandatory true;
                     ze:sensitive;
                     description
-                        "Shared secret for the keyed digest. Redacted
-                         from `ze config show` output. MD5 variants
-                         use the first 16 bytes of the secret, SHA1
-                         variants the first 20.";
+                        "Shared secret. Redacted from `ze config show`
+                         output. MD5 variants use the first 16 bytes of
+                         the secret, SHA1 variants the first 20, and
+                         both pad a shorter secret with zeros. The
+                         simple-password type carries the secret itself
+                         on the wire, so it must be 1 to 16 bytes and a
+                         longer one is refused at parse time (RFC 5880
+                         Section 6.7.2).";
                 }
             }
         }

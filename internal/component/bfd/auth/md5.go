@@ -5,9 +5,9 @@
 // bytes; RFC 5880 §6.7.3 lays out the same body layout as the SHA1
 // variants.
 //
-// RFC 5880 §6.7.2 recommends SHA1 over MD5 but MD5 remains widely
-// deployed so ze implements both. Simple Password (§6.7.2, Type 1)
-// is rejected at config parse time and has no signer/verifier here.
+// RFC 5880 §6.7 requires both SHA1 types and leaves the rest optional;
+// MD5 remains widely deployed so ze implements it too. Simple Password
+// (§6.7.2, Type 1) lives in simple.go.
 package auth
 
 import (

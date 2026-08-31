@@ -98,10 +98,15 @@ func newSingleHopLoop(t *testing.T) (*Loop, *captureTransport, api.Key) {
 // RFC requirement: RFC5881-3-2 positive -- a received packet with Your
 // Discriminator = 0 MUST be associated with the session bound to the remote
 // address, ingress interface, and protocol. handleInbound
-// (internal/component/bfd/engine/loop.go:88-94) builds firstPacketKey{peer:
+// (internal/component/bfd/engine/loop.go:96-102) builds firstPacketKey{peer:
 // in.From, local, vrf, iface, mode} and finds the session via byKey, so a
 // first packet whose tuple matches is delivered (RemoteDiscr becomes the
 // peer's MyDiscriminator).
+// RFC requirement: RFC5880-6.8.6-18 positive -- the same producer performs the
+// zero-discriminator selection RFC 5880 Section 6.8.6 mandates. Source
+// addressing information (peer, local) and the ingress interface are the
+// "combination of other fields" the session is selected on. A packet carrying
+// Your Discriminator = 0 therefore reaches the session bound to that tuple.
 func TestRFC5881FirstPacketMatchesByTuple(t *testing.T) {
 	l, _, key := newSingleHopLoop(t)
 	m := machineFor(t, l, key)
@@ -117,9 +122,14 @@ func TestRFC5881FirstPacketMatchesByTuple(t *testing.T) {
 // RFC requirement: RFC5881-3-2 negative -- the first-packet association is
 // scoped to the bound tuple, not blanket-accept. A packet with Your
 // Discriminator = 0 arriving from a DIFFERENT source address misses the byKey
-// lookup (loop.go:96, entry == nil) and is dropped, so RemoteDiscr stays zero.
+// lookup (loop.go:104, entry == nil) and is dropped, so RemoteDiscr stays zero.
 // Without this the positive test could pass on code that accepts any first
 // packet regardless of source.
+// RFC requirement: RFC5880-6.8.6-18 negative -- selection is ON the combination
+// of fields, not despite it. Changing only the source address moves the packet
+// off the tuple, so no session is selected. Without this, the positive passes
+// on code that hands every zero-discriminator packet to the one session it
+// holds, which selects on nothing.
 func TestRFC5881FirstPacketWrongSourceDropped(t *testing.T) {
 	l, _, key := newSingleHopLoop(t)
 	m := machineFor(t, l, key)

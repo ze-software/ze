@@ -82,9 +82,17 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 	if c.YourDiscriminator != 0 {
 		entry = l.byDiscr[c.YourDiscriminator]
 	} else {
-		// First packet: deterministic O(1) lookup via the byKey
-		// index. RFC 5880 §6.8.6 leaves the demultiplexing tuple to
-		// the application; we use (peer, vrf, mode, interface).
+		// RFC 5880 Section 6.8.6: "If the Your Discriminator field
+		// is zero, the session MUST be selected based on some
+		// combination of other fields". The section names source
+		// addressing information, the My Discriminator field and
+		// the ingress interface as candidates, and leaves the exact
+		// combination to the application.
+		//
+		// Ze uses (peer, local, vrf, iface, mode). That covers the
+		// source addressing information and the ingress interface.
+		// It keys the byKey index, so the first packet costs one
+		// O(1) lookup.
 		entry = l.byKey[firstPacketKey{
 			peer:  in.From,
 			local: in.Local,

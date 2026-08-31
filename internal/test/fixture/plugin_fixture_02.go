@@ -43,6 +43,7 @@ func init() {
 	Register("plugin/authz-rpc-identity", observer02("rpc-dispatcher", authzRPCIdentity02))
 	Register("plugin/bestpath-reason", observer02("reason-test", bestpathReason02))
 	Register("plugin/bfd-auth-sha1", observer02("bfd-auth-sha1-test", bfdAuthSHA102))
+	Register("plugin/bfd-auth-simple-password", observer02("bfd-auth-simple-password-test", bfdAuthSimplePassword02))
 }
 
 func observer02(name string, scenario ObserverScenario) Driver {
@@ -548,6 +549,44 @@ func bestpathReason02(ctx context.Context, plugin *sdk.Plugin) error {
 	fmt.Fprintf(os.Stderr, "OK: best-path reason: %s %s\n", stepName, reason)
 	if !eorSent02(ctx, plugin, "peer1", 1, 40) {
 		return fmt.Errorf("ze never sent its End-of-RIB to peer1")
+	}
+	return nil
+}
+
+// bfdAuthSimplePassword02 checks that a profile carrying
+// `auth { type simple-password }` builds a live session and signs the packets
+// it sends. RFC 5880 Section 6.7.2 requires the password and Key ID in the
+// Authentication Section of EACH outgoing Control packet, so a transmitting
+// session is what proves the signer is installed: a password the signer
+// refused would leave no session for `show bfd session` to answer with.
+func bfdAuthSimplePassword02(ctx context.Context, plugin *sdk.Plugin) error {
+	if !eorSent02(ctx, plugin, "*", 1, 40) {
+		return errors.New("ze never sent its initial-sync End-of-Rib")
+	}
+	raw, err := requireDone02(ctx, plugin, "show bfd profile name clear-text")
+	if err != nil {
+		return err
+	}
+	profile, err := map02(raw)
+	if err != nil {
+		return fmt.Errorf("profile name: %v (decode: %w)", profile, err)
+	}
+	if profile["name"] != "clear-text" {
+		return fmt.Errorf("profile name: %v (decode: <nil>)", profile)
+	}
+	raw, err = requireDone02(ctx, plugin, "show bfd session address 203.0.113.9")
+	if err != nil {
+		return err
+	}
+	session, err := map02(raw)
+	if err != nil {
+		return err
+	}
+	if session["peer"] != addrTestNet3Nine || session["profile"] != "clear-text" {
+		return fmt.Errorf("unexpected session: %v", session)
+	}
+	if int02(session["tx-packets"]) == 0 {
+		return fmt.Errorf("no simple-password signed tx packets recorded: %v", session)
 	}
 	return nil
 }

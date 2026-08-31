@@ -118,15 +118,24 @@ and `ze_bfd_echo_rx_packets_total` Prometheus metrics are live.
 
 ### Authentication
 
-Profiles may carry an `auth { ... }` block that enables RFC 5880 §6.7
-authentication for every session inheriting them. Four types are
-supported: `keyed-md5`, `meticulous-keyed-md5`, `keyed-sha1`, and
-`meticulous-keyed-sha1`. Simple Password is refused at config parse
-time because RFC 5880 §6.7.2 warns it provides no cryptographic
-protection.
+A profile can carry an `auth { ... }` block that enables RFC 5880 §6.7
+authentication for every session that inherits the profile. Ze supports
+the five types RFC 5880 defines: `simple-password`, `keyed-md5`,
+`meticulous-keyed-md5`, `keyed-sha1`, and `meticulous-keyed-sha1`. There
+is no default, so authentication runs only on the type you name.
+
+`simple-password` (RFC 5880 §6.7.2) puts the password in clear in every
+Control packet, and the authentication section is the same in each one.
+It detects a misconfigured neighbor. It does not stop a listener on the
+path, who reads the password from one packet, and it carries no Sequence
+Number, so a captured packet can be replayed. Use a keyed type wherever
+the path is not already trusted. The password must be 1 to 16 bytes: the
+Auth Len field holds the password length plus three, so a longer password
+has no wire encoding and the parser refuses it.
 <!-- source: internal/component/bfd/auth/signer.go — Signer/Verifier + Settings -->
 <!-- source: internal/component/bfd/auth/sha1.go — digestSigner/digestVerifier -->
-<!-- source: internal/component/bfd/config.go — parseAuthConfig rejects simple-password -->
+<!-- source: internal/component/bfd/auth/simple.go — simpleSigner/simpleVerifier -->
+<!-- source: internal/component/bfd/config.go — parseAuthConfig bounds the simple-password secret -->
 
 ```
 bfd {
@@ -510,8 +519,6 @@ namespace-based scenario once the functional tests land.
 
 | Feature | RFC | Status |
 |---------|-----|--------|
-| Authentication | 5880 §6.7 | Parser only; no digest verification. Add keyed SHA1 first when a deployment asks. |
-| Echo mode | 5880 §6.4, 5881 §5 | Not implemented. Single-hop only when added. |
 | Demand mode | 5880 §6.6 | Not implemented; rarely deployed. |
 | Seamless BFD (S-BFD) | 7880, 7881 | Not implemented. |
 | Micro-BFD on LAG | 7130 | Not implemented. |

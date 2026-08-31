@@ -1,16 +1,20 @@
-# Test: BFD plugin rejects `auth { type simple-password }` at parse time.
+# Test: BFD plugin rejects a Simple Password longer than 16 bytes at
+# parse time.
 #
-# VALIDATES: spec-bfd-5 AC-10 -- Simple Password is refused by the
-#            YANG enum (only the four keyed variants are accepted)
-#            and the parser emits a descriptive error pointing at
-#            RFC 5880 Section 6.7.2.
-# PREVENTS:  accidental acceptance of Simple Password via config
-#            drift; regression that silently falls back to no auth.
+# VALIDATES: RFC 5880 Section 6.7.2 -- "The password is a binary
+#            string, and MUST be 1 to 16 bytes in length." The Auth
+#            Len field carries the password length plus three, so a
+#            seventeen-byte password has no wire encoding and the
+#            parser refuses it with a message naming the section.
+# PREVENTS:  a profile that loads with a password the Authentication
+#            Section cannot carry, and a parser that truncates the
+#            operator password to make it fit.
 #
-# Method: a native Go fixture launches ze with a simple-password
-# auth block, waits briefly, and looks for the rejection message in
-# stderr. ze continues running after the bfd configure callback
-# fails (BFD is non-fatal) so the orchestrator SIGTERMs on success.
+# Method: a native Go fixture launches ze with a seventeen-byte
+# simple-password auth block, waits briefly, and looks for the
+# rejection message in stderr. ze continues running after the bfd
+# configure callback fails (BFD is non-fatal) so the orchestrator
+# SIGTERMs on success.
 
 option=env:var=ze.bfd.test-parallel:value=true
 # BFD listens on the RFC 5881 / RFC 5883 FIXED ports, so every concurrently
@@ -28,4 +32,4 @@ option=exclusive:group=bfd-ports
 
 cmd=foreground:seq=1:exec=ze-test fixture plugin/bfd-auth-mismatch:timeout=15s
 expect=exit:code=0
-expect=stderr:pattern=simple-password rejected
+expect=stderr:pattern=simple-password secret is 17 bytes

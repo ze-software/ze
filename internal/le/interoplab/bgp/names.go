@@ -187,6 +187,8 @@ const (
 	birdExtendedCommunityAttribute = "ext_community"
 	birdLargeCommunityAttribute    = "large_community"
 	birdZeProtocol                 = "ze_peer"
+	birdShowBFDSessions            = "show bfd sessions"
+	birdBFDStateUp                 = "Up"
 	frrCapabilityNegotiated        = "advertisedAndReceived"
 	peerStateEstablished           = "established"
 	nextHopScopeGlobal             = "global"

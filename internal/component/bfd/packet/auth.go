@@ -5,10 +5,9 @@
 // always parsed; the variable-length type-specific body is left as a byte
 // slice for the caller to validate.
 //
-// First-pass scope: parse the section header so the engine can reject
-// authenticated packets with a clear error rather than mistaking them for
-// malformed wire data. Cryptographic verification is deferred until the
-// engine grows production deployments that require it.
+// This file parses the section header only. The type-specific check --
+// the keyed digest, or the Simple Password comparison -- runs in
+// internal/component/bfd/auth against the session keys.
 package packet
 
 import "errors"
@@ -23,14 +22,27 @@ const (
 	AuthTypeMeticulousKeyedSHA1 uint8 = 5
 )
 
-// Length constants for the keyed authentication variants. Simple Password
-// has a variable length (4-19 bytes total) and is not a fixed constant.
+// Length constants for the authentication section. The keyed variants
+// have one fixed section length each. Simple Password sizes its section
+// from the password it carries, so it has a range and a header length
+// instead (RFC 5880 Section 4.2: "For Simple Password authentication,
+// the length is equal to the password length plus three").
 const (
-	AuthHeaderLen     = 2  // Auth Type + Auth Len bytes
-	AuthLenKeyedMD5   = 24 // Type+Len+KeyID+Reserved+Seq(4)+Digest(16)
-	AuthLenKeyedSHA1  = 28 // Type+Len+KeyID+Reserved+Seq(4)+Digest(20)
-	SimplePasswordMin = 4  // Type+Len+KeyID+Password(>=1)
-	SimplePasswordMax = 19 // Type+Len+KeyID+Password(<=16)
+	AuthHeaderLen            = 2  // Auth Type + Auth Len bytes
+	AuthLenKeyedMD5          = 24 // Type+Len+KeyID+Reserved+Seq(4)+Digest(16)
+	AuthLenKeyedSHA1         = 28 // Type+Len+KeyID+Reserved+Seq(4)+Digest(20)
+	AuthLenSimplePasswordMin = 4  // Type+Len+KeyID+Password(>=1)
+	AuthLenSimplePasswordMax = 19 // Type+Len+KeyID+Password(<=16)
+
+	// SimplePasswordHeaderLen is the Type+Len+KeyID prefix that sits in
+	// front of the password bytes.
+	SimplePasswordHeaderLen = 3
+
+	// SimplePasswordLenMin and SimplePasswordLenMax bound the password
+	// itself. RFC 5880 Section 4.2 states it: "The password is a binary
+	// string, and MUST be from 1 to 16 bytes in length".
+	SimplePasswordLenMin = 1
+	SimplePasswordLenMax = 16
 )
 
 // AuthHeader is the parsed two-byte authentication-section header. The
@@ -54,9 +66,9 @@ var (
 // the byte after the mandatory section, i.e. data[MandatoryLen:].
 //
 // ParseAuth returns the parsed header (with Body aliasing the input buffer)
-// and an error. It does NOT validate the authentication digest, the key ID,
-// or the sequence number; those checks belong to a future authenticated
-// session implementation.
+// and an error. It does NOT validate the authentication digest, the
+// password, the key ID, or the sequence number; those checks belong to the
+// session's Verifier in internal/component/bfd/auth.
 //
 // ParseAuth never allocates.
 func ParseAuth(data []byte) (AuthHeader, error) {
