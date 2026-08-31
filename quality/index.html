@@ -57,19 +57,19 @@
 <li><a href="#how-a-failure-becomes-useful">How a failure becomes useful</a></li>
 <li><a href="#file-formats">File formats</a></li>
 </ol></nav>
-<!-- source: ../main/mk/test-unit.mk -- unit and race targets -->
-<!-- source: ../main/mk/test-functional.mk -- functional suite targets -->
+<!-- source: ../main/internal/le/testunit/actions.go -- unit and race actions -->
+<!-- source: ../main/internal/le/functional/actions.go -- functional suite actions -->
 <!-- source: ../main/docs/architecture/testing/ci-format.md -- .ci and .et formats -->
 <!-- source: ../main/docs/architecture/testing/runner-architecture.md -- runner architecture and .wb format -->
-<!-- source: ../main/mk/test-integration.mk -- QEMU, interop, deployment targets -->
-<!-- source: ../main/mk/test-fuzz.mk -- fuzz targets -->
-<!-- source: ../main/mk/test-mutation.mk -- mutation targets -->
-<!-- source: ../main/mk/test-release.mk -- release evidence -->
-<!-- source: ../main/scripts/status/verify_run.go -- staged verify and failure index -->
-<!-- source: ../main/scripts/dev/verify-lock.sh -- shared verify lock -->
-
-<!-- source: ../main/scripts/dev/rfc_requirements.py -- RFC requirement gate -->
-<!-- source: ../main/.claude/hooks/pretool-writeedit.py -- RFC-tagged test edit guard -->
+<!-- source: ../main/internal/le/qemu/actions.go -- QEMU actions -->
+<!-- source: ../main/internal/le/integration/gates.go -- integration and interop actions -->
+<!-- source: ../main/internal/le/fuzz/actions.go -- fuzz actions -->
+<!-- source: ../main/internal/le/mutation/actions.go -- mutation reporting actions -->
+<!-- source: ../main/internal/le/evidence/actions.go -- release evidence -->
+<!-- source: ../main/internal/le/verify/engine/run.go -- staged verify runner -->
+<!-- source: ../main/internal/le/verify/lock/register.go -- shared verify lock -->
+<!-- source: ../main/internal/le/rfc/actions.go -- RFC requirement gate -->
+<!-- source: ../main/internal/le/hookruntime/writeedit.go -- RFC-tagged test edit guard -->
 <div class="quality-hero">
   <div class="quality-hero-card">
     <span class="quality-hero-kicker">Quality model</span>
@@ -83,7 +83,6 @@
     <div class="quality-meter-row"><strong>Release</strong><span>Interop, deployment, performance, chaos, and release evidence compose the slow proof.</span></div>
   </div>
 </div>
-
 <h2 id="the-flow">The flow</h2>
 <div class="quality-flow">
   <article class="quality-stage">
@@ -107,7 +106,6 @@
     <p>Before broad evidence is claimed, Ze runs real peer daemons, deployment checks, performance gates, chaos scenarios, and release reports instead of trusting local fixtures.</p>
   </article>
 </div>
-
 <h2 id="local-tests-are-one-layer">Local tests are one layer</h2>
 <div class="quality-routes">
   <article class="quality-route">
@@ -123,7 +121,6 @@
     <p>gomu changes production code in small ways and runs the same tests. If the tests still pass, the changed code was equivalent or the assertions did not check that behavior tightly enough.</p>
   </article>
 </div>
-
 <h2 id="which-guide-to-open">Which guide to open</h2>
 <table>
 <thead><tr><th>What you are testing</th><th>Use this</th><th>Guide</th></tr></thead>
@@ -134,46 +131,44 @@
 <tr><td>Linux kernel behavior, real peer compatibility, deployment, or release evidence</td><td>QEMU, Docker interop, deployment scripts, perf gates</td><td><a href="qemu-interop-release/">QEMU, interop, and release evidence</a></td></tr>
 <tr><td>A failing verify run that needs a clear rerun command</td><td>Verify stages, failure groups, trace output, debug logs</td><td><a href="verify-debugging/">Verify and debugging workflow</a></td></tr>
 <tr><td>Whether the suite would actually catch a regression, not how large it is</td><td>Proof density, tests that cannot fail, tests nothing runs, ratchets, KPI history</td><td><a href="health/">Testing health</a></td></tr>
-<tr><td>RFC requirement coverage, public gap disclosure, or AI agent test-change guards</td><td><code>make ze-rfc-check</code>, RFC test tags, status-ledger agreement, audit freshness</td><td><a href="rfc-compliance/">RFC compliance gate</a></td></tr>
+<tr><td>RFC requirement coverage, public gap disclosure, or AI agent test-change guards</td><td><code>./le rfc check</code>, RFC test tags, status-ledger agreement, audit freshness</td><td><a href="rfc-compliance/">RFC compliance gate</a></td></tr>
 </tbody>
 </table>
-
 <h2 id="commands-that-matter">Commands that matter</h2>
 <div class="quality-command-grid">
   <article class="quality-command">
     <h3>Edit loop</h3>
     <p>Use one focused command while changing code.</p>
     <pre><code>go test -race -run TestName ./internal/component/config/...
-make ze-fuzz-test-one FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s
-make ze-mutation-test-changed
+FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le fuzz run
+go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false
 bin/ze-test bgp plugin 42 -v</code></pre>
   </article>
   <article class="quality-command">
     <h3>Handoff gate</h3>
     <p>Use the shared gate before handing over normal work.</p>
-    <pre><code>make ze-precommit-verify
-make ze-precommit-verify-changed
-make ze-repository-check</code></pre>
+    <pre><code>./le verify current mode full
+./le verify current mode changed
+./le repository check</code></pre>
   </article>
   <article class="quality-command">
     <h3>Linux and release</h3>
     <p>Use the wider gates only when the behavior needs Linux, real peers, or release evidence.</p>
-    <pre><code>make ze-qemu-needs-linux-test
-make ze-qemu-debug RUN='...'
-make ze-interop-test
-make ze-evidence-release-verify</code></pre>
+    <pre><code>./le qemu netns-test
+./le qemu run command '...' keep-alive
+./le integration interop
+./le evidence release-candidate</code></pre>
   </article>
 </div>
-
 <h2 id="how-a-failure-becomes-useful">How a failure becomes useful</h2>
-<p><code>make ze-precommit-verify</code> is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under <code>tmp/</code>, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for <code>.ci</code>, <code>.wb</code>, and <code>.et</code> files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.</p>
+<p><code>./le verify current mode full</code> is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under <code>tmp/</code>, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for <code>.ci</code>, <code>.wb</code>, and <code>.et</code> files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.</p>
 <div class="quality-panel">
   <h3>The rule</h3>
   <p>Do not hide a failure with a skip or a loose assertion. Move the proof to the layer that can see the real behavior, rerun the narrow command, then rerun the gate that should have caught the regression.</p>
 </div>
-
 <h2 id="file-formats">File formats</h2>
 <p>Ze currently has three functional formats. Use <code>.ci</code> for process, protocol, command, HTTP, syslog, file, and daemon behavior. Use <code>.wb</code> for rendered browser behavior. Use <code>.et</code> for the headless interactive editor. There is no <code>.wt</code> parser in the current tree; notes using that extension should be read as web tests only if a new parser is later added.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -219,7 +214,7 @@ make ze-evidence-release-verify</code></pre>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
                 </div>
             </div>
         </footer>

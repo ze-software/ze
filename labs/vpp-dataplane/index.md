@@ -17,7 +17,7 @@ This is the evidence behind the numbers already published in the VPP guide: on t
 
 ```
 # real VPP daemon in Docker, privileged container
-$ make ze-deployment-vpp-test
+$ ./le deployment vpp-test
 ```
 
 `Prerequisites`

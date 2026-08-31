@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/" />
         <meta property="og:url" content="https://ze-software.net/" />
         <link rel="stylesheet" href="assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="assets/vendor/asciinema-player.css" />
         <script src="assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -86,7 +86,7 @@
                                     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="assets/demos/cli-dashboard.cast?v=c3364cbe6a"
+      data-cast-src="assets/demos/cli-dashboard.cast?v=3dda17bc16"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -94,7 +94,7 @@
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="assets/demos/cli-dashboard.cast?v=c3364cbe6a">Download the asciicast</a> or
+      page's own player. <a href="assets/demos/cli-dashboard.cast?v=3dda17bc16">Download the asciicast</a> or
       <a href="assets/demos/cli-dashboard.txt?v=86542601eb">read the transcript</a>.</p>
     </noscript>
                                 </div>
@@ -125,7 +125,9 @@
                                 >
                                 <a
                                     class="hero-start-action"
-                                    href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener"
+                                    href="https://discord.gg/T8s7CjPDne"
+                                    target="_blank"
+                                    rel="noopener"
                                     ><strong>Join Discord</strong
                                     ><small>Ask questions, get help.</small
                                     ></a
@@ -175,8 +177,8 @@
                 </article>
                 <article class="whats-new-item tone-sky">
                     <span class="whats-new-label">Recently shipped</span>
-                    <h3><a href="project/changes/2026-08-17/">Week of 2026-08-17</a></h3>
-                    <p>The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec…</p>
+                    <h3><a href="project/changes/2026-08-24/">Week of 2026-08-24</a></h3>
+                    <p>Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and…</p>
                 </article>
                 <article class="whats-new-item tone-pink">
                     <span class="whats-new-label">RFC compliance progress</span>
@@ -207,7 +209,7 @@
                 <div class="proof-strip" aria-label="Project evidence">
                     <a class="proof" href="quality/unit-fuzz-mutation/">
                         <strong
-                            ><span data-ze-stat="tests.unit_display">23,700+</span> <span class="label">unit tests</span></strong
+                            ><span data-ze-stat="tests.unit_display">26,900+</span> <span class="label">unit tests</span></strong
                         >
                         <ul>
                             <li>Wire encoding, parsing</li>
@@ -218,10 +220,10 @@
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            ><span data-ze-stat="rfc.gated_must_display">2,972</span> <span class="label">RFC MUST checks</span></strong
+                            ><span data-ze-stat="rfc.gated_must_display">3,037</span> <span class="label">RFC MUST checks</span></strong
                         >
                         <ul>
-                            <li><span data-ze-stat="rfc.enrolled_display">171</span> RFCs inspected</li>
+                            <li><span data-ze-stat="rfc.enrolled_display">172</span> RFCs inspected</li>
                             <li>Gaps disclosed before claims</li>
                             <li>Tests tied to requirement IDs</li>
                         </ul>
@@ -229,7 +231,7 @@
                     </a>
                     <a class="proof" href="quality/functional-ci/">
                         <strong
-                            ><span data-ze-stat="tests.e2e_display">1,700+</span>
+                            ><span data-ze-stat="tests.e2e_display">1,800</span>
                             <span class="label">end to end tests</span></strong
                         >
                         <ul>
@@ -240,7 +242,7 @@
                         <span class="proof-check">Functional transcript format and rerun path.</span>
                     </a>
                     <a class="proof" href="quality/unit-fuzz-mutation/#fuzz-targets-are-still-tests">
-                        <strong><span data-ze-stat="tests.fuzz_display">78</span> <span class="label">fuzz targets</span></strong>
+                        <strong><span data-ze-stat="tests.fuzz_display">79</span> <span class="label">fuzz targets</span></strong>
                         <ul>
                             <li>Parsers, external inputs</li>
                             <li>Wire formats, config files</li>
@@ -343,7 +345,7 @@
                         <span class="cat">Lab</span>
                         <h3><a href="labs/bgp-interop/">Run reproducible labs</a></h3>
                         <p>
-                            The netlab integration brings up a three-node Ze topology under containerlab. The BGP interop lab also runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer&#x27;s own CLI.
+                            The netlab integration brings up a three-node Ze topology under containerlab. The BGP interop lab also runs Ze beside FRR, BIRD, and GoBGP and checks routes through each peer&#39;s own CLI.
                         </p>
                         <div class="chips">
                             <span class="chip">netlab</span>
@@ -495,7 +497,7 @@
                         <span class="cat">Lab</span>
                         <h3><a href="guides/quickstart/">Lab router</a></h3>
                         <p>
-                            Network builders can bring up two BGP peers, inspect routes, and check whether Ze&#x27;s operator tools fit their workflow.
+                            Network builders can bring up two BGP peers, inspect routes, and check whether Ze&#39;s operator tools fit their workflow.
                         </p>
                         <div class="chips">
                             <span class="chip">Quickstart</span>
@@ -581,6 +583,20 @@
                             <span class="cat">Update</span>
                             <span class="home-update-number">01</span>
                         </div>
+                        <p class="home-update-date">Week of 2026-08-24</p>
+                        <h3><a href="project/changes/2026-08-24/">Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.</a></h3>
+                        <div class="home-update-tags">
+                            <span class="home-update-tag cat-operate">CLI</span>
+                            <span class="home-update-tag cat-routing">BGP</span>
+                            <span class="home-update-tag cat-services">PPPoE</span>
+                            <span class="home-update-tag cat-secure">IPsec</span>
+                        </div>
+                    </article>
+                    <article class="card card-post home-update-card tone-pink">
+                        <div class="home-update-head">
+                            <span class="cat">Update</span>
+                            <span class="home-update-number">02</span>
+                        </div>
                         <p class="home-update-date">Week of 2026-08-17</p>
                         <h3><a href="project/changes/2026-08-17/">The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.</a></h3>
                         <div class="home-update-tags">
@@ -590,10 +606,10 @@
                             <span class="home-update-tag cat-observe">Flow Export</span>
                         </div>
                     </article>
-                    <article class="card card-post home-update-card tone-pink">
+                    <article class="card card-post home-update-card tone-grape">
                         <div class="home-update-head">
                             <span class="cat">Update</span>
-                            <span class="home-update-number">02</span>
+                            <span class="home-update-number">03</span>
                         </div>
                         <p class="home-update-date">Week of 2026-08-10</p>
                         <h3><a href="project/changes/2026-08-10/">Web and Looking Glass rewrites, remote-triggered blackholing, dynamic BGP peer repairs, authenticated PPPoE and another standards pass shaped the week.</a></h3>
@@ -602,20 +618,6 @@
                             <span class="home-update-tag cat-services">PPPoE</span>
                             <span class="home-update-tag cat-secure">IPsec</span>
                             <span class="home-update-tag cat-operate">Config</span>
-                        </div>
-                    </article>
-                    <article class="card card-post home-update-card tone-grape">
-                        <div class="home-update-head">
-                            <span class="cat">Update</span>
-                            <span class="home-update-number">03</span>
-                        </div>
-                        <p class="home-update-date">Week of 2026-08-03</p>
-                        <h3><a href="project/changes/2026-08-03/">Ze is being checked against the RFCs it implements, one MUST at a time, and that is where most of this week&#x27;s work came from. BGP took the largest share. IS-IS learned to answer a purge of its own LSP, gNMI stopped serving unauthenticated writes, and web and DNS listeners can now carry an operator&#x27;s own certificate.</a></h3>
-                        <div class="home-update-tags">
-                            <span class="home-update-tag cat-routing">BGP</span>
-                            <span class="home-update-tag cat-secure">IPsec</span>
-                            <span class="home-update-tag cat-services">RADIUS</span>
-                            <span class="home-update-tag cat-platform">Interfaces</span>
                         </div>
                     </article>
                 </div>
@@ -684,7 +686,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 15:04 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

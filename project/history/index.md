@@ -12,7 +12,7 @@ Ze keeps the programmable event model and builds those surrounding responsibilit
 
 The first tracked development week began in December 2025 with the BGP wire engine, capability negotiation, path attributes, address families, RIB work, session state, and ExaBGP interop. The project then expanded through configuration and plugin architecture, route server and reflector paths, policy, operator surfaces, interfaces, FIB backends, routing protocols, access services, security, diagnostics, packaging, and interoperability.
 
-The [weekly changes](https://ze-software.net/project/changes/) retain the detailed chronological record. [Milestones](https://ze-software.net/project/milestones/) selects the larger product changes, while the [roadmap](https://ze-software.net/project/roadmap/) describes what remains before a stable release.
+The [weekly changes](https://ze-software.net/changes/) retain the detailed chronological record. [Milestones](https://ze-software.net/milestones/) selects the larger product changes, while the [roadmap](https://ze-software.net/roadmap/) describes what remains before a stable release.
 
 ## What remained familiar
 
@@ -21,7 +21,7 @@ The ExaBGP migration path preserves two useful ideas:
 - Existing ExaBGP configuration can be converted into Ze's configuration model.
 - Existing process scripts can continue through the compatibility bridge before being ported to the native plugin SDK.
 
-This allows a routing-engine migration and an application rewrite to happen separately. The [ExaBGP migration example](https://ze-software.net/use-cases/exabgp-migration/) documents that path.
+This allows a routing-engine migration and an application rewrite to happen separately. The [ExaBGP migration example](https://ze-software.net/usage/exabgp-migration/) documents that path.
 
 ## Why the architecture changed
 
@@ -31,4 +31,4 @@ The shared registration model also keeps operator surfaces aligned. A command re
 
 ## Current state
 
-Ze remains pre-release. Capability and maturity claims are generated from current source and evidence where possible. Use the [feature inventory](https://ze-software.net/features/), [RFC status](../../reference/rfcs/index.md), [quality evidence](https://ze-software.net/quality/), and [roadmap](https://ze-software.net/project/roadmap/) for current decisions rather than treating this history as a readiness statement.
+Ze remains pre-release. Capability and maturity claims are generated from current source and evidence where possible. Use the [feature inventory](https://ze-software.net/features/), [RFC status](../../reference/rfcs/index.md), [quality evidence](https://ze-software.net/quality/), and [roadmap](https://ze-software.net/roadmap/) for current decisions rather than treating this history as a readiness statement.

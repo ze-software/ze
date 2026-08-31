@@ -90,7 +90,6 @@ the nft backend lowers them to nftables kernel expressions.</p>
 <!-- source: internal/component/firewall/config.go -- parseFromBlock, parseThenBlock -->
 <!-- source: internal/component/firewall/engine.go -- runEngine, OnConfigure, OnConfigApply -->
 <!-- source: internal/plugins/firewall/nft/lower_linux.go -- nftables expression lowering -->
-
 <h2 id="backend">Backend</h2>
 <table>
 <thead>
@@ -112,13 +111,10 @@ the nft backend lowers them to nftables kernel expressions.</p>
 <td><code>vpp</code></td>
 <td>Linux with VPP</td>
 <td class="cell-no">✕</td>
-<td>GoVPP ACL classify pipeline and NAT44-ED</td>
+<td>GoVPP ACL classify pipeline and NAT44-ED <!-- source: internal/plugins/firewall/nft/register.go -- RegisterBackend("nft") --> <!-- source: internal/plugins/firewall/vpp/register.go -- RegisterBackend("vpp") --></td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/firewall/nft/register.go -- RegisterBackend("nft") -->
-<!-- source: internal/plugins/firewall/vpp/register.go -- RegisterBackend("vpp") -->
-
 <pre><code>firewall {
     backend nft;
 }
@@ -190,7 +186,6 @@ indefinitely.</p>
 <!-- source: internal/plugins/firewall/nft/deadline_linux.go -- netlinkTimeout, withNetlinkDeadline -->
 <!-- source: internal/plugins/firewall/vpp/timeout_linux.go -- vppReplyTimeout, newGovppOps -->
 <!-- source: internal/component/firewall/backend.go -- MaxBackendDeadline, ErrKernelTimeout -->
-
 <p>When the deadline expires the apply fails, and ze logs an error saying the
 dataplane did not answer within the backend deadline and its ruleset is now behind
 the registry. That log sits outside the metrics path, so it is written whether or
@@ -240,7 +235,6 @@ filters the traffic and ze does not, which is what the counter reports.</p>
 <!-- source: internal/component/firewall/metrics.go -- observeApply, applyDurationBuckets -->
 <!-- source: internal/plugins/flowspec-firewall/metrics.go -- countRuleRefused -->
 <!-- source: internal/component/firewall/registry.go -- ApplyAll -->
-
 <h2 id="tables-and-chains">Tables and Chains</h2>
 <p>Ze owns all tables whose kernel name starts with <code>ze_</code>. A table contains one or
 more chains; a base chain has a type, hook, priority, and default policy.</p>
@@ -559,7 +553,7 @@ pattern.</p>
                     destination-port 80;
                 }
                 then {
-                    dnat { to &quot;10.1.1.1&quot;; }
+                    dnat { to "10.1.1.1"; }
                 }
             }
         }
@@ -569,7 +563,7 @@ pattern.</p>
 <h3 id="snat-address-ranges">SNAT Address Ranges</h3>
 <p>SNAT and DNAT accept address ranges for pool-based NAT:</p>
 <pre><code>then {
-    snat { to &quot;10.0.0.1-10.0.0.10&quot;; }
+    snat { to "10.0.0.1-10.0.0.10"; }
 }
 </code></pre>
 <h2 id="named-sets">Named Sets</h2>
@@ -607,7 +601,6 @@ EventBus. Explicit <code>sysctl { setting { ... } }</code> entries always overri
 global-options (three-layer priority: config &gt; transient &gt; default).</p>
 <!-- source: internal/component/firewall/config.go -- ExtractGlobalOptions, globalOptionDefs -->
 <!-- source: internal/component/firewall/engine.go -- emitGlobalOptionsSysctlDefaults -->
-
 <pre><code>firewall {
     backend nft;
     global-options {
@@ -688,7 +681,6 @@ global-options (three-layer priority: config &gt; transient &gt; default).</p>
 underlying sysctl controls "ignore" behavior.</p>
 <h2 id="irr-prefix-list-filtering">IRR Prefix-List Filtering</h2>
 <!-- source: internal/component/firewall/plugins/irr/irr.go -- firewall-irr plugin entry point -->
-
 <p>Firewall rules can match traffic by ASN or AS-SET using IRR-resolved prefix
 lists. The <code>firewall-irr</code> plugin resolves references via the IRR whois client,
 caches results in zefs, and populates nftables interval sets.</p>
@@ -731,9 +723,7 @@ them. The two arrive at different times, and that one table waits: while a rule
 names a set no owner has registered, the table holding it is not programmed and
 the daemon logs <code>table held back</code>. Every other table is programmed as usual. The
 plugin registers the sets moments later and the table lands.</p>
-<p>That line staying in the log means the prefixes never arrived. <code>show firewall
-irr</code> says which entry is missing, and <code>update firewall irr asn &lt;N&gt;</code> or <code>update
-firewall irr as-set &lt;name&gt;</code> fetches it and programs the table. Use it after a
+<p>That line staying in the log means the prefixes never arrived. <code>show firewall irr</code> says which entry is missing, and <code>update firewall irr asn &lt;N&gt;</code> or <code>update firewall irr as-set &lt;name&gt;</code> fetches it and programs the table. Use it after a
 fresh install or a restored appliance, where the prefix cache starts empty:
 <code>refresh-interval</code> defaults to 0, so no timer fetches the data for you.</p>
 <h3 id="config-leaves">Config Leaves</h3>
@@ -797,9 +787,9 @@ list drops everything the operator wrote it to accept.</p>
 <code>ze doctor</code> reports the same condition with two codes:</p>
 <ul>
 <li><code>doctor-firewall-irr-stale-data</code>: a referenced entry is enforcing prefixes the
-  IRR has stopped confirming.</li>
+IRR has stopped confirming.</li>
 <li><code>doctor-firewall-irr-no-data</code>: a referenced entry has no prefixes, so it
-  filters nothing.</li>
+filters nothing.</li>
 </ul>
 <p>Run <code>ze explain &lt;code&gt;</code> for the full description. <code>ze_firewall_irr_data_age_seconds</code> is the
 age of the oldest data being enforced, and
@@ -810,10 +800,8 @@ prefixes.</p>
 re-apply the tables. Use them when an AS-SET is deregistered upstream.</p>
 <!-- source: internal/component/resolve/irr/store/store.go -- Refresh keeps last-known-good, Purge removes -->
 <!-- source: internal/component/firewall/plugins/irr/doctor.go -- checkIRRDataFreshness -->
-
 <h3 id="per-interface-source-validation">Per-Interface Source Validation</h3>
 <!-- source: internal/component/firewall/plugins/irr/sets.go -- buildIfaceTables -->
-
 <p>Bind an AS-SET to a customer-facing interface. Packets arriving on that
 interface with source addresses not in the AS-SET's IRR-resolved prefixes
 are dropped (ingress source validation, BCP 38).</p>
@@ -829,8 +817,7 @@ are dropped (ingress source validation, BCP 38).</p>
 }
 </code></pre>
 <p>The plugin generates a <code>ze_irr_iface</code> table with a prerouting base chain.
-For each bound interface, accept terms match <code>input-interface</code> + <code>source-address
-in set</code> for both IPv4 and IPv6, followed by a drop term for that interface.
+For each bound interface, accept terms match <code>input-interface</code> + <code>source-address in set</code> for both IPv4 and IPv6, followed by a drop term for that interface.
 Unconfigured interfaces pass through unfiltered (chain policy accept).</p>
 <p>A binding whose AS-SET has no prefixes produces no terms at all, not a lone drop
 term. A lone drop term would drop every packet arriving on the interface while
@@ -902,6 +889,7 @@ it is the single actor that performs this teardown -- plugins that register
 tables (<code>control-plane-protection</code>, <code>policy-routes</code>, <code>ddos-local</code>) do not run
 their own shutdown withdrawal, so table removal never races the backend close.
 A crash bypasses this path entirely, leaving tables in place.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -943,7 +931,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

@@ -17,7 +17,7 @@ IPv4 and IPv6) by default, and [RFC 3768](https://www.rfc-editor.org/rfc/rfc3768
 > [RFC status](../../reference/rfcs/index.md#first-hop-redundancy).
 
 The Docker interop lab runs the `vrrp-mastership-keepalived` scenario
-(`make ze-interop-test`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
+(`./le integration interop`). Ze at priority 200 and keepalived 2.3.1 at 100 contend
 for one virtual IP on a shared segment, VRID 10, VRRPv3 pinned on both sides
 (keepalived speaks v2 by default, and RFC 9568 Section 7.1 has a v3 router discard
 a v2 advertisement, so the two would never see each other). Every assertion reads
@@ -33,8 +33,8 @@ never from ze's own output.
 Split brain is its own assertion: two owners is what a scenario watching only its
 own side would call a pass.
 
-<!-- source: test/interop/scenarios/vrrp-mastership-keepalived/check.py -- the three mastership phases -->
-<!-- source: test/interop/interop.py -- keepalived.conf starts a keepalived on the run's .8 address -->
+<!-- source: internal/le/interoplab/bgp/checkers.go -- the three mastership phases -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- keepalived container preparation -->
 
 The IPv6 unsolicited Neighbor Advertisement burst on promotion is resolved on the
 caller's goroutine, because netlink sockets are created in the calling thread's
@@ -86,7 +86,7 @@ to win the higher number.
 | `priority` | 100 | 1..254. Highest wins. 255 is reserved for the address owner and is assigned by ze, never by you. |
 | `preempt` | true | Whether a higher-priority router takes mastership back when it returns. |
 | `preempt-delay-seconds` | 0 | 0..3600. How long a returning higher-priority router waits before preempting. Useful when a router's uplinks converge more slowly than it boots, so it does not take the gateway back before it can forward. |
-| `accept-mode` | false | VRRPv3 only. Records whether a non-owner Active should accept packets addressed to the virtual IP. **Not enforced on the dataplane yet: see the limitation below.** |
+| `accept-mode` | false | VRRPv3 only. Whether a non-owner Active accepts packets addressed to the virtual IP. False is the RFC default and means a ping to the virtual IP gets no reply from a non-owner. Forwarding, ARP and Neighbor Discovery are unaffected. |
 | `advertise-interval-milliseconds` | 1000 | How often the Active router advertises. |
 | `version` | 3 | `2` opts this group into VRRPv2. |
 
@@ -258,9 +258,9 @@ State changes are logged as `vrrp: state change` with `from`, `to`, and a
 
 Inspect the active and live VRRP state, stop the higher-priority Ze router, and prove keepalived takes the same reachable VIP.
 
-[Download the asciicast recording](../../assets/demos/vrrp-failover.cast?v=eabb1c82f7) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=9d5d29cb11)
+[Download the asciicast recording](../../assets/demos/vrrp-failover.cast?v=078435fe9b) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=0405f1f484)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 46 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 1 minute 48 seconds.
 
 ```console
 An operator needs to stop the active router without changing the default gateway on every host.
@@ -277,9 +277,9 @@ The complete live state shows Ze is master.
 $ ip -n vrrp-ze -o addr show | grep 192.0.2.1 | tr -s ' ' | cut -d' ' -f2,4
 The kernel shows the VIP on Ze's RFC virtual-MAC interface.
 
-$ cat /src/demos/terminal/vrrp-failover/failover-proof.sh
-$ bash -x /src/demos/terminal/vrrp-failover/failover-proof.sh
-The recording displays and traces the exact commands that kill Ze, remove its namespace, inspect the VIP on keepalived, and send two probes.
+$ ze-demo run vrrp-failover proof-show
+$ ze-demo run vrrp-failover proof
+The recording runs the compiled proof that stops Ze, removes its namespace, inspects the VIP on keepalived, and sends two probes.
 
 The final kernel output shows 192.0.2.1 on keepalived's `vrrp.10` interface, and both probes succeed after failover.
 ```
@@ -294,17 +294,16 @@ For Prometheus:
 
 ## Requirements and limits
 
-**`accept-mode` is not enforced on the dataplane.** RFC 9568 Section 6.4.3 says a
-non-owner Active with `Accept_Mode` false must not accept packets addressed to
-the virtual IP, other than the adverts themselves. Ze records the leaf, validates
-it (rejecting it under `version 2`), and reports it in `show vrrp`, but does not
-yet install the filtering: the virtual address is configured on the group's
-macvlan while the router is Active, so the kernel answers ping and other traffic
-for it whichever way you set the leaf. In practice this means an Active ze router
-answers on the virtual IP, which is what `accept-mode true` asks for and what
-most deployments want. If you are relying on `accept-mode false` to make the
-virtual IP unreachable except as a forwarding next hop, it will not do that
-today.
+**A ping to the virtual IP gets no reply unless you ask for one.** RFC 9568
+Section 6.4.3 says a non-owner Active router must not accept packets addressed to
+the virtual IP, and `accept-mode` defaults to false, so ze installs a drop rule
+for the virtual addresses while the group is Active. Forwarding is unaffected:
+hosts using the virtual IP as their default gateway keep working, the router
+still answers ARP and Neighbor Discovery for it, and IPv6 Neighbor Solicitations
+and Advertisements are never dropped. Set `accept-mode true` if you monitor the
+gateway by pinging its virtual IP. The router that owns the address as a real
+interface address accepts on it whatever the leaf says. The rules appear in
+`show firewall ruleset` under the `vrrp` table.
 
 **No priority tracking.** A group's `priority` is fixed at the value you
 configure. Ze does not decrement it in response to an uplink going down, a route

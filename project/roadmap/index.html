@@ -55,7 +55,6 @@ the step before it is genuinely done".</p>
 <div class="roadmap-forward-note">
   <p>The <a href="../changes/">changes log</a> records what has already shipped week by week. This page looks forward.</p>
 </div>
-
 <div class="roadmap-step-list">
   <section class="roadmap-step">
     <h2>1. Close the open specs</h2>
@@ -66,7 +65,6 @@ the step before it is genuinely done".</p>
       <span class="roadmap-chip" data-tone="observe">Scope control</span>
     </div>
   </section>
-
   <section class="roadmap-step">
     <h2>2. Make it stable</h2>
     <p>Once the feature set stops moving, the effort turns to hardening what is there: chasing down races, tightening the tests, and closing the known trust-model gaps tracked in the <a href="../../security/">security policy</a>. The routing core is already heavily tested, but "heavily tested" and "boring to run for months" are not the same thing, and the second one is the goal.</p>
@@ -76,7 +74,6 @@ the step before it is genuinely done".</p>
       <span class="roadmap-chip" data-tone="operate">Reliability</span>
     </div>
   </section>
-
   <section class="roadmap-step">
     <h2>3. Prove it in production</h2>
     <p>Tests and lab interop take Ze a long way, but they are not a substitute for real traffic on real hardware for long enough to find operational failures. This step is about running Ze where it has to keep working, watching what breaks, and fixing it. Operator feedback matters most here, which is why the project is open this early.</p>
@@ -86,7 +83,6 @@ the step before it is genuinely done".</p>
       <span class="roadmap-chip" data-tone="platform">Hardware</span>
     </div>
   </section>
-
   <section class="roadmap-step">
     <h2>4. Freeze the configuration syntax</h2>
     <p>Today the configuration syntax can still change, and the site says so. Before a release, the syntax has to settle so that a config you write keeps working. The policy is no silent breakage: any change that affects an existing config comes with either an automatic migration or a clear error. Getting the syntax to a point where it stops needing to change is the last big piece before release.</p>
@@ -96,7 +92,6 @@ the step before it is genuinely done".</p>
       <span class="roadmap-chip" data-tone="secure">No silent breakage</span>
     </div>
   </section>
-
   <section class="roadmap-step">
     <h2>5. Release</h2>
     <p>The first release is what all of the above adds up to: a frozen configuration model, a stable feature set, and enough production mileage to stand behind it. Upgrade paths will be provided from that point on.</p>
@@ -106,7 +101,6 @@ the step before it is genuinely done".</p>
       <span class="roadmap-chip" data-tone="automate">Upgrade paths</span>
     </div>
   </section>
-
   <section class="roadmap-step roadmap-step-muted">
     <h2>What is not the priority right now</h2>
     <p>New large features are not the focus on the way to the first release. Stability comes first. Known gaps against other daemons, such as BGP confederations, are listed honestly on the <a href="../../compare/">comparison page</a>, and the <a href="../../features/">features page</a> marks what is shipped versus still experimental. If something you need is missing or you want to help move a milestone along, say so on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a> or the <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">issue tracker</a>.</p>
@@ -117,6 +111,7 @@ the step before it is genuinely done".</p>
     </div>
   </section>
 </div>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Journey</p>
@@ -161,7 +156,7 @@ the step before it is genuinely done".</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

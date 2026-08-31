@@ -66,7 +66,6 @@
     <small>Licensing, contributions, funding, and security.</small>
   </a>
 </nav>
-
 <div class="faq-groups">
   <section class="faq-group cat-operate" id="product" aria-labelledby="product-title">
     <header class="faq-group-head">
@@ -84,33 +83,32 @@
           <p>The core is a protocol-agnostic supervisor with an event bus, configuration provider, and plugin manager. Each subsystem registers its own YANG model. Ze uses that model to derive the CLI, completion, validation, web editor, generated reference, and MCP tools.</p>
         </div>
       </details>
+<pre><code>  &lt;details class="faq-card cat-routing" id="ready"&gt;
+    &lt;summary&gt;Is Ze ready for production?&lt;/summary&gt;
+    &lt;div&gt;
+      &lt;p&gt;No. Ze is pre-release software. The BGP engine is substantial and heavily tested, but production exposure remains limited, and both APIs and configuration syntax can still change.&lt;/p&gt;
+      &lt;p&gt;Use Ze in a lab today. Build a route server, migrate an ExaBGP configuration, run the interop labs against FRR or BIRD, and report failures. The &lt;a href="../project/roadmap/"&gt;roadmap&lt;/a&gt; lists the release work, while the &lt;a href="../quality/"&gt;quality pages&lt;/a&gt; show the evidence already available.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
 
-      <details class="faq-card cat-routing" id="ready">
-        <summary>Is Ze ready for production?</summary>
-        <div>
-          <p>No. Ze is pre-release software. The BGP engine is substantial and heavily tested, but production exposure remains limited, and both APIs and configuration syntax can still change.</p>
-          <p>Use Ze in a lab today. Build a route server, migrate an ExaBGP configuration, run the interop labs against FRR or BIRD, and report failures. The <a href="../project/roadmap/">roadmap</a> lists the release work, while the <a href="../quality/">quality pages</a> show the evidence already available.</p>
-        </div>
-      </details>
+  &lt;details class="faq-card cat-observe" id="today"&gt;
+    &lt;summary&gt;What can Ze actually do today?&lt;/summary&gt;
+    &lt;div&gt;
+      &lt;p&gt;Ze has a broad BGP implementation, YANG-modeled configuration with commit and rollback, Linux interface and FIB management, an SSH CLI, a web interface, APIs, observability, and a plugin system.&lt;/p&gt;
+      &lt;p&gt;OSPF, IS-IS, MPLS, firewall, VPN, PPPoE, and L2TP code also exists, but those areas remain experimental. Use the &lt;a href="../features/"&gt;feature catalog&lt;/a&gt; for current status instead of treating this answer as a compatibility matrix.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
 
-      <details class="faq-card cat-observe" id="today">
-        <summary>What can Ze actually do today?</summary>
-        <div>
-          <p>Ze has a broad BGP implementation, YANG-modeled configuration with commit and rollback, Linux interface and FIB management, an SSH CLI, a web interface, APIs, observability, and a plugin system.</p>
-          <p>OSPF, IS-IS, MPLS, firewall, VPN, PPPoE, and L2TP code also exists, but those areas remain experimental. Use the <a href="../features/">feature catalog</a> for current status instead of treating this answer as a compatibility matrix.</p>
-        </div>
-      </details>
-
-      <details class="faq-card cat-platform" id="compare">
-        <summary>Why would I use Ze instead of BIRD, FRR, or GoBGP?</summary>
-        <div>
-          <p>Choose a mature daemon when you need an established production platform today. Ze is worth evaluating when you want its configuration model, generated operator surfaces, plugin architecture, ExaBGP migration path, or built-in evidence tooling.</p>
-          <p>The core remains protocol-agnostic, and each subsystem brings its own YANG model. One schema drives configuration, validation, CLI, web, generated reference, and MCP. The <a href="../compare/">comparison pages</a> show where Ze leads, where it differs, and where the mature projects remain ahead.</p>
-        </div>
-      </details>
-    </div>
+  &lt;details class="faq-card cat-platform" id="compare"&gt;
+    &lt;summary&gt;Why would I use Ze instead of BIRD, FRR, or GoBGP?&lt;/summary&gt;
+    &lt;div&gt;
+      &lt;p&gt;Choose a mature daemon when you need an established production platform today. Ze is worth evaluating when you want its configuration model, generated operator surfaces, plugin architecture, ExaBGP migration path, or built-in evidence tooling.&lt;/p&gt;
+      &lt;p&gt;The core remains protocol-agnostic, and each subsystem brings its own YANG model. One schema drives configuration, validation, CLI, web, generated reference, and MCP. The &lt;a href="../compare/"&gt;comparison pages&lt;/a&gt; show where Ze leads, where it differs, and where the mature projects remain ahead.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
+&lt;/div&gt;
+</code></pre>
   </section>
-
   <section class="faq-group cat-routing" id="adoption" aria-labelledby="adoption-title">
     <header class="faq-group-head">
       <span aria-hidden="true" data-number="02"></span>
@@ -127,40 +125,39 @@
           <p>Start with the <a href="../guides/quickstart/">quickstart</a>. Use the <a href="../labs/appliance-install/">appliance lab</a> when you want an immutable boot image for a VM or dedicated hardware.</p>
         </div>
       </details>
+<pre><code>  &lt;details class="faq-card cat-services" id="exabgp"&gt;
+    &lt;summary&gt;I run ExaBGP. Can I move to Ze?&lt;/summary&gt;
+    &lt;div&gt;
+      &lt;p&gt;Yes. Ze includes &lt;code&gt;ze config migrate&lt;/code&gt; for configuration conversion and a compatibility bridge that lets existing ExaBGP process scripts run while you port them.&lt;/p&gt;
+      &lt;p&gt;The &lt;a href="../use-cases/exabgp-migration/"&gt;ExaBGP migration guide&lt;/a&gt; covers conversion, known differences, and the point where a native Ze plugin becomes the better choice.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
 
-      <details class="faq-card cat-services" id="exabgp">
-        <summary>I run ExaBGP. Can I move to Ze?</summary>
-        <div>
-          <p>Yes. Ze includes <code>ze config migrate</code> for configuration conversion and a compatibility bridge that lets existing ExaBGP process scripts run while you port them.</p>
-          <p>The <a href="../use-cases/exabgp-migration/">ExaBGP migration guide</a> covers conversion, known differences, and the point where a native Ze plugin becomes the better choice.</p>
-        </div>
-      </details>
+  &lt;details class="faq-card cat-operate" id="daemon-appliance"&gt;
+    &lt;summary&gt;The daemon or the appliance: which should I run?&lt;/summary&gt;
+    &lt;div&gt;
+      &lt;p&gt;Start with the daemon. It fits into Linux infrastructure you already supervise and is easier to inspect while Ze is still pre-release.&lt;/p&gt;
+      &lt;p&gt;The appliance packages the same binary and configuration into a read-only system with automatic supervision, no package manager, and no interactive shell. Use it when you want a purpose-built router image rather than another managed Linux host.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
 
-      <details class="faq-card cat-operate" id="daemon-appliance">
-        <summary>The daemon or the appliance: which should I run?</summary>
-        <div>
-          <p>Start with the daemon. It fits into Linux infrastructure you already supervise and is easier to inspect while Ze is still pre-release.</p>
-          <p>The appliance packages the same binary and configuration into a read-only system with automatic supervision, no package manager, and no interactive shell. Use it when you want a purpose-built router image rather than another managed Linux host.</p>
-        </div>
-      </details>
+  &lt;details class="faq-card cat-routing" id="config-stability"&gt;
+    &lt;summary&gt;Will my configuration keep working as Ze changes?&lt;/summary&gt;
+    &lt;div&gt;
+      &lt;p&gt;Treat configuration syntax as unstable until the first release. Breaking changes belong in the &lt;a href="../project/changes/"&gt;change log&lt;/a&gt; and should arrive with an automatic migration or a clear error. Silent reinterpretation is a bug.&lt;/p&gt;
+      &lt;p&gt;Configuration stability is an explicit milestone on the &lt;a href="../project/roadmap/"&gt;roadmap&lt;/a&gt;.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
 
-      <details class="faq-card cat-routing" id="config-stability">
-        <summary>Will my configuration keep working as Ze changes?</summary>
-        <div>
-          <p>Treat configuration syntax as unstable until the first release. Breaking changes belong in the <a href="../project/changes/">change log</a> and should arrive with an automatic migration or a clear error. Silent reinterpretation is a bug.</p>
-          <p>Configuration stability is an explicit milestone on the <a href="../project/roadmap/">roadmap</a>.</p>
-        </div>
-      </details>
-
-      <details class="faq-card cat-automate" id="ai-mcp">
-        <summary>Does Ze need an LLM to run?</summary>
-        <div>
-          <p>No. Ze runs without an AI service. MCP is an optional operator interface generated from the same schemas and command catalog as the CLI and web interface. It lets an authorized assistant discover and operate the capabilities compiled into a running daemon.</p>
-        </div>
-      </details>
-    </div>
+  &lt;details class="faq-card cat-automate" id="ai-mcp"&gt;
+    &lt;summary&gt;Does Ze need an LLM to run?&lt;/summary&gt;
+    &lt;div&gt;
+      &lt;p&gt;No. Ze runs without an AI service. MCP is an optional operator interface generated from the same schemas and command catalog as the CLI and web interface. It lets an authorized assistant discover and operate the capabilities compiled into a running daemon.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
+&lt;/div&gt;
+</code></pre>
   </section>
-
   <section class="faq-group cat-automate" id="project" aria-labelledby="project-title">
     <header class="faq-group-head">
       <span aria-hidden="true" data-number="03"></span>
@@ -177,33 +174,34 @@
           <p>If you modify Ze and let users interact with that modified version over a network, the AGPL requires you to offer those users the corresponding source. Read the license itself when the distinction matters to a deployment.</p>
         </div>
       </details>
+<pre><code>  &lt;details class="faq-card cat-automate" id="contribute-cla"&gt;
+    &lt;summary&gt;What does the contributor agreement grant?&lt;/summary&gt;
+    &lt;div&gt;
+      &lt;p&gt;A signed-off commit (&lt;code&gt;git commit -s&lt;/code&gt;) confirms agreement to the &lt;a href="../contribute/"&gt;Contributor License Agreement&lt;/a&gt;. You keep your copyright.&lt;/p&gt;
+      &lt;p&gt;The agreement lets the maintainer offer Ze under additional license terms, including a commercial license. Every contribution remains available to the public under AGPLv3. The &lt;a href="../contribute/guide/"&gt;contributor guide&lt;/a&gt; covers the submission process.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
 
-      <details class="faq-card cat-automate" id="contribute-cla">
-        <summary>What does the contributor agreement grant?</summary>
-        <div>
-          <p>A signed-off commit (<code>git commit -s</code>) confirms agreement to the <a href="../contribute/">Contributor License Agreement</a>. You keep your copyright.</p>
-          <p>The agreement lets the maintainer offer Ze under additional license terms, including a commercial license. Every contribution remains available to the public under AGPLv3. The <a href="../contribute/guide/">contributor guide</a> covers the submission process.</p>
-        </div>
-      </details>
+  &lt;details class="faq-card cat-services" id="funding"&gt;
+    &lt;summary&gt;Who builds Ze, and how is it funded?&lt;/summary&gt;
+    &lt;div&gt;
+      &lt;p&gt;Thomas Mangin develops Ze, with engineering time supported by &lt;a href="https://exa.net.uk"&gt;Exa Networks&lt;/a&gt;. The ISP has backed the work since it began with ExaBGP in 2009.&lt;/p&gt;
+      &lt;p&gt;Ze currently has no subscription, paid support tier, or separate commercial entity. The &lt;a href="../contribute/"&gt;contribute page&lt;/a&gt; explains how the project is maintained and how to help.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
 
-      <details class="faq-card cat-services" id="funding">
-        <summary>Who builds Ze, and how is it funded?</summary>
-        <div>
-          <p>Thomas Mangin develops Ze, with engineering time supported by <a href="https://exa.net.uk" target="_blank" rel="noopener">Exa Networks</a>. The ISP has backed the work since it began with ExaBGP in 2009.</p>
-          <p>Ze currently has no subscription, paid support tier, or separate commercial entity. The <a href="../contribute/">contribute page</a> explains how the project is maintained and how to help.</p>
-        </div>
-      </details>
-
-      <details class="faq-card cat-secure" id="help">
-        <summary>How do I get help or report a security problem?</summary>
-        <div>
-          <p>Use <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a> for discussion and the <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">issue tracker</a> for reproducible bugs and feature requests.</p>
-          <p>Follow the <a href="../security/">security policy</a> for anything security-sensitive. Report vulnerabilities privately instead of opening a public issue.</p>
-        </div>
-      </details>
-    </div>
+  &lt;details class="faq-card cat-secure" id="help"&gt;
+    &lt;summary&gt;How do I get help or report a security problem?&lt;/summary&gt;
+    &lt;div&gt;
+      &lt;p&gt;Use &lt;a href="https://discord.gg/T8s7CjPDne"&gt;Discord&lt;/a&gt; for discussion and the &lt;a href="https://github.com/ze-software/ze/issues"&gt;issue tracker&lt;/a&gt; for reproducible bugs and feature requests.&lt;/p&gt;
+      &lt;p&gt;Follow the &lt;a href="../security/"&gt;security policy&lt;/a&gt; for anything security-sensitive. Report vulnerabilities privately instead of opening a public issue.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/details&gt;
+&lt;/div&gt;
+</code></pre>
   </section>
 </div>
+
             </section>
         </main>
 
@@ -213,7 +211,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

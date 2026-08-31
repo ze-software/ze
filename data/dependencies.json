@@ -96,6 +96,10 @@
                 {
                     "module": "github.com/cilium/ebpf",
                     "why": "Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin."
+                },
+                {
+                    "module": "filippo.io/mlockexe",
+                    "why": "Locks the running ze executable's own file-backed pages in memory with mlock2(2) and MLOCK_ONFAULT, so the kernel cannot evict the daemon's text under memory pressure. A router short of memory reclaims page cache, and the running daemon IS page cache: without the lock it waits on the disk holding its own binary at the moment it must keep sessions alive."
                 }
             ]
         },
@@ -180,6 +184,10 @@
                 {
                     "module": "golang.org/x/tools",
                     "why": "Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries."
+                },
+                {
+                    "module": "golang.org/x/vuln",
+                    "why": "Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors."
                 }
             ]
         },
@@ -205,6 +213,22 @@
                 {
                     "module": "gopkg.in/yaml.v3",
                     "why": "Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed."
+                },
+                {
+                    "module": "github.com/golangci/golangci-lint/v2",
+                    "why": "The linter behind `./le verify lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version."
+                },
+                {
+                    "module": "honnef.co/go/tools",
+                    "why": "Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry."
+                },
+                {
+                    "module": "github.com/yuin/goldmark",
+                    "why": "Renders the Markdown of `docs/` and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers."
+                },
+                {
+                    "module": "github.com/anmitsu/go-shlex",
+                    "why": "Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives."
                 }
             ]
         }

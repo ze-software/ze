@@ -132,6 +132,27 @@ reachable. Output is identical to the daemon RPC (both read the same detection l
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
 
+### Local-data commands (answered in the caller's own process)
+
+A local-data command never asks a daemon. Its handler reads a registry that
+`init()` filled in this process, so the answer exists before `main()` does. It
+registers with `cmdregistry.MustRegisterLocalData(path, handler, meta,
+command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
+`| yaml` and `| table` be three renderings of one payload.
+
+This differs from the offline fallback above: a fallback is a second answer for
+a command the daemon normally serves, tried only after the connection fails. A
+local-data command has no daemon side at all, registers no RPC, and therefore
+owes no `wire-methods.snapshot` row.
+
+`internal/component/plugin/register.go` serves one of them, and it is the
+template: `show plugins` answers which plugins this binary carries and what
+each plugin's own `init()` recorded about its setup. It is owned by the package
+that owns the registry it reads, so removing the plugin host removes the
+command with it.
+<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows -->
+<!-- source: internal/component/command/local_data.go -- RenderLocalAnswer -->
+
 ---
 
 ## Operational Report Bus (ze-show:warnings, ze-show:errors)
@@ -208,7 +229,7 @@ the bus from buggy or malicious producers.
 | `ze-clear:dns-cache-record` | `handleClearDNSCacheRecord` in `internal/component/resolve/cmd/dns.go` | `{"action": "delete-entry", "name": "...", "removed": N}` or `{"action": "delete-entry", "name": "...", "type": "...", "found": bool}` |
 | `ze-show:system-profile` | `handleShowSystemProfile` in `profile.go` | `{"type": "...", "format": "pprof-base64", "data": "..."}` |
 | `ze-show:system-memory-map` | `handleShowSystemMemoryMap` in `memory_map_linux.go` | `{"vm-rss-kb": N, "vm-size-kb": N, ...}` (Linux only) |
-| `ze-show:system-update` | `handleShowSystemUpdate` in `internal/plugins/update-cmd/cmd/show.go` | `{"backend": "ze-self-update"|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |
+| `ze-show:system-update` | `handleShowSystemUpdate` in `internal/plugins/update-cmd/cmd/show.go` | `{"backend": "ze-self-update"\|"gokrazy-ab", "running-version": "...", "remote-version": "...", "update-available": bool, "status": "...", "download-status": "...", "staged-version": "...", "gokrazy-reachable": bool, "gokrazy-features": [...]}` |
 | `ze-show:system-update-history` | `handleShowSystemUpdateHistory` in `internal/plugins/update-cmd/cmd/show.go` | `{"history": [{"timestamp": "...", "from": "...", "to": "...", "result": "..."}], "count": N}` |
 | `ze-update:system-firmware-check` | `handleFirmwareCheck` in `firmware.go` | `{"running-version": "...", "update-available": bool, ...}` or on gokrazy `{"backend":"gokrazy-ab", "status":"unsupported", "message":"updates managed by gokrazy"}` |
 | `ze-update:system-firmware-download` | `handleFirmwareDownload` in `firmware.go` | `{"downloaded-version": "...", "status": "complete"}` |
@@ -1241,14 +1262,18 @@ func Dispatch(tree DispatchTree, tokens *Tokenizer, reactor *Reactor) (Handler, 
 ### YANG-Typed Command Arguments
 
 Operational commands declare their argument types as YANG leaves inside
-`ze:command` containers. The same leaf metadata drives three consumers:
+`ze:command` containers. The same leaf metadata drives two consumers:
 
 1. **Completer** (`command/completer.go`): enum values become tab-completion
    suggestions; keyword leaf names appear as completable tokens.
 2. **Dispatcher** (`plugin/server/command.go`): validates args against ArgDefs
    between tokenize and handler call (two-phase: keyword extraction, then
    positional matching).
-3. **Documentation**: leaf descriptions provide help text.
+
+A leaf's own `description` reaches no surface. `argDefFor`
+(`config/yang/command.go`) reads the leaf's `type` and its `mandatory`
+statement, and `command.ArgDef` carries no description field. State what an
+argument means in the command's own `ze:help`.
 
 ```go
 type ArgDef struct {
@@ -1260,12 +1285,25 @@ type ArgDef struct {
     Pattern    *regexp.Regexp // Compiled XSD pattern for ArgString
     UnionDefs  []ArgDef       // Member types for ArgUnion
     Mandatory  bool           // True if YANG leaf has mandatory true
+    Anchor     string         // Path keyword this value follows; "" for a trailing value
 }
 ```
 
 ArgDefs are extracted from YANG by `BuildCommandTree` (`config/yang/command.go`)
 and stored on `command.Node.ArgDefs`. The dispatcher receives them via
 `RegisterOptions.ArgDefs` populated by `PathToArgDefs`.
+
+A container that names an object declares the value the operator types after
+its keyword, once, and every command under it takes that value:
+`request interface <name> up`, `<name> down`, `<name> mtu <bytes>` share one
+`name` leaf on the `interface` container. `inheritArgDefs`
+(`config/yang/command.go`) carries such a leaf down to each command after every
+module is merged, with `Anchor` set to the container's name, and the renderer
+places the value right after that keyword. The command under such a container
+that acts on no single member of the set states `ze:inherit "none"`:
+`show bgp peer list` reads every peer, and `request interface migrate` names two
+interfaces of its own. Nothing binds a value by `Anchor`: a positional token
+still goes to the definition whose type constrains it most (`positionalDef`).
 
 Runtime-dynamic hints (e.g., address families from plugin registry) remain as
 `ValueHints` callbacks. Static hints (log levels, FD limit "max") are
@@ -1379,6 +1417,135 @@ var Commands = []CommandInfo{
 ```
 <!-- source: internal/component/plugin/server/rpc_register.go -- registeredRPCs -->
 
+### A command's two help texts
+
+A command node carries two help texts, and each is declared by its own YANG
+statement. An RPC, a plugin command and an offline local command each carry the
+same pair, in the declaration form their own registration uses.
+
+| Field | Declared by | Holds |
+|-------|-------------|-------|
+| `command.Node.Description` | the `description` statement | the one-line SUMMARY |
+| `command.Node.Help` | the `ze:help` extension | the LONG explanation of that one command |
+
+Neither is derived from the other, and no reader shortens either one to guess
+at the other. The summary is authored short because it is a summary. One reader
+clamps it, and it answers a display constraint: the interactive completion pane
+cuts the summary to the width its terminal gives it.
+
+`mergeYANGEntry` (`internal/component/config/yang/command.go`) writes both, and
+`mergeHelpText` decides each field on its own when several modules contribute
+one command path. A collision leaves the first value in place and logs
+`YANG command help text mismatch` naming the field that collided.
+
+An empty `Help` is a command nobody has written an explanation for, and the
+help page prints its summary alone. An empty `Description` is a defect:
+`validateNode` names each one by path.
+
+An RPC carries the same two texts, in the same two YANG statements.
+`ExtractRPCs` (`internal/component/config/yang/rpc.go`) writes them to
+`RPCMeta.Description` and `RPCMeta.Help`. `getHelpExtension` is the ONE reader
+of the extension for both carriers. A command container reaches it through
+`Entry.Exts`, and an rpc through `gyang.RPC.Exts()`.
+`./le docvalid help-shape` holds the two corpora to one shape.
+
+An RPC's pair reaches an agent through the machine-readable reference.
+`SchemaRegistry.RegisterRPCs` copies both to `RegisteredRPC.Description` and
+`RegisteredRPC.LongHelp`. `aihelp.Build` then publishes them under `description`
+and `long-help`, the two keys `ze help command --json` uses for a command.
+`ze help ai --json` and the MCP `ze_reference` tool read that one projection.
+The `show schema methods` and `ze schema methods` tables print one line for each
+RPC. Both read the summary alone, as every other one-line surface does.
+
+A PLUGIN command carries the same two texts, declared in its Stage 1 message as
+`description` and `long-help`. `VisibleCommandEntries` reads both off the
+registry, and `MergeCommandPaths` fills each field of the tree on its own. A
+plugin that declares a summary and no explanation therefore fills the summary
+alone. The names cross at that call. The plugin server spells them
+`Description` and `LongHelp`, because `Help` already means the SUMMARY there,
+on `Completion` and on the dispatcher's builtin `Command`. The bound and the control-character
+refusal on a declared text are in
+`docs/architecture/api/process-protocol.md`.
+
+`command help "<name>"` answers with both, under the `description` and
+`long-help` keys, for a builtin and for a plugin command alike.
+
+An OFFLINE LOCAL command carries the same two texts in a `registry.Meta`,
+declared beside its handler in Go rather than in a YANG module. `Description` is
+the summary and `LongHelp` is the explanation, and the same empty-is-unwritten
+rule holds for both. `collectCommands` (`cmd/ze/help_command.go`) merges these
+registrations into `ze help command --json` after the tree, and skips one whose
+path the tree already holds, so the catalog publishes the node's texts for such
+a path and the registration's for every other. `./le docvalid help-shape` holds
+this third corpus to the same seven rules, reading the registrations this binary
+links from the registry and the four `cmd/ze` declares in `package main` from
+its source, which is the only way to read a package Go forbids importing.
+
+#### Which surface renders which field
+
+Every surface that shows a command on ONE line reads the summary. Every one of
+them prints it whole, except the interactive completion pane, which has a
+terminal width to fit. Only a surface that shows ONE command reads the long
+explanation: the help page in the terminal, and the two published detail
+surfaces.
+
+| Surface | Producer | Reads |
+|---------|----------|-------|
+| The per-command help page | `commandHelpPage`, rendered by `helpfmt.(*Page).WriteTo` | `Description` on the header line, then `Help` in the body block, then the child rows. A node states its own two texts whether or not it has children |
+| A help page's child rows | `command.HelpEntries` | `Description` |
+| A completion candidate | `command.TreeCompleter.matchChildren`, `choiceSuggestions` | `Description` |
+| The interactive completion pane | `internal/component/cli` `Model.renderDropdownBox` | `Description`, cut to the column the terminal width leaves and closed with `...`. This is the one clamp the code keeps, because it answers a display constraint rather than guessing at a shorter text |
+| The interactive completion hint | `internal/component/cli` `Model.handleKeyMsg` (the `?` key), `Model.updateCompletions` | `Description`, whole |
+| A shell-completion record | `internal/plugins/completion` `writeCompletionRecord` | `Description` |
+| The `ze help command` table row | `printCommandTable` | `Description` |
+| `ze help command --verbose` | `printCommandVerbose` | `Description`, then `Help` |
+| `ze help command --json` | `commandEntry` | `description`, and `long-help` |
+| The web admin command form | `buildAdminFragmentData`, rendered by the `commandForm` template | `Description` as the lede, `Help` as the body |
+| The web completion dropdown | `HandleCLICompleteWithCommandCompleter` | `Description`, in the JSON `description` key |
+| An MCP tool's action enum | `buildToolDef` | `Description`, one line for each action |
+| An MCP tool's own description | `buildToolDef`, `commandText` | `Description`, then a blank line, then `LongHelp` |
+| The OpenAPI operation | `OpenAPISchema` | `Description` as `summary`, `LongHelp` as `description` |
+| The published wiki catalog | `wikicatalog.Render` | `Description` in the summary table column, `LongHelp` in the `###` detail block |
+| The published CLI reference row | `internal/le/site` `writeCommandRow`, `commandMirrorDescription` | `Description` |
+| The published per-command detail page | `internal/le/site` `equivalentZeCard`, `equivalentDetailMirror` | `Description` as the lede, `LongHelp` as the Description body |
+| The `llms.txt` command line | `internal/le/site` `writeLLMSCommands` | `Description`, whole and with no character budget |
+| An offline local command in any of the rows above | `registry.ListLocal`, merged by `collectCommands` and by `wikicatalog.Collect` | `Meta.Description` and `Meta.LongHelp`, in place of the node's two texts |
+
+The machine surfaces carry the same pair. `commandMeta`
+(`cmd/ze/hub/command_meta.go`) holds both halves for the API and MCP listers.
+Its merge decides each half on its own, so a command with a YANG summary and a
+plugin explanation keeps both. OpenAPI 3.1 already names the two roles, so the
+mapping is one to one: `summary` is short and `description` is long. A command
+that declares no explanation carries NO `description` key, never an empty one.
+
+The shell-completion record is `name`, tab, `description`, newline. A summary
+carrying a tab or a newline is FOLDED to single spaces there, never cut.
+Folding answers the format's one-line constraint and loses no word. The TUI
+completion pane folds for the same reason, and clamps to the column width its
+terminal gives it. That clamp is the only cut any surface makes, and it answers
+a display constraint. No surface cuts at a sentence, at a newline, or at a fixed
+character count to guess a shorter text.
+
+<!-- source: internal/component/command/help.go -- HelpEntries, describeChildren -->
+<!-- source: internal/component/plugin/server/schema.go -- RegisteredRPC, RegisterRPCs -->
+<!-- source: internal/component/aihelp/aihelp.go -- RPC, Build -->
+<!-- source: internal/core/helpfmt/helpfmt.go -- Page, (*Page).WriteTo -->
+<!-- source: cmd/ze/help_command.go -- commandEntry, printCommandTable, printCommandVerbose -->
+<!-- source: internal/component/command/registry/registry.go -- Meta, ListLocal -->
+<!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
+<!-- source: internal/plugins/completion/words.go -- writeCompletionRecord -->
+<!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox -->
+<!-- source: internal/component/web/handler_admin.go -- buildAdminFragmentData, CommandFormData -->
+<!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->
+<!-- source: internal/component/mcp/tools.go -- CommandInfo, buildToolDef, commandText -->
+<!-- source: internal/component/api/schema.go -- OpenAPISchema -->
+<!-- source: cmd/ze/hub/command_meta.go -- commandMeta, buildCommandMeta -->
+
+<!-- source: internal/component/config/yang/command.go -- mergeYANGEntry, mergeHelpText, getHelpExtension, PathToHelp -->
+<!-- source: internal/component/command/node.go -- Node, CommandEntry -->
+<!-- source: internal/component/plugin/server/command_registry.go -- RegisteredCommand, VisibleCommandEntries -->
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, commandHelpText -->
+
 ### Per-command declarations: what a command says about itself
 
 Five registries let a command say something about itself to the CLI. Each one is
@@ -1423,7 +1590,7 @@ order decided which of the two the path answered.
 
 Every in-tree caller declares from `init()`, so two different non-empty values
 are a state only a Ze defect reaches. The panic reports it before the daemon
-serves anything (`docs/contributing/ze-style.md`).
+serves anything (`docs/contributing/ze-go-style.md`).
 
 A plugin declares from a socket instead, and a bad declaration there is an
 operating error rather than a Ze defect. So the first three registries carry a
@@ -1458,10 +1625,21 @@ calls `tab` "rows read against a declared column order", and `operatorNeeds`
 reads the operator's own shape set. Calling both "rows" gave a refusal that
 contradicted itself, in front of an operator whose answer HAS rows.
 
-A declared address-field list is an ADMISSION gate and not a selector. It decides
-whether `| resolve` and `| origin` run at all. It does not decide what they
-decorate: `resolveJSON` and `originJSON` walk every key of the answer and
-decorate each string that parses as an address.
+A declared address-field list is an ADMISSION gate AND a selector. It decides
+whether `| resolve` and `| origin` run at all, and it decides what they
+decorate. `bindAddressFields` copies the declaration onto each address operator
+when the chain is parsed, so a later registry withdrawal cannot change an
+in-flight chain, and `resolveJSON` and `originJSON` decorate a key only when
+`addressFieldSelected` finds it in that list.
+
+Standalone stdin is the one path that decorates every key.
+`ProcessStandalonePipesChecked` sets `allAddressFields` on each address
+operator, because stdin has no command path and therefore no declaration to
+read. There `addressFieldSelected` returns true for every key whose value parses
+as an address.
+<!-- source: internal/component/command/pipe.go -- bindAddressFields, ProcessStandalonePipesChecked -->
+<!-- source: internal/component/command/pipe_resolve.go -- resolveJSON, addressFieldSelected -->
+<!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 
 Every `show bgp` command declares a shape, and two channels write them. Go
 compiled into the daemon declares sixteen paths. Nine of those name an address
@@ -1797,7 +1975,7 @@ it never sees a plugin's Stage 1 message.
 |---------|-------|--------------------------|
 | `command help "<name>"` | the running daemon's registries | Yes, as a `pipe-aliases` list beside `pipe-filters` |
 | Tab completion in the daemon-hosted TUI | the running daemon's registries | Yes |
-| `make ze-command-list` | the compiled tree in its own process | No, and it cannot |
+| `./le command list` | the compiled tree in its own process | No, and it cannot |
 | `ze help command --json`, and the wiki catalog built from it | the compiled tree in its own process | No, and it cannot |
 
 `command help` lists an in-tree alias and a declared one the same way, and it
@@ -1812,7 +1990,7 @@ declared. The running daemon refuses and publishes correctly. The published
 catalog cannot yet say so.
 
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
-<!-- source: scripts/inventory/commands.go -- main -->
+<!-- source: internal/le/command/list/commandlist.go -- Answer -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 
 #### A plugin declares its own answer shape
@@ -1870,10 +2048,10 @@ table above records, for the same reason.
 ### The chain over a row generator
 
 A handler that answers with a row generator runs the same chain, one record at a
-time. `ApplyPipesRecords` is the record half of `ApplyPipes`. `| match`,
+time. `applyPipesRecords` is the record half of `ApplyPipes`. `| match`,
 `| count`, `| first`, `| last`, `| display`, `| resolve` and `| origin` each act
 per record, so `| count` holds nothing and `| last 8` holds eight records.
-<!-- source: internal/component/command/pipe_records.go -- ApplyPipesRecords, applyRecordOp, recordsCounted, recordsLast -->
+<!-- source: internal/component/command/pipe_records.go -- applyPipesRecords, applyRecordOp, recordsCounted, recordsLast -->
 
 A format operator changes no record. `RenderRecords` renders what the chain
 produced. It writes per record for one chain alone: `| ndjson`, over an answer

@@ -30,15 +30,15 @@ A Docker orchestrator launches Ze and one or more peer daemons on an isolated ne
 
 - **Proves:** Real BGP sessions against production daemon implementations, not mocks
 - **Peers:** Real FRR, BIRD, and GoBGP, in Docker containers
-- **Requires:** Docker, Python 3, ~1.5 GB disk for daemon images
+- **Requires:** Docker and ~1.5 GB disk for daemon images
 - **Source:** [docs/architecture/testing/interop.md](https://ze-software.net/architecture/testing/interop/)
 
 ```
 # all 68 scenarios
-$ make ze-interop-test
+$ ./le integration interop
 
 # single scenario, verbose
-$ python3 test/interop/run.py bgp-ebgp-ipv4-frr
+$ INTEROP_SCENARIO=bgp-ebgp-ipv4-frr ./le integration interop
 ```
 
 `Prerequisites`

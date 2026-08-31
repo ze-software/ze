@@ -17,17 +17,17 @@ Two scenarios: full PPP/IPv4 dataplane proof with cleanup verification, and a su
 
 ```
 # Docker lab, all scenarios
-$ make ze-deployment-docker-l2tp-ppp-test
+$ ./le deployment docker-l2tp-ppp-test
 
 # single scenario, verbose
-$ python3 test/interop-l2tp/run.py 01-ppp-ipv4
+$ ZE_L2TP_INTEROP_SCENARIO=01-ppp-ipv4 ./le deployment docker-l2tp-ppp-test
 
 # QEMU path instead of Docker (needs tmp/kernel/vmlinuz)
-$ make ze-qemu-l2tp-ppp-test
+$ ./le deployment gokrazy-l2tp-ppp-test
 ```
 
 `Prerequisites`
 
-Docker for the primary path. The QEMU path needs a staged kernel (`make ze-kernel-build GOKRAZY_ARCH=arm64`) and works where Docker Desktop's VM lacks the PPPoL2TP kernel module.
+Docker for the primary path. The QEMU path uses the runtime kernel built by `ze appliance kernel --target runtime --arch arm64` and works where Docker Desktop's VM lacks the PPPoL2TP kernel module.
 
 - [test/interop-l2tp/ lab source](https://github.com/ze-software/ze/tree/main/test/interop-l2tp)

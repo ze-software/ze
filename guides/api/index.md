@@ -202,6 +202,12 @@ per-user authentication for API-driven config changes.
 The OpenAPI spec is generated lazily on first request so it captures all
 plugin commands registered during startup. Documentation routes use the same
 Bearer authentication policy as the API when auth is configured.
+
+Each command operation carries the two help texts the command declares. The
+`summary` is the one-line summary from the YANG `description` statement, and
+the `description` is the long explanation from `ze:help`. A command that
+declares no explanation carries no `description` key. The gRPC `CommandInfo`
+message carries the summary only.
 <!-- source: internal/component/api/rest/server.go -- registerRoutes documentation handlers use withAuth -->
 
 ## gRPC Services

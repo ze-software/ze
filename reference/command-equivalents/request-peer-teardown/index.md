@@ -1,21 +1,31 @@
-# `request peer <selector> teardown [cease-subcode]`
+# `request peer teardown`
+
+Tear down a peer session.
 
 ## Ze command
 
-- Syntax: `request peer <selector> teardown [cease-subcode]`
 - Registry path: `request peer teardown`
+- Usage: `request peer <selector> teardown <cease-subcode>`
 - Mode: Daemon
 - Wire method: `ze-bgp:peer-teardown`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Tear down a peer session. Usage: request peer <selector> teardown [cease-subcode].
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `selector` | string | yes | any value of this type |
+| `cease-subcode` | uint | yes | any value of this type |
 
 ## Mapping intents
 

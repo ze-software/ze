@@ -64,13 +64,12 @@
 <p>The SDK is designed for testability. Use <code>net.Pipe()</code> to create a connected pair of
 connections, then use <code>sdk.NewWithConn()</code> on one end and simulate the engine on the other.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- NewWithConn -->
-
 <pre><code class="language-go">import (
-    &quot;net&quot;
-    &quot;testing&quot;
+    "net"
+    "testing"
 
-    &quot;github.com/ze-software/ze/pkg/plugin/rpc&quot;
-    &quot;github.com/ze-software/ze/pkg/plugin/sdk&quot;
+    "github.com/ze-software/ze/pkg/plugin/rpc"
+    "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 func newTestPair(t *testing.T) (*sdk.Plugin, *rpc.MuxConn) {
@@ -82,7 +81,7 @@ func newTestPair(t *testing.T) (*sdk.Plugin, *rpc.MuxConn) {
         engineEnd.Close()
     })
 
-    p := sdk.NewWithConn(&quot;test-plugin&quot;, pluginEnd)
+    p := sdk.NewWithConn("test-plugin", pluginEnd)
 
     engineConn := rpc.NewConn(engineEnd, engineEnd)
     engineMux := rpc.NewMuxConn(engineConn)
@@ -92,17 +91,14 @@ func newTestPair(t *testing.T) (*sdk.Plugin, *rpc.MuxConn) {
 }
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_test.go -- newTestPair -->
-
 <p>The engine side uses <code>rpc.MuxConn</code> for bidirectional RPCs: it reads plugin requests
 via <code>Requests()</code> and sends engine callbacks via <code>CallRPC</code>.</p>
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn, NewMuxConn, Requests, CallRPC -->
 <!-- source: pkg/plugin/rpc/conn.go -- NewConn, Conn -->
-
 <h2 id="testing-event-handlers">Testing Event Handlers</h2>
 <p>Register callbacks with <code>OnEvent</code>, <code>OnConfigure</code>, or <code>OnExecuteCommand</code>, then
 run the plugin in a goroutine and simulate engine messages from the other end of the pipe.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent, OnConfigure, OnExecuteCommand -->
-
 <pre><code class="language-go">func TestEventHandler(t *testing.T) {
     p, engineMux := newTestPair(t)
 
@@ -125,70 +121,67 @@ run the plugin in a goroutine and simulate engine messages from the other end of
 
     // Deliver an event
     eventInput := struct {
-        Event string `json:&quot;event&quot;`
-    }{Event: `{&quot;type&quot;:&quot;bgp&quot;,&quot;bgp&quot;:{&quot;peer&quot;:{&quot;address&quot;:&quot;10.0.0.1&quot;}}}`}
+        Event string `json:"event"`
+    }{Event: `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`}
 
-    _, err := engineMux.CallRPC(ctx, &quot;ze-plugin-callback:deliver-event&quot;, eventInput)
+    _, err := engineMux.CallRPC(ctx, "ze-plugin-callback:deliver-event", eventInput)
     require.NoError(t, err)
 
     select {
     case got := &lt;-eventReceived:
-        assert.Contains(t, got, &quot;10.0.0.1&quot;)
+        assert.Contains(t, got, "10.0.0.1")
     case &lt;-time.After(time.Second):
-        t.Fatal(&quot;event callback not called&quot;)
+        t.Fatal("event callback not called")
     }
 
     // Shutdown
     byeInput := struct {
-        Reason string `json:&quot;reason&quot;`
-    }{Reason: &quot;test-done&quot;}
-    _, _ = engineMux.CallRPC(ctx, &quot;ze-plugin-callback:bye&quot;, byeInput)
+        Reason string `json:"reason"`
+    }{Reason: "test-done"}
+    _, _ = engineMux.CallRPC(ctx, "ze-plugin-callback:bye", byeInput)
 
     require.NoError(t, &lt;-errCh)
 }
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_test.go -- TestSDKEventDelivery -->
-
 <h2 id="simulating-the-5-stage-startup">Simulating the 5-Stage Startup</h2>
 <p>The <code>Run()</code> method performs the 5-stage startup protocol before entering the event
 loop. Tests must simulate all five stages from the engine side.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->
-
 <pre><code class="language-go">func completeStartup(t *testing.T, ctx context.Context, engineMux *rpc.MuxConn) {
     t.Helper()
 
     // Stage 1: read declare-registration, respond OK
     req := &lt;-engineMux.Requests()
-    assert.Equal(t, &quot;ze-plugin-engine:declare-registration&quot;, req.Method)
+    assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
     require.NoError(t, engineMux.SendOK(ctx, req.ID))
 
     // Stage 2: send configure
     configInput := struct {
-        Sections []sdk.ConfigSection `json:&quot;sections&quot;`
+        Sections []sdk.ConfigSection `json:"sections"`
     }{}
-    _, err := engineMux.CallRPC(ctx, &quot;ze-plugin-callback:configure&quot;, configInput)
+    _, err := engineMux.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
     require.NoError(t, err)
 
     // Stage 3: read declare-capabilities, respond OK
     req = &lt;-engineMux.Requests()
-    assert.Equal(t, &quot;ze-plugin-engine:declare-capabilities&quot;, req.Method)
+    assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
     require.NoError(t, engineMux.SendOK(ctx, req.ID))
 
     // Stage 4: send share-registry
     registryInput := struct {
-        Commands []sdk.RegistryCommand `json:&quot;commands&quot;`
+        Commands []sdk.RegistryCommand `json:"commands"`
     }{}
-    _, err = engineMux.CallRPC(ctx, &quot;ze-plugin-callback:share-registry&quot;, registryInput)
+    _, err = engineMux.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
     require.NoError(t, err)
 
     // Stage 5: read ready, respond OK
     req = &lt;-engineMux.Requests()
-    assert.Equal(t, &quot;ze-plugin-engine:ready&quot;, req.Method)
+    assert.Equal(t, "ze-plugin-engine:ready", req.Method)
     require.NoError(t, engineMux.SendOK(ctx, req.ID))
 }
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_test.go -- completeStartup -->
-
 <p>The five stages are:</p>
 <table>
 <thead>
@@ -227,20 +220,18 @@ loop. Tests must simulate all five stages from the engine side.</p>
 </tbody>
 </table>
 <!-- source: pkg/plugin/sdk/sdk.go -- Run (stages 1-5) -->
-
 <h2 id="testing-command-execution">Testing Command Execution</h2>
 <p>Plugins register command handlers with <code>OnExecuteCommand</code>. The handler receives
 a serial, command name, args, and peer address, and returns status, data, and error.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
-
 <pre><code class="language-go">func TestCommandHandler(t *testing.T) {
     p, engineMux := newTestPair(t)
 
     p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
-        if command == &quot;show-status&quot; {
-            return &quot;done&quot;, `{&quot;status&quot;:&quot;healthy&quot;}`, nil
+        if command == "show-status" {
+            return "done", `{"status":"healthy"}`, nil
         }
-        return &quot;error&quot;, &quot;unknown command&quot;, nil
+        return "error", "unknown command", nil
     })
 
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -250,7 +241,7 @@ a serial, command name, args, and peer address, and returns status, data, and er
     go func() {
         errCh &lt;- p.Run(ctx, sdk.Registration{
             Commands: []sdk.CommandDecl{
-                {Name: &quot;show-status&quot;, Description: &quot;Show health status&quot;},
+                {Name: "show-status", Description: "Show health status"},
             },
         })
     }()
@@ -259,19 +250,18 @@ a serial, command name, args, and peer address, and returns status, data, and er
 
     // Send execute-command
     cmdInput := struct {
-        Serial  string   `json:&quot;serial&quot;`
-        Command string   `json:&quot;command&quot;`
-        Args    []string `json:&quot;args,omitempty&quot;`
-        Peer    string   `json:&quot;peer,omitempty&quot;`
-    }{Serial: &quot;1&quot;, Command: &quot;show-status&quot;}
+        Serial  string   `json:"serial"`
+        Command string   `json:"command"`
+        Args    []string `json:"args,omitempty"`
+        Peer    string   `json:"peer,omitempty"`
+    }{Serial: "1", Command: "show-status"}
 
     out := executeCommand(t, ctx, engineMux, cmdInput)
-    assert.Equal(t, &quot;done&quot;, out.Status)
-    assert.Contains(t, string(out.Data), &quot;healthy&quot;)
+    assert.Equal(t, "done", out.Status)
+    assert.Contains(t, string(out.Data), "healthy")
 }
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
-
 <p><code>CallRPC</code> cannot read this answer. A plugin answers <code>execute-command</code> with a
 head, its records and a terminator, so a test that reads one JSON result takes
 the head line's tail for its payload. Read the answer with <code>CallAnswer</code> and
@@ -279,11 +269,11 @@ collapse it, which is the engine's own three steps:</p>
 <pre><code class="language-go">func executeCommand(t *testing.T, ctx context.Context, mux *rpc.MuxConn, input any) *rpc.ExecuteCommandOutput {
     t.Helper()
 
-    answer, err := mux.CallAnswer(ctx, &quot;ze-plugin-callback:execute-command&quot;, input)
+    answer, err := mux.CallAnswer(ctx, "ze-plugin-callback:execute-command", input)
     require.NoError(t, err)
 
     document, collapseErr := rpc.CollapseAnswer(answer)
-    require.NoError(t, answer.Err(), &quot;the answer must reach its terminator&quot;)
+    require.NoError(t, answer.Err(), "the answer must reach its terminator")
     require.NoError(t, collapseErr)
     return &amp;rpc.ExecuteCommandOutput{Status: answer.Status, Data: document}
 }
@@ -293,12 +283,10 @@ collapse it, which is the engine's own three steps:</p>
 <!-- source: pkg/plugin/rpc/collapse.go -- CollapseAnswer -->
 <!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer, ExecuteCommandValue -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
-
 <h2 id="testing-configuration-handling">Testing Configuration Handling</h2>
 <p>The <code>OnConfigure</code> callback receives config sections during Stage 2.
 The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle config reload.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnConfigVerify, OnConfigApply -->
-
 <pre><code class="language-go">func TestConfigHandler(t *testing.T) {
     p, engineMux := newTestPair(t)
 
@@ -314,7 +302,7 @@ The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle 
     errCh := make(chan error, 1)
     go func() {
         errCh &lt;- p.Run(ctx, sdk.Registration{
-            WantsConfig: []string{&quot;bgp&quot;},
+            WantsConfig: []string{"bgp"},
         })
     }()
 
@@ -324,21 +312,20 @@ The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle 
 
     // Stage 2: send config
     configInput := struct {
-        Sections []sdk.ConfigSection `json:&quot;sections&quot;`
+        Sections []sdk.ConfigSection `json:"sections"`
     }{
         Sections: []sdk.ConfigSection{
-            {Root: &quot;bgp&quot;, Data: `{&quot;router-id&quot;:&quot;1.2.3.4&quot;}`},
+            {Root: "bgp", Data: `{"router-id":"1.2.3.4"}`},
         },
     }
-    _, err := engineMux.CallRPC(ctx, &quot;ze-plugin-callback:configure&quot;, configInput)
+    _, err := engineMux.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
     require.NoError(t, err)
 
     assert.Equal(t, 1, len(receivedConfig))
-    assert.Equal(t, &quot;bgp&quot;, receivedConfig[0].Root)
+    assert.Equal(t, "bgp", receivedConfig[0].Root)
 }
 </code></pre>
 <!-- source: pkg/plugin/rpc/types.go -- ConfigSection -->
-
 <h2 id="table-driven-tests">Table-Driven Tests</h2>
 <p>Test multiple scenarios efficiently using Go table-driven test patterns:</p>
 <pre><code class="language-go">func TestCommandDispatch(t *testing.T) {
@@ -348,9 +335,9 @@ The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle 
         wantStatus string
         wantData   string
     }{
-        {&quot;known command&quot;, &quot;show-routes&quot;, &quot;done&quot;, `{&quot;count&quot;:42}`},
-        {&quot;unknown command&quot;, &quot;invalid&quot;, &quot;error&quot;, &quot;unknown command&quot;},
-        {&quot;empty args&quot;, &quot;show-routes&quot;, &quot;done&quot;, `{&quot;count&quot;:42}`},
+        {"known command", "show-routes", "done", `{"count":42}`},
+        {"unknown command", "invalid", "error", "unknown command"},
+        {"empty args", "show-routes", "done", `{"count":42}`},
     }
 
     for _, tt := range tests {
@@ -358,10 +345,10 @@ The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle 
             p, engineMux := newTestPair(t)
 
             p.OnExecuteCommand(func(serial, cmd string, args []string, peer string) (string, any, error) {
-                if cmd == &quot;show-routes&quot; {
-                    return &quot;done&quot;, `{&quot;count&quot;:42}`, nil
+                if cmd == "show-routes" {
+                    return "done", `{"count":42}`, nil
                 }
-                return &quot;error&quot;, &quot;unknown command&quot;, nil
+                return "error", "unknown command", nil
             })
 
             ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -371,9 +358,9 @@ The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle 
             completeStartup(t, ctx, engineMux)
 
             cmdInput := struct {
-                Serial  string `json:&quot;serial&quot;`
-                Command string `json:&quot;command&quot;`
-            }{Serial: &quot;1&quot;, Command: tt.command}
+                Serial  string `json:"serial"`
+                Command string `json:"command"`
+            }{Serial: "1", Command: tt.command}
 
             out := executeCommand(t, ctx, engineMux, cmdInput)
             assert.Equal(t, tt.wantStatus, out.Status)
@@ -385,7 +372,6 @@ The <code>OnConfigVerify</code> and <code>OnConfigApply</code> callbacks handle 
 <!-- source: pkg/plugin/sdk/sdk_types.go -- ExecuteCommandOutput -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn, CallRPC -->
-
 <h2 id="ci-integration">CI Integration</h2>
 <pre><code class="language-yaml"># .github/workflows/test.yml (or Forgejo/Woodpecker equivalent)
 jobs:
@@ -414,20 +400,20 @@ go tool cover -html=coverage.out
 <h2 id="debugging">Debugging</h2>
 <p>Enable debug logging with ze's hierarchical log system:</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv -->
-
 <pre><code class="language-bash"># Set log level for your plugin
 export ZE_LOG_LEVEL=debug
 ./my-plugin
 </code></pre>
 <p>Or add structured logging in your plugin:</p>
-<pre><code class="language-go">import &quot;log/slog&quot;
+<pre><code class="language-go">import "log/slog"
 
 p.OnEvent(func(event string) error {
-    slog.Debug(&quot;event received&quot;, &quot;event&quot;, event)
+    slog.Debug("event received", "event", event)
     // ...
     return nil
 })
 </code></pre>
+
             </section>
         </main>
 
@@ -437,7 +423,7 @@ p.OnEvent(func(event string) error {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

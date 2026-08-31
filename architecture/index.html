@@ -77,7 +77,6 @@ and the rest register as subsystems and plugins. Each one brings its own YANG
 and augments the configuration tree where it belongs.</p>
 <!-- source: internal/component/engine/engine.go -- Engine supervisor -->
 <!-- source: cmd/ze/hub/main.go -- primary YANG runtime composition -->
-
 <h2 id="component-map">Component Map</h2>
 <figure class="doc-diagram">
   <div class="blog-theme-image has-dark">
@@ -104,7 +103,6 @@ and augments the configuration tree where it belongs.</p>
   </div>
   <figcaption>Ze components and their runtime relationships. Dashed outlines mark configured, build-dependent, or optional paths. Open the diagram for a full-size view; the text map below preserves the same structure for text readers.</figcaption>
 </figure>
-
 <pre><code>ze daemon (registry-driven YANG runtime)
   |
   +-- Engine (protocol-agnostic lifecycle supervisor)
@@ -132,7 +130,6 @@ and augments the configuration tree where it belongs.</p>
         +-- Prometheus metrics and BMP routing telemetry
 </code></pre>
 <!-- source: cmd/ze/hub/main.go -- hub wiring, component startup order -->
-
 <h2 id="key-design-choices">Key Design Choices</h2>
 <table>
 <thead>
@@ -172,7 +169,6 @@ and augments the configuration tree where it belongs.</p>
 <!-- source: internal/component/bgp/attrpool/pool.go -- per-attribute-type dedup pools -->
 <!-- source: internal/core/bgp/context/registry.go -- ContextID for zero-copy decisions -->
 <!-- source: internal/component/config/yang/loader.go -- YANG-based config schema loading -->
-
 <h2 id="key-wire-abstractions">Key Wire Abstractions</h2>
 <table>
 <thead>
@@ -214,7 +210,6 @@ and augments the configuration tree where it belongs.</p>
 <!-- source: internal/core/bgp/context/context.go -- EncodingContext -->
 <!-- source: internal/component/bgp/attrpool/handle.go -- Handle -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
-
 <h2 id="plugin-server-eventbus">Plugin Server / EventBus</h2>
 <p>The Plugin Server is Ze's central runtime junction. It implements <code>ze.EventBus</code>
 for typed publishers and subscribers, owns the YANG-derived command and RPC
@@ -225,7 +220,6 @@ There is no separate standalone bus in the primary YANG runtime.</p>
 <!-- source: internal/component/plugin/server/server.go -- shared command, subscription, and startup server -->
 <!-- source: internal/component/plugin/server/engine_event.go -- typed EventBus fan-out -->
 <!-- source: cmd/ze/hub/main.go -- Plugin Server supplied to Engine as EventBus -->
-
 <p>Components avoid importing each other's implementation packages. Internal
 plugins bootstrap through <code>net.Pipe</code> and use <code>DirectBridge</code> for runtime calls;
 external plugins connect back over authenticated TLS. Route-producing plugins
@@ -234,7 +228,6 @@ arbitration, then publishes typed best-change events to FIB consumers.</p>
 <!-- source: internal/component/plugin/process/process.go -- internal and external plugin transports -->
 <!-- source: internal/component/sysrib/sysrib.go -- Loc-RIB arbitration and best-change publication -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- FIB event consumer -->
-
 <h2 id="bgp-subsystem">BGP Subsystem</h2>
 <p>The BGP subsystem owns the protocol: TCP connections, FSM state machines, wire
 parsing, capability negotiation, and the reactor event loop. It produces
@@ -242,7 +235,6 @@ structured events and consumes commands. It never imports plugin code.</p>
 <p>For a walk-through of the BGP state machine, see <a href="https://github.com/ze-software/ze/blob/main/docs/bgp-fsm.md" target="_blank" rel="noopener">bgp-fsm.md</a>.</p>
 <!-- source: internal/component/bgp/reactor/reactor.go -- Reactor event loop -->
 <!-- source: internal/component/bgp/fsm/fsm.go -- FSM state machine -->
-
 <h2 id="configuration">Configuration</h2>
 <p>JUNOS-like hierarchical syntax: <code>{}</code> blocks, <code>;</code> terminators, <code>#</code> comments.
 YANG-driven parsing. Three-level inheritance: BGP globals, group defaults, peer
@@ -251,7 +243,6 @@ and managed through an interactive editor accessible over SSH.</p>
 <p>For the full config syntax reference, see <a href="https://github.com/ze-software/ze/blob/main/docs/config-reference.md" target="_blank" rel="noopener">config-reference.md</a>.</p>
 <!-- source: internal/component/config/tokenizer.go -- tokenizer for JUNOS-like syntax -->
 <!-- source: pkg/zefs/store.go -- ZeFS blob store -->
-
 <h2 id="plugin-architecture">Plugin Architecture</h2>
 <p>Most protocol and system features are registry-loaded plugins: RIB storage,
 route reflection, graceful restart, RPKI validation, NLRI encoding, FIB
@@ -265,7 +256,6 @@ For writing plugins, see <a href="https://github.com/ze-software/ze/tree/main/do
 <!-- source: internal/component/plugin/registry/registry.go -- plugin registry -->
 <!-- source: internal/component/plugin/process/process.go -- plugin execution modes -->
 <!-- source: cmd/ze/hub/main.go -- configured subsystem registration -->
-
 <h2 id="data-flow">Data Flow</h2>
 <pre><code>Receive:  Network -&gt; WireUpdate -&gt; Reactor -&gt; EventDispatcher -&gt; Plugins
 Announce: Text command -&gt; ParseUpdate() -&gt; WireUpdate -&gt; Peer
@@ -273,13 +263,11 @@ Forward:  Cache lookup -&gt; Egress filters -&gt; Wire (zero-copy when ContextID
 </code></pre>
 <!-- source: internal/component/bgp/reactor/reactor_notify.go -- receive path -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forward path -->
-
 <p>The reactor fires a single <code>StructuredEvent</code> per received UPDATE. Forwarders
 (route server, route reflector) and state trackers (RIB plugin) both subscribe
 to the same dispatch but consume it differently: forwarders make per-peer
 forwarding decisions, state trackers update best-path state.</p>
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- per-destination forward workers -->
-
 <h2 id="fib-pipeline">FIB Pipeline</h2>
 <p>Selected routes move through a shared route-decision pipeline:</p>
 <ol>
@@ -294,7 +282,6 @@ forwarding decisions, state trackers update best-path state.</p>
 <!-- source: internal/component/sysrib/sysrib.go -- system route arbitration -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- kernel FIB consumer -->
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- optional VPP FIB consumer -->
-
 <h2 id="programs">Programs</h2>
 <table>
 <thead>
@@ -327,7 +314,6 @@ forwarding decisions, state trackers update best-path state.</p>
 </tbody>
 </table>
 <!-- source: cmd/ze/main.go -- ze binary entry point -->
-
 <h2 id="source-layout">Source Layout</h2>
 <table>
 <thead>
@@ -368,7 +354,6 @@ forwarding decisions, state trackers update best-path state.</p>
 </tbody>
 </table>
 <!-- source: cmd/ -- program binaries -->
-
 <h2 id="deeper-reading">Deeper Reading</h2>
 <table>
 <thead>
@@ -424,6 +409,7 @@ forwarding decisions, state trackers update best-path state.</p>
 </tr>
 </tbody>
 </table>
+
             </section>
         </main>
 
@@ -433,7 +419,7 @@ forwarding decisions, state trackers update best-path state.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 26 August 2026 14:29 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

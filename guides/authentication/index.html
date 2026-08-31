@@ -130,17 +130,15 @@ the missing-database case which grants access for emergency recovery.</p>
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- publishAcceptedLocalIdentity, liveAcceptedLocalUsers -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig boot publication -->
 <!-- source: cmd/ze/hub/main_reload.go -- runReloadContext reload publication -->
-
 <h2 id="adding-a-user">Adding a user</h2>
 <h3 id="step-1-hash-a-password">Step 1: hash a password</h3>
 <p><code>ze passwd</code> takes plaintext on stdin or via interactive prompt and prints
 a bcrypt hash to stdout. The hash uses cost 10 (the same as <code>ze init</code>).</p>
-<pre><code>$ echo &quot;secret&quot; | ze passwd
+<pre><code>$ echo "secret" | ze passwd
 $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 </code></pre>
 <p>Interactive use prompts twice for confirmation.</p>
 <!-- source: internal/plugins/passwd/main.go -- runImpl -->
-
 <h3 id="step-2-declare-the-user-in-yang">Step 2: declare the user in YANG</h3>
 <p>Two equivalent ways to set the password:</p>
 <table>
@@ -165,7 +163,7 @@ $2a$10$abcdefghijklmnopqrstuABCDEFGHIJKLMNOPQRSTUVWXYZ012345678
 <pre><code>system {
     authentication {
         user alice {
-            plaintext-password &quot;secret&quot;
+            plaintext-password "secret"
         }
     }
 }
@@ -176,7 +174,6 @@ written to disk. This matches Junos's <code>plain-text-password</code> behavior.
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing -->
 <!-- source: internal/component/cli/editor_commit.go -- commit path caller -->
-
 <h3 id="passwords-in-a-config-file">Passwords in a config file</h3>
 <p>An operator, a template, or a lab tool can also write <code>plaintext-password</code> straight
 into a config file. Ze hashes that leaf when it loads the file, at daemon start and at
@@ -184,7 +181,6 @@ every SIGHUP reload. The running tree then holds the bcrypt hash and no
 <code>plaintext-password</code> leaf, which is the same tree the editor produces. The user
 authenticates with the password as written.</p>
 <!-- source: internal/component/config/loader.go -- LoadConfig calls ApplyPasswordHashing -->
-
 <p><strong>The load path does not rewrite your file.</strong> <code>LoadConfig</code> writes nothing, so the secret
 stays readable on disk exactly as you typed it. The daemon says so once per load, naming
 the file:</p>
@@ -194,14 +190,12 @@ the file:</p>
 plaintext with a hash from <code>ze passwd</code>, or protect the file, or accept the risk if the
 file is a throwaway lab render (see <a href="../../labs/netlab/">netlab</a>).</p>
 <!-- source: internal/component/config/loader.go -- warnPlaintextOnDisk -->
-
 <p>Two later steps DO rewrite that file, and both replace the plaintext with the hash. A
 schema evolution makes <code>applyEvolutions</code> serialize the loaded tree back to the config
 path, and a rollback makes <code>RecoverConfig</code> do the same. <code>applyEvolutions</code> archives the
 current file first, so the archived version keeps the plaintext.</p>
 <!-- source: cmd/ze/hub/main_evolve.go -- applyEvolutions -->
 <!-- source: internal/component/config/stamp.go -- RecoverConfig -->
-
 <h3 id="step-3-reload">Step 3: reload</h3>
 <p>The daemon picks up the new user on the next config reload. A session
 already open for a user the reload KEEPS is not interrupted.</p>
@@ -219,7 +213,6 @@ only test. A connection already open outlives the removal until it closes.</p>
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken -->
 <!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
-
 <h2 id="logging-in-as-a-yang-user">Logging in as a YANG user</h2>
 <p>Any <code>ze</code> CLI tool accepts a <code>--user</code>/<code>-u</code> flag to override the zefs
 super-admin username. The password is read from <code>ze.ssh.password</code> (env
@@ -234,10 +227,9 @@ ZE_SSH_PASSWORD=secret ze cli --user alice
 ze cli -u alice
 
 # Single command, then exit
-ze cli -u alice -c &quot;show version&quot;
+ze cli -u alice -c "show version"
 </code></pre>
 <!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
-
 <p>The same flag works on <code>ze bgp plugin cli</code>, <code>ze signal</code>, <code>ze config set</code>,
 <code>ze config edit</code>, and <code>ze interface migrate</code>.</p>
 <h3 id="the-stored-hash-is-a-credential-only-over-a-local-connection">The stored hash is a credential only over a local connection</h3>
@@ -251,7 +243,6 @@ logins must supply the real plaintext password (via <code>ze.ssh.password</code>
 interactive prompt); plaintext works from anywhere.</p>
 <!-- source: internal/component/ssh/passwordauth.go -- isLocalTransport, authenticatePasswordResult -->
 <!-- source: internal/component/authz/auth.go -- CheckPassword allowHashToken gate -->
-
 <p>The stored bcrypt hash is also <strong>masked</strong> in every config display: <code>show config</code>,
 the web config views, <code>ze config dump</code>, and CLI search show <code>ze:bcrypt</code> leaves as
 <code>/* SECRET-DATA */</code>, never the hash and never <code>$9$</code>-encoded. The edit-authorized
@@ -260,7 +251,6 @@ hash so a download → edit → upload round-trip is byte-exact; a masked value 
 back into a commit or upload is rejected with a clear error.</p>
 <!-- source: internal/component/config/mask.go -- MaskBcrypt, RejectMaskedSecretLeaves -->
 <!-- source: cmd/ze/hub/service_web.go -- GET /config/download editWrap gate -->
-
 <h3 id="remote-management-listener-guard">Remote management listener guard</h3>
 <p>Ze refuses to start an unauthenticated management service on a non-loopback
 listener. The guard runs before any covered listener binds:</p>
@@ -307,11 +297,9 @@ another process's environment, so a listener published only by an environment
 variable is caught at startup rather than by these checks.</p>
 <!-- source: internal/component/config/validate_semantic.go -- ValidateSemantics gNMI and MCP entries -->
 <!-- source: internal/component/config/loader_extract.go -- GNMIListenConfig.Validate -->
-
 <!-- source: cmd/ze/hub/mgmt_guard.go -- checkMgmtListeners, listenAddrIsNonLoopback -->
 <!-- source: cmd/ze/hub/main.go -- management listener declarations and remedies -->
 <!-- source: cmd/ze/hub/listener_migrate.go -- reload refusal -->
-
 <h4 id="upgrading-from-a-release-without-the-guard">Upgrading from a release without the guard</h4>
 <p>The guard is a boot refusal, so a config that started a daemon yesterday can
 stop one today. Three changes break an upgrade. Read them before you upgrade.</p>
@@ -319,7 +307,7 @@ stop one today. Three changes break an upgrade. Read them before you upgrade.</p
 with status 1 and prints one line for each offending listener. The line names
 the service, the address, and the remedy. Nothing binds, so the daemon does not
 half-start. The message looks like this:</p>
-<pre><code>error: refusing to start gNMI on non-loopback listener &quot;0.0.0.0:9339&quot; without authentication
+<pre><code>error: refusing to start gNMI on non-loopback listener "0.0.0.0:9339" without authentication
   set ze.gnmi.token (or environment.gnmi token), or bind to 127.0.0.1/::1 only
 </code></pre>
 <p>Apply the remedy from the table above, or bind the service to <code>127.0.0.1</code>.</p>
@@ -350,7 +338,6 @@ check <code>ze.gnmi.listen</code>, <code>ze.mcp.listen</code>, and <code>ze.web.
 <!-- source: cmd/ze/hub/api_infra.go -- resolveAPIListeners settings/listener split -->
 <!-- source: cmd/ze/hub/service_lg.go -- buildLGService TLS default, explicit-vs-inherited fallback -->
 <!-- source: cmd/ze/hub/main.go -- ExtractWebSettings branch, insecure exclusion and its WARN -->
-
 <h3 id="authentication-on-reload">Authentication on reload</h3>
 <p>A config reload rebuilds the credentials of the running REST and gRPC servers.
 Add a token, rotate it, remove it, or edit the user list, and the change takes
@@ -376,7 +363,6 @@ config it rolled back to.</p>
 <!-- source: cmd/ze/hub/listener_migrate.go -- (*ListenerMigrator).checkAuthRebuildable, (*ListenerMigrator).applyAuthIntents, (*ListenerMigrator).checkReloadExposure -->
 <!-- source: internal/component/api/rest/auth.go -- RESTServer.Authenticated -->
 <!-- source: internal/component/api/grpc/server.go -- GRPCServer.Authenticated -->
-
 <h3 id="tab-completion-ze-completion">Tab completion (<code>ze completion</code>)</h3>
 <p>Tab completion runs silently in the shell and does not accept flags. To
 have completions resolve as a non-super-admin user, set the env vars in
@@ -392,7 +378,6 @@ still works; only dynamic peer names are missing.</p>
 <p>If you would rather not keep a password in the environment, leave both unset and
 completion resolves as the zefs super-admin, which needs no password.</p>
 <!-- source: internal/core/ssh/client/client.go -- LoadCredentialsNoPrompt -->
-
 <h2 id="ssh-public-key-authentication">SSH public key authentication</h2>
 <p>Users can authenticate to the SSH server with public keys instead of (or in
 addition to) passwords. Each user can have multiple named keys.</p>
@@ -406,7 +391,7 @@ base64 data in the user's <code>public-keys</code> block:</p>
 <pre><code>system {
     authentication {
         user alice {
-            password &quot;$2a$10$...&quot;
+            password "$2a$10$..."
             profile admin
             public-keys laptop {
                 type ssh-ed25519
@@ -467,7 +452,6 @@ SSH-specific.</p>
 super-admin (created by <code>ze init</code>) authenticates with a password.</p>
 <!-- source: internal/component/ssh/pubkey.go -- matchPublicKey -->
 <!-- source: internal/component/ssh/ssh.go -- wish.WithPublicKeyAuth -->
-
 <h2 id="why-two-leaves-instead-of-auto-detecting-the-format">Why two leaves instead of auto-detecting the format</h2>
 <p>The canonical <code>password</code> leaf is marked <code>ze:bcrypt</code> -- the parser stores
 the value verbatim and never tries to apply the <code>$9$</code> reversible
@@ -475,14 +459,13 @@ obfuscation used for other sensitive fields. Bcrypt is one-way; mixing
 it with <code>$9$</code> would let an operator recover the password from the file.</p>
 <p>If you write a literal plaintext directly on <code>password</code>:</p>
 <pre><code>user alice {
-    password &quot;secret&quot;     # WRONG -- not a bcrypt hash
+    password "secret"     # WRONG -- not a bcrypt hash
 }
 </code></pre>
 <p>then <code>ze config validate</code> emits a warning, the daemon logs a warning at
 load, and the user cannot authenticate (bcrypt compare fails). Use
 <code>plaintext-password</code> (auto-hashed) or <code>ze passwd</code> (manual) instead.</p>
 <!-- source: internal/component/config/password_hash.go -- CheckBcryptLeaves -->
-
 <h2 id="notes-on-plaintext-lifetime">Notes on plaintext lifetime</h2>
 <p>While an interactive <code>ze config edit</code> session is open, the plaintext value
 of <code>plaintext-password</code> is held in-memory by the editor and persisted to a
@@ -495,7 +478,6 @@ during the editing session.</p>
 your file as you wrote it, so the plaintext stays on disk until you replace it. Refer
 to <a href="#passwords-in-a-config-file">Passwords in a config file</a>.</p>
 <!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
-
 <p>bcrypt takes 72 bytes at most. The vendored library refuses a longer input with
 <code>ErrPasswordTooLong</code> and hashes nothing, so no path stores a hash that matches
 only a prefix. Every path reports the refusal as an error, and none of them warns
@@ -527,7 +509,6 @@ and continues.</p>
 <!-- source: internal/component/cli/editor_commit.go -- CommitSession, ApplyPasswordHashing -->
 <!-- source: internal/plugins/passwd/main.go -- runImpl -->
 <!-- source: cmd/ze/hub/main_reload.go -- runReload -->
-
 <h2 id="things-that-do-not-work">Things that do NOT work</h2>
 <table>
 <thead>
@@ -607,6 +588,7 @@ and continues.</p>
 </tr>
 </tbody>
 </table>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -648,7 +630,7 @@ and continues.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

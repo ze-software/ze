@@ -1,5 +1,82 @@
 [
   {
+    "slug": "2026-08-24",
+    "intro": "Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "CLI",
+        "category": "operate",
+        "key": "CLI"
+      },
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Flowspec",
+        "category": "routing",
+        "key": "Flowspec"
+      },
+      {
+        "label": "RSVP-TE",
+        "category": "routing",
+        "key": "RSVP-TE"
+      },
+      {
+        "label": "VRRP",
+        "category": "routing",
+        "key": "VRRP"
+      },
+      {
+        "label": "PPPoE",
+        "category": "services",
+        "key": "PPPoE"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "TACACS+",
+        "category": "secure",
+        "key": "TACACS+"
+      },
+      {
+        "label": "AAA",
+        "category": "secure",
+        "key": "AAA"
+      },
+      {
+        "label": "Config",
+        "category": "operate",
+        "key": "Config"
+      },
+      {
+        "label": "Firewall",
+        "category": "secure",
+        "key": "Firewall"
+      },
+      {
+        "label": "Fleet",
+        "category": "platform",
+        "key": "Fleet"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
     "slug": "2026-08-17",
     "intro": "The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.",
     "is_draft": false,

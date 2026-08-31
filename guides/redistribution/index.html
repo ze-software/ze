@@ -71,7 +71,6 @@ references in a <code>filter {}</code> config block. Named filter types are defi
 <li><a href="#writing-a-filter-plugin">Writing a Filter Plugin</a></li>
 </ol></nav>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- filter container -->
-
 <h2 id="quick-start">Quick Start</h2>
 <pre><code>bgp {
     policy {
@@ -91,7 +90,6 @@ references in a <code>filter {}</code> config block. Named filter types are defi
 }
 </code></pre>
 <!-- source: internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang -- loop-detection type -->
-
 <h2 id="filter-types">Filter Types</h2>
 <p>Filter types are YANG lists under <code>bgp/policy</code>, each marked with <code>ze:filter</code>.
 Plugins add new filter types via YANG <code>augment</code>. Each list entry is a named
@@ -124,7 +122,6 @@ detection (RFC 4271 Section 9) and cluster-list loop detection (RFC 4456 Section
 </tbody>
 </table>
 <!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
-
 <h3 id="external-plugin-filters">External plugin filters</h3>
 <p>External plugins declare filters at startup using <code>&lt;plugin&gt;:&lt;filter&gt;</code> names.
 Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
@@ -138,7 +135,6 @@ Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
 <li>Each filter responds accept, reject, or modify (delta-only).</li>
 </ol>
 <!-- source: internal/component/bgp/config/peers.go -- prependDefaultFilters, extractFilterChain -->
-
 <h2 id="deactivating-filters">Deactivating Filters</h2>
 <p>Default filters can be deactivated per-peer using the inline <code>inactive:</code> prefix:</p>
 <pre><code>bgp {
@@ -151,8 +147,7 @@ Example: <code>rpki:validate</code>, <code>community:scrub</code>.</p>
 </code></pre>
 <p>The <code>inactive:</code> prefix is an input shorthand: it is normalized at parse time into
 an out-of-band per-member deactivation marker (the stored filter name stays
-clean), so on serialize it round-trips to the canonical <code>inactive: import
-no-self-as</code> statement form. The deactivated ref stays in the chain but is
+clean), so on serialize it round-trips to the canonical <code>inactive: import no-self-as</code> statement form. The deactivated ref stays in the chain but is
 skipped at runtime.</p>
 <p>In the CLI editor, use <code>deactivate</code> and <code>activate</code>:</p>
 <pre><code>deactivate bgp peer special filter import no-self-as
@@ -161,7 +156,6 @@ activate bgp peer special filter import no-self-as
 <!-- source: internal/component/config/parser_list.go -- stripInactiveMemberPrefix (inline inactive: normalization) -->
 <!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain builds []FilterRef with Inactive -->
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- PolicyFilterChain skips FilterRef.Inactive -->
-
 <h2 id="chain-order">Chain Order</h2>
 <p>Chains are cumulative across config levels:</p>
 <table>
@@ -241,7 +235,6 @@ full leaf reference.</p>
 <!-- source: internal/component/bgp/plugins/filter_modify/match.go -- matchCond -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/filtertext/community.go -- HasCommunity -->
-
 <h3 id="filters-cannot-override-the-rfc-4271-egress-rules">Filters Cannot Override the RFC 4271 Egress Rules</h3>
 <p>Four Section 5 rules are asked after the export chain has run, so no filter can
 grant what the RFC refuses: LOCAL_PREF is removed toward an external peer
@@ -277,6 +270,7 @@ rather than forwarding it unmodified, and increments
 <p>A filter plugin is a normal ze plugin that includes <code>filters</code> in its stage 1
 <code>declare-registration</code>. See <a href="../plugins/">Plugin Guide</a> for general plugin
 development and <code>docs/architecture/api/process-protocol.md</code> for the wire protocol.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -318,7 +312,7 @@ development and <code>docs/architecture/api/process-protocol.md</code> for the w
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,21 +1,32 @@
-# `show firewall ruleset <name>`
+# `show firewall ruleset`
+
+Show the live firewall ruleset with per-term counters.
 
 ## Ze command
 
-- Syntax: `show firewall ruleset <name>`
 - Registry path: `show firewall ruleset`
+- Usage: `show firewall ruleset <name>`
 - Mode: Read-only
 - Wire method: `ze-show:firewall-ruleset`
+- Backends: `nft`
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show the live firewall ruleset with per-term counters. Usage: show firewall ruleset <name>. Joins applied desired state with kernel counters from the nft backend.
+Joins applied desired state with kernel counters from the nft backend.
+
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `name` | string | yes | any value of this type |
 
 ## Mapping intents
 

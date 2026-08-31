@@ -9,10 +9,10 @@ Start with a normal Go test. It names the behavior and fixes the expected result
 | Mode | Question | Command |
 | --- | --- | --- |
 | Example test | Does this named input produce the exact expected behavior? | `go test -race -run TestName ./path/...` |
-| Fuzz target | Does the same rule hold for generated inputs and saved corpus entries? | `make ze-fuzz-test-one FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s` |
-| gomu mutation run | Would the tests fail if the implementation made a small wrong decision? | `make ze-mutation-test-changed` |
-| Race run | Does the behavior still hold when goroutines are scheduled differently? | `make ze-unit-test-race-changed` |
-| Coverage report | Which branches ran without a strong assertion attached? | `make ze-unit-test-coverage` |
+| Fuzz target | Does the same rule hold for generated inputs and saved corpus entries? | `FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le fuzz run` |
+| gomu mutation run | Would the tests fail if the implementation made a small wrong decision? | `go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false` |
+| Race run | Does the behavior still hold when goroutines are scheduled differently? | `./le test-unit` |
+| Coverage report | Which branches ran without a strong assertion attached? | `go test -coverprofile coverage.out ./path/...` |
 
 Fuzzing without a clear rule is just random input. gomu without real assertions only proves that code was executed. The normal example test gives both tools something precise to extend.
 
@@ -23,20 +23,20 @@ A normal unit test is the right tool when the behavior sits inside one package o
 | Scope | Command | When to use it |
 | --- | --- | --- |
 | One test | `go test -race -run TestName ./path/...` | Fast edit loop for one named behavior. |
-| BGP group | `make ze-unit-bgp-test` | Wire, FSM, peer, and BGP component changes. |
-| Core group | `make ze-unit-core-test` | Core libraries and shared infrastructure. |
-| Plugin group | `make ze-unit-plugins-test` | Runtime plugin logic and plugin boundaries. |
-| Config group | `make ze-unit-config-test` | YANG, config parsing, validation, and rendering. |
-| CLI group | `make ze-unit-cli-test` | Command parsing and user-visible formatting. |
-| All unit groups | `make ze-unit-test` | Local unit gate. |
+| BGP group | `./le test-unit bgp` | Wire, FSM, peer, and BGP component changes. |
+| Core group | `./le test-unit core` | Core libraries and shared infrastructure. |
+| Plugin group | `./le test-unit plugins` | Runtime plugin logic and plugin boundaries. |
+| Config group | `./le test-unit config` | YANG, config parsing, validation, and rendering. |
+| CLI group | `./le test-unit cli` | Command parsing and user-visible formatting. |
+| All unit groups | `./le test-unit` | Local unit gate. |
 
 ## Fuzz targets are still tests
 
 A Go fuzz target is a test function with generated inputs. It should start from useful seed cases, call the same parser or decoder a normal unit test would call, and assert a stable rule. For Ze, good fuzz targets are BGP attributes, communities, capabilities, AS paths, L2TP control packets, TACACS packets, and other parsers that must survive malformed external input.
 
 ```
-make ze-fuzz-test
-make ze-fuzz-test-one FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s
+./le fuzz run
+FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le fuzz run
 ```
 
 Keep the target deterministic and small. Be strict about accepted errors and round trips. When fuzzing finds a crash or semantic bug, keep the corpus entry. That saved input becomes the named regression case that explains the failure.
@@ -46,10 +46,10 @@ Keep the target deterministic and small. Be strict about accepted errors and rou
 gomu is the mutation-testing tool Ze uses to test the tests. It changes Go code in small ways and reruns the same test suite. If the tests fail, the mutation is killed. If the tests still pass, the mutation survived. A survived mutation usually means the changed code was equivalent or the test did not check the decision tightly enough.
 
 ```
-make ze-mutation-test-changed
-make ze-mutation-pkg-test PKG=./internal/core/textbuf/
-make ze-mutation-test
-make ze-mutation-report
+go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false
+go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=false ./internal/core/textbuf/
+go run github.com/sivchari/gomu/cmd/gomu run --incremental=false --fail-on-gate=false
+./le mutation record-history report mutation-report.json
 ```
 
 This complements fuzzing. Fuzzing changes the inputs and keeps the implementation fixed. gomu changes the implementation and keeps the tests fixed. Together they show whether a test is broad enough and sharp enough.
@@ -60,7 +60,7 @@ This complements fuzzing. Fuzzing changes the inputs and keeps the implementatio
 | Survived | The tests still passed after a code mutation. | Add a stronger assertion, add a functional test, or classify the mutation as equivalent. |
 | Timed out | The package or test is too slow for the current mutation settings. | Narrow the package or skip mutation where it does not add signal. |
 
-The Makefile runs gomu through `go run`, so no separate install is needed. `.gomuignore` excludes paths where mutation testing is noisy or not useful. Full mutation runs are slower than unit tests and advisory in release evidence, but a survived mutation in changed code deserves a real decision.
+gomu runs through `go run`, so no separate install is needed. `.gomuignore` excludes paths where mutation testing is noisy or not useful. Full mutation runs are slower than unit tests and advisory in release evidence, but a survived mutation in changed code deserves a real decision.
 
 ## Choosing the proof
 

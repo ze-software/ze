@@ -1,25 +1,37 @@
-# `show data cat <key>`
+# `show data cat`
+
+Print the raw content of a blob store entry.
 
 ## Ze command
 
-- Syntax: `show data cat <key>`
 - Registry path: `show data cat`
+- Usage: `show data cat <key>`
 - Mode: Read-only
 - Wire method: `ze-show:data-cat`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-Print the raw content of a blob store entry. Usage: show data cat <key>. Outputs the value for the given key, like 'cat' for ZeFS.
+Outputs the value for the given key, like 'cat' for ZeFS.
+
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `key` | string | yes | any value of this type |
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

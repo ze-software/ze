@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/guides/irr-filtering/" />
         <meta property="og:url" content="https://ze-software.net/guides/irr-filtering/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -63,7 +63,6 @@
 <p>Use this for a customer or peer that should only announce prefixes registered to its network. It replaces a separate <code>bgpq4</code> job and static prefix-list deployment.</p>
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- IRR resolution, refresh, and filter decisions -->
 <!-- source: internal/component/bgp/plugins/filter_irr/cache.go -- persisted prefix-list loading -->
-
 <h2 id="complete-example">Complete example</h2>
 <p>This example accepts registered routes from customer AS 65001. Replace the addresses, ASN, and <code>AS-CUSTOMER</code> with values for your network.</p>
 <pre><code>plugin {
@@ -135,7 +134,6 @@ bgp {
 <p>No <code>attach process bgp-filter-irr</code> block is needed. A filter reference invokes the plugin directly through the BGP import filter chain.</p>
 <!-- source: internal/component/bgp/reactor/filter_chain.go -- named import filter execution -->
 <!-- source: internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang -- peer AS-SET configuration -->
-
 <h2 id="add-it-to-an-existing-stored-configuration">Add it to an existing stored configuration</h2>
 <p>If <code>ze.conf</code> already contains the BGP peer but no IRR filter, stop Ze and add the five required settings directly to the stored configuration:</p>
 <pre><code class="language-console">$ sudo systemctl stop ze.service
@@ -193,7 +191,6 @@ $ ze cli -c 'clear firewall irr asn 65001'
 <!-- source: internal/component/resolve/irr/store/store.go -- atomic refresh and last-known-good persistence -->
 <!-- source: internal/component/resolve/irr/client.go -- RPSL reply classification (parseReply) -->
 <!-- source: internal/component/firewall/plugins/irr/command.go -- firewall show and clear commands -->
-
 <h2 id="local-demonstration">Local demonstration</h2>
 <p>The recording starts with a stored BGP peer that has no IRR plugin, server, AS-SET, or import filter. It adds all five settings with <code>ze config set</code>, then starts Ze against <code>ze-test irr</code>, a deterministic local whois server. Its <code>AS-TEST</code> object contains <code>10.0.0.0/24</code> but not <code>192.168.0.0/24</code>. A local BGP peer announces both routes. Ze constructs the list, accepts the registered route, rejects the other route, and shows only the accepted route in Adj-RIB-In.</p>
 <!-- source: internal/test/mock/irr/irr.go -- deterministic AS-TEST responses -->
@@ -216,7 +213,7 @@ $ ze cli -c 'clear firewall irr asn 65001'
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/irr-filter.cast?v=1dfb39efec"
+      data-cast-src="../../assets/demos/irr-filter.cast?v=88581a4b44"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -224,17 +221,17 @@ $ ze cli -c 'clear firewall irr asn 65001'
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/irr-filter.cast?v=1dfb39efec">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/irr-filter.cast?v=88581a4b44">Download the asciicast</a> or
       <a href="../../assets/demos/irr-filter.txt?v=d98dd62b1f">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>3 minutes 33 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.08.31</span><span>4 minutes 24 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/irr-filter.txt?v=d98dd62b1f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
-    <pre><code>$ ze config cat ze.conf | grep -q bgp-filter-irr || echo &#x27;IRR filtering is not configured&#x27;
+    <pre><code>$ ze config cat ze.conf | grep -q bgp-filter-irr || echo &#39;IRR filtering is not configured&#39;
 IRR filtering is not configured
 $ ze config set ze.conf plugin internal bgp-filter-irr use bgp-filter-irr
 set plugin internal bgp-filter-irr use bgp-filter-irr
@@ -247,31 +244,30 @@ set bgp peer customer-a session irr as-set AS-TEST
 $ ze config set ze.conf bgp peer customer-a filter import bgp-filter-irr:65001
 set bgp peer customer-a filter import bgp-filter-irr:65001
 
-$ ze cli -c &#x27;show bgp irr | no-more&#x27;
+$ ze cli -c &#39;show bgp irr | no-more&#39;
 asn: 65001
 as-set: AS-TEST
 status: ok
 ipv4-count: 3
 ipv6-count: 1
-$ ze cli -c &#x27;show bgp irr prefix customer-a | no-more&#x27;
+$ ze cli -c &#39;show bgp irr prefix customer-a | no-more&#39;
 10.0.0.0/24
 10.0.1.0/24
 172.16.0.0/16
 2001:db8::/32
-$ ze cli -c &#x27;show bgp irr check customer-a 10.0.0.0/24 | no-more | yaml&#x27;
+$ ze cli -c &#39;show bgp irr check customer-a 10.0.0.0/24 | no-more | yaml&#39;
 accepted: true
 matched-entry: 10.0.0.0/24
-$ ze cli -c &#x27;show bgp irr check customer-a 192.168.0.0/24 | no-more | yaml&#x27;
+$ ze cli -c &#39;show bgp irr check customer-a 192.168.0.0/24 | no-more | yaml&#39;
 accepted: false
-$ ze cli -c &#x27;show bgp adj-rib-in | no-more&#x27;
+$ ze cli -c &#39;show bgp adj-rib-in | no-more&#39;
 10.0.0.0/24
 
 The deterministic AS-TEST registry contains 10.0.0.0/24 but not 192.168.0.0/24. Ze builds the import prefix-list, accepts the registered route, rejects the unregistered route, and installs only 10.0.0.0/24 in Adj-RIB-In.
 
-The operational commands use Ze&#x27;s default text format. Its key/value layout resembles YAML, but YAML is only selected explicitly with `| yaml`.</code></pre>
+The operational commands use Ze&#39;s default text format. Its key/value layout resembles YAML, but YAML is only selected explicitly with `| yaml`.</code></pre>
   </details>
 </figure>
-
 <h2 id="troubleshooting">Troubleshooting</h2>
 <table>
 <thead>
@@ -324,6 +320,7 @@ The operational commands use Ze&#x27;s default text format. Its key/value layout
 </tr>
 </tbody>
 </table>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -365,7 +362,7 @@ The operational commands use Ze&#x27;s default text format. Its key/value layout
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

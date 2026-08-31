@@ -59,12 +59,12 @@
 <li><a href="#usage-with-gnmic">Usage with gnmic</a></li>
 <li><a href="#limitations">Limitations</a></li>
 </ol></nav>
-<p>Build flavor: gNMI is compiled into default <code>make ze-build</code> and <code>make ze-appliance-build</code> builds through <code>ze_gnmi</code>. Minimal <code>ze_core</code> and <code>ze-stripped-build</code> builds omit the gNMI server, config schema, and <code>show gnmi</code>; custom minimal builds that need gNMI must include <code>-tags "ze_core ze_gnmi"</code>.</p>
+<p>Default feature-tag lists include <code>ze_gnmi</code>. A custom minimal build that needs
+gNMI must include <code>-tags "ze_core ze_gnmi"</code>.</p>
 <!-- source: feature-gates.txt -- ze_gnmi -->
-<!-- source: Makefile -- ZE_FEATURES, ze-stripped-build -->
+<!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
 <!-- source: cmd/ze/hub/gnmi_infra.go -- gnmiBuild -->
 <!-- source: internal/component/plugin/all/all_ze_gnmi.go -- gated gNMI imports -->
-
 <h2 id="enabling-gnmi">Enabling gNMI</h2>
 <p>gNMI is disabled by default. Enable it via environment variables or YANG config.</p>
 <p>Environment variables:</p>
@@ -141,7 +141,6 @@ ze.gnmi.tls.key=/path/to/key.pem
 <p>Returns JSON with: enabled, listen address, token configured, TLS configured, and active subscriber count.</p>
 <!-- source: internal/component/gnmi/show.go -- handleShowGNMI -->
 <!-- source: internal/component/plugin/all/all_ze_gnmi.go -- gated gNMI RPC import -->
-
 <h2 id="prometheus-metrics">Prometheus Metrics</h2>
 <table>
 <thead>
@@ -188,6 +187,7 @@ ze.gnmi.tls.key=/path/to/key.pem
 <li>TLS certificates are loaded at startup only; no hot rotation</li>
 <li>External config commits (web/CLI) send a generic config-changed notification, not per-path diffs</li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -229,7 +229,7 @@ ze.gnmi.tls.key=/path/to/key.pem
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

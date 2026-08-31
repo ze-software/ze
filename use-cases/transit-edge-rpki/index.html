@@ -161,13 +161,13 @@ as a capacity claim.</p>
 <p>Decide cache failure behaviour before deployment. A cache timeout can fail open, fail closed, or retain a previously validated state depending on the configured component and policy. Record that decision and test it with the cache unavailable.</p>
 <p>A transit failure and an RPKI cache failure are different events. Monitor them separately so a routing incident does not hide a validation outage.</p>
 <h2 id="verification">Verification</h2>
-<pre><code class="language-console">ze cli -c &quot;show bgp&quot;
-ze cli -c &quot;show bgp peer transit-a capabilities&quot;
-ze cli -c &quot;show bgp rpki status&quot;
-ze cli -c &quot;show bgp rpki cache&quot;
-ze cli -c &quot;show bgp rpki summary&quot;
-ze cli -c &quot;show bgp rib best&quot;
-ze cli -c &quot;show warnings&quot;
+<pre><code class="language-console">ze cli -c "show bgp"
+ze cli -c "show bgp peer transit-a capabilities"
+ze cli -c "show bgp rpki status"
+ze cli -c "show bgp rpki cache"
+ze cli -c "show bgp rpki summary"
+ze cli -c "show bgp rib best"
+ze cli -c "show warnings"
 </code></pre>
 <p>Test at least four routes:</p>
 <ol>
@@ -188,6 +188,7 @@ ze cli -c &quot;show warnings&quot;
 <li>Memory and convergence time for the actual table size</li>
 </ul>
 <p>Do not treat an Established BGP session as proof that validation and failover work. Exercise the route state transitions directly.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -221,7 +222,7 @@ ze cli -c &quot;show warnings&quot;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

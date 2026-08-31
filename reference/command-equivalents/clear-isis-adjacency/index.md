@@ -1,25 +1,35 @@
 # `clear isis adjacency`
 
+Tear down every IS-IS adjacency so neighbors re-form.
+
 ## Ze command
 
-- Syntax: `clear isis adjacency`
 - Registry path: `clear isis adjacency`
+- Usage: `clear isis adjacency`
 - Mode: Daemon
 - Wire method: `ze-clear:isis-adjacency`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Tear down every IS-IS adjacency so neighbors re-form. Usage: clear isis adjacency. Adjacencies re-learn from the next Hello; the circuit is not closed and the configuration is unchanged.
+Adjacencies re-learn from the next Hello; the circuit is not closed and the configuration is unchanged.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

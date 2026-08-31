@@ -2,6 +2,12 @@
 
 What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [Week of 2026-08-24](2026-08-24/index.md)
+
+Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.
+
+Areas: CLI, BGP, Flowspec, RSVP-TE, VRRP, PPPoE, IPsec, TACACS+, AAA, Config, Firewall, Fleet, RFC Compliance, Quality Improvement
+
 ## [Week of 2026-08-17](2026-08-17/index.md)
 
 The CLI gained a clearer BGP workflow, traffic tools gained history and source-AS context, and IPsec changes now reach running tunnels.

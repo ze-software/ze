@@ -1,27 +1,33 @@
 # `validate config`
 
+Check a config for errors without applying it.
+
 ## Ze command
 
-- Syntax: `validate config`
 - Registry path: `validate config`
 - Mode: Offline
 - Wire method: `not listed`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-Check your config for errors without applying anything. Reports syntax and semantic issues.
+Both the grammar of the file and the meaning of its values are checked, and each problem is reported with the diagnostic code that explains it.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
-### Validate and commit configuration
-
-Category: Configuration
+No vendor equivalent has been curated yet for this Ze command.
 
 ## Vendor equivalents
 
@@ -38,5 +44,5 @@ No equivalent listed.
 No equivalent listed.
 
 ### VyOS
-- `commit` (verified, vyos-cli)
-  - Intent: Validate and commit configuration
+
+No equivalent listed.

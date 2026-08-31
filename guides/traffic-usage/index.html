@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/guides/traffic-usage/" />
         <meta property="og:url" content="https://ze-software.net/guides/traffic-usage/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -50,7 +50,6 @@
 <!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage config -->
 <!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage RPC -->
 <!-- source: internal/plugins/trafficusage/metrics.go -- ze_traffic_usage_* Prometheus metrics -->
-
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="traffic-usage">Traffic Usage</h1>
@@ -81,11 +80,11 @@ interface using TCX (the kernel's traffic-control express attach point, kernel
 to per-key maps:</p>
 <ul>
 <li><strong>Per-port (always on):</strong> ingress traffic is keyed by destination port and
-  protocol, egress traffic by source port and protocol. Packets with no L4 port
-  (ICMP and other non-port protocols) aggregate under port <code>0</code>.</li>
+protocol, egress traffic by source port and protocol. Packets with no L4 port
+(ICMP and other non-port protocols) aggregate under port <code>0</code>.</li>
 <li><strong>Per-IP (opt-in via <code>track-ip</code>):</strong> ingress traffic is additionally keyed by
-  source IPv4 address, egress traffic by destination IPv4 address. This is off
-  by default to bound metric cardinality.</li>
+source IPv4 address, egress traffic by destination IPv4 address. This is off
+by default to bound metric cardinality.</li>
 </ul>
 <p>A user-space poller reads the maps on a fixed interval (<code>interval</code>), publishes
 the absolute byte totals as Prometheus gauges, and removes metric series that
@@ -102,7 +101,6 @@ generated <code>.o</code> files. The cost of the pure-Go approach is hand-writte
 which is validated by <code>BPF_PROG_TEST_RUN</code> tests that feed crafted packets through
 the loaded programs and assert on the resulting map state.</p>
 <!-- source: internal/plugins/trafficusage/program_linux.go -- pure-Go asm.Instructions program assembly -->
-
 <h2 id="configuration">Configuration</h2>
 <p>All traffic usage configuration lives under a single <code>traffic { usage { } }</code> section.</p>
 <pre><code>traffic {
@@ -218,7 +216,6 @@ interface's <code>track-ip</code> or <code>max-entries</code> rebuilds and re-at
 </tbody>
 </table>
 <!-- source: internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang -- traffic-usage -->
-
 <h2 id="operational-command">Operational Command</h2>
 <p><code>show traffic usage [name &lt;interface&gt;]</code> reports the accounted byte totals. With
 no argument it lists every monitored interface; with <code>name &lt;interface&gt;</code> it
@@ -233,13 +230,12 @@ ze cli -c 'show traffic usage name eth0'
 <code>| json</code>, <code>| table</code>, <code>| yaml</code> or <code>| ndjson</code> to select another one, and the full
 set of pipe operators applies.</p>
 <!-- source: internal/plugins/trafficusage/show.go -- ze-show:traffic-usage -->
-
 <figure class="terminal-demo" data-terminal-demo="traffic-anomaly">
   <div class="terminal-demo__intro">
     <div>
       <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
       <h3>Attribute a live traffic burst</h3>
-      <p>Attach Ze&#x27;s pure-Go eBPF accounting to a local veth, generate ICMP and HTTP traffic, and inspect source, protocol, port, and byte totals.</p>
+      <p>Attach Ze&#39;s pure-Go eBPF accounting to a local veth, generate ICMP and HTTP traffic, and inspect source, protocol, port, and byte totals.</p>
     </div>
     <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
   </div>
@@ -252,7 +248,7 @@ set of pipe operators applies.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/traffic-anomaly.cast?v=de2a0154a3"
+      data-cast-src="../../assets/demos/traffic-anomaly.cast?v=5d47b9c9bd"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -260,12 +256,12 @@ set of pipe operators applies.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/traffic-anomaly.cast?v=de2a0154a3">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/traffic-anomaly.cast?v=5d47b9c9bd">Download the asciicast</a> or
       <a href="../../assets/demos/traffic-anomaly.txt?v=ebe3635e22">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>1 minute 24 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.08.31</span><span>1 minute 25 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/traffic-anomaly.txt?v=ebe3635e22">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -275,18 +271,17 @@ set of pipe operators applies.</p>
 $ ze config show demos/terminal/traffic-anomaly/ze.conf traffic usage
 The daemon configuration shows eBPF accounting enabled on `traffic0`, with per-IP tracking and bounded maps.
 
-$ ze cli -c &#x27;show traffic usage name traffic0&#x27;
+$ ze cli -c &#39;show traffic usage name traffic0&#39;
 The complete baseline snapshot is displayed.
 
 $ ip netns exec traffic-peer ping -c 4 10.77.0.1
 $ ip netns exec traffic-peer curl -s -o /dev/null http://10.77.0.1:8080/payload.txt
 The isolated workload sends ICMP and HTTP traffic.
 
-$ ze cli -c &#x27;show traffic usage name traffic0&#x27;
+$ ze cli -c &#39;show traffic usage name traffic0&#39;
 The complete live snapshot attributes bytes to source 10.77.0.2, ICMP, TCP destination port 8080, and reports map occupancy. The accounting path observes traffic only and never modifies or drops packets.</code></pre>
   </details>
 </figure>
-
 <h2 id="prometheus-metrics">Prometheus Metrics</h2>
 <p>The plugin registers the following metrics. All are GaugeVec carrying absolute
 cumulative byte totals.</p>
@@ -342,31 +337,30 @@ cumulative byte totals.</p>
 <code>icmpv6</code>; unknown protocols render as their decimal protocol number. ICMP and
 other packets with no L4 port aggregate under <code>dst_port</code>/<code>src_port</code> <code>0</code>.</p>
 <!-- source: internal/plugins/trafficusage/metrics.go -- BindMetrics -->
-
 <h2 id="doctor-check">Doctor Check</h2>
 <p>The <code>doctor-traffic-usage-ebpf</code> check warns when <code>traffic-usage</code> is enabled in
 the config but eBPF/TCX is unavailable on the running kernel, so the operator
 learns that accounting is configured but inert rather than silently producing no
 metrics.</p>
 <!-- source: internal/plugins/trafficusage/doctor.go -- checkTrafficUsageBPF, doctor-traffic-usage-ebpf -->
-
 <h2 id="limitations">Limitations</h2>
 <ul>
 <li><strong>IPv4 only.</strong> Per-port and per-IP accounting cover IPv4 traffic; IPv6 is not
-  counted.</li>
+counted.</li>
 <li><strong>Monitoring only.</strong> The eBPF programs only read headers and update counters.
-  They never drop, redirect, or modify traffic.</li>
+They never drop, redirect, or modify traffic.</li>
 <li><strong>Per-IP requires <code>track-ip</code>.</strong> The <code>ze_traffic_usage_ingress_bytes_total</code> and
-  <code>ze_traffic_usage_egress_bytes_total</code> series are only produced when <code>track-ip</code>
-  is enabled. Per-port accounting is always on.</li>
+<code>ze_traffic_usage_egress_bytes_total</code> series are only produced when <code>track-ip</code>
+is enabled. Per-port accounting is always on.</li>
 <li><strong>Linux &gt;= 6.6, no-op elsewhere.</strong> TCX attach requires Linux 6.6 or later, plus
-  <code>CAP_BPF</code> and <code>CAP_NET_ADMIN</code>. On other platforms the plugin is a no-op. The
-  <code>doctor-traffic-usage-ebpf</code> check reports when the kernel cannot support the
-  feature.</li>
+<code>CAP_BPF</code> and <code>CAP_NET_ADMIN</code>. On other platforms the plugin is a no-op. The
+<code>doctor-traffic-usage-ebpf</code> check reports when the kernel cannot support the
+feature.</li>
 <li><strong>Bounded cardinality.</strong> Stale metric series (unseen within <code>stale-timeout</code>)
-  are deleted, and each map is an LRU capped at <code>max-entries</code>; under high key
-  churn only the current top talkers are retained.</li>
+are deleted, and each map is an LRU capped at <code>max-entries</code>; under high key
+churn only the current top talkers are retained.</li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -408,7 +402,7 @@ metrics.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
                 </div>
             </div>
         </footer>

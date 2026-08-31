@@ -66,7 +66,6 @@ revision <code>2026-07-28</code> it does so through
 <code>command</code> argument.</p>
 <!-- source: internal/component/mcp/mrtr.go -- newInputRequiredResult, inputRequiredForMissingCommand -->
 <!-- source: internal/component/mcp/tools.go -- ze_execute handler -->
-
 <h2 id="the-round-trip">The round trip</h2>
 <p>A server that needs more input answers the original request with
 <code>resultType: "input_required"</code> and an <code>inputRequests</code> map, which <strong>ends</strong>
@@ -88,15 +87,14 @@ JSON-RPC <em>requests</em> on this stream. Server-to-client interactions (sampli
 elicitation, list-roots) are embedded as input requests inside an
 <code>InputRequiredResult</code>."</p>
 <!-- source: internal/component/mcp/streamable_tools.go -- runMethod, ok -->
-
 <h2 id="declaring-the-capability">Declaring the capability</h2>
 <p>The elicitation capability is <strong>mode-structured</strong>, and a client declares it on
 <strong>every</strong> request in <code>params._meta</code>, not once at a handshake (there is no
 handshake in this revision).</p>
 <pre><code class="language-json">{
-  &quot;_meta&quot;: {
-    &quot;io.modelcontextprotocol/clientCapabilities&quot;: {
-      &quot;elicitation&quot;: { &quot;form&quot;: {} }
+  "_meta": {
+    "io.modelcontextprotocol/clientCapabilities": {
+      "elicitation": { "form": {} }
     }
   }
 }
@@ -147,7 +145,6 @@ the one mode Ze emits. Ze therefore treats that client exactly like a client
 that declared nothing.</p>
 <!-- source: internal/component/mcp/mrtr.go -- elicitationFormSupported -->
 <!-- source: internal/component/mcp/meta.go -- parseClientCapabilities, clientCapabilities.ElicitForm -->
-
 <p>The same capability shapes the tool descriptor, so a client does not have to
 know this page to find the round trip. Declare form mode, and the <code>ze_execute</code>
 entry in <code>tools/list</code> omits <code>command</code> from its <code>inputSchema.required</code>. That <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
@@ -156,29 +153,28 @@ Declare nothing, or <code>url</code> only, and <code>required</code> names <code
 that client will get an error rather than a prompt.</p>
 <!-- source: internal/component/mcp/mrtr.go -- gateExecuteCommandRequired -->
 <!-- source: internal/component/mcp/streamable_tools.go -- allTools -->
-
 <h2 id="what-ze-returns">What Ze returns</h2>
 <pre><code class="language-json">{
-  &quot;jsonrpc&quot;: &quot;2.0&quot;,
-  &quot;id&quot;: 1,
-  &quot;result&quot;: {
-    &quot;resultType&quot;: &quot;input_required&quot;,
-    &quot;inputRequests&quot;: {
-      &quot;ze_execute_command&quot;: {
-        &quot;method&quot;: &quot;elicitation/create&quot;,
-        &quot;params&quot;: {
-          &quot;mode&quot;: &quot;form&quot;,
-          &quot;message&quot;: &quot;Which ze command should be run? For example: show bgp&quot;,
-          &quot;requestedSchema&quot;: {
-            &quot;type&quot;: &quot;object&quot;,
-            &quot;properties&quot;: {
-              &quot;command&quot;: {
-                &quot;type&quot;: &quot;string&quot;,
-                &quot;title&quot;: &quot;ze command&quot;,
-                &quot;description&quot;: &quot;The ze command to execute, for example 'show bgp peer list'.&quot;
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "resultType": "input_required",
+    "inputRequests": {
+      "ze_execute_command": {
+        "method": "elicitation/create",
+        "params": {
+          "mode": "form",
+          "message": "Which ze command should be run? For example: show bgp",
+          "requestedSchema": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "title": "ze command",
+                "description": "The ze command to execute, for example 'show bgp peer list'."
               }
             },
-            &quot;required&quot;: [&quot;command&quot;]
+            "required": ["command"]
           }
         }
       }
@@ -191,23 +187,22 @@ stated explicitly even though form is the default, so the absence of url-mode
 support is visible at the emission point rather than implied.</p>
 <!-- source: internal/component/mcp/mrtr.go -- inputKeyExecuteCommand, elicitPromptCommand -->
 <!-- source: internal/component/mcp/elicit.go -- newElicitRequest, elicitModeForm -->
-
 <h2 id="what-the-client-sends-back">What the client sends back</h2>
 <p>The retry is the original request plus <code>inputResponses</code>, under a new id.</p>
 <pre><code class="language-json">{
-  &quot;jsonrpc&quot;: &quot;2.0&quot;,
-  &quot;id&quot;: 2,
-  &quot;method&quot;: &quot;tools/call&quot;,
-  &quot;params&quot;: {
-    &quot;name&quot;: &quot;ze_execute&quot;,
-    &quot;arguments&quot;: {},
-    &quot;inputResponses&quot;: {
-      &quot;ze_execute_command&quot;: {
-        &quot;action&quot;: &quot;accept&quot;,
-        &quot;content&quot;: { &quot;command&quot;: &quot;show bgp&quot; }
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "ze_execute",
+    "arguments": {},
+    "inputResponses": {
+      "ze_execute_command": {
+        "action": "accept",
+        "content": { "command": "show bgp" }
       }
     },
-    &quot;_meta&quot;: { &quot;...&quot;: &quot;the same required per-request fields&quot; }
+    "_meta": { "...": "the same required per-request fields" }
   }
 }
 </code></pre>
@@ -254,7 +249,6 @@ at the same request.</p>
 </blockquote>
 <!-- source: internal/component/mcp/mrtr.go -- resolveElicitedValue, inputOutcome -->
 <!-- source: internal/component/mcp/mrtr.go -- resolveExecuteCommand, askForCommand -->
-
 <h2 id="ze-issues-no-requeststate">Ze issues no <code>requestState</code></h2>
 <p>MRTR lets a server attach an opaque <code>requestState</code> blob to an
 <code>InputRequiredResult</code> and have the client echo it on the retry. <strong>Ze never
@@ -276,38 +270,36 @@ accepted; this server issues no requestState, so a retry must not carry one
 </code></pre>
 <!-- source: internal/component/mcp/mrtr.go -- rejectUnsolicitedRequestState, errUnsolicitedRequestState -->
 <!-- source: internal/component/mcp/streamable.go -- handlePOST requestState guard -->
-
 <h2 id="limits">Limits</h2>
 <ul>
 <li><strong>Form mode only.</strong> URL-mode elicitation is not implemented. Ze asks for a
-  <code>ze</code> CLI command, which is not a credential, so form mode is the correct mode
-  here. The revision says: "Servers <strong>MUST NOT</strong> use form mode elicitation to
-  request sensitive information such as passwords, API keys, access tokens, or
-  payment credentials." Ze's request builder refuses a schema whose property
-  name looks like a credential, so Ze enforces that prohibition rather than
-  merely observes it.</li>
+<code>ze</code> CLI command, which is not a credential, so form mode is the correct mode
+here. The revision says: "Servers <strong>MUST NOT</strong> use form mode elicitation to
+request sensitive information such as passwords, API keys, access tokens, or
+payment credentials." Ze's request builder refuses a schema whose property
+name looks like a credential, so Ze enforces that prohibition rather than
+merely observes it.</li>
 <li><strong>One request per result.</strong> <code>ze_execute</code> asks for one value, so exactly one
-  <code>inputRequests</code> entry is ever emitted.</li>
+<code>inputRequests</code> entry is ever emitted.</li>
 <li><strong>Sampling and roots are never requested.</strong> An <code>inputRequests</code> value can be an
-  <code>ElicitRequest</code>, a <code>CreateMessageRequest</code> or a <code>ListRootsRequest</code>. Ze emits
-  only the first. The other two are deprecated in this revision and Ze
-  implements neither.</li>
+<code>ElicitRequest</code>, a <code>CreateMessageRequest</code> or a <code>ListRootsRequest</code>. Ze emits
+only the first. The other two are deprecated in this revision and Ze
+implements neither.</li>
 <li><strong>Narrower schema subset than the revision permits.</strong> <code>2026-07-28</code> also allows
-  <code>oneOf</code>-titled enums and array multi-select enums in a requested schema. Ze's
-  validator accepts only flat primitive properties, and it emits only a single
-  string. Ze uses fewer optional schema forms than the specification offers,
-  which is conformant.</li>
+<code>oneOf</code>-titled enums and array multi-select enums in a requested schema. Ze's
+validator accepts only flat primitive properties, and it emits only a single
+string. Ze uses fewer optional schema forms than the specification offers,
+which is conformant.</li>
 <li><strong>Tasks do not elicit.</strong> A task worker runs long after its <code>tools/call</code> has <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
-  returned, so an <code>input_required</code> result produced there would be stored as the
-  task's result and delivered on a later <code>tasks/get</code>. Ze prevents that at the
-  source. The worker gets a zero capability set, so a handler that would
-  otherwise elicit reads form-mode support as undeclared. That handler takes the
-  missing-argument path instead. No Ze task can raise <code>inputRequests</code>, and none
-  can reach the <code>input_required</code> state.</li>
+returned, so an <code>input_required</code> result produced there would be stored as the
+task's result and delivered on a later <code>tasks/get</code>. Ze prevents that at the
+source. The worker gets a zero capability set, so a handler that would
+otherwise elicit reads form-mode support as undeclared. That handler takes the
+missing-argument path instead. No Ze task can raise <code>inputRequests</code>, and none
+can reach the <code>input_required</code> state.</li>
 </ul>
 <!-- source: internal/component/mcp/elicit.go -- validateElicitSchema, elicitFieldIsSecret -->
 <!-- source: internal/component/mcp/streamable_tools.go -- createTask worker runner -->
-
 <h2 id="trying-it">Trying it</h2>
 <p>The functional-test client speaks the client half of the loop:</p>
 <pre><code>ze-test mcp --port 8080 --elicit form
@@ -321,13 +313,13 @@ accepted; this server issues no requestState, so a retry must not carry one
 empty <code>inputResponses</code>, which drives the re-ask path).</p>
 <!-- source: internal/test/cli/cmd_mcp_mrtr.go -- send retry loop, elicitDirective -->
 <!-- source: internal/test/cli/cmd_mcp.go -- --elicit flag -->
-
 <h2 id="related">Related</h2>
 <ul>
 <li><a href="../overview/">MCP Overview</a> -- tools, transport and configuration</li>
 <li><a href="https://github.com/ze-software/ze/blob/main/docs/architecture/mcp/overview.md" target="_blank" rel="noopener">MCP Architecture</a> -- internals</li>
 <li><a href="../../../architecture/api/commands/#mcp-methods">MCP API Methods</a> -- the method table</li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -369,7 +361,7 @@ empty <code>inputResponses</code>, which drives the re-ask path).</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

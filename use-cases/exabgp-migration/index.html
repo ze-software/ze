@@ -69,7 +69,6 @@
 <li><a href="#when-to-port-plugins">When to Port Plugins</a></li>
 </ol></nav>
 <!-- source: internal/plugins/exabgp/main.go -- Run; internal/exabgp/migration/ -- config conversion; internal/exabgp/bridge/ -- plugin bridge -->
-
 <h2 id="config-migration">Config Migration</h2>
 <p>Convert an ExaBGP configuration file to ze-native format:</p>
 <pre><code class="language-bash">ze exabgp migrate exabgp.conf &gt; ze.conf
@@ -124,7 +123,7 @@ ze config validate ze.conf              # Validate the result
 <p>Run existing ExaBGP process scripts with ze using the compatibility bridge:</p>
 <pre><code>plugin {
     external my-exabgp-plugin {
-        run &quot;ze exabgp plugin /path/to/my-plugin.py&quot;;
+        run "ze exabgp plugin /path/to/my-plugin.py";
         encoder json;
     }
 }
@@ -177,7 +176,6 @@ bgp {
 </table>
 <!-- source: internal/exabgp/bridge/bridge_event.go -- ZebgpToExabgpJSON -->
 <!-- source: internal/exabgp/bridge/bridge_command.go -- ExabgpToZebgpCommand -->
-
 <p>When ze's process manager launches the bridge, the bridge detects <code>ZE_PLUGIN_HUB_TOKEN</code> and
 connects back via TLS using the SDK. The SDK handles the 5-stage startup protocol
 and MuxConn multiplexing automatically. In standalone mode (no env var), the bridge
@@ -185,7 +183,6 @@ uses stdin/stdout with inline MuxConn framing.</p>
 <p>After each route command, the bridge sends <code>peer &lt;addr&gt; flush</code> and waits until
 the forward pool drains. The engine processes the route before continuing.</p>
 <!-- source: internal/plugins/exabgp/main_sdk.go -- runSDKMode TLS connect-back -->
-
 <h3 id="bridge-flags">Bridge Flags</h3>
 <table>
 <thead>
@@ -210,14 +207,12 @@ the forward pool drains. The engine processes the route before continuing.</p>
 </tbody>
 </table>
 <!-- source: internal/plugins/exabgp/main.go -- cmdPlugin flags -->
-
 <p>Example with flags:</p>
-<pre><code>run &quot;ze exabgp plugin --family ipv4/unicast --family ipv6/unicast /path/to/plugin.py&quot;
+<pre><code>run "ze exabgp plugin --family ipv4/unicast --family ipv6/unicast /path/to/plugin.py"
 </code></pre>
 <h3 id="automatic-prefix-defaults">Automatic Prefix Defaults</h3>
 <p>The migration tool adds <code>prefix { maximum 10000; }</code> to every converted address family. Ze requires per-family prefix limits (RFC 4486), and ExaBGP configs do not have them. The default of 10,000 is a conservative starting point; adjust per-peer based on expected route counts (full table peers typically need 1,000,000+).</p>
 <!-- source: internal/exabgp/migration/migrate_family.go -- convertFamilyToList -->
-
 <h2 id="migration-workflow">Migration Workflow</h2>
 <ol>
 <li><strong>Convert config:</strong> <code>ze exabgp migrate old.conf &gt; new.conf</code></li>
@@ -236,7 +231,7 @@ writes route commands to stdout:</p>
 }
 
 neighbor 10.0.0.1 {
-    description &quot;transit-a&quot;;
+    description "transit-a";
     router-id 10.0.0.2;
     local-address 10.0.0.2;
     local-as 65000;
@@ -251,7 +246,7 @@ neighbor 10.0.0.1 {
 }
 
 neighbor 10.0.1.1 {
-    description &quot;transit-b&quot;;
+    description "transit-b";
     router-id 10.0.0.2;
     local-address 10.0.1.2;
     local-as 65000;
@@ -276,7 +271,7 @@ ze config validate ze.conf
 <li>Give each peer a stable, meaningful name.</li>
 <li>Confirm every local and remote address and ASN.</li>
 <li>Adjust the generated per-family prefix maximum. The migration default is a
-   starting point, not a full-table recommendation.</li>
+starting point, not a full-table recommendation.</li>
 <li>Confirm which peers bind the converted process.</li>
 <li>Review static announcements and next-hop handling.</li>
 <li>Remove capabilities that the remote peer should not negotiate.</li>
@@ -284,7 +279,7 @@ ze config validate ze.conf
 <p>Run the existing script through the bridge:</p>
 <pre><code class="language-text">plugin {
     external inject-routes {
-        run &quot;ze exabgp plugin python3 /opt/scripts/inject.py&quot;;
+        run "ze exabgp plugin python3 /opt/scripts/inject.py";
         encoder json;
     }
 }
@@ -295,11 +290,11 @@ uses its native event and command model internally.</p>
 <p>Start Ze and verify each boundary rather than treating an Established session
 as sufficient proof:</p>
 <pre><code class="language-console">ze start ze.conf
-ze cli -c &quot;show bgp&quot;
-ze cli -c &quot;show bgp peer transit-a detail&quot;
-ze cli -c &quot;show bgp rib status&quot;
-ze cli -c &quot;show warnings&quot;
-ze cli -c &quot;show errors&quot;
+ze cli -c "show bgp"
+ze cli -c "show bgp peer transit-a detail"
+ze cli -c "show bgp rib status"
+ze cli -c "show warnings"
+ze cli -c "show errors"
 </code></pre>
 <p>Trigger one representative announcement and withdrawal through the existing
 script. Confirm the route appears in the expected peer's outbound RIB, reaches
@@ -313,17 +308,20 @@ the adjacent router, and disappears after withdrawal.</p>
 <li>Announcements, withdrawals, and watchdog actions behave as before.</li>
 <li>Warnings, errors, and operational reports contain no unexpected entries.</li>
 <li>The old ExaBGP configuration and binary remain available for rollback during
-  the first maintenance window.</li>
+the first maintenance window.</li>
 </ul>
 <p>Port scripts to the native SDK one at a time after the bridge deployment is
 stable. This avoids combining a routing-engine migration with an application
 rewrite.</p>
 <h2 id="when-to-port-plugins">When to Port Plugins</h2>
-<p>The compatibility bridge adds translation overhead. Consider porting to native ze plugins when:
-- You need access to ze-specific features (RPKI events, cache commands, commit workflow)
-- Performance matters (native plugins skip the translation layer)
-- You want to use the Go SDK for direct in-process execution</p>
+<p>The compatibility bridge adds translation overhead. Consider porting to native ze plugins when:</p>
+<ul>
+<li>You need access to ze-specific features (RPKI events, cache commands, commit workflow)</li>
+<li>Performance matters (native plugins skip the translation layer)</li>
+<li>You want to use the Go SDK for direct in-process execution</li>
+</ul>
 <!-- source: internal/exabgp/bridge/ -- bidirectional translation; internal/exabgp/migration/ -- config converter -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -357,7 +355,7 @@ rewrite.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

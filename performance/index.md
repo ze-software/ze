@@ -19,10 +19,10 @@ Go carries an estimated 10-15% CPU overhead against C/Rust implementations. That
 
 ```
 # build ze-perf and all DUT images, then run
-$ python3 test/perf/run.py --build --test
+$ go build -o bin/ze-perf ./cmd/ze-perf && go run ./cmd/ze-perf-run --build --test
 
 # test specific DUTs only
-$ python3 test/perf/run.py --build --test ze bird
+$ go run ./cmd/ze-perf-run --build --test ze bird
 
 # regenerate docs/performance.md from results
 $ bin/ze-perf report --doc test/perf/results/*.json

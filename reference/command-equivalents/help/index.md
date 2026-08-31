@@ -1,25 +1,35 @@
 # `help`
 
+Show available commands at this level.
+
 ## Ze command
 
-- Syntax: `help`
 - Registry path: `help`
+- Usage: `help`
 - Mode: Read-only
 - Wire method: `ze-bgp:help`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show available commands at this level. Lists every registered command verb with a brief description.
+Lists every registered command verb with a brief description.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

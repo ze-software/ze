@@ -59,7 +59,6 @@ Bootstrap, safety, and test keys can be environment-only.</p>
 <li><a href="#changes-in-2026-04">Changes in 2026-04</a></li>
 </ol></nav>
 <!-- source: internal/component/config/environment.go -- env var registrations; internal/core/paths/paths.go -- ze.config.dir registration -->
-
 <p>See <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/environment.md" target="_blank" rel="noopener">environment.md</a> for the
 authoritative list.</p>
 <h2 id="priority-for-config-backed-keys">Priority for Config-Backed Keys</h2>
@@ -108,14 +107,14 @@ authoritative list.</p>
 <p>The same knobs can be expressed in the config file:</p>
 <pre><code>environment {
     daemon {
-        pid &quot;/run/ze.pid&quot;
-        user &quot;zeuser&quot;
+        pid "/run/ze.pid"
+        user "zeuser"
     }
     bgp {
         openwait 60
         announce-delay 5s
     }
-    pprof &quot;:6060&quot;
+    pprof ":6060"
     exabgp {
         api {
             ack false
@@ -123,7 +122,7 @@ authoritative list.</p>
     }
     chaos {
         seed 0
-        rate &quot;0.1&quot;
+        rate "0.1"
     }
     reactor {
         cache-ttl 60
@@ -140,12 +139,10 @@ authoritative list.</p>
 <code>ze.log.&lt;subsystem&gt;</code> keys (visible in <code>ze env list</code>) are completable
 and inspectable via <code>ze env get</code>.</p>
 <!-- source: internal/core/envcatalog/catalog.go -- VisibleEntries -->
-
 <p>In the interactive CLI operational mode, <code>show env get</code> and
 <code>show env registered</code> also offer env-key completion through the
 shared command tree.</p>
 <!-- source: internal/component/command/valuehints.go -- wireEnvHints -->
-
 <h2 id="changes-in-2026-04">Changes in 2026-04</h2>
 <p>The ExaBGP compatibility surface was trimmed. Every
 <code>ze.bgp.daemon.*</code>, <code>ze.bgp.log.*</code>, <code>ze.bgp.tcp.*</code>, <code>ze.bgp.api.*</code>, and
@@ -220,6 +217,7 @@ a YANG leaf to a new env key:</p>
 <p>The <code>ze exabgp migrate --env</code> tool converts surviving keys to Ze YANG
 blocks and emits <code># &lt;key&gt; -- no longer supported</code> comments for dropped
 ones so an operator can audit an ExaBGP env file before commit.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -261,7 +259,7 @@ ones so an operator can audit an ExaBGP env file before commit.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

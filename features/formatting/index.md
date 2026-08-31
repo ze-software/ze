@@ -45,7 +45,7 @@ or `raw`. Two together are rejected. Filter and display operators chain freely.
 
 The complete, current set is generated from the operator catalog:
 [`pipe-operators.generated.md`](https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md). It is the list to
-build a tool against, and `ze-doc-verify` fails when it and the product
+build a tool against, and `./le doc check verify` fails when it and the product
 disagree. The table below describes what each operator does for a reader.
 
 | Operator | Kind | Description |
@@ -67,6 +67,14 @@ disagree. The table below describes what each operator does for a reader.
 | `no-more` | display | Disable paging (currently a no-op) |
 
 <!-- source: internal/component/command/pipe.go -- knownPipeOps, ApplyPipes, ValidatePipes -->
+
+A display operator changes how an answer is shown. A data operator changes what
+the answer holds. The two are independent, so a display mode never suppresses a
+data transform: `monitor traceroute | log` and `monitor ping | log` render
+directly from hop and ping statistics rather than through `ApplyPipes`, and they
+still apply `resolve` and `origin` to their legend addresses through the shared
+`enrichAddr` helper.
+<!-- source: internal/component/cli/model_enrich.go -- enrichAddr -->
 
 ### Scripting against the daemon: `| raw`
 
@@ -180,10 +188,10 @@ can inspect compact hierarchical blocks, while automation can consume one comple
 
 ```bash
 ze config show router.conf bgp peer transit-a
-ze config migrate --format set router.conf
+ze config migrate format set router.conf
 ```
 
-`ze config migrate --format hierarchical` converts set syntax back to blocks.
+`ze config migrate format hierarchical` converts set syntax back to blocks.
 Rendering both forms back to canonical set syntax provides a presentation-neutral
 comparison.
 
@@ -194,9 +202,9 @@ comparison.
 
 Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze's plugin registry.
 
-[Download the asciicast recording](../../assets/demos/config-views.cast?v=46af3dc00a) · [Plain-text transcript](../../assets/demos/config-views.txt?v=35a1a90923)
+[Download the asciicast recording](../../assets/demos/config-views.cast?v=3698ec29e0) · [Plain-text transcript](../../assets/demos/config-views.txt?v=f4f89fbe3c)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 19 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 21 seconds.
 
 ```console
 $ ze config show router.conf bgp peer transit-a
@@ -208,7 +216,7 @@ session {
     asn { local 65000; remote 65001; }
     family ipv4/unicast { prefix maximum 1000000; }
 }
-$ ze config migrate --format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'
+$ ze config migrate format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'
 set bgp peer transit-a connection local ip 192.0.2.1
 set bgp peer transit-a connection remote ip 192.0.2.2
 set bgp peer transit-a session asn local 65000
@@ -216,11 +224,11 @@ set bgp peer transit-a session asn remote 65001
 ...
 $ cmp -s router.set roundtrip.set && echo 'canonical output: identical'
 canonical output: identical
-$ ze --plugins | ze pipe match flowspec
+$ ze show plugins | ze pipe match flowspec
 bgp-nlri-flowspec
 flowspec-firewall
 ...
-$ ze --plugins | ze pipe match flowspec | ze pipe count
+$ ze show plugins | ze pipe match flowspec | ze pipe count
 {"count":3,"pipe":{"count":true}}
 
 Hierarchical and set syntax are alternate presentations of the same parsed configuration. Converting to set syntax and back produces identical canonical set commands. The standalone formatter composes the same match and count operators for shell pipelines.

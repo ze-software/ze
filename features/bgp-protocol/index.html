@@ -268,7 +268,6 @@
 <!-- source: internal/component/bgp/plugins/nlri/vpls/register.go -- VPLS family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MVPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/rtc/register.go -- RTC family registration -->
-
 <h3 id="capabilities">Capabilities</h3>
 <table>
 <thead>
@@ -373,7 +372,6 @@
 <!-- source: internal/component/bgp/plugins/hostname/register.go -- Hostname capability plugin -->
 <!-- source: internal/component/bgp/plugins/softver/register.go -- Software Version capability plugin -->
 <!-- source: internal/component/bgp/plugins/llnh/register.go -- Link-Local NH capability plugin -->
-
 <h3 id="multipath-installation">Multipath installation</h3>
 <p>When several BGP candidates tie under multipath selection, Ze carries the
 winner and its equal-cost sibling next hops into the shared Loc-RIB. The system
@@ -385,7 +383,6 @@ Together they are the complete installed next-hop set.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- SelectMultipath, mirrorToLocRIB -->
 <!-- source: internal/core/rib/locrib/candidate.go -- Path.ECMP -->
 <!-- source: internal/core/rib/locrib/manager.go -- siblingNextHops -->
-
 <h3 id="long-lived-graceful-restart-readvertisement">Long-Lived Graceful Restart readvertisement</h3>
 <p>RFC 9494 stale-route handling is applied per destination on both normal
 forwarding and RIB readvertisement. An LLGR-capable peer receives the stale
@@ -396,7 +393,6 @@ deployments to retain reachability without preferring stale information.</p>
 already run on the original announcement and is not applied twice.</p>
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter -->
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- sendStaleReadvertise -->
-
 <h3 id="egress-attribute-rules">Egress attribute rules</h3>
 <p>Several rails write an UPDATE: the announce rails that encode a route Ze
 produced, the forward rail that relays another speaker's UPDATE, and the
@@ -477,7 +473,6 @@ rail did not.</p>
 <!-- source: internal/component/bgp/reactor/forward_build.go -- planAttr, buildModifiedPayload -->
 <!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
-
 <h3 id="unrecognized-nlri-types-in-a-typed-family">Unrecognized NLRI types in a typed family</h3>
 <p>RFC 7606 Section 5.4 requires a speaker advertising a typed address family to
 discard routes carrying an NLRI type it does not implement, "unless the relevant
@@ -522,7 +517,6 @@ decision is made rather than one being guessed.</p>
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- MCAST-VPN recognizer -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- MUP recognizer -->
-
 <h3 id="rfc-7911-path-identifier-regeneration">RFC 7911 Path Identifier regeneration</h3>
 <p>RFC 7911 Section 2 requires a speaker that re-advertises a route to generate its
 own Path Identifier, assigned so that (prefix, identifier) uniquely names a path
@@ -539,7 +533,6 @@ destinations already hold. Zero is minted and accepted like any other value
 <p>Regeneration runs whenever either side of the forward frames identifiers. A
 session where neither side negotiated ADD-PATH keeps its zero-copy forward.</p>
 <!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs -->
-
 <h3 id="protocol-event-capture-and-replay">Protocol event capture and replay</h3>
 <p>A peer writes every message it receives to a bounded JSONL file, together with
 the config operations applied while the capture runs. <code>ze-test replay &lt;file&gt;</code>
@@ -560,7 +553,6 @@ whether an enabled peer's capture directory is usable
 <!-- source: internal/component/bgp/reactor/capture_replay.go -- the session tee and the replay driver -->
 <!-- source: internal/test/cli/cmd_replay.go -- cmdReplay -->
 <!-- source: internal/component/doctor/checks_bgp_capture.go -- capture directory readiness -->
-
 <h3 id="path-attributes">Path Attributes</h3>
 <table>
 <thead>
@@ -668,6 +660,7 @@ whether an enabled peer's capture directory is usable
 <!-- source: internal/core/bgp/attribute/origin.go -- ORIGIN -->
 <!-- source: internal/core/bgp/attribute/aspath.go -- AS_PATH -->
 <!-- source: internal/core/bgp/attribute/community.go -- Communities, ExtendedCommunities, LargeCommunities -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -701,7 +694,7 @@ whether an enabled peer's capture directory is usable
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

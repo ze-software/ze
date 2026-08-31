@@ -1,25 +1,35 @@
 # `show ospf route`
 
+Show OSPF-computed routes.
+
 ## Ze command
 
-- Syntax: `show ospf route`
 - Registry path: `show ospf route`
+- Usage: `show ospf route`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-route`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `fast-reroute`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show OSPF-computed routes. Lists each prefix with its path type (intra/inter/external-1/2), cost, next-hops, and area.
+Lists each prefix with its path type (intra/inter/external-1/2), cost, next-hops, and area.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

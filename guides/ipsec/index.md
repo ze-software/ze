@@ -265,6 +265,39 @@ A `local-id` written as a distinguished name is still refused at commit. Ze
 derives the type it SENDS from the shape of the value, and that derivation has no
 `ID_DER_ASN1_DN` form.
 
+### One peer, or a set of peers
+
+A `remote-id` can name one peer or a group of them. RFC 4301 Section 4.4.3.1
+requires both forms of Peer Authorization Database entry. Write a group with the
+hierarchy separator in front. Such an entry admits the identities BELOW it and
+never the entry text itself.
+
+| You write | It admits |
+|-----------|-----------|
+| `vpn.example.com` | that name alone |
+| `.example.com` | `vpn.example.com`, `gw.branch.example.com` |
+| `gateway@example.com` | that address alone |
+| `@example.com` | `gateway@example.com` |
+| `CN=hq,O=Example` | that distinguished name alone |
+| `,ST=MA,C=US` | every distinguished name whose top RDNs are `ST=MA,C=US` |
+| `10.0.0.1` | that address alone |
+| `10.0.0.0/24` | every address in the block |
+
+RFC 4514 renders the most significant RDN last, so a distinguished-name group is
+written with the top of the tree at the end and a leading comma in front. An
+address group takes the same CIDR prefix a traffic selector takes. `ID_KEY_ID`
+is always compared exactly: an opaque octet string has no hierarchy, so a
+leading `.` or `@` in one is content.
+
+Substring matching is not offered. `.example.com` refuses `notexample.com`, and
+it refuses the bare `example.com` too. Write the apex exactly when you mean it.
+
+**A group never widens what one certificate proves.** The certificate check
+above still binds the identity the peer ASSERTED, so a peer admitted by
+`.example.com` must hold a certificate that carries its own name. A `local-id`
+that names a group is refused at commit, because Ze asserts exactly one identity
+and would send the pattern text verbatim.
+
 RFC 7296 Section 4 requires that you can configure Ze to accept a PKIX peer whose
 identity is `ID_KEY_ID`. An opaque key id matches no certificate field, so Ze
 cannot derive that binding and denies it by default. Set `remote-id-type key-id`
@@ -283,7 +316,7 @@ authority issued then authenticates as this peer. Ze logs a warning that names
 the peer and the identity it accepted. Set `remote-id` whenever the authority
 issues to more than one client.
 
-<!-- source: internal/component/ike/engine/remote_id.go -- checkRemoteIdentity, certificateCarriesIdentity, assertedIdentity, hasSubjectAltName, configuredClass -->
+<!-- source: internal/component/ike/engine/remote_id.go -- checkRemoteIdentity, certificateCarriesIdentity, assertedIdentity, hasSubjectAltName, configuredClass, subtreeMatches, addressEntryMatches -->
 <!-- source: internal/component/ike/engine/cert_payload.go -- getRemoteCert, storeRemoteCerts, buildCertPayloads -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidateIdentities -->
 
@@ -453,8 +486,30 @@ Child SAs define traffic selectors and the ESP proposal. Ze programs XFRM polici
 | Traffic selectors | IPv4 and IPv6 CIDR prefixes, an optional IP protocol, and an optional single port. See Traffic selectors and narrowing below |
 | Encapsulation | Tunnel mode by default; `mode transport` negotiates transport mode per RFC 7296 Section 1.3.1 |
 | Connection | `connection-type initiate` starts the exchange; `connection-type respond` waits for the peer |
-| Replay protection | Anti-replay window, default 32 |
-| Lifetime | Time-based and byte-based rekeying thresholds |
+| Replay protection | Anti-replay window, default 64, the size RFC 4303 Section 3.4.3 says SHOULD be the default |
+| Lifetime | Time-based rekeying, from the ESP group's `lifetime` in seconds. Ze carries no byte lifetime, so RFC 4301 Section 4.4.2.1's simultaneous use of both is not met |
+| Policy order | `policy-priority` ranks this peer's SPD entries, lower first. See SPD ordering below |
+
+### SPD ordering
+
+RFC 4301 Section 4.4.1 makes the Security Policy Database an ordered database,
+because entries with range selectors overlap: "Thus, a user or administrator
+MUST be able to order the entries to express a desired access control policy."
+
+`policy-priority` under a peer is that order. A LOWER value is searched FIRST,
+in Ze and in the Linux kernel. Two peers that both negotiate `0.0.0.0/0`
+describe the same traffic, so give the one that must win the lower value.
+
+The default is 2000, which every peer took before the leaf existed, so an
+unordered configuration installs what it installed before. The range starts at
+101 because 100 holds the IKE control-plane bypass. A peer entry at or above
+that rank matches the IKE datagrams first, which hands the exchange that builds
+and rekeys the SA to the SA itself, and the tunnel could then never
+renegotiate. Ze refuses such a value at commit.
+
+<!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
+<!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityIKEBypass, PriorityChildSA -->
 
 ## Both ESP wire forms
 
@@ -755,4 +810,4 @@ ungated.
 <!-- source: internal/component/ike/engine/rekey.go -- make-before-break rekeying -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- XFRM state and policy programming -->
 <!-- source: internal/component/ike/ipsec/config.go -- configuration and validation -->
-<!-- source: test/interop-ipsec/run.py -- strongSwan interoperability scenarios -->
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- strongSwan interoperability scenarios -->

@@ -74,7 +74,6 @@ wired.</p>
 <!-- source: internal/component/vpp/vpp.go -- VPPManager lifecycle -->
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- processEvent installs, updates, withdraws -->
 <!-- source: internal/component/vpp/telemetry.go -- stats poller -->
-
 <h2 id="why-vpp-is-in-ze">Why VPP is in Ze</h2>
 <p>Ze is a BGP daemon. BGP produces forwarding decisions; something else has
 to carry the packets. The default answer on Linux is the kernel route
@@ -91,7 +90,6 @@ numbers like 18 Mpps per thread for MPLS and around 14 Mpps per thread
 for VXLAN. IPng Networks has run this stack in production on AS8298 for
 several years.</p>
 <!-- source: docs/research/vpp-deployment-reference.md -- IPng production performance table -->
-
 <p>Adding VPP to ze is not about replacing BGP. It gives ze a
 forwarding-plane answer for IXP route servers, production edge routers,
 and gokrazy appliances on small hardware such as an N100 mini-PC. The
@@ -99,7 +97,6 @@ control plane stays in ze (BGP, RIB, config, CLI, web UI).
 The forwarding plane becomes VPP. The two talk through a small, typed
 interface (GoVPP over a Unix socket).</p>
 <!-- source: internal/component/vpp/conn.go -- GoVPP AsyncConnect -->
-
 <h2 id="how-the-two-halves-fit-together">How the two halves fit together</h2>
 <pre><code>┌──────────────────────────────────────────────────────────┐
 │                          ze                              │
@@ -128,7 +125,6 @@ independently.</p>
 <!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- Subscribe to BestChangeBatch -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- parallel backend for the kernel -->
-
 <p>BGP sessions themselves still use Linux sockets. VPP's Linux Control
 Plane (LCP) plugin mirrors every VPP interface as a TAP device, so ze's
 BGP reactor <code>bind()</code>s and <code>connect()</code>s exactly as it does on a kernel
@@ -167,7 +163,6 @@ reach VPP as <code>my</code>, VPP would build <code>/var/run/netns/my</code>, th
 exist, and LCP pair creation would fail at apply on a config ze had accepted.
 Config verify refuses the value instead.</p>
 <!-- source: internal/component/vpp/config.go -- validateNetns -->
-
 <p>A second check covers the plugin rather than the namespace. Enabling <code>vpp.lcp</code>
 makes ze write a <code>startup.conf</code> that loads <code>linux_cp_plugin.so</code>. A VPP built
 without it accepts the config and then fails the WHOLE apply at the binary-API
@@ -186,19 +181,16 @@ output lists no plugin at all, so it is a WARNING too. None of those is evidence
 about which plugins VPP loaded.</p>
 <!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPPlugin, lcpEnabled, lcpPluginSO, vppctlPluginsHeader -->
 <!-- source: internal/core/diagnostic/codes.go -- doctor-vpp-lcp-plugin -->
-
 <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- lcp container netns default "dataplane" -->
 <!-- source: internal/core/network/network.go -- RealListenerFactory.Listen binds via net.ListenConfig, no netns awareness -->
 <!-- source: internal/component/vpp/startupconf.go -- linux-cp section: b.kv("default netns", s.LCP.Netns) -->
 <!-- source: internal/plugins/iface/vpp/doctor.go -- checkVPPLCPNetns, lcpNetnsIsRootMarker ("", host, root) -->
-
 <h2 id="what-ze-does-for-you">What ze does for you</h2>
 <p>When <code>vpp.enabled</code> is true, ze takes ownership of the whole VPP
 lifecycle. You do not run <code>systemd start vpp</code>; you do not edit
 <code>/etc/vpp/startup.conf</code>; you do not <code>dpdk-devbind</code> your NICs by hand.
 Ze does the following, in order, every time it starts or VPP crashes:</p>
 <!-- source: internal/component/vpp/vpp.go -- Run sequence and runOnce -->
-
 <table>
 <thead>
 <tr>
@@ -270,7 +262,6 @@ NIC unbind, driver save, rescan-on-teardown) are part of ze's job, not
 the operator's. This matters on a gokrazy appliance where there is no
 systemd and ze is PID 1 for the data plane.</p>
 <!-- source: internal/plugins/init/main.go -- gokrazy PID-1 appliance lifecycle -->
-
 <h2 id="running-against-an-externally-supervised-vpp">Running against an externally supervised VPP</h2>
 <p>Set <code>vpp.external true</code> when something other than ze owns the VPP
 process -- a systemd unit, a container sidecar, or the Python stub
@@ -281,7 +272,6 @@ connects via GoVPP at step 7, emits the same lifecycle events at step 8,
 runs the stats poller at step 9, and blocks on context cancellation
 instead of <code>cmd.Wait</code> at step 10.</p>
 <!-- source: internal/component/vpp/vpp.go -- External branch in Run and runOnce -->
-
 <p>Typical configurations:</p>
 <pre><code>vpp {
   enabled  true;
@@ -291,16 +281,16 @@ instead of <code>cmd.Wait</code> at step 10.</p>
 </code></pre>
 <p>The operator owns <code>startup.conf</code>, owns the systemd unit, owns the vfio
 bind. Ze owns the API socket conversation and the FIB programming.</p>
-<p>Use this for:
-- <strong>Systemd deployments:</strong> the system VPP unit starts before ze, ze
-  connects to its API socket on startup.
-- <strong>Gokrazy containers:</strong> a sidecar image bundles <code>vpp</code> and <code>ze</code>; the
-  supervisor starts VPP first, then ze with <code>external true</code>.
-- <strong>Functional tests:</strong> <code>bin/ze-test vpp</code> runs <code>test/vpp/*.ci</code> which
-  drive a Python <code>vpp_stub.py</code> listening on the API socket instead of
-  a real VPP. See <code>docs/functional-tests.md</code> for the harness.</p>
-<!-- source: test/scripts/vpp_stub.py -- Python GoVPP API stub -->
-
+<p>Use this for:</p>
+<ul>
+<li><strong>Systemd deployments:</strong> the system VPP unit starts before ze, ze
+connects to its API socket on startup.</li>
+<li><strong>Gokrazy containers:</strong> a sidecar image bundles <code>vpp</code> and <code>ze</code>; the
+supervisor starts VPP first, then ze with <code>external true</code>.</li>
+<li><strong>Functional tests:</strong> <code>./le functional vpp</code> drives the compiled Go VPP
+stub instead of a real VPP. See <code>docs/functional-tests.md</code> for the harness.</li>
+</ul>
+<!-- source: internal/test/cli/cmd_vpp_stub.go -- runVPPStub -->
 <h2 id="configuring-vpp">Configuring VPP</h2>
 <p>The <code>vpp { ... }</code> container lives in the main ze config. Minimal example:</p>
 <pre><code>vpp {
@@ -447,14 +437,10 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <td><code>vpp.plugins.wireguard</code></td>
 <td>boolean</td>
 <td><code>false</code></td>
-<td>Load <code>wireguard_plugin.so</code> so the vpp interface backend can program WireGuard tunnels (<code>interface { backend vpp; wireguard ...; }</code>). <code>ze doctor</code> warns (<code>doctor-vpp-wireguard</code>) if a wireguard interface is configured under vpp with this off.</td>
+<td>Load <code>wireguard_plugin.so</code> so the vpp interface backend can program WireGuard tunnels (<code>interface { backend vpp; wireguard ...; }</code>). <code>ze doctor</code> warns (<code>doctor-vpp-wireguard</code>) if a wireguard interface is configured under vpp with this off. <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above --> <!-- source: internal/component/vpp/config.go -- defaults and validation --> <!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-lcp-plugin, doctor-vpp-wireguard --></td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above -->
-<!-- source: internal/component/vpp/config.go -- defaults and validation -->
-<!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-lcp-plugin, doctor-vpp-wireguard -->
-
 <h3 id="enabling-fib-programming">Enabling FIB programming</h3>
 <p>The VPP component starts VPP, but it does not program routes. That is
 <code>fib-vpp</code>'s job, and it has its own switch under the <code>fib</code> container:</p>
@@ -497,18 +483,15 @@ the stats poll interval only when the defaults do not fit the workload.</p>
 <td><code>fib.vpp.batch-interval-ms</code></td>
 <td>uint16</td>
 <td><code>10</code></td>
-<td>Max milliseconds to wait before dispatching a partial batch.</td>
+<td>Max milliseconds to wait before dispatching a partial batch. <!-- source: internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang -- augments /fib:fib --></td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang -- augments /fib:fib -->
-
 <p><code>fib-vpp</code> depends on the <code>vpp</code> subsystem and on the RIB plugin. If VPP
 is disabled or the GoVPP channel fails to open, the plugin falls back to
 a noop backend and logs a warning instead of blocking the rest of ze.</p>
 <!-- source: internal/plugins/fib/vpp/register.go -- Dependencies: ["rib", "vpp"] -->
 <!-- source: internal/plugins/fib/vpp/register.go -- mockBackend fallback when connector is nil -->
-
 <h2 id="system-prerequisites">System prerequisites</h2>
 <p>VPP is not a user-space toy; DPDK needs real kernel cooperation. On a
 general-purpose host Ze cannot set kernel boot parameters, so you reserve
@@ -544,37 +527,32 @@ insufficient, or clamped. Before enabling VPP:</p>
 </tr>
 <tr>
 <td>Minimum hardware</td>
-<td>4 CPU cores, 8 GB RAM, a DPDK-compatible NIC</td>
+<td>4 CPU cores, 8 GB RAM, a DPDK-compatible NIC <!-- source: docs/research/vpp-deployment-reference.md -- system prerequisites table --></td>
 </tr>
 </tbody>
 </table>
-<!-- source: docs/research/vpp-deployment-reference.md -- system prerequisites table -->
-
 <p>Supported NICs through DPDK include Intel i210/i350, X520/X540, X710/XL710
 and E810 families, plus VirtIO for VMs. Mellanox ConnectX-5 and later use
 RDMA in a bifurcated driver mode; the current ze implementation is DPDK
 only and does not yet bind Mellanox NICs.</p>
 <!-- source: docs/research/vpp-deployment-reference.md -- NIC driver matrix -->
-
 <h2 id="observing-what-vpp-is-doing">Observing what VPP is doing</h2>
 <p>Two places expose VPP state through ze:</p>
 <ol>
 <li><strong>Prometheus metrics.</strong> The stats poller exports per-interface
-   counters (rx/tx packets, bytes, drops, errors), per-node clocks and
-   vectors-per-call, and system-wide vector and input rates. Poll
-   interval is configurable via <code>vpp.stats.poll-interval</code>.</li>
+counters (rx/tx packets, bytes, drops, errors), per-node clocks and
+vectors-per-call, and system-wide vector and input rates. Poll
+interval is configurable via <code>vpp.stats.poll-interval</code>.</li>
 </ol>
 <!-- source: internal/component/vpp/telemetry.go -- newVPPMetrics, poller.run -->
 <ol start="2">
 <li><strong>The <code>show fib vpp</code> command.</strong> Dumps the routes <code>fib-vpp</code> believes
-   it has installed in VPP, as JSON <code>[{"prefix": ..., "next-hop": ...}, ...]</code>.</li>
+it has installed in VPP, as JSON <code>[{"prefix": ..., "next-hop": ...}, ...]</code>.</li>
 </ol>
 <!-- source: internal/plugins/fib/vpp/fibvpp.go -- showInstalled -->
-
 <p>Direct VPP introspection (<code>vppctl show int</code>, <code>vppctl show ip fib</code>) is
 still available through the CLI socket ze writes to <code>/run/vpp/cli.sock</code>.</p>
 <!-- source: internal/component/vpp/startupconf.go -- unix cli-listen -->
-
 <h2 id="what-is-not-yet-wired">What is not yet wired</h2>
 <p>Today, VPP process lifecycle, IPv4/IPv6 FIB programming, and stats
 telemetry are in the tree. The remaining phases:</p>
@@ -595,18 +573,20 @@ telemetry are in the tree. The remaining phases:</p>
 <tr>
 <td>vpp-4</td>
 <td>VPP-native <code>iface.Backend</code>: managing interfaces directly via GoVPP instead of through the kernel</td>
-<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (<code>spec-followup-vpp-iface</code>, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping <code>linux_cp_plugin.so</code>/<code>linux_nl_plugin.so</code> (the <code>ligato/vpp-base</code> image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in <code>spec-iface-vpp-ready-gate</code>. <span class="ev-src"><span class="ev-ref"><code>scripts/evidence/effective-vpp-iface.py</code></span></span></td>
+<td><strong>In tree.</strong> Backend registers as <code>"vpp"</code> and loads cleanly under <code>interface { backend vpp; }</code>. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (<code>ListInterfaces</code>, <code>GetInterface</code>, <code>GetMACAddress</code>, <code>SetMACAddress</code>), and monitor (<code>WantInterfaceEvents</code> -&gt; EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (<code>spec-followup-vpp-iface</code>, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping <code>linux_cp_plugin.so</code>/<code>linux_nl_plugin.so</code> (the <code>ligato/vpp-base</code> image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in <code>spec-iface-vpp-ready-gate</code>. <!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip --> <!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN --> <!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API --> <!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->. <span class="ev-src"><span class="ev-ref"><code>internal/le/deployment.Answer</code></span></span></td>
+</tr>
+<tr>
+<td>vpp-5</td>
+<td>L2 cross-connect, bridge domains, policers, ACLs, SRv6, sFlow</td>
+<td>Depends on vpp-4. Each feature is independent. (VXLAN tunnels landed with <code>spec-followup-vpp-iface</code>.)</td>
+</tr>
+<tr>
+<td>(netns)</td>
+<td>Netns-aware BGP listening: BGP binds inside a named network namespace</td>
+<td><strong>Not in tree.</strong> <code>RealListenerFactory.Listen</code> binds via <code>net.ListenConfig</code> in whatever namespace the ze process runs in; nothing in the BGP reactor references a network namespace. So with the default <code>vpp.lcp.netns</code> of <code>dataplane</code>, BGP reaches an LCP TAP only if ze itself runs in that namespace (see "How the two halves fit together"). Specced, not implemented; <code>ze doctor</code> reports <code>doctor-vpp-lcp-netns</code> meanwhile. <!-- source: internal/core/network/network.go -- RealListenerFactory.Listen, no netns awareness --></td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip -->
-<!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN -->
-<!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API -->
-<!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->
-<p>| vpp-5 | L2 cross-connect, bridge domains, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. (VXLAN tunnels landed with <code>spec-followup-vpp-iface</code>.) |
-| (netns) | Netns-aware BGP listening: BGP binds inside a named network namespace | <strong>Not in tree.</strong> <code>RealListenerFactory.Listen</code> binds via <code>net.ListenConfig</code> in whatever namespace the ze process runs in; nothing in the BGP reactor references a network namespace. So with the default <code>vpp.lcp.netns</code> of <code>dataplane</code>, BGP reaches an LCP TAP only if ze itself runs in that namespace (see "How the two halves fit together"). Specced, not implemented; <code>ze doctor</code> reports <code>doctor-vpp-lcp-netns</code> meanwhile. |</p>
-<!-- source: internal/core/network/network.go -- RealListenerFactory.Listen, no netns awareness -->
-
 <p>The three-strategy framing in
 <a href="https://github.com/ze-software/ze/blob/main/docs/research/ze-vpp-analysis.md" target="_blank" rel="noopener"><code>docs/research/ze-vpp-analysis.md</code></a>
 explains the bigger picture: strategy 1 (IPng / VyOS style, netlink
@@ -664,6 +644,7 @@ and converging sub-second on a full table.</p>
 </tr>
 </tbody>
 </table>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -705,7 +686,7 @@ and converging sub-second on a full table.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 02:03 UTC</span>
                 </div>
             </div>
         </footer>

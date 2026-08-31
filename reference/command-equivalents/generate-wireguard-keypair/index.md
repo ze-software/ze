@@ -1,27 +1,33 @@
 # `generate wireguard keypair`
 
+Generate a WireGuard keypair with the system wg binary.
+
 ## Ze command
 
-- Syntax: `generate wireguard keypair`
 - Registry path: `generate wireguard keypair`
 - Mode: Offline
 - Wire method: `not listed`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-Generate a WireGuard keypair. Prints private and public keys to stdout for use in your config.
+The private key is written on the first line and the public key on the second. The wg binary must be installed on this host.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
-### Generate a WireGuard keypair
-
-Category: Security
+No vendor equivalent has been curated yet for this Ze command.
 
 ## Vendor equivalents
 

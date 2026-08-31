@@ -69,12 +69,11 @@
 <li><a href="#known-limitations">Known Limitations</a></li>
 </ol></nav>
 <!-- source: internal/plugins/as112/register.go -- as112 registration -->
-
 <h2 id="quick-start">Quick Start</h2>
 <pre><code>service {
     as112 {
         enabled true
-        hostname &quot;node1.example.net&quot;
+        hostname "node1.example.net"
     }
 }
 </code></pre>
@@ -149,7 +148,6 @@
 </tbody>
 </table>
 <!-- source: internal/plugins/as112/yang/ze-as112-conf.yang -- YANG leaves -->
-
 <p>The combined <code>hostname</code>+<code>facility</code>+<code>location</code> TXT payload is bounded so the assembled HOSTNAME.AS112.* response always fits 512 octets with TC=0, even at every field's maximum length (RFC 7534 §3.5).</p>
 <p><code>allow-from</code> is the recommended way to restrict a local-use mirror to known client ranges. Set it directly in <code>service { as112 { ... } }</code> rather than hand-authoring <code>firewall</code> section rules matching UDP/TCP port 53 across all four anycast addresses (two per family). Keeping access control in the plugin avoids splitting one policy decision across two subsystems, and the loopback/on-box carve-out is never blocked, which a hand-authored firewall rule would have to replicate correctly.</p>
 <p>The on-box carve-out recognises both loopback and the node's own four anycast addresses as sources. The healthcheck probe deliberately queries the real anycast address rather than loopback; see <a href="#bgp-integration-conditional-origination">BGP Integration</a>. Unlike loopback, the anycast addresses are ordinary public IPs that a remote sender could forge as a UDP source, so a query claiming to originate from the node's own address bypasses <code>allow-from</code>. This does not enable data exfiltration because replies go to the real address rather than the spoofed one, but <code>allow-from</code> should not be the only access control against a source willing to spoof the node's own addresses.</p>
@@ -202,7 +200,6 @@ it, which is the point of an AS112 node.</p>
 serve costs one header.</p>
 <!-- source: internal/plugins/as112/zones.go -- answerQuestions -->
 <!-- source: internal/core/dnsserver/handler.go -- Authoritative, shapeAuthoritative -->
-
 <h3 id="reply-shape-and-size">Reply shape and size</h3>
 <p>The shared authoritative harness owns the reply shape for as112 and geodns
 alike. Recursion is never advertised (RA clear), the reserved Z field and the AD
@@ -215,7 +212,6 @@ requestor advertised in an OPT record (RFC 6891 §6.2.3). An advertisement below
 never carries TC: RFC 1035 §4.2.1 bounds UDP only, and §4.2.2 puts no length
 ceiling on a stream.</p>
 <!-- source: internal/core/dnsserver/handler.go -- send, udpReplyLimit, isDatagram -->
-
 <h2 id="cli-commands">CLI Commands</h2>
 <table>
 <thead>
@@ -237,7 +233,6 @@ ceiling on a stream.</p>
 </table>
 <!-- source: internal/plugins/as112/health.go -- handleAS112Health -->
 <!-- source: internal/plugins/as112/show.go -- handleShowAS112 -->
-
 <h2 id="bgp-integration-conditional-origination">BGP Integration (Conditional Origination)</h2>
 <p>AS112 covering prefixes (the /24s and /48s per RFC 7534 §3.4 / RFC 7535 §3.1, NOT the /32,/128 host addresses bound on <code>lo</code>) can be originated into BGP two ways. Both preserve the layering rule: <code>as112</code> never reads <code>bgp {}</code> config and BGP hardcodes no AS112 knowledge.</p>
 <table>
@@ -289,7 +284,6 @@ bgp {
 <p>Choose the hand-authored path when these redistribute limits matter: the covering prefixes go to <em>all</em> BGP peers because the redistribute block has no dedicated peer-group restriction, the same <code>asn</code>/<code>community</code> applies to every peer, and the <code>watchdog</code> gate checks process serving state rather than the full anycast path.</p>
 <!-- source: internal/plugins/as112/redistribute.go -- as112 redistribute producer -->
 <!-- source: internal/component/bgp/redistribute/consumer.go -- origin-ASN/community wire emission -->
-
 <h3 id="hand-authored-origination-per-peer-settings">Hand-authored origination (per-peer settings)</h3>
 <p>The <code>healthcheck</code> probe plus <code>watchdog</code>-controlled <code>update</code> block remains available for per-peer origin-AS/community, dedicated peer-group policy, or anycast-path liveness. No AS112-specific BGP code exists; it composes existing mechanisms (see <code>docs/guide/healthcheck.md</code>).</p>
 <h3 id="worked-example">Worked example</h3>
@@ -308,12 +302,12 @@ bgp {
             # address lands on the interface) -- exactly the false positive
             # RFC 7534 Section 3.3/3.5 forbids.
             #
-            # This shells out to `ze cli -c &quot;...&quot;`, which dispatches back
+            # This shells out to `ze cli -c "..."`, which dispatches back
             # into THIS SAME running daemon over SSH. The daemon process
             # itself must be started with ZE_CONFIG_DIR/ZE_SSH_PASSWORD (or
             # an equivalent credential) set in its OWN environment, since the
-            # probe subprocess inherits it -- see &quot;Probe credentials&quot; below.
-            command &quot;ze cli -c \&quot;request as112 healthcheck target 192.175.48.1\&quot;&quot;
+            # probe subprocess inherits it -- see "Probe credentials" below.
+            command "ze cli -c \"request as112 healthcheck target 192.175.48.1\""
             group as112-anycast
             interval 10
             rise 2
@@ -325,9 +319,9 @@ bgp {
     # Two DEDICATED peer-groups for AS112 routes only (RFC 7534 Section 3.4's
     # prefix/AS-PATH-filter SHOULD): never reuse a general-purpose/transit
     # peer-group for either update block. `session` is a single container per
-    # peer (not a list) -- AS_PATH origin override and &quot;no override&quot; are two
+    # peer (not a list) -- AS_PATH origin override and "no override" are two
     # SEPARATE peer blocks, both referencing the SAME watchdog group below, so
-    # one shared healthcheck probe gates both (see &quot;Shared watchdog groups&quot;).
+    # one shared healthcheck probe gates both (see "Shared watchdog groups").
     # Splitting into per-address-family update blocks (rather than one mixed
     # block) is required because next-hop is family-specific.
     #
@@ -376,7 +370,7 @@ bgp {
     # overrides AS_PATH origin to 112 for THIS peer-group's routes only. The
     # peer-group above has no such override, so it announces with ze's real
     # local AS instead -- both are controlled independently even though they
-    # share the same watchdog group (&quot;as112-anycast&quot;).
+    # share the same watchdog group ("as112-anycast").
     #
     # HARD WARNING: replace-as 112 on a group with eBGP sessions to
     # non-private/public ASNs makes this an uncoordinated global AS112 node.
@@ -559,6 +553,7 @@ bgp {
 <li>This plugin ships no executable BGP integration code. Operators hand-author the <code>healthcheck</code>/<code>update</code> composition from the worked example above; there is no single turnkey <code>as112 { bgp { ... } }</code> config block.</li>
 <li>Two RFC 7534 SHOULDs cannot be enforced in software (RFC Compliance Mapping #5 and #14 above): dedicating the host to AS112 purpose, and community notification before installing a globally-reachable node. These are deployment/process responsibilities, documented here rather than coded.</li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -600,7 +595,7 @@ bgp {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

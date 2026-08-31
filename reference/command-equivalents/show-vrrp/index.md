@@ -1,25 +1,35 @@
 # `show vrrp`
 
+Show every VRRP virtual router.
+
 ## Ze command
 
-- Syntax: `show vrrp`
 - Registry path: `show vrrp`
+- Usage: `show vrrp`
 - Mode: Read-only
 - Wire method: `ze-show:vrrp`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `interface`, `statistics`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show every VRRP virtual router: its group name, VRID, address family, state (initialize, backup, master), configured and effective priority, virtual addresses, and the macvlan device that carries the virtual MAC.
+Per router: its group name, VRID, address family, state (initialize, backup, master), configured and effective priority, virtual addresses, and the macvlan device that carries the virtual MAC.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

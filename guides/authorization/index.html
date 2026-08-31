@@ -161,7 +161,7 @@ matches the command, the default action applies.</p>
 <h3 id="evaluation-order">Evaluation order</h3>
 <ol>
 <li>The dispatcher resolves the command and determines which section
-   applies (run or edit).</li>
+applies (run or edit).</li>
 <li>Entries are evaluated in ascending <code>number</code> order.</li>
 <li>The <strong>first matching entry wins</strong>. Its action is the verdict.</li>
 <li>If no entry matches, <code>default-action</code> applies.</li>
@@ -208,7 +208,7 @@ and <code>$</code>.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>"^show bgp peer (list\|summary)( \|$)"</code></td>
+<td><code>"^show bgp peer (list|summary)( |$)"</code></td>
 <td><code>show bgp peer list</code>, <code>show bgp peer summary</code>, <code>show bgp peer list 10.0.0.1</code></td>
 <td><code>show bgp peer detail</code>, <code>show bgp peer routes</code></td>
 </tr>
@@ -223,7 +223,7 @@ and <code>$</code>.</p>
 <td><code>restart now</code></td>
 </tr>
 <tr>
-<td><code>"^clear (bgp\|counters)"</code></td>
+<td><code>"^clear (bgp|counters)"</code></td>
 <td><code>clear bgp peer1</code>, <code>clear counters all</code></td>
 <td><code>clear l2tp session</code></td>
 </tr>
@@ -249,15 +249,13 @@ the authorization string is <code>"peer show routes"</code>, not
 what the user typed: <code>show bgp peer list</code>, <code>clear counters</code>,
 <code>configure</code>, etc.</p>
 <p><strong>Every command now starts with its verb, so profile entries must too.</strong> The bare
-forms that once worked without a verb (<code>bgp summary</code>, <code>system memory</code>, <code>daemon
-reload</code>) were removed from the command tree. Prefix matching is anchored at the
+forms that once worked without a verb (<code>bgp summary</code>, <code>system memory</code>, <code>daemon reload</code>) were removed from the command tree. Prefix matching is anchored at the
 start of the typed string, so an entry whose <code>match</code> is <code>bgp</code> no longer covers
 <code>show bgp</code>. Review any denylist entry keyed on a bare form: it silently
 stops covering the command it was written for. Write <code>show bgp</code>, <code>show system</code>,
 and <code>request reload</code> instead.</p>
 <!-- source: internal/component/cli/client/verb_tree.go -- BuildVerbCommandTree, verbContextPath -->
 <!-- source: internal/plugins/signal/main.go -- Commands table ExecCommand column -->
-
 <h2 id="configuration">Configuration</h2>
 <h3 id="defining-profiles">Defining profiles</h3>
 <p>Profiles are defined under <code>system &gt; authorization</code>:</p>
@@ -276,15 +274,15 @@ and <code>request reload</code> instead.</p>
                 default-action allow
                 entry 10 {
                     action deny
-                    match &quot;restart&quot;
+                    match "restart"
                 }
                 entry 20 {
                     action deny
-                    match &quot;kill&quot;
+                    match "kill"
                 }
                 entry 30 {
                     action deny
-                    match &quot;clear&quot;
+                    match "clear"
                 }
             }
             edit {
@@ -296,15 +294,15 @@ and <code>request reload</code> instead.</p>
                 default-action deny
                 entry 10 {
                     action allow
-                    match &quot;show bgp peer list&quot;
+                    match "show bgp peer list"
                 }
                 entry 20 {
                     action allow
-                    match &quot;show bgp&quot;
+                    match "show bgp"
                 }
                 entry 30 {
                     action allow
-                    match &quot;show bgp peer&quot;
+                    match "show bgp peer"
                     regex true
                 }
             }
@@ -321,15 +319,15 @@ Each user has a <code>profile</code> leaf that takes a list of profile names:</p
 <pre><code>system {
     authentication {
         user alice {
-            password &quot;$2a$10$...&quot;
+            password "$2a$10$..."
             profile [ admin ]
         }
         user bob {
-            password &quot;$2a$10$...&quot;
+            password "$2a$10$..."
             profile [ noc ]
         }
         user grafana {
-            password &quot;$2a$10$...&quot;
+            password "$2a$10$..."
             profile [ monitoring ]
         }
     }
@@ -386,11 +384,11 @@ command:</p>
         default-action deny
         entry 10 {
             action allow
-            match &quot;show bgp peer list&quot;
+            match "show bgp peer list"
         }
         entry 20 {
             action allow
-            match &quot;show bgp&quot;
+            match "show bgp"
         }
     }
     edit {
@@ -407,11 +405,11 @@ it, such as an IP address) and <code>show bgp</code>, but nothing else.</p>
         default-action allow
         entry 10 {
             action deny
-            match &quot;restart&quot;
+            match "restart"
         }
         entry 20 {
             action deny
-            match &quot;kill&quot;
+            match "kill"
         }
     }
     edit {
@@ -425,11 +423,11 @@ it, such as an IP address) and <code>show bgp</code>, but nothing else.</p>
     default-action deny
     entry 10 {
         action deny
-        match &quot;show bgp peer secret&quot;
+        match "show bgp peer secret"
     }
     entry 20 {
         action allow
-        match &quot;show bgp peer&quot;
+        match "show bgp peer"
     }
 }
 </code></pre>
@@ -444,7 +442,7 @@ sub-commands:</p>
     default-action deny
     entry 10 {
         action allow
-        match &quot;^show bgp peer (list|summary)( |$)&quot;
+        match "^show bgp peer (list|summary)( |$)"
         regex true
     }
 }
@@ -458,7 +456,7 @@ order; the first profile with a matching entry wins:</p>
 <pre><code>system {
     authentication {
         user ops {
-            password &quot;$2a$10$...&quot;
+            password "$2a$10$..."
             profile [ restricted ops-extra ]
         }
     }
@@ -468,7 +466,7 @@ order; the first profile with a matching entry wins:</p>
                 default-action deny
                 entry 10 {
                     action allow
-                    match &quot;show bgp peer&quot;
+                    match "show bgp peer"
                 }
             }
             edit { default-action deny; }
@@ -478,7 +476,7 @@ order; the first profile with a matching entry wins:</p>
                 default-action deny
                 entry 10 {
                     action deny
-                    match &quot;kill&quot;
+                    match "kill"
                 }
             }
             edit { default-action deny; }
@@ -533,7 +531,7 @@ configuration valid
 </code></pre>
 <p>An invalid regex pattern causes a validation error:</p>
 <pre><code>$ ze config validate bad.conf
-profile &quot;test&quot; run: entry 10: invalid regex &quot;[broken&quot;: error parsing regexp: missing closing ]: `[broken`
+profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: missing closing ]: `[broken`
 </code></pre>
 <h2 id="things-that-do-not-work">Things that do NOT work</h2>
 <table>
@@ -558,7 +556,7 @@ profile &quot;test&quot; run: entry 10: invalid regex &quot;[broken&quot;: error
 <tr>
 <td>Expecting regex to be anchored by default</td>
 <td>Go regex <code>MatchString</code> matches anywhere in the string; <code>"restart"</code> matches <code>"show restart status"</code></td>
-<td>Anchor explicitly: <code>"^restart( \|$)"</code></td>
+<td>Anchor explicitly: <code>"^restart( |$)"</code></td>
 </tr>
 <tr>
 <td>Referencing a profile name that does not exist</td>
@@ -618,6 +616,7 @@ profile &quot;test&quot; run: entry 10: invalid regex &quot;[broken&quot;: error
 <!-- source: internal/component/authz/register.go -- StoreAuthorizer -->
 <!-- source: internal/component/aaa/command_args.go -- CanonicalCommand -->
 <!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, isAuthorized -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -659,7 +658,7 @@ profile &quot;test&quot; run: entry 10: invalid regex &quot;[broken&quot;: error
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

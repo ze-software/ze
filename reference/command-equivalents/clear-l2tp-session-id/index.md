@@ -1,21 +1,30 @@
 # `clear l2tp session id`
 
+Disconnect one subscriber session.
+
 ## Ze command
 
-- Syntax: `clear l2tp session id`
 - Registry path: `clear l2tp session id`
+- Usage: `clear l2tp session id`
 - Mode: Daemon
 - Wire method: `ze-l2tp-api:session-teardown`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Disconnect one subscriber session. Sends a CDN to gracefully close the session. Pass the local session ID: clear l2tp session id <id> [reason <text>] [cause <code>].
+Sends a CDN to gracefully close the session. Pass the local session ID: clear l2tp session id <id> [reason <text>] [cause <code>].
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

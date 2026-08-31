@@ -1,21 +1,30 @@
 # `show system ntp peers`
 
+Show NTP peers with offset, RTT, stratum, and reachability.
+
 ## Ze command
 
-- Syntax: `show system ntp peers`
 - Registry path: `show system ntp peers`
+- Usage: `show system ntp peers`
 - Mode: Read-only
 - Wire method: `ze-show:system-ntp-peers`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show NTP peers with offset, RTT, stratum, and reachability. Tells you whether your clock is synced and how far off each NTP server thinks you are.
+Tells you whether your clock is synced and how far off each NTP server thinks you are.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

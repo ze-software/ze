@@ -428,7 +428,7 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `local { ip; as; }` | Local bind address and AS | Yes (ip can be `auto`) |
 | `router-id` | BGP router ID | Yes (or inherited) |
 | `description` | Human-readable description | No |
-| `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0), `connect-retry` (seconds, default 120) | No |
+| `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0, and a non-zero value must be greater than `receive-hold-time` per RFC 9687 Section 4.4), `connect-retry` (seconds, default 120) | No |
 | `remote { connect }` | Initiate outbound TCP connections: `true` or `false` (default: true) | No |
 | `local { accept }` | Accept inbound TCP connections: `true` or `false` (default: true) | No |
 | `port` | TCP port | No (default: 179) |
@@ -439,6 +439,49 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `rs-fast-path` | Enable reactor-native RS forwarding (bypasses plugin dispatch for UPDATE forwarding) | No (default: disable) |
 | `blackhole { }` | Honor RFC 7999's BLACKHOLE community from this peer. See [Blackhole Honoring](#blackhole-honoring-rfc-7999) | No (default: off) |
 <!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/yang/ze-bgp-conf.yang -- peer settings, container timer -->
+
+## AS Migration (`local-as`)
+
+A router that moves into a new AS keeps its old AS on the sessions that are not
+renumbered yet. `session { asn { local } }` sets that legacy AS for one peer,
+and the router's own AS stays in the global `bgp { session { asn { local } } }`.
+RFC 7705 Section 3.3 calls the two values the "Local AS" and the globally
+configured ASN.
+
+```
+bgp {
+    session {
+        asn { local 65000; }        // the router's own AS
+    }
+    peer legacy-customer {
+        session {
+            asn {
+                local 65010          // the AS this customer still peers with
+                remote 65001
+                local-options [ replace-as ]
+            }
+        }
+    }
+}
+```
+
+With no `local-options`, this customer receives `AS_PATH 65010 65000 ...`: the
+globally configured ASN first, then the legacy AS, so the legacy AS is the one
+the customer sees adjacent to itself.
+
+The two options act in different directions, so each one answers a different
+question.
+
+| Option | Direction | Effect |
+|--------|-----------|--------|
+| `replace-as` | outbound, toward this peer | The globally configured ASN is not prepended. The peer receives `AS_PATH 65010 ...` |
+| `no-prepend` | inbound, from this peer | The legacy AS is not added to a route received from this peer. Ze never adds an AS to a received AS_PATH, so this is already what Ze does, and the option states it. It does not change what this peer receives |
+
+Set both and the outbound result is `replace-as`.
+
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- secondaryPrependAS -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerSettings, local-options -->
+<!-- source: test/plugin/bgp-local-as-options.ci -- the AS_PATH each option puts on the wire -->
 
 ## Blackhole Honoring (RFC 7999)
 
@@ -651,7 +694,7 @@ family {
 }
 ```
 
-Use `ze --plugins` to see available families from registered plugins.
+Use `ze show plugins` to see available families from registered plugins.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin Families registration -->
 
 ### A Peer That Declares No Family
@@ -950,8 +993,9 @@ directions; `update-received` and `update-sent` name one. `*` names every
 registered type. Values are validated at config parse time.
 
 Base message types for `send`: `update` to originate routes, `refresh` to ask
-the peer to re-advertise. `*` grants both, and every send type registered
-later. A send a peer's block does not grant is refused and reported.
+the peer to re-advertise, `raw` to write a whole BGP message the program built
+itself. `*` grants all three, and every send type registered later. A send a
+peer's block does not grant is refused and reported.
 
 Write the block on a group and every peer of that group carries it, dynamic
 members included. A member that restates the block replaces the group's list

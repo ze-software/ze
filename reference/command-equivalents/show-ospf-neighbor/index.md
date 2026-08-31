@@ -1,21 +1,30 @@
 # `show ospf neighbor`
 
+Show OSPF neighbors.
+
 ## Ze command
 
-- Syntax: `show ospf neighbor`
 - Registry path: `show ospf neighbor`
+- Usage: `show ospf neighbor`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-neighbor`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `detail`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show OSPF neighbors. Returns each neighbor's router-id, interface, adjacency state, DR/BDR, priority, dead time, and address.
+Returns each neighbor's router-id, interface, adjacency state, DR/BDR, priority, dead time, and address.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

@@ -85,8 +85,8 @@ loss, peer CDN, or timeout). The remote must have `outgoing-calls true`.
 The `relay` binding is the LAC path: a PPPoE subscriber whose Service-Name
 matches is relayed into an L2TP incoming call (ICRQ) toward the bound remote
 instead of terminating PPP locally. The subscriber-PPP↔L2TP kernel channel
-bridge that carries frames at the LAC is Linux-only and exercised under QEMU
-(`make ze-qemu-l2tp-ppp-test`). Initiator tunnel interop is proven against
+bridge that carries frames at the LAC is Linux-only and exercised through
+`./le deployment l2tp-ppp-test`. Initiator tunnel interop is proven against
 xl2tpd in `test/interop-l2tp/scenarios/03-ze-lac-xl2tpd-lns`.
 
 <!-- source: internal/component/l2tp/yang/ze-l2tp-conf.yang -- remote/relay lists -->
@@ -262,12 +262,36 @@ RADIUS client plugin providing:
 - **CoA/DM** -- Change of Authorization and Disconnect-Message listener
   (RFC 5176) for RADIUS-initiated session changes and disconnects
 
-Every Accounting-Request carries User-Name, Acct-Status-Type, Acct-Session-Id,
-Service-Type (Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual) and
-NAS-Port. NAS-IP-Address, NAS-Identifier and NAS-Port-Id are added when they are
-configured. Stop and Interim-Update add Acct-Session-Time, the input and output
-octet and packet counters, and the RFC 2869 gigaword counters when a counter
-passes 2^32.
+RFC 2865 Section 4.1 admits exactly three credential attributes in an
+Access-Request: User-Password, CHAP-Password, or State. A peer that supplied
+none of them supplies nothing to authenticate, so no Access-Request is built and
+the session is denied with `no usable credential`. This covers `auth-method
+none` while a RADIUS server is configured, and an MS-CHAPv2 response too short
+to carry a peer challenge and an NT response. Section 5 forbids sending text of
+length zero, so a peer that sends an empty PAP Peer-ID gets an Access-Request
+with no User-Name attribute rather than an empty one.
+
+An Access-Accept naming a Service-Type other than Framed-User is treated as an
+Access-Reject, and the session is denied with `unsupported Service-Type`. The
+LNS provides framed PPP access and asks for it by name, so an Accept authorizing
+anything else authorizes a service ze cannot bring up (RFC 2865 Sections 5.6
+and 1.1).
+<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS -->
+
+Every Accounting-Request carries Acct-Status-Type, Acct-Session-Id, Service-Type
+(Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual) and NAS-Port. User-Name
+is added when the session has one: a session the LNS never authenticated has no
+username, and RFC 2866 Section 5 forbids sending text of length zero.
+NAS-Port-Id is added when the operator configured a template. Stop and
+Interim-Update add Acct-Session-Time, the input and output octet and packet
+counters, and the RFC 2869 gigaword counters when a counter passes 2^32.
+
+RFC 2866 Section 4.1 requires either NAS-IP-Address or NAS-Identifier in every
+Accounting-Request, and RFC 2865 Section 4.1 requires the same of every
+Access-Request, so ze always sends one of the two. A configured `source-address`
+becomes NAS-IP-Address and a configured `nas-identifier` becomes NAS-Identifier.
+When neither leaf is set, the host name is sent as NAS-Identifier, which is what
+the RADIUS admin backend already does.
 
 Framed-IP-Address carries the address the session was actually given, which RFC
 2866 Section 4.1 requires of the attribute. The value is the IPCP-negotiated
@@ -275,6 +299,7 @@ peer address the reactor put on `pppN`. RFC 2865 Section 5.8 makes the attribute
 four octets, so a session with no address yet, or one whose only assignment is
 IPv6, sends no attribute rather than a wrong one.
 <!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket -->
+<!-- source: internal/component/l2tp/plugins/authradius/nasidentity.go -- appendNASIdentity -->
 
 Three attributes an operator may look for are deliberately absent, because no
 runtime value exists for them: Framed-Interface-Id, Framed-IPv6-Prefix and
@@ -315,6 +340,20 @@ placeholder that does not exist, one longer than 253 characters (the largest
 value a RADIUS attribute can carry), and one using `{nas-id}` with no
 `nas-identifier` set. Unset sends no attribute.
 
+`acct-interval` is the interim accounting cadence in seconds, and it has no
+default. RFC 2869 Section 2.1 states that a locally configured value on the NAS
+MUST override the value found in an Access-Accept. A leaf that is set therefore
+pins the cadence of every session, and a RADIUS server cannot move it. An unset
+leaf gives that decision to each session's Access-Accept. The value arrives in
+the Acct-Interim-Interval attribute (type 85), which Ze clamps to 60..3600
+seconds. A session runs at 300 seconds when neither side states an interval.
+
+The choice is which side owns the cadence. An operator who sized the interval
+for the NAS and the network sets the leaf. An operator who leaves it unset lets
+one server retime every session that server accepts.
+
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- acctInterval -->
+
 `coa-port` enables the UDP Change of Authorization and Disconnect-Message
 listener. It has no default: leaving it unset keeps the listener off, so an
 upgrade cannot expose a new RADIUS endpoint unexpectedly. Port 3799 is the
@@ -322,8 +361,31 @@ standard deployment choice. Ze accepts CoA/DM requests only from addresses
 listed under `server`; the authentication and accounting destination port on
 each server is configured separately.
 
+RFC 5176 Section 3.4 makes the Message-Authenticator attribute optional, and Ze
+follows the RFC by default: a CoA-Request or Disconnect-Request that carries none
+is accepted, and one that carries a wrong value is discarded with no reply. The
+request still has to come from a configured Dynamic Authorization Client and
+still has to carry a correct Request Authenticator, both keyed on the shared
+secret, so an absent attribute is not an unauthenticated request.
+
+Set `require-message-authenticator true` to refuse a request that carries none.
+Requiring the attribute is the mitigation for the Blast-RADIUS class of attack on
+the RADIUS/UDP MD5 authenticator, so enable it wherever the Dynamic Authorization
+Client can send one. FreeRADIUS `radclient` and the `radiusd` CoA originator both
+can. The default is permissive because a Dynamic Authorization Client that omits
+the attribute is conformant, and refusing it outright made Ze unable to talk to
+one at all.
+
+Both authenticators are computed in the order RFC 5176 Section 3.4 fixes. The
+Message-Authenticator is the HMAC-MD5 over the packet with the Request
+Authenticator field and the Message-Authenticator value each replaced by sixteen
+octets of zero, and the Request Authenticator is computed afterwards, over the
+packet the finished Message-Authenticator is part of. A client that inverts the
+two is refused.
+
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- coa-port -->
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- source-address validation -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- source-address validation, handlePacket -->
+<!-- source: internal/component/radius/packet.go -- VerifyCoARequestAuth, VerifyCoAMessageAuthenticator -->
 
 
 Authentication timing is controlled via the `authentication` container under `l2tp`:
@@ -398,9 +460,11 @@ l2tp {
 
 RADIUS `Filter-Id` can override the default shaping rate when it contains a
 parseable rate, otherwise Ze keeps the configured default rate. `Session-Timeout`
-and `Idle-Timeout` start per-session teardown timers, and
-`Acct-Interim-Interval` overrides the accounting update cadence within the
-supported clamp range. RADIUS CoA rate updates do not tear down the session.
+and `Idle-Timeout` start per-session teardown timers.
+`Acct-Interim-Interval` sets the accounting update cadence, clamped to 60..3600
+seconds. It applies to a session whose deployment left `acct-interval` unset.
+RFC 2869 Section 2.1 gives a configured `acct-interval` precedence over it.
+RADIUS CoA rate updates do not tear down the session.
 
 <!-- source: internal/component/l2tp/plugins/shaper/ -->
 

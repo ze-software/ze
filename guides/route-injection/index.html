@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/guides/route-injection/" />
         <meta property="og:url" content="https://ze-software.net/guides/route-injection/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -73,31 +73,29 @@
 <li><a href="#from-plugins">From Plugins</a></li>
 </ol></nav>
 <!-- source: internal/component/bgp/plugins/cmd/update/ -- update text/hex/b64 command parsing -->
-
 <h2 id="injecting-into-the-local-rib">Injecting into the Local RIB</h2>
 <p><code>request bgp rib inject</code> inserts a synthetic candidate into Ze's BGP RIB without
 requiring a live BGP session. If the route wins best-path selection, it continues
 through the system RIB and configured FIB backends.</p>
-<pre><code class="language-bash">ze cli -c &quot;request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42&quot;
-ze cli -c &quot;show bgp rib best prefix 198.51.100.0/24&quot;
-ze cli -c &quot;show rib&quot;
+<pre><code class="language-bash">ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42"
+ze cli -c "show bgp rib best prefix 198.51.100.0/24"
+ze cli -c "show rib"
 </code></pre>
 <p>Withdraw the same candidate with the matching synthetic peer, family, and prefix:</p>
-<pre><code class="language-bash">ze cli -c &quot;request bgp rib withdraw 192.0.2.10 ipv4/unicast 198.51.100.0/24&quot;
+<pre><code class="language-bash">ze cli -c "request bgp rib withdraw 192.0.2.10 ipv4/unicast 198.51.100.0/24"
 </code></pre>
 <p>The <code>bgp-rib</code> and <code>rib</code> plugins provide best-path and system-RIB selection.
 On Linux, the <code>fib-kernel</code> plugin programs selected routes through netlink.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
 <!-- source: internal/component/sysrib/sysrib.go -- system RIB arbitration -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- Linux FIB programming -->
-
 <h3 id="ipv6-next-hops-and-extended-next-hop">IPv6 next hops and extended next hop</h3>
 <p>An injected IPv6 route carries its IPv6 next hop in MP_REACH_NLRI. An injected
 IPv4 unicast route can also use an IPv6 next hop when the destination peer
 negotiated Extended Next Hop, the RFC 8950 capability historically defined by
 RFC 5549.</p>
-<pre><code class="language-bash">ze cli -c &quot;request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 2001:db8::1&quot;
-ze cli -c &quot;show bgp rib best prefix 198.51.100.0/24&quot;
+<pre><code class="language-bash">ze cli -c "request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 2001:db8::1"
+ze cli -c "show bgp rib best prefix 198.51.100.0/24"
 </code></pre>
 <p>Ze stores the MP_REACH attribute with the synthetic candidate and recovers the
 next hop when selecting and forwarding it. <code>show bgp rib best</code> and
@@ -109,13 +107,12 @@ hop, native or extended.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_attr_format.go -- enrichRouteMapFromEntry MP_REACH next-hop fallback -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- extractMPNextHopAddr -->
 <!-- source: internal/component/bgp/rib/commit.go -- extended next-hop encoding -->
-
 <figure class="terminal-demo" data-terminal-demo="rib-fib">
   <div class="terminal-demo__intro">
     <div>
       <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
       <h3>Follow a route from BGP RIB to Linux FIB</h3>
-      <p>Inject one route, inspect BGP best-path selection, and verify Linux installed it with Ze&#x27;s route protocol ID. Validation also proves withdrawal removes it.</p>
+      <p>Inject one route, inspect BGP best-path selection, and verify Linux installed it with Ze&#39;s route protocol ID. Validation also proves withdrawal removes it.</p>
     </div>
     <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
   </div>
@@ -128,7 +125,7 @@ hop, native or extended.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/rib-fib.cast?v=908cbeb9d1"
+      data-cast-src="../../assets/demos/rib-fib.cast?v=51ebb3f282"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -136,35 +133,34 @@ hop, native or extended.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/rib-fib.cast?v=908cbeb9d1">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/rib-fib.cast?v=51ebb3f282">Download the asciicast</a> or
       <a href="../../assets/demos/rib-fib.txt?v=ca05c09bc8">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>49 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.08.31</span><span>50 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/rib-fib.txt?v=ca05c09bc8">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
-    <pre><code>$ ze cli -c &#x27;request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42&#x27;
-$ ze cli -c &#x27;show bgp rib best prefix 198.51.100.0/24 | no-more&#x27;
+    <pre><code>$ ze cli -c &#39;request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42&#39;
+$ ze cli -c &#39;show bgp rib best prefix 198.51.100.0/24 | no-more&#39;
 198.51.100.0/24
 $ ip -details route show exact 198.51.100.0/24
 198.51.100.0/24 ... proto 250
 
-The route enters Ze&#x27;s BGP RIB, wins best-path selection, reaches the protocol-independent system RIB, and is programmed into Linux with Ze&#x27;s route protocol ID. The validator withdraws it and confirms kernel removal.</code></pre>
+The route enters Ze&#39;s BGP RIB, wins best-path selection, reaches the protocol-independent system RIB, and is programmed into Linux with Ze&#39;s route protocol ID. The validator withdraws it and confirms kernel removal.</code></pre>
   </details>
 </figure>
-
 <h2 id="text-format">Text Format</h2>
 <p>Human-readable format with flat attribute declarations:</p>
-<pre><code class="language-bash">ze cli -c &quot;peer upstream1 update text \
+<pre><code class="language-bash">ze cli -c "peer upstream1 update text \
     origin igp \
     nhop 192.168.1.1 \
     local-preference 200 \
     as-path [ 65001 65002 ] \
     community [ 65000:100 no-export ] \
-    nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24&quot;
+    nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24"
 </code></pre>
 <h3 id="attribute-keywords">Attribute Keywords</h3>
 <p>Attributes are flat: keyword followed by value. No <code>set</code>/<code>add</code>/<code>del</code> on attributes.
@@ -311,7 +307,6 @@ The route enters Ze&#x27;s BGP RIB, wins best-path selection, reaches the protoc
 <p>Underscore variants (e.g., <code>no_export</code>, <code>graceful_shutdown</code>) and the shorthand
 <code>gshut</code> are also accepted. Tab completion in the config editor suggests all names.</p>
 <!-- source: internal/core/bgp/attribute/text.go -- wellKnownCommunityNames map -->
-
 <h3 id="colon-less-flowspec-actions">Colon-Less FlowSpec Actions</h3>
 <p>Most extended communities carry their value after a colon, so <code>extended-community</code>
 splits on the first one. Three FlowSpec traffic actions (RFC 8955 Section 7) carry
@@ -343,16 +338,15 @@ in <code>update text</code> and in config alike, from one keyword table both par
 </tr>
 </tbody>
 </table>
-<pre><code class="language-bash">ze cli -c &quot;peer upstream update text \
+<pre><code class="language-bash">ze cli -c "peer upstream update text \
     origin igp nhop self \
     extended-community [ discard ] \
-    nlri ipv4/flow add &lt;flowspec-nlri&gt;&quot;
+    nlri ipv4/flow add &lt;flowspec-nlri&gt;"
 </code></pre>
 <p><code>copy-to-nexthop</code> and <code>redirect-to-nexthop-draft</code> differ in one bit of the last
 octet, which is the copy semantic. An unknown keyword is refused with an error
 naming the keywords Ze accepts, derived from the table.</p>
 <!-- source: internal/core/bgp/attribute/flowspec_action.go -- FlowSpecActionKeyword, FlowSpecActionKeywords -->
-
 <h3 id="one-encoder-per-flowspec-action">One Encoder Per FlowSpec Action</h3>
 <p>The actions that DO carry a value -- traffic-rate, traffic-action,
 traffic-marking, rt-redirect and redirect-to-IP -- are built in one place as
@@ -362,7 +356,6 @@ octets on the wire. Three copies of this vocabulary disagreed before: one wrote
 an out-of-range DSCP into the reserved bits, one dropped a zero-valued action,
 and one refused a 4-octet AS in a redirect the others encoded.</p>
 <!-- source: internal/core/bgp/attribute/flowspec_encode.go -- FlowSpecTrafficRate, FlowSpecTrafficAction, FlowSpecTrafficMarking, FlowSpecRedirect -->
-
 <h3 id="next-hop-self">Next-Hop Self</h3>
 <p><code>nhop self</code> resolves to the local address of each destination peer at wire time.</p>
 <h3 id="a-peer-never-receives-its-own-address-as-next-hop">A Peer Never Receives Its Own Address as Next Hop</h3>
@@ -379,7 +372,6 @@ peer.</p>
 <p>The same question is asked of a relayed route, where the address arrives as the
 third-party next hop Section 5.1.3 case 2 permits.</p>
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- originatedNextHopIsPeerOwn, egressNextHopIsPeerOwn -->
-
 <h3 id="nlri-operations">NLRI Operations</h3>
 <p><code>add</code> and <code>del</code> are NLRI operations (MP_REACH and MP_UNREACH):</p>
 <pre><code class="language-bash">nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24    # Announce prefixes
@@ -392,16 +384,16 @@ nlri ipv6/unicast add 2001:db8::/32
 </code></pre>
 <h2 id="hex-format">Hex Format</h2>
 <p>Wire-encoded bytes for debugging or replay:</p>
-<pre><code class="language-bash">ze cli -c &quot;peer upstream1 update hex \
+<pre><code class="language-bash">ze cli -c "peer upstream1 update hex \
     attr set 40010100400200400304c0a80101 \
     nhop set c0a80101 \
-    nlri ipv4/unicast add 180a0000&quot;
+    nlri ipv4/unicast add 180a0000"
 </code></pre>
 <h2 id="base64-format">Base64 Format</h2>
 <p>Compact encoding for scripts:</p>
-<pre><code class="language-bash">ze cli -c &quot;peer upstream1 update b64 \
+<pre><code class="language-bash">ze cli -c "peer upstream1 update b64 \
     attr set QAEBAAQDAsCoBQE= \
-    nlri ipv4/unicast add GAoAAA==&quot;
+    nlri ipv4/unicast add GAoAAA=="
 </code></pre>
 <h2 id="peer-selector">Peer Selector</h2>
 <p>Routes are sent to peers matching the selector:</p>
@@ -442,28 +434,23 @@ nlri ipv6/unicast add 2001:db8::/32
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
-
 <h2 id="commit-workflow">Commit Workflow</h2>
 <p>For atomic multi-route updates:</p>
-<pre><code class="language-bash">ze cli -c &quot;request commit start my-batch&quot;
-ze cli -c &quot;peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24&quot;
-ze cli -c &quot;peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24&quot;
-ze cli -c &quot;request commit end my-batch&quot;    # All routes sent together
+<pre><code class="language-bash">ze cli -c "request commit start my-batch"
+ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
+ze cli -c "peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24"
+ze cli -c "request commit end my-batch"    # All routes sent together
 </code></pre>
 <!-- source: internal/component/bgp/plugins/cmd/commit/ -- commit command RPCs; internal/component/bgp/transaction/ -- commit manager -->
-
 <h2 id="from-plugins">From Plugins</h2>
-<p>External plugins send routes through the SDK:</p>
-<pre><code class="language-python">from ze_api import API
-
-api = API()
-# ... 5-stage startup ...
-api.send(&quot;peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24&quot;)
-</code></pre>
+<p>External plugins send the same newline-framed YANG RPC command over the plugin
+hub. The wire protocol is language-independent; the repository no longer
+ships a Python launcher or helper.</p>
 <p>Go plugins use the SDK method:</p>
-<pre><code class="language-go">p.UpdateRoute(ctx, &quot;*&quot;, &quot;update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24&quot;)
+<pre><code class="language-go">p.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
 </code></pre>
-<!-- source: pkg/plugin/sdk/ -- SDK DispatchCommand; test/scripts/ze_api.py -- Python SDK -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -505,7 +492,7 @@ api.send(&quot;peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/2
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,25 +1,35 @@
 # `show as112`
 
+AS112 node status.
+
 ## Ze command
 
-- Syntax: `show as112`
 - Registry path: `show as112`
+- Usage: `show as112`
 - Mode: Read-only
 - Wire method: `ze-show:as112`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-AS112 node status: enabled, address-family, hostname/ facility/location, allow-from count, served zone count, and the current SOA serial.
+Enabled, address-family, hostname/facility/location, allow-from count, served zone count, and the current SOA serial.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

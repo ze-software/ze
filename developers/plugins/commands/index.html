@@ -78,39 +78,36 @@
 <h2 id="declaring-commands">Declaring Commands</h2>
 <p>Commands are declared in the <code>Registration</code> struct passed to <code>Run</code>. The engine learns about them during Stage 1 (declare-registration).</p>
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl, DeclareRegistrationInput -->
-
 <pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
     Commands: []sdk.CommandDecl{
-        {Name: &quot;my-plugin status&quot;, Description: &quot;Show current status&quot;},
-        {Name: &quot;my-plugin check&quot;, Description: &quot;Trigger immediate check&quot;, Args: []string{&quot;target&quot;}},
+        {Name: "my-plugin status", Description: "Show current status"},
+        {Name: "my-plugin check", Description: "Trigger immediate check", Args: []string{"target"}},
     },
 })
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, CommandDecl -->
-
 <h2 id="handling-commands">Handling Commands</h2>
 <p>Register a handler with <code>OnExecuteCommand</code> before calling <code>Run</code>. The handler receives the command serial, command name, arguments, and peer selector.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
-
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (status string, data any, err error) {
     switch command {
-    case &quot;my-plugin status&quot;:
-        return &quot;done&quot;, map[string]any{
-            &quot;status&quot;: &quot;running&quot;,
-            &quot;uptime&quot;: 3600,
+    case "my-plugin status":
+        return "done", map[string]any{
+            "status": "running",
+            "uptime": 3600,
         }, nil
-    case &quot;my-plugin check&quot;:
+    case "my-plugin check":
         if len(args) &lt; 1 {
-            return &quot;error&quot;, map[string]string{
-                &quot;error&quot;: &quot;usage: my-plugin check &lt;target&gt;&quot;,
+            return "error", map[string]string{
+                "error": "usage: my-plugin check &lt;target&gt;",
             }, nil
         }
         result := performCheck(args[0])
-        return &quot;done&quot;, result, nil
+        return "done", result, nil
     default:
-        return &quot;error&quot;, map[string]string{
-            &quot;error&quot;: &quot;unknown command: &quot; + command,
+        return "error", map[string]string{
+            "error": "unknown command: " + command,
         }, nil
     }
 })
@@ -119,9 +116,8 @@
 <p>Commands are delivered to the plugin as <code>execute-command</code> RPCs over the MuxConn connection. The wire format uses <code>#&lt;id&gt; &lt;verb&gt; [&lt;json&gt;]</code> framing.</p>
 <!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput, ExecuteCommandOutput -->
-
 <h3 id="request-engine-to-plugin">Request (engine to plugin)</h3>
-<pre><code>#17 ze-plugin-callback:execute-command {&quot;serial&quot;:&quot;abc123&quot;,&quot;command&quot;:&quot;my-plugin status&quot;,&quot;args&quot;:[],&quot;peer&quot;:&quot;&quot;}
+<pre><code>#17 ze-plugin-callback:execute-command {"serial":"abc123","command":"my-plugin status","args":[],"peer":""}
 </code></pre>
 <h3 id="success-response-plugin-to-engine">Success Response (plugin to engine)</h3>
 <p>The answer is a head, its records and a terminator, on every connection. The
@@ -195,7 +191,7 @@ line's field count never varies.</p>
 |   +---------------- kind top: the head, always the first line
 +-------------------- correlation id 17, echoed from the request
 
-#17 row 34:{&quot;status&quot;:&quot;running&quot;,&quot;uptime&quot;:3600}
+#17 row 34:{"status":"running","uptime":3600}
 |   |   |  |
 |   |   |  +----- those 34 bytes, what your handler returned, byte for byte
 |   |   +-------- 34, the payload's BYTE count, then the colon every text carries
@@ -212,24 +208,21 @@ line's field count never varies.</p>
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer -->
-
 <p>The engine reads that sequence back into one <code>ExecuteCommandOutput</code>: the record
 is its <code>data</code>, and its <code>status</code> is derived from the terminator, which is the one
 line an answer states an outcome on.</p>
 <!-- source: internal/component/plugin/ipc/rpc.go -- ExecuteCommandValue -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
-
 <h3 id="error-response-plugin-to-engine">Error Response (plugin to engine)</h3>
-<pre><code>#17 error {&quot;message&quot;:&quot;execute-command not supported&quot;}
+<pre><code>#17 error {"message":"execute-command not supported"}
 </code></pre>
 <h2 id="return-values">Return Values</h2>
 <p>The <code>OnExecuteCommand</code> handler returns three values: <code>(status string, data any, err error)</code>.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand, executeCommandOutput -->
-
 <h3 id="success-with-data">Success with Data</h3>
-<pre><code class="language-go">return &quot;done&quot;, map[string]any{
-    &quot;count&quot;: 42,
-    &quot;items&quot;: []string{&quot;a&quot;, &quot;b&quot;},
+<pre><code class="language-go">return "done", map[string]any{
+    "count": 42,
+    "items": []string{"a", "b"},
 }, nil
 </code></pre>
 <p>The SDK marshals this value once and sends it as the one record of the answer.
@@ -237,13 +230,12 @@ The three lines read exactly as the decoded ones above. The <code>doc</code> hea
 envelope and no columns, the <code>row</code> states 30 bytes and then the marshaled value,
 and the terminator counts one record, no rejection and no message.</p>
 <pre><code>#17 top doc 0: 0:
-#17 row 30:{&quot;count&quot;:42,&quot;items&quot;:[&quot;a&quot;,&quot;b&quot;]}
+#17 row 30:{"count":42,"items":["a","b"]}
 #17 end 1 0 0:
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandOutput, executeCommandAnswer -->
-
 <h3 id="success-without-data">Success without Data</h3>
-<pre><code class="language-go">return &quot;done&quot;, nil, nil
+<pre><code class="language-go">return "done", nil, nil
 </code></pre>
 <p>Response. A command that reported nothing writes no record, and the terminator
 says so: zero records produced, zero rejected, and a message of zero bytes.
@@ -252,12 +244,11 @@ Nothing is not the same answer as an empty collection:</p>
 #17 end 0 0 0:
 </code></pre>
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteDocumentAnswer, writeDocumentLines -->
-
 <h3 id="success-with-rows">Success with Rows</h3>
 <p>A command that walks a large collection returns an <code>sdk.Records</code> rather than a
 built value. The SDK writes one line for each row, so neither the plugin nor the
 engine holds the whole answer:</p>
-<pre><code class="language-go">return &quot;done&quot;, sdk.Records{Key: &quot;sessions&quot;, Rows: sessionRows()}, nil
+<pre><code class="language-go">return "done", sdk.Records{Key: "sessions", Rows: sessionRows()}, nil
 </code></pre>
 <pre><code>#17 top map 8:sessions 0:
 |   |   |   | |        |
@@ -268,8 +259,8 @@ engine holds the whole answer:</p>
 |   +------------------------ kind top: the head
 +---------------------------- correlation id 17
 
-#17 row 26:{&quot;id&quot;:1,&quot;peer&quot;:&quot;10.0.0.1&quot;}
-#17 row 26:{&quot;id&quot;:2,&quot;peer&quot;:&quot;10.0.0.2&quot;}
+#17 row 26:{"id":1,"peer":"10.0.0.1"}
+#17 row 26:{"id":2,"peer":"10.0.0.2"}
 #17 end 2 0 0:
 </code></pre>
 <p>Each <code>row</code> states the 26 bytes of its payload and then those bytes. The
@@ -287,21 +278,18 @@ no line can carry earn the same rejected row, and the head then states <code>map
 <!-- source: pkg/plugin/records.go -- Row, Record, Records, Records.WriteAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
 <!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey -->
-
 <h3 id="handler-error">Handler Error</h3>
 <p>If the handler returns a non-nil error, the SDK sends an error response:</p>
-<pre><code class="language-go">return &quot;&quot;, nil, fmt.Errorf(&quot;operation failed: database timeout&quot;)
+<pre><code class="language-go">return "", nil, fmt.Errorf("operation failed: database timeout")
 
 </code></pre>
 <p>Response:</p>
-<pre><code>#17 error {&quot;message&quot;:&quot;operation failed: database timeout&quot;}
+<pre><code>#17 error {"message":"operation failed: database timeout"}
 </code></pre>
 <!-- source: pkg/plugin/rpc/message.go -- FormatError, NewErrorPayload -->
-
 <h2 id="executecommandinput-fields">ExecuteCommandInput Fields</h2>
 <p>The engine sends these fields in the <code>execute-command</code> RPC:</p>
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandInput -->
-
 <table>
 <thead>
 <tr>
@@ -365,35 +353,35 @@ no line can carry earn the same rejected row, and the head then states <code>map
 </tr>
 </tbody>
 </table>
-<p><strong>Rules:</strong>
-- Start with plugin name to avoid conflicts
-- Use kebab-case for multi-word commands
-- Keep commands short and memorable</p>
+<p><strong>Rules:</strong></p>
+<ul>
+<li>Start with plugin name to avoid conflicts</li>
+<li>Use kebab-case for multi-word commands</li>
+<li>Keep commands short and memorable</li>
+</ul>
 <h2 id="command-arguments">Command Arguments</h2>
 <p>Arguments arrive in the <code>args</code> parameter of the handler:</p>
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
-    if command == &quot;my-plugin get&quot; {
+    if command == "my-plugin get" {
         if len(args) &lt; 1 {
-            return &quot;error&quot;, map[string]string{
-                &quot;error&quot;: &quot;usage: my-plugin get &lt;key&gt;&quot;,
+            return "error", map[string]string{
+                "error": "usage: my-plugin get &lt;key&gt;",
             }, nil
         }
         key := args[0]
         value := getValue(key)
-        return &quot;done&quot;, map[string]any{&quot;key&quot;: key, &quot;value&quot;: value}, nil
+        return "done", map[string]any{"key": key, "value": value}, nil
     }
-    return &quot;error&quot;, map[string]string{&quot;error&quot;: &quot;unknown command&quot;}, nil
+    return "error", map[string]string{"error": "unknown command"}, nil
 })
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
-
 <p>Invocation:</p>
-<pre><code>ze bgp run &quot;my-plugin get config.timeout&quot;
+<pre><code>ze bgp run "my-plugin get config.timeout"
 </code></pre>
 <h2 id="commanddecl-fields">CommandDecl Fields</h2>
 <p>Commands are declared with these fields:</p>
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
-
 <table>
 <thead>
 <tr>
@@ -414,7 +402,13 @@ no line can carry earn the same rejected row, and the head then states <code>map
 <td><code>Description</code></td>
 <td>string</td>
 <td class="cell-no">✕</td>
-<td>Human-readable description</td>
+<td>The one-line SUMMARY, shown wherever the command appears on one line. One line, at most 256 bytes</td>
+</tr>
+<tr>
+<td><code>LongHelp</code></td>
+<td>string</td>
+<td class="cell-no">✕</td>
+<td>The LONG explanation this command's own help page prints, under the summary. At most 4096 bytes, newlines kept</td>
 </tr>
 <tr>
 <td><code>Args</code></td>
@@ -448,12 +442,18 @@ no line can carry earn the same rejected row, and the head then states <code>map
 </tr>
 </tbody>
 </table>
+<p><code>Description</code> and <code>LongHelp</code> are two texts, and neither is derived from the
+other. Write the summary as one sentence a reader meets in a list. Write the
+explanation as the paragraphs they read when they ask about that one command.
+Declare no <code>LongHelp</code> and the help page prints the summary alone.</p>
+<p>The wire keys are <code>description</code> and <code>long-help</code>. The spelling is <code>long-help</code>
+and not <code>help</code>, because <code>help</code> already names the summary in a completion row on
+this same protocol.</p>
 <h2 id="declaring-what-your-answer-holds">Declaring What Your Answer Holds</h2>
 <p>Declare a shape and the CLI publishes the pipe operators your command supports,
 and refuses the others BY NAME before your handler runs. Declare nothing and the
 CLI waits for the answer, then refuses from what it has in hand.</p>
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
-
 <table>
 <thead>
 <tr>
@@ -478,11 +478,11 @@ CLI waits for the answer, then refuses from what it has in hand.</p>
 </table>
 <pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
     Commands: []sdk.CommandDecl{{
-        Name:          &quot;my-plugin peers&quot;,
-        Description:   &quot;Show the sessions&quot;,
-        Shape:         &quot;tab&quot;,
-        Columns:       []string{&quot;address&quot;, &quot;state&quot;, &quot;up&quot;},
-        AddressFields: []string{&quot;address&quot;},
+        Name:          "my-plugin peers",
+        Description:   "Show the sessions",
+        Shape:         "tab",
+        Columns:       []string{"address", "state", "up"},
+        AddressFields: []string{"address"},
     }},
 })
 </code></pre>
@@ -491,9 +491,9 @@ CLI waits for the answer, then refuses from what it has in hand.</p>
 <li>The shape MUST be <code>doc</code>, <code>map</code> or <code>tab</code>. Any other spelling fails startup.</li>
 <li>A <code>Columns</code> or <code>AddressFields</code> list MUST come with a <code>Shape</code>.</li>
 <li>A column name MUST be a key your handler writes, in the same spelling. The
-  engine cannot check this, and a name that names nothing orders nothing.</li>
+engine cannot check this, and a name that names nothing orders nothing.</li>
 <li>One command declares at most 64 columns and 16 address fields, each name 1 to
-  64 bytes.</li>
+64 bytes.</li>
 </ul>
 <p>Declare one shape for every argument the command takes. A command answering a
 row set with no argument, and one bare object with an argument, declares neither
@@ -505,22 +505,20 @@ every key of the answer and decorate each string that parses as an address.</p>
 <!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls -->
 <!-- source: internal/component/command/pipe_resolve.go -- resolveJSON -->
 <!-- source: internal/component/command/pipe_origin.go -- originJSON -->
-
 <h2 id="naming-a-pipe-alias-for-your-command">Naming a Pipe Alias for Your Command</h2>
 <p>A pipe alias is the word an operator types after the pipe character, standing
 for an operator chain they would otherwise type in full. Declare one in the
 <code>Pipes</code> list of the same <code>Registration</code>:</p>
 <!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
-
 <pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
     Commands: []sdk.CommandDecl{
-        {Name: &quot;my-plugin status&quot;, Description: &quot;Show current status&quot;},
+        {Name: "my-plugin status", Description: "Show current status"},
     },
     Pipes: []sdk.PipeDecl{{
-        Command:     &quot;my-plugin status&quot;,
-        Name:        &quot;totals&quot;,
-        Description: &quot;The counters, without the per-session rows&quot;,
-        Expansion:   &quot;display sessions-total sessions-established&quot;,
+        Command:     "my-plugin status",
+        Name:        "totals",
+        Description: "The counters, without the per-session rows",
+        Expansion:   "display sessions-total sessions-established",
     }},
 })
 </code></pre>
@@ -562,17 +560,16 @@ for an operator chain they would otherwise type in full. Declare one in the
 </table>
 <p>Three rules decide whether your command CAN have an alias.</p>
 <!-- source: internal/component/command/alias.go -- RegisterPluginAliases, checkAlias -->
-
 <ul>
 <li><strong>The pipe layer selects. It does not compute.</strong> <code>display</code> keeps named keys and
-  drops the rest, and no operator renames a key, adds two numbers, or counts
-  matching rows. Your handler MUST emit the aggregate fields beside the detail
-  rows, as siblings at one level. <code>show bgp rpki</code> is the worked example.</li>
+drops the rest, and no operator renames a key, adds two numbers, or counts
+matching rows. Your handler MUST emit the aggregate fields beside the detail
+rows, as siblings at one level. <code>show bgp rpki</code> is the worked example.</li>
 <li><strong>The name MUST be free.</strong> It cannot be a built-in operator name, a pipe filter
-  name on an overlapping command path, or an alias name the exact same command
-  path already carries. One refusal fails your whole Stage 1 registration.</li>
+name on an overlapping command path, or an alias name the exact same command
+path already carries. One refusal fails your whole Stage 1 registration.</li>
 <li><strong>The alias takes no argument, and names no other alias.</strong> Its expansion parses
-  to built-in operators alone.</li>
+to built-in operators alone.</li>
 </ul>
 <p>The engine stops the alias reaching a command below the one it sits on. Declare
 <code>my-plugin status detail</code> in the same message and it inherits nothing.</p>
@@ -582,65 +579,62 @@ your alias is not registered, so it answers
 <code>ze cli -c "&lt;command&gt;"</code> and in the interactive session a plain ssh client
 reaches.</p>
 <!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
-
 <h2 id="complex-responses">Complex Responses</h2>
 <p>Return structured JSON data for API consumers:</p>
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
-    if command == &quot;monitor metrics&quot; {
+    if command == "monitor metrics" {
         data := struct {
-            Checks    int     `json:&quot;checks&quot;`
-            Failures  int     `json:&quot;failures&quot;`
-            LatencyMs float64 `json:&quot;latency-ms&quot;`
-            LastCheck string  `json:&quot;last-check&quot;`
+            Checks    int     `json:"checks"`
+            Failures  int     `json:"failures"`
+            LatencyMs float64 `json:"latency-ms"`
+            LastCheck string  `json:"last-check"`
         }{
             Checks:    state.checks,
             Failures:  state.failures,
             LatencyMs: state.latency,
             LastCheck: state.lastCheck.Format(time.RFC3339),
         }
-        return &quot;done&quot;, data, nil
+        return "done", data, nil
     }
-    return &quot;error&quot;, map[string]string{&quot;error&quot;: &quot;unknown command&quot;}, nil
+    return "error", map[string]string{"error": "unknown command"}, nil
 })
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
 <!-- source: pkg/plugin/rpc/types.go -- ExecuteCommandOutput -->
-
 <p>Note: JSON keys use kebab-case per ze conventions (<code>"latency-ms"</code>, not <code>"latency_ms"</code>).</p>
 <h2 id="dispatching-commands-to-other-plugins">Dispatching Commands to Other Plugins</h2>
 <p>Plugins can invoke commands on other plugins through the engine's command dispatcher:</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- DispatchCommand -->
-
 <pre><code class="language-go">p.OnStarted(func(ctx context.Context) error {
-    status, data, err := p.DispatchCommand(ctx, &quot;rib show-in ipv4/unicast&quot;)
+    status, data, err := p.DispatchCommand(ctx, "rib show-in ipv4/unicast")
     if err != nil {
         return err
     }
-    fmt.Printf(&quot;rib response: status=%s data=%s\n&quot;, status, data)
+    fmt.Printf("rib response: status=%s data=%s\n", status, data)
     return nil
 })
 </code></pre>
 <p>The engine routes the command by longest-match registry lookup and returns the full <code>{status, data}</code> response from the target handler.</p>
 <!-- source: pkg/plugin/rpc/types.go -- DispatchCommandInput, DispatchCommandOutput -->
-
 <h2 id="help-text">Help Text</h2>
 <p>Provide usage information via a dedicated command:</p>
 <pre><code class="language-go">// In Registration:
-sdk.CommandDecl{Name: &quot;my-plugin help&quot;, Description: &quot;Show available commands&quot;},
+sdk.CommandDecl{Name: "my-plugin help", Description: "Show available commands"},
 
 // In handler:
-if command == &quot;my-plugin help&quot; {
-    return &quot;done&quot;, map[string]any{
-        &quot;commands&quot;: []string{
-            &quot;my-plugin status - Show current status&quot;,
-            &quot;my-plugin check &lt;target&gt; - Trigger immediate check&quot;,
-            &quot;my-plugin metrics - Show performance metrics&quot;,
+if command == "my-plugin help" {
+    return "done", map[string]any{
+        "commands": []string{
+            "my-plugin status - Show current status",
+            "my-plugin check &lt;target&gt; - Trigger immediate check",
+            "my-plugin metrics - Show performance metrics",
         },
     }, nil
 }
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_types.go -- CommandDecl -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnExecuteCommand -->
+
             </section>
         </main>
 
@@ -650,7 +644,7 @@ if command == &quot;my-plugin help&quot; {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

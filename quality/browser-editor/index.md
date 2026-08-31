@@ -13,7 +13,7 @@ Use `.wb` when navigation, form behavior, HTMX replacement, visible copy, page t
 ```
 bin/ze-test web --list
 bin/ze-test web -p config -v
-make ze-functional-web-test
+./le functional web-test
 ```
 
 ### Browser syntax
@@ -38,7 +38,7 @@ An `.et` file is a replay script for the interactive configuration editor. The r
 ```
 bin/ze-test editor --list
 bin/ze-test editor -p completion -v
-make ze-functional-editor-test
+./le functional editor-test
 ```
 
 ### Editor syntax
@@ -59,7 +59,7 @@ Use editor tests for completion, validation, path context, commit and discard be
 
 ## Failure reading
 
-Both runners emit per-step trace records. The human output shows action and expectation lines with source locations. The machine output emits `VERIFY STEP` JSON so `make ze-precommit-verify` can group failures without scraping prose.
+Both runners emit per-step trace records. The human output shows action and expectation lines with source locations. The machine output emits `VERIFY STEP` JSON so `./le verify current mode full` can group failures without scraping prose.
 
 ```
 bin/ze-test web config-menu -v

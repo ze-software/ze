@@ -68,15 +68,26 @@
 </ol></li>
 <li><a href="#self-containment-invariant">Self-Containment Invariant</a></li>
 <li><a href="#handler-registration">Handler Registration</a></li>
+<li><a href="#what-the-removal-test-forbids">What the Removal Test Forbids</a>
+<ol>
+<li><a href="#what-shared-code-may-carry">What shared code may carry</a></li>
+</ol></li>
+<li><a href="#finding-the-owner-follow-the-code-not-the-wire-method">Finding the Owner: follow the code, not the wire method</a></li>
+<li><a href="#carving-a-command-into-its-owner">Carving a Command Into Its Owner</a>
+<ol>
+<li><a href="#unowned-verb-roots">Unowned verb roots</a></li>
+<li><a href="#dedicated-feature-modules">Dedicated feature modules</a></li>
+</ol></li>
+<li><a href="#registration-over-hardcoding-the-cli-client-too">Registration Over Hardcoding: the CLI client too</a></li>
+<li><a href="#the-removal-compliance-guards-in-the-tree">The Removal-Compliance Guards In The Tree</a></li>
 <li><a href="#summary-where-things-go">Summary: Where Things Go</a></li>
 </ol></nav>
 <!-- source: ai/rules/plugins.md -- full rule -->
 <!-- source: internal/component/plugin/all/all.go -- blank imports that wire init() -->
-<!-- source: scripts/codegen/plugin_imports.go -- generates all.go from directory scan -->
-
+<!-- source: internal/le/plugin/imports/actions.go -- Answer -->
 <h2 id="the-folder-test">The Folder Test</h2>
 <p>Every feature in Ze passes two folder tests:</p>
-<p><strong>Copy test:</strong> copy a plugin folder into the project, run codegen (<code>make generate</code>),
+<p><strong>Copy test:</strong> copy a plugin folder into the project, run codegen (<code>./le repository generate</code>),
 and the plugin's commands, YANG schema, and handlers are live. No manual wiring.</p>
 <p><strong>Delete test:</strong> delete a plugin folder, run codegen, and every one of its features
 disappears. Every other plugin and the core keep working. No dangling references,
@@ -108,16 +119,15 @@ editor), <code>iface</code> (interface management), <code>host</code> (hardware 
 plugin shapes use this directory:</p>
 <ul>
 <li>A <strong>command-only plugin</strong> owns command YANG, RPC handlers, and CLI
-  registration. It delegates the operation to a <code>component/</code> or <code>core/</code>
-  package.</li>
+registration. It delegates the operation to a <code>component/</code> or <code>core/</code>
+package.</li>
 <li>A <strong>full-subsystem plugin</strong> also owns its protocol or service runtime,
-  configuration, lifecycle, and state in the same folder.</li>
+configuration, lifecycle, and state in the same folder.</li>
 </ul>
 <p>Both shapes can own user commands. Removing either folder removes all surfaces
 that belong to that owner.</p>
 <!-- source: internal/plugins/host-cmd/cmd/register.go -- init -->
 <!-- source: internal/plugins/ospf/register.go -- runOSPFEngine -->
-
 <h2 id="plugin-directory-layout">Plugin Directory Layout</h2>
 <pre><code>internal/plugins/&lt;name&gt;/
     register.go            # lifecycle or offline CLI registration, when needed
@@ -140,11 +150,11 @@ present in the directory. The only hand-written file is the <code>.yang</code> i
 <p>This means adding a YANG command schema to a plugin is:</p>
 <ol>
 <li>Write <code>ze-&lt;name&gt;-cmd.yang</code> in the plugin's <code>yang/</code> folder</li>
-<li>Run <code>make generate</code></li>
+<li>Run <code>./le repository generate</code></li>
 <li>Done: the codegen produces <code>embed.go</code>, <code>register.go</code>, and updates <code>all.go</code></li>
 </ol>
 <h3 id="how-codegen-enables-the-folder-test">How Codegen Enables the Folder Test</h3>
-<p>The codegen (<code>scripts/codegen/plugin_imports.go</code>) scans the directory tree for:</p>
+<p>The codegen (<code>internal/le/plugin/imports.Write</code>) scans the directory tree for:</p>
 <ul>
 <li>Packages containing <code>yang.RegisterModule</code> calls -&gt; adds to <code>all.go</code> schema imports</li>
 <li>Packages containing <code>pluginserver.RegisterRPCs</code> calls -&gt; adds to <code>all.go</code> RPC imports</li>
@@ -155,14 +165,14 @@ and re-running codegen is all that's needed to wire (or unwire) the plugin.</p>
 <h2 id="yang-container-merge">YANG Container Merge</h2>
 <p>Owners declare their commands by re-stating the path from the verb root:</p>
 <pre><code class="language-yang">module ze-host-cmd {
-    namespace &quot;urn:ze:host:cmd&quot;;
+    namespace "urn:ze:host:cmd";
     prefix hostcmd;
     import ze-extensions { prefix ze; }
 
     container show {
         container host {
             container cpu {
-                ze:command &quot;ze-show:host-cpu&quot;;
+                ze:command "ze-show:host-cpu";
             }
         }
     }
@@ -206,7 +216,7 @@ inside the plugin's <code>cmd/</code> package:</p>
 <pre><code class="language-go">func init() {
     pluginserver.RegisterRPCs(
         pluginserver.RPCRegistration{
-            WireMethod: &quot;ze-show:host-cpu&quot;,
+            WireMethod: "ze-show:host-cpu",
             Handler:    handleShowHostCPU,
         },
     )
@@ -216,6 +226,190 @@ inside the plugin's <code>cmd/</code> package:</p>
 <code>internal/component/plugin/all/all.go</code>. The codegen scans for packages
 containing <code>pluginserver.RegisterRPCs</code> or <code>yang.RegisterModule</code> calls and
 generates the import list.</p>
+<h2 id="what-the-removal-test-forbids">What the Removal Test Forbids</h2>
+<table>
+<thead>
+<tr>
+<th>Anti-pattern</th>
+<th>Why it fails the removal test</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A plugin's command spelling in generic dispatch (<code>internal/component/plugin/server</code>)</td>
+<td>Deleting the plugin leaves dead BGP or iface knowledge in shared code</td>
+</tr>
+<tr>
+<td>A plugin's subtree in a central verb schema, such as <code>show bgp. </code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/cmd/show/yang/ze-cli-show-cmd.yang</code></span></span></td>
+<td>Deleting the plugin leaves a <code>show bgp</code> branch with no handler</td>
+</tr>
+<tr>
+<td>Plugin handlers registered from a central verb package (<code>internal/component/cmd/show</code>, <code>internal/component/cmd/delete</code>)</td>
+<td>Deleting the plugin leaves the central package referencing gone symbols</td>
+</tr>
+<tr>
+<td>Help, usage or inventory strings that hardcode a plugin's commands in a generic package</td>
+<td>Deleting the plugin leaves help advertising commands that no longer exist</td>
+</tr>
+<tr>
+<td>The CLI helper (<code>cmd/ze/internal/cmdutil</code>) special-casing a plugin's selectors</td>
+<td>Selector handling is generic, and per-plugin knowledge belongs to the owner</td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-shared-code-may-carry">What shared code may carry</h3>
+<p>Generic command plumbing carries selector scope, not command spelling. The
+dispatcher extracts a typed selector value because a YANG <code>ArgDef</code> declares it,
+and it contains no plugin grammar: not the word <code>peer</code>, <code>bgp</code> or <code>bfd</code>. The
+classification rule is ownership before grammar.</p>
+<!-- source: internal/component/plugin/server/command.go -- ArgDef selector extraction -->
+<h2 id="finding-the-owner-follow-the-code-not-the-wire-method">Finding the Owner: follow the code, not the wire method</h2>
+<p>The <code>ze-&lt;ns&gt;:</code> prefix on a <code>WireMethod</code> is a label rather than an ownership
+claim, and it is often a legacy misnomer. The owner is what the handler actually
+calls.</p>
+<table>
+<thead>
+<tr>
+<th>Command (WireMethod)</th>
+<th>What the handler calls</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze-show:ip-route</code>, <code>ze-show:neighbors</code>, <code>ze-show:kernel-routes</code></td>
+<td><code>iface.ListKernelRoutes</code>, <code>iface.ListNeighbors</code> (kernel tables through the iface backend)</td>
+<td><code>internal/component/iface</code>, not central <code>show</code> and not the BGP RIB</td>
+</tr>
+<tr>
+<td><code>ze-bgp:pool-stats</code></td>
+<td><code>bgp/plugins/rib/pool</code> attribute-pool metrics</td>
+<td>The BGP RIB plugin</td>
+</tr>
+<tr>
+<td><code>ze-bgp:metrics-values</code>, <code>ze-bgp:metrics-list</code></td>
+<td>The generic core Prometheus registry (<code>internal/core/metrics</code>)</td>
+<td>Generic, stays central</td>
+</tr>
+<tr>
+<td><code>ze-bgp:subscribe</code>, <code>ze-bgp:unsubscribe</code></td>
+<td>The generic <code>pluginserver</code> subscription manager</td>
+<td>Generic, stays central</td>
+</tr>
+<tr>
+<td><code>ze-show:policy-list</code></td>
+<td>The cross-plugin filter-type registry (<code>registry.FilterTypesMap</code>)</td>
+<td>Generic, stays central</td>
+</tr>
+</tbody>
+</table>
+<p>A command is generic, and stays central, only when it has no single removable
+owner: it aggregates a cross-plugin registry, reads a generic core system, or is
+process-global (<code>show warnings</code>, <code>show health</code>, <code>subscribe</code>). Everything that
+reads one plugin's or one component's state belongs to that owner, whatever the
+<code>ze-&lt;ns&gt;:</code> label on its WireMethod says.</p>
+<h2 id="carving-a-command-into-its-owner">Carving a Command Into Its Owner</h2>
+<ol>
+<li><strong>Handler.</strong> Add <code>func init() { pluginserver.RegisterRPCs(...) }</code> and the
+handler in the owner package. When the owner package is already
+blank-imported, because it has a <code>register.go</code> the generator's <code>pluginDirs</code>
+finds or it sits in <code>rpcDirs</code>, the registration links with no generator and
+no manual-island change. The handler imports <code>plugin</code> and <code>pluginserver</code> plus
+the owner's own API, so it creates no import cycle.</li>
+<li><strong>Schema, by container merge rather than <code>augment</code>.</strong> Add
+<code>&lt;owner&gt;/yang/ze-&lt;x&gt;-cmd.yang</code>, a standalone module that re-declares the path
+from the root. The YANG loader unions same-named top-level containers across
+every registered module, so the owner module needs no <code>import</code> or <code>augment</code>
+of the central schema and has no base-module coupling. Give it a unique
+<code>namespace</code> and <code>prefix</code>, <code>import ze-extensions</code>, and add the embed var and
+the <code>yang.RegisterModule</code> call. A new <code>&lt;owner&gt;/yang/</code> package whose
+<code>register.go</code> imports <code>config/yang</code> is auto-discovered, so re-run the plugin
+import generator to refresh <code>internal/component/plugin/all/all.go</code>.</li>
+<li><strong>Schema location.</strong> The command YANG lives in <code>&lt;owner&gt;/yang/</code>, a sibling of
+<code>cli</code> and <code>cmd</code>, and never under <code>&lt;owner&gt;/cmd/yang/</code>.</li>
+<li><strong>Both halves of the invariant.</strong> The owner <code>yang/</code> gets a presence test
+asserting its command tokens are declared, and the central verb schema test
+bans the moved tokens.</li>
+</ol>
+<h3 id="unowned-verb-roots">Unowned verb roots</h3>
+<p>A verb whose subcommands belong to several owners, such as <code>monitor bgp</code>,
+<code>monitor vpn ipsec</code> and <code>monitor ping</code>, does not declare its root container
+inside any one plugin. Declaring it there means deleting that plugin deletes the
+whole verb. The root lives in a central, plugin-free package
+<code>internal/component/cmd/&lt;verb&gt;</code>: a <code>doc.go</code> that blank-imports its <code>yang/</code>
+subpackage. Each owner container-merges only its own subtree onto that root, and
+the central package holds no handlers.</p>
+<p>The root anchor stays even when it declares zero commands. Once every subcommand
+of a verb has carved out, the central verb schema is a bare <code>container &lt;verb&gt;</code>
+with no <code>ze:command</code> leaf of its own. <code>internal/component/cmd/clear</code> is the
+precedent: <code>clear interface counters</code> (iface), <code>clear dns cache</code> (resolve),
+<code>clear vpn ipsec sa</code> (ike), <code>clear l2tp ...</code> (l2tp) and <code>clear bgp rib ...</code>
+(bgp) are all owner-owned, so <code>ze-cli-clear-cmd.yang</code> declares only the bare
+anchor. Owners attach to it two ways, and the second has a hard dependency on
+it:</p>
+<ul>
+<li><strong>Container merge.</strong> The owner declares its own
+<code>container &lt;verb&gt; { container &lt;noun&gt; ... }</code> and the YANG loader unions
+same-named roots. iface, resolve and ike use this for <code>clear</code>. New carves use
+this shape, because it creates no base-module coupling.</li>
+<li><strong>Augment.</strong> The owner declares <code>augment "/&lt;prefix&gt;:&lt;verb&gt;"</code> against the
+anchor module. l2tp and bgp use this for <code>clear</code>, through
+<code>augment "/cliclearcmd:clear"</code>. An augment names its target module, so
+deleting the anchor breaks every augmenting owner's build. That is the
+concrete reason the bare anchor remains.</li>
+</ul>
+<h3 id="dedicated-feature-modules">Dedicated feature modules</h3>
+<p>When one feature spreads across several verbs, a one-shot root command, a <code>show</code>
+view, a <code>monitor</code> stream and a <code>resolve</code> variant, the feature gets its own
+module <code>internal/component/&lt;feature&gt;</code> that owns every one of those commands,
+rather than scattering them across the verb packages. When two such modules
+would share low-level primitives, ping and traceroute both build ICMP echo
+packets and resolve targets, those primitives are extracted to an
+<code>internal/core/&lt;x&gt;</code> package such as <code>internal/core/probe</code>, so neither feature
+module depends on the other or on a central verb package.</p>
+<h2 id="registration-over-hardcoding-the-cli-client-too">Registration Over Hardcoding: the CLI client too</h2>
+<p>The registration discipline covers the CLI client model, not only the daemon's
+command and schema tree. The daemon registers streaming views generically with
+<code>pluginserver.RegisterMonitorProvider(MonitorProvider{Prefix, CreateFn})</code> and
+<code>RegisterStreamingHandler(prefix, handler)</code>, resolved by longest-prefix
+<code>matchesPrefix</code>. The Bubble Tea client mirrors this with its own view registry.</p>
+<p>The anti-pattern is each rich live view (dashboard, traceroute, ping, traffic)
+adding its own field, factory, state and dispatch to the core <code>cli.Model</code>, wired
+one at a time in <code>cmd/ze/hub/session_factory.go</code> and
+<code>internal/component/cli/client/main.go</code>. Every new view then edits the core
+struct in four or five places, which is the opposite of a core that discovers
+features through a registry.</p>
+<p>The shape in the tree is the client-side view registry in
+<code>internal/component/cli/view_registry.go</code>: <code>RegisterView(viewSpec{key, prefix, matches, start})</code>, <code>RegisteredViews()</code>, and a longest-prefix <code>resolveView</code>
+copied from <code>matchesPrefix</code>. Each view registers from its own
+<code>register_view_*.go</code> <code>init()</code> and hangs its session state off the single
+<code>Model.activeView</code> handle plus the generic <code>Model.viewFactories</code> store, with no
+per-feature field. Consumers iterate <code>cli.RegisteredViews()</code> and inject each
+factory by key through <code>SetViewFactory</code> rather than through typed setters. The
+<code>TestModelHasNoPerFeatureViewField</code> reflection guard fails when a per-feature
+field returns.</p>
+<!-- source: internal/component/cli/view_registry.go -- RegisterView, RegisteredViews, resolveView -->
+<!-- source: internal/component/plugin/server/handler.go -- matchesPrefix -->
+<!-- source: internal/component/cli/model_test.go -- TestModelHasNoPerFeatureViewField -->
+<h2 id="the-removal-compliance-guards-in-the-tree">The Removal-Compliance Guards In The Tree</h2>
+<p>The first instance is <code>TestShowSchemaHasNoBGPPluginCommands</code> in
+<code>internal/component/cmd/show/yang/self_containment_test.go</code>. It asserts the
+central <code>show</code> verb schema declares no part of the <code>show bgp ...</code> subtree
+(<code>ze-rib-api:</code>, <code>ze-bgp:peer-</code>, <code>ze-show:bgp-decode</code>, <code>ze-show:bgp-encode</code>),
+because <code>show bgp rib ...</code> and <code>show bgp peer ...</code> are owned by
+<code>internal/component/bgp/plugins/cmd/{rib,peer}/yang</code>, and the offline
+<code>show bgp decode</code> and <code>show bgp encode</code> diagnostics are owned by
+<code>internal/component/bgp/cli/yang</code>. The owner half is
+<code>TestBGPToolsSchemaOwnsDecodeEncode</code>, which asserts the surface moved rather
+than vanished.</p>
+<p>Non-BGP owners share one general central guard,
+<code>TestShowSchemaHasNoMigratedOwnerCommands</code> in the same file. Its banned-token
+map grows by one entry per carved owner: flow export, RSVP-TE, LDP, policy
+routes, static, VPN IPsec, VPP, the iface kernel reads. Each owner's <code>yang/</code>
+package holds the matching presence test, such as
+<code>TestRSVPTECmdSchemaOwnsShowRSVPTE</code>. For <code>clear</code>, the pair is
+<code>TestClearSchemaHasNoMigratedOwnerCommands</code> and, for example,
+<code>TestResolveCmdSchemaOwnsClearDNSCache</code>.</p>
 <h2 id="summary-where-things-go">Summary: Where Things Go</h2>
 <table>
 <thead>
@@ -238,7 +432,7 @@ generates the import list.</p>
 </tr>
 <tr>
 <td>Command YANG (CLI tree)</td>
-<td><code>plugins/&lt;name&gt;/yang/</code></td>
+<td><code>plugins/&lt;name&gt;/yang/</code>, never <code>&lt;owner&gt;/cmd/yang/</code></td>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
@@ -248,12 +442,22 @@ generates the import list.</p>
 </tr>
 <tr>
 <td>RPC handlers</td>
-<td><code>plugins/&lt;name&gt;/cmd/</code></td>
+<td><code>plugins/&lt;name&gt;/cmd/</code>, or the owner package</td>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
 <td>Offline CLI registration</td>
 <td><code>plugins/&lt;name&gt;/register.go</code></td>
+<td class="cell-yes">✓</td>
+</tr>
+<tr>
+<td>Help, usage and completion</td>
+<td>Derived from the owner's registry and schema</td>
+<td>Derived</td>
+</tr>
+<tr>
+<td>Doctor check and its unit test</td>
+<td>The owner package</td>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
@@ -263,6 +467,7 @@ generates the import list.</p>
 </tr>
 </tbody>
 </table>
+
             </section>
         </main>
 
@@ -272,7 +477,7 @@ generates the import list.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

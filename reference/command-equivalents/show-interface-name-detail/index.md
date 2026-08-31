@@ -1,21 +1,30 @@
-# `show interface name <name> detail`
+# `show interface name detail`
+
+Show full detail for one interface.
 
 ## Ze command
 
-- Syntax: `show interface name <name> detail`
 - Registry path: `show interface name detail`
+- Usage: `show interface name <name> detail`
 - Mode: Read-only
 - Wire method: `ze-show:interface-detail`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show full detail for one interface. Usage: show interface name <name> detail.
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `name` | string | yes | any value of this type |
 
 ## Mapping intents
 

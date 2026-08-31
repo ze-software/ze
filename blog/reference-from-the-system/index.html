@@ -22,8 +22,8 @@
         <link rel="canonical" href="https://ze-software.net/blog/reference-from-the-system/" />
         <meta property="og:url" content="https://ze-software.net/blog/reference-from-the-system/" />
         <link rel="stylesheet" href="../../assets/site.css" />
-        <meta name="author" content="Thomas Mangin" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <meta name="author" content="Thomas Mangin" />
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -45,11 +45,11 @@
 
         <main id="top" class="site-main-wide" tabindex="-1">
             <section class="blog-article-shell has-visual" aria-labelledby="post-title">
-                <div class="journey-hero blog-article-hero reveal">
-                    <span class="journey-eyebrow">Article</span>
-                    <h1 id="post-title">Reference stays attached to code</h1>
-                    <p>Ze does not copy facts into prose. It publishes checked views from the sources that own them.</p>
-                </div>
+<div class="journey-hero blog-article-hero reveal">
+    <span class="journey-eyebrow">Article</span>
+    <h1 id="post-title">Reference stays attached to code</h1>
+    <p>Ze does not copy facts into prose. It publishes checked views from the sources that own them.</p>
+</div>
                 <div class="blog-article-meta"><time datetime="2026-08-22">2026-08-22</time><span>by Thomas Mangin</span></div>
 <figure class="blog-theme-image has-dark blog-article-visual reveal" role="img" aria-label="A code-owned source publishes a reference view while an agent follows a lookup route back to the same source."><img class="blog-theme-image-light" src="../../assets/blog/reference-from-the-system.svg" alt="" loading="eager" decoding="async" /><img class="blog-theme-image-dark" src="../../assets/blog/reference-from-the-system-dark.svg" alt="" loading="eager" decoding="async" /></figure>
                 <p class="post-back"><a href="../">&larr; All articles</a></p>
@@ -82,7 +82,6 @@
 <p><em>This article was drafted with OpenAI Codex. The design, decisions and conclusions are mine.</em></p>
 <h2 id="the-useful-split">The useful split</h2>
 <p class="blog-section-reveal">The website stays current when prose explains decisions and generators publish the inventory.</p>
-
 <p>Humans own the context, judgement and tradeoffs. The system owns the lists, counts and relationships.</p>
 <p>That split keeps reference pages from becoming a second database. Each fact stays with its owner in the repository, and the website reads those owners to publish a view.</p>
 <p>The table is useful because the same pattern repeats across enough of the project.</p>
@@ -91,7 +90,7 @@
 <tr>
 <th>Public reference</th>
 <th>Source that owns the fact</th>
-<th style="text-align: right;">Scale covered</th>
+<th style="text-align:right">Scale covered</th>
 <th>Why generation helps</th>
 </tr>
 </thead>
@@ -99,31 +98,31 @@
 <tr>
 <td>CLI reference</td>
 <td>Live command registry</td>
-<td style="text-align: right;"><span data-ze-stat="cli_commands">402</span> commands<br>across 48 groups</td>
+<td style="text-align:right"><span data-ze-stat="cli_commands">409</span> commands<br>across 48 groups</td>
 <td>The page cannot miss a command the binary exposes.</td>
 </tr>
 <tr>
 <td>Configuration reference</td>
 <td>YANG schema from<br><code>ze yang tree</code></td>
-<td style="text-align: right;"><span data-ze-stat="config_sections">36</span> top-level sections<br>27 from plugins</td>
+<td style="text-align:right"><span data-ze-stat="config_sections">36</span> top-level sections<br>27 from plugins</td>
 <td>The page follows the schema when a plugin adds a leaf.</td>
 </tr>
 <tr>
 <td>Plugin catalogue</td>
 <td>Plugin registry and metadata</td>
-<td style="text-align: right;">90 runtime plugins<br>6 fixtures</td>
+<td style="text-align:right">90 runtime plugins<br>6 fixtures</td>
 <td>Names, purposes, config roots and source paths come from registration.</td>
 </tr>
 <tr>
 <td>Dependencies</td>
 <td><code>go.mod</code><br>plus written reasons</td>
-<td style="text-align: right;"><span data-ze-stat="dependencies">42</span><br>direct dependencies</td>
+<td style="text-align:right"><span data-ze-stat="dependencies">48</span><br>direct dependencies</td>
 <td>Versions come from Go, while the reason stays human-written.</td>
 </tr>
 <tr>
 <td>RFC status</td>
 <td>RFC requirement ledger</td>
-<td style="text-align: right;"><span data-ze-stat="rfc.requirements_display">4,744</span> requirements<br>across <span data-ze-stat="rfc.summaries_display">178</span> summaries</td>
+<td style="text-align:right"><span data-ze-stat="rfc.requirements_display">4,818</span> requirements<br>across <span data-ze-stat="rfc.summaries_display">179</span> summaries</td>
 <td>Public support claims stay tied to tests, gaps and annotations.</td>
 </tr>
 </tbody>
@@ -132,7 +131,6 @@
 <p>Some pages are not regenerated every time the data changes. For those, the HTML carries <code>data-ze-stat</code> markers. JavaScript fetches <code>data/site-facts.json</code> and updates those values in the browser. The page stays static, while the visible count still comes from the latest generated data.</p>
 <h2 id="links-turn-reference-into-a-route">Links turn reference into a route</h2>
 <p class="blog-section-reveal">A reference becomes operational when every public claim has a maintained route back to its owner.</p>
-
 <p>A public claim is useful only when a reader can follow it back to the source and evidence behind it.</p>
 <p>Ze uses links in both directions. Source files carry headers such as <code>// Design:</code> near the top. They point to the rule or design document that explains the file. Documents point back with <code>&lt;!-- source: ... --&gt;</code> anchors.</p>
 <p>Two generated indexes invert those links:</p>
@@ -144,34 +142,34 @@ design document -&gt; source files that name it
 <thead>
 <tr>
 <th>Link type</th>
-<th style="text-align: right;">Current scale</th>
+<th style="text-align:right">Current scale</th>
 <th>What the link answers</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>// Design:</code> headers</td>
-<td style="text-align: right;">3125</td>
+<td style="text-align:right">3125</td>
 <td>Which design or rule governs this file?</td>
 </tr>
 <tr>
 <td><code>// Related:</code> headers</td>
-<td style="text-align: right;">2076</td>
+<td style="text-align:right">2076</td>
 <td>Which nearby file owns the related detail?</td>
 </tr>
 <tr>
 <td><code>// RFC:</code> headers</td>
-<td style="text-align: right;">773</td>
+<td style="text-align:right">773</td>
 <td>Which standards text is relevant here?</td>
 </tr>
 <tr>
 <td><code>&lt;!-- source: ... --&gt;</code> anchors</td>
-<td style="text-align: right;">6228</td>
+<td style="text-align:right">6228</td>
 <td>Which source path supports this document claim?</td>
 </tr>
 <tr>
 <td>Generated code-doc indexes</td>
-<td style="text-align: right;">2 files, about 600 KB together</td>
+<td style="text-align:right">2 files, about 600 KB together</td>
 <td>Which side mentions the other side?</td>
 </tr>
 </tbody>
@@ -182,7 +180,6 @@ design document -&gt; source files that name it
 <p>That is where the consistency comes from. The tag exists in the file, the generated index makes it searchable, and the role tells the agent when to use it.</p>
 <h2 id="rfcs-show-the-whole-system">RFCs show the whole system</h2>
 <p class="blog-section-reveal">Standards support is a chain from normative text to a public row, with omissions made visible along the way.</p>
-
 <p>An RFC support claim is credible only when the standard, Ze's interpretation, the evidence and the public page share one requirement id.</p>
 <p>The RFC remains the authority. Ze keeps a local copy under <code>rfc/full/</code>, then records its implementation requirements in <code>rfc/short/</code>. Each requirement gets a stable id. For example, <code>RFC7606-7.1-1</code> identifies one rule from RFC 7606 section 7.1.</p>
 <p>Writing the summary creates an obvious risk: the author can omit a normative sentence. Every listed requirement can have a test while the omitted sentence remains invisible.</p>
@@ -198,7 +195,7 @@ design document -&gt; source files that name it
   -&gt; per-RFC ledger
   -&gt; public support row
 </code></pre>
-<p><code>make ze-rfc-index-update</code> performs the joins. It combines the summary, extraction result, test tags and gap annotations. It writes one ledger per RFC under <code>rfc/requirements/</code> and the global index at <code>ai/RFC-REQUIREMENTS.md</code>.</p>
+<p><code>./le rfc index-update</code> performs the joins. It combines the summary, extraction result, test tags and gap annotations. It writes one ledger per RFC under <code>rfc/requirements/</code> and the global index at <code>ai/RFC-REQUIREMENTS.md</code>.</p>
 <table>
 <thead>
 <tr>
@@ -257,7 +254,6 @@ design document -&gt; source files that name it
 <p>This gives every public support claim a traceable route back to the standard. The requirement points to evidence, the evidence points to code, and a code change can update the claim that users see.</p>
 <h2 id="why-this-serves-ze">Why this serves Ze</h2>
 <p class="blog-section-reveal">One repository map can guide operators reading the website and agents changing the code.</p>
-
 <p>The same checked facts serve two readers: users who operate Ze and agents that change it.</p>
 <p>The public site gives users the current support view and does not turn reference pages into separate ledgers.</p>
 <p>The same structure gives agents a route through the repository. A change can start from the page, reach the requirement, reach the source, and then return to the page if the public claim changed.</p>
@@ -265,7 +261,6 @@ design document -&gt; source files that name it
 <p>I hope the article is useful for other projects for that reason. The exact generators are Ze-specific. The shape is more general: public reference and working context can come from the same checked facts.</p>
 <h2 id="the-cost-is-worth-naming">The cost is worth naming</h2>
 <p class="blog-section-reveal">Generated reference trades manual drift for machinery that must itself be tested and maintained.</p>
-
 <p>Generated reference replaces stale prose with generators, checks and links that all require maintenance.</p>
 <p>Builds take longer, false positives can block correct work, and useful source links become debt when files move.</p>
 <p>The system can also be believed too much. A generated page can be generated from the wrong source. A test tag can name the right requirement and assert the wrong behaviour. An extraction sign-off can record a walk over RFC text and still miss the meaning of a paragraph.</p>
@@ -273,7 +268,6 @@ design document -&gt; source files that name it
 <p>A page that publishes its uncertainty is safer than a page that says "supported" and stops.</p>
 <h2 id="the-shape-i-want">The shape I want</h2>
 <p class="blog-section-reveal">The website MUST describe the repository that exists now, and stay synchronised with the published code, using facts its owners can still enforce.</p>
-
 <p>The target is a website where each fact stays with the owner that can keep it current.</p>
 <p>A human writes the explanation, the judgement and the tradeoff. The program provides the lists, relationships and counts. The gate checks the links between them.</p>
 <p>The result has to serve both readers. The public page tells users what the system supports now. The same links give an agent the context it needs to make the next decision consistent with the last one.</p>
@@ -287,7 +281,7 @@ design document -&gt; source files that name it
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 27 August 2026 15:00 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

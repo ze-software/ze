@@ -95,13 +95,12 @@ device.</p>
 <!-- source: internal/component/tacacs/authenticator.go -- TacacsAuthenticator.Authenticate -->
 <!-- source: internal/component/tacacs/accounting.go -- TacacsAccountant.CommandStart/Stop -->
 <!-- source: internal/component/tacacs/authorizer.go -- TacacsAuthorizer.Authorize -->
-
 <h2 id="minimal-config">Minimal config</h2>
 <pre><code>system {
     authentication {
         tacacs {
-            server 10.0.0.1 { port 49; key &quot;$9$encrypted-key&quot;; }
-            server 10.0.0.2 { port 49; key &quot;$9$encrypted-key&quot;; }
+            server 10.0.0.1 { port 49; key "$9$encrypted-key"; }
+            server 10.0.0.2 { port 49; key "$9$encrypted-key"; }
             timeout 5
         }
         tacacs-profile 15 { profile [ admin ]; }
@@ -180,30 +179,28 @@ device.</p>
 </tbody>
 </table>
 <!-- source: internal/component/tacacs/yang/ze-tacacs-conf.yang -- system.authentication.tacacs -->
-
 <h2 id="authentication-flow">Authentication flow</h2>
 <ol>
 <li>SSH client connects with username + password.</li>
 <li>Daemon's AAA chain calls <code>TacacsAuthenticator</code> first (priority 100; local
-   bcrypt is priority 200).</li>
+bcrypt is priority 200).</li>
 <li>The client opens TCP to the first configured server and sends a PAP
-   AUTHEN START. The body is XOR-encrypted with the MD5 pseudo-pad keyed
-   on the shared secret.</li>
+AUTHEN START. The body is XOR-encrypted with the MD5 pseudo-pad keyed
+on the shared secret.</li>
 <li><strong>PASS</strong> -- the server's reply data byte is the priv-lvl. The
-   authenticator looks up <code>tacacs-profile &lt;priv-lvl&gt;.profile</code>. A matching
-   entry yields the authz profiles attached to the SSH session. An
-   unmapped priv-lvl rejects the login (AC-18) so adding new TACACS+
-   levels in the upstream server does not accidentally grant access.</li>
+authenticator looks up <code>tacacs-profile &lt;priv-lvl&gt;.profile</code>. A matching
+entry yields the authz profiles attached to the SSH session. An
+unmapped priv-lvl rejects the login (AC-18) so adding new TACACS+
+levels in the upstream server does not accidentally grant access.</li>
 <li><strong>FAIL</strong> -- explicit rejection. The chain stops here. Local bcrypt is
-   NOT tried. This prevents a wrong password against TACACS+ from
-   succeeding via a stale local hash.</li>
+NOT tried. This prevents a wrong password against TACACS+ from
+succeeding via a stale local hash.</li>
 <li><strong>Connection error / ERROR status</strong> -- the next server in the list is
-   tried. When every server is unreachable (or all return ERROR) the
-   chain falls through to the local bcrypt authenticator.</li>
+tried. When every server is unreachable (or all return ERROR) the
+chain falls through to the local bcrypt authenticator.</li>
 </ol>
 <!-- source: internal/component/aaa/aaa.go -- ChainAuthenticator, ErrAuthRejected -->
 <!-- source: internal/component/tacacs/authenticator.go -- handlePass, AuthenStatusFail handling -->
-
 <h2 id="privilege-level-mapping">Privilege level mapping</h2>
 <p>TACACS+ servers send a numeric priv-lvl (0-15) in the AUTHEN REPLY. Ze's
 internal authorization model is name-based, so each priv-lvl must be
@@ -276,13 +273,11 @@ for everyone, so it passes whatever the mapping says and proves nothing.</p>
 <!-- source: test/plugin/tacacs-readonly.ci -- priv-lvl 1 allowed a read, refused a write -->
 <!-- source: test/plugin/tacacs-author.ci -- per-command AUTHOR REQUEST, FAIL blocks the command -->
 <!-- source: internal/component/tacacs/authorizer.go -- per-command authorization when `authorization true` -->
-
 <p>Setting <code>authorization true</code> moves the per-command decision to the TACACS+ server
 itself: Ze sends an AUTHOR REQUEST per command, and the profiles above apply only
 as the fallback when the server is unreachable, unless <code>strict-fallback true</code>
 makes that case deny.</p>
 <!-- source: internal/component/tacacs/authenticator.go -- handlePass priv-lvl lookup -->
-
 <h2 id="accounting">Accounting</h2>
 <p>When <code>accounting true</code> is set, every command dispatched through the CLI
 emits two records:</p>
@@ -319,7 +314,6 @@ that cannot be queued increment the local drop counter.</p>
 START/STOP record was lost locally before the TACACS+ client could send it.</p>
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher accountant hook -->
 <!-- source: internal/component/tacacs/accounting.go -- worker, processOne, enqueue -->
-
 <h2 id="verification">Verification</h2>
 <p>The <code>.ci</code> tests in <code>test/plugin/</code> cover the main behaviours:</p>
 <table>
@@ -360,7 +354,7 @@ START/STOP record was lost locally before the TACACS+ client could send it.</p>
 </tr>
 <tr>
 <td><code>tacacs-show.ci</code></td>
-<td><code>ze tacacs show</code> offline config display</td>
+<td><code>ze tacacs show</code> reachability probe, in its table and `</td>
 </tr>
 </tbody>
 </table>
@@ -375,25 +369,25 @@ satisfying backend on every login, e.g.:</p>
 <code>source=local</code> means TACACS+ was unreachable (or unconfigured) and the
 local bcrypt user accepted the credentials.</p>
 <!-- source: internal/test/mock/tacacs/tacacs.go -- ze-test tacacs-mock for .ci tests -->
-
 <h2 id="operational-notes">Operational notes</h2>
 <ul>
 <li><strong>Shared secrets</strong> are stored as <code>$9$</code>-encoded ciphertext, never as
-  plaintext. The CLI never echoes them; <code>ze config dump --strip-private</code>
-  replaces them with <code>/* SECRET-DATA */</code>.</li>
+plaintext. The CLI never echoes them; <code>ze config dump --strip-private</code>
+replaces them with <code>/* SECRET-DATA */</code>.</li>
 <li><strong>VRF</strong>: when the SSH server runs in a non-default VRF, TACACS+ TCP
-  connections inherit the same VRF context.</li>
+connections inherit the same VRF context.</li>
 <li><strong>Single-connect mode</strong> (RFC 8907 §4.4) is tested via <code>tacacs-singleconnect.ci</code>.</li>
-<li><strong>Operational tooling</strong>: <code>ze tacacs show &lt;config&gt;</code> displays the parsed
-  TACACS+ configuration offline. Runtime <code>ze show aaa accounting</code> exposes
-  local accounting queue drops. Per-server reachability remains tracked in
-  <code>plan/deferrals/</code>.</li>
+<li><strong>Operational tooling</strong>: <code>ze tacacs show &lt;config&gt;</code> probes every TACACS+
+server the config names and reports whether it answers, with no daemon
+running. Runtime <code>ze show aaa accounting</code> exposes local accounting queue
+drops.</li>
 </ul>
 <h2 id="rfc-reference">RFC reference</h2>
 <ul>
 <li>RFC 8907 -- The TACACS+ Protocol (formalises the original Cisco draft).
-  Local summary: <code>rfc/short/rfc8907.md</code>.</li>
+Local summary: <code>rfc/short/rfc8907.md</code>.</li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -435,7 +429,7 @@ local bcrypt user accepted the credentials.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

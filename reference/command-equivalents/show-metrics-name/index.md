@@ -1,21 +1,32 @@
-# `show metrics name <name> [label=value`
+# `show metrics name`
+
+Show one Prometheus metric by name.
 
 ## Ze command
 
-- Syntax: `show metrics name <name> [label=value`
 - Registry path: `show metrics name`
+- Usage: `show metrics name <name> [label <key> <value> ...]`
 - Mode: Read-only
 - Wire method: `ze-show:metrics-query`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `label`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show one Prometheus metric by name. Usage: show metrics name <name> [label=value ...]. Returns matching time series from the internal registry. Multiple label filters are ANDed. More targeted than the full metrics dump.
+Returns matching time series from the internal registry. Multiple label filters are ANDed. More targeted than the full metrics dump.
+
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `name` | string | yes | any value of this type |
 
 ## Mapping intents
 

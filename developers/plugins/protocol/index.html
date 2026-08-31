@@ -68,10 +68,8 @@ plugins connect back via TLS.</p>
 <li><a href="#batched-event-delivery">Batched Event Delivery</a></li>
 </ol></nav>
 <!-- source: pkg/plugin/sdk/sdk.go -- NewWithConn, NewFromTLSEnv -->
-
 <p>All messages use newline-delimited framing with the wire format <code>#&lt;id&gt; &lt;verb&gt; [&lt;json&gt;]\n</code>.</p>
 <!-- source: pkg/plugin/rpc/conn.go -- Conn doc comment -->
-
 <h2 id="wire-format">Wire Format</h2>
 <p>Every message is a single newline-terminated line:</p>
 <table>
@@ -101,7 +99,6 @@ plugins connect back via TLS.</p>
 </tbody>
 </table>
 <!-- source: pkg/plugin/rpc/message.go -- AppendRequest, AppendResult, AppendError -->
-
 <p>The record answer applies to three methods. It replaces the single success line
 with a head, zero or more records, and a terminator. Every other method keeps
 the three forms above.</p>
@@ -173,7 +170,7 @@ never varies:</p>
 |   +---------------- kind top: the head, always the first line
 +-------------------- correlation id 43, echoed from the request
 
-#43 row 26:{&quot;running&quot;:true,&quot;peers&quot;:1}
+#43 row 26:{"running":true,"peers":1}
 |   |   |  |
 |   |   |  +----- those 26 bytes, the handler's value byte for byte
 |   |   +-------- 26, the payload's BYTE count, then its colon
@@ -224,7 +221,6 @@ from what the terminator carries:</p>
 carries the same grammar with the buffering threshold and the failure cases
 beside it.</p>
 <!-- source: pkg/plugin/rpc/message.go -- AppendAnswerHead, AppendAnswerTerminator -->
-
 <table>
 <thead>
 <tr>
@@ -255,21 +251,18 @@ beside it.</p>
 nothing is negotiated, so a plugin author sets no field and reaches no option.</p>
 <!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
-
 <p>A plugin READS an engine answer in one of two ways, and both read the same
 frame. <code>Plugin.DispatchCommandAnswer</code> yields each row as it arrives, which is
 what bounds the memory of a walk over a large table. <code>Plugin.DispatchCommand</code>
 and <code>Plugin.DispatchCommandArgs</code> collapse the same answer into the one document
 a caller that wants the whole payload reads.</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand, dispatchCommandValue -->
-
 <p>A plugin WRITES its own answer to <code>execute-command</code>, and the frame is the same
 whatever the payload is. A handler that returns a <code>plugin.Records</code> writes one
 line for each row of the walk. A handler that returns a built value writes that
 value as the one record of a <code>doc</code> answer, byte for byte.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- executeCommandAnswer -->
 <!-- source: pkg/plugin/records.go -- Records, Records.WriteAnswer -->
-
 <ul>
 <li><code>&lt;id&gt;</code> is a monotonically increasing uint64 correlation ID</li>
 <li><code>&lt;method&gt;</code> uses YANG-style <code>&lt;module&gt;:&lt;rpc-name&gt;</code> naming (e.g., <code>ze-plugin-engine:declare-registration</code>)</li>
@@ -280,37 +273,34 @@ value as the one record of a <code>doc</code> answer, byte for byte.</p>
 reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</code> responses go to the waiting
 <code>CallRPC</code> caller by <code>#&lt;id&gt;</code>, while method-name requests go to the <code>Requests()</code> channel.</p>
 <!-- source: pkg/plugin/rpc/mux.go -- MuxConn, readLoop -->
-
 <p><strong>Examples:</strong></p>
 <pre><code># Plugin sends declare-registration (Stage 1)
-#1 ze-plugin-engine:declare-registration {&quot;families&quot;:[{&quot;name&quot;:&quot;ipv4/flow&quot;,&quot;mode&quot;:&quot;both&quot;,&quot;afi&quot;:1,&quot;safi&quot;:133}]}
+#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}]}
 
 # Engine responds OK
 #1 ok
 
 # Engine sends configure to plugin (Stage 2)
-#1 ze-plugin-callback:configure {&quot;sections&quot;:[{&quot;root&quot;:&quot;bgp&quot;,&quot;data&quot;:&quot;{...}&quot;}]}
+#1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{...}"}]}
 
 # Plugin responds OK
 #1 ok
 
 # Engine sends event at runtime
-#42 ze-plugin-callback:deliver-event {&quot;event&quot;:&quot;{\&quot;type\&quot;:\&quot;state\&quot;,...}&quot;}
+#42 ze-plugin-callback:deliver-event {"event":"{\"type\":\"state\",...}"}
 
 # Plugin responds OK
 #42 ok
 
 # Error response with payload
-#5 error {&quot;code&quot;:&quot;error&quot;,&quot;message&quot;:&quot;unknown family: ipv4/unknown&quot;}
+#5 error {"code":"error","message":"unknown family: ipv4/unknown"}
 </code></pre>
 <h2 id="protocol-stages">Protocol Stages</h2>
 <p>The SDK handles the 5-stage startup protocol automatically via <code>Plugin.Run()</code>.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->
-
 <h3 id="stage-1-registration-plugin-to-engine">Stage 1: Registration (Plugin to Engine)</h3>
 <p>Plugin sends <code>ze-plugin-engine:declare-registration</code> with a <code>DeclareRegistrationInput</code>:</p>
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
-
 <table>
 <thead>
 <tr>
@@ -404,8 +394,7 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 </table>
 <p>Each <code>CommandDecl</code> has these fields:</p>
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
-<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, registerPluginShapes -->
-
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateHelpDecls, registerPluginShapes -->
 <table>
 <thead>
 <tr>
@@ -423,7 +412,12 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <tr>
 <td><code>description</code></td>
 <td><code>string</code></td>
-<td>The line help and completion show beside the name</td>
+<td>The one-line SUMMARY. Every surface that shows the command on one line reads it. One line, at most 256 bytes, no control character</td>
+</tr>
+<tr>
+<td><code>long-help</code></td>
+<td><code>string</code></td>
+<td>The LONG explanation the command's own help page prints. At most 4096 bytes, newlines kept, every other control character refused</td>
 </tr>
 <tr>
 <td><code>args</code></td>
@@ -465,10 +459,21 @@ reader goroutine routes incoming lines by verb: <code>ok</code>/<code>error</cod
 <p>The last three are optional and additive. A plugin that sends none keeps the
 behavior it had before they existed. A plugin that sends one the engine refuses
 fails Stage 1 and does not start.</p>
+<p><code>description</code> and <code>long-help</code> are two texts and neither is derived from the
+other. The key is <code>long-help</code> and not <code>help</code>, because <code>help</code> already names the
+SUMMARY in a completion row on this same protocol. A plugin that sends
+<code>description</code> and no <code>long-help</code> renders with its summary and an empty
+explanation. That is what every plugin written before <code>long-help</code> existed
+sends. An empty <code>long-help</code> NEVER renders as an empty summary.</p>
+<p><code>validateHelpDecls</code> reads both texts before any conversion. It refuses a text
+past its bound, and a control character the text's shape does not allow. The
+summary reaches the tab-separated shell-completion format and the one-line
+terminal candidate. A newline, a tab or an ESC in it breaks the format for
+every row that follows. The alias <code>description</code> below is held to the same
+one-line rule.</p>
 <p>Each <code>PipeDecl</code> has these fields:</p>
 <!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
-
 <table>
 <thead>
 <tr>
@@ -491,7 +496,7 @@ fails Stage 1 and does not start.</p>
 <tr>
 <td><code>description</code></td>
 <td><code>string</code></td>
-<td>The line completion and <code>command help</code> show beside the name</td>
+<td>The one-line summary completion and <code>command help</code> show beside the name. At most 256 bytes, no control character</td>
 </tr>
 <tr>
 <td><code>expansion</code></td>
@@ -509,7 +514,6 @@ obligation.</p>
 <p>Each <code>FamilyDecl</code> has these fields:</p>
 <!-- source: pkg/plugin/rpc/types.go -- FamilyDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- registerPluginFamilies -->
-
 <table>
 <thead>
 <tr>
@@ -543,13 +547,12 @@ obligation.</p>
 </table>
 <p>Set <code>afi</code> and <code>safi</code> for a custom family. A built-in family can omit both numeric fields.</p>
 <p><strong>Wire example:</strong></p>
-<pre><code>#1 ze-plugin-engine:declare-registration {&quot;families&quot;:[{&quot;name&quot;:&quot;ipv4/flow&quot;,&quot;mode&quot;:&quot;both&quot;,&quot;afi&quot;:1,&quot;safi&quot;:133}],&quot;commands&quot;:[{&quot;name&quot;:&quot;flowspec status&quot;,&quot;description&quot;:&quot;Show FlowSpec status&quot;}],&quot;wants-config&quot;:[&quot;bgp&quot;]}
+<pre><code>#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","description":"Show FlowSpec status"}],"wants-config":["bgp"]}
 #1 ok
 </code></pre>
 <h3 id="stage-2-config-engine-to-plugin">Stage 2: Config (Engine to Plugin)</h3>
 <p>Engine sends <code>ze-plugin-callback:configure</code> with a <code>ConfigureInput</code>:</p>
 <!-- source: pkg/plugin/rpc/types.go -- ConfigureInput -->
-
 <table>
 <thead>
 <tr>
@@ -568,7 +571,6 @@ obligation.</p>
 </table>
 <p>Each <code>ConfigSection</code> has:</p>
 <!-- source: pkg/plugin/rpc/types.go -- ConfigSection -->
-
 <table>
 <thead>
 <tr>
@@ -591,13 +593,12 @@ obligation.</p>
 </tbody>
 </table>
 <p><strong>Wire example:</strong></p>
-<pre><code>#1 ze-plugin-callback:configure {&quot;sections&quot;:[{&quot;root&quot;:&quot;bgp&quot;,&quot;data&quot;:&quot;{\&quot;bgp\&quot;:{\&quot;peer\&quot;:{...}}}&quot;}]}
+<pre><code>#1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{\"bgp\":{\"peer\":{...}}}"}]}
 #1 ok
 </code></pre>
 <h3 id="stage-3-capabilities-plugin-to-engine">Stage 3: Capabilities (Plugin to Engine)</h3>
 <p>Plugin sends <code>ze-plugin-engine:declare-capabilities</code> with a <code>DeclareCapabilitiesInput</code>:</p>
 <!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput -->
-
 <table>
 <thead>
 <tr>
@@ -615,10 +616,8 @@ obligation.</p>
 </tbody>
 </table>
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.Run, Stage 3 declare-capabilities -->
-
 <p>Each <code>CapabilityDecl</code> has:</p>
 <!-- source: pkg/plugin/rpc/types.go -- CapabilityDecl -->
-
 <table>
 <thead>
 <tr>
@@ -651,13 +650,12 @@ obligation.</p>
 </tbody>
 </table>
 <p><strong>Wire example:</strong></p>
-<pre><code>#2 ze-plugin-engine:declare-capabilities {&quot;capabilities&quot;:[{&quot;code&quot;:64,&quot;encoding&quot;:&quot;hex&quot;,&quot;payload&quot;:&quot;0078&quot;,&quot;peers&quot;:[&quot;192.168.1.1&quot;]}]}
+<pre><code>#2 ze-plugin-engine:declare-capabilities {"capabilities":[{"code":64,"encoding":"hex","payload":"0078","peers":["192.168.1.1"]}]}
 #2 ok
 </code></pre>
 <h3 id="stage-4-registry-engine-to-plugin">Stage 4: Registry (Engine to Plugin)</h3>
 <p>Engine sends <code>ze-plugin-callback:share-registry</code> with a <code>ShareRegistryInput</code>:</p>
 <!-- source: pkg/plugin/rpc/types.go -- ShareRegistryInput -->
-
 <table>
 <thead>
 <tr>
@@ -676,7 +674,6 @@ obligation.</p>
 </table>
 <p>Each <code>RegistryCommand</code> has:</p>
 <!-- source: pkg/plugin/rpc/types.go -- RegistryCommand -->
-
 <table>
 <thead>
 <tr>
@@ -704,13 +701,12 @@ obligation.</p>
 </tbody>
 </table>
 <p><strong>Wire example:</strong></p>
-<pre><code>#2 ze-plugin-callback:share-registry {&quot;commands&quot;:[{&quot;name&quot;:&quot;rib adjacent status&quot;,&quot;plugin&quot;:&quot;bgp-adj-rib-in&quot;},{&quot;name&quot;:&quot;peer&quot;,&quot;plugin&quot;:&quot;bgp&quot;}]}
+<pre><code>#2 ze-plugin-callback:share-registry {"commands":[{"name":"rib adjacent status","plugin":"bgp-adj-rib-in"},{"name":"peer","plugin":"bgp"}]}
 #2 ok
 </code></pre>
 <h3 id="stage-5-ready-plugin-to-engine">Stage 5: Ready (Plugin to Engine)</h3>
 <p>Plugin sends <code>ze-plugin-engine:ready</code> with an optional <code>ReadyInput</code>:</p>
 <!-- source: pkg/plugin/rpc/types.go -- ReadyInput -->
-
 <table>
 <thead>
 <tr>
@@ -736,14 +732,12 @@ obligation.</p>
 startup completion. This avoids a race where <code>SignalAPIReady</code> triggers route sends before
 a separate <code>subscribe-events</code> RPC could be processed.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions -->
-
 <p>When <code>transport</code> is <code>"bridge"</code>, the engine activates bridge callbacks on the <code>PluginConn</code>
 and the SDK closes the pipe after receiving the OK response. All subsequent engine-to-plugin
 callbacks flow through <code>bridge.CallbackCh()</code> instead of the MuxConn.</p>
 <!-- source: pkg/plugin/rpc/types.go -- ReadyInput.Transport -->
-
 <p><strong>Wire example:</strong></p>
-<pre><code>#3 ze-plugin-engine:ready {&quot;subscribe&quot;:{&quot;events&quot;:[&quot;update&quot;,&quot;state&quot;],&quot;peers&quot;:[&quot;*&quot;],&quot;format&quot;:&quot;json&quot;},&quot;transport&quot;:&quot;bridge&quot;}
+<pre><code>#3 ze-plugin-engine:ready {"subscribe":{"events":["update","state"],"peers":["*"],"format":"json"},"transport":"bridge"}
 #3 ok
 </code></pre>
 <p>After Stage 5, the SDK activates the DirectBridge (for internal plugins) and enters
@@ -754,7 +748,6 @@ each wire method to its registered handler.</p>
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- callbackBye through callbackPostStartup -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent through OnAllPluginsReady -->
 <!-- source: pkg/plugin/rpc/types.go -- callback input and output types -->
-
 <table>
 <thead>
 <tr>
@@ -920,7 +913,6 @@ each wire method to its registered handler.</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- UpdateRoute through DecodeUpdate -->
 <!-- source: pkg/plugin/rpc/types.go -- plugin-to-engine runtime RPC input and output types -->
 <!-- source: pkg/plugin/rpc/bridge.go -- BatchValidateResult -->
-
 <table>
 <thead>
 <tr>
@@ -1089,18 +1081,18 @@ each wire method to its registered handler.</p>
    |                                                  |
    |  RUNTIME: plugin sends route update              |
    |-- #4 ze-plugin-engine:update-route {...} --------&gt;|
-   |&lt;- #4 ok {&quot;peers-affected&quot;:2,&quot;routes-sent&quot;:2} --- |
+   |&lt;- #4 ok {"peers-affected":2,"routes-sent":2} --- |
    |                                                  |
    |  RUNTIME: command execution                      |
    |&lt;- #43 ze-plugin-callback:execute-command {...} ---|
    |-- #43 top doc 0: 0: ----------------------------&gt;|  head: doc, no envelope,
    |                                                  |  no column names
-   |-- #43 row 26:{&quot;running&quot;:true,&quot;peers&quot;:1} --------&gt;|  26 BYTES of payload
+   |-- #43 row 26:{"running":true,"peers":1} --------&gt;|  26 BYTES of payload
    |-- #43 end 1 0 0: -------------------------------&gt;|  1 produced, 0 rejected,
    |                                                  |  no message
    |                                                  |
    |  SHUTDOWN: bye                                   |
-   |&lt;- #99 ze-plugin-callback:bye {&quot;reason&quot;:&quot;...&quot;} ---|
+   |&lt;- #99 ze-plugin-callback:bye {"reason":"..."} ---|
    |-- #99 ok ----------------------------------------&gt;|
    |  (plugin exits)                                  |
 </code></pre>
@@ -1108,38 +1100,33 @@ each wire method to its registered handler.</p>
 <p><strong>Stage errors:</strong> If any stage RPC fails (error response or timeout), the SDK returns
 an error from <code>Run()</code> with context like <code>"stage 1 (declare-registration): ..."</code>.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->
-
 <p><strong>Runtime errors:</strong> Callback handlers return errors via <code>#&lt;id&gt; error {"code":"...","message":"..."}</code>.
 Unknown methods are rejected with <code>"unknown method: &lt;method&gt;"</code>.</p>
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop -->
-
 <p><strong>Connection errors:</strong> EOF or closed connection during the event loop is treated as
 clean shutdown (engine closes socket to signal exit).</p>
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, isConnectionClosed -->
-
 <p><strong>Config reload errors:</strong> <code>config-verify</code> and <code>config-apply</code> return structured results
 with <code>{"status":"ok"}</code> or <code>{"status":"error","error":"..."}</code>. If no handler is registered,
 the response is <code>{"status":"ok"}</code> (graceful no-op).</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigVerify, OnConfigApply, initCallbackDefaults -->
-
 <h2 id="batched-event-delivery">Batched Event Delivery</h2>
 <p>Events are batched for efficiency. The engine collects pending events from a per-process
 channel, JSON-quotes each one, and sends them in a single <code>deliver-batch</code> RPC.</p>
 <!-- source: pkg/plugin/rpc/batch.go -- WriteBatchFrame -->
-
-<pre><code>#42 ze-plugin-callback:deliver-batch {&quot;events&quot;:[&quot;&lt;json-event-1&gt;&quot;,&quot;&lt;json-event-2&gt;&quot;,...]}
+<pre><code>#42 ze-plugin-callback:deliver-batch {"events":["&lt;json-event-1&gt;","&lt;json-event-2&gt;",...]}
 #42 ok
 </code></pre>
 <p>The SDK unpacks the batch and dispatches each event to the <code>OnEvent</code> handler individually.
 Both <code>deliver-event</code> and <code>deliver-batch</code> handlers are registered in the callback map
 when <code>OnEvent</code> is called.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent -->
-
 <p>For internal plugins with an active <code>DirectBridge</code>, event delivery bypasses the callback
 channel entirely: <code>bridge.DeliverEvents(events)</code> calls the <code>onEvent</code> handler directly
 (hot path). The callback channel is only used for non-event callbacks (execute-command,
 config-verify, etc.) and bye.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
+
             </section>
         </main>
 
@@ -1149,7 +1136,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

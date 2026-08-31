@@ -64,22 +64,22 @@ License Agreement. Read that first, then come back here.</p>
 <p>Ze is built spec by spec, and that shapes how contributions flow:</p>
 <ol>
 <li><strong>Open an issue</strong> describing what you want to change or fix, on the
-   <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">tracker</a>. Start here even for
-   a fix, so the work is visible and nobody doubles up.</li>
+<a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">tracker</a>. Start here even for
+a fix, so the work is visible and nobody doubles up.</li>
 <li><strong>Agree on a spec.</strong> For anything beyond a small fix, the maintainer turns
-   the issue into a spec that says what the change should do and how it will
-   be tested. Specs keep the project coherent and stop work drifting.</li>
+the issue into a spec that says what the change should do and how it will
+be tested. Specs keep the project coherent and stop work drifting.</li>
 <li><strong>Implement the spec</strong>, with tests written alongside the code, not after.</li>
 <li><strong>Sign your commits</strong> with <code>git commit -s</code>. That sign-off certifies you
-   accept the <a href="../">CLA</a>. No signed-off commit, no merge: this is the one hard
-   requirement.</li>
+accept the <a href="../">CLA</a>. No signed-off commit, no merge: this is the one hard
+requirement.</li>
 <li><strong>Open a pull request.</strong> The maintainer reviews it, often with AI
-   assistance, the same way the rest of the project is built.</li>
+assistance, the same way the rest of the project is built.</li>
 </ol>
 <h2 id="setting-up-a-build">Setting up a build</h2>
 <pre><code class="language-bash">git clone https://github.com/ze-software/ze.git
 cd ze
-make build          # builds bin/ze
+go build -o bin/ze ./cmd/ze
 bin/ze init         # set up local credentials
 bin/ze cli          # connect to the CLI
 </code></pre>
@@ -91,15 +91,15 @@ in the repository.</p>
 <h2 id="what-a-good-change-looks-like">What a good change looks like</h2>
 <ul>
 <li><strong>Tests come with it.</strong> Ze is test-driven; a change without tests is not
-  finished.</li>
-<li><strong><code>make ze-precommit-verify</code> passes.</strong> That is the gate the maintainer runs, so run it
-  yourself before you submit.</li>
+finished.</li>
+<li><strong><code>./le verify current mode full</code> passes.</strong> That is the gate the maintainer runs, so run it
+yourself before you submit.</li>
 <li><strong>It arrives in one piece.</strong> Code, tests, and documentation together, not a
-  code change now with the docs to follow.</li>
+code change now with the docs to follow.</li>
 <li><strong>It respects the project's standards.</strong> The coding, testing, and workflow
-  rules the project follows live in
-  <a href="https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">the repository</a>
-  and apply to every contribution, whether written by hand or with AI help.</li>
+rules the project follows live in
+<a href="https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">the repository</a>
+and apply to every contribution, whether written by hand or with AI help.</li>
 </ul>
 <h2 id="good-first-paths">Good first paths</h2>
 <p>There is no formal "good first issue" label yet. The most useful things an
@@ -108,6 +108,7 @@ experience: run a lab peer, migrate an <a href="../../use-cases/exabgp-migration
 stand up a looking glass, or run the <a href="../../labs/">interop labs</a> and report
 what does not match. Come and ask on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a>
 where help is most valuable at the moment.</p>
+
             </section>
         </main>
 
@@ -117,7 +118,7 @@ where help is most valuable at the moment.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

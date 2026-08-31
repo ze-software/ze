@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>show bgp peer &lt;selector&gt; rib [scope|filters|terminal] - Command Equivalents - Ze</title>
-        <meta name="description" content="Command details and vendor equivalents for show bgp peer &lt;selector&gt; rib [scope|filters|terminal]." />
-        <meta property="og:title" content="show bgp peer &lt;selector&gt; rib [scope|filters|terminal] - Command Equivalents - Ze" />
-        <meta property="og:description" content="Command details and vendor equivalents for show bgp peer &lt;selector&gt; rib [scope|filters|terminal]." />
+        <title>show bgp peer rib - Command Equivalents - Ze</title>
+        <meta name="description" content="Show RIB data scoped to one peer." />
+        <meta property="og:title" content="show bgp peer rib - Command Equivalents - Ze" />
+        <meta property="og:description" content="Show RIB data scoped to one peer." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="show bgp peer &lt;selector&gt; rib [scope|filters|terminal] - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Command details and vendor equivalents for show bgp peer &lt;selector&gt; rib [scope|filters|terminal]." />
+        <meta name="twitter:title" content="show bgp peer rib - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="Show RIB data scoped to one peer." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,28 +45,30 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
 
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
-                <div class="journey-hero reveal">
-                    <span class="journey-eyebrow">Command map</span>
-                    <h1 id="command-equivalent-detail-title">show bgp peer &lt;selector&gt; rib [scope|filters|terminal]</h1>
-                    <p>Command details and vendor equivalents for show bgp peer &amp;lt;selector&amp;gt; rib [scope|filters|terminal].</p>
-                </div>
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Command map</span>
+    <h1 id="command-equivalent-detail-title">show bgp peer rib</h1>
+    <p>Show RIB data scoped to one peer.</p>
+</div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Syntax</dt><dd><code>show bgp peer &lt;selector&gt; rib [scope|filters|terminal]</code></dd></div>
 <div><dt>Registry path</dt><dd><code>show bgp peer rib</code></dd></div>
+<div><dt>Usage</dt><dd><code>show bgp peer &lt;selector&gt; rib [sent|advertised|received|sent-received]</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-bgp:peer-rib</code></dd></div>
+<div><dt>Backends</dt><dd>any backend</dd></div>
+<div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
+<div><dt>Subcommands</dt><dd><code>scope</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 <div><dt>Answer shape</dt><dd>tab</dd></div>
 <div><dt>Address fields</dt><dd>peer, next-hop</dd></div>
 </dl>
-<h3>Description</h3><p>Show RIB data scoped to one peer.<br>Usage: show bgp peer &lt;selector&gt; rib [scope|filters|terminal].</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th></tr></thead><tbody>
-<tr><td><code>selector</code></td><td>string</td><td>yes</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
+<tr><td><code>selector</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
@@ -143,7 +145,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 27 August 2026 02:57 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

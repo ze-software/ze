@@ -47,11 +47,10 @@
 <!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
 <!-- source: internal/plugins/env/env.go -- ze env subcommands -->
 <!-- source: cmd/ze/help_ai.go -- ze help ai output -->
-<!-- source: scripts/inventory/inventory.go -- make ze-inventory -->
-<!-- source: scripts/inventory/commands.go -- make ze-command-list -->
-<!-- source: scripts/docvalid/commands.go -- make ze-command-contract-check -->
-<!-- source: scripts/docvalid/doc_drift.go -- make ze-doc-drift-check -->
-
+<!-- source: internal/le/inventory/inventory.go -- Answer -->
+<!-- source: internal/le/command/list/commandlist.go -- Answer -->
+<!-- source: internal/le/docvalid/actions.go -- Answer -->
+<!-- source: internal/le/docvalid/actions.go -- Answer -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="self-documenting-system">Self-Documenting System</h1>
@@ -111,8 +110,8 @@ unregistered access (<code>env.MustRegister()</code>).</p>
 <td>Details for a single environment variable</td>
 </tr>
 <tr>
-<td><code>ze --plugins</code></td>
-<td>All registered plugins with families, capabilities, dependencies</td>
+<td><code>ze show plugins</code></td>
+<td>All registered plugins with families, RFCs, and capability codes</td>
 </tr>
 <tr>
 <td><code>ze help command [filter]</code></td>
@@ -133,53 +132,56 @@ unregistered access (<code>env.MustRegister()</code>).</p>
 </tbody>
 </table>
 <p>One registration is out of reach of both catalogs. <code>ze help command --json</code> and
-<code>make ze-command-list</code> read the compiled command tree in their own process, and
+<code>./le command list</code> read the compiled command tree in their own process, and
 they start no plugin. Neither reports a pipe alias a plugin declared in its
 Stage 1 message. The running daemon answers that question, through
 <code>command help "&lt;name&gt;"</code> and through Tab completion in the interactive session.
 The wiki catalog built from the JSON therefore lists a plugin's commands without
-its aliases.</p>
+its aliases. That answer carries a command's two help texts under <code>description</code>
+(the one-line summary) and <code>long-help</code> (the explanation), for a builtin and for
+a plugin command alike.</p>
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp -->
-
 <h2 id="build-time-verification">Build-Time Verification</h2>
 <table>
 <thead>
 <tr>
-<th>Make target</th>
+<th>Native action</th>
 <th>What it does</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>make ze-inventory</code></td>
-<td>Full project inventory: plugins, YANG modules, RPCs, families, tests, packages</td>
+<td><code>./le inventory</code></td>
+<td>Reports plugins, YANG modules, RPCs, families, tests, and packages</td>
 </tr>
 <tr>
-<td><code>make ze-inventory-json</code></td>
-<td>Same as above, machine-readable JSON</td>
+<td><code>./le command list</code></td>
+<td>Reads every CLI command from the compiled registries</td>
 </tr>
 <tr>
-<td><code>make ze-command-list</code></td>
-<td>Every CLI command of the compiled tree, with wire method, help text, read-only flag, source</td>
+<td><code>./le docvalid command-contract</code></td>
+<td>Cross-checks YANG commands and handlers</td>
 </tr>
 <tr>
-<td><code>make ze-command-contract-check</code></td>
-<td>Cross-check YANG command tree against registered handlers</td>
-</tr>
-<tr>
-<td><code>make ze-doc-drift-check</code></td>
-<td>Detect documentation that no longer matches code</td>
+<td><code>./le docvalid doc-drift</code></td>
+<td>Detects documentation drift</td>
 </tr>
 </tbody>
 </table>
+<p>Each plugin the inventory reports also carries the package directory it
+registers from and every YANG file beside it. Both are DERIVED, so no plugin
+declares either: the directory is the package the plugin's engine function was
+compiled in, and the file list is the directory holding the module the
+registration carries. The public plugin catalog publishes both.</p>
+<!-- source: internal/le/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
 <h2 id="design-principle">Design Principle</h2>
 <p>The self-documenting property emerges from the registration architecture:</p>
 <ul>
 <li><strong>Plugins</strong> register via <code>registry.Register()</code> in <code>init()</code> -- name, families, capabilities,
-  YANG schema, dependencies, event types, send types, features</li>
+YANG schema, dependencies, event types, send types, features</li>
 <li><strong>Environment variables</strong> register via <code>env.MustRegister()</code> -- calling <code>env.Get()</code> with an
-  unregistered key aborts the process</li>
+unregistered key aborts the process</li>
 <li><strong>RPCs</strong> are defined in YANG schemas -- no command handler exists without a schema definition</li>
 <li><strong>CLI dispatch</strong> is auto-generated from registrations -- no hand-wired dispatch tables</li>
 <li><strong>Tab completion</strong> is driven by YANG schemas -- new config leaves appear automatically</li>
@@ -188,6 +190,7 @@ its aliases.</p>
 <p>The result: adding a plugin with a YANG schema automatically updates the CLI, web UI, tab
 completion, schema discovery, inventory, and environment variable listing. No manual wiring.</p>
 <p>No other open-source BGP daemon provides runtime introspection of its own capabilities.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -221,7 +224,7 @@ completion, schema discovery, inventory, and environment variable listing. No ma
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,21 +1,33 @@
-# `show bgp irr check <peer> <prefix>`
+# `show bgp irr check`
+
+Check if a prefix is accepted by the IRR filter.
 
 ## Ze command
 
-- Syntax: `show bgp irr check <peer> <prefix>`
 - Registry path: `show bgp irr check`
+- Usage: `show bgp irr check <peer> <prefix>`
 - Mode: Read-only
 - Wire method: `ze-show:irr-check`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: none
+- Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Check if a prefix is accepted by the IRR filter. Usage: show bgp irr check <peer> <prefix>. Reports whether the prefix would be accepted or rejected, and which entry matches.
+Reports whether the prefix would be accepted or rejected, and which entry matches.
+
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `peer` | string | yes | any value of this type |
+| `prefix` | string | yes | any value of this type |
 
 ## Mapping intents
 

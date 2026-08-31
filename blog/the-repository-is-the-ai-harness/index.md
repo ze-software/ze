@@ -6,7 +6,7 @@ The harness gives an agent tools. The repository provides project-specific meani
 
 ![General harness abilities and repository-specific meaning converge on an agent change; checks return failures to the rule and example that guide the next revision.](../../assets/blog/the-repository-is-the-ai-harness.svg)
 
-Ze is a network operating system spread over 680+ Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.
+Ze is a network operating system spread over 750+ Go packages. A model can open any one of them in under a second and still have no idea which package a change belongs in, which rule it is about to break, or which test would catch it if it gets that wrong. Nothing in the repository tells it.
 
 The harness supplies the general abilities: read a file, search the tree, edit code, run a program, keep track of a task and report a failure. The project has to supply the meaning. A developer who misreads a convention usually notices, and a reviewer notices for them when they do not. An agent produces something plausible and moves on.
 
@@ -24,9 +24,9 @@ Ze carries that meaning in several layers.
 
 `ai/INDEX.md` is a task-oriented entrance. It answers questions such as where to start when adding a plugin, changing configuration, implementing an RFC or adding a command, so the agent does not have to search hundreds of packages to find the first document.
 
-`ai/PACKAGE-MAP.md` gives one short description for each of those 680+ packages, and that saves a great deal of blind exploration.
+`ai/PACKAGE-MAP.md` gives one short description for each of those 750+ packages, and that saves a great deal of blind exploration.
 
-Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are 3,800+ of the first kind and 3,200+ of the second.
+Production Go files carry a `// Design:` line near their top, so opening the implementation reveals the document explaining why it exists. Closely connected files also point to each other with `// Detail:`, `// Overview:` and `// Related:` comments. There are 4,400+ of the first kind and 4,000+ of the second.
 
 The documents point back into the source through `<!-- source: ... -->` markers. Small programs generate the two reverse indexes, `ai/CODE-TO-DOCS.md` and `ai/DOCS-TO-CODE.md`:
 
@@ -69,7 +69,7 @@ Register("configure", runConfigure)
 
 The main program looks up the name in the table, and a third party can register another command without touching the core.
 
-A requirement like that needs more than a sentence in an architecture document. The repository provides a chain. `ai/patterns/registration.md` explains why registration is required and what the accepted shape looks like. Nearly four hundred `register.go` files show the normal implementation. `make generate` scans for those files and writes the list of modules loaded at startup, so nobody maintains it by hand. An edit hook rejects hard-coded command lists and registration hidden inside `init()`. A separate check catches dependencies crossing a plugin boundary. Tests prove that registration and discovery actually work.
+A requirement like that needs more than a sentence in an architecture document. The repository provides a chain. `ai/patterns/registration.md` explains why registration is required and what the accepted shape looks like. Nearly four hundred `register.go` files show the normal implementation. `./le repository generate` scans for those files and writes the list of modules loaded at startup, so nobody maintains it by hand. An edit hook rejects hard-coded command lists and registration hidden inside `init()`. A separate check catches dependencies crossing a plugin boundary. Tests prove that registration and discovery actually work.
 
 Whatever the hook prints becomes the agent's next prompt, so it has to point somewhere useful:
 
@@ -124,7 +124,7 @@ All of that is ordinary engineering judgement, and judgement is the part an agen
 | A configuration reload | a scenario driven by SIGHUP | `test/reload/` |
 | Plugin behaviour | a scenario exercising the plugin API | `test/plugin/` |
 
-The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,700+ `.ci` scenarios and 160+ editor `.et` scenarios are what that produces, next to the Go unit tests.
+The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,800 `.ci` scenarios and 160+ editor `.et` scenarios are what that produces, next to the Go unit tests.
 
 The test comes first and has to fail before the implementation is written. Each one carries `VALIDATES:` and `PREVENTS:` comments, so a later reader learns what the test proves and which regression it was written against.
 
@@ -171,7 +171,7 @@ A test tagged with an RFC requirement is the evidence behind a public compliance
   grmarker_test.go enforces RFC obligations:
     - RFC4724-4.1-4 positive
   These are the proof behind a public compliance claim
-  (docs/features/rfc-status.md), counted by `make ze-rfc-check`.
+  (docs/features/rfc-status.md), counted by `./le rfc check`.
   Editing the test to match the code inverts that: the obligation stops
   being proven while still being advertised.
   Fix the CODE. If you believe the test is genuinely wrong, STOP and show

@@ -76,7 +76,7 @@ set bgp peer flowspec-rr session family ipv4/flow prefix maximum 1000
 set bgp peer flowspec-rr attach process flowspec-firewall receive [ update-received state ]
 EOF
 
-/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
 sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
@@ -144,7 +144,7 @@ If the source (`flowspec-rr`, `203.0.113.1`) is a Ze node, announce toward `edge
 
 ```bash
 export XDG_RUNTIME_DIR=/run/ze
-/usr/local/bin/ze cli -c "peer 192.0.2.10 update text extended-community discard nlri ipv4/flow add destination 10.0.0.0/8 protocol tcp destination-port =80"
+/usr/local/bin/ze cli -c "peer 192.0.2.10 update text extended-community discard nlri ipv4/flow add destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
 ```
 
 On a non-Ze source, use that router's FlowSpec origination syntax instead. Then, on `edge-01`, check that nftables received a rule:

@@ -130,8 +130,23 @@ produce the same stored policer name.
 - **Interface must exist in VPP.** Names come from the config and are looked
   up via `SwInterfaceDump` each apply. An unknown interface name fails the
   apply with `interface "<name>" not present in vpp`.
+- **Each VPP binary-API round trip is bounded.** govpp's own default reply
+  timeout is 0, which govpp documents as disabling the timeout, and
+  `Channel.ReceiveReply` has no context arm, so a wedged VPP held the apply
+  indefinitely. The bound is per round trip, not per apply: an apply that
+  touches many interfaces can run to request count times the deadline.
+
+| Backend | Bounds | Environment variable | Default | Range |
+|---------|--------|----------------------|---------|-------|
+| `vpp` | One VPP binary-API round trip | `ze.traffic.vpp.reply-timeout` | 10s | 1s to 60s |
+
+An out-of-range or unparseable value clamps to the range rather than disabling
+the bound. The firewall backend publishes the same knob under
+`ze.firewall.vpp.reply-timeout` (`docs/guide/firewall.md`), with the same
+default and range.
 
 <!-- source: internal/plugins/traffic/vpp/backend_linux.go -- Apply, WaitConnected, reconcileRemovals -->
+<!-- source: internal/plugins/traffic/vpp/timeout_linux.go -- vppReplyTimeout, newGovppOps -->
 <!-- source: internal/component/vpp/conn.go -- Connector.WaitConnected -->
 
 ## Failure Modes
@@ -141,3 +156,4 @@ produce the same stored policer name.
 | Commit fails with `<type>: not supported by backend vpp` | Config uses a qdisc/filter rejected by the vpp backend | Change the qdisc/filter to one from the accepted list, or switch to `backend tc` |
 | Commit fails with `vpp not connected after 5s` | VPP daemon not running or unreachable | Start VPP, wait for its API socket to be ready, retry commit |
 | Commit fails with `interface "<name>" not present in vpp` | Interface declared in traffic-control config is unknown to VPP | Create the interface in VPP first (via the `interface` component or manually), then retry |
+| Commit fails with a GoVPP reply-timeout error | VPP accepted the connection and then stopped answering, so one binary-API round trip hit `ze.traffic.vpp.reply-timeout` | Check VPP's health. Before the bound existed the apply hung instead, so a timeout here is the guard working rather than a new fault |

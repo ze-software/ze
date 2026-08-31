@@ -43,14 +43,13 @@
         </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
-
             <section class="md-content reveal cat-automate plugin-catalog" data-plugin-catalog aria-labelledby="plugin-catalog-title">
-                <div class="journey-hero reveal">
-                    <span class="journey-eyebrow">Plugins</span>
-                    <h1 id="plugin-catalog-title">Plugin catalog</h1>
-                    <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
-                </div>
-                <p class="plugin-summary">Generated from 96 registry entries: 90 runtime plugins and 6 test fixtures. Among runtime plugins, 69 declare configuration roots, 48 declare dependencies, and 70 ship YANG modules.</p>
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Plugins</span>
+    <h1 id="plugin-catalog-title">Plugin catalog</h1>
+    <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
+</div>
+                <p class="plugin-summary">Generated from 91 registry entries: 91 runtime plugins. Among runtime plugins, 69 declare configuration roots, 45 declare dependencies, and 71 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -65,7 +64,7 @@
                                     <option value="services" data-label="Network services">Network services (7)</option>
                                     <option value="dataplane" data-label="Interfaces &amp; dataplane">Interfaces &amp; dataplane (11)</option>
                                     <option value="telemetry" data-label="Telemetry &amp; operations">Telemetry &amp; operations (4)</option>
-                                    <option value="test" data-label="Test fixtures">Test fixtures (6)</option>
+                                    <option value="system" data-label="System">System (1)</option>
                                 </select>
                             </label>
                             <label for="plugin-family">Area
@@ -116,8 +115,8 @@
                                     <option value="mrt" data-category="telemetry" data-label="MRT">MRT (1)</option>
                                     <option value="traffic" data-category="telemetry" data-label="Traffic">Traffic (2)</option>
                                     </optgroup>
-                                    <optgroup label="Test fixtures">
-                                    <option value="test-harness" data-category="test" data-label="Test Harness">Test Harness (6)</option>
+                                    <optgroup label="System">
+                                    <option value="memlock" data-category="system" data-label="Memlock">Memlock (1)</option>
                                     </optgroup>
                                 </select>
                             </label>
@@ -135,16 +134,15 @@
                     <p>Generated group for registry entries mapped to the Anomaly area. Config roots: <code>anomaly</code>. Source area: <code>internal/plugins/anomaly</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card tone-pink" id="plugin-anomaly-detect-feature-source" data-plugin-card data-family="anomaly" data-category="security" data-search="anomaly-detect-feature-source Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature internal/plugins/anomaly/detect Anomaly   anomaly/detect config-loaded  internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang">
+                    <article class="card plugin-card tone-pink" id="plugin-anomaly-detect" data-plugin-card data-family="anomaly" data-category="security" data-search="anomaly-detect Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature internal/plugins/anomaly/detect Anomaly   anomaly/detect   internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang">
                         <span class="cat">Anomaly</span>
-                        <h3><a href="anomaly-detect-feature-source/"><code>anomaly-detect-feature-source</code></a></h3>
+                        <h3><a href="anomaly-detect/"><code>anomaly-detect</code></a></h3>
                         <p class="plugin-desc">Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature</p>
                         <div class="chips">
                             <span class="chip mode">config:anomaly/detect</span>
-                            <span class="chip">needs:config-loaded</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>anomaly/detect</code></dd></div><div><dt>Needs</dt><dd><code>config-loaded</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>anomaly/detect</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-pink" id="plugin-anomaly-observe" data-plugin-card data-family="anomaly" data-category="security" data-search="anomaly-observe Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI internal/plugins/anomaly/observe Anomaly   anomaly/observe   internal/plugins/anomaly/observe/yang/ze-anomaly-observe-conf.yang">
@@ -158,20 +156,19 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>anomaly/observe</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card tone-pink" id="plugin-anomaly-shape-firewall" data-plugin-card data-family="anomaly" data-category="security" data-search="anomaly-shape-firewall Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch internal/plugins/anomaly/shape Anomaly   anomaly/shape config-loaded  internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang">
+                    <article class="card plugin-card tone-pink" id="plugin-anomaly-shape" data-plugin-card data-family="anomaly" data-category="security" data-search="anomaly-shape Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch internal/plugins/anomaly/shape Anomaly   anomaly/shape firewall  internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang">
                         <span class="cat">Anomaly</span>
-                        <h3><a href="anomaly-shape-firewall/"><code>anomaly-shape-firewall</code></a></h3>
+                        <h3><a href="anomaly-shape/"><code>anomaly-shape</code></a></h3>
                         <p class="plugin-desc">Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch</p>
                         <div class="chips">
                             <span class="chip mode">config:anomaly/shape</span>
-                            <span class="chip">needs:config-loaded</span>
+                            <span class="chip">needs:firewall</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>anomaly/shape</code></dd></div><div><dt>Needs</dt><dd><code>config-loaded</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>anomaly/shape</code></dd></div><div><dt>Needs</dt><dd><code>firewall</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="bfd" data-category="dataplane" aria-labelledby="plugin-group-bfd">
                     <div class="plugin-group-head tone-teal">
                         <h2 id="plugin-group-bfd">BFD</h2>
@@ -192,7 +189,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="bgp" data-category="routing" aria-labelledby="plugin-group-bgp">
                     <div class="plugin-group-head tone-gold">
                         <h2 id="plugin-group-bgp">BGP</h2>
@@ -421,7 +417,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="bgp-filter" data-category="security" aria-labelledby="plugin-group-bgp-filter">
                     <div class="plugin-group-head tone-mint">
                         <h2 id="plugin-group-bgp-filter">BGP Filter</h2>
@@ -478,10 +473,10 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card tone-mint" id="plugin-bgp-filter-family" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-family Named address-family policy filter: remove a family&#x27;s NLRI or tear down the session Named address-family policy filter: remove a family&#x27;s NLRI or tear down the session internal/component/bgp/plugins/filter_family BGP Filter   bgp bgp  internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang">
+                    <article class="card plugin-card tone-mint" id="plugin-bgp-filter-family" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-family Named address-family policy filter: remove a family&#39;s NLRI or tear down the session Named address-family policy filter: remove a family&#39;s NLRI or tear down the session internal/component/bgp/plugins/filter_family BGP Filter   bgp bgp  internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-family/"><code>bgp-filter-family</code></a></h3>
-                        <p class="plugin-desc">Named address-family policy filter: remove a family&#x27;s NLRI or tear down the session</p>
+                        <p class="plugin-desc">Named address-family policy filter: remove a family&#39;s NLRI or tear down the session</p>
                         <div class="chips">
                             <span class="chip mode">config:bgp</span>
                             <span class="chip">needs:bgp</span>
@@ -549,7 +544,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="bgp-nlri" data-category="routing" aria-labelledby="plugin-group-bgp-nlri">
                     <div class="plugin-group-head tone-pink">
                         <h2 id="plugin-group-bgp-nlri">BGP NLRI</h2>
@@ -568,14 +562,14 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd>None</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card tone-pink" id="plugin-bgp-nlri-flowspec" data-plugin-card data-family="bgp-nlri" data-category="routing" data-search="bgp-nlri-flowspec FlowSpec NLRI encoding/decoding FlowSpec NLRI encoding/decoding internal/component/bgp/plugins/nlri/flowspec BGP NLRI      ">
+                    <article class="card plugin-card tone-pink" id="plugin-bgp-nlri-flowspec" data-plugin-card data-family="bgp-nlri" data-category="routing" data-search="bgp-nlri-flowspec FlowSpec NLRI encoding/decoding FlowSpec NLRI encoding/decoding internal/component/bgp/plugins/nlri/flowspec BGP NLRI      internal/component/bgp/plugins/nlri/flowspec/yang/ze-flowspec-cmd.yang">
                         <span class="cat">BGP NLRI</span>
                         <h3><a href="bgp-nlri-flowspec/"><code>bgp-nlri-flowspec</code></a></h3>
                         <p class="plugin-desc">FlowSpec NLRI encoding/decoding</p>
                         <div class="chips">
-                            <span class="chip">no config</span>
+                            <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd>None</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-pink" id="plugin-bgp-nlri-labeled" data-plugin-card data-family="bgp-nlri" data-category="routing" data-search="bgp-nlri-labeled Labeled Unicast family plugin (RFC 8277) Labeled Unicast family plugin (RFC 8277) internal/component/bgp/plugins/nlri/labeled BGP NLRI      ">
@@ -659,7 +653,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="bgp-redistribute" data-category="routing" aria-labelledby="plugin-group-bgp-redistribute">
                     <div class="plugin-group-head tone-lemon">
                         <h2 id="plugin-group-bgp-redistribute">BGP Redistribute</h2>
@@ -690,7 +683,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="class-of-service" data-category="services" aria-labelledby="plugin-group-class-of-service">
                     <div class="plugin-group-head tone-lemon">
                         <h2 id="plugin-group-class-of-service">Class of Service</h2>
@@ -711,7 +703,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="connected" data-category="routing" aria-labelledby="plugin-group-connected">
                     <div class="plugin-group-head tone-grape">
                         <h2 id="plugin-group-connected">Connected</h2>
@@ -732,7 +723,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="control-plane-protection" data-category="security" aria-labelledby="plugin-group-control-plane-protection">
                     <div class="plugin-group-head tone-pink">
                         <h2 id="plugin-group-control-plane-protection">Control Plane Protection</h2>
@@ -741,9 +731,9 @@
                     <p>Generated group for registry entries mapped to the Control Plane Protection area. Config roots: <code>control-plane-protection</code>. Source area: <code>internal/plugins/copp</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card tone-pink" id="plugin-copp-input-chain" data-plugin-card data-family="control-plane-protection" data-category="security" data-search="copp-input-chain Control-plane policing: rate-limit new TCP connections to BGP listen port Control-plane policing: rate-limit new TCP connections to BGP listen port internal/plugins/copp Control Plane Protection   control-plane-protection firewall  internal/plugins/copp/yang/ze-copp-conf.yang">
+                    <article class="card plugin-card tone-pink" id="plugin-copp" data-plugin-card data-family="control-plane-protection" data-category="security" data-search="copp Control-plane policing: rate-limit new TCP connections to BGP listen port Control-plane policing: rate-limit new TCP connections to BGP listen port internal/plugins/copp Control Plane Protection   control-plane-protection firewall  internal/plugins/copp/yang/ze-copp-conf.yang">
                         <span class="cat">Control Plane Pr...</span>
-                        <h3><a href="copp-input-chain/"><code>copp-input-chain</code></a></h3>
+                        <h3><a href="copp/"><code>copp</code></a></h3>
                         <p class="plugin-desc">Control-plane policing: rate-limit new TCP connections to BGP listen port</p>
                         <div class="chips">
                             <span class="chip mode">config:control-plane-protection</span>
@@ -754,7 +744,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="ddos" data-category="security" aria-labelledby="plugin-group-ddos">
                     <div class="plugin-group-head tone-teal">
                         <h2 id="plugin-group-ddos">DDoS</h2>
@@ -763,16 +752,16 @@
                     <p>Generated group for registry entries mapped to the DDoS area. Config roots: <code>ddos</code>. Source area: <code>internal/plugins/ddos</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card tone-teal" id="plugin-ddos-detect-flow-source" data-plugin-card data-family="ddos" data-category="security" data-search="ddos-detect-flow-source Automatic DDoS attack detector with two-stage detection Automatic DDoS attack detector with two-stage detection internal/plugins/ddos/detect DDoS   ddos/detect config-loaded  internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang">
+                    <article class="card plugin-card tone-teal" id="plugin-ddos-detect" data-plugin-card data-family="ddos" data-category="security" data-search="ddos-detect Automatic DDoS attack detector with two-stage detection Automatic DDoS attack detector with two-stage detection internal/plugins/ddos/detect DDoS   ddos/detect interface  internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang">
                         <span class="cat">DDoS</span>
-                        <h3><a href="ddos-detect-flow-source/"><code>ddos-detect-flow-source</code></a></h3>
+                        <h3><a href="ddos-detect/"><code>ddos-detect</code></a></h3>
                         <p class="plugin-desc">Automatic DDoS attack detector with two-stage detection</p>
                         <div class="chips">
                             <span class="chip mode">config:ddos/detect</span>
-                            <span class="chip">needs:config-loaded</span>
+                            <span class="chip">needs:interface</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ddos/detect</code></dd></div><div><dt>Needs</dt><dd><code>config-loaded</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ddos/detect</code></dd></div><div><dt>Needs</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-teal" id="plugin-ddos-flowspec" data-plugin-card data-family="ddos" data-category="security" data-search="ddos-flowspec DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear internal/plugins/ddos/flowspec DDoS   ddos/flowspec   internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang">
@@ -821,7 +810,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="environment" data-category="services" aria-labelledby="plugin-group-environment">
                     <div class="plugin-group-head tone-lemon">
                         <h2 id="plugin-group-environment">Environment</h2>
@@ -842,7 +830,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="exabgp" data-category="routing" aria-labelledby="plugin-group-exabgp">
                     <div class="plugin-group-head tone-lemon">
                         <h2 id="plugin-group-exabgp">Exabgp</h2>
@@ -863,7 +850,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="fib" data-category="dataplane" aria-labelledby="plugin-group-fib">
                     <div class="plugin-group-head tone-pink">
                         <h2 id="plugin-group-fib">FIB</h2>
@@ -911,7 +897,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="firewall" data-category="security" aria-labelledby="plugin-group-firewall">
                     <div class="plugin-group-head tone-sky">
                         <h2 id="plugin-group-firewall">Firewall</h2>
@@ -944,7 +929,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="flow-export" data-category="telemetry" aria-labelledby="plugin-group-flow-export">
                     <div class="plugin-group-head tone-pink">
                         <h2 id="plugin-group-flow-export">Flow Export</h2>
@@ -953,20 +937,19 @@
                     <p>Generated group for registry entries mapped to the Flow Export area. Config roots: <code>flow-export</code>. Source area: <code>internal/plugins/flowexport</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card tone-pink" id="plugin-flow-export-conntrack-tracking" data-plugin-card data-family="flow-export" data-category="telemetry" data-search="flow-export-conntrack-tracking sFlow, NetFlow v9, and IPFIX counter export sFlow, NetFlow v9, and IPFIX counter export internal/plugins/flowexport Flow Export   flow-export config-loaded  internal/plugins/flowexport/yang/ze-flowexport-conf.yang">
+                    <article class="card plugin-card tone-pink" id="plugin-flow-export" data-plugin-card data-family="flow-export" data-category="telemetry" data-search="flow-export sFlow, NetFlow v9, and IPFIX counter export sFlow, NetFlow v9, and IPFIX counter export internal/plugins/flowexport Flow Export   flow-export interface  internal/plugins/flowexport/yang/ze-flowexport-conf.yang">
                         <span class="cat">Flow Export</span>
-                        <h3><a href="flow-export-conntrack-tracking/"><code>flow-export-conntrack-tracking</code></a></h3>
+                        <h3><a href="flow-export/"><code>flow-export</code></a></h3>
                         <p class="plugin-desc">sFlow, NetFlow v9, and IPFIX counter export</p>
                         <div class="chips">
                             <span class="chip mode">config:flow-export</span>
-                            <span class="chip">needs:config-loaded</span>
+                            <span class="chip">needs:interface</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>flow-export</code></dd></div><div><dt>Needs</dt><dd><code>config-loaded</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>flow-export</code></dd></div><div><dt>Needs</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="flowspec-firewall" data-category="security" aria-labelledby="plugin-group-flowspec-firewall">
                     <div class="plugin-group-head tone-grape">
                         <h2 id="plugin-group-flowspec-firewall">Flowspec Firewall</h2>
@@ -986,7 +969,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="isis" data-category="routing" aria-labelledby="plugin-group-isis">
                     <div class="plugin-group-head tone-teal">
                         <h2 id="plugin-group-isis">IS-IS</h2>
@@ -1009,7 +991,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="interface" data-category="dataplane" aria-labelledby="plugin-group-interface">
                     <div class="plugin-group-head tone-sky">
                         <h2 id="plugin-group-interface">Interface</h2>
@@ -1063,7 +1044,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="kernel" data-category="dataplane" aria-labelledby="plugin-group-kernel">
                     <div class="plugin-group-head tone-pink">
                         <h2 id="plugin-group-kernel">Kernel</h2>
@@ -1084,7 +1064,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="l2tp" data-category="tunneling" aria-labelledby="plugin-group-l2tp">
                     <div class="plugin-group-head tone-lemon">
                         <h2 id="plugin-group-l2tp">L2TP</h2>
@@ -1104,16 +1083,15 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>l2tp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card tone-lemon" id="plugin-l2tp-auth-radius-servers" data-plugin-card data-family="l2tp" data-category="tunneling" data-search="l2tp-auth-radius-servers RADIUS authentication and accounting for L2TP PPP sessions RADIUS authentication and accounting for L2TP PPP sessions internal/component/l2tp/plugins/authradius L2TP   l2tp radius-server  internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang">
+                    <article class="card plugin-card tone-lemon" id="plugin-l2tp-auth-radius" data-plugin-card data-family="l2tp" data-category="tunneling" data-search="l2tp-auth-radius RADIUS authentication and accounting for L2TP PPP sessions RADIUS authentication and accounting for L2TP PPP sessions internal/component/l2tp/plugins/authradius L2TP   l2tp   internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang">
                         <span class="cat">L2TP</span>
-                        <h3><a href="l2tp-auth-radius-servers/"><code>l2tp-auth-radius-servers</code></a></h3>
+                        <h3><a href="l2tp-auth-radius/"><code>l2tp-auth-radius</code></a></h3>
                         <p class="plugin-desc">RADIUS authentication and accounting for L2TP PPP sessions</p>
                         <div class="chips">
                             <span class="chip mode">config:l2tp</span>
-                            <span class="chip">needs:radius-server</span>
                             <span class="chip">YANG:1</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>l2tp</code></dd></div><div><dt>Needs</dt><dd><code>radius-server</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>l2tp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card tone-lemon" id="plugin-l2tp-pool" data-plugin-card data-family="l2tp" data-category="tunneling" data-search="l2tp-pool IPv4 address and IPv6 prefix pool for L2TP PPP sessions IPv4 address and IPv6 prefix pool for L2TP PPP sessions internal/component/l2tp/plugins/pool L2TP   l2tp   internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang">
@@ -1139,7 +1117,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="ldp" data-category="tunneling" aria-labelledby="plugin-group-ldp">
                     <div class="plugin-group-head tone-gold">
                         <h2 id="plugin-group-ldp">LDP</h2>
@@ -1148,20 +1125,20 @@
                     <p>Generated group for registry entries mapped to the LDP area. Config roots: <code>ldp</code>. Source area: <code>internal/plugins/ldp</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card tone-gold" id="plugin-ldp-port" data-plugin-card data-family="ldp" data-category="tunneling" data-search="ldp-port Label Distribution Protocol (RFC 5036): MPLS label distribution Label Distribution Protocol (RFC 5036): MPLS label distribution internal/plugins/ldp LDP   ldp fib-kernel  internal/plugins/ldp/yang/ze-ldp-cmd.yang internal/plugins/ldp/yang/ze-ldp-conf.yang">
+                    <article class="card plugin-card tone-gold" id="plugin-ldp" data-plugin-card data-family="ldp" data-category="tunneling" data-search="ldp Label Distribution Protocol (RFC 5036): MPLS label distribution Label Distribution Protocol (RFC 5036): MPLS label distribution internal/plugins/ldp LDP   ldp fib-kernel sysctl  internal/plugins/ldp/yang/ze-ldp-cmd.yang internal/plugins/ldp/yang/ze-ldp-conf.yang">
                         <span class="cat">LDP</span>
-                        <h3><a href="ldp-port/"><code>ldp-port</code></a></h3>
+                        <h3><a href="ldp/"><code>ldp</code></a></h3>
                         <p class="plugin-desc">Label Distribution Protocol (RFC 5036): MPLS label distribution</p>
                         <div class="chips">
                             <span class="chip mode">config:ldp</span>
                             <span class="chip">needs:fib-kernel</span>
+                            <span class="chip">needs:sysctl</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ldp</code></dd></div><div><dt>Needs</dt><dd><code>fib-kernel</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ldp</code></dd></div><div><dt>Needs</dt><dd><code>fib-kernel</code>, <code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="mrt" data-category="telemetry" aria-labelledby="plugin-group-mrt">
                     <div class="plugin-group-head tone-mint">
                         <h2 id="plugin-group-mrt">MRT</h2>
@@ -1182,7 +1159,25 @@
                     </article>
                     </div>
                 </section>
+                <section class="plugin-group" data-plugin-group data-family="memlock" data-category="system" aria-labelledby="plugin-group-memlock">
+                    <div class="plugin-group-head tone-grape">
+                        <h2 id="plugin-group-memlock">Memlock</h2>
+                        <span>1 plugin</span>
+                    </div>
+                    <p>Generated group for registry entries mapped to the Memlock area. Source area: <code>internal/plugins/memlock</code>.</p>
+                    <div class="cards plugin-grid">
 
+                    <article class="card plugin-card tone-grape" id="plugin-memlock" data-plugin-card data-family="memlock" data-category="system" data-search="memlock Memory lock: keep the running executable resident under memory pressure Memory lock: keep the running executable resident under memory pressure internal/plugins/memlock Memlock      ">
+                        <span class="cat">Memlock</span>
+                        <h3><a href="memlock/"><code>memlock</code></a></h3>
+                        <p class="plugin-desc">Memory lock: keep the running executable resident under memory pressure</p>
+                        <div class="chips">
+                            <span class="chip">no config</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd>None</dd></div></dl>
+                    </article>
+                    </div>
+                </section>
                 <section class="plugin-group" data-plugin-group data-family="ospf" data-category="routing" aria-labelledby="plugin-group-ospf">
                     <div class="plugin-group-head tone-teal">
                         <h2 id="plugin-group-ospf">OSPF</h2>
@@ -1206,7 +1201,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="policy" data-category="security" aria-labelledby="plugin-group-policy">
                     <div class="plugin-group-head tone-gold">
                         <h2 id="plugin-group-policy">Policy</h2>
@@ -1228,7 +1222,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="rib" data-category="routing" aria-labelledby="plugin-group-rib">
                     <div class="plugin-group-head tone-grape">
                         <h2 id="plugin-group-rib">RIB</h2>
@@ -1249,7 +1242,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="rsvp-te" data-category="tunneling" aria-labelledby="plugin-group-rsvp-te">
                     <div class="plugin-group-head tone-sky">
                         <h2 id="plugin-group-rsvp-te">RSVP TE</h2>
@@ -1258,20 +1250,20 @@
                     <p>Generated group for registry entries mapped to the RSVP TE area. Config roots: <code>rsvp-te</code>. Source area: <code>internal/plugins/rsvpte</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card tone-sky" id="plugin-rsvp-te-rawsock" data-plugin-card data-family="rsvp-te" data-category="tunneling" data-search="rsvp-te-rawsock RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) internal/plugins/rsvpte RSVP TE   rsvp-te fib-kernel  internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang">
+                    <article class="card plugin-card tone-sky" id="plugin-rsvp-te" data-plugin-card data-family="rsvp-te" data-category="tunneling" data-search="rsvp-te RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) internal/plugins/rsvpte RSVP TE   rsvp-te fib-kernel sysctl  internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang">
                         <span class="cat">RSVP TE</span>
-                        <h3><a href="rsvp-te-rawsock/"><code>rsvp-te-rawsock</code></a></h3>
+                        <h3><a href="rsvp-te/"><code>rsvp-te</code></a></h3>
                         <p class="plugin-desc">RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209)</p>
                         <div class="chips">
                             <span class="chip mode">config:rsvp-te</span>
                             <span class="chip">needs:fib-kernel</span>
+                            <span class="chip">needs:sysctl</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rsvp-te</code></dd></div><div><dt>Needs</dt><dd><code>fib-kernel</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>rsvp-te</code></dd></div><div><dt>Needs</dt><dd><code>fib-kernel</code>, <code>sysctl</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="routing-table" data-category="routing" aria-labelledby="plugin-group-routing-table">
                     <div class="plugin-group-head tone-pink">
                         <h2 id="plugin-group-routing-table">Routing Table</h2>
@@ -1292,7 +1284,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="service" data-category="services" aria-labelledby="plugin-group-service">
                     <div class="plugin-group-head tone-pink">
                         <h2 id="plugin-group-service">Service</h2>
@@ -1357,7 +1348,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="static" data-category="routing" aria-labelledby="plugin-group-static">
                     <div class="plugin-group-head tone-pink">
                         <h2 id="plugin-group-static">Static</h2>
@@ -1380,7 +1370,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="sysctl" data-category="dataplane" aria-labelledby="plugin-group-sysctl">
                     <div class="plugin-group-head tone-grape">
                         <h2 id="plugin-group-sysctl">Sysctl</h2>
@@ -1401,7 +1390,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="traffic" data-category="telemetry" aria-labelledby="plugin-group-traffic">
                     <div class="plugin-group-head tone-sky">
                         <h2 id="plugin-group-traffic">Traffic</h2>
@@ -1435,7 +1423,6 @@
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="vpn" data-category="tunneling" aria-labelledby="plugin-group-vpn">
                     <div class="plugin-group-head tone-pink">
                         <h2 id="plugin-group-vpn">VPN</h2>
@@ -1444,20 +1431,18 @@
                     <p>Generated group for registry entries mapped to the VPN area. Config roots: <code>pki</code>, <code>vpn</code>. Source area: <code>internal/component/ike</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card tone-pink" id="plugin-ipsec-xfrm" data-plugin-card data-family="vpn" data-category="tunneling" data-search="ipsec-xfrm IKEv2 engine for native IPsec VPN IKEv2 engine for native IPsec VPN internal/component/ike/engine VPN   vpn pki config-loaded  ">
+                    <article class="card plugin-card tone-pink" id="plugin-ike" data-plugin-card data-family="vpn" data-category="tunneling" data-search="ike IKEv2 engine for native IPsec VPN IKEv2 engine for native IPsec VPN internal/component/ike/engine VPN   vpn pki   ">
                         <span class="cat">VPN</span>
-                        <h3><a href="ipsec-xfrm/"><code>ipsec-xfrm</code></a></h3>
+                        <h3><a href="ike/"><code>ike</code></a></h3>
                         <p class="plugin-desc">IKEv2 engine for native IPsec VPN</p>
                         <div class="chips">
                             <span class="chip mode">config:vpn</span>
                             <span class="chip mode">config:pki</span>
-                            <span class="chip">needs:config-loaded</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>vpn</code>, <code>pki</code></dd></div><div><dt>Needs</dt><dd><code>config-loaded</code></dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>vpn</code>, <code>pki</code></dd></div></dl>
                     </article>
                     </div>
                 </section>
-
                 <section class="plugin-group" data-plugin-group data-family="vpp" data-category="dataplane" aria-labelledby="plugin-group-vpp">
                     <div class="plugin-group-head tone-teal">
                         <h2 id="plugin-group-vpp">VPP</h2>
@@ -1477,80 +1462,7 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>vpp</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
                     </div>
-                </section>
-
-                <section class="plugin-group" data-plugin-group data-family="test-harness" data-category="test" aria-labelledby="plugin-group-test-harness">
-                    <div class="plugin-group-head tone-mint">
-                        <h2 id="plugin-group-test-harness">Test Harness</h2>
-                        <span>6 plugins</span>
-                    </div>
-                    <p>Generated group for registry entries mapped to the Test Harness area. Config roots: <code>ddos</code>. Source area: <code>internal/test/plugins</code>.</p>
-                    <div class="cards plugin-grid">
-
-                    <article class="card plugin-card tone-mint" id="plugin-ddos-fake" data-plugin-card data-family="test-harness" data-category="test" data-search="ddos-fake Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured) Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured) internal/test/plugins/fakeddos Test Harness   ddos/fake firewall  internal/test/plugins/fakeddos/yang/ze-fakeddos-conf.yang" data-test="true">
-                        <span class="cat">Test Harness</span>
-                        <h3><a href="ddos-fake/"><code>ddos-fake</code></a></h3>
-                        <p class="plugin-desc">Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured)</p>
-                        <div class="chips">
-                            <span class="chip mode">config:ddos/fake</span>
-                            <span class="chip">needs:firewall</span>
-                            <span class="chip">YANG:1</span>
-                        </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>ddos/fake</code></dd></div><div><dt>Needs</dt><dd><code>firewall</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
-                    </article>
-
-                    <article class="card plugin-card tone-mint" id="plugin-fakeas112" data-plugin-card data-family="test-harness" data-category="test" data-search="fakeas112 Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked) Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked) internal/test/plugins/fakeas112 Test Harness      internal/test/plugins/fakeas112/yang/ze-fakeas112-api.yang internal/test/plugins/fakeas112/yang/ze-fakeas112-cmd.yang" data-test="true">
-                        <span class="cat">Test Harness</span>
-                        <h3><a href="fakeas112/"><code>fakeas112</code></a></h3>
-                        <p class="plugin-desc">Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked)</p>
-                        <div class="chips">
-                            <span class="chip">YANG:2</span>
-                        </div>
-                        <dl class="plugin-meta"><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
-                    </article>
-
-                    <article class="card plugin-card tone-mint" id="plugin-fakeenrich" data-plugin-card data-family="test-harness" data-category="test" data-search="fakeenrich Test-only in-process enricher (harmless when not invoked) Test-only in-process enricher (harmless when not invoked) internal/test/plugins/fakeenrich Test Harness      " data-test="true">
-                        <span class="cat">Test Harness</span>
-                        <h3><a href="fakeenrich/"><code>fakeenrich</code></a></h3>
-                        <p class="plugin-desc">Test-only in-process enricher (harmless when not invoked)</p>
-                        <div class="chips">
-                            <span class="chip">no config</span>
-                        </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd>None</dd></div></dl>
-                    </article>
-
-                    <article class="card plugin-card tone-mint" id="plugin-fakefib" data-plugin-card data-family="test-harness" data-category="test" data-search="fakefib Test-only sysrib event emitter for FIB functional tests (use ze.fakefib) Test-only sysrib event emitter for FIB functional tests (use ze.fakefib) internal/test/plugins/fakefib Test Harness      " data-test="true">
-                        <span class="cat">Test Harness</span>
-                        <h3><a href="fakefib/"><code>fakefib</code></a></h3>
-                        <p class="plugin-desc">Test-only sysrib event emitter for FIB functional tests (use ze.fakefib)</p>
-                        <div class="chips">
-                            <span class="chip">no config</span>
-                        </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd>None</dd></div></dl>
-                    </article>
-
-                    <article class="card plugin-card tone-mint" id="plugin-fakel2tp" data-plugin-card data-family="test-harness" data-category="test" data-search="fakel2tp Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked) Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked) internal/test/plugins/fakel2tp Test Harness      internal/test/plugins/fakel2tp/yang/ze-fakel2tp-api.yang internal/test/plugins/fakel2tp/yang/ze-fakel2tp-cmd.yang" data-test="true">
-                        <span class="cat">Test Harness</span>
-                        <h3><a href="fakel2tp/"><code>fakel2tp</code></a></h3>
-                        <p class="plugin-desc">Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked)</p>
-                        <div class="chips">
-                            <span class="chip">YANG:2</span>
-                        </div>
-                        <dl class="plugin-meta"><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
-                    </article>
-
-                    <article class="card plugin-card tone-mint" id="plugin-fakeredist" data-plugin-card data-family="test-harness" data-category="test" data-search="fakeredist Test-only synthetic route producer (use ze.fakeredist; harmless when not invoked) Test-only synthetic route producer (use ze.fakeredist; harmless when not invoked) internal/test/plugins/fakeredist Test Harness      internal/test/plugins/fakeredist/yang/ze-fakeredist-api.yang internal/test/plugins/fakeredist/yang/ze-fakeredist-cmd.yang" data-test="true">
-                        <span class="cat">Test Harness</span>
-                        <h3><a href="fakeredist/"><code>fakeredist</code></a></h3>
-                        <p class="plugin-desc">Test-only synthetic route producer (use ze.fakeredist; harmless when not invoked)</p>
-                        <div class="chips">
-                            <span class="chip">YANG:2</span>
-                        </div>
-                        <dl class="plugin-meta"><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
-                    </article>
-                    </div>
-                </section>
-                </div>
+                </section>                </div>
             </section>
         <script>
             (function () {
@@ -1585,7 +1497,7 @@
 
                 function selectedLabel(select) {
                     var option = select.options[select.selectedIndex];
-                    return option ? (option.dataset.label || option.textContent).replace(/\s+\(\d+\)$/, "") : "";
+                    return option ? (option.dataset.label || option.textContent).replace(/\s+\\(\d+\\)$/, "") : "";
                 }
 
                 function syncControls() {
@@ -1665,7 +1577,6 @@
                 apply(false);
             })();
         </script>
-
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Plugins</p>
                 <nav class="page-sidebar-nav" aria-label="Related links">
@@ -1694,7 +1605,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

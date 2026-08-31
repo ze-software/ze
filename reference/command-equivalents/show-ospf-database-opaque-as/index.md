@@ -1,25 +1,33 @@
 # `show ospf database opaque-as`
 
+Show only AS-scope opaque-LSAs (Type 11, RFC 5250).
+
 ## Ze command
 
-- Syntax: `show ospf database opaque-as`
 - Registry path: `show ospf database opaque-as`
+- Usage: `show ospf database opaque-as`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-opaque-as`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `detail`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show only AS-scope opaque-LSAs (Type 11, RFC 5250).
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

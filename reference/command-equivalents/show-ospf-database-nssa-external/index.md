@@ -1,25 +1,33 @@
 # `show ospf database nssa-external`
 
+Show only NSSA-external-LSAs (Type 7, RFC 3101).
+
 ## Ze command
 
-- Syntax: `show ospf database nssa-external`
 - Registry path: `show ospf database nssa-external`
+- Usage: `show ospf database nssa-external`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-nssa-external`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show only NSSA-external-LSAs (Type 7, RFC 3101).
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

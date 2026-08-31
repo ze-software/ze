@@ -7,16 +7,16 @@ Get Ze running with two BGP peers in under 5 minutes.
 ```bash
 git clone https://github.com/ze-software/ze.git
 cd ze
-make build    # produces bin/ze, bin/ze-test, bin/ze-chaos
+CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' -o bin/ze ./cmd/ze
 ```
 
 Requires **Go 1.26+** on a macOS or Linux development host. Windows is not a supported development platform.
 
 ### Or: go install
 
-To just get a `ze` binary without cloning the repo, `go install` with the same
-build tags `make build` uses:
-<!-- source: Makefile -- build target, "ze_core ze_distro $(ZE_FEATURES) $(ZE_TAGS)" -->
+To get a `ze` binary without cloning the repository, use `go install` with the
+default feature tags derived from `feature-gates.txt`:
+<!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
 
 ```bash
 CGO_ENABLED=0 go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' github.com/ze-software/ze/cmd/ze@latest
@@ -30,7 +30,7 @@ tagged release -- there are no tagged releases yet.
 Ze runs an SSH server on localhost for CLI access (`ze cli`, `ze show`, `ze signal`). This keeps the control plane authenticated even in multi-user environments. Set up credentials once:
 
 ```bash
-bin/ze init
+./ze init
 ```
 
 This prompts for username, password, SSH host (default `127.0.0.1`), port (default `2222`), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. For scripting (later fields fall back to their defaults):
@@ -43,8 +43,8 @@ echo -e "admin\nsecret" | bin/ze init
 Running `ze init` a second time will refuse with `error: database already exists`. To reinitialize, use `--force` -- this backs up the old database as `database.zefs.replaced-<date>` before creating a new one:
 
 ```bash
-bin/ze signal stop             # stop daemon first
-bin/ze init --force            # prompts for confirmation, then backs up and reinitializes
+./ze signal stop             # stop daemon first
+./ze init --force            # prompts for confirmation, then backs up and reinitializes
 ```
 <!-- source: internal/plugins/init/main.go -- forceFlag -->
 
@@ -52,9 +52,9 @@ bin/ze init --force            # prompts for confirmation, then backs up and rei
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=2fa05c76b4) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=2c132bab3e) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=e55d622677)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 55 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 2 minutes 58 seconds.
 
 ```console
 $ cat $ZE_INIT_INPUT
@@ -64,7 +64,7 @@ secret123
 2222
 ze-demo
 $ ze init < $ZE_INIT_INPUT
-$ ze config ls
+$ ze config list
 ze.conf
 $ ze data check
 
@@ -175,7 +175,7 @@ a prefix into BGP:
 ## Validate
 
 ```bash
-bin/ze config validate example.conf
+./ze config validate example.conf
 ```
 <!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate -->
 
@@ -188,11 +188,11 @@ configuration valid: example.conf
 ## Start
 
 ```bash
-bin/ze start example.conf
+./ze start example.conf
 ```
 <!-- source: cmd/ze/ze_core_dispatch.go -- registerLocalCommands, "start" root handler; cmd/ze/ze_core_start.go -- cmdStart, startConfigPath -->
 
-The config path goes behind the `start` keyword. A bare `bin/ze example.conf` is rejected with `unknown command: example.conf` (exit 1); global flags such as `-d` are consumed before the keyword, so they stay ahead of it.
+The config path goes behind the `start` keyword. A bare `./ze example.conf` is rejected with `unknown command: example.conf` (exit 1); global flags such as `-d` are consumed before the keyword, so they stay ahead of it.
 
 Ze logs to stderr. You should see something like:
 
@@ -204,7 +204,7 @@ level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=1
 Silence means the default log level (`warn`) has nothing to report -- that's normal. To see all activity:
 
 ```bash
-bin/ze -d start example.conf  # debug logging
+./ze -d start example.conf  # debug logging
 ```
 <!-- source: cmd/ze/main.go -- "-d" debug flag sets ze.log=debug -->
 
@@ -214,16 +214,16 @@ In another terminal:
 
 ```bash
 # Check daemon is running
-bin/ze status
+./ze status
 
 # List peers
-bin/ze cli -c "show bgp peer list"
+./ze cli -c "show bgp peer list"
 
 # Show peer details
-bin/ze cli -c "show bgp peer test-peer detail"
+./ze cli -c "show bgp peer test-peer detail"
 
 # Watch live events (streams until Ctrl-C)
-bin/ze cli -c "monitor event"
+./ze cli -c "monitor event"
 ```
 <!-- source: internal/component/cli/client/main.go -- Execute, StreamMonitor -->
 
@@ -236,7 +236,7 @@ Use the built-in test peer to accept any BGP session:
 bin/ze-test peer --mode sink --port 1179 --asn 65001
 
 # Terminal 2: start ze with config pointing to localhost:1179
-bin/ze start example-local.conf
+./ze start example-local.conf
 ```
 <!-- source: internal/test/cli/cmd_peer.go -- ze-test peer command -->
 
@@ -277,8 +277,8 @@ announce a route; the address split is what keeps it working when you do.
 ## Stop
 
 ```bash
-bin/ze signal stop             # graceful shutdown
-bin/ze signal restart          # graceful restart (preserves routes via GR)
+./ze signal stop             # graceful shutdown
+./ze signal restart          # graceful restart (preserves routes via GR)
 ```
 <!-- source: internal/plugins/signal/main.go -- Run -->
 

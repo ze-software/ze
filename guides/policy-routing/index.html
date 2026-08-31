@@ -76,7 +76,7 @@ the target routing table.</p>
 syntax.</p>
 <pre><code>policy {
     route surfprotect {
-        interface &quot;l2tp*&quot;;
+        interface "l2tp*";
 
         rule bypass-dst {
             from {
@@ -160,7 +160,7 @@ interfaces). The interface match is prepended to every rule in the
 policy.</p>
 <pre><code>policy {
     route example {
-        interface &quot;l2tp*&quot;;
+        interface "l2tp*";
         interface eth1;
         ...
     }
@@ -315,7 +315,6 @@ rule third  { order 30; ... }
 </table>
 <!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang — leaf table range "1..999|3000..max" -->
 <!-- source: internal/plugins/policyroute/marks.go — autoTableBase/autoTableMax 2000-2999 -->
-
 <p>User-specified table IDs in the 1000-2999 range are rejected at config
 validation time, as are 0 and the kernel tables 253-255.</p>
 <p>The upper bound is the kernel's own: table IDs run to 4294967295. A 32-bit
@@ -325,7 +324,6 @@ installing a rule that would silently select no table. Ze's released targets
 are 64-bit, where the whole range is available.</p>
 <!-- source: internal/plugins/policyroute/config.go — validateActionTable, maxEncodableTable -->
 <!-- source: internal/core/routingtable/registry.go — validateTableID, maxEncodableTableID -->
-
 <h2 id="cli">CLI</h2>
 <pre><code>ze&gt; show policy routes
 </code></pre>
@@ -343,6 +341,7 @@ available for policy routing to function. The firewall backend (nft) is
 loaded by the firewall plugin; policy routing registers its tables with
 the shared firewall table registry.</p>
 <p>Auto-managed routes use protocol <code>ze-policy-route</code> (RTPROT 252).</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -384,7 +383,7 @@ the shared firewall table registry.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

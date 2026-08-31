@@ -1,21 +1,30 @@
 # `show errors`
 
+Show recent errors across all subsystems, newest first.
+
 ## Ze command
 
-- Syntax: `show errors`
 - Registry path: `show errors`
+- Usage: `show errors`
 - Mode: Read-only
 - Wire method: `ze-show:errors`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show recent errors across all subsystems, newest first. This is the first place to look when something goes wrong. Filter with source <name> to narrow to one subsystem, count <N> to limit output.
+This is the first place to look when something goes wrong. Filter with source <name> to narrow to one subsystem, count <N> to limit output.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

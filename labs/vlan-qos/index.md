@@ -12,19 +12,16 @@ Two network namespaces joined by a veth pair. One side has a VLAN sub-interface 
 
 - **Proves:** 802.1p PCP tagging/classification actually on the wire (AF_PACKET capture + nftables counters)
 - **Scenarios:** Egress (PCP on the wire), Ingress (PCP classification), Full chain (DSCP to PCP)
-- **Requires:** Linux with network namespace support, root (CAP_NET_ADMIN), iproute2, tcpdump, python3
-- **Source:** [test/vlan-qos-lab/](https://github.com/ze-software/ze/tree/main/test/vlan-qos-lab)
+- **Requires:** Linux with network namespace support, root (CAP_NET_ADMIN), iproute2, nftables
+- **Source:** [internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go)
 
 ```
-# interactive (requires Linux root)
-$ sudo ./test/vlan-qos-lab/run.sh
-
-# CI-style smoke test, exits 0 on success
-$ sudo ./test/vlan-qos-lab/run.sh --selftest
+# run the wire-level Go integration proof (requires Linux root)
+$ sudo -E env "PATH=$PATH" go test -tags integration -count=1 ./internal/plugins/iface/netlink -run TestVLANQoS
 ```
 
 `Prerequisites`
 
 Linux with network namespace support and root (CAP_NET_ADMIN). No Docker, no QEMU needed.
 
-- [test/vlan-qos-lab/README.md full lab documentation](https://github.com/ze-software/ze/blob/main/test/vlan-qos-lab/README.md)
+- [VLAN QoS integration proof Go producer and assertions](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go)

@@ -71,7 +71,7 @@ ever blocking management, DNS, or other critical prefixes.
 
 **Target identification needs a flow source.** The detector reads the attacked
 destination from `traffic-usage` (with `track-ip` enabled on the exposed
-interfaces). Without a reachable flow source the detector still fires but emits a
+interfaces). Without a reachable flow source-ipv4 the detector still fires but emits a
 generic signal with no target, and the local responder cannot install a targeted
 rule. The coarse rule matches the destination prefix; characterization (below)
 then narrows it in place to the attack's protocol, ports, and TCP flags.
@@ -99,7 +99,7 @@ surgical rule and then narrow the local drop in place:
 The recent-flow ring is IPv4 and IPv6 capable, so IPv6 victims (invisible to the
 IPv4-only `traffic-usage` map) are resolved from the ring. Characterization runs
 off the detection hot path with a bounded timeout and degrades to the coarse
-target when no flow source is reachable.
+target when no flow source-ipv4 is reachable.
 <!-- source: internal/plugins/ddos/detect/characterize.go -- classifyFlows: family + narrowest VectorTuple from the recent-flow ring -->
 
 **Characterization refreshes the ring on demand.** The recent-flow ring is

@@ -46,7 +46,6 @@
             <section class="md-content reveal cat-routing">
 <!-- source: internal/component/bgp/plugins/bmp/bmp.go -- BMPPlugin -->
 <!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- YANG config -->
-
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="bmp-bgp-monitoring-protocol">BMP (BGP Monitoring Protocol)</h1>
@@ -66,6 +65,7 @@ feeds from routers) and as a <strong>sender</strong> (streaming state to collect
 <li><a href="#receiver-behavior">Receiver Behavior</a></li>
 <li><a href="#sender-behavior">Sender Behavior</a>
 <ol>
+<li><a href="#a-config-change-bounces-the-peers-not-the-session">A Config Change Bounces the Peers, Not the Session</a></li>
 <li><a href="#every-connection-is-a-fresh-bmp-session">Every Connection Is a Fresh BMP Session</a></li>
 <li><a href="#a-slow-collector-cannot-stall-bgp">A Slow Collector Cannot Stall BGP</a></li>
 <li><a href="#shutdown">Shutdown</a></li>
@@ -97,7 +97,6 @@ Configured under <code>environment</code> to follow ze's service listener patter
 }
 </code></pre>
 <!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- environment container -->
-
 <table>
 <thead>
 <tr>
@@ -148,7 +147,7 @@ Configured under <code>environment</code> to follow ze's service listener patter
             port 11019;
         }
         server ipv6 {
-            ip &quot;::&quot;;
+            ip "::";
             port 11019;
         }
     }
@@ -174,7 +173,6 @@ ze's own BGP peer state changes and route updates.</p>
 }
 </code></pre>
 <!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- sender container -->
-
 <table>
 <thead>
 <tr>
@@ -200,9 +198,19 @@ ze's own BGP peer state changes and route updates.</p>
 <td>Collector TCP port</td>
 </tr>
 <tr>
+<td><code>source-address</code></td>
+<td>-</td>
+<td>Source IP address for outbound BMP connections</td>
+</tr>
+<tr>
 <td><code>route-monitoring-policy</code></td>
 <td>all</td>
 <td><code>pre-policy</code> (Adj-RIB-In), <code>post-policy</code> (Adj-RIB-Out, RFC 8671), or <code>all</code></td>
+</tr>
+<tr>
+<td><code>route-mirroring</code></td>
+<td>false</td>
+<td>Stream verbatim copies of every BGP message as Route Mirroring (RFC 7854 Section 4.7)</td>
 </tr>
 <tr>
 <td><code>loc-rib</code></td>
@@ -286,7 +294,7 @@ per RFC 7854 recommendations.</p>
 <tr>
 <td>Route Mirroring (6)</td>
 <td>Logs raw BGP PDUs</td>
-<td>Not implemented (follow-up)</td>
+<td>Wraps every BGP PDU when <code>route-mirroring</code> is on</td>
 </tr>
 </tbody>
 </table>
@@ -305,12 +313,68 @@ per RFC 7854 recommendations.</p>
 <li>Sends Peer Down with mapped reason code on session close</li>
 <li>Wraps received BGP UPDATEs as Route Monitoring (pre-policy, Adj-RIB-In)</li>
 <li>Wraps sent BGP UPDATEs as Route Monitoring with O+L flags (post-policy, Adj-RIB-Out, RFC 8671)</li>
+<li>With <code>route-mirroring true</code>, wraps every BGP message (OPEN, UPDATE, NOTIFICATION,
+KEEPALIVE, ROUTE-REFRESH, both directions) as Route Mirroring (RFC 7854 Section 4.7).
+The O flag follows the direction, as it does for Route Monitoring</li>
 <li>Route-monitoring-policy controls which direction(s) are streamed</li>
 <li>With <code>loc-rib true</code>, streams local RIB best-path changes as Loc-RIB Route
-  Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance with
-  zero-length OPENs and the local router-id as Peer BGP ID, a full-table dump,
-  and a Loc-RIB Peer Down on shutdown</li>
+Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance with
+zero-length OPENs and the local router-id as Peer BGP ID, a full-table dump,
+and a Loc-RIB Peer Down with reason code 6 (RFC 9069 Section 5.3) on shutdown
+and on the commit that turns <code>loc-rib</code> off</li>
 </ul>
+<h4 id="a-config-change-bounces-the-peers-not-the-session">A Config Change Bounces the Peers, Not the Session</h4>
+<p>RFC 8671 Section 7.2 says a change that alters the behavior of an existing BMP
+session MUST bounce that session with a Peer Down and Peer Up sequence. Ze
+bounces the peers inside the session and leaves the session itself up: each
+established BGP peer gets a Peer Down with reason 5 (configuration reasons)
+followed by a Peer Up, so the collector re-learns that peer under the new
+configuration. The TCP connection is not closed and no Termination is sent, so
+the collector keeps everything the change did not touch.</p>
+<p>Ze acts on a change, not on a commit. Four leaves decide what a collector
+session carries, and only a move in one of them bounces the peers:</p>
+<table>
+<thead>
+<tr>
+<th>Leaf</th>
+<th>Why it alters the session</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>route-monitoring-policy</code></td>
+<td>decides which direction is streamed</td>
+</tr>
+<tr>
+<td><code>route-mirroring</code></td>
+<td>decides whether verbatim BGP messages are streamed</td>
+</tr>
+<tr>
+<td><code>loc-rib</code></td>
+<td>decides whether the Loc-RIB feed is streamed</td>
+</tr>
+<tr>
+<td><code>statistics-timeout</code></td>
+<td>configures the Statistics Report interval</td>
+</tr>
+</tbody>
+</table>
+<p>A commit that changes anything else under <code>bgp</code>, a new neighbor for example,
+leaves every collector session untouched. So does a commit that changes nothing
+under <code>bgp</code>.</p>
+<p>The collector list is separate, because changing it changes which sessions exist
+rather than what one of them carries. A collector you remove, or point at another
+address, is sent a Termination and its TCP connection is closed: that session
+ends rather than continues. A collector you add gets a new session, with
+Initiation and a Peer Up for every established peer. A collector you leave alone
+keeps its session, even when you edit another collector beside it.</p>
+<p>One consequence for an operator: a behavior change costs one Peer Down and one
+Peer Up per peer on each collector, rather than a full re-dump of the table.</p>
+<!-- source: internal/component/bgp/plugins/bmp/sender_config.go -- applySenderConfig, behaviorOf, syncSenders -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- bounceMonitoredPeers -->
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- the four sender behavior leaves -->
+<p>Ze sends no periodic Statistics Report yet, so <code>statistics-timeout</code> bounces the
+peers but changes nothing else (<code>plan/journal/unwired-feature.md</code>, 2026-08-31).</p>
 <h4 id="every-connection-is-a-fresh-bmp-session">Every Connection Is a Fresh BMP Session</h4>
 <p>A BMP session carries no state across TCP connections, so a collector that
 connects (or reconnects after a drop) is told everything again, in this order:</p>
@@ -318,14 +382,14 @@ connects (or reconnects after a drop) is told everything again, in this order:</
 <li>Initiation</li>
 <li>Peer Up for every BGP peer that is currently established</li>
 <li>With <code>loc-rib true</code>: the Loc-RIB Peer Up, a full fresh table dump, and an
-   End-of-RIB marker for every family the dump OWES (RFC 4724 Section 2 form),
-   which is IPv4 unicast and IPv6 unicast. A family the dump carried no route for
-   gets its marker too, so a table with IPv6 populated and IPv4 empty closes
-   both. RFC 4724 Section 4 requires the marker "including the case when there is
-   no update to send" for an address family, and RFC 7854 Section 5 imports that
-   definition for the BMP dump. A Loc-RIB with no best paths at all therefore
-   still gets both markers, so a collector can tell an empty table from a dump
-   still in flight.</li>
+End-of-RIB marker for every family the dump OWES (RFC 4724 Section 2 form),
+which is IPv4 unicast and IPv6 unicast. A family the dump carried no route for
+gets its marker too, so a table with IPv6 populated and IPv4 empty closes
+both. RFC 4724 Section 4 requires the marker "including the case when there is
+no update to send" for an address family, and RFC 7854 Section 5 imports that
+definition for the BMP dump. A Loc-RIB with no best paths at all therefore
+still gets both markers, so a collector can tell an empty table from a dump
+still in flight.</li>
 </ol>
 <p>Each dump carries a correlation token, and the RIB echoes it back on every batch
 that dump produces. Ze closes a family only for a batch whose token matches, so
@@ -335,14 +399,12 @@ another subsystem asks for (sysrib emits one on the same handle) still reaches
 every collector as Route Monitoring, because those routes are real, but it closes
 no family.</p>
 <!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- emitReplayRequest, handleBestChange, dumpFamilies -->
-
 <p>Reconnection is not immediate: after a connection ends, ze waits out its
 reconnect interval before redialing, so a flapping collector cannot drive a
 dump loop.</p>
 <!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- primeSender -->
 <!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- requestLocRIBDump, sendLocRIBEndOfRIB, closeDumpFamilies -->
 <!-- source: internal/component/bgp/plugins/bmp/sender.go -- run, onConnected -->
-
 <h4 id="a-slow-collector-cannot-stall-bgp">A Slow Collector Cannot Stall BGP</h4>
 <p>Nothing that produces a BMP message writes to the collector socket. Each
 message is copied into that collector's transmit queue and written by the
@@ -361,25 +423,25 @@ a complete fresh session as described above. Messages are never silently
 dropped: either they are delivered, or the session that owed them is reset.</p>
 <!-- source: internal/component/bgp/plugins/bmp/txqueue.go -- txQueueLimitBytes, txQueue.push -->
 <!-- source: internal/component/bgp/plugins/bmp/sender_drain.go -- enqueueLocked, drainLoop -->
-
 <!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- RFC 9069 Loc-RIB monitoring -->
 <!-- source: internal/component/bgp/plugins/bmp/header.go -- PeerTypeLocRIB (Peer Type 3) -->
 <!-- source: rfc/short/rfc9069.md -- RFC 9069 requirement summary -->
-
 <h4 id="shutdown">Shutdown</h4>
 <p>Stopping a collector session sends a Termination message (RFC 7854 Section 4.5)
 and then closes the TCP connection. If a socket write is already in flight to a
 collector that is not reading, ze gives it one second and then closes anyway
 rather than delaying the shutdown of the other collectors.</p>
 <!-- source: internal/component/bgp/plugins/bmp/sender.go -- stop, terminateAndClose -->
-
+<!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- handleSenderMirror, peerHeaderFromEvent -->
 <h2 id="looking-glass-integration">Looking Glass Integration</h2>
 <p>When the BMP receiver is enabled, monitored routes are stored in the BMP RIB
 (a separate protocol namespace). These routes are visible through <code>show bmp rib</code>
 and looking glass endpoints but never enter BGP best-path selection or the FIB.</p>
-<p>The <code>route-action</code> leaf controls future behavior:
-- <code>monitor</code> (default): store in BMP RIB for visibility only
-- <code>redistribute</code>: store in BMP RIB AND redistribute into BGP best-path (not yet implemented)</p>
+<p>The <code>route-action</code> leaf controls future behavior:</p>
+<ul>
+<li><code>monitor</code> (default): store in BMP RIB for visibility only</li>
+<li><code>redistribute</code>: store in BMP RIB AND redistribute into BGP best-path (not yet implemented)</li>
+</ul>
 <h3 id="cli">CLI</h3>
 <table>
 <thead>
@@ -423,27 +485,27 @@ other looking glass frontends.</p>
 <h3 id="route-lifecycle">Route Lifecycle</h3>
 <ul>
 <li><strong>Injection:</strong> Route Monitoring messages inject BGP UPDATE routes under
-  <code>bmpProtocolID</code> with composite keys <code>&lt;router&gt;:&lt;peer-address&gt;</code>.</li>
+<code>bmpProtocolID</code> with composite keys <code>&lt;router&gt;:&lt;peer-address&gt;</code>.</li>
 <li><strong>Peer Down:</strong> All routes for the monitored peer are withdrawn.</li>
 <li><strong>Session disconnect:</strong> All routes for all peers of that router are withdrawn.</li>
 <li><strong>Best-path isolation:</strong> BMP routes are stored under a separate ProtocolID.
-  The best-path algorithm only iterates BGP peers, so BMP routes are
-  automatically excluded with zero filter code.</li>
+The best-path algorithm only iterates BGP peers, so BMP routes are
+automatically excluded with zero filter code.</li>
 </ul>
 <h2 id="limitations">Limitations</h2>
 <ul>
 <li><strong>Sender OPEN messages are synthetic:</strong> the plugin event system does not
-  carry raw BGP OPEN PDUs. Peer Up messages contain minimal OPENs built from
-  AS metadata. Capabilities are not reflected. This can be improved when the
-  event schema is extended.</li>
+carry raw BGP OPEN PDUs. Peer Up messages contain minimal OPENs built from
+AS metadata. Capabilities are not reflected. This can be improved when the
+event schema is extended.</li>
 <li><strong>No per-NLRI ribout dedup:</strong> all UPDATEs are forwarded to collectors
-  as-is. Per-NLRI dedup requires parsing NLRIs from the raw UPDATE,
-  which is a follow-up task.</li>
+as-is. Per-NLRI dedup requires parsing NLRIs from the raw UPDATE,
+which is a follow-up task.</li>
 <li><strong>Loc-RIB Route Monitoring</strong> (RFC 9069) omits communities and LOCAL_PREF:
-  the best-change feed it is built from does not carry them, and RFC 9069
-  forbids a RIB back-door for the full attribute set.</li>
-<li><strong>Route Mirroring</strong> encoding on the sender side is not implemented.</li>
+the best-change feed it is built from does not carry them, and RFC 9069
+forbids a RIB back-door for the full attribute set.</li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -485,7 +547,7 @@ other looking glass frontends.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

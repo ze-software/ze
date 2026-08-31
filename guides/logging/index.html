@@ -66,7 +66,6 @@
 <li><a href="#inspecting-current-configuration">Inspecting Current Configuration</a></li>
 </ol></nav>
 <!-- source: internal/core/slogutil/slogutil.go -- Logger, PluginLogger, level definitions -->
-
 <h2 id="log-levels">Log Levels</h2>
 <table>
 <thead>
@@ -111,7 +110,6 @@
 }
 </code></pre>
 <!-- source: internal/component/hub/yang/ze-hub-conf.yang -- environment log config block -->
-
 <h3 id="environment-variables">Environment Variables</h3>
 <p>Environment variables take precedence over the config file:</p>
 <pre><code class="language-bash"># Set base level
@@ -125,18 +123,16 @@ export ZE_LOG_PLUGIN=info
 ze.log.bgp.fsm    ZE_LOG_BGP_FSM    ze_log_bgp_fsm
 </code></pre>
 <!-- source: internal/core/slogutil/slogutil.go -- ze.log, ze.log.<subsystem> env var registration -->
-
 <h3 id="cli-flag">CLI Flag</h3>
 <pre><code class="language-bash">ze -d example.conf             # shorthand for ze.log=debug + ze.log.relay=debug
 </code></pre>
 <h3 id="runtime-change">Runtime Change</h3>
 <p>Change log levels on a running daemon without restart:</p>
-<pre><code class="language-bash">ze cli -c &quot;bgp log set bgp.fsm debug&quot;
-ze cli -c &quot;bgp log set bgp.reactor info&quot;
-ze cli -c &quot;bgp log levels&quot;         # show current levels
+<pre><code class="language-bash">ze cli -c "bgp log set bgp.fsm debug"
+ze cli -c "bgp log set bgp.reactor info"
+ze cli -c "bgp log levels"         # show current levels
 </code></pre>
 <!-- source: internal/plugins/log/cmd/handlers.go -- log show/set RPCs -->
-
 <h2 id="priority-order">Priority Order</h2>
 <p>Most specific wins, environment beats config:</p>
 <ol>
@@ -190,19 +186,16 @@ export ZE_LOG_PLUGIN_RELAY=disabled   # silence plugin output
 </code></pre>
 <p>Default relay level: <code>warn</code>.</p>
 <!-- source: internal/component/plugin/process/process.go -- stderrLogger -->
-
 <p>The relay keeps the LAST line a plugin wrote. Ze attaches a parent-owned pipe to
 the child and drains it after reaping the process, with a bounded grace period,
 so a verdict written immediately before the plugin exits still reaches the log. A
 grandchild holding the descriptor open cannot hold the drain open forever.</p>
 <!-- source: internal/component/plugin/process/process.go -- monitorCmd, parent-owned stderr pipe -->
-
 <p>A quoted value in a relayed line arrives decoded. The parser reads the escapes
 the structured logger wrote, so a backslash no longer doubles at every relay hop.
 A value that ends in a backslash no longer runs the scan past its own closing
 quote and into the attributes after it.</p>
 <!-- source: internal/core/slogutil/parse.go -- unquoteValue, findClosingQuote -->
-
 <p>A fatal diagnostic from a dying process goes to the real stderr rather than to
 the crash-capture pipe. Crash capture redirects <code>os.Stderr</code> into a pipe whose
 reader goroutine dies with the process, so a fatal message written there existed,
@@ -210,7 +203,6 @@ was written, and reached no one. The last thing a dying process says now reaches
 the terminal.</p>
 <!-- source: internal/core/env/env.go -- fatalOut, SetFatalOutput -->
 <!-- source: internal/core/crashlog/crashlog.go -- SetFatalOutput called with the pre-redirect descriptor -->
-
 <h2 id="naming-convention">Naming Convention</h2>
 <p>Subsystem names follow <code>&lt;domain&gt;.&lt;component&gt;[.&lt;concern&gt;]</code>:</p>
 <table>
@@ -249,7 +241,6 @@ the terminal.</p>
 </table>
 <p>Setting a parent level applies to all children. <code>ze.log.bgp=debug</code> enables debug for every <code>bgp.*</code> subsystem. <code>ze.log.plugin=info</code> enables info for every <code>plugin.*</code> subsystem.</p>
 <!-- source: internal/core/slogutil/slogutil.go -- getLogEnv hierarchical lookup -->
-
 <h2 id="subsystems">Subsystems</h2>
 <p>Run <code>ze env</code> to see the full list with descriptions. Below is the complete inventory:</p>
 <table>
@@ -359,12 +350,12 @@ the terminal.</p>
 </tbody>
 </table>
 <!-- source: internal/core/slogutil/slogutil.go -- subsystemDescriptions map -->
-
 <h2 id="inspecting-current-configuration">Inspecting Current Configuration</h2>
 <pre><code class="language-bash">ze env list -v                 # show all env vars with current values
 ze env get ze.log              # show specific var details
-ze cli -c &quot;bgp log levels&quot;  # show runtime log levels
+ze cli -c "bgp log levels"  # show runtime log levels
 </code></pre>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -406,7 +397,7 @@ ze cli -c &quot;bgp log levels&quot;  # show runtime log levels
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

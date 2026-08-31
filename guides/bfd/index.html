@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/guides/bfd/" />
         <meta property="og:url" content="https://ze-software.net/guides/bfd/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -52,8 +52,7 @@
     <p><strong>Status:</strong> the plugin is live, the production transport is hardened
 (GTSM, IP_TTL=255 outbound, SO_BINDTODEVICE for single-hop and multi-VRF,
 RFC 5880 §6.8.7 TX jitter), the BGP peer opt-in is wired through the
-reactor lifecycle, and the Stage 4 operator surface (<code>show bfd
-sessions</code>, <code>show bfd session &lt;peer&gt;</code>, <code>show bfd profile</code>, Prometheus
+reactor lifecycle, and the Stage 4 operator surface (<code>show bfd sessions</code>, <code>show bfd session &lt;peer&gt;</code>, <code>show bfd profile</code>, Prometheus
 <code>ze_bfd_*</code> metrics) is available. Adding <code>bfd { ... }</code> inside a
 <code>bgp peer connection</code> block opens a per-peer BFD session on
 Established and tears the BGP session down with RFC 9384 Cease
@@ -98,7 +97,6 @@ subcode 10 ("BFD Down") when BFD reports the forwarding path lost.</p>
 <!-- source: internal/component/bfd/transport/udp.go — ListenConfig.Control, ReadMsgUDPAddrPort -->
 <!-- source: internal/component/bfd/transport/udp_linux.go — IP_RECVTTL, IP_TTL, SO_BINDTODEVICE -->
 <!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, stopBFDClient, runBFDSubscriber -->
-
 <p>BFD (RFC 5880) is a low-overhead liveness protocol that detects forwarding
 failures between a pair of systems in tens to hundreds of milliseconds,
 one or two orders of magnitude faster than BGP keepalives or OSPF hellos.
@@ -219,7 +217,6 @@ descriptive error.</p>
 <!-- source: internal/component/bfd/config.go — parseEchoConfig + validate -->
 <!-- source: internal/component/bfd/packet/echo.go — ZEEC 16-byte envelope -->
 <!-- source: internal/component/bfd/session/timers.go — EchoEnabled, EchoInterval -->
-
 <pre><code>bfd {
     profile fast-echo {
         desired-min-tx-us   100000;
@@ -244,18 +241,25 @@ demux with RTT measurement, echo detection timer, and async
 slow-down (RFC 5880 §6.8.9). The <code>ze_bfd_echo_tx_packets_total</code>
 and <code>ze_bfd_echo_rx_packets_total</code> Prometheus metrics are live.</p>
 <h3 id="authentication">Authentication</h3>
-<p>Profiles may carry an <code>auth { ... }</code> block that enables RFC 5880 §6.7
-authentication for every session inheriting them. Four types are
-supported: <code>keyed-md5</code>, <code>meticulous-keyed-md5</code>, <code>keyed-sha1</code>, and
-<code>meticulous-keyed-sha1</code>. Simple Password is refused at config parse
-time because RFC 5880 §6.7.2 warns it provides no cryptographic
-protection.</p>
+<p>A profile can carry an <code>auth { ... }</code> block that enables RFC 5880 §6.7
+authentication for every session that inherits the profile. Ze supports
+the five types RFC 5880 defines: <code>simple-password</code>, <code>keyed-md5</code>,
+<code>meticulous-keyed-md5</code>, <code>keyed-sha1</code>, and <code>meticulous-keyed-sha1</code>. There
+is no default, so authentication runs only on the type you name.</p>
+<p><code>simple-password</code> (RFC 5880 §6.7.2) puts the password in clear in every
+Control packet, and the authentication section is the same in each one.
+It detects a misconfigured neighbor. It does not stop a listener on the
+path, who reads the password from one packet, and it carries no Sequence
+Number, so a captured packet can be replayed. Use a keyed type wherever
+the path is not already trusted. The password must be 1 to 16 bytes: the
+Auth Len field holds the password length plus three, so a longer password
+has no wire encoding and the parser refuses it.</p>
 <!-- source: internal/component/bfd/auth/signer.go — Signer/Verifier + Settings -->
 <!-- source: internal/component/bfd/auth/sha1.go — digestSigner/digestVerifier -->
-<!-- source: internal/component/bfd/config.go — parseAuthConfig rejects simple-password -->
-
+<!-- source: internal/component/bfd/auth/simple.go — simpleSigner/simpleVerifier -->
+<!-- source: internal/component/bfd/config.go — parseAuthConfig bounds the simple-password secret -->
 <pre><code>bfd {
-    persist-dir &quot;/var/lib/ze/bfd&quot;;
+    persist-dir "/var/lib/ze/bfd";
 
     profile authenticated-fast {
         desired-min-tx-us   50000;
@@ -264,7 +268,7 @@ protection.</p>
         auth {
             type                meticulous-keyed-sha1;
             key-id              7;
-            secret              &quot;BFD-SHARED-SECRET-V1&quot;;
+            secret              "BFD-SHARED-SECRET-V1";
         }
     }
 }
@@ -289,7 +293,6 @@ Cease NOTIFICATION (subcode 10, "BFD Down") without waiting for the
 hold timer.</p>
 <!-- source: internal/component/bgp/reactor/peer_bfd.go — startBFDClient, runBFDSubscriber -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang — peer connection bfd container -->
-
 <pre><code>bgp {
     peer peer1 {
         connection {
@@ -327,7 +330,6 @@ it receives <code>EnsureSession</code>. If the BFD plugin is not loaded at all,
 the BGP peer starts without BFD and logs a warning -- BGP is not
 blocked by a missing BFD plugin.</p>
 <!-- source: internal/component/bfd/api/registry.go — SetService / GetService -->
-
 <h3 id="multi-hop">Multi-hop</h3>
 <p>For iBGP between loopbacks or any peering that crosses more than one IP
 hop:</p>
@@ -440,7 +442,6 @@ the engine's live session state. The handlers live in
 scripts can parse the output while the interactive CLI renders them.</p>
 <!-- source: internal/component/bfd/cmd/bfd.go — handleShowSessions, handleShowSession, handleShowProfile -->
 <!-- source: internal/component/bfd/engine/snapshot.go — Loop.Snapshot, Loop.SessionDetail -->
-
 <figure class="terminal-demo" data-terminal-demo="bfd-failover">
   <div class="terminal-demo__intro">
     <div>
@@ -459,7 +460,7 @@ scripts can parse the output while the interactive CLI renders them.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/bfd-failover.cast?v=fc05c4fe4a"
+      data-cast-src="../../assets/demos/bfd-failover.cast?v=912e24f2ca"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -467,12 +468,12 @@ scripts can parse the output while the interactive CLI renders them.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/bfd-failover.cast?v=fc05c4fe4a">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/bfd-failover.cast?v=912e24f2ca">Download the asciicast</a> or
       <a href="../../assets/demos/bfd-failover.txt?v=5e444cee6f">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>1 minute 47 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.08.31</span><span>1 minute 48 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/bfd-failover.txt?v=5e444cee6f">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -484,27 +485,26 @@ $ ze config show demos/terminal/bfd-failover/ze.conf bgp peer edge-peer connecti
 $ ze config show demos/terminal/bfd-failover/ze.conf bgp peer edge-peer timer
 The daemon configuration shows the 300 ms BFD profile, multiplier 3, single-hop binding, and 300-second BGP hold time.
 
-$ ze cli -c &#x27;show bfd sessions&#x27;
+$ ze cli -c &#39;show bfd sessions&#39;
 The running control plane shows the complete Up BFD session.
 
 $ date -u +%T; ip link set bfd-p down
-$ ze cli -c &#x27;show bfd sessions&#x27;
-$ ze cli -c &#x27;show bgp peer list&#x27;
+$ ze cli -c &#39;show bfd sessions&#39;
+$ ze cli -c &#39;show bgp peer list&#39;
 Five seconds after the kernel link is cut, the full command output shows no live BFD session and BGP has left Established.
 
 $ ip link set bfd-p up
-$ ze cli -c &#x27;show bgp peer list&#x27;
+$ ze cli -c &#39;show bgp peer list&#39;
 The same peer returns to Established after the link is restored.
 
 Every protocol result comes directly from `ze cli`; the lab helper is used only to create and reset the isolated FRR peer.</code></pre>
   </details>
 </figure>
-
 <h3 id="list-all-sessions">List all sessions</h3>
 <pre><code>operator@router&gt; show bfd sessions
 [
-  {&quot;peer&quot;:&quot;192.0.2.2&quot;,&quot;vrf&quot;:&quot;default&quot;,&quot;mode&quot;:&quot;single-hop&quot;,&quot;state&quot;:&quot;up&quot;,&quot;diag&quot;:&quot;no-diagnostic&quot;,&quot;local-discriminator&quot;:1,&quot;remote-discriminator&quot;:2147518038,&quot;tx-interval&quot;:50000000,&quot;rx-interval&quot;:50000000,&quot;detection-interval&quot;:150000000,&quot;detect-multiplier&quot;:3,&quot;profile&quot;:&quot;fast-link&quot;,&quot;tx-packets&quot;:2312,&quot;rx-packets&quot;:2310,&quot;refcount&quot;:1,...},
-  {&quot;peer&quot;:&quot;198.51.100.7&quot;,&quot;vrf&quot;:&quot;default&quot;,&quot;mode&quot;:&quot;multi-hop&quot;,&quot;state&quot;:&quot;down&quot;,&quot;diag&quot;:&quot;control-detection-time-expired&quot;,&quot;tx-interval&quot;:200000000,&quot;rx-interval&quot;:200000000,&quot;detection-interval&quot;:600000000,&quot;detect-multiplier&quot;:3,&quot;profile&quot;:&quot;gateway&quot;,...}
+  {"peer":"192.0.2.2","vrf":"default","mode":"single-hop","state":"up","diag":"no-diagnostic","local-discriminator":1,"remote-discriminator":2147518038,"tx-interval":50000000,"rx-interval":50000000,"detection-interval":150000000,"detect-multiplier":3,"profile":"fast-link","tx-packets":2312,"rx-packets":2310,"refcount":1,...},
+  {"peer":"198.51.100.7","vrf":"default","mode":"multi-hop","state":"down","diag":"control-detection-time-expired","tx-interval":200000000,"rx-interval":200000000,"detection-interval":600000000,"detect-multiplier":3,"profile":"gateway",...}
 ]
 </code></pre>
 <p>Fields are sorted stably by <code>(mode, vrf, peer)</code> so successive scrapes
@@ -515,26 +515,26 @@ plus the most recent state transitions kept in a bounded in-memory
 ring (eight entries by default -- see <code>api.TransitionHistoryDepth</code>):</p>
 <pre><code>operator@router&gt; show bfd session 192.0.2.2
 {
-  &quot;peer&quot;: &quot;192.0.2.2&quot;,
-  &quot;local&quot;: &quot;192.0.2.1&quot;,
-  &quot;interface&quot;: &quot;eth0&quot;,
-  &quot;vrf&quot;: &quot;default&quot;,
-  &quot;mode&quot;: &quot;single-hop&quot;,
-  &quot;state&quot;: &quot;up&quot;,
-  &quot;diag&quot;: &quot;no-diagnostic&quot;,
-  &quot;profile&quot;: &quot;fast-link&quot;,
-  &quot;local-discriminator&quot;: 1,
-  &quot;remote-discriminator&quot;: 2147518038,
-  &quot;tx-interval&quot;: 50000000,
-  &quot;rx-interval&quot;: 50000000,
-  &quot;detection-interval&quot;: 150000000,
-  &quot;detect-multiplier&quot;: 3,
-  &quot;tx-packets&quot;: 2312,
-  &quot;rx-packets&quot;: 2310,
-  &quot;refcount&quot;: 1,
-  &quot;transitions&quot;: [
-    {&quot;when&quot;:&quot;2026-04-11T09:14:22Z&quot;,&quot;from&quot;:&quot;down&quot;,&quot;to&quot;:&quot;init&quot;,&quot;diag&quot;:&quot;no-diagnostic&quot;},
-    {&quot;when&quot;:&quot;2026-04-11T09:14:23Z&quot;,&quot;from&quot;:&quot;init&quot;,&quot;to&quot;:&quot;up&quot;,&quot;diag&quot;:&quot;no-diagnostic&quot;}
+  "peer": "192.0.2.2",
+  "local": "192.0.2.1",
+  "interface": "eth0",
+  "vrf": "default",
+  "mode": "single-hop",
+  "state": "up",
+  "diag": "no-diagnostic",
+  "profile": "fast-link",
+  "local-discriminator": 1,
+  "remote-discriminator": 2147518038,
+  "tx-interval": 50000000,
+  "rx-interval": 50000000,
+  "detection-interval": 150000000,
+  "detect-multiplier": 3,
+  "tx-packets": 2312,
+  "rx-packets": 2310,
+  "refcount": 1,
+  "transitions": [
+    {"when":"2026-04-11T09:14:22Z","from":"down","to":"init","diag":"no-diagnostic"},
+    {"when":"2026-04-11T09:14:23Z","from":"init","to":"up","diag":"no-diagnostic"}
   ]
 }
 </code></pre>
@@ -543,7 +543,7 @@ ring (eight entries by default -- see <code>api.TransitionHistoryDepth</code>):<
 stored by the plugin. Passing a name filters to one entry; an unknown
 name returns an error:</p>
 <pre><code>operator@router&gt; show bfd profile fast-link
-{&quot;name&quot;:&quot;fast-link&quot;,&quot;detect-multiplier&quot;:3,&quot;desired-min-tx-us&quot;:50000,&quot;required-min-rx-us&quot;:50000,&quot;passive&quot;:false}
+{"name":"fast-link","detect-multiplier":3,"desired-min-tx-us":50000,"required-min-rx-us":50000,"passive":false}
 </code></pre>
 <h3 id="prometheus-metrics">Prometheus metrics</h3>
 <p>The plugin registers five metric families via
@@ -551,7 +551,6 @@ name returns an error:</p>
 telemetry endpoint when <code>telemetry { prometheus { enabled true } }</code>
 is set.</p>
 <!-- source: internal/component/bfd/metrics.go — bindMetricsRegistry, metricsHook, refreshSessionsGauge -->
-
 <table>
 <thead>
 <tr>
@@ -648,7 +647,6 @@ carries a <code>min-ttl</code> leaf (default 254). Packets arriving with a TTL b
 that floor are discarded before reaching the FSM. Pick <code>min-ttl</code> to be
 <code>256 - max-hops</code>.</p>
 <!-- source: internal/component/bfd/engine/loop.go — passesTTLGate -->
-
 <h3 id="multi-vrf-and-interface-binding">Multi-VRF and interface binding</h3>
 <p>Single-hop pinned sessions may specify an <code>interface</code> leaf. When every
 pinned session in the same <code>(vrf, single-hop)</code> pair names the same
@@ -671,7 +669,6 @@ the shared VRF, or wait for the Stage 3 BGP peer opt-in which can
 drive one session per peer.</p>
 <!-- source: internal/component/bfd/bfd.go — resolveLoopDevices, newUDPTransport -->
 <!-- source: internal/component/bfd/transport/udp_linux.go — applySocketOptions -->
-
 <h3 id="transmit-jitter">Transmit jitter</h3>
 <p>RFC 5880 §6.8.7 requires the TX interval to be reduced by 0-25% on each
 packet, and the reduction must be at least 10% when <code>detect-multiplier</code>
@@ -680,7 +677,6 @@ implements both bands via <code>engine.Loop.applyJitter</code>; operators do not
 configure it.</p>
 <!-- source: internal/component/bfd/engine/engine.go — applyJitter -->
 <!-- source: internal/component/bfd/engine/loop.go — tick -->
-
 <h3 id="gc-pause-sensitivity">GC pause sensitivity</h3>
 <p>At 50 ms intervals with <code>mult=3</code>, a 150 ms GC pause looks indistinguishable
 from a real failure. Ze's BFD plugin uses pool-backed buffers and runs
@@ -704,16 +700,6 @@ namespace-based scenario once the functional tests land.</p>
 </tr>
 </thead>
 <tbody>
-<tr>
-<td>Authentication</td>
-<td>5880 §6.7</td>
-<td>Parser only; no digest verification. Add keyed SHA1 first when a deployment asks.</td>
-</tr>
-<tr>
-<td>Echo mode</td>
-<td>5880 §6.4, 5881 §5</td>
-<td>Not implemented. Single-hop only when added.</td>
-</tr>
 <tr>
 <td>Demand mode</td>
 <td>5880 §6.6</td>
@@ -749,6 +735,7 @@ document for the full gap list and the intended follow-up order.</p>
 <li>Internal architecture: <code>docs/architecture/bfd.md</code></li>
 <li>Implementation research: <code>docs/research/bfd-implementation-guide.md</code></li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -790,7 +777,7 @@ document for the full gap list and the intended follow-up order.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 08:39 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

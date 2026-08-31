@@ -1,21 +1,30 @@
 # `show bmp peers`
 
+Show BGP peers as seen through BMP monitoring.
+
 ## Ze command
 
-- Syntax: `show bmp peers`
 - Registry path: `show bmp peers`
+- Usage: `show bmp peers`
 - Mode: Read-only
 - Wire method: `ze-show:bmp-peers`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show BGP peers as seen through BMP monitoring. Lists peers reported via BMP with their state and route statistics.
+Lists peers reported via BMP with their state and route statistics.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

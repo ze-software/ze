@@ -1,21 +1,33 @@
-# `show route [<limit>] [<prefix>]`
+# `show route`
+
+Show the kernel routing table.
 
 ## Ze command
 
-- Syntax: `show route [<limit>] [<prefix>]`
 - Registry path: `show route`
+- Usage: `show route [prefix <prefix>] [limit <limit>]`
 - Mode: Read-only
 - Wire method: `ze-show:route`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `lookup`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show the kernel routing table. Lists installed routes with next-hop, interface, protocol, and metric. Pass a CIDR prefix or 'default' to filter, or a route limit to cap the output.
+Lists installed routes with next-hop, interface, protocol, and metric. Pass a CIDR prefix or 'default' to filter, or a route limit to cap the output.
+
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `prefix` | string | no | any value of this type |
+| `limit` | uint | no | any value of this type |
 
 ## Mapping intents
 

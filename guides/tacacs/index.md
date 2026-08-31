@@ -176,7 +176,7 @@ The `.ci` tests in `test/plugin/` cover the main behaviours:
 | `tacacs-readonly.ci` | Read-only profile restricts write commands |
 | `tacacs-acct.ci` | `accounting true` -> mock receives ACCT START followed by STOP |
 | `tacacs-singleconnect.ci` | Single-connect mode TCP reuse |
-| `tacacs-show.ci` | `ze tacacs show` offline config display |
+| `tacacs-show.ci` | `ze tacacs show` reachability probe, in its table and `| json` renderings |
 
 Strict fallback is covered by `TestExtractConfigStrictFallback` and
 `TestTacacsAuthorizerStrictFallbackDeniesUnreachable` in the TACACS+ unit tests.
@@ -203,10 +203,10 @@ local bcrypt user accepted the credentials.
 - **VRF**: when the SSH server runs in a non-default VRF, TACACS+ TCP
   connections inherit the same VRF context.
 - **Single-connect mode** (RFC 8907 §4.4) is tested via `tacacs-singleconnect.ci`.
-- **Operational tooling**: `ze tacacs show <config>` displays the parsed
-  TACACS+ configuration offline. Runtime `ze show aaa accounting` exposes
-  local accounting queue drops. Per-server reachability remains tracked in
-  `plan/deferrals/`.
+- **Operational tooling**: `ze tacacs show <config>` probes every TACACS+
+  server the config names and reports whether it answers, with no daemon
+  running. Runtime `ze show aaa accounting` exposes local accounting queue
+  drops.
 
 ## RFC reference
 

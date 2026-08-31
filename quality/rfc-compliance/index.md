@@ -1,40 +1,40 @@
 # RFC Compliance Gate Report
 
-Source: `scripts/dev/rfc_requirements.py`, `rfc/short/*.md`, `docs/features/rfc-status.md`, `rfc/audit/*.json`, and `.claude/hooks/pretool-writeedit.py`.
+Source: `internal/le/rfc`, `rfc/short/*.md`, `rfc/enrolled.txt`, `docs/features/rfc-status.md`, and `rfc/audit/*.json`.
 
 ## Current gate output
 
 ```
-rfc-requirements OK: 2966 gated MUST-level requirement(s) across 171 enrolled RFC(s); 3595 test tag(s) resolved.
+rfc-requirements: 2 violation(s)
 ```
 
 | Metric | Value |
 |---|---:|
-| Gate issues | 0 |
-| Gated MUST-level requirements | 2,966 |
-| Enrolled RFCs | 171 |
-| Resolved test tags | 3,595 |
-| Declared gaps | 518 |
-| RFCs with declared gaps | 80 |
-| Fresh semantic audit verdicts | 52 |
+| Gate issues | 2 |
+| Gated MUST-level requirements | 3,037 |
+| Enrolled RFCs | 172 |
+| Resolved test tags | 3,937 |
+| Declared gaps | 502 |
+| RFCs with declared gaps | 79 |
+| Fresh semantic audit verdicts | 50 |
 | Shifted semantic audit verdicts | 0 |
-| Stale semantic audit verdicts | 0 |
+| Stale semantic audit verdicts | 2 |
 
 ## Requirement buckets
 
 | Bucket | Count | Share | Source condition |
 |---|---:|---:|---|
-| Positive and negative tests | 1,239 | 41.8% | `positive tag + negative tag` |
-| One polarity plus reason | 370 | 12.5% | `{single-polarity} annotation + required tag` |
-| Not applicable | 839 | 28.3% | `{not-applicable} annotation` |
-| Declared gap | 518 | 17.5% | `{gap} annotation + public ledger disclosure` |
+| Positive and negative tests | 1,333 | 43.9% | `positive tag + negative tag` |
+| One polarity plus reason | 366 | 12.1% | `{single-polarity} annotation + required tag` |
+| Not applicable | 836 | 27.5% | `{not-applicable} annotation` |
+| Declared gap | 502 | 16.5% | `{gap} annotation + public ledger disclosure` |
 
 ## Gap disclosure
 
 | Public status for RFCs with gaps | RFCs |
 |---|---:|
 | Partial | 59 |
-| Experimental | 15 |
+| Experimental | 14 |
 | Supported | 4 |
 | Not supported | 1 |
 | Unsupported | 1 |
@@ -52,40 +52,29 @@ rfc-requirements OK: 2966 gated MUST-level requirement(s) across 171 enrolled RF
 |---|---:|---|
 | `RFC 9012` | 51 | Partial |
 | `DRAFT-IETF-BESS-MUP-SAFI` | 37 | Partial |
-| `RFC 1661` | 25 | Partial |
+| `RFC 1661` | 24 | Partial |
 | `RFC 9830` | 20 | Partial |
 | `RFC 2131` | 18 | Partial |
 | `RFC 7166` | 17 | Unsupported |
-| `RFC 4271` | 16 | Partial |
 | `RFC 4577` | 16 | Not supported |
+| `RFC 4271` | 15 | Partial |
 | `RFC 7432` | 15 | Partial |
 | `RFC 5880` | 14 | Partial |
 | `RFC 8665` | 14 | Partial |
 | `RFC 9514` | 13 | Partial |
 
-## AI guard and gate inputs
+## Gate inputs
 
 | Input | Producer | Observed value |
 |---|---|---|
-| Requirement source | `rfc/short/*.md` | 2,966 gated MUST-level requirements |
-| Enrollment | `rfc/enrolled.txt` | 171 enrolled RFCs |
-| Test tags | `internal/, pkg/, test/` | 3,595 resolved tags |
-| Public ledger | `docs/features/rfc-status.md` | 80 RFCs with gaps |
-| Semantic audits | `rfc/audit/*.json` | 52 fresh, 0 shifted, 0 stale, 2,914 missing |
-| AI write/edit guard | `.claude/hooks/pretool-writeedit.py` | ON |
-| Verify integration | `Makefile` and `scripts/status/verify_run.go` | 2 verify stages |
+| Requirement source | `rfc/short/*.md` | 3,037 gated MUST-level requirements |
+| Enrollment | `rfc/enrolled.txt` | 172 enrolled RFCs |
+| Test tags | `internal/, pkg/, test/` | 3,937 resolved tags |
+| Public ledger | `docs/features/rfc-status.md` | 79 RFCs with gaps |
+| Semantic audits | `rfc/audit/*.json` | 50 fresh, 0 shifted, 2 stale, 2,985 missing |
+| Pre-commit verification | `internal/le/verify/engine/stages.go` | `./le rfc check`, 1 of 43 full-mode stages |
 
 ## Check results
 
-| Check | Open issues |
-|---|---:|
-| Enrolment ratchet | 0 |
-| New summary ratchet | 0 |
-| Retired requirement ratchet | 0 |
-| Coverage polarity ratchet | 0 |
-| Summary parse | 0 |
-| Requirement ID allocation | 0 |
-| Requirement coverage | 0 |
-| Public claim agreement | 0 |
-| Semantic audit freshness | 0 |
-| Generated ledger freshness | 0 |
+- rfc/short/rfc7606.md:331: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)
+- rfc/short/rfc7606.md:333: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)

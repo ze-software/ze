@@ -187,9 +187,9 @@ The recording starts with a stored BGP peer that has no IRR plugin, server, AS-S
 
 Populate a stored configuration with the IRR plugin, server, AS-SET, and import filter, then prove registered routes pass and unregistered routes do not.
 
-[Download the asciicast recording](../../assets/demos/irr-filter.cast?v=1dfb39efec) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=d98dd62b1f)
+[Download the asciicast recording](../../assets/demos/irr-filter.cast?v=88581a4b44) · [Plain-text transcript](../../assets/demos/irr-filter.txt?v=d98dd62b1f)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 3 minutes 33 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 4 minutes 24 seconds.
 
 ```console
 $ ze config cat ze.conf | grep -q bgp-filter-irr || echo 'IRR filtering is not configured'

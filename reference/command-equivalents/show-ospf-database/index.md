@@ -1,21 +1,30 @@
 # `show ospf database`
 
+Show the OSPF link-state database.
+
 ## Ze command
 
-- Syntax: `show ospf database`
 - Registry path: `show ospf database`
+- Usage: `show ospf database`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `asbr-summary`, `external`, `network`, `nssa-external`, `opaque-area`, `opaque-as`, `opaque-link`, `router`, `router-information`, `summary`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show the OSPF link-state database. Lists each LSA with its LS Type, Link State ID, Advertising Router, sequence number, age, and checksum.
+Lists each LSA with its LS Type, Link State ID, Advertising Router, sequence number, age, and checksum.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

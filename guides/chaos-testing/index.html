@@ -64,15 +64,16 @@
 </ol></li>
 <li><a href="#fault-types">Fault Types</a></li>
 <li><a href="#deterministic-replay">Deterministic Replay</a></li>
-<li><a href="#make-targets">Make Targets</a></li>
+<li><a href="#native-commands">Native Commands</a></li>
 <li><a href="#when-to-use">When to Use</a></li>
 </ol></nav>
 <h2 id="quick-start">Quick Start</h2>
-<pre><code class="language-bash"># Run all chaos tests
-make ze-chaos-test
+<pre><code class="language-bash"># Run the native chaos unit suites.
+./le test-chaos unit
+./le test-chaos cli-unit
 
-# Start ze with chaos mode enabled
-ze --chaos-seed 42 --chaos-rate 0.1 config.conf
+# Build the chaos command.
+go build -tags ze_chaos -o bin/ze-chaos ./cmd/ze
 </code></pre>
 <h2 id="flags">Flags</h2>
 <table>
@@ -99,10 +100,9 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 <!-- source: cmd/ze/ze_core_dispatch.go -- chaosSeed, chaosRate global flags -->
 <!-- source: internal/component/bgp/config/loader.go -- injectChaos -->
 <!-- source: internal/component/bgp/config/loader_create.go -- chaosRateFromEnv, ze.bgp.chaos.seed/rate -->
-
 <h2 id="ze-chaos-tool">ze-chaos Tool</h2>
 <p>The <code>ze-chaos</code> tool is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.</p>
-<p><img alt="ze-chaos dashboard" src="img/ze-chaos-dashboard.png" /></p>
+<p><img src="img/ze-chaos-dashboard.png" alt="ze-chaos dashboard"></p>
 <p>The web dashboard shows real-time peer status, per-family route propagation, convergence progress, and fault triggers. Color coding indicates propagation state: green = complete, orange = partial, red = zero.</p>
 <pre><code class="language-bash"># Fork mode (default): ze-chaos starts ze as a child process
 ze-chaos --seed 42 --peers 8 --duration 60s
@@ -155,10 +155,9 @@ done
 </code></pre>
 <p><code>./le setup</code> adds 127.0.0.2 through 127.0.0.5 (and the IPv6 address the
 functional suite binds), so the loop above is needed only for a run with more
-than four peers. <code>./le setup --check</code> reports which addresses are missing.
+than four peers. <code>./le setup check</code> reports which addresses are missing.
 Neither route survives a reboot; re-run <code>./le setup</code> after one.</p>
-<!-- source: scripts/le/devtools/system.py -- LOOPBACK_IPV4_DARWIN, apply_loopback -->
-
+<!-- source: internal/le/setup/actions.go -- Answer -->
 <h4 id="running-via-docker">Running via Docker</h4>
 <p>When FRR or BIRD is not installed locally, use Docker. The <code>--network host</code>
 flag shares the host network so ze-chaos simulators can connect directly
@@ -198,7 +197,6 @@ docker run --rm -v ./bird.conf:/etc/bird.conf:ro \
   -c 'bird -p -c /etc/bird.conf'
 </code></pre>
 <!-- source: internal/chaos/orchestrator/cli.go -- --application, --binary flags; internal/chaos/scenario/config_frr.go, config_bird.go -->
-
 <h3 id="event-logging-and-replay">Event Logging and Replay</h3>
 <pre><code class="language-bash"># Record events
 ze-chaos --event-log run.ndjson --seed 42 | ./bin/ze -
@@ -210,16 +208,17 @@ ze-chaos --replay run.ndjson
 ze-chaos --shrink run.ndjson
 </code></pre>
 <!-- source: internal/chaos/orchestrator/subcommand.go -- event logging, replay, shrink modes -->
-
 <h3 id="property-validation">Property Validation</h3>
 <pre><code class="language-bash">ze-chaos --properties all --convergence-deadline 5s | ./bin/ze -
 ze-chaos --properties list    # Show available properties
 </code></pre>
-<p>Properties validated:
-- <strong>Convergence:</strong> All routes reach all peers despite faults
-- <strong>State consistency:</strong> RIB matches peer state after recovery
-- <strong>No data loss:</strong> Updates eventually delivered
-- <strong>Graceful degradation:</strong> Sessions restart on critical faults</p>
+<p>Properties validated:</p>
+<ul>
+<li><strong>Convergence:</strong> All routes reach all peers despite faults</li>
+<li><strong>State consistency:</strong> RIB matches peer state after recovery</li>
+<li><strong>No data loss:</strong> Updates eventually delivered</li>
+<li><strong>Graceful degradation:</strong> Sessions restart on critical faults</li>
+</ul>
 <h2 id="fault-types">Fault Types</h2>
 <table>
 <thead>
@@ -259,23 +258,26 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 </code></pre>
 <p>Seed <code>0</code> disables chaos entirely (zero overhead). Seed <code>-1</code> uses the current time (non-reproducible).</p>
 <!-- source: cmd/ze/main.go -- chaosSeed handling -->
-
-<h2 id="make-targets">Make Targets</h2>
+<h2 id="native-commands">Native Commands</h2>
 <table>
 <thead>
 <tr>
-<th>Target</th>
+<th>Command</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>make ze-chaos-test</code></td>
-<td>Run chaos unit + functional tests</td>
+<td><code>./le test-chaos unit</code></td>
+<td>Run chaos simulator unit tests</td>
 </tr>
 <tr>
-<td><code>make ze-chaos-build</code></td>
-<td>Build ze-chaos binary</td>
+<td><code>./le test-chaos cli-unit</code></td>
+<td>Run reduced-tag CLI tests</td>
+</tr>
+<tr>
+<td><code>go build -tags ze_chaos -o bin/ze-chaos ./cmd/ze</code></td>
+<td>Build the chaos command</td>
 </tr>
 </tbody>
 </table>
@@ -287,6 +289,7 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 <li><strong>Benchmarking:</strong> Measure convergence time under fault conditions</li>
 </ul>
 <!-- source: internal/chaos/orchestrator/cli.go -- ze-chaos tool; test/ -- chaos functional tests -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -328,7 +331,7 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 14:09 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
                 </div>
             </div>
         </footer>

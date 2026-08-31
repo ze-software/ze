@@ -62,6 +62,7 @@
 <li><a href="#dispatch-keys-are-yang-paths">Dispatch keys are YANG paths</a></li>
 <li><a href="#a-parent-command-never-swallows-a-registered-child">A parent command never swallows a registered child</a></li>
 <li><a href="#offline-fallback-read-only-commands-without-a-daemon">Offline fallback (read-only commands without a daemon)</a></li>
+<li><a href="#local-data-commands-answered-in-the-callers-own-process">Local-data commands (answered in the caller&#39;s own process)</a></li>
 </ol></li>
 <li><a href="#operational-report-bus-ze-showwarnings-ze-showerrors">Operational Report Bus (ze-show:warnings, ze-show:errors)</a>
 <ol>
@@ -155,12 +156,16 @@
 <li><a href="#quiesce-barrier-test-synchronization">Quiesce Barrier (test synchronization)</a></li>
 <li><a href="#peer-selector-parsing">Peer Selector Parsing</a></li>
 <li><a href="#command-registry">Command Registry</a></li>
+<li><a href="#a-commands-two-help-texts">A command&#39;s two help texts</a>
+<ol>
+<li><a href="#which-surface-renders-which-field">Which surface renders which field</a></li>
+</ol></li>
 <li><a href="#per-command-declarations-what-a-command-says-about-itself">Per-command declarations: what a command says about itself</a>
 <ol>
 <li><a href="#two-packages-one-path-empty-is-a-floor-and-a-disagreement-is-a-defect">Two packages, one path: empty is a floor and a disagreement is a defect</a></li>
 <li><a href="#the-declared-shape-refuses-an-operator-before-the-command-runs">The declared shape refuses an operator before the command runs</a></li>
 </ol></li>
-<li><a href="#display-and-fill-the-operators-own-answer">| display and | fill: the operator&#x27;s own answer</a></li>
+<li><a href="#display-and-fill-the-operators-own-answer">| display and | fill: the operator&#39;s own answer</a></li>
 <li><a href="#pipe-aliases-a-name-for-an-operator-chain">Pipe aliases: a name for an operator chain</a></li>
 <li><a href="#a-plugin-declares-a-pipe-alias-in-its-stage-1-message">A plugin declares a pipe alias in its Stage 1 message</a>
 <ol>
@@ -180,7 +185,7 @@
 <li><a href="#mcp-resource-methods">MCP Resource Methods</a></li>
 <li><a href="#mcp-result-and-error-envelope">MCP Result and Error Envelope</a></li>
 </ol></nav>
-<hr />
+<hr>
 <h2 id="overview">Overview</h2>
 <p>Ze uses verb-first command paths with JSON or text encoding.</p>
 <h3 id="transport-request-metadata">Transport Request Metadata</h3>
@@ -228,8 +233,7 @@ identity is injected only by trusted transport wiring.</p>
 </tbody>
 </table>
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher.Dispatch, IsReadOnlyPath -->
-
-<hr />
+<hr>
 <h2 id="command-verb-taxonomy">Command Verb Taxonomy</h2>
 <p>Commands follow a <strong>verb-first</strong> convention: <code>&lt;action&gt; &lt;module&gt; [args...]</code>.
 The action verb determines the command's behavior; the module implements it.</p>
@@ -273,7 +277,6 @@ The action verb determines the command's behavior; the module implements it.</p>
 <!-- source: internal/component/cmd/set/doc.go -- set verb -->
 <!-- source: internal/component/cmd/delete/doc.go -- delete verb -->
 <!-- source: internal/component/cmd/update/doc.go -- update verb -->
-
 <p><strong>Internal dispatch:</strong> <code>&lt;action&gt; &lt;module&gt;</code> is dispatched as the module implementing the action.
 For example, <code>monitor bgp</code> is handled by the BGP module's monitor implementation.
 Legacy noun-first RPCs (<code>peer list</code>, <code>bgp summary</code>) remain for internal dispatch but
@@ -351,7 +354,6 @@ produce continuously-updating output.</p>
 </table>
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 <!-- source: internal/plugins/ospf/register.go -- sdk.CommandDecl show ospf commands -->
-
 <h3 id="dispatch-keys-are-yang-paths">Dispatch keys are YANG paths</h3>
 <p>The daemon registers each built-in handler under its <strong>YANG command path</strong>, derived
 from the tree (<code>LoadBuiltins</code>: <code>d.RegisterWithOptions(wireToPath[wireMethod], ...)</code>).
@@ -362,7 +364,6 @@ path (over <code>dispatch-command</code> or an interactive plugin CLI session) a
 Before a verb-first migration of a noun-first built-in, grep for senders. See
 <code>ai/rules/cli.md</code> "Migrating a Built-in Command's Path".</p>
 <!-- source: internal/component/plugin/server/command.go -- LoadBuiltins, IsReadOnlyPath -->
-
 <h3 id="a-parent-command-never-swallows-a-registered-child">A parent command never swallows a registered child</h3>
 <p>The daemon serves the LONGEST registered key that prefixes the input and hands the
 rest to that handler as arguments. A parent registered at a short path would
@@ -381,7 +382,6 @@ handler with the family.</p>
 read different registries. Neither is derived from the other.</p>
 <!-- source: internal/component/plugin/server/command.go -- matchBuiltinTokens, longerCommandPath, isCommandPath -->
 <!-- source: internal/component/command/registry/registry.go -- LookupLocal -->
-
 <h3 id="offline-fallback-read-only-commands-without-a-daemon">Offline fallback (read-only commands without a daemon)</h3>
 <p>Some read-only <code>show</code> commands must work with <strong>no daemon reachable</strong> — <code>show crashes</code>
 (you inspect a crash precisely when the daemon has died) and <code>show host</code> (hardware
@@ -396,15 +396,29 @@ reachable. Output is identical to the daemon RPC (both read the same detection l
 <!-- source: internal/component/command/registry/registry.go -- RegisterOfflineFallback, LookupOfflineFallback -->
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
-
-<hr />
+<h3 id="local-data-commands-answered-in-the-callers-own-process">Local-data commands (answered in the caller's own process)</h3>
+<p>A local-data command never asks a daemon. Its handler reads a registry that
+<code>init()</code> filled in this process, so the answer exists before <code>main()</code> does. It
+registers with <code>cmdregistry.MustRegisterLocalData(path, handler, meta, command.RenderLocalAnswer)</code> and returns DATA, which is what lets <code>| json</code>,
+<code>| yaml</code> and <code>| table</code> be three renderings of one payload.</p>
+<p>This differs from the offline fallback above: a fallback is a second answer for
+a command the daemon normally serves, tried only after the connection fails. A
+local-data command has no daemon side at all, registers no RPC, and therefore
+owes no <code>wire-methods.snapshot</code> row.</p>
+<p><code>internal/component/plugin/register.go</code> serves one of them, and it is the
+template: <code>show plugins</code> answers which plugins this binary carries and what
+each plugin's own <code>init()</code> recorded about its setup. It is owned by the package
+that owns the registry it reads, so removing the plugin host removes the
+command with it.</p>
+<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows -->
+<!-- source: internal/component/command/local_data.go -- RenderLocalAnswer -->
+<hr>
 <h2 id="operational-report-bus-ze-showwarnings-ze-showerrors">Operational Report Bus (ze-show:warnings, ze-show:errors)</h2>
 <p>The report bus is a single in-process place for Ze subsystems to push
 operator-visible issues. Any subsystem (BGP, config, interface, plugins)
 can call <code>report.RaiseWarning</code> / <code>report.RaiseError</code> / <code>report.ClearWarning</code>,
 and operators query the aggregate via two RPCs.</p>
 <!-- source: internal/core/report/report.go -- package godoc -->
-
 <h3 id="severity-contract">Severity contract</h3>
 <table>
 <thead>
@@ -434,7 +448,6 @@ and operators query the aggregate via two RPCs.</p>
 "Did anything actually fail or behave unexpectedly?" Yes -&gt; error.
 No, but it might soon -&gt; warning.</p>
 <!-- source: internal/core/report/report.go -- Severity, RaiseWarning, RaiseError, ClearWarning, ClearSource -->
-
 <h3 id="push-api-for-subsystems">Push API (for subsystems)</h3>
 <p>Subsystems import <code>internal/core/report</code> and call:</p>
 <table>
@@ -475,7 +488,6 @@ No, but it might soon -&gt; warning.</p>
 Detail &gt; 16 keys) are rejected at the boundary with a debug log, protecting
 the bus from buggy or malicious producers.</p>
 <!-- source: internal/core/report/report.go -- validFields, RaiseWarning, RaiseError, ClearWarning, ClearSource, Warnings, Errors -->
-
 <h3 id="query-rpcs">Query RPCs</h3>
 <table>
 <thead>
@@ -519,7 +531,7 @@ the bus from buggy or malicious producers.</p>
 <tr>
 <td><code>ze-show:policy-test</code></td>
 <td><code>handleShowPolicyTest</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/bgp/plugins/cmd/policy/handler.go</code></span></span></td>
-<td><code>{"direction": "...", "peer": "...", "action": "accept\|reject\|modify", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}</code> — read-only policy dry-run, no forwarding or mutation</td>
+<td><code>{"direction": "...", "peer": "...", "action": "accept|reject|modify", "trace": [PolicyTraceEntry], "text-before": "...", "text-after": "...", "changed-attrs": [...], "wire-changes": ["AS4_PATH suppressed", ...]}</code> — read-only policy dry-run, no forwarding or mutation</td>
 </tr>
 <tr>
 <td><code>ze-show:bmp-sessions</code></td>
@@ -709,7 +721,7 @@ the bus from buggy or malicious producers.</p>
 <tr>
 <td><code>ze-show:traffic-stat</code> (args: <code>[name &lt;interface&gt;]</code>)</td>
 <td><code>handleShowTraffic</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/trafficstat/cmd/traffic.go</code></span></span></td>
-<td>One-shot aggregated snapshot: <code>{"at": "RFC3339", "severity": "normal\|caution\|danger", "degraded": bool, "interfaces": [{name, rx-bps, tx-bps, rx-pps, tx-pps}], "top-source-ips": [{address, bps}], "top-dest-ips": [{address, bps}], "top-ports": [{port, service, proto, bps, amplification?}], "protocol-mix": [{proto, name, bps, percent}], "history": [float64]}</code>. Optional <code>name &lt;interface&gt;</code> filters the interfaces array. When no collector data: <code>"degraded": true</code> with interface rates only.</td>
+<td>One-shot aggregated snapshot: <code>{"at": "RFC3339", "severity": "normal|caution|danger", "degraded": bool, "interfaces": [{name, rx-bps, tx-bps, rx-pps, tx-pps}], "top-source-ips": [{address, bps}], "top-dest-ips": [{address, bps}], "top-ports": [{port, service, proto, bps, amplification?}], "protocol-mix": [{proto, name, bps, percent}], "history": [float64]}</code>. Optional <code>name &lt;interface&gt;</code> filters the interfaces array. When no collector data: <code>"degraded": true</code> with interface rates only.</td>
 </tr>
 <tr>
 <td><code>ze-monitor:traffic-stat</code> (args: <code>[name &lt;interface&gt;]</code>)</td>
@@ -734,7 +746,7 @@ the bus from buggy or malicious producers.</p>
 <tr>
 <td><code>ze-show:anomaly-shape</code> (no args)</td>
 <td><code>handleShowAnomalyShape</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/anomaly/shape/show.go</code></span></span></td>
-<td>Shadow-first responder status: <code>{"enabled": bool, "mode": "shadow"\|"armed", "action": "limit"\|"drop", "kill-switch": bool, "armed-count": N, "armed": [source, ...]}</code>. <code>enabled</code> is false before configuration. In shadow mode (default) nothing is installed; armed sources carry a live per-source firewall action with a timed auto-revert.</td>
+<td>Shadow-first responder status: <code>{"enabled": bool, "mode": "shadow"|"armed", "action": "limit"|"drop", "kill-switch": bool, "armed-count": N, "armed": [source, ...]}</code>. <code>enabled</code> is false before configuration. In shadow mode (default) nothing is installed; armed sources carry a live per-source firewall action with a timed auto-revert.</td>
 </tr>
 <tr>
 <td><code>ze-show:traffic-usage</code> (args: <code>[name &lt;interface&gt;]</code>)</td>
@@ -747,7 +759,7 @@ the bus from buggy or malicious producers.</p>
 <td><code>{"certificates": [CertSummary, ...], "count": N}</code></td>
 </tr>
 <tr>
-<td><code>ze-show:pki-certificate</code> (args: <code>&lt;name&gt; [pem \| bundle pem \| fingerprint [algo]]</code>)</td>
+<td><code>ze-show:pki-certificate</code> (args: <code>&lt;name&gt; [pem | bundle pem | fingerprint [algo]]</code>)</td>
 <td><code>handleShowPKICertificate</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/pki/show.go</code></span></span></td>
 <td class="cell-no">✕</td>
 </tr>
@@ -761,7 +773,6 @@ errors accepts <code>count &lt;N&gt;</code> limit. Return a non-nil empty slice 
 <!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy -->
 <!-- source: internal/component/bgp/plugins/rr/cmd_show.go -- ForwardToPlugin proxy -->
 <!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- top-level warnings / errors containers -->
-
 <h3 id="issue-json-shape">Issue JSON shape</h3>
 <table>
 <thead>
@@ -815,7 +826,6 @@ errors accepts <code>count &lt;N&gt;</code> limit. Return a non-nil empty slice 
 </tbody>
 </table>
 <!-- source: internal/core/report/report.go -- Issue struct with json tags, Severity.MarshalJSON -->
-
 <h3 id="day-one-bgp-producers">Day-one BGP producers</h3>
 <table>
 <thead>
@@ -873,7 +883,6 @@ start of each <code>runOnce</code> iteration.</p>
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- reportCode* constants, raise* helpers -->
 <!-- source: internal/component/bgp/reactor/peer.go -- Peer.notificationExchanged -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- FSM Established->Idle branch + runOnce reset -->
-
 <h3 id="login-banner-integration">Login banner integration</h3>
 <p>The Ze CLI login banner reads from the same report bus (filtered by
 source <code>bgp</code>). One active warning displays the detail line; multiple
@@ -881,7 +890,6 @@ warnings collapse to a count line pointing at <code>show warnings</code>. This
 is the single source of truth for "what's wrong right now" across
 the connect path and the show command.</p>
 <!-- source: internal/component/bgp/config/loader.go -- collectPrefixWarnings -->
-
 <h3 id="capacity-limits-and-env-vars">Capacity limits and env vars</h3>
 <table>
 <thead>
@@ -911,8 +919,7 @@ the connect path and the show command.</p>
 Zero or negative values fall back to the default. This prevents an env-var
 typo from causing memory exhaustion.</p>
 <!-- source: internal/core/report/report.go -- newStore, maxWarningCap, maxErrorCap -->
-
-<hr />
+<hr>
 <h2 id="target-first-syntax">Target-First Syntax</h2>
 <h3 id="process-lifecycle-commands">Process Lifecycle Commands</h3>
 <pre><code>request shutdown         # Graceful shutdown
@@ -927,7 +934,6 @@ plugin session ping      # Health check
 plugin session bye       # Disconnect
 </code></pre>
 <!-- source: internal/core/ipc/yang/ze-plugin-api.yang -- session RPCs -->
-
 <h3 id="bgp-plugin-configuration">BGP Plugin Configuration</h3>
 <pre><code>bgp plugin encoding json     # Set event encoding to JSON (default)
 bgp plugin encoding text     # Set event encoding to human-readable text
@@ -939,7 +945,6 @@ bgp plugin ack sync          # Wait for wire transmission
 bgp plugin ack async         # Return immediately (default)
 </code></pre>
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack RPCs -->
-
 <h3 id="event-subscription-commands">Event Subscription Commands</h3>
 <p>A plugin declares what it CAN handle. The peer's configuration decides what it
 GETS. A peer-scoped event is delivered to a process when both halves name it:
@@ -957,15 +962,16 @@ is a live capability override: it can add a type the process did not declare at
 startup only where the peer's block grants that type. It cannot widen the
 configured grant, and the next config apply discards it.</p>
 <!-- source: internal/component/plugin/server/delivery_graph.go -- (*Server).PeerScopedProcs, (*Server).DiscardRuntimeSubscriptions -->
-
 <p>At plugin ready, and again after every apply, ze reports each peer, process and
 event type the two halves disagree about. Two lines an operator sees:</p>
 <pre><code>event delivery: the config grants an event the plugin never declared  peer=... process=... granted=update-received
 event delivery: the plugin declared an event the peer does not grant it  peer=... process=... declared=state
 </code></pre>
-<p><strong>Namespaces:</strong>
-- <code>bgp</code> - BGP protocol events
-- <code>rib</code> - RIB events (cache, route changes)</p>
+<p><strong>Namespaces:</strong></p>
+<ul>
+<li><code>bgp</code> - BGP protocol events</li>
+<li><code>rib</code> - RIB events (cache, route changes)</li>
+</ul>
 <p><strong>BGP event types:</strong></p>
 <table>
 <thead>
@@ -1025,7 +1031,6 @@ event delivery: the plugin declared an event the peer does not grant it  peer=..
 </table>
 <p>Plugins may register additional event types via <code>Registration.EventTypes</code>. These are validated at runtime against the dynamic registry.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.EventTypes -->
-
 <p><strong>RIB event types:</strong></p>
 <table>
 <thead>
@@ -1099,10 +1104,8 @@ monitor bgp                                                  # Live peer dashboa
 <p>Keywords may appear in any order. <code>include</code> and <code>exclude</code> are mutually exclusive.</p>
 <p>Event types span all namespaces: BGP (update, open, notification, keepalive, refresh, state, negotiated, eor, congested, resumed, rpki) and RIB (cache, route). Types are validated at parse time.</p>
 <!-- source: internal/component/plugin/server/event_monitor.go -- ParseEventMonitorArgs -->
-
 <p>Wire method: <code>ze-event:monitor</code>. Supports pipe operators: <code>| json</code>, <code>| table</code>, <code>| match</code>.</p>
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
-
 <p><strong>Note:</strong> <code>monitor bgp</code> is the live peer dashboard (TUI only). <code>monitor event</code> streams live events (SSH exec or TUI). <code>monitor system netlink</code> streams kernel netlink events (SSH exec or TUI, Linux only).</p>
 <h4 id="netlink-monitor">Netlink Monitor</h4>
 <p>Stream kernel route, link, and address change events as one JSON line per event. Replaces <code>ip monitor</code> on gokrazy appliances.</p>
@@ -1115,7 +1118,6 @@ monitor system netlink all               # Explicit all (same as no argument)
 <p>Wire method: <code>ze-monitor:system-netlink</code>. Linux only; returns "not available on this platform" on other OSes.</p>
 <!-- source: internal/component/iface/cmd/monitor_netlink_linux.go -- streamNetlinkMonitor -->
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
-
 <h3 id="system-commands">System Commands</h3>
 <pre><code>system help              # Show help (uses dispatcher, includes plugin commands)
 system version software  # Show Ze version
@@ -1123,12 +1125,11 @@ system version api       # Show IPC protocol version
 system subsystem list    # List available subsystems
 system command list      # List all commands (builtin + plugin)
 system command list verbose  # List with source (builtin/process name)
-system command help &quot;&lt;name&gt;&quot; # Show command details
-system command complete &quot;&lt;partial&gt;&quot;  # Complete command names
-system command complete &quot;&lt;cmd&gt;&quot; args [&lt;completed&gt;...] &quot;&lt;partial&gt;&quot;  # Arg completion
+system command help "&lt;name&gt;" # Show command details
+system command complete "&lt;partial&gt;"  # Complete command names
+system command complete "&lt;cmd&gt;" args [&lt;completed&gt;...] "&lt;partial&gt;"  # Arg completion
 </code></pre>
 <!-- source: internal/core/ipc/yang/ze-system-api.yang -- system RPCs -->
-
 <h3 id="process-lifecycle-commands_1">Process Lifecycle Commands</h3>
 <pre><code>request shutdown         # Gracefully shutdown
 request reboot           # Gracefully shutdown then reboot the system
@@ -1138,7 +1139,7 @@ show reload-status       # Show how many config reloads have been processed
 </code></pre>
 <h4 id="show-reload-status-the-reload-fence">show reload-status (the reload fence)</h4>
 <p>Returns the reload generation counter as JSON:</p>
-<pre><code class="language-json">{&quot;generation&quot;: 3, &quot;last-outcome&quot;: &quot;applied&quot;, &quot;last-reload-at&quot;: &quot;2026-07-16T09:12:44Z&quot;}
+<pre><code class="language-json">{"generation": 3, "last-outcome": "applied", "last-reload-at": "2026-07-16T09:12:44Z"}
 </code></pre>
 <table>
 <thead>
@@ -1177,7 +1178,6 @@ cannot change what a reload accepts or rejects.</p>
 <!-- source: internal/component/plugin/server/reload_generation.go -- counter state, outcome vocabulary -->
 <!-- source: cmd/ze/hub/main_reload.go -- doReload, the increment site, after engine.Reload -->
 <!-- source: internal/component/cmd/show/reload_status.go -- ze-show:reload-status handler + JSON shape -->
-
 <h3 id="peer-commands">Peer Commands</h3>
 <pre><code>show bgp peer list                    # List all peers
 show bgp peer &lt;selector&gt; detail       # Show specific peer detail
@@ -1189,7 +1189,6 @@ delete bgp peer &lt;name&gt;             # Remove dynamic peer
 request peer &lt;sel&gt; flush           # Wait for forward pool to drain (barrier)
 </code></pre>
 <!-- source: internal/component/bgp/yang/ze-bgp-api.yang -- peer RPCs -->
-
 <h3 id="cache-commands-ze">Cache Commands (Ze)</h3>
 <blockquote>
 <p><strong>Design history:</strong> summary 148 was retired on 2026-08-01 and was not carried
@@ -1208,14 +1207,15 @@ show cache                          # List cached message IDs
 request cache forward &lt;id1&gt;,&lt;id2&gt;,...,&lt;idN&gt; &lt;sel&gt;  # Batch forward
 request cache release &lt;id1&gt;,&lt;id2&gt;,...,&lt;idN&gt;        # Batch release
 </code></pre>
-<p>The cache commands enable route reflection via API:
-1. Received UPDATEs are assigned a unique msg-id (per-UPDATE, not per-NLRI)
-2. API outputs UPDATE info with msg-id
-3. External process decides routing
-4. The <code>request cache forward</code> command references msg-id (zero-copy when contexts match)
-5. Cache entries expire after configurable TTL (default 60s) unless retained</p>
+<p>The cache commands enable route reflection via API:</p>
+<ol>
+<li>Received UPDATEs are assigned a unique msg-id (per-UPDATE, not per-NLRI)</li>
+<li>API outputs UPDATE info with msg-id</li>
+<li>External process decides routing</li>
+<li>The <code>request cache forward</code> command references msg-id (zero-copy when contexts match)</li>
+<li>Cache entries expire after configurable TTL (default 60s) unless retained</li>
+</ol>
 <!-- source: internal/component/bgp/reactor/reactor.go -- cache forward -->
-
 <h4 id="fast-path-typed-sdk-rs-fastpath-3">Fast-path typed SDK (rs-fastpath-3)</h4>
 <p>The text-RPC <code>request cache forward &lt;id&gt; &lt;sel&gt;</code> path tokenises, parses, and walks the command registry on every call. Plugins that forward many cached UPDATEs per second (route server, future route reflector) use a typed SDK pair instead:</p>
 <pre><code class="language-go">Plugin.ForwardCached(ctx, ids []uint64, destinations []netip.AddrPort) error
@@ -1227,14 +1227,12 @@ Plugin.ReleaseCached(ctx, ids []uint64) error
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.ForwardCached, Plugin.ReleaseCached -->
 <!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.ForwardCached, SetForwardCached -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward_batch.go -- ForwardUpdatesDirect, ReleaseUpdates, maxForwardDestinations -->
-
 <h3 id="log-commands-ze">Log Commands (Ze)</h3>
 <pre><code>show log levels                       # Show all subsystem log levels (JSON map)
 request log level &lt;logger&gt; &lt;level&gt;    # Change subsystem log level at runtime
 </code></pre>
 <p>Levels: <code>debug</code>, <code>info</code>, <code>warn</code>, <code>err</code>. Changes take effect immediately via <code>slog.LevelVar</code> atomic swap. Only loggers created via <code>slogutil.Logger()</code> or <code>slogutil.LazyLogger()</code> (non-disabled) are shown and modifiable.</p>
 <!-- source: internal/plugins/log/yang/ze-log-cmd.yang -- log command YANG -->
-
 <h3 id="metrics-commands-ze">Metrics Commands (Ze)</h3>
 <pre><code>show metrics values       # Dump Prometheus text format output
 show metrics list         # List metric names only (no values)
@@ -1245,14 +1243,12 @@ show metrics pool         # Per-attribute pool occupancy and dedup rates
 Communities, LargeCommunities, ExtCommunities, ClusterList, OriginatorID, AtomicAggregate,
 Aggregator, OtherAttrs) with live/dead slots, bytes, intern count, dedup hit rate.</p>
 <!-- source: internal/component/cmd/metrics/yang/ -- ze-bgp-cmd-metrics-api.yang -->
-
 <h3 id="peer-selectors">Peer Selectors</h3>
 <pre><code>peer *                   # All peers
 peer upstream1            # Specific peer by name
 peer !upstream1           # All peers EXCEPT this one (for route reflection)
 </code></pre>
 <!-- source: internal/core/selector/selector.go -- Selector -->
-
 <p>The <code>!&lt;ip&gt;</code> negated selector is useful for route reflection:</p>
 <pre><code># Forward update to all peers except the source
 request cache forward 12345 !upstream1
@@ -1265,7 +1261,6 @@ draft are not supported — the draft never became an RFC.</p>
 <p>All route operations use unified <code>update text</code> syntax with flat attribute declarations
 (no <code>set</code> keyword) and keyword aliases (short forms accepted, see Keyword Aliases below):</p>
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText -->
-
 <pre><code class="language-bash"># Announce routes (flat attributes, no 'set')
 peer &lt;selector&gt; update text next &lt;ip&gt; [attributes...] nlri &lt;family&gt; add prefix &lt;prefix&gt;...
 
@@ -1288,7 +1283,6 @@ peer &lt;selector&gt; update text nlri l2vpn/evpn add multicast rd &lt;rd&gt; ip
 maintains attribute state per (plugin, peer) pair. Subsequent commands send only
 changed attributes (delta encoding), reducing per-call overhead.</p>
 <!-- source: internal/component/bgp/plugins/cmd/update/cursor.go -- handleUpdateCursor -->
-
 <pre><code class="language-bash"># First command: establish full attribute state + announce NLRIs
 peer &lt;selector&gt; update cursor origin igp as-path [65001] med 100 \
   next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24
@@ -1386,12 +1380,10 @@ show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;      # RPF lookup (longest-p
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/client/main.go -- Execute, commandWithFormat -->
 <!-- source: internal/component/cli/client/answer.go -- daemonOutput, newDaemonOutput -->
-
 <p>RIB route filters such as <code>received</code>, <code>advertised</code>, <code>peer</code>, <code>family</code>, <code>prefix</code>, <code>path</code>, and <code>community</code> are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.</p>
 <p>Inject attributes: <code>origin &lt;igp|egp|incomplete&gt;</code>, <code>nhop|nexthop &lt;ip&gt;</code>, <code>aspath &lt;asn,asn,...&gt;</code>, <code>localpref &lt;n&gt;</code>, <code>med &lt;n&gt;</code>. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast). IPv4-mapped IPv6 next-hops accepted.</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
 <!-- source: internal/component/bgp/plugins/rib/yang/ze-rib-api.yang -- RIB RPCs -->
-
 <h4 id="inter-plugin-rib-commands-grllgr">Inter-Plugin RIB Commands (GR/LLGR)</h4>
 <p>These commands are dispatched between plugins (bgp-gr to bgp-rib) and are not intended for direct user invocation:</p>
 <pre><code>request bgp rib retain-routes &lt;peer&gt;                    # Retain routes for peer (GR activation)
@@ -1408,8 +1400,7 @@ peer &lt;selector&gt; update text ...
 group end                         # End batch, send all
 </code></pre>
 <!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager -->
-
-<hr />
+<hr>
 <h2 id="action-first-syntax-legacy">Action-First Syntax (Legacy)</h2>
 <h3 id="show-commands">Show Commands</h3>
 <pre><code>show neighbor [summary|extensive|configuration]
@@ -1438,7 +1429,7 @@ silence-ack
 help
 version
 </code></pre>
-<hr />
+<hr>
 <h2 id="api-content-configuration-ze">API Content Configuration (Ze)</h2>
 <h3 id="attribute-filtering">Attribute Filtering</h3>
 <p><code>ContentConfig.Attributes</code> limits which path attributes are parsed for API
@@ -1447,49 +1438,154 @@ output. It is set by the engine, not by a peer's attach block: the
 parses and reaches no field of <code>ProcessBinding</code>, so a peer cannot ask for one
 rendering while another peer asks for a different one.</p>
 <!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding -->
-
-<p>Available attribute names:
-| Name | Code | Description |
-|------|------|-------------|
-| <code>origin</code> | 1 | ORIGIN |
-| <code>as-path</code> | 2 | AS_PATH |
-| <code>next-hop</code> | 3 | NEXT_HOP |
-| <code>med</code> | 4 | MULTI_EXIT_DISC |
-| <code>local-pref</code> | 5 | LOCAL_PREF |
-| <code>atomic-aggregate</code> | 6 | ATOMIC_AGGREGATE |
-| <code>aggregator</code> | 7 | AGGREGATOR |
-| <code>community</code> | 8 | COMMUNITIES |
-| <code>originator-id</code> | 9 | ORIGINATOR_ID |
-| <code>cluster-list</code> | 10 | CLUSTER_LIST |
-| <code>extended-community</code> | 16 | EXTENDED_COMMUNITIES |
-| <code>large-community</code> | 32 | LARGE_COMMUNITIES |
-| <code>all</code> | - | All attributes (default) |</p>
+<p>Available attribute names:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Code</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>origin</code></td>
+<td>1</td>
+<td>ORIGIN</td>
+</tr>
+<tr>
+<td><code>as-path</code></td>
+<td>2</td>
+<td>AS_PATH</td>
+</tr>
+<tr>
+<td><code>next-hop</code></td>
+<td>3</td>
+<td>NEXT_HOP</td>
+</tr>
+<tr>
+<td><code>med</code></td>
+<td>4</td>
+<td>MULTI_EXIT_DISC</td>
+</tr>
+<tr>
+<td><code>local-pref</code></td>
+<td>5</td>
+<td>LOCAL_PREF</td>
+</tr>
+<tr>
+<td><code>atomic-aggregate</code></td>
+<td>6</td>
+<td>ATOMIC_AGGREGATE</td>
+</tr>
+<tr>
+<td><code>aggregator</code></td>
+<td>7</td>
+<td>AGGREGATOR</td>
+</tr>
+<tr>
+<td><code>community</code></td>
+<td>8</td>
+<td>COMMUNITIES</td>
+</tr>
+<tr>
+<td><code>originator-id</code></td>
+<td>9</td>
+<td>ORIGINATOR_ID</td>
+</tr>
+<tr>
+<td><code>cluster-list</code></td>
+<td>10</td>
+<td>CLUSTER_LIST</td>
+</tr>
+<tr>
+<td><code>extended-community</code></td>
+<td>16</td>
+<td>EXTENDED_COMMUNITIES</td>
+</tr>
+<tr>
+<td><code>large-community</code></td>
+<td>32</td>
+<td>LARGE_COMMUNITIES</td>
+</tr>
+<tr>
+<td><code>all</code></td>
+<td>-</td>
+<td>All attributes (default)</td>
+</tr>
+</tbody>
+</table>
 <!-- source: internal/component/bgp/types/contentconfig.go -- ContentConfig -->
-
-<p>Benefits of partial parsing:
-- Reduced CPU (only parse what's needed for routing decision)
-- Reduced memory (don't store full parsed attributes)
-- Wire bytes preserved for zero-copy forwarding</p>
+<p>Benefits of partial parsing:</p>
+<ul>
+<li>Reduced CPU (only parse what's needed for routing decision)</li>
+<li>Reduced memory (don't store full parsed attributes)</li>
+<li>Wire bytes preserved for zero-copy forwarding</li>
+</ul>
 <h3 id="nlri-family-filtering">NLRI Family Filtering</h3>
 <p><code>ContentConfig.NLRI</code> limits which address families are included in API output.
 Like the attribute filter, it is engine-set: no config leaf reaches it.</p>
-<p>Available families:
-| Config Syntax | Canonical Name |
-|---------------|----------------|
-| <code>ipv4/unicast</code> | ipv4/unicast |
-| <code>ipv6/unicast</code> | ipv6/unicast |
-| <code>ipv4/multicast</code> | ipv4/multicast |
-| <code>ipv6/multicast</code> | ipv6/multicast |
-| <code>ipv4 mpls</code> | ipv4 mpls |
-| <code>ipv6 mpls</code> | ipv6 mpls |
-| <code>ipv4/mpls-vpn</code> | ipv4/mpls-vpn |
-| <code>ipv6/mpls-vpn</code> | ipv6/mpls-vpn |
-| <code>ipv4/flowspec</code> | ipv4/flowspec |
-| <code>ipv6/flowspec</code> | ipv6/flowspec |
-| <code>l2vpn/evpn</code> | l2vpn/evpn |
-| <code>l2vpn/vpls</code> | l2vpn/vpls |</p>
+<p>Available families:</p>
+<table>
+<thead>
+<tr>
+<th>Config Syntax</th>
+<th>Canonical Name</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ipv4/unicast</code></td>
+<td>ipv4/unicast</td>
+</tr>
+<tr>
+<td><code>ipv6/unicast</code></td>
+<td>ipv6/unicast</td>
+</tr>
+<tr>
+<td><code>ipv4/multicast</code></td>
+<td>ipv4/multicast</td>
+</tr>
+<tr>
+<td><code>ipv6/multicast</code></td>
+<td>ipv6/multicast</td>
+</tr>
+<tr>
+<td><code>ipv4 mpls</code></td>
+<td>ipv4 mpls</td>
+</tr>
+<tr>
+<td><code>ipv6 mpls</code></td>
+<td>ipv6 mpls</td>
+</tr>
+<tr>
+<td><code>ipv4/mpls-vpn</code></td>
+<td>ipv4/mpls-vpn</td>
+</tr>
+<tr>
+<td><code>ipv6/mpls-vpn</code></td>
+<td>ipv6/mpls-vpn</td>
+</tr>
+<tr>
+<td><code>ipv4/flowspec</code></td>
+<td>ipv4/flowspec</td>
+</tr>
+<tr>
+<td><code>ipv6/flowspec</code></td>
+<td>ipv6/flowspec</td>
+</tr>
+<tr>
+<td><code>l2vpn/evpn</code></td>
+<td>l2vpn/evpn</td>
+</tr>
+<tr>
+<td><code>l2vpn/vpls</code></td>
+<td>l2vpn/vpls</td>
+</tr>
+</tbody>
+</table>
 <p>Special values: <code>all</code> (default), <code>none</code></p>
-<hr />
+<hr>
 <h2 id="route-attributes">Route Attributes</h2>
 <p>Attributes are flat keyword-value pairs (no <code>set</code> keyword). Both short and long forms accepted.
 API text output uses short forms; config output uses long forms.</p>
@@ -1513,7 +1609,6 @@ split /&lt;len&gt;                     # Ze: prefix expansion (see below)
 </code></pre>
 <!-- source: internal/component/bgp/types/types.go -- RouteSpec, FlowSpecRoute -->
 <!-- source: internal/component/bgp/types/nexthop.go -- RouteNextHop -->
-
 <h3 id="keyword-aliases">Keyword Aliases</h3>
 <table>
 <thead>
@@ -1568,8 +1663,7 @@ split /&lt;len&gt;                     # Ze: prefix expansion (see below)
 </table>
 <p>Lists use commas (no spaces): <code>path 65001,65002</code>. Brackets accepted for transition: <code>as-path [65001 65002]</code>.</p>
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- keyword alias table -->
-
-<hr />
+<hr>
 <h2 id="split-keyword-ze-extension">Split Keyword (Ze Extension)</h2>
 <p>The <code>split</code> keyword expands a prefix into smaller prefixes. All attributes apply to each generated prefix.</p>
 <h3 id="syntax">Syntax</h3>
@@ -1635,7 +1729,7 @@ update text next 1.2.3.4 nlri ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0
 <li>Target length must be longer than source prefix (e.g., /23 → /24, not /24 → /23)</li>
 <li>Maximum expansion: implementation-dependent (avoid /8 → /32)</li>
 </ul>
-<hr />
+<hr>
 <h2 id="flowspec-commands">FlowSpec Commands</h2>
 <p>FlowSpec rules use the unified <code>update text</code> syntax. The match components are
 the FlowSpec NLRI (<code>nlri ipv4/flow add &lt;components&gt;</code>); the action is carried as
@@ -1762,8 +1856,7 @@ update text nlri ipv4/flow del \
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text_flowspec.go -- FlowSpec NLRI parsing -->
 <!-- source: internal/component/bgp/route/route_community.go -- ParseExtendedCommunities (discard, traffic-rate, redirect actions) -->
-
-<hr />
+<hr>
 <h2 id="filter-callbacks">Filter Callbacks</h2>
 <p>The engine sends <code>filter-update</code> callbacks to external plugin filters during
 UPDATE processing. This is a callback RPC (engine to plugin), not a user command.</p>
@@ -1807,17 +1900,15 @@ UPDATE processing. This is a callback RPC (engine to plugin), not a user command
 <code>{"action":"modify","update":"&lt;delta&gt;"}</code> with only changed fields.</p>
 <!-- source: internal/component/plugin/server/server.go -- CallFilterUpdate builds the filter-update request -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnFilterUpdate handles it plugin-side -->
-
-<hr />
+<hr>
 <h2 id="response-format">Response Format</h2>
 <h3 id="success-with-serial-prefix">Success (with serial prefix)</h3>
-<pre><code class="language-json">{&quot;type&quot;:&quot;response&quot;,&quot;response&quot;:{&quot;serial&quot;:&quot;1&quot;,&quot;status&quot;:&quot;done&quot;}}
+<pre><code class="language-json">{"type":"response","response":{"serial":"1","status":"done"}}
 </code></pre>
 <h3 id="error">Error</h3>
-<pre><code class="language-json">{&quot;type&quot;:&quot;response&quot;,&quot;response&quot;:{&quot;serial&quot;:&quot;1&quot;,&quot;status&quot;:&quot;error&quot;,&quot;data&quot;:&quot;description&quot;}}
+<pre><code class="language-json">{"type":"response","response":{"serial":"1","status":"error","data":"description"}}
 </code></pre>
 <!-- source: internal/component/plugin/types.go -- Response struct -->
-
 <h3 id="rejected-rows-errors-and-data">Rejected rows: <code>errors</code> and <code>data</code></h3>
 <p>A handler can answer with a row generator rather than a built payload. It can
 reject a row while the walk continues. A consumer that reads the whole answer as
@@ -1851,7 +1942,6 @@ renders, instead of collapsing into one error string.</p>
 </table>
 <!-- source: internal/component/plugin/types.go -- Records.MarshalJSON -->
 <!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey, AnswerDefaultKey, ErrReservedEnvelopeKey -->
-
 <p><code>errors</code> appears only when a row was rejected. An ordinary answer keeps the shape
 it had, and no consumer meets a key it has not seen. <code>data</code> is where the rows go
 when the handler names no envelope and a row was rejected. A bare array has
@@ -1864,14 +1954,12 @@ engine's, and a plugin command handler is the SDK's. Every other command returns
 a built payload, and none of these keys appears for it.</p>
 <!-- source: internal/component/plugin/server/system.go -- commandRows -->
 <!-- source: pkg/plugin/records.go -- Records -->
-
 <h3 id="a-plugin-command-answers-with-records">A plugin command answers with records</h3>
 <p><code>execute-command</code> is the callback the engine sends for a command a plugin
 registered. Every plugin answers it with a head, its records and a terminator,
 and the engine reads that sequence for every plugin.</p>
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- Plugin.answerExecuteCommand -->
 <!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.SendExecuteCommandAnswer -->
-
 <p>The handler decides what it produces, and the wire decides how it travels.</p>
 <table>
 <thead>
@@ -1916,7 +2004,6 @@ schema and one that does not therefore answer one document for the same data.</p
 <!-- source: pkg/plugin/records.go -- Records.WriteAnswer -->
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, WriteDocumentAnswer -->
 <!-- source: internal/component/plugin/server/command.go -- routeToProcess, pluginAnswerRows -->
-
 <p>The value a built payload carries is unchanged, byte for byte. Only the frame
 around it changed, and it changed for every peer. Nothing declares an answer
 shape, so there is one frame and every reader knows it before the first line.</p>
@@ -1925,32 +2012,31 @@ holds the whole collection for a walk that streams. A row wider than one wire
 message is rejected and the walk continues. That row reaches the operator under
 <code>errors</code>, beside the rows that were applied.</p>
 <!-- source: internal/component/plugin/server/system.go -- handleSystemCommandList, commandRows -->
-
 <h3 id="show-neighbor">Show Neighbor</h3>
 <pre><code class="language-json">{
-  &quot;neighbor&quot;: {
-    &quot;address&quot;: &quot;192.168.1.2&quot;,
-    &quot;local-address&quot;: &quot;192.168.1.1&quot;,
-    &quot;local-as&quot;: 65001,
-    &quot;peer-as&quot;: 65002,
-    &quot;router-id&quot;: &quot;1.1.1.1&quot;,
-    &quot;state&quot;: &quot;established&quot;
+  "neighbor": {
+    "address": "192.168.1.2",
+    "local-address": "192.168.1.1",
+    "local-as": 65001,
+    "peer-as": 65002,
+    "router-id": "1.1.1.1",
+    "state": "established"
   }
 }
 </code></pre>
 <h3 id="show-adj-rib">Show Adj-RIB</h3>
 <pre><code class="language-json">{
-  &quot;routes&quot;: [
+  "routes": [
     {
-      &quot;nlri&quot;: &quot;10.0.0.0/8&quot;,
-      &quot;next-hop&quot;: &quot;192.168.1.2&quot;,
-      &quot;origin&quot;: &quot;igp&quot;,
-      &quot;as-path&quot;: [65002]
+      "nlri": "10.0.0.0/8",
+      "next-hop": "192.168.1.2",
+      "origin": "igp",
+      "as-path": [65002]
     }
   ]
 }
 </code></pre>
-<hr />
+<hr>
 <h2 id="command-dispatch">Command Dispatch</h2>
 <h3 id="command-tree-structure">Command Tree Structure</h3>
 <blockquote>
@@ -2023,7 +2109,7 @@ monitor
 ├── bgp                   # Live peer dashboard (TUI)
 └── event                 # Stream live events (keeps session open)
 </code></pre>
-<hr />
+<hr>
 <h2 id="ze-implementation-notes">Ze Implementation Notes</h2>
 <h3 id="command-dispatcher">Command Dispatcher</h3>
 <pre><code class="language-go">type Handler func(ctx *Context, peers []string, remaining string) error
@@ -2036,18 +2122,20 @@ func Dispatch(tree DispatchTree, tokens *Tokenizer, reactor *Reactor) (Handler, 
 }
 </code></pre>
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher, Handler -->
-
 <h3 id="yang-typed-command-arguments">YANG-Typed Command Arguments</h3>
 <p>Operational commands declare their argument types as YANG leaves inside
-<code>ze:command</code> containers. The same leaf metadata drives three consumers:</p>
+<code>ze:command</code> containers. The same leaf metadata drives two consumers:</p>
 <ol>
 <li><strong>Completer</strong> (<code>command/completer.go</code>): enum values become tab-completion
-   suggestions; keyword leaf names appear as completable tokens.</li>
+suggestions; keyword leaf names appear as completable tokens.</li>
 <li><strong>Dispatcher</strong> (<code>plugin/server/command.go</code>): validates args against ArgDefs
-   between tokenize and handler call (two-phase: keyword extraction, then
-   positional matching).</li>
-<li><strong>Documentation</strong>: leaf descriptions provide help text.</li>
+between tokenize and handler call (two-phase: keyword extraction, then
+positional matching).</li>
 </ol>
+<p>A leaf's own <code>description</code> reaches no surface. <code>argDefFor</code>
+(<code>config/yang/command.go</code>) reads the leaf's <code>type</code> and its <code>mandatory</code>
+statement, and <code>command.ArgDef</code> carries no description field. State what an
+argument means in the command's own <code>ze:help</code>.</p>
 <pre><code class="language-go">type ArgDef struct {
     Name       string         // YANG leaf name (kebab-case)
     Kind       ArgKind        // ArgString, ArgEnum, ArgUint, ArgUnion
@@ -2057,17 +2145,28 @@ func Dispatch(tree DispatchTree, tokens *Tokenizer, reactor *Reactor) (Handler, 
     Pattern    *regexp.Regexp // Compiled XSD pattern for ArgString
     UnionDefs  []ArgDef       // Member types for ArgUnion
     Mandatory  bool           // True if YANG leaf has mandatory true
+    Anchor     string         // Path keyword this value follows; "" for a trailing value
 }
 </code></pre>
 <p>ArgDefs are extracted from YANG by <code>BuildCommandTree</code> (<code>config/yang/command.go</code>)
 and stored on <code>command.Node.ArgDefs</code>. The dispatcher receives them via
 <code>RegisterOptions.ArgDefs</code> populated by <code>PathToArgDefs</code>.</p>
+<p>A container that names an object declares the value the operator types after
+its keyword, once, and every command under it takes that value:
+<code>request interface &lt;name&gt; up</code>, <code>&lt;name&gt; down</code>, <code>&lt;name&gt; mtu &lt;bytes&gt;</code> share one
+<code>name</code> leaf on the <code>interface</code> container. <code>inheritArgDefs</code>
+(<code>config/yang/command.go</code>) carries such a leaf down to each command after every
+module is merged, with <code>Anchor</code> set to the container's name, and the renderer
+places the value right after that keyword. The command under such a container
+that acts on no single member of the set states <code>ze:inherit "none"</code>:
+<code>show bgp peer list</code> reads every peer, and <code>request interface migrate</code> names two
+interfaces of its own. Nothing binds a value by <code>Anchor</code>: a positional token
+still goes to the definition whose type constrains it most (<code>positionalDef</code>).</p>
 <p>Runtime-dynamic hints (e.g., address families from plugin registry) remain as
 <code>ValueHints</code> callbacks. Static hints (log levels, FD limit "max") are
 YANG-declared and served through ArgDefs.</p>
 <!-- source: internal/component/command/node.go -- ArgDef, Node.ArgDefs -->
 <!-- source: internal/component/config/yang/command.go -- extractArgDefs -->
-
 <h3 id="plugin-command-completion">Plugin Command Completion</h3>
 <p>Plugin-registered commands (from the plugin <code>CommandRegistry</code>, not YANG) are
 absent from the YANG-derived command tree, so they are <strong>injected into the
@@ -2079,16 +2178,16 @@ an existing YANG node keeps its <code>WireMethod</code> and description, so a pl
 never shadows a builtin at the completion layer (mirroring dispatch precedence).</p>
 <ul>
 <li><strong>SSH</strong> rebuilds the tree per session and merges eagerly
-  (<code>session_factory.go</code> <code>mergePluginCommands</code>), so each session reflects the
-  current registry — a plugin that has exited is simply absent next session.</li>
+(<code>session_factory.go</code> <code>mergePluginCommands</code>), so each session reflects the
+current registry — a plugin that has exited is simply absent next session.</li>
 <li><strong>Web</strong> builds a throwaway overlay from the current registry for each
-  <code>/cli/complete</code> request (<code>web_completer.go</code> <code>pluginAwareCommandCompleter</code>).
-  The shared YANG tree stays immutable. The hub binds the web listener after
-  plugin startup and the initial registry freeze. The per-request overlay
-  reflects plugins that a later reload adds or removes.</li>
+<code>/cli/complete</code> request (<code>web_completer.go</code> <code>pluginAwareCommandCompleter</code>).
+The shared YANG tree stays immutable. The hub binds the web listener after
+plugin startup and the initial registry freeze. The per-request overlay
+reflects plugins that a later reload adds or removes.</li>
 <li><strong>Shell completion</strong> (<code>ze completion words</code>) runs in a standalone CLI process
-  with no daemon, so it stays YANG-only; the daemon's <code>system command complete</code>
-  RPC completes plugin commands directly from the registry (<code>Registry().Complete</code>).</li>
+with no daemon, so it stays YANG-only; the daemon's <code>system command complete</code>
+RPC completes plugin commands directly from the registry (<code>Registry().Complete</code>).</li>
 </ul>
 <p><code>Hidden</code> commands still dispatch when typed in full. They never appear in
 completion, in help, in the MCP <code>tools/list</code> result, or in the API command list. <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
@@ -2101,7 +2200,6 @@ every hidden plugin command.</p>
 <!-- source: cmd/ze/hub/web_completer.go -- pluginAwareCommandCompleter (web live overlay) -->
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: internal/component/plugin/server/startup.go -- signalStartupComplete, WaitForStartupComplete -->
-
 <h3 id="quiesce-barrier-test-synchronization">Quiesce Barrier (test synchronization)</h3>
 <p><code>request quiesce</code> (<code>ze-system:quiesce</code>) <strong>blocks until every registered
 subsystem has drained its pending asynchronous work, then replies</strong> — a barrier
@@ -2134,7 +2232,6 @@ per-peer initial-sync drain, so a route sent during establishment is on the wire
 <!-- source: internal/component/plugin/server/quiesce.go -- Quiescer, QuiescerRegistry, quiesceAll, handleQuiesce, registerReactorQuiescer -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go PendingSync -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-system:quiesce -->
-
 <h3 id="peer-selector-parsing">Peer Selector Parsing</h3>
 <pre><code class="language-go">type Selector struct {
     All       bool
@@ -2143,10 +2240,10 @@ per-peer initial-sync drain, so a route sent during establishment is on the wire
 }
 
 func ParseSelector(s string) (*Selector, error) {
-    if s == &quot;*&quot; {
+    if s == "*" {
         return &amp;Selector{All: true}, nil
     }
-    if strings.HasPrefix(s, &quot;[&quot;) {
+    if strings.HasPrefix(s, "[") {
         return parseFilteredSelector(s)
     }
     ip, err := netip.ParseAddr(s)
@@ -2155,13 +2252,225 @@ func ParseSelector(s string) (*Selector, error) {
 </code></pre>
 <h3 id="command-registry">Command Registry</h3>
 <pre><code class="language-go">var Commands = []CommandInfo{
-    {&quot;daemon shutdown&quot;, false, nil},
-    {&quot;peer * update text&quot;, true, []string{&quot;next&quot;, &quot;origin&quot;, ...}},
+    {"daemon shutdown", false, nil},
+    {"peer * update text", true, []string{"next", "origin", ...}},
     // ...
 }
 </code></pre>
 <!-- source: internal/component/plugin/server/rpc_register.go -- registeredRPCs -->
-
+<h3 id="a-commands-two-help-texts">A command's two help texts</h3>
+<p>A command node carries two help texts, and each is declared by its own YANG
+statement. An RPC, a plugin command and an offline local command each carry the
+same pair, in the declaration form their own registration uses.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Declared by</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>command.Node.Description</code></td>
+<td>the <code>description</code> statement</td>
+<td>the one-line SUMMARY</td>
+</tr>
+<tr>
+<td><code>command.Node.Help</code></td>
+<td>the <code>ze:help</code> extension</td>
+<td>the LONG explanation of that one command</td>
+</tr>
+</tbody>
+</table>
+<p>Neither is derived from the other, and no reader shortens either one to guess
+at the other. The summary is authored short because it is a summary. One reader
+clamps it, and it answers a display constraint: the interactive completion pane
+cuts the summary to the width its terminal gives it.</p>
+<p><code>mergeYANGEntry</code> (<code>internal/component/config/yang/command.go</code>) writes both, and
+<code>mergeHelpText</code> decides each field on its own when several modules contribute
+one command path. A collision leaves the first value in place and logs
+<code>YANG command help text mismatch</code> naming the field that collided.</p>
+<p>An empty <code>Help</code> is a command nobody has written an explanation for, and the
+help page prints its summary alone. An empty <code>Description</code> is a defect:
+<code>validateNode</code> names each one by path.</p>
+<p>An RPC carries the same two texts, in the same two YANG statements.
+<code>ExtractRPCs</code> (<code>internal/component/config/yang/rpc.go</code>) writes them to
+<code>RPCMeta.Description</code> and <code>RPCMeta.Help</code>. <code>getHelpExtension</code> is the ONE reader
+of the extension for both carriers. A command container reaches it through
+<code>Entry.Exts</code>, and an rpc through <code>gyang.RPC.Exts()</code>.
+<code>./le docvalid help-shape</code> holds the two corpora to one shape.</p>
+<p>An RPC's pair reaches an agent through the machine-readable reference.
+<code>SchemaRegistry.RegisterRPCs</code> copies both to <code>RegisteredRPC.Description</code> and
+<code>RegisteredRPC.LongHelp</code>. <code>aihelp.Build</code> then publishes them under <code>description</code>
+and <code>long-help</code>, the two keys <code>ze help command --json</code> uses for a command.
+<code>ze help ai --json</code> and the MCP <code>ze_reference</code> tool read that one projection.
+The <code>show schema methods</code> and <code>ze schema methods</code> tables print one line for each
+RPC. Both read the summary alone, as every other one-line surface does.</p>
+<p>A PLUGIN command carries the same two texts, declared in its Stage 1 message as
+<code>description</code> and <code>long-help</code>. <code>VisibleCommandEntries</code> reads both off the
+registry, and <code>MergeCommandPaths</code> fills each field of the tree on its own. A
+plugin that declares a summary and no explanation therefore fills the summary
+alone. The names cross at that call. The plugin server spells them
+<code>Description</code> and <code>LongHelp</code>, because <code>Help</code> already means the SUMMARY there,
+on <code>Completion</code> and on the dispatcher's builtin <code>Command</code>. The bound and the control-character
+refusal on a declared text are in
+<code>docs/architecture/api/process-protocol.md</code>.</p>
+<p><code>command help "&lt;name&gt;"</code> answers with both, under the <code>description</code> and
+<code>long-help</code> keys, for a builtin and for a plugin command alike.</p>
+<p>An OFFLINE LOCAL command carries the same two texts in a <code>registry.Meta</code>,
+declared beside its handler in Go rather than in a YANG module. <code>Description</code> is
+the summary and <code>LongHelp</code> is the explanation, and the same empty-is-unwritten
+rule holds for both. <code>collectCommands</code> (<code>cmd/ze/help_command.go</code>) merges these
+registrations into <code>ze help command --json</code> after the tree, and skips one whose
+path the tree already holds, so the catalog publishes the node's texts for such
+a path and the registration's for every other. <code>./le docvalid help-shape</code> holds
+this third corpus to the same seven rules, reading the registrations this binary
+links from the registry and the four <code>cmd/ze</code> declares in <code>package main</code> from
+its source, which is the only way to read a package Go forbids importing.</p>
+<h4 id="which-surface-renders-which-field">Which surface renders which field</h4>
+<p>Every surface that shows a command on ONE line reads the summary. Every one of
+them prints it whole, except the interactive completion pane, which has a
+terminal width to fit. Only a surface that shows ONE command reads the long
+explanation: the help page in the terminal, and the two published detail
+surfaces.</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Producer</th>
+<th>Reads</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The per-command help page</td>
+<td><code>commandHelpPage</code>, rendered by <code>helpfmt.(*Page).WriteTo</code></td>
+<td><code>Description</code> on the header line, then <code>Help</code> in the body block, then the child rows. A node states its own two texts whether or not it has children</td>
+</tr>
+<tr>
+<td>A help page's child rows</td>
+<td><code>command.HelpEntries</code></td>
+<td><code>Description</code></td>
+</tr>
+<tr>
+<td>A completion candidate</td>
+<td><code>command.TreeCompleter.matchChildren</code>, <code>choiceSuggestions</code></td>
+<td><code>Description</code></td>
+</tr>
+<tr>
+<td>The interactive completion pane</td>
+<td><code>internal/component/cli</code> <code>Model.renderDropdownBox</code></td>
+<td><code>Description</code>, cut to the column the terminal width leaves and closed with <code>...</code>. This is the one clamp the code keeps, because it answers a display constraint rather than guessing at a shorter text</td>
+</tr>
+<tr>
+<td>The interactive completion hint</td>
+<td><code>internal/component/cli</code> <code>Model.handleKeyMsg</code> (the <code>?</code> key), <code>Model.updateCompletions</code></td>
+<td><code>Description</code>, whole</td>
+</tr>
+<tr>
+<td>A shell-completion record</td>
+<td><code>internal/plugins/completion</code> <code>writeCompletionRecord</code></td>
+<td><code>Description</code></td>
+</tr>
+<tr>
+<td>The <code>ze help command</code> table row</td>
+<td><code>printCommandTable</code></td>
+<td><code>Description</code></td>
+</tr>
+<tr>
+<td><code>ze help command --verbose</code></td>
+<td><code>printCommandVerbose</code></td>
+<td><code>Description</code>, then <code>Help</code></td>
+</tr>
+<tr>
+<td><code>ze help command --json</code></td>
+<td><code>commandEntry</code></td>
+<td><code>description</code>, and <code>long-help</code></td>
+</tr>
+<tr>
+<td>The web admin command form</td>
+<td><code>buildAdminFragmentData</code>, rendered by the <code>commandForm</code> template</td>
+<td><code>Description</code> as the lede, <code>Help</code> as the body</td>
+</tr>
+<tr>
+<td>The web completion dropdown</td>
+<td><code>HandleCLICompleteWithCommandCompleter</code></td>
+<td><code>Description</code>, in the JSON <code>description</code> key</td>
+</tr>
+<tr>
+<td>An MCP tool's action enum</td>
+<td><code>buildToolDef</code></td>
+<td><code>Description</code>, one line for each action</td>
+</tr>
+<tr>
+<td>An MCP tool's own description</td>
+<td><code>buildToolDef</code>, <code>commandText</code></td>
+<td><code>Description</code>, then a blank line, then <code>LongHelp</code></td>
+</tr>
+<tr>
+<td>The OpenAPI operation</td>
+<td><code>OpenAPISchema</code></td>
+<td><code>Description</code> as <code>summary</code>, <code>LongHelp</code> as <code>description</code></td>
+</tr>
+<tr>
+<td>The published wiki catalog</td>
+<td><code>wikicatalog.Render</code></td>
+<td><code>Description</code> in the summary table column, <code>LongHelp</code> in the <code>###</code> detail block</td>
+</tr>
+<tr>
+<td>The published CLI reference row</td>
+<td><code>internal/le/site</code> <code>writeCommandRow</code>, <code>commandMirrorDescription</code></td>
+<td><code>Description</code></td>
+</tr>
+<tr>
+<td>The published per-command detail page</td>
+<td><code>internal/le/site</code> <code>equivalentZeCard</code>, <code>equivalentDetailMirror</code></td>
+<td><code>Description</code> as the lede, <code>LongHelp</code> as the Description body</td>
+</tr>
+<tr>
+<td>The <code>llms.txt</code> command line</td>
+<td><code>internal/le/site</code> <code>writeLLMSCommands</code></td>
+<td><code>Description</code>, whole and with no character budget</td>
+</tr>
+<tr>
+<td>An offline local command in any of the rows above</td>
+<td><code>registry.ListLocal</code>, merged by <code>collectCommands</code> and by <code>wikicatalog.Collect</code></td>
+<td><code>Meta.Description</code> and <code>Meta.LongHelp</code>, in place of the node's two texts</td>
+</tr>
+</tbody>
+</table>
+<p>The machine surfaces carry the same pair. <code>commandMeta</code>
+(<code>cmd/ze/hub/command_meta.go</code>) holds both halves for the API and MCP listers.
+Its merge decides each half on its own, so a command with a YANG summary and a
+plugin explanation keeps both. OpenAPI 3.1 already names the two roles, so the
+mapping is one to one: <code>summary</code> is short and <code>description</code> is long. A command
+that declares no explanation carries NO <code>description</code> key, never an empty one.</p>
+<p>The shell-completion record is <code>name</code>, tab, <code>description</code>, newline. A summary
+carrying a tab or a newline is FOLDED to single spaces there, never cut.
+Folding answers the format's one-line constraint and loses no word. The TUI
+completion pane folds for the same reason, and clamps to the column width its
+terminal gives it. That clamp is the only cut any surface makes, and it answers
+a display constraint. No surface cuts at a sentence, at a newline, or at a fixed
+character count to guess a shorter text.</p>
+<!-- source: internal/component/command/help.go -- HelpEntries, describeChildren -->
+<!-- source: internal/component/plugin/server/schema.go -- RegisteredRPC, RegisterRPCs -->
+<!-- source: internal/component/aihelp/aihelp.go -- RPC, Build -->
+<!-- source: internal/core/helpfmt/helpfmt.go -- Page, (*Page).WriteTo -->
+<!-- source: cmd/ze/help_command.go -- commandEntry, printCommandTable, printCommandVerbose -->
+<!-- source: internal/component/command/registry/registry.go -- Meta, ListLocal -->
+<!-- source: cmd/ze/command_help_page.go -- commandHelpPage -->
+<!-- source: internal/plugins/completion/words.go -- writeCompletionRecord -->
+<!-- source: internal/component/cli/model_render.go -- (Model).renderDropdownBox -->
+<!-- source: internal/component/web/handler_admin.go -- buildAdminFragmentData, CommandFormData -->
+<!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->
+<!-- source: internal/component/mcp/tools.go -- CommandInfo, buildToolDef, commandText -->
+<!-- source: internal/component/api/schema.go -- OpenAPISchema -->
+<!-- source: cmd/ze/hub/command_meta.go -- commandMeta, buildCommandMeta -->
+<!-- source: internal/component/config/yang/command.go -- mergeYANGEntry, mergeHelpText, getHelpExtension, PathToHelp -->
+<!-- source: internal/component/command/node.go -- Node, CommandEntry -->
+<!-- source: internal/component/plugin/server/command_registry.go -- RegisteredCommand, VisibleCommandEntries -->
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, commandHelpText -->
 <h3 id="per-command-declarations-what-a-command-says-about-itself">Per-command declarations: what a command says about itself</h3>
 <p>Five registries let a command say something about itself to the CLI. Each one is
 keyed by command path. Each resolves a command to the declaration registered on
@@ -2191,7 +2500,7 @@ answers, and that is the trap all five registries exist in.</p>
 <tr>
 <td><code>RegisterAddressFields</code></td>
 <td>that a field of the answer holds an IP address</td>
-<td><code>validateDeclaredShape</code>, which admits <code>\| resolve</code> and <code>\| origin</code> only where a field is declared</td>
+<td><code>validateDeclaredShape</code>, which admits <code>| resolve</code> and <code>| origin</code> only where a field is declared</td>
 </tr>
 <tr>
 <td><code>RegisterPipeFilters</code></td>
@@ -2208,7 +2517,6 @@ answers, and that is the trap all five registries exist in.</p>
 <p>One implementation resolves all five: <code>commandRegistry[T]</code> in <code>column_order.go</code>.</p>
 <!-- source: internal/component/command/answer_shape.go -- RegisterShape, ShapeForCommand, RegisterAddressFields, AddressFieldsForCommand -->
 <!-- source: internal/component/command/column_order.go -- commandRegistry, lookup -->
-
 <h4 id="two-packages-one-path-empty-is-a-floor-and-a-disagreement-is-a-defect">Two packages, one path: empty is a floor and a disagreement is a defect</h4>
 <p>The first four registries are a <code>declarationRegistry[T]</code>, which adds one rule to
 that lookup. <code>declare</code> reads what the path already holds:</p>
@@ -2256,7 +2564,7 @@ child of <code>show bgp</code>, and the rib command plugin declares <code>tab</c
 order decided which of the two the path answered.</p>
 <p>Every in-tree caller declares from <code>init()</code>, so two different non-empty values
 are a state only a Ze defect reaches. The panic reports it before the daemon
-serves anything (<code>docs/contributing/ze-style.md</code>).</p>
+serves anything (<code>docs/contributing/ze-go-style.md</code>).</p>
 <p>A plugin declares from a socket instead, and a bad declaration there is an
 operating error rather than a Ze defect. So the first three registries carry a
 second write, <code>declareFor</code>, which is the same four cases with the panic replaced
@@ -2269,15 +2577,12 @@ case.</p>
 <!-- source: internal/component/command/column_order.go -- declarationRegistry, newDeclarationRegistry, declare, declareFor -->
 <!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes -->
 <!-- source: internal/component/command/alias.go -- aliasRegistry, mergedAliases -->
-
 <h4 id="the-declared-shape-refuses-an-operator-before-the-command-runs">The declared shape refuses an operator before the command runs</h4>
 <p><code>validateDeclaredShape</code> reads the declared shape and refuses an operator that
 shape cannot support, by name, before dispatch. A command declaring <code>doc</code>
-answers <code>count cannot apply here: this command answers one document, and count
-acts on rows</code>. The answer's own shape refuses as well, at apply time, and that
+answers <code>count cannot apply here: this command answers one document, and count acts on rows</code>. The answer's own shape refuses as well, at apply time, and that
 half covers every command including the ones that declare nothing. The
-declaration is what makes the published catalog true, because <code>ze help command
---json</code> lists a declared command's operators from its shape.</p>
+declaration is what makes the published catalog true, because <code>ze help command --json</code> lists a declared command's operators from its shape.</p>
 <p>Both halves of that message are derived, because one operator needs more than
 rows. <code>| fill</code> brings back the columns a command declared. So it acts on <code>tab</code>
 alone, and it means nothing over a <code>map</code> answer whose rows carry their own keys.
@@ -2285,10 +2590,20 @@ alone, and it means nothing over a <code>map</code> answer whose rows carry thei
 calls <code>tab</code> "rows read against a declared column order", and <code>operatorNeeds</code>
 reads the operator's own shape set. Calling both "rows" gave a refusal that
 contradicted itself, in front of an operator whose answer HAS rows.</p>
-<p>A declared address-field list is an ADMISSION gate and not a selector. It decides
-whether <code>| resolve</code> and <code>| origin</code> run at all. It does not decide what they
-decorate: <code>resolveJSON</code> and <code>originJSON</code> walk every key of the answer and
-decorate each string that parses as an address.</p>
+<p>A declared address-field list is an ADMISSION gate AND a selector. It decides
+whether <code>| resolve</code> and <code>| origin</code> run at all, and it decides what they
+decorate. <code>bindAddressFields</code> copies the declaration onto each address operator
+when the chain is parsed, so a later registry withdrawal cannot change an
+in-flight chain, and <code>resolveJSON</code> and <code>originJSON</code> decorate a key only when
+<code>addressFieldSelected</code> finds it in that list.</p>
+<p>Standalone stdin is the one path that decorates every key.
+<code>ProcessStandalonePipesChecked</code> sets <code>allAddressFields</code> on each address
+operator, because stdin has no command path and therefore no declaration to
+read. There <code>addressFieldSelected</code> returns true for every key whose value parses
+as an address.</p>
+<!-- source: internal/component/command/pipe.go -- bindAddressFields, ProcessStandalonePipesChecked -->
+<!-- source: internal/component/command/pipe_resolve.go -- resolveJSON, addressFieldSelected -->
+<!-- source: internal/component/command/pipe_origin.go -- originJSON -->
 <p>Every <code>show bgp</code> command declares a shape, and two channels write them. Go
 compiled into the daemon declares sixteen paths. Nine of those name an address
 field. <code>show bgp rib</code> and <code>show bgp irr</code> are served by a plugin process, and an
@@ -2311,7 +2626,6 @@ the answer's own shape refuses after it.</p>
 <!-- source: internal/component/bgp/plugins/rs/server.go -- commandDecls -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- commandDecls -->
 <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- commandDecls -->
-
 <p>A column order never enters the payload. It is captured when the formatter is
 built, from the command string the wrapper already holds, and it reaches
 <code>| table</code> and <code>| text</code> only. <code>| json</code>, <code>| ndjson</code> and <code>| yaml</code> keep their
@@ -2350,12 +2664,12 @@ makes them work under every format:</p>
 <tr>
 <td>Selection: which fields</td>
 <td><code>applyDisplaySelect</code>, over the payload, at the operator's position in the chain</td>
-<td>every format, <code>\| json</code>, <code>\| ndjson</code>, <code>\| yaml</code> and <code>\| raw</code> included</td>
+<td>every format, <code>| json</code>, <code>| ndjson</code>, <code>| yaml</code> and <code>| raw</code> included</td>
 </tr>
 <tr>
 <td>Sequence: in what order</td>
 <td><code>columnRequest</code> carried on <code>tableStyle</code></td>
-<td><code>\| table</code> and <code>\| text</code> only</td>
+<td><code>| table</code> and <code>| text</code> only</td>
 </tr>
 </tbody>
 </table>
@@ -2380,7 +2694,6 @@ filters of its own, and nothing reported the loss.
 <!-- source: internal/component/command/pipe_filter.go -- RegisterPipeFilters, lookupPipeFilters -->
 <!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, columnsInChain, applyDisplaySelect, selectFields -->
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys, bestColumnOrder -->
-
 <h3 id="pipe-aliases-a-name-for-an-operator-chain">Pipe aliases: a name for an operator chain</h3>
 <p>An alias is a name an operator types in the operator slot, standing for a chain
 they would otherwise retype. <code>show bgp | peers</code> says what
@@ -2422,16 +2735,16 @@ properties are what make one pass enough. <code>checkAlias</code> is the one rea
 four, so the two callers can never disagree about which declarations are sound:</p>
 <ul>
 <li>An alias MUST NOT name another alias. Its expansion parses to pipe operators
-  alone.</li>
+alone.</li>
 <li>An alias MUST NOT carry the name of a pipe operator, which <code>ParsePipe</code> would
-  read first.</li>
+read first.</li>
 <li>An alias MUST NOT carry the name of a pipe filter of an overlapping command
-  path. A command's own filter resolves before anything generic, so the filter
-  would win at use time and nothing would say why. <code>RegisterPipeFilters</code> refuses
-  the same pair from its side, because package init order decides which of the
-  two registrations runs second.</li>
+path. A command's own filter resolves before anything generic, so the filter
+would win at use time and nothing would say why. <code>RegisterPipeFilters</code> refuses
+the same pair from its side, because package init order decides which of the
+two registrations runs second.</li>
 <li>An alias takes no argument. A word after the name is refused when the chain
-  runs, rather than dropped.</li>
+runs, rather than dropped.</li>
 </ul>
 <p>The two callers differ in the ANSWER, not in the checks. <code>checkedAlias</code> turns a
 refusal into <code>panic("BUG:")</code>. Only Go in this repository reaches
@@ -2469,7 +2782,6 @@ Stage 1 channel the next section describes.</p>
 <!-- source: internal/component/command/alias.go -- RegisterAliases, RegisterPluginAliases, checkAlias, checkedAlias, lookupAlias, AliasesForCommand -->
 <!-- source: internal/component/command/pipe.go -- parsePipeChain, expandAliases, parsePipeOps -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
-
 <h3 id="a-plugin-declares-a-pipe-alias-in-its-stage-1-message">A plugin declares a pipe alias in its Stage 1 message</h3>
 <p><code>DeclareRegistrationInput.Pipes</code> is a list of <code>PipeDecl</code>, beside the lists that
 carry families, commands, filters, doctor checks and enrichers. The SDK
@@ -2524,7 +2836,6 @@ daemon logs it as <code>command registration rejected ... conflicts with builtin
 <!-- source: internal/component/plugin/server/command_registry.go -- CommandRegistry.Register, AddBuiltin -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes, commandPathKey -->
-
 <h4 id="collision-has-two-populations-because-there-are-two-resolution-rules">Collision has two populations, because there are two resolution rules</h4>
 <p>Reading collision as "any overlapping path" refuses the case the channel exists
 for. <code>show bgp</code> carries an alias named <code>summary</code>, and every <code>show bgp *</code> path
@@ -2566,7 +2877,6 @@ to undo a partial registration. The message names the plugin, the command path
 and the alias name. The daemon log is where an operator reads it, because the
 engine stops a refused plugin before it can report anything itself.</p>
 <!-- source: internal/component/command/alias.go -- aliasOnPath, filterShadowing, RegisterPluginAliases -->
-
 <h4 id="a-declaration-adds-to-a-path-it-never-replaces-what-the-path-holds">A declaration ADDS to a path. It never replaces what the path holds</h4>
 <p><code>commandRegistry.register</code> stores one value for each path, so writing a declared
 set straight into the registry drops every alias that path already answered to.
@@ -2586,7 +2896,6 @@ and the config-reload stop path. The other is the family-conflict unwind inside
 <code>onRegistration</code>.</p>
 <!-- source: internal/component/command/alias.go -- mergedAliases, UnregisterPluginAliases, pluginAliasPath -->
 <!-- source: internal/component/plugin/server/startup.go -- rollbackStartupProcess, engineStartupSink -->
-
 <h4 id="the-engine-derives-the-barrier-that-stops-an-alias-below-its-command">The engine derives the barrier that stops an alias below its command</h4>
 <p>An alias on <code>show bgp rpki</code> is inherited by <code>show bgp rpki roa</code>, because <code>roa</code>
 registers nothing of its own and the lookup resolves the longest registered
@@ -2599,7 +2908,6 @@ declaration. The in-tree form of the same barrier is written by hand in
 have to know the resolution rule.</p>
 <!-- source: internal/component/command/alias.go -- aliasBarriers -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- cmdBgpChildren -->
-
 <h4 id="the-pipe-layer-selects-and-re-sequences-it-cannot-compute">The pipe layer selects and re-sequences. It cannot compute</h4>
 <p>This is the obligation every command that wants an alias owes, and it is a
 property of the PAYLOAD rather than of the pipe layer.</p>
@@ -2634,7 +2942,6 @@ parent's payload does not carry? An alias reshapes what was returned.</p>
 <code>show bgp rpki cache</code> fails the second one: it reports <code>preference</code>,
 <code>session-id</code>, <code>serial</code> and three intervals that the bare answer does not carry.</p>
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, appendSummaryFields, appendCacheServers, summaryFieldNames, buildSummaryAliasExpansion -->
-
 <h4 id="where-an-alias-resolves-and-where-it-does-not">Where an alias resolves, and where it does not</h4>
 <p>The chain is resolved in the process that parses it, and a plugin's alias lives
 in the daemon's registry alone.</p>
@@ -2677,7 +2984,6 @@ same client. The repair is a wire surface that carries the daemon's alias table
 to the client at session start, and it is NOT built.</p>
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
 <!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
-
 <h4 id="discovery-the-running-daemon-is-the-only-source">Discovery: the running daemon is the only source</h4>
 <p>A surface that reads the compiled tree in its own process starts no plugin, so
 it never sees a plugin's Stage 1 message.</p>
@@ -2701,7 +3007,7 @@ it never sees a plugin's Stage 1 message.</p>
 <td class="cell-yes">✓</td>
 </tr>
 <tr>
-<td><code>make ze-command-list</code></td>
+<td><code>./le command list</code></td>
 <td>the compiled tree in its own process</td>
 <td class="cell-no">✕</td>
 </tr>
@@ -2716,15 +3022,13 @@ it never sees a plugin's Stage 1 message.</p>
 listed neither before 2026-08. It reports the expansion beside the description.
 An alias takes no argument and names no other alias, so the chain it stands for
 is the whole of what the name does.</p>
-<p>The same table governs a plugin's declared answer shape. <code>ze help command
---json</code> and the wiki catalog built from it read the compiled tree in their own
+<p>The same table governs a plugin's declared answer shape. <code>ze help command --json</code> and the wiki catalog built from it read the compiled tree in their own
 process. So they list a plugin's commands without the operators the plugin
 declared. The running daemon refuses and publishes correctly. The published
 catalog cannot yet say so.</p>
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp, handleBgpCommandHelp -->
-<!-- source: scripts/inventory/commands.go -- main -->
+<!-- source: internal/le/command/list/commandlist.go -- Answer -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
-
 <h4 id="a-plugin-declares-its-own-answer-shape">A plugin declares its own answer shape</h4>
 <p>Each <code>CommandDecl</code> in the Stage 1 message carries three optional fields:
 <code>shape</code>, <code>columns</code> and <code>address-fields</code>. An absent field is an undeclared field,
@@ -2785,21 +3089,18 @@ table above records, for the same reason.</p>
 <!-- source: internal/component/command/completer.go -- completeDisplayFields, completePipeForCommand -->
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, registerRibAnswerShapes -->
 <!-- source: internal/component/bgp/plugins/filter_irr/cmd_irr.go -- registerIRRShapes -->
-
 <h3 id="the-chain-over-a-row-generator">The chain over a row generator</h3>
 <p>A handler that answers with a row generator runs the same chain, one record at a
-time. <code>ApplyPipesRecords</code> is the record half of <code>ApplyPipes</code>. <code>| match</code>,
+time. <code>applyPipesRecords</code> is the record half of <code>ApplyPipes</code>. <code>| match</code>,
 <code>| count</code>, <code>| first</code>, <code>| last</code>, <code>| display</code>, <code>| resolve</code> and <code>| origin</code> each act
 per record, so <code>| count</code> holds nothing and <code>| last 8</code> holds eight records.</p>
-<!-- source: internal/component/command/pipe_records.go -- ApplyPipesRecords, applyRecordOp, recordsCounted, recordsLast -->
-
+<!-- source: internal/component/command/pipe_records.go -- applyPipesRecords, applyRecordOp, recordsCounted, recordsLast -->
 <p>A format operator changes no record. <code>RenderRecords</code> renders what the chain
 produced. It writes per record for one chain alone: <code>| ndjson</code>, over an answer
 that declares no column schema, whose chain folded no display metadata.
 Every other format needs a document. A column width needs every row, and metadata
 rides in the envelope.</p>
 <!-- source: internal/component/command/render_records.go -- RenderRecords, streamsPerRecord, writeDocument -->
-
 <p><code>| table</code> and <code>| text</code> therefore collect. That cost is paid once, in the
 renderer, and the record stage forwards the records untouched.</p>
 <p>A chain that answers a document of its own is not filed under the command's
@@ -2812,7 +3113,6 @@ same document every other command's <code>| count</code> answers, and not
 <!-- source: internal/component/command/pipe.go -- applyCount -->
 <!-- rfc: none -- this is Ze's own command surface -->
 <!-- since: 2026-08-20 -->
-
 <p>Authorization is decided once, at dispatch, and the rows are produced after that
 decision. That is what a built payload has always done, and a generator changes
 only how long the gap is. There is no per-row authorization, so a handler MUST
@@ -2820,13 +3120,11 @@ NOT yield a row the caller was not already authorized to receive when the
 command was accepted.</p>
 <!-- source: internal/component/plugin/server/dispatch.go -- dispatchCommandArgsResponse -->
 <!-- source: internal/component/plugin/server/system.go -- commandRows -->
-
 <p>A chain the validator refuses answers one rejected row and pulls nothing, so an
 unreadable chain never reads as an empty answer.</p>
 <!-- source: internal/component/command/pipe_records.go -- faultRecords -->
 <!-- source: internal/component/command/pipe.go -- ValidatePipes -->
-
-<hr />
+<hr>
 <h2 id="managed-config-rpcs">Managed Config RPCs</h2>
 <p>RPCs for hub-client managed configuration. These operate over MuxConn after auth,
 separate from the plugin 5-stage protocol.</p>
@@ -2870,8 +3168,7 @@ separate from the plugin 5-stage protocol.</p>
 <!-- source: pkg/fleet/envelope.go -- RPC payload types -->
 <!-- source: internal/component/plugin/server/managed.go -- hub-side handlers -->
 <!-- source: internal/component/managed/client.go -- client-side handlers -->
-
-<hr />
+<hr>
 <h2 id="mcp-methods">MCP Methods</h2>
 <p>The MCP Streamable HTTP transport (revision <code>2026-07-28</code>) is stateless and
 strictly client-to-server. Every message is its own HTTP POST, and the server
@@ -2908,7 +3205,6 @@ speaks in its own <code>params._meta</code>.</p>
 <!-- source: internal/component/mcp/streamable_tools.go -- runMethod dispatch switch -->
 <!-- source: internal/component/mcp/discover.go -- serverDiscover -->
 <!-- source: internal/component/mcp/mrtr.go -- newInputRequiredResult, permitsInputRequired -->
-
 <p>There are no server-initiated methods. <code>notifications/tasks/status</code> existed
 under the earlier revision and was removed with the session and the GET stream it
 required.</p>
@@ -2965,7 +3261,6 @@ HTTP 400, carrying <code>data.requiredCapabilities</code> in the extension shape
 <!-- source: internal/component/mcp/tasks.go -- task registry -->
 <!-- source: internal/component/mcp/streamable_tools.go -- tasksGet, tasksUpdate, tasksCancel, failMissingTasksCapability -->
 <!-- source: internal/component/mcp/meta.go -- parseClientCapabilities -->
-
 <p>Task creation is server-directed. There is no <code>task</code> member on <code>tools/call</code> <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 params. The server decides per tool from the YANG <code>ze:task-support</code> annotation:
 <code>required</code> always, <code>forbidden</code> never, and <code>optional</code> synchronous. A client that
@@ -2973,10 +3268,8 @@ did not declare the extension gets the ordinary synchronous result, not an
 error.</p>
 <!-- source: internal/component/mcp/streamable_tools.go -- callTool, createTask -->
 <!-- source: internal/component/mcp/tools.go -- groupTaskSupport -->
-
 <h2 id="mcp-resource-methods">MCP Resource Methods</h2>
 <!-- source: internal/component/mcp/resources.go -- resources/list, resources/read -->
-
 <table>
 <thead>
 <tr>
@@ -3006,7 +3299,6 @@ conformant client can therefore declare <code>resources</code>. A server that ad
 the capability in <code>server/discover</code> serves it.</p>
 <!-- source: internal/component/mcp/resources.go -- resourcesList, resourcesRead -->
 <!-- source: internal/component/mcp/meta.go -- clientCapabilities -->
-
 <h2 id="mcp-result-and-error-envelope">MCP Result and Error Envelope</h2>
 <p>Every successful MCP result carries a <code>resultType</code> and
 <code>_meta["io.modelcontextprotocol/serverInfo"]</code>, stamped from one shared helper so
@@ -3018,7 +3310,6 @@ of dispatch refuses to emit <code>input_required</code> on any method other than
 <code>prompts/get</code>, <code>resources/read</code> and <code>tools/call</code>. <!-- doc-links: ignore (JSON-RPC method name, not a path) --></p>
 <!-- source: internal/component/mcp/streamable_tools.go -- ok, resultMeta, runMethod -->
 <!-- source: internal/component/mcp/mrtr.go -- guardInputRequired, permitsInputRequired -->
-
 <p>Four methods additionally carry the <code>CacheableResult</code> fields, <code>ttlMs</code> and
 <code>cacheScope</code>. Both are non-optional on those results.</p>
 <table>
@@ -3065,7 +3356,6 @@ gateway or caching proxy from serving one authorization context's response to
 another. It is defence in depth, not the access control: per-request
 authentication remains the gate.</p>
 <!-- source: internal/component/mcp/caching.go -- cacheTTLByMethod, stampCacheHints -->
-
 <table>
 <thead>
 <tr>
@@ -3110,24 +3400,23 @@ authentication remains the gate.</p>
 <!-- source: internal/component/mcp/streamable.go -- handlePOST, httpStatusForDispatch -->
 <!-- source: internal/component/mcp/headers.go -- validateStandardHeaders -->
 <!-- source: internal/component/mcp/streamable_tools.go -- failUnsupportedVersion -->
-
 <p>Three HTTP request headers are mandatory on every POST, and each one must agree
 with the body:</p>
 <ul>
 <li><code>MCP-Protocol-Version</code> mirrors the <code>_meta</code> protocol version.</li>
 <li><code>Mcp-Method</code> mirrors <code>method</code>.</li>
 <li><code>Mcp-Name</code> mirrors <code>params.name</code> for <code>tools/call</code> and <code>prompts/get</code>, and it <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
-  mirrors <code>params.uri</code> for <code>resources/read</code>.</li>
+mirrors <code>params.uri</code> for <code>resources/read</code>.</li>
 </ul>
 <p>Ze decodes the <code>=?base64?...?=</code> sentinel in <code>Mcp-Name</code> first, then compares the
 decoded value with the body.</p>
 <!-- source: internal/component/mcp/headers.go — mcpNameSource -->
-
 <p>Tool descriptors in <code>tools/list</code> carry <code>_meta.ui.resourceUri</code> when the command <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 group has a <code>ze:ui-resource</code> YANG extension. The <code>_meta.ui</code> block is emitted
 unconditionally, and the <code>ui://</code> asset it points at is readable by every caller.</p>
-<hr />
+<hr>
 <p><strong>Last Updated:</strong> 2026-07-29</p>
+
             </section>
         </main>
 
@@ -3137,7 +3426,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 20:21 UTC</span>
                 </div>
             </div>
         </footer>

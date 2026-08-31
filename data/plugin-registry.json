@@ -1,5 +1,60 @@
 [
   {
+    "name": "anomaly-detect",
+    "description": "Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature",
+    "config_roots": [
+      "anomaly/detect"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/anomaly/detect",
+    "yang_files": [
+      "internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang"
+    ]
+  },
+  {
+    "name": "anomaly-observe",
+    "description": "Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI",
+    "config_roots": [
+      "anomaly/observe"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/anomaly/observe",
+    "yang_files": [
+      "internal/plugins/anomaly/observe/yang/ze-anomaly-observe-conf.yang"
+    ]
+  },
+  {
+    "name": "anomaly-shape",
+    "description": "Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch",
+    "config_roots": [
+      "anomaly/shape"
+    ],
+    "dependencies": [
+      "firewall"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/anomaly/shape",
+    "yang_files": [
+      "internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang"
+    ]
+  },
+  {
+    "name": "as112",
+    "description": "AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535)",
+    "config_roots": [
+      "service"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/as112",
+    "yang_files": [
+      "internal/plugins/as112/yang/ze-as112-cmd.yang",
+      "internal/plugins/as112/yang/ze-as112-conf.yang"
+    ]
+  },
+  {
     "name": "bfd",
     "description": "Bidirectional Forwarding Detection (RFC 5880, 5881, 5883)",
     "config_roots": [
@@ -12,8 +67,7 @@
       "internal/component/bfd/yang/ze-bfd-api.yang",
       "internal/component/bfd/yang/ze-bfd-cmd.yang",
       "internal/component/bfd/yang/ze-bfd-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp",
@@ -27,8 +81,7 @@
     "yang_files": [
       "internal/component/bgp/yang/ze-bgp-api.yang",
       "internal/component/bgp/yang/ze-bgp-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-adj-rib-in",
@@ -39,8 +92,7 @@
     "source_dir": "internal/component/bgp/plugins/adj_rib_in",
     "yang_files": [
       "internal/component/bgp/plugins/adj_rib_in/yang/ze-adj-rib-in-api.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-aigp",
@@ -49,8 +101,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/aigp",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-bmp",
@@ -65,8 +116,7 @@
     "yang_files": [
       "internal/component/bgp/plugins/bmp/yang/ze-bmp-cmd.yang",
       "internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-capa",
@@ -75,8 +125,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/capa",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-filter-aspath",
@@ -91,8 +140,7 @@
     "source_dir": "internal/component/bgp/plugins/filter_aspath",
     "yang_files": [
       "internal/component/bgp/plugins/filter_aspath/yang/ze-filter-aspath.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-filter-aspath-length",
@@ -107,8 +155,7 @@
     "source_dir": "internal/component/bgp/plugins/filter_aspath_length",
     "yang_files": [
       "internal/component/bgp/plugins/filter_aspath_length/yang/ze-filter-aspath-length.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-filter-community",
@@ -123,8 +170,7 @@
     "source_dir": "internal/component/bgp/plugins/filter_community",
     "yang_files": [
       "internal/component/bgp/plugins/filter_community/yang/ze-filter-community.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-filter-community-match",
@@ -139,8 +185,7 @@
     "source_dir": "internal/component/bgp/plugins/filter_community_match",
     "yang_files": [
       "internal/component/bgp/plugins/filter_community_match/yang/ze-filter-community-match.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-filter-family",
@@ -155,8 +200,7 @@
     "source_dir": "internal/component/bgp/plugins/filter_family",
     "yang_files": [
       "internal/component/bgp/plugins/filter_family/yang/ze-filter-family.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-filter-irr",
@@ -172,8 +216,7 @@
     "yang_files": [
       "internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang",
       "internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-filter-modify",
@@ -188,8 +231,7 @@
     "source_dir": "internal/component/bgp/plugins/filter_modify",
     "yang_files": [
       "internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-filter-prefix",
@@ -204,8 +246,7 @@
     "source_dir": "internal/component/bgp/plugins/filter_prefix",
     "yang_files": [
       "internal/component/bgp/plugins/filter_prefix/yang/ze-filter-prefix.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-filter-remove-private-as",
@@ -220,8 +261,7 @@
     "source_dir": "internal/component/bgp/plugins/filter_remove_private_as",
     "yang_files": [
       "internal/component/bgp/plugins/filter_remove_private_as/yang/ze-filter-remove-private-as.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-gr",
@@ -237,8 +277,7 @@
     "source_dir": "internal/component/bgp/plugins/gr",
     "yang_files": [
       "internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-healthcheck",
@@ -254,8 +293,7 @@
     "source_dir": "internal/component/bgp/plugins/healthcheck",
     "yang_files": [
       "internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-hostname",
@@ -270,8 +308,7 @@
     "source_dir": "internal/component/bgp/plugins/hostname",
     "yang_files": [
       "internal/component/bgp/plugins/hostname/yang/ze-hostname.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-llnh",
@@ -286,8 +323,7 @@
     "source_dir": "internal/component/bgp/plugins/llnh",
     "yang_files": [
       "internal/component/bgp/plugins/llnh/yang/ze-link-local-nexthop.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-nlri-evpn",
@@ -296,8 +332,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/nlri/evpn",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-nlri-flowspec",
@@ -306,8 +341,9 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/nlri/flowspec",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": [
+      "internal/component/bgp/plugins/nlri/flowspec/yang/ze-flowspec-cmd.yang"
+    ]
   },
   {
     "name": "bgp-nlri-labeled",
@@ -316,8 +352,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/nlri/labeled",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-nlri-ls",
@@ -326,8 +361,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/nlri/ls",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-nlri-mup",
@@ -336,8 +370,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/nlri/mup",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-nlri-mvpn",
@@ -346,8 +379,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/nlri/mvpn",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-nlri-rtc",
@@ -356,8 +388,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/nlri/rtc",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-nlri-srpolicy",
@@ -366,8 +397,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/nlri/srpolicy",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-nlri-vpls",
@@ -376,8 +406,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/nlri/vpls",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-nlri-vpn",
@@ -386,8 +415,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/nlri/vpn",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-persist",
@@ -396,22 +424,7 @@
     "dependencies": [],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/persist",
-    "yang_files": [],
-    "doc": {}
-  },
-  {
-    "name": "redistribute-orchestrator",
-    "description": "Redistribute orchestrator: dispatches protocol route events to registered consumers",
-    "config_roots": [
-      "redistribute"
-    ],
-    "dependencies": [
-      "bgp"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/component/bgp/plugins/redistribute_egress",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-redistribute",
@@ -422,8 +435,7 @@
     ],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/redistribute_ingress",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
     "name": "bgp-rib",
@@ -437,8 +449,7 @@
     "yang_files": [
       "internal/component/bgp/plugins/rib/yang/ze-rib-api.yang",
       "internal/component/bgp/plugins/rib/yang/ze-rib.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-role",
@@ -453,8 +464,7 @@
     "source_dir": "internal/component/bgp/plugins/role",
     "yang_files": [
       "internal/component/bgp/plugins/role/yang/ze-role.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-route-refresh",
@@ -471,8 +481,7 @@
       "internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang",
       "internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh-api.yang",
       "internal/component/bgp/plugins/route_refresh/yang/ze-route-refresh.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-rpki",
@@ -488,8 +497,7 @@
     "source_dir": "internal/component/bgp/plugins/rpki",
     "yang_files": [
       "internal/component/bgp/plugins/rpki/yang/ze-rpki.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-rpki-decorator",
@@ -503,8 +511,7 @@
     "source_dir": "internal/component/bgp/plugins/rpki_decorator",
     "yang_files": [
       "internal/component/bgp/plugins/rpki_decorator/yang/ze-rpki-decorator.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-rr",
@@ -517,8 +524,7 @@
     "source_dir": "internal/component/bgp/plugins/rr",
     "yang_files": [
       "internal/component/bgp/plugins/rr/yang/ze-rr-cmd.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-rs",
@@ -533,8 +539,7 @@
     "source_dir": "internal/component/bgp/plugins/rs",
     "yang_files": [
       "internal/component/bgp/plugins/rs/yang/ze-rs-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-softver",
@@ -549,8 +554,7 @@
     "source_dir": "internal/component/bgp/plugins/softver",
     "yang_files": [
       "internal/component/bgp/plugins/softver/yang/ze-softver.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "bgp-watchdog",
@@ -563,20 +567,204 @@
     ],
     "optional_dependencies": [],
     "source_dir": "internal/component/bgp/plugins/watchdog",
-    "yang_files": [],
-    "doc": {}
+    "yang_files": []
   },
   {
-    "name": "loop",
-    "description": "Route loop detection (RFC 4271 S9, RFC 4456 S8)",
-    "config_roots": [],
+    "name": "connected",
+    "description": "Connected routes: redistribute directly connected interface prefixes",
+    "config_roots": [
+      "connected"
+    ],
     "dependencies": [],
     "optional_dependencies": [],
-    "source_dir": "internal/component/bgp/reactor/filter",
+    "source_dir": "internal/plugins/connected",
     "yang_files": [
-      "internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang"
+      "internal/plugins/connected/yang/ze-connected-conf.yang"
+    ]
+  },
+  {
+    "name": "copp",
+    "description": "Control-plane policing: rate-limit new TCP connections to BGP listen port",
+    "config_roots": [
+      "control-plane-protection"
     ],
-    "doc": {}
+    "dependencies": [
+      "firewall"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/copp",
+    "yang_files": [
+      "internal/plugins/copp/yang/ze-copp-conf.yang"
+    ]
+  },
+  {
+    "name": "cos",
+    "description": "802.1p class-of-service profile definitions",
+    "config_roots": [
+      "class-of-service"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/cos",
+    "yang_files": [
+      "internal/plugins/cos/yang/ze-cos-conf.yang"
+    ]
+  },
+  {
+    "name": "ddos-detect",
+    "description": "Automatic DDoS attack detector with two-stage detection",
+    "config_roots": [
+      "ddos/detect"
+    ],
+    "dependencies": [
+      "interface"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/ddos/detect",
+    "yang_files": [
+      "internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang"
+    ]
+  },
+  {
+    "name": "ddos-flowspec",
+    "description": "DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear",
+    "config_roots": [
+      "ddos/flowspec"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/ddos/flowspec",
+    "yang_files": [
+      "internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang"
+    ]
+  },
+  {
+    "name": "ddos-flowtriq",
+    "description": "DDoS incident reporter for Flowtriq cloud API",
+    "config_roots": [
+      "ddos/flowtriq"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/ddos/flowtriq",
+    "yang_files": [
+      "internal/plugins/ddos/flowtriq/yang/ze-ddos-flowtriq-conf.yang"
+    ]
+  },
+  {
+    "name": "ddos-local",
+    "description": "DDoS local responder: on-host nft drop on attack detection",
+    "config_roots": [
+      "ddos/local"
+    ],
+    "dependencies": [
+      "firewall"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/ddos/local",
+    "yang_files": [
+      "internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang"
+    ]
+  },
+  {
+    "name": "ddos-observe",
+    "description": "DDoS observability: incident store and show ddos status/incidents CLI",
+    "config_roots": [
+      "ddos/observe"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/ddos/observe",
+    "yang_files": [
+      "internal/plugins/ddos/observe/yang/ze-ddos-observe-conf.yang"
+    ]
+  },
+  {
+    "name": "dhcpserver",
+    "description": "DHCP server: address assignment for LAN clients (RFC 2131)",
+    "config_roots": [
+      "service"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/dhcpserver",
+    "yang_files": [
+      "internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang"
+    ]
+  },
+  {
+    "name": "exabgp-bridge",
+    "description": "In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)",
+    "config_roots": [
+      "exabgp"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/exabgp/bridgeplugin",
+    "yang_files": [
+      "internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang"
+    ]
+  },
+  {
+    "name": "fib-kernel",
+    "description": "FIB kernel: programs OS routes from system RIB via netlink/route socket",
+    "config_roots": [
+      "fib/kernel"
+    ],
+    "dependencies": [
+      "rib",
+      "sysctl"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/fib/kernel",
+    "yang_files": [
+      "internal/plugins/fib/kernel/yang/ze-fib-conf.yang"
+    ]
+  },
+  {
+    "name": "fib-p4",
+    "description": "FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime",
+    "config_roots": [
+      "fib/p4"
+    ],
+    "dependencies": [
+      "rib"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/fib/p4",
+    "yang_files": [
+      "internal/plugins/fib/p4/yang/ze-fib-p4-conf.yang"
+    ]
+  },
+  {
+    "name": "fib-vpp",
+    "description": "FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API",
+    "config_roots": [
+      "fib/vpp"
+    ],
+    "dependencies": [
+      "rib",
+      "vpp"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/fib/vpp",
+    "yang_files": [
+      "internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang"
+    ]
+  },
+  {
+    "name": "firewall",
+    "description": "Packet filter and NAT rules (nftables on Linux)",
+    "config_roots": [
+      "firewall"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/firewall",
+    "yang_files": [
+      "internal/component/firewall/yang/ze-firewall-cmd.yang",
+      "internal/component/firewall/yang/ze-firewall-conf.yang"
+    ]
   },
   {
     "name": "firewall-irr",
@@ -592,23 +780,94 @@
     "yang_files": [
       "internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang",
       "internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
-    "name": "firewall",
-    "description": "Packet filter and NAT rules (nftables on Linux)",
+    "name": "flow-export",
+    "description": "sFlow, NetFlow v9, and IPFIX counter export",
     "config_roots": [
+      "flow-export"
+    ],
+    "dependencies": [
+      "interface"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/flowexport",
+    "yang_files": [
+      "internal/plugins/flowexport/yang/ze-flowexport-conf.yang"
+    ]
+  },
+  {
+    "name": "flowspec-firewall",
+    "description": "Translates BGP FlowSpec routes into nftables firewall rules",
+    "config_roots": [],
+    "dependencies": [
       "firewall"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/flowspec-firewall",
+    "yang_files": []
+  },
+  {
+    "name": "geodns",
+    "description": "GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet)",
+    "config_roots": [
+      "service"
     ],
     "dependencies": [],
     "optional_dependencies": [],
-    "source_dir": "internal/component/firewall",
+    "source_dir": "internal/plugins/geodns",
     "yang_files": [
-      "internal/component/firewall/yang/ze-firewall-cmd.yang",
-      "internal/component/firewall/yang/ze-firewall-conf.yang"
+      "internal/plugins/geodns/yang/ze-geodns-cmd.yang",
+      "internal/plugins/geodns/yang/ze-geodns-conf.yang"
+    ]
+  },
+  {
+    "name": "iface-dhcp",
+    "description": "DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal",
+    "config_roots": [],
+    "dependencies": [
+      "interface"
     ],
-    "doc": {}
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/iface/dhcp",
+    "yang_files": []
+  },
+  {
+    "name": "iface-ra",
+    "description": "Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)",
+    "config_roots": [],
+    "dependencies": [
+      "interface"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/iface/ra",
+    "yang_files": []
+  },
+  {
+    "name": "ike",
+    "description": "IKEv2 engine for native IPsec VPN",
+    "config_roots": [
+      "vpn",
+      "pki"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/ike/engine",
+    "yang_files": []
+  },
+  {
+    "name": "imageserver",
+    "description": "Image server: HTTP provisioning for disk images and boot files",
+    "config_roots": [
+      "service"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/imageserver",
+    "yang_files": [
+      "internal/plugins/imageserver/yang/ze-image-server-conf.yang"
+    ]
   },
   {
     "name": "interface",
@@ -628,477 +887,7 @@
       "internal/component/iface/yang/ze-iface-interface-cmd.yang",
       "internal/component/iface/yang/ze-iface-monitor-cmd.yang",
       "internal/component/iface/yang/ze-iface-show-cmd.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "ipsec-xfrm",
-    "description": "IKEv2 engine for native IPsec VPN",
-    "config_roots": [
-      "vpn",
-      "pki"
-    ],
-    "dependencies": [
-      "config-loaded"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/component/ike/engine",
-    "yang_files": [],
-    "doc": {}
-  },
-  {
-    "name": "l2tp-auth-local",
-    "description": "Static local user list for L2TP PPP authentication",
-    "config_roots": [
-      "l2tp"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/component/l2tp/plugins/authlocal",
-    "yang_files": [
-      "internal/component/l2tp/plugins/authlocal/yang/ze-l2tp-auth-local-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "l2tp-auth-radius-servers",
-    "description": "RADIUS authentication and accounting for L2TP PPP sessions",
-    "config_roots": [
-      "l2tp"
-    ],
-    "dependencies": [
-      "radius-server"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/component/l2tp/plugins/authradius",
-    "yang_files": [
-      "internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "l2tp-pool",
-    "description": "IPv4 address and IPv6 prefix pool for L2TP PPP sessions",
-    "config_roots": [
-      "l2tp"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/component/l2tp/plugins/pool",
-    "yang_files": [
-      "internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "l2tp-shaper",
-    "description": "Traffic shaping for L2TP subscriber sessions",
-    "config_roots": [
-      "l2tp"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/component/l2tp/plugins/shaper",
-    "yang_files": [
-      "internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "sysctl",
-    "description": "Kernel tunable management: three-layer precedence, restore on stop",
-    "config_roots": [
-      "sysctl"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/component/sysctl",
-    "yang_files": [
-      "internal/component/sysctl/yang/ze-sysctl-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "rib",
-    "description": "System RIB: selects best route across protocols by admin distance",
-    "config_roots": [
-      "rib"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/component/sysrib",
-    "yang_files": [
-      "internal/component/sysrib/yang/ze-rib-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "traffic",
-    "description": "Traffic control (tc) qdisc, class, and filter management",
-    "config_roots": [
-      "traffic/control"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [
-      "vpp"
-    ],
-    "source_dir": "internal/component/traffic",
-    "yang_files": [
-      "internal/component/traffic/yang/ze-traffic-control-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "vpp",
-    "description": "VPP data plane lifecycle management",
-    "config_roots": [
-      "vpp"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/component/vpp",
-    "yang_files": [
-      "internal/component/vpp/yang/ze-vpp-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "anomaly-detect-feature-source",
-    "description": "Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature",
-    "config_roots": [
-      "anomaly/detect"
-    ],
-    "dependencies": [
-      "config-loaded"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/anomaly/detect",
-    "yang_files": [
-      "internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "anomaly-observe",
-    "description": "Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI",
-    "config_roots": [
-      "anomaly/observe"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/anomaly/observe",
-    "yang_files": [
-      "internal/plugins/anomaly/observe/yang/ze-anomaly-observe-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "anomaly-shape-firewall",
-    "description": "Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch",
-    "config_roots": [
-      "anomaly/shape"
-    ],
-    "dependencies": [
-      "config-loaded"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/anomaly/shape",
-    "yang_files": [
-      "internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "as112",
-    "description": "AS112 anycast DNS node: authoritative sink for misdirected RFC 1918 / link-local reverse-DNS queries (RFC 7534, RFC 7535)",
-    "config_roots": [
-      "service"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/as112",
-    "yang_files": [
-      "internal/plugins/as112/yang/ze-as112-cmd.yang",
-      "internal/plugins/as112/yang/ze-as112-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "connected",
-    "description": "Connected routes: redistribute directly connected interface prefixes",
-    "config_roots": [
-      "connected"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/connected",
-    "yang_files": [
-      "internal/plugins/connected/yang/ze-connected-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "copp-input-chain",
-    "description": "Control-plane policing: rate-limit new TCP connections to BGP listen port",
-    "config_roots": [
-      "control-plane-protection"
-    ],
-    "dependencies": [
-      "firewall"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/copp",
-    "yang_files": [
-      "internal/plugins/copp/yang/ze-copp-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "cos",
-    "description": "802.1p class-of-service profile definitions",
-    "config_roots": [
-      "class-of-service"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/cos",
-    "yang_files": [
-      "internal/plugins/cos/yang/ze-cos-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "ddos-detect-flow-source",
-    "description": "Automatic DDoS attack detector with two-stage detection",
-    "config_roots": [
-      "ddos/detect"
-    ],
-    "dependencies": [
-      "config-loaded"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/ddos/detect",
-    "yang_files": [
-      "internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "ddos-flowspec",
-    "description": "DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear",
-    "config_roots": [
-      "ddos/flowspec"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/ddos/flowspec",
-    "yang_files": [
-      "internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "ddos-flowtriq",
-    "description": "DDoS incident reporter for Flowtriq cloud API",
-    "config_roots": [
-      "ddos/flowtriq"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/ddos/flowtriq",
-    "yang_files": [
-      "internal/plugins/ddos/flowtriq/yang/ze-ddos-flowtriq-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "ddos-local",
-    "description": "DDoS local responder: on-host nft drop on attack detection",
-    "config_roots": [
-      "ddos/local"
-    ],
-    "dependencies": [
-      "firewall"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/ddos/local",
-    "yang_files": [
-      "internal/plugins/ddos/local/yang/ze-ddos-local-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "ddos-observe",
-    "description": "DDoS observability: incident store and show ddos status/incidents CLI",
-    "config_roots": [
-      "ddos/observe"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/ddos/observe",
-    "yang_files": [
-      "internal/plugins/ddos/observe/yang/ze-ddos-observe-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "dhcpserver",
-    "description": "DHCP server: address assignment for LAN clients (RFC 2131)",
-    "config_roots": [
-      "service"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/dhcpserver",
-    "yang_files": [
-      "internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "exabgp-bridge",
-    "description": "In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (RFC-agnostic transport shim)",
-    "config_roots": [
-      "exabgp"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/exabgp/bridgeplugin",
-    "yang_files": [
-      "internal/plugins/exabgp/bridgeplugin/yang/ze-exabgp-bridge-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "fib-kernel",
-    "description": "FIB kernel: programs OS routes from system RIB via netlink/route socket",
-    "config_roots": [
-      "fib/kernel"
-    ],
-    "dependencies": [
-      "rib",
-      "sysctl"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/fib/kernel",
-    "yang_files": [
-      "internal/plugins/fib/kernel/yang/ze-fib-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "fib-p4",
-    "description": "FIB P4: programs P4 switch forwarding entries from system RIB via gRPC/P4Runtime",
-    "config_roots": [
-      "fib/p4"
-    ],
-    "dependencies": [
-      "rib"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/fib/p4",
-    "yang_files": [
-      "internal/plugins/fib/p4/yang/ze-fib-p4-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "fib-vpp",
-    "description": "FIB VPP: programs VPP FIB entries from system RIB via GoVPP binary API",
-    "config_roots": [
-      "fib/vpp"
-    ],
-    "dependencies": [
-      "rib",
-      "vpp"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/fib/vpp",
-    "yang_files": [
-      "internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "flow-export-conntrack-tracking",
-    "description": "sFlow, NetFlow v9, and IPFIX counter export",
-    "config_roots": [
-      "flow-export"
-    ],
-    "dependencies": [
-      "config-loaded"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/flowexport",
-    "yang_files": [
-      "internal/plugins/flowexport/yang/ze-flowexport-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "flowspec-firewall",
-    "description": "Translates BGP FlowSpec routes into nftables firewall rules",
-    "config_roots": [],
-    "dependencies": [
-      "firewall"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/flowspec-firewall",
-    "yang_files": [],
-    "doc": {}
-  },
-  {
-    "name": "geodns",
-    "description": "GeoDNS server: DNS answers selected by client source IP (RFC 1035, RFC 7871 client-subnet)",
-    "config_roots": [
-      "service"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/geodns",
-    "yang_files": [
-      "internal/plugins/geodns/yang/ze-geodns-cmd.yang",
-      "internal/plugins/geodns/yang/ze-geodns-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "iface-dhcp",
-    "description": "DHCP client: DHCPv4/DHCPv6 lease acquisition and renewal",
-    "config_roots": [],
-    "dependencies": [
-      "interface"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/iface/dhcp",
-    "yang_files": [],
-    "doc": {}
-  },
-  {
-    "name": "iface-ra",
-    "description": "Router Advertisement sender: advertises IPv6 prefixes, flags, and resolvers on a LAN (RFC 4861)",
-    "config_roots": [],
-    "dependencies": [
-      "interface"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/iface/ra",
-    "yang_files": [],
-    "doc": {}
-  },
-  {
-    "name": "imageserver",
-    "description": "Image server: HTTP provisioning for disk images and boot files",
-    "config_roots": [
-      "service"
-    ],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/plugins/imageserver",
-    "yang_files": [
-      "internal/plugins/imageserver/yang/ze-image-server-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "isis",
@@ -1115,8 +904,7 @@
     "yang_files": [
       "internal/plugins/isis/yang/ze-isis-cmd.yang",
       "internal/plugins/isis/yang/ze-isis-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "kernel",
@@ -1129,25 +917,96 @@
     "source_dir": "internal/plugins/kernel",
     "yang_files": [
       "internal/plugins/kernel/yang/ze-kernel-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
-    "name": "ldp-port",
+    "name": "l2tp-auth-local",
+    "description": "Static local user list for L2TP PPP authentication",
+    "config_roots": [
+      "l2tp"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/l2tp/plugins/authlocal",
+    "yang_files": [
+      "internal/component/l2tp/plugins/authlocal/yang/ze-l2tp-auth-local-conf.yang"
+    ]
+  },
+  {
+    "name": "l2tp-auth-radius",
+    "description": "RADIUS authentication and accounting for L2TP PPP sessions",
+    "config_roots": [
+      "l2tp"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/l2tp/plugins/authradius",
+    "yang_files": [
+      "internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang"
+    ]
+  },
+  {
+    "name": "l2tp-pool",
+    "description": "IPv4 address and IPv6 prefix pool for L2TP PPP sessions",
+    "config_roots": [
+      "l2tp"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/l2tp/plugins/pool",
+    "yang_files": [
+      "internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang"
+    ]
+  },
+  {
+    "name": "l2tp-shaper",
+    "description": "Traffic shaping for L2TP subscriber sessions",
+    "config_roots": [
+      "l2tp"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/l2tp/plugins/shaper",
+    "yang_files": [
+      "internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang"
+    ]
+  },
+  {
+    "name": "ldp",
     "description": "Label Distribution Protocol (RFC 5036): MPLS label distribution",
     "config_roots": [
       "ldp"
     ],
     "dependencies": [
-      "fib-kernel"
+      "fib-kernel",
+      "sysctl"
     ],
     "optional_dependencies": [],
     "source_dir": "internal/plugins/ldp",
     "yang_files": [
       "internal/plugins/ldp/yang/ze-ldp-cmd.yang",
       "internal/plugins/ldp/yang/ze-ldp-conf.yang"
-    ],
-    "doc": {}
+    ]
+  },
+  {
+    "name": "loop",
+    "description": "Route loop detection (RFC 4271 S9, RFC 4456 S8)",
+    "config_roots": [],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/bgp/reactor/filter",
+    "yang_files": [
+      "internal/component/bgp/reactor/filter/yang/ze-loop-detection.yang"
+    ]
+  },
+  {
+    "name": "memlock",
+    "description": "Memory lock: keep the running executable resident under memory pressure",
+    "config_roots": [],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/plugins/memlock",
+    "yang_files": []
   },
   {
     "name": "mrt",
@@ -1160,8 +1019,7 @@
     "source_dir": "internal/plugins/mrt",
     "yang_files": [
       "internal/plugins/mrt/yang/ze-mrt-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "ntp",
@@ -1175,8 +1033,7 @@
     "yang_files": [
       "internal/plugins/ntp/yang/ze-ntp-cmd.yang",
       "internal/plugins/ntp/yang/ze-ntp-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "ospf",
@@ -1194,8 +1051,7 @@
     "yang_files": [
       "internal/plugins/ospf/yang/ze-ospf-cmd.yang",
       "internal/plugins/ospf/yang/ze-ospf-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "policy-routes",
@@ -1211,8 +1067,33 @@
     "yang_files": [
       "internal/plugins/policyroute/yang/ze-policyroute-cmd.yang",
       "internal/plugins/policyroute/yang/ze-policyroute-conf.yang"
+    ]
+  },
+  {
+    "name": "redistribute-orchestrator",
+    "description": "Redistribute orchestrator: dispatches protocol route events to registered consumers",
+    "config_roots": [
+      "redistribute"
     ],
-    "doc": {}
+    "dependencies": [
+      "bgp"
+    ],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/bgp/plugins/redistribute_egress",
+    "yang_files": []
+  },
+  {
+    "name": "rib",
+    "description": "System RIB: selects best route across protocols by admin distance",
+    "config_roots": [
+      "rib"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/sysrib",
+    "yang_files": [
+      "internal/component/sysrib/yang/ze-rib-conf.yang"
+    ]
   },
   {
     "name": "routing-table",
@@ -1225,25 +1106,24 @@
     "source_dir": "internal/plugins/routingtable",
     "yang_files": [
       "internal/plugins/routingtable/yang/ze-routing-table-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
-    "name": "rsvp-te-rawsock",
+    "name": "rsvp-te",
     "description": "RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209)",
     "config_roots": [
       "rsvp-te"
     ],
     "dependencies": [
-      "fib-kernel"
+      "fib-kernel",
+      "sysctl"
     ],
     "optional_dependencies": [],
     "source_dir": "internal/plugins/rsvpte",
     "yang_files": [
       "internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang",
       "internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang"
-    ],
-    "doc": {}
+    ]
   },
   {
     "name": "static",
@@ -1261,8 +1141,20 @@
     "yang_files": [
       "internal/plugins/static/yang/ze-static-cmd.yang",
       "internal/plugins/static/yang/ze-static-conf.yang"
+    ]
+  },
+  {
+    "name": "sysctl",
+    "description": "Kernel tunable management: three-layer precedence, restore on stop",
+    "config_roots": [
+      "sysctl"
     ],
-    "doc": {}
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/sysctl",
+    "yang_files": [
+      "internal/component/sysctl/yang/ze-sysctl-conf.yang"
+    ]
   },
   {
     "name": "tftpserver",
@@ -1275,8 +1167,22 @@
     "source_dir": "internal/plugins/tftpserver",
     "yang_files": [
       "internal/plugins/tftpserver/yang/ze-tftp-server-conf.yang"
+    ]
+  },
+  {
+    "name": "traffic",
+    "description": "Traffic control (tc) qdisc, class, and filter management",
+    "config_roots": [
+      "traffic/control"
     ],
-    "doc": {}
+    "dependencies": [],
+    "optional_dependencies": [
+      "vpp"
+    ],
+    "source_dir": "internal/component/traffic",
+    "yang_files": [
+      "internal/component/traffic/yang/ze-traffic-control-conf.yang"
+    ]
   },
   {
     "name": "traffic-usage",
@@ -1292,8 +1198,20 @@
     "yang_files": [
       "internal/plugins/trafficusage/yang/ze-traffic-usage-cmd.yang",
       "internal/plugins/trafficusage/yang/ze-traffic-usage-conf.yang"
+    ]
+  },
+  {
+    "name": "vpp",
+    "description": "VPP data plane lifecycle management",
+    "config_roots": [
+      "vpp"
     ],
-    "doc": {}
+    "dependencies": [],
+    "optional_dependencies": [],
+    "source_dir": "internal/component/vpp",
+    "yang_files": [
+      "internal/component/vpp/yang/ze-vpp-conf.yang"
+    ]
   },
   {
     "name": "vrrp",
@@ -1309,82 +1227,6 @@
     "yang_files": [
       "internal/plugins/vrrp/yang/ze-vrrp-cmd.yang",
       "internal/plugins/vrrp/yang/ze-vrrp-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "fakeas112",
-    "description": "Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked)",
-    "config_roots": [],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/test/plugins/fakeas112",
-    "yang_files": [
-      "internal/test/plugins/fakeas112/yang/ze-fakeas112-api.yang",
-      "internal/test/plugins/fakeas112/yang/ze-fakeas112-cmd.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "ddos-fake",
-    "description": "Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured)",
-    "config_roots": [
-      "ddos/fake"
-    ],
-    "dependencies": [
-      "firewall"
-    ],
-    "optional_dependencies": [],
-    "source_dir": "internal/test/plugins/fakeddos",
-    "yang_files": [
-      "internal/test/plugins/fakeddos/yang/ze-fakeddos-conf.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "fakeenrich",
-    "description": "Test-only in-process enricher (harmless when not invoked)",
-    "config_roots": [],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/test/plugins/fakeenrich",
-    "yang_files": [],
-    "doc": {}
-  },
-  {
-    "name": "fakefib",
-    "description": "Test-only sysrib event emitter for FIB functional tests (use ze.fakefib)",
-    "config_roots": [],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/test/plugins/fakefib",
-    "yang_files": [],
-    "doc": {}
-  },
-  {
-    "name": "fakel2tp",
-    "description": "Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked)",
-    "config_roots": [],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/test/plugins/fakel2tp",
-    "yang_files": [
-      "internal/test/plugins/fakel2tp/yang/ze-fakel2tp-api.yang",
-      "internal/test/plugins/fakel2tp/yang/ze-fakel2tp-cmd.yang"
-    ],
-    "doc": {}
-  },
-  {
-    "name": "fakeredist",
-    "description": "Test-only synthetic route producer (use ze.fakeredist; harmless when not invoked)",
-    "config_roots": [],
-    "dependencies": [],
-    "optional_dependencies": [],
-    "source_dir": "internal/test/plugins/fakeredist",
-    "yang_files": [
-      "internal/test/plugins/fakeredist/yang/ze-fakeredist-api.yang",
-      "internal/test/plugins/fakeredist/yang/ze-fakeredist-cmd.yang"
-    ],
-    "doc": {}
+    ]
   }
 ]

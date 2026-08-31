@@ -1,21 +1,30 @@
-# `show bgp peer <selector> rib [scope|filters|terminal]`
+# `show bgp peer rib`
+
+Show RIB data scoped to one peer.
 
 ## Ze command
 
-- Syntax: `show bgp peer <selector> rib [scope\|filters\|terminal]`
 - Registry path: `show bgp peer rib`
+- Usage: `show bgp peer <selector> rib [sent\|advertised\|received\|sent-received]`
 - Mode: Read-only
 - Wire method: `ze-bgp:peer-rib`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `scope`
 - Answer shape: tab
 - Address fields: peer, next-hop
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill, resolve, origin
-- Pipes, on rows: none
+- Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show RIB data scoped to one peer. Usage: show bgp peer <selector> rib [scope|filters|terminal].
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `selector` | string | yes | any value of this type |
 
 ## Mapping intents
 

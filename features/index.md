@@ -43,6 +43,7 @@ Ze starts with a configuration and protocol engine. The shipped network operatin
 - **table**, **json**, **yaml**, **ndjson**
 - **match**, **count**, **first**/**last**
 - Offline via **ze format**
+- **Every command**, no rendering flags
 
 [Learn more](https://ze-software.net/features/formatting/)
 
@@ -517,7 +518,7 @@ Implemented and tested, still waiting for production evidence.
 
 *automate / Experimental* -- `Managed config` `TLS hub`
 
-- Per-client **configuration** and authentication
+- Per-client **configuration** and **pinned** hub certificate
 - Cached config with **reconnect** and heartbeat
 - Version hashing and **two-phase** fetch
 

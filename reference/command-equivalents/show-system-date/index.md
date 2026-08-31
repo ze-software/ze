@@ -1,21 +1,30 @@
 # `show system date`
 
+Show the daemon's current wall-clock time and timezone.
+
 ## Ze command
 
-- Syntax: `show system date`
 - Registry path: `show system date`
+- Usage: `show system date`
 - Mode: Read-only
 - Wire method: `ze-show:system-date`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show the daemon's current wall-clock time and timezone. Useful for correlating log timestamps when the box is in a different timezone than you are.
+Useful for correlating log timestamps when the box is in a different timezone than you are.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

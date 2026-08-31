@@ -1,21 +1,30 @@
-# `resolve dns aaaa <hostname>`
+# `resolve dns aaaa`
+
+Look up IPv6 addresses (AAAA records) for a hostname.
 
 ## Ze command
 
-- Syntax: `resolve dns aaaa <hostname>`
 - Registry path: `resolve dns aaaa`
+- Usage: `resolve dns aaaa <hostname>`
 - Mode: Read-only
 - Wire method: `ze-resolve:dns-aaaa`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Look up IPv6 addresses (AAAA records) for a hostname. Usage: resolve dns aaaa <hostname>.
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `hostname` | string | yes | any value of this type |
 
 ## Mapping intents
 

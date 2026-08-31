@@ -1,25 +1,32 @@
 # `delete debug module`
 
+Disable debug for a subsystem, or remove one of its flags/scopes.
+
 ## Ze command
 
-- Syntax: `delete debug module`
 - Registry path: `delete debug module`
 - Mode: Offline
 - Wire method: `not listed`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-Disable debug for a subsystem, or remove one of its flags/scopes.
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

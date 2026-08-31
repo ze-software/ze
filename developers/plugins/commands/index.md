@@ -286,12 +286,22 @@ Commands are declared with these fields:
 | Field | Type | Required | Purpose |
 |-------|------|----------|---------|
 | `Name` | string | Yes | Command name (for example, `"my-plugin status"`) |
-| `Description` | string | No | Human-readable description |
+| `Description` | string | No | The one-line SUMMARY, shown wherever the command appears on one line. One line, at most 256 bytes |
+| `LongHelp` | string | No | The LONG explanation this command's own help page prints, under the summary. At most 4096 bytes, newlines kept |
 | `Args` | []string | No | Expected argument names (for help/completion) |
 | `Completable` | bool | No | Whether the command supports tab completion |
 | `Shape` | string | No | What the answer holds: `doc`, `map` or `tab` |
 | `Columns` | []string | No | The answer's keys, in the order a person reads them. Needs a `Shape` that has rows |
 | `AddressFields` | []string | No | The keys whose value holds an IP address or a prefix. Needs a `Shape` |
+
+`Description` and `LongHelp` are two texts, and neither is derived from the
+other. Write the summary as one sentence a reader meets in a list. Write the
+explanation as the paragraphs they read when they ask about that one command.
+Declare no `LongHelp` and the help page prints the summary alone.
+
+The wire keys are `description` and `long-help`. The spelling is `long-help`
+and not `help`, because `help` already names the summary in a completion row on
+this same protocol.
 
 ## Declaring What Your Answer Holds
 

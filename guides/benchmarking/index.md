@@ -110,23 +110,41 @@ The included test runner benchmarks all eight supported implementations in Docke
 | FreeRtr | freertr-interop (built) | `test/perf/configs/freertr-sw.txt` | eBGP + redistribute connected |
 | OpenBGPD | openbgpd-interop (built) | `test/perf/configs/openbgpd.conf` | allow from/to any |
 
-<!-- source: test/perf/run.py -- Docker benchmark runner -->
+<!-- source: internal/test/perfrunner/run.go -- native Docker benchmark runner -->
 <!-- source: test/interop/Dockerfile.rustbgpd -- rustbgpd Docker image -->
 
 ```bash
-# All DUTs
-python3 test/perf/run.py
+# Build the benchmark binary.
+go build -tags ze_perf -o bin/ze-perf ./cmd/ze
 
-# Specific DUTs
-python3 test/perf/run.py ze bird rustbgpd
+# Build all DUT images and run the native benchmark driver.
+go run ./cmd/ze-perf-run --build --test
 
-# Override defaults
-DUT_ROUTES=10000 DUT_REPEAT=5 python3 test/perf/run.py
-
-# Via Make
-make ze-perf-bench
-make ze-perf-bench PERF_DUT=ze
+# Run selected DUTs or override the workload.
+go run ./cmd/ze-perf-run --build --test ze bird rustbgpd
+DUT_ROUTES=10000 DUT_REPEAT=5 go run ./cmd/ze-perf-run --test ze
 ```
+<!-- source: cmd/ze-perf-run/main.go -- main -->
+<!-- source: internal/test/perfrunner/run.go -- RunCLI -->
+
+The native action runs the same chain, and it records the run so the perf nudge
+(`./le perf-bench suggestion-report`) stops asking for one:
+
+```bash
+# Build bin/ze-perf, measure every DUT, and record the run.
+./le perf-bench run
+
+# Measure one DUT, or several.
+./le perf-bench run dut ze
+./le perf-bench run dut "ze bird"
+
+# Append the results of the last measurement to the committed NDJSON history.
+./le perf-bench history-record
+
+# The release evidence gate: measure ze, append the result, fail on a regression.
+./le perf-bench evidence-record
+```
+<!-- source: internal/le/perfbench/bench.go -- Bench -->
 
 Results are written to `test/perf/results/` as JSON files. An HTML comparison report is generated automatically.
 
@@ -213,7 +231,7 @@ Limit the comparison window to the last N entries with `--last`:
 ze-perf track --check --last 5 history.ndjson
 ```
 
-For the full flag reference, see [ze-perf track](../command-reference/index.md#ze-perf-history-record).
+For the full flag reference, see [ze-perf track](../command-reference/index.md#ze-perf-track).
 
 ## Understanding Results
 

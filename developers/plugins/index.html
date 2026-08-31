@@ -67,14 +67,14 @@
 <pre><code class="language-go">package main
 
 import (
-    &quot;context&quot;
-    &quot;log&quot;
+    "context"
+    "log"
 
-    &quot;github.com/ze-software/ze/pkg/plugin/sdk&quot;
+    "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 func main() {
-    plugin, err := sdk.NewFromEnv(&quot;example&quot;)
+    plugin, err := sdk.NewFromEnv("example")
     if err != nil {
         log.Fatal(err)
     }
@@ -84,7 +84,7 @@ func main() {
         log.Print(event)
         return nil
     })
-    plugin.SetStartupSubscriptions([]string{&quot;update&quot;, &quot;state&quot;}, nil, &quot;&quot;)
+    plugin.SetStartupSubscriptions([]string{"update", "state"}, nil, "")
 
     if err := plugin.Run(context.Background(), sdk.Registration{}); err != nil {
         log.Fatal(err)
@@ -146,6 +146,7 @@ func main() {
 <li>Check command discovery, YANG registration, events, shutdown, and reload.</li>
 </ol>
 <p>Do not invent a private configuration parser, command transport, or metrics server. Register with the shared engine so the same surface remains available through CLI, web, REST, gRPC, and MCP.</p>
+
             </section>
         </main>
 
@@ -155,7 +156,7 @@ func main() {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

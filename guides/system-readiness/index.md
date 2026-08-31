@@ -36,8 +36,7 @@ remediation guidance.
 | `doctor-iface-missing` / `doctor-iface-down` | Interface existence and state |
 | `doctor-disk-space` | Partition free space (<5%) |
 | `doctor-dns-resolver` | Name server reachability |
-| `doctor-*-unreachable` | External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (`doctor-radius-admin-unreachable`), RPKI cache (`doctor-rpki-unreachable`), BMP collector (`doctor-bmp-unreachable`), NTP (`doctor-ntp-server-unreachable`), management hub (`doctor-hub-unreachable`) |
-<!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable -->
+| `doctor-*-unreachable` | External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (`doctor-radius-admin-unreachable`), RPKI cache (`doctor-rpki-unreachable`), BMP collector (`doctor-bmp-unreachable`), NTP (`doctor-ntp-server-unreachable`), management hub (`doctor-hub-unreachable`) <!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable --> |
 | `doctor-clock-skew` | System clock vs NTP (>5 min) |
 | `doctor-vpp-unreachable` | VPP API socket (Linux) |
 | `doctor-vpp-version` | VPP version compatibility (Linux) |

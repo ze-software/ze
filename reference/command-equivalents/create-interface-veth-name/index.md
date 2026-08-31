@@ -1,25 +1,36 @@
-# `create interface veth name <name> <peer>`
+# `create interface veth name`
+
+Create a veth pair (two linked virtual Ethernet interfaces).
 
 ## Ze command
 
-- Syntax: `create interface veth name <name> <peer>`
 - Registry path: `create interface veth name`
+- Usage: `create interface veth name <name> <peer>`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-create-veth`
+- Backends: `netlink`
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Create a veth pair (two linked virtual Ethernet interfaces). Usage: create interface veth name <name> <peer>.
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `name` | string | yes | any value of this type |
+| `peer` | string | yes | any value of this type |
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>show config graph - Command Equivalents - Ze</title>
-        <meta name="description" content="Command details and vendor equivalents for show config graph." />
+        <meta name="description" content="Show how components and peers depend on each other (DOT graph format)." />
         <meta property="og:title" content="show config graph - Command Equivalents - Ze" />
-        <meta property="og:description" content="Command details and vendor equivalents for show config graph." />
+        <meta property="og:description" content="Show how components and peers depend on each other (DOT graph format)." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="show config graph - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Command details and vendor equivalents for show config graph." />
+        <meta name="twitter:description" content="Show how components and peers depend on each other (DOT graph format)." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,21 +45,22 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
 
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
-                <div class="journey-hero reveal">
-                    <span class="journey-eyebrow">Command map</span>
-                    <h1 id="command-equivalent-detail-title">show config graph</h1>
-                    <p>Command details and vendor equivalents for show config graph.</p>
-                </div>
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Command map</span>
+    <h1 id="command-equivalent-detail-title">show config graph</h1>
+    <p>Show how components and peers depend on each other (DOT graph format).</p>
+</div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Syntax</dt><dd><code>show config graph</code></dd></div>
 <div><dt>Registry path</dt><dd><code>show config graph</code></dd></div>
 <div><dt>Mode</dt><dd>Offline</dd></div>
 <div><dt>Wire method</dt><dd><code>not listed</code></dd></div>
+<div><dt>Backends</dt><dd>any backend</dd></div>
+<div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
+<div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
 <div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
 </dl>
-<h3>Description</h3><p>Show how components and peers depend on each other (DOT graph format).</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -124,7 +125,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

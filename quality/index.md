@@ -63,7 +63,7 @@ gomu changes production code in small ways and runs the same tests. If the tests
 | Linux kernel behavior, real peer compatibility, deployment, or release evidence | QEMU, Docker interop, deployment scripts, perf gates | [QEMU, interop, and release evidence](https://ze-software.net/quality/qemu-interop-release/) |
 | A failing verify run that needs a clear rerun command | Verify stages, failure groups, trace output, debug logs | [Verify and debugging workflow](https://ze-software.net/quality/verify-debugging/) |
 | Whether the suite would actually catch a regression, not how large it is | Proof density, tests that cannot fail, tests nothing runs, ratchets, KPI history | [Testing health](https://ze-software.net/quality/health/) |
-| RFC requirement coverage, public gap disclosure, or AI agent test-change guards | `make ze-rfc-check`, RFC test tags, status-ledger agreement, audit freshness | [RFC compliance gate](https://ze-software.net/quality/rfc-compliance/) |
+| RFC requirement coverage, public gap disclosure, or AI agent test-change guards | `./le rfc check`, RFC test tags, status-ledger agreement, audit freshness | [RFC compliance gate](https://ze-software.net/quality/rfc-compliance/) |
 
 ## Commands that matter
 
@@ -73,8 +73,8 @@ Use one focused command while changing code.
 
 ```
 go test -race -run TestName ./internal/component/config/...
-make ze-fuzz-test-one FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s
-make ze-mutation-test-changed
+FUZZ=FuzzParseNLRI PKG=./internal/component/bgp/wire/ TIME=30s ./le fuzz run
+go run github.com/sivchari/gomu/cmd/gomu run --incremental --base-branch=main --fail-on-gate=false
 bin/ze-test bgp plugin 42 -v
 ```
 
@@ -83,9 +83,9 @@ bin/ze-test bgp plugin 42 -v
 Use the shared gate before handing over normal work.
 
 ```
-make ze-precommit-verify
-make ze-precommit-verify-changed
-make ze-repository-check
+./le verify current mode full
+./le verify current mode changed
+./le repository check
 ```
 
 ### Linux and release
@@ -93,15 +93,15 @@ make ze-repository-check
 Use the wider gates only when the behavior needs Linux, real peers, or release evidence.
 
 ```
-make ze-qemu-needs-linux-test
-make ze-qemu-debug RUN='...'
-make ze-interop-test
-make ze-evidence-release-verify
+./le qemu netns-test
+./le qemu run command '...' keep-alive
+./le integration interop
+./le evidence release-candidate
 ```
 
 ## How a failure becomes useful
 
-`make ze-precommit-verify` is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.
+`./le verify current mode full` is more than a command wrapper. It takes a lock so two heavy runs do not corrupt each other, writes per-stage logs under `tmp/`, groups related failures, and prints the rerun commands. The functional runner adds per-step traces for `.ci`, `.wb`, and `.et` files. BGP expectations decode wire messages before showing differences, so a failed UPDATE is reported as protocol structure instead of a long hex string.
 
 ### The rule
 

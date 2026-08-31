@@ -1,136 +1,100 @@
-# PPPoE Docker Interop Lab (Ze client vs accel-ppp)
+# PPPoE Docker Interop Lab
 
-Peer-isolated Docker lab proving Ze's PPPoE **client** interoperates with a
-real-world access concentrator: [accel-ppp](https://accel-ppp.org/), the
-dominant open-source BRAS/AC.
-
-## Why this exists (and why not L2TP)
-
-The original request was an L2TP interop test against accel-ppp. That is not
-buildable: an L2TP tunnel needs exactly one LAC (initiator) and one LNS
-(responder), and **both Ze and accel-ppp are LNS-only**. Ze defers LAC mode
-(`internal/component/l2tp/session_fsm.go`: "LAC-initiated incoming calls are
-deferred to a later spec"), and accel-ppp's L2TP module is a documented LNS with
-no supported client/LAC initiation. Two LNSes cannot form a tunnel.
-
-PPPoE is the protocol where Ze and accel-ppp have *complementary* roles:
-accel-ppp's first-class role is the **PPPoE server (access concentrator)**, and
-Ze has a full RFC 2516 **PPPoE client** (`internal/component/l2tp/pppoeclient/`,
-`pppoe-client` interface kind). This lab exercises exactly that pairing, which
-no other test covers: the existing `test/pppoe/*.ci` tests run Ze as the
-*server* against a synthetic client.
+This peer-isolated Docker lab proves both Ze PPPoE roles against independent
+implementations. Ze acts as a client against
+[accel-ppp](https://accel-ppp.org/), then as an access concentrator against
+`pppd` with the `rp-pppoe` plugin.
 
 ## Overview
 
-Ze runs as a PPPoE client and accel-ppp as the AC in two privileged Docker
-containers on an isolated user-defined bridge. Because PPPoE is an L2 protocol
-(EtherType 0x8863/0x8864), the shared bridge gives the broadcast PADI a path to
-the AC. The lab proves the complete client path: PADI/PADO/PADR/PADS discovery,
-LCP, CHAP-MD5 authentication, IPCP address assignment, kernel `pppN` interface
-creation with the server-assigned P2P address, dataplane ping to the AC
-gateway, the AC's own session view, and clean teardown when the client stops.
+Each scenario runs privileged containers on an isolated bridge because PPPoE
+uses Ethernet discovery and session frames (EtherTypes 0x8863 and 0x8864). The
+host kernel must provide `/dev/ppp` and the `pppoe` pppox module.
+
+The client scenario requires PADI/PADO/PADR/PADS discovery, LCP, CHAP-MD5,
+IPCP, one kernel `pppN` interface, traffic to the access concentrator, the
+accel-ppp session view, and clean teardown. The access-concentrator scenario
+requires the same discovery and NCP path from an independent pppd trace. It
+also dials a wrong credential and requires CHAP refusal before proving that all
+session state disappeared.
 
 ## Layout
 
 ```
 test/interop-pppoe/
-  run.py               Runner: preflight, image build, scenario selection
-  lab.py               Docker lifecycle, helpers, Ze/accel verification
-  Dockerfile.ze        Ze PPPoE-client image (Alpine + ze + iproute2 + ppp + kmod)
-  Dockerfile.accel     accel-ppp AC image (Alpine + apk add accel-ppp)
-  entrypoint-accel.sh  modprobe ppp/pppoe, run accel-pppd in foreground
+  Dockerfile.ze        Ze image used in both roles
+  Dockerfile.accel     accel-ppp access-concentrator image
+  Dockerfile.client    pppd and rp-pppoe client image
   scenarios/
-    01-pppoe-chap-ipv4/  CHAP + IPv4 pool session proof
+    01-pppoe-chap-ipv4/    Ze client, accel-ppp concentrator
+    02-ze-ac-pppd-client/   Ze concentrator, pppd client
+internal/le/interoplab/pppoe/
+  pppoe.go             Native images, preflight, selection, and lifecycle
+  scenarios.go         Role-selected container plans and mounts
+  check_client.go      Ze client assertions
+  check_ac.go          Ze access-concentrator assertions
 ```
 
-Each scenario contains `ze.conf` (Ze `pppoe-client` config), `accel-ppp.conf`
-(AC config), `chap-secrets` (credentials), and a `check.py` with a `check()`
-function imported by the runner.
+The Dockerfiles keep their small amount of peer initialisation in the image
+entrypoint command. There are no separate runner or entrypoint scripts.
 
 ## Prerequisites
 
-Docker and a host kernel with PPPoE support. The preflight probes for `/dev/ppp`
-and the `pppoe` (pppox `PX_PROTO_OE`) kernel module from inside a temporary
-privileged container. If either is missing, the runner exits non-zero with a
-clear message; it never skips or downgrades. Setting `ZE_PPPOE_SKIP_KERNEL_PROBE`
-or `ze.pppoe.skip-kernel-probe` causes an immediate refusal.
+The native preflight probes `/dev/ppp` and the `pppoe` module from a temporary
+privileged container. It exits non-zero when either is absent, and setting
+`ZE_PPPOE_SKIP_KERNEL_PROBE` or `ze.pppoe.skip-kernel-probe` causes an immediate
+refusal.
 
-Let the probe decide, rather than the host operating system. Docker Desktop on
-macOS was measured on 2026-08-01 and its Linux VM DID supply both `pppoe` and
-`/dev/ppp`, so an earlier claim here that it "typically cannot pass this check"
-was wrong. Run the Docker path first. If the probe refuses, use the QEMU path
-below. The accel-ppp image installs the Alpine `accel-ppp` package (the same
-build the QEMU runner uses), so the image build is fast.
+The probe decides whether Docker can carry the proof. Docker Desktop on macOS
+was measured on 2026-08-01 and its Linux VM supplied both requirements on that
+machine. The QEMU action remains available for a host where the probe refuses.
 
-<!-- source: test/interop-pppoe/lab.py -- preflight_strict -->
-
-Note that `l2tp_ppp` is a SEPARATE module and was absent on that same host, so
-the sibling L2TP lab (`docs/labs/l2tp-interop.md`) can still refuse where this
-one runs.
+<!-- source: internal/le/interoplab/pppoe/pppoe.go -- preflight -->
 
 ## Running
 
-Two paths exercise the same Ze-client-vs-accel-ppp pairing. Prefer the QEMU path
-on macOS or any host without PPPoE kernel support.
-
-### Docker (host kernel)
-
 ```
-make ze-deployment-docker-pppoe-accel-test               # all scenarios
-python3 test/interop-pppoe/run.py 01-pppoe-chap-ipv4     # single scenario
-VERBOSE=1 python3 test/interop-pppoe/run.py              # debug output
+./le deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le deployment docker-pppoe-accel-test
+ZE_PPPOE_INTEROP_SCENARIO=02-ze-ac-pppd-client ./le deployment docker-pppoe-accel-test
 ```
 
-Environment variables: `VERBOSE`, `NO_BUILD`, `SESSION_TIMEOUT` (default 90s),
-`ZE_PPPOE_INTEROP_SUFFIX` (default PID, for parallel-run isolation).
+`NO_BUILD` skips image builds, `SESSION_TIMEOUT` changes the default 90-second
+scenario bound, and `ZE_PPPOE_INTEROP_SUFFIX` provides parallel-run isolation.
 
-### QEMU (macOS-friendly, no Docker)
+The QEMU proof for Ze as a client against accel-ppp is:
 
 ```
-make ze-kernel-build GOKRAZY_ARCH=arm64      # once: build runtime kernel with CONFIG_PPPOE
-make ze-qemu-pppoe-accel-test
+./le qemu pppoe-accel-test
 ```
 
-This boots the runtime kernel in a QEMU Alpine VM, installs `accel-ppp` from
-Alpine community, and runs `scripts/evidence/effective-pppoe-accel.py` -- the
-netns sibling of this lab (Ze client + accel-ppp server in two namespaces joined
-by a veth, no Docker). It is the canonical way to run this proof on a dev
-machine. See `ai/rules/platform-linux.md` ("Interop Labs ... Need a QEMU Runner Too").
+It boots the runtime kernel in QEMU and runs Ze and accel-ppp in two network
+namespaces joined by a veth. That proof covers the client role only. The Docker
+suite carries both roles.
 
 ## Scenarios
 
 ### 01-pppoe-chap-ipv4
 
-Proves: PPPoE discovery completes, LCP opens, Ze authenticates to accel-ppp with
-CHAP-MD5, IPCP assigns the pool address (`10.11.0.2`) with the AC gateway
-(`10.11.0.1`) as peer, exactly one kernel `pppN` interface appears in Ze with
-that P2P address, accel-ppp's `show sessions` lists the subscriber, Ze pings the
-AC gateway through the session, and accel-ppp drops the session after the Ze
-client stops.
+Ze authenticates as `alice` with CHAP-MD5. IPCP assigns `10.11.0.2` with
+`10.11.0.1` as its peer. The checker requires one Ze `pppN` interface with that
+point-to-point address, a route through it, ICMP to the peer, an accel-ppp
+session for `alice`, and removal of that session after Ze stops.
 
-## Relationship to Other Evidence
+### 02-ze-ac-pppd-client
 
-| Target | What it proves | Ze role | Kernel PPPoE required |
-|--------|---------------|---------|-----------------------|
-| `test/pppoe/pppoe-basic.ci` | Server-side discovery (PADI/PADO/PADR/PADS) in a netns | Server (AC) | No (raw socket only) |
-| `test/pppoe/pppoe-vlan.ci` | Server-side discovery over VLAN | Server (AC) | No |
-| `make ze-deployment-docker-pppoe-accel-test` | Full client path vs a real AC, Docker (this) | Client | Yes (host kernel) |
-| `make ze-qemu-pppoe-accel-test` | Same proof in QEMU netns (`effective-pppoe-accel.py`) | Client | Yes (runtime kernel) |
+The independent pppd client requests service `internet`, authenticates as
+`alice`, negotiates IPCP, and pings Ze through its PPP interface. The checker
+reads pppd's discovery, bidirectional LCP, CHAP, and IPCP trace and compares it
+with Ze's REST session table. It then requires PADT and empty state before
+repeating the dial with `wrong-secret`; the second trace must reach CHAP and
+receive a refusal without creating a session.
 
-The Docker lab and the QEMU runner prove the same thing with the same peer
-(accel-ppp from Alpine community); the QEMU runner is the one that works on a
-macOS dev machine. Per `ai/rules/platform-linux.md`, a Linux-only interop lab must
-ship both.
+## Relationship to other evidence
 
-The `.ci` tests exercise Ze as the access concentrator with a synthetic Python
-client; this lab is the only test where Ze is the *client* and the peer is a
-real, independent AC implementation.
-
-## Design Pattern
-
-Follows the `test/interop-l2tp/` lab pattern (see `l2tp-interop.md`): scenario
-directory with daemon configs, per-run Docker network with PID suffix, fixed
-container IPs, `atexit` global cleanup, strict kernel preflight, and `check.py`
-assertion scripts imported by the runner. It is a separate module because the
-roles are inverted (Ze is the client here) and the peer daemon, image, and
-helpers are PPPoE/accel-ppp specific.
+| Evidence | Ze role | Independent peer | Kernel PPPoE |
+|----------|---------|------------------|--------------|
+| `test/pppoe/pppoe-basic.ci` | Access concentrator | Functional fixture | No |
+| `test/pppoe/pppoe-vlan.ci` | Access concentrator on VLAN | Functional fixture | No |
+| `./le deployment docker-pppoe-accel-test` | Client and access concentrator | accel-ppp and pppd | Host kernel |
+| `./le qemu pppoe-accel-test` | Client | accel-ppp | Runtime kernel |

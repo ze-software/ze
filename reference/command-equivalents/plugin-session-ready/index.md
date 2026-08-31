@@ -1,25 +1,33 @@
 # `plugin session ready`
 
+Signal that this plugin process finished its initialization.
+
 ## Ze command
 
-- Syntax: `plugin session ready`
 - Registry path: `plugin session ready`
+- Usage: `plugin session ready`
 - Mode: Read-only
 - Wire method: `ze-plugin:session-ready`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Signal plugin init complete
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

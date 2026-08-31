@@ -1,25 +1,35 @@
 # `show yang doc`
 
+Generate command reference docs from YANG schemas.
+
 ## Ze command
 
-- Syntax: `show yang doc`
 - Registry path: `show yang doc`
+- Usage: `show yang doc`
 - Mode: Read-only
 - Wire method: `ze-show:yang-doc`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-Generate command reference docs from YANG schemas. Produces structured documentation with descriptions, arguments, and usage patterns for every registered command.
+Produces structured documentation with descriptions, arguments, and usage patterns for every registered command.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

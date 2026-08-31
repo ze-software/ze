@@ -22,7 +22,7 @@ Kernel tunable management: three-layer precedence, restore on stop
 
 ## Used by
 
-- Required dependency for: [`fib-kernel`](../fib-kernel/index.md), [`interface`](../interface/index.md), [`isis`](../isis/index.md), [`ospf`](../ospf/index.md)
+- Required dependency for: [`fib-kernel`](../fib-kernel/index.md), [`interface`](../interface/index.md), [`isis`](../isis/index.md), [`ldp`](../ldp/index.md), [`ospf`](../ospf/index.md), [`rsvp-te`](../rsvp-te/index.md)
 - Optional dependency for: None
 
 ## Repository artifacts

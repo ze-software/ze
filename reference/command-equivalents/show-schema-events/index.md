@@ -1,25 +1,35 @@
 # `show schema events`
 
+List all notification types defined in YANG API modules.
+
 ## Ze command
 
-- Syntax: `show schema events`
 - Registry path: `show schema events`
+- Usage: `show schema events`
 - Mode: Read-only
 - Wire method: `ze-show:schema-events`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
-- Pipes, on rows: none
+- Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-List all notification types defined in YANG API modules. Shows which events a plugin can subscribe to.
+Shows which events a plugin can subscribe to.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

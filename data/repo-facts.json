@@ -2,12 +2,12 @@
   "facts": {
     "interop.scenario_dirs_raw": {
       "category": "committed-data",
-      "value": 130,
+      "value": 132,
       "source": "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
     },
     "interop.scenarios": {
       "category": "committed-data",
-      "value": 130,
+      "value": 132,
       "source": "git ls-files test/interop/scenarios/, counting the directories git holds a file under"
     },
     "interop.targets": {
@@ -17,17 +17,17 @@
     },
     "repo.design_comments": {
       "category": "committed-data",
-      "value": 4297,
+      "value": 4447,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.detail_comments": {
       "category": "committed-data",
-      "value": 3790,
+      "value": 4013,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.go_packages": {
       "category": "committed-data",
-      "value": 754,
+      "value": 759,
       "source": "go list ./..., keeping the packages git holds a file for"
     }
   },
@@ -38,7 +38,7 @@
     },
     "config_sections": {
       "category": "built-binary",
-      "source": "ze yang tree --json --config, run against the ze the site build found"
+      "source": "ze cli -c \"show yang tree --config | json\", run against the ze the site build found"
     }
   }
 }

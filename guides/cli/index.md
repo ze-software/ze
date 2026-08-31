@@ -129,7 +129,13 @@ over ssh, and NOT inside `ze cli` with no command argument
 In `ze cli` interactive mode:
 
 - **Tab completion** for commands, peer names, address families, and log levels
-- **Pipe operators:** `| json`, `| table`, `| match <regex>`, `| count`, `| no-more`
+- **Pipe operators** with per-command availability. `match <text>` keeps rows
+  containing the text, while a match after a line format reads rendered lines.
+  `ze help command --json` publishes the exact operator contract for each
+  command. Each row also carries the command's one-line summary under
+  `description` and its long explanation under `long-help`. Neither is derived
+  from the other, and no row is cut at a sentence or a newline.
+  <!-- source: internal/component/command/pipe.go -- applyMatch, applyMatchLines -->
+  <!-- source: cmd/ze/help_command.go -- operatorsFor, collectCommands -->
 - **History** persisted across sessions
 - **Ctrl-C** cancels current command, **Ctrl-D** exits
-<!-- source: internal/component/cli/client/main.go -- pipe operators, bubbletea model, history -->

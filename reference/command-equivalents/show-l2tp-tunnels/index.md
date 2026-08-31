@@ -1,21 +1,30 @@
 # `show l2tp tunnels`
 
+List all active L2TP tunnels.
+
 ## Ze command
 
-- Syntax: `show l2tp tunnels`
 - Registry path: `show l2tp tunnels`
+- Usage: `show l2tp tunnels`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:tunnels`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-List all active L2TP tunnels. One line per tunnel: local/remote ID, peer address, session count, and uptime.
+One line per tunnel: local/remote ID, peer address, session count, and uptime.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

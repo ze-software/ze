@@ -89,7 +89,7 @@ The verify debugging protocol identifies a functional failure with:
 
 | Field | Source | Purpose |
 |-------|--------|---------|
-| Suite label | `ze-test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `ze-functional-test` |
+| Suite label | `ze-test` runner label such as `plugin`, `ui`, or `managed` | First routing boundary inside `./le functional` |
 | Test id | One-based decimal id printed by `--list` and per-test result lines | Exact single-test rerun scope |
 | Run number | `N/TOTAL` printed by `--list` and per-test result lines | Human progress marker for long suites |
 | CI file path | Parsed `.ci` source path | Full test definition and embedded fixtures |
@@ -280,10 +280,8 @@ tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 
 ### Mode Defaults
 
-| Pattern | Default |
-|---------|---------|
-| `*.py`, `*.sh`, `*.pl`, `*.rb`, `*.bash`, `*.zsh` | 0755 |
-| Everything else | 0644 |
+Files default to `0644`. Use an explicit `mode=` only when the test needs a
+different permission.
 
 ### Terminator Rules
 
@@ -291,7 +289,7 @@ tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 - Must be unique within file (no two Tmpfs blocks can share terminator)
 - Alphanumeric and underscore only: `[A-Za-z0-9_]+`
 - Matched exactly (no whitespace trimming)
-- Recommended: `EOF_<PURPOSE>` (e.g., `EOF_CONF`, `EOF_PY`)
+- Recommended: `EOF_<PURPOSE>` (for example, `EOF_CONF`)
 
 ### Example
 
@@ -306,10 +304,6 @@ peer test-peer {
 }
 EOF_CONF
 
-tmpfs=plugin.py:mode=755:terminator=EOF_PY
-#!/usr/bin/env python3
-print('{"ready": true}')
-EOF_PY
 
 option=file:path=peer.conf
 option=asn:value=65533
@@ -350,20 +344,57 @@ option=<type>:key=value[:key=value...]
 | `bind` | `value=ipv6` | Bind to IPv6 |
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | Number of TCP connections |
-| `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers. |
+| `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down; that withdraws the peer's routes and races any forwarding still in flight toward other peers. A `reject=bgp` that fires during the linger loop RETRACTS the success token already printed, so the peer still fails the test. |
 | `silent` | `value=true` | Peer-block only, check mode only: the peer stops sending the automatic KEEPALIVE reply it otherwise writes for every message it receives. It holds the TCP connection open and keeps reading and matching expectations. Needed to reach ze's receive hold timer: ze sends its own KEEPALIVE every hold/3 seconds, each automatic reply resets ze's hold timer, and "the peer went quiet" is otherwise unexpressible. A closed connection is a different event on a different code path, so `action=close` does not substitute. **Explicit writes still happen**: `action=send`, `action=notification`, the OPEN handshake itself, and `option=linger`'s post-completion KEEPALIVE loop are unaffected, so `silent` with `linger` is not silent. Sink and echo modes ignore it. See `test/plugin/deadpeer-holddown.ci`. |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test (boots a daemon that exercises real kernel features). SKIPs on non-Linux hosts and runs automatically in the QEMU Alpine VM via `make ze-qemu-test-all`. `caps=` declares the capabilities the test also needs; without them it is SKIPped instead of hanging or failing on `operation not permitted`. Tokens: `net-admin` (privileged network configuration: creating interfaces, bringing links up, netlink, nftables), `net-raw` (raw/packet sockets: `resolve ping` and traceroute build ICMP through `net.ListenPacket("ip4:icmp", ...)`, which the kernel refuses unprivileged), `bpf` (loading eBPF programs and creating maps). It is a LIST because declaring one of two needed capabilities fails OPEN: a host holding just that one passes a gate it cannot satisfy. `TestCIPrivilegedIPDeclaresNetAdmin` (`internal/test/runner/caps_declaration_lint_test.go`) refuses a `.ci` that runs an iproute2 mutation without `net-admin`. It sees iproute2 only, so `nft`, `tc` and a raw socket are still yours to declare. See `ai/rules/platform-linux.md`. |
-| `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an OPTIONAL heavyweight artifact the test cannot run without, and SKIPs (visibly, naming the path and the `hint` command) when it is absent. For prerequisites a checkout does not carry: the appliance module cache, where `gokrazy/modcache/.gitignore` ignores everything except the vendored gokrazy init source, so the pinned `rtr7/kernel` module and its 15 MB `vmlinuz` exist only after `make ze-gokrazy-deps-download`. The path is resolved against the repo root (each test runs in its own temp dir) and must be repo-relative with no `..`; a malformed value is a parse error on every platform. Deliberately a SKIP and not an `exit 0`: `test/install/ze-kernel-overlay.ci` read the pinned `vmlinuz` with no guard and failed `shasum: ... No such file or directory` on every CI run, and hiding that behind a silent pass would swap a red for a green bar over a test that ran nothing. |
-| `netns-link` | `name=<if>[:address=<cidr>]` | Provision an interface inside the per-test network namespace before ze launches. Created as a dummy link, assigned the CIDR when given, then brought up. Needed when a test matches or routes through an interface the daemon never creates itself: a policy-routing next-hop needs a connected route to resolve its gateway, and an active OSPF interface needs a real link, since `enterTestNetns` brings up only loopback. **The option is a prerequisite, so declaring it makes the test SKIP outside netns mode** (`ZE_TEST_NETNS`, set by `make ze-netns-test` and `make ze-qemu-netns-test`): nothing else may create the link (the names are real host interfaces such as `eth0`/`eth1`), so running anyway would test a daemon whose interface does not exist. In particular these tests do NOT run under `make ze-qemu-needs-linux-test` even though they also carry `needs-linux`. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, and `bpf`; an unavailable capability produces a visible skip. |
+| `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
+| `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le qemu netns-test` path because the named link must never be created on the host. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
 <!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 <!-- source: internal/test/runner/caps.go -- capsRequired, the caps= token table -->
 <!-- source: internal/test/runner/needs_path.go -- repoRootFrom, the needs-path lookup -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock, taken before the concurrency semaphore -->
+
+#### Choosing between `needs-linux`, `caps=`, and `skip-os`
+
+| The `.ci` test ... | Use |
+|--------------------|-----|
+| Only validates config (`ze config validate -`), parses, or runs an offline `ze show` / `ze env` | Nothing. It runs natively on every OS |
+| Boots a daemon that APPLIES Linux-only config (interface, VLAN, firewall, L2TP kernel) | `option=needs-linux` |
+| The same, and needs privileged network configuration (creates interfaces, brings links up, programs netlink) | `option=needs-linux:caps=net-admin` |
+| The same, and opens a raw or packet socket (`resolve ping`, traceroute) | `option=needs-linux:caps=net-raw` |
+| The same, and loads eBPF | `option=needs-linux:caps=bpf` |
+| Skips on one non-Linux OS for a reason unrelated to the kernel | `option=skip-os:value=darwin` |
+| Needs an optional heavyweight artifact the checkout does not carry | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
+
+`caps=` takes a comma-separated list, so a test that programs netlink and loads
+eBPF declares `caps=net-admin,bpf` and is gated on both. An unknown token is a
+parse error on every host, macOS included, so a typo cannot silently disable the
+gate.
+
+`caps=net-admin` exists because Linux alone is not the requirement. On an
+unprivileged Linux host, a CI runner or a rootless container, a test that
+applies interface config does not fail cleanly: the interface plugin fails its
+configure handshake with `operation not permitted` and the DAEMON exits 1, then
+the TEST hangs because its check peer waits for a session the exited daemon will
+never open. The gate reads `CapEff` from `/proc/self/status`, not uid 0: a
+setcap'd binary holds the capability without being root, and a restricted
+container can be root without it.
+
+A `caps=` test does not run in the merge gate. `./le verify worktree` runs
+unprivileged, so the marker turns an opaque hang into an honest skip there, and
+the coverage relocates to `.github/workflows/qemu-nightly.yml`.
+`TestCapabilityGatedTestsHaveANativeVMHome` fails when that link is broken:
+marking a test with a capability nobody's CI has would be a coverage deletion
+wearing a skip's clothing.
+
+<!-- source: internal/test/runner/caps.go -- capsRequired, capsAccepted -->
+<!-- source: internal/test/runner/caps_linux.go -- probeCaps, the CapEff read -->
+<!-- source: internal/le/workflowcheck/workflowcheck_test.go -- TestCapabilityGatedTestsHaveANativeVMHome -->
 
 ### OPEN Behaviors
 
@@ -594,10 +625,9 @@ them may surface real defects; tracked in `plan/known-failures/`.
 **Daemon readiness (`ze` only):** a `ze` daemon launched **either** foreground or
 background is told (via `ZE_READY_FILE`) to write `daemon.ready` once startup
 completes, and the runner publishes its PID to `daemon.pid` in the tmpfs directory.
-Tests poll both files -- directly or through a `driver.py` helper -- before
-signalling the daemon (`action=sighup`/`action=sigterm`) or asserting on it. This
-handshake is armed only for `ze` daemons: `ze-peer` and helper scripts never get
-`ZE_READY_FILE` and never have their PID written to `daemon.pid`.
+Tests poll both files directly or through a compiled driver in
+`internal/test/fixture` before signaling the daemon or asserting on it. The
+readiness handshake is armed only for Ze daemons.
 <!-- source: internal/test/runner/runner_exec.go -- process orchestration -->
 
 ### Example (Decode Test)
@@ -657,8 +687,8 @@ and FreeBSD, the test runner adds loopback aliases via the `SIOCAIFADDR` ioctl.
 IPv6 works differently, because a host carries exactly one IPv6 loopback
 address. A fixture that needs a second one uses `fd00::2`, which is unique-local
 (RFC 4193) and never globally routable. `./le setup` adds it, and
-`./le setup --check` reports whether it is there. The runner never adds it:
-the ioctl returns EPERM to an unprivileged process, and `make ze-precommit-verify` runs as
+`./le setup check` reports whether it is there. The runner never adds it:
+the ioctl returns EPERM to an unprivileged process, and `./le verify current mode full` runs as
 an ordinary user. A test that binds an address this host does not carry fails at
 once with `loopback_address_missing` and the command to run, rather than timing
 out on a bind that could not succeed.
@@ -673,7 +703,7 @@ it binds anything, and `./le setup` adds no such address.
 <!-- source: internal/test/runner/loopback.go -- probe, error text, --bind and config-local scan -->
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
-<!-- source: scripts/le/devtools/system.py -- LOOPBACK_IPV6, loopback_addresses, apply_loopback -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 
 ## Expectations
 
@@ -853,11 +883,21 @@ The hex needle is matched on wire bytes at a byte BOUNDARY, which
 `expect=bgp:contains=` is not: that one is a plain substring match over the hex
 text, so it can also match at an odd nibble offset.
 
-Four properties make it an assertion rather than a hope:
+Five properties make it an assertion rather than a hope:
 
 - It is never consumed. Every frame the peer's message loop reads is checked
   against it. The `option=linger` loop keeps checking after completion. Pair the
   rejection with `option=linger:value=true` to hold it open for the whole test.
+- **A rejection found during linger RETRACTS the success token.** Under
+  `option=linger` the peer prints its success token BEFORE the loop, because
+  teardown is a kill and a post-run print can be lost. The verdict reads that
+  token, so a rejection arriving afterwards has to withdraw it: the peer prints
+  `ZE-PEER-REJECTED` on its own output, and the verdict reads the retraction
+  after the token and lets it win. Without that channel a linger rejection was
+  detected, returned, and then discarded, which made every negative assertion
+  held open by linger vacuous.
+  <!-- source: internal/test/peer/reject.go -- RejectionMarker, (*Peer).rejected -->
+  <!-- source: internal/test/runner/peer_contract.go -- failedCheckPeers, peerRejectionMarker -->
 - **Check mode only.** Sink and echo peers read every accepted connection
   concurrently against one checker, so a `conn=` could not select the session the
   frame arrived on. The runner refuses the file, and ze-peer refuses to start.
@@ -907,13 +947,13 @@ script (e.g. `test/managed/auth-reject.ci`), and any `reject=` test.
 ### Strengthen with a readback
 
 Add a second `cmd=` that dumps the parsed tree and assert a representative value
-with `expect=stdout:contains=` / `pattern=`. `ze config dump --json -` reads a
-config from stdin and prints the stored tree as JSON, so the assertion observes the
-parsed VALUE, not just that parsing did not error.
+with `expect=stdout:contains=` / `pattern=`. `show config dump -` reads a config
+from stdin and answers the stored tree, and `| json` renders it, so the assertion
+observes the parsed VALUE, not just that parsing did not error.
 
 ```
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config:exit=0
-cmd=foreground:seq=2:exec=ze config dump --json -:stdin=config-dump
+cmd=foreground:seq=2:exec=ze cli -c "show config dump - | json":stdin=config-dump
 expect=exit:code=0
 expect=stdout:pattern="interval": "300"
 ```
@@ -1114,6 +1154,69 @@ http=get:seq=1:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=asp
 http=get:seq=2:url=http://127.0.0.1:$PORT2/lg/graph?prefix=10.10.1.0/24&mode=nexthop&format=text:status=200:contains=egress
 ```
 
+## Sleeps and their justification markers
+
+<!-- source: internal/le/doc/wiring -- checkSleepJustification -->
+<!-- source: internal/le/hookruntime/writeedit.go -- writeCISleep -->
+
+Every `time.sleep(` in a live `.ci` carries a marker comment in the form
+`// sleep(<kind>): <reason>`, on one `#` comment line directly above the sleep,
+indented to match it exactly. The embedded `.ci` observer body is indentation
+sensitive. Two producers enforce the marker: `checkSleepJustification` in
+`internal/le/doc/wiring` (run by `./le doc wiring`, scoped to changed `.ci`
+files, listing every unjustified `file:line` and exiting 1), and `writeCISleep`
+in `internal/le/hookruntime/writeedit.go`, which blocks a Write or Edit that
+introduces an unmarked sleep.
+
+The kinds are a closed set, and each one owes a different reason:
+
+| Kind | What the reason states |
+|------|------------------------|
+| `poll-interval` | The real condition the enclosing loop breaks or returns on. This is already a deterministic wait; the sleep is only its granularity |
+| `timer` | The delay itself IS the behavior under test, and the mechanism plus where its period is set |
+| `timeout-under-test` | The fixed internal timeout the sleep waits out, which the test asserts on |
+| `needs-linux` | A dataplane effect (tc, qdisc, nft, kernel FIB) with no readback in the driver, convertible only after a QEMU run |
+| `no-signal` | The awaited effect exposes no queryable state to this driver, and what is held until instead |
+
+A free-text `// settle` comment is insufficient: it names no mechanism a reader
+can check. "The tracker pushes live carrier once a second" is a reason a later
+reader can overturn; "needs a moment" is the shape that makes a deliberate timer
+and a guessed duration the same line of code.
+
+A separate ratchet caps how MANY sleeps exist: the total `time.sleep(` count
+across `test/**/*.ci` may not exceed the committed baseline in
+`test/.ci-sleep-baseline`, and `./le doc wiring` fails when it does. The markers
+cap how many are unexplained.
+
+## The compiled observer API
+
+<!-- source: internal/test/fixture/fixture.go -- Register, Run, Observe, ObserveConfigured, Dispatch, Poll, ReportFailure -->
+
+Compiled `.ci` observers live under `internal/test/fixture`. They use
+`pkg/plugin/sdk` for the five-stage plugin protocol (`Plugin.Run` owns it) and
+the local `fixture` package for registration, dispatch, polling and failure
+reporting.
+
+| Function | Purpose |
+|----------|---------|
+| `fixture.Register(name, driver)` | Register one compiled fixture command |
+| `fixture.Run(args)` | Dispatch `ze-test fixture <name> [args...]` |
+| `fixture.Observe(...)` | Connect through the SDK, complete startup, run the scenario after all plugins are ready, then request shutdown |
+| `fixture.ObserveConfigured(...)` | Install callbacks before startup, then run the same observer lifecycle |
+| `fixture.Dispatch(...)` | Send one command and decode its JSON answer into a Go value |
+| `fixture.Poll(...)` | Retry a predicate until success, exhaustion, or context cancellation |
+| `fixture.ReportFailure(err)` | Emit the `ZE-OBSERVER-FAIL` sentinel `checkObserverSentinel` (`internal/test/runner/runner_validate.go`) detects |
+| `sdk.Plugin.DispatchCommand(...)` | Send a typed command request through the plugin connection |
+
+`fixture.Poll` around `fixture.Dispatch` is the payload-predicate wait: it blocks
+until the observed payload matches, within a bounded attempt count. It is what
+replaces a `time.Sleep` followed by a one-shot assertion.
+
+`fixture.Observe` can request a clean daemon shutdown even after an assertion
+failed, so the daemon's exit code does not prove the observer's assertion. A
+failing observer returns an error, which `fixture.Run` hands to
+`fixture.ReportFailure`.
+
 ## Engine Steps
 
 Engine steps drive a live daemon through CLI dispatch, first-class in `.ci`
@@ -1292,7 +1395,7 @@ binding a listening socket and the test can only pass vacuously.
 | Want | Do |
 |------|----|
 | Assert the wire exchange | Add `expect=bgp:conn=N:seq=N:hex=...` (or an `action=send/notification/rewrite/close/sighup/sigterm`) to the peer block |
-| A peer that is only a dial target for ze (routes injected via API, assertions made by a `.run` plugin or `http=`) | Run it as `ze-peer --mode sink` -- sink/echo/inject peers legitimately declare nothing |
+| A peer that is only a dial target for ze (routes injected through an external process plugin, assertions made by that plugin or `http=`) | Run it as `ze-peer --mode sink` -- sink/echo/inject peers legitimately declare nothing |
 
 `expect=json` still works, but only **in addition to** a consumed directive: it
 cannot make the peer listen.
@@ -1375,6 +1478,12 @@ Editor tests simulate user input sequences against the headless configuration ed
 | `input=enter` | Enter key (shorthand) | `input=enter` |
 | `input=ctrl:key=<c>` | Ctrl+key | `input=ctrl:key=u` |
 | `input=space` | Space key | `input=space` |
+
+Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
+`up`, `down`, `left`, `right`, `backspace`, `delete`, `home`, `end`, `pgup`,
+`pgdn`, `pgdown`, `space`. `shift+tab` is handled separately as a modifier.
+<!-- source: internal/component/cli/testing/input.go -- keyNameToCode, toKeyMessages -->
+
 
 ### Expectations
 

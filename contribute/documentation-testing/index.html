@@ -47,10 +47,9 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Documentation</span>
     <h1 id="documentation-testing">Documentation Testing</h1>
-    <p>Ze ships several tools that validate documentation against the live code.
-They live in <code>scripts/</code> and are exposed as <code>make ze-*</code> targets. The full
-documentation check is still explicit, while <code>make ze-precommit-verify</code> runs a
-changed-file-aware wiring, documentation, command, and inventory gate.</p>
+    <p>Ze ships native Go tools that compare documentation with the live registries
+and source tree. Pre-commit verification selects the checks affected by a
+change.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#quick-start">Quick start</a></li>
@@ -58,91 +57,87 @@ changed-file-aware wiring, documentation, command, and inventory gate.</p>
 <li><a href="#when-to-run">When to run</a></li>
 <li><a href="#how-to-interpret-output">How to interpret output</a>
 <ol>
-<li><a href="#ze-doc-drift-check">ze-doc-drift-check</a></li>
-<li><a href="#ze-command-contract-check">ze-command-contract-check</a></li>
+<li><a href="#le-docvalid-doc-drift">./le docvalid doc-drift</a></li>
+<li><a href="#le-docvalid-command-contract">./le docvalid command-contract</a></li>
+<li><a href="#le-docvalid-help-shape">./le docvalid help-shape</a></li>
 </ol></li>
 <li><a href="#how-to-fix-common-issues">How to fix common issues</a></li>
+<li><a href="#how-the-tools-find-drift">How the tools find drift</a></li>
 <li><a href="#adding-a-new-documentation-check">Adding a new documentation check</a></li>
 <li><a href="#see-also">See also</a></li>
 </ol></nav>
-<!-- source: mk/check-docs.mk -- ze-doc-verify and ze-doc-wiring-check -->
-<!-- source: scripts/status/verify_run.go -- stagesForMode -->
-
+<!-- source: internal/le/doc/check/actions.go -- Actions -->
+<!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 <h2 id="quick-start">Quick start</h2>
-<pre><code class="language-sh">make ze-doc-verify              # Run all documentation tests
-make ze-doc-wiring-check    # Run changed-file-aware wiring/doc/inventory gate
+<pre><code class="language-sh">./le doc check verify              # Run all documentation tests
+./le doc wiring    # Run changed-file-aware wiring/doc/inventory gate
 </code></pre>
-<p><code>ze-doc-verify</code> runs every documentation checker and returns non-zero if any of
+<p><code>./le doc check verify</code> runs every documentation checker and returns non-zero if any of
 them report drift. Run it after editing documentation files, after adding or
-removing plugins, or as part of review. <code>ze-doc-wiring-check</code> selects the
-checks needed for the current diff and is included in <code>make ze-precommit-verify</code>.</p>
+removing plugins, or as part of review. <code>./le doc wiring</code> selects the
+checks needed for the current diff and is included in <code>./le verify current mode full</code>.</p>
 <h2 id="what-gets-checked">What gets checked</h2>
 <table>
 <thead>
 <tr>
-<th>Tool</th>
-<th>Make target</th>
+<th>Native action</th>
 <th>What it validates</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><span class="ev-src"><span class="ev-ref"><code>scripts/docvalid/doc_drift.go</code></span></span></td>
-<td><code>ze-doc-drift-check</code></td>
-<td>plugin counts, family lists, <code>.ci</code> test totals, interop scenario count, fuzz target count, Go test count, compared to the live plugin registry, family registry, and filesystem walk. Also family rows, README test-count claims, release-gate suite claims derived from the Makefile, and narrow forbidden stale-claim checks such as the old text parser allocation claim. <span class="ev-src"><span class="ev-ref"><code>docs/DESIGN.md</code></span><span class="ev-ref"><code>docs/comparison.md</code></span><span class="ev-ref"><code>docs/features.md</code></span><span class="ev-ref"><code>docs/functional-tests.md</code></span></span></td>
+<td><code>./le docvalid doc-drift</code></td>
+<td>Published counts and lists agree with live registries and the tree</td>
 </tr>
 <tr>
-<td><span class="ev-src"><span class="ev-ref"><code>scripts/docvalid/commands.go</code></span></span></td>
-<td><code>ze-command-contract-check</code></td>
-<td>Every YANG <code>ze:command</code> declaration has a registered RPC or local CLI handler, and every registered RPC handler has a matching YANG declaration.</td>
+<td><code>./le docvalid command-contract</code></td>
+<td>Every YANG <code>ze:command</code> has a registered handler</td>
 </tr>
 <tr>
-<td><code>scripts/dev/code_to_docs.py --check</code></td>
-<td><code>ze-doc-index-check</code>, <code>ze-doc-verify</code> and <code>ze-generated-files-check</code></td>
-<td>Two things: every <code>&lt;!-- source. --&gt;</code> path under <code>docs/</code> points to an existing source file or directory, and every SYMBOL the anchor names after its <code>--</code> is declared in the <code>.go</code> file it points at. Check mode never writes. It does NOT check that is current: that file is generated on demand and gitignored, so git holds no copy that can go stale, and a comparison would only fail on a clone where it was never generated. The failures report separately: a broken ANCHOR prints <code>MISSING: &lt;path&gt;</code> with its referencing doc and line, and an undeclared symbol prints <code>CLAIM:</code> with the doc, the line, the anchored file and the token. <span class="ev-src"><span class="ev-ref"><code>ai/CODE-TO-DOCS.md</code></span></span></td>
+<td><code>./le docvalid usage-contract</code></td>
+<td>The model states every command's argument grammar, and no description spells one in prose</td>
 </tr>
 <tr>
-<td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/check_doc_links.py</code></span></span></td>
-<td><code>ze-doc-links-check</code>, and the <code>--md-only</code> subset at the end of <code>ze-generated-files-reconcile</code></td>
-<td>Five checks over the path references in the tree: every backticked path and markdown link in <code>ai/</code>, <code>plan/</code> meta documents resolves; every <code>// Design:</code> target resolves; every backticked <code>*.sh</code> filename and <code>c_*</code>/<code>check_*</code> function name in the hook-describing documents names something in the tree; every <code>doc-links: ignore</code> marker states a reason; and every path reference in every OTHER tracked file resolves too. The last two checks read every TRACKED file, not the walked corpus. A marker no other check reads is audited, and a dead path in any tracked file fails the gate. <code>make ze-doc-verify</code> does NOT run this script: <code>ze-doc-links-check</code> is its own <code>ze-precommit-verify</code> stage. <span class="ev-src"><span class="ev-ref"><code>.claude/rules/</code></span></span></td>
+<td><code>./le docvalid help-shape</code></td>
+<td>Every command node, every RPC and every offline local command declares a one-line summary, and the report states how much of each corpus is written</td>
 </tr>
 <tr>
-<td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/digest_check.py</code></span></span></td>
-<td><code>ze-digest-check</code> and <code>ze-doc-verify</code></td>
-<td>Every <code>file:line</code> anchor in resolves to a real file (subsystem-relative via each digest's <code>&lt;!-- digest-base: --&gt;</code> header) and an in-range line. Keeps the hand-maintained flow digests from rotting silently as code moves. <span class="ev-src"><span class="ev-ref"><code>ai/digests/*.md</code></span></span></td>
+<td><code>./le docs-to-code check</code></td>
+<td>Documentation source paths and claimed symbols resolve</td>
 </tr>
 <tr>
-<td><span class="ev-src"><span class="ev-ref"><code>scripts/lint/consistency.go</code></span></span></td>
-<td><code>ze-consistency-check</code></td>
-<td>Mixed code/doc consistency: <code>// Design:</code> references on <code>.go</code> files, cross-reference bidirectionality (<code>// Detail:</code> &lt;-&gt; <code>// Overview:</code>), stale package references in docs and scripts.</td>
+<td><code>./le doc check links</code></td>
+<td>Tracked path citations resolve</td>
 </tr>
 <tr>
-<td><span class="ev-src"><span class="ev-ref"><code>scripts/dev/verify_wiring_docs.py</code></span></span></td>
-<td><code>ze-doc-wiring-check</code></td>
-<td>Changed-file-aware router used by <code>make ze-precommit-verify</code>. It runs wiring checks for new exported Go symbols, <code>ze-command-contract-check</code> for command sources, <code>ze-doc-verify</code> and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources.</td>
+<td><code>./le digest</code></td>
+<td>Every <code>file:line</code> anchor in. <span class="ev-src"><span class="ev-ref"><code>ai/digests/*.md</code></span></span></td>
 </tr>
 <tr>
-<td><code>scripts/dev/ste_check.py --check</code></td>
-<td><code>ze-ste-check</code>, and <code>commit_helper.py create</code></td>
-<td>The six banned ASD-STE100 habits (synonym rotation, hedging, frozen verbs, marketing adjectives, run-ons, phrasal verbs) in every changed file. Each file is compared against its own HEAD version, and it fails when a habit grew, so a document nobody touched can never fail. The BLOCKING form runs at commit time over the commit's own files. Read the whole tree with <code>make ze-ste-review</code>. Rule. <span class="ev-src"><span class="ev-ref"><code>ai/rules/writing.md</code></span></span></td>
+<td><code>./le consistency</code></td>
+<td>Design references, cross-references, JSON tags, and package citations agree</td>
+</tr>
+<tr>
+<td><code>./le doc wiring</code></td>
+<td>Changed files trigger their documentation and inventory checks</td>
+</tr>
+<tr>
+<td><code>./le ste check</code></td>
+<td class="cell-no">✕</td>
 </tr>
 </tbody>
 </table>
-<p><code>ze-doc-verify</code> runs doc drift, command validation, and source-anchor validation
-(path and symbol) unconditionally and reports
-a combined verdict. <code>ze-doc-wiring-check</code> is the changed-file-aware gate used
-by <code>make ze-precommit-verify</code>; it delegates to the direct targets in the table only when
-the current diff touches matching sources. <code>ze-consistency-check</code> is left standalone
-because it covers both documentation and code-style concerns and is run as part
-of code review, not doc review.</p>
-<!-- source: scripts/docvalid/doc_drift.go -- runChecks, checkForbiddenDocClaims -->
-<!-- source: scripts/docvalid/commands.go -- main -->
-<!-- source: scripts/dev/code_to_docs.py -- check_anchor_symbols, anchor_symbol_tokens, go_declarations -->
-<!-- source: scripts/dev/check_doc_links.py -- check_markdown, check_design_refs, check_hook_names, check_ignore_reasons, check_tracked_citations, sweep_tracked, check_baseline_growth -->
-<!-- source: scripts/lint/consistency.go -- package doc -->
-<!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
-<!-- source: scripts/dev/ste_check.py -- review, read_baseline -->
-
+<p><code>./le doc check verify</code> combines documentation drift, command validation, the two
+command help gates, and source-anchor validation. <code>./le doc wiring</code> is the changed-file-aware
+pre-commit gate.</p>
+<!-- source: internal/le/docvalid/actions.go -- Answer -->
+<!-- source: internal/le/docvalid/actions.go -- Answer -->
+<!-- source: internal/le/docstocode/actions.go -- Answer -->
+<!-- source: internal/le/doc/check/actions.go -- Answer -->
+<!-- source: internal/le/consistency/consistency.go -- Answer -->
+<!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
+<!-- source: internal/le/ste/actions.go -- Answer -->
 <h2 id="when-to-run">When to run</h2>
 <table>
 <thead>
@@ -154,52 +149,59 @@ of code review, not doc review.</p>
 <tbody>
 <tr>
 <td>After you write any prose, in any file</td>
-<td><code>make ze-ste-review-changed</code></td>
+<td><code>./le ste review-changed</code></td>
 </tr>
 <tr>
 <td>After editing any file under <code>docs/</code></td>
-<td><code>make ze-doc-verify</code></td>
+<td><code>./le doc check verify</code></td>
 </tr>
 <tr>
 <td>After adding or removing a plugin</td>
-<td><code>make ze-doc-verify</code></td>
+<td><code>./le doc check verify</code></td>
 </tr>
 <tr>
 <td>After writing a path reference in ANY tracked file</td>
-<td><code>make ze-doc-links-check</code> (<code>ze-doc-verify</code> does not cover it)</td>
+<td><code>./le doc check links</code> (<code>./le doc check verify</code> does not cover it)</td>
 </tr>
 <tr>
 <td>After adding or renaming a YANG <code>ze:command</code></td>
-<td><code>make ze-command-contract-check</code></td>
+<td><code>./le docvalid command-contract</code></td>
+</tr>
+<tr>
+<td>After writing the <code>description</code> or the <code>ze:help</code> of a command node or an RPC</td>
+<td><code>./le docvalid help-shape</code></td>
+</tr>
+<tr>
+<td>After writing the <code>Description</code> or the <code>LongHelp</code> of a <code>registry.Meta</code></td>
+<td><code>./le docvalid help-shape</code></td>
 </tr>
 <tr>
 <td>After adding a doc validator, inventory source, command source, or exported Go API</td>
-<td><code>make ze-doc-wiring-check</code></td>
+<td><code>./le doc wiring</code></td>
 </tr>
 <tr>
 <td>Before opening a documentation PR</td>
-<td><code>make ze-doc-verify</code></td>
+<td><code>./le doc check verify</code></td>
 </tr>
 </tbody>
 </table>
-<p>The full <code>ze-doc-verify</code> remains the explicit documentation review target.
-<code>make ze-precommit-verify</code> runs <code>ze-doc-wiring-check</code>, which invokes the relevant doc,
+<p>The full <code>./le doc check verify</code> remains the explicit documentation review target.
+<code>./le verify current mode full</code> runs <code>./le doc wiring</code>, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.</p>
-<!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
-<!-- source: scripts/status/verify_run.go -- stagesForMode -->
-
+<!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 <h2 id="how-to-interpret-output">How to interpret output</h2>
-<h3 id="ze-doc-drift-check"><code>ze-doc-drift-check</code></h3>
+<h3 id="le-docvalid-doc-drift"><code>./le docvalid doc-drift</code></h3>
 <pre><code>  Documentation drift detected (N issues)
 
   x docs/DESIGN.md:708: claims 19 interop scenarios, actual is 32
-  x docs/DESIGN.md:0: plugin &quot;bgp-nlri-vpn&quot; registered but missing from Shipped Plugins table
+  x docs/DESIGN.md:0: plugin "bgp-nlri-vpn" registered but missing from Shipped Plugins table
   ...
 </code></pre>
 <p>Each issue points at a file, a line number (0 = file-level), and a
 description. Most fixes are mechanical: update a count, add a missing
 table row, remove a stale entry.</p>
-<h3 id="ze-command-contract-check"><code>ze-command-contract-check</code></h3>
+<h3 id="le-docvalid-command-contract"><code>./le docvalid command-contract</code></h3>
 <pre><code># Command Validation
 
 YANG commands: 97
@@ -212,9 +214,75 @@ Registered handlers: 69
 
 ## Handlers with no YANG command (0)
 </code></pre>
-<p>Two-direction check. Both directions are contract bugs:
-- YANG declares a command but no Go code registered an RPC or local handler -&gt; dead command
-- RPC handler registered but YANG doesn't declare it -&gt; command unreachable from CLI</p>
+<p>Two-direction check. Both directions are contract bugs:</p>
+<ul>
+<li>YANG declares a command but no Go code registered an RPC or local handler -&gt; dead command</li>
+<li>RPC handler registered but YANG doesn't declare it -&gt; command unreachable from CLI</li>
+</ul>
+<h3 id="le-docvalid-help-shape"><code>./le docvalid help-shape</code></h3>
+<pre><code># Command Help Shape
+
+Command tree nodes: 601
+Nodes that run a command: 390
+Nodes with a summary: 601
+Nodes with a long help: 0
+RPCs: 211
+RPCs with a summary: 211
+RPCs with a long help: 0
+Offline local commands: 19
+Offline local commands with a summary: 19
+Offline local commands with a long help: 0
+
+Nodes with a broken summary: 419
+RPCs with a broken summary: 170
+Offline local commands with a broken summary: 11
+
+## Broken rules (1095)
+
+  no-newline 333
+  ...
+
+  command show sockets
+    rule:    word-cap
+    problem: the summary is 32 words (STE Rule 6.3 allows 25)
+    summary: ...
+  local generate wireguard keypair
+    rule:    one-sentence
+    problem: the summary is 2 sentences
+    summary: ...
+  rpc ze-rib-api:show
+    rule:    no-usage-marker
+    problem: the summary prescribes a CLI spelling under "Syntax:"
+    summary: ...
+</code></pre>
+<p>The gate walks three corpora and holds all three to the same seven rules. A
+<code>-cmd.yang</code> node declares the CLI path an operator types. An <code>-api.yang</code> rpc
+declares the wire method that path reaches, and the plugin IPC modules in
+<code>internal/core/ipc/yang/</code> declare 22 more. Every loaded module is walked, so a
+module whose name carries no <code>-api</code> suffix is judged with the rest. An offline
+local command declares its help in a <code>registry.Meta</code> beside its handler and
+reaches no YANG module at all, and <code>ze help command --json</code> merges it with the
+tree (<code>cmd/ze/help_command.go</code>, <code>collectCommands</code>).</p>
+<p>The third corpus is read two ways, because Go forbids importing a main package.
+The registrations this binary links are read from the registry. The four
+<code>cmd/ze</code> declares in <code>package main</code> are read from its source, and a registration
+there whose path is not a literal STOPS the gate rather than being skipped. A
+path the command tree also holds is left to the command half: the catalog
+publishes the node's description for such a path and never the registration's.
+Development commands under <code>le </code> are left out, for the reason the published
+catalog leaves them out.</p>
+<p>The coverage counts say how much of each corpus is written. A node with no
+summary and a node with no long help are both counted, so an unwritten command
+is visible rather than silent. Each refusal opens with its surface, <code>command</code>,
+<code>rpc</code> or <code>local</code>, then the name that finds it. That name is the CLI path for a
+command node and for a local command, and <code>&lt;module&gt;:&lt;rpc-name&gt;</code> for an rpc. A
+summary that breaks two rules is reported twice. The report therefore states the
+number of nodes, of RPCs and of local commands as well as the number of
+refusals.</p>
+<p>Fix the summary in the YANG <code>description</code> of that node or that rpc, or in the
+<code>Description</code> of that registration. Prose that does not fit one short sentence
+belongs in the <code>ze:help</code> beside it, or in the <code>LongHelp</code> beside it, which no
+one-line surface reads.</p>
 <h2 id="how-to-fix-common-issues">How to fix common issues</h2>
 <table>
 <thead>
@@ -242,7 +310,7 @@ Registered handlers: 69
 </tr>
 <tr>
 <td>Functional test release-gate list wrong</td>
-<td>Update <code>ze-functional-test</code> in the Makefile. <span class="ev-src"><span class="ev-ref"><code>docs/functional-tests.md</code></span></span></td>
+<td>Update. <span class="ev-src"><span class="ev-ref"><code>docs/functional-tests.md</code></span><span class="ev-ref"><code>internal/le/functional/catalog.go</code></span></span></td>
 </tr>
 <tr>
 <td>Stale text parser allocation claim</td>
@@ -250,7 +318,7 @@ Registered handlers: 69
 </tr>
 <tr>
 <td>Stale source anchor path</td>
-<td>Fix or remove the <code>&lt;!-- source: ... --&gt;</code> path, then rerun <code>make ze-doc-verify</code></td>
+<td>Fix or remove the <code>&lt;!-- source: ... --&gt;</code> path, then rerun <code>./le doc check verify</code></td>
 </tr>
 <tr>
 <td><code>CLAIM: ... names 'Sym', which is not declared there</code></td>
@@ -276,41 +344,40 @@ Registered handlers: 69
 <td>Handler with no YANG <code>ze:command</code></td>
 <td>Add a YANG declaration in the appropriate <code>*-cmd.yang</code> schema</td>
 </tr>
-<tr>
-<td>## How the tools find drift</td>
-<td></td>
-</tr>
 </tbody>
 </table>
-<p><code>scripts/docvalid/doc_drift.go</code> imports <code>internal/component/plugin/all</code> so all
-plugins register themselves at init, then queries <code>registry.All()</code> and
-<code>registry.FamilyMap()</code>, walks the filesystem for <code>.ci</code> files, derives the
-functional release-gate suite list from the Makefile, and compares those live
-counts/lists against documented claims in <code>docs/DESIGN.md</code>,
-<code>docs/comparison.md</code>, <code>README.md</code>, <code>docs/features.md</code>, and
-<code>docs/functional-tests.md</code>. It also scans narrowly scoped stale claims that
-previously escaped the broad live-data checks.</p>
-<p><code>scripts/docvalid/commands.go</code> imports the same set plus the BGP cmd plugin
+<h2 id="how-the-tools-find-drift">How the tools find drift</h2>
+<p><code>internal/le/docvalid.Answer</code> imports <code>internal/component/plugin/all</code> so all
+plugins register themselves, then queries <code>registry.All()</code> and
+<code>registry.FamilyMap()</code>. It walks the <code>.ci</code> files and reads the native functional
+suite catalog from <code>internal/le/functional</code>. It compares those facts with
+claims in <code>docs/DESIGN.md</code>, <code>docs/comparison.md</code>, <code>README.md</code>,
+<code>docs/features.md</code>, and <code>docs/functional-tests.md</code>.</p>
+<p><code>internal/le/docvalid.Answer</code> imports the same set plus the BGP cmd plugin
 schema/handler packages, loads the YANG modules, and walks the schema tree
 looking for <code>ze:command</code> extensions. For each extension it checks
 <code>registry.CollectRPCHandlers()</code> for a matching method name.</p>
-<p><code>scripts/dev/code_to_docs.py --check</code> scans every markdown source anchor under
-<code>docs/</code>, extracts referenced code paths, and fails if any referenced file or
-directory is missing. The same script writes <code>ai/CODE-TO-DOCS.md</code> when run
-without <code>--check</code>; check mode is read-only. That output is gitignored: it is a
-pure derivation of the tree that no code reads, it rebuilds in about a second,
-and tracking it meant a diff on every commit that added a source anchor.</p>
-<p>One walk of <code>docs/</code> also feeds the symbol half. An anchor is
-<code>&lt;!-- source: &lt;path&gt; -- Sym1, Sym2 --&gt;</code>, and the tokens after the <code>--</code> used to
-be discarded. <code>anchor_symbol_tokens</code> keeps a token only when it is an identifier
-or a dotted chain of them, so a description holding a space or a hyphen is prose
-and is never checked. <code>go_declarations</code> then reads the anchored <code>.go</code> file's own
-text for top-level funcs, methods, types, vars, consts, struct fields and
-interface methods. It is a text scan rather than a <code>gopls</code> query, so it carries
-no build context and finds a <code>//go:build linux</code> declaration on a macOS host.
-<code>check_anchor_symbols</code> compares the two, and the <code>report=</code> argument <code>main()</code>
-passes decides whether a finding is printed.</p>
-<p><code>scripts/dev/check_doc_links.py</code> walks the instruction corpus for paths,
+<p><code>./le docs-to-code check</code> scans every Markdown source anchor under <code>docs/</code> and
+refuses a missing source path or symbol. <code>./le docs-to-code update</code> regenerates
+the two documentation indexes.</p>
+<p>One walk of <code>docs/</code> feeds the path and symbol checks. An anchor is
+<code>&lt;!-- source: &lt;path&gt; -- Sym1, Sym2 --&gt;</code>. <code>internal/le/docstocode.CheckCodeIndex</code>
+keeps an identifier or dotted method chain from the claim and compares it with
+the declarations in the anchored Go file. The scan is independent of build
+tags, so a Linux declaration remains visible on a macOS host.</p>
+<p>The same walk answers the opposite question. <code>internal/le/docstocode.ClaimsByPath</code>
+maps a code path to the claims written about it, each with the symbols its
+anchor names, and the <code>doc-drift</code> check in <code>internal/le/doc/wiring</code> refuses a
+commit that changed one of those symbols and left its page alone.</p>
+<!-- source: internal/le/doc/wiring/checks.go -- checkDocDrift, touchedSymbols -->
+<p>The check reads the diff hunks, maps each to the declaration it lands in, and
+compares those names with the anchor's claim. So an edit elsewhere in the same
+file reports nothing, and a page counts for itself alone. A test file is out of
+scope. A claim naming no resolvable symbol blocks nothing and is counted in the
+verdict line, because silence and "nothing to say" must not read alike.
+<code>ai/rules/documentation.md</code> states the obligation this enforces: the page edit
+belongs in the same work as the code edit.</p>
+<p><code>internal/le/doc/check.Answer</code> walks the instruction corpus for paths,
 <code>// Design:</code> targets and hook names. Its last two checks do not use that
 corpus. <code>sweep_tracked</code> reads every file <code>git ls-files</code> names, one time, and
 <code>check_ignore_reasons</code> and <code>check_tracked_citations</code> share that one walk.
@@ -320,52 +387,49 @@ Check 5 reports a path reference that does not resolve, in any tracked file.
 Two moves remove a finding: repair the reference, or mark its line with a
 marker that states why the path cannot resolve.</p>
 <p>The references that predate check 5 are grandfathered in
-<code>scripts/dev/doc_citation_baseline.txt</code>, one <code>citing file&lt;TAB&gt;dead target</code> pair
-per line. It records pairs rather than bare targets, so a NEW file that cites
-an already-dead target is reported. <code>check_baseline_growth</code> compares the file
-against its own version at HEAD. It refuses every pair HEAD does not hold, so
-the baseline only shrinks. The comparison is over the pairs, never over their
-number: a repair and a new dead citation in one commit leave the total unmoved
-and are refused all the same.</p>
-<p>Repair a citation to remove its pair, then delete that line from the baseline.
-<code>python3 scripts/dev/check_doc_links.py --write-baseline</code> regenerates the whole
-file from the WORKING TREE, so in a checkout several sessions share it absorbs
-whatever they are part way through editing. Use it to shrink the file, and read
-the diff it produces before you keep it. A pair the tree no longer carries
-prints a <code>WARN</code> line, and the exit code stays 0. One session's repair therefore
-never reds another session's run. Three roots are outside check 5:
-<code>vendor/</code> and <code>third_party/</code> hold another repository's files, and
-<code>plan/handover/</code> records the tree as it was.</p>
-<p><code>scripts/lint/consistency.go</code> walks <code>.go</code> files, parses <code>// Design:</code>,
-<code>// Detail:</code>, <code>// Overview:</code>, <code>// Related:</code> comments, checks for asymmetries,
-and scans <code>docs/</code>/<code>scripts/</code> for references to packages that no longer exist.</p>
+<code>internal/le/doc/check/testdata/doc_citation_baseline.txt</code>, one
+<code>citing file&lt;TAB&gt;dead target</code> pair per line. It records pairs rather than bare
+targets, so a new file that cites an already-dead target is reported. The check
+compares the file with its version at <code>HEAD</code> and refuses every pair that <code>HEAD</code>
+does not hold, so the baseline only shrinks.</p>
+<p>Repair a citation and delete its pair from the baseline in the same change.
+<code>./le doc check links</code> validates the result against the working tree and warns
+when a baseline pair is no longer needed. The command does not rewrite the
+shared baseline, so one session cannot absorb another session's unfinished
+edits.</p>
+<p>The three roots outside the tracked citation scan are <code>vendor/</code>,
+<code>third_party/</code>, and <code>plan/handover/</code>: the first two hold another repository's
+files, while the last records an earlier tree.</p>
+<p><code>internal/le/consistency</code> parses <code>// Design:</code>, <code>// Detail:</code>, <code>// Overview:</code>, and
+<code>// Related:</code> comments, checks their symmetry, and reports references to
+packages that no longer exist.</p>
 <h2 id="adding-a-new-documentation-check">Adding a new documentation check</h2>
 <ol>
-<li>Write the check as a <code>//go:build ignore</code> Go program in <code>scripts/docvalid/</code>,
-   following the patterns in <code>doc_drift.go</code>.</li>
-<li>Add a <code>make ze-foo-check</code> target to <code>mk/check-docs.mk</code> or the owning <code>mk/</code>
-   file.</li>
-<li>Add the new target to <code>ze-doc-verify</code> if failure should fail the umbrella.</li>
-<li>Add the new target to <code>scripts/dev/verify_wiring_docs.py</code> if changed files
-   should trigger it during <code>make ze-precommit-verify</code>.</li>
-<li>Add a row to the table in this file.</li>
-<li>Update <code>ai/INDEX.md</code>, and the discovery-surface table of
-   <code>ai/rules/repo-maintenance.md</code>, when the new check changes what future
-   agents should run or discover. That rule file is GENERATED: edit its point
-   file under <code>ai/rules/points/repo-maintenance/</code>, then run
-   <code>make ze-rules-condensed-update</code>.</li>
-<li>Add a help entry in the Makefile or owning <code>mk/</code> quick reference.</li>
+<li>Add callable Go behavior to the owning package under <code>internal/le/</code>.</li>
+<li>Add one action to that package's table and register its area through
+<code>leroot.Register</code>. A related check joins an existing area rather than opening
+another root name.</li>
+<li>Register the action with <code>internal/le/leroot</code> and expose it as
+<code>./le &lt;area&gt; &lt;action&gt;</code>.</li>
+<li>Add the callable action to <code>internal/le/doc/wiring</code> when changed files should
+trigger it during pre-commit verification.</li>
+<li>Add its producer and exact command to this page and <code>ai/INDEX.md</code>.</li>
+<li>If agent rules need the command, edit the canonical rule point and render the
+rule corpus through <code>./le rules render-update</code>.</li>
 </ol>
+<p>Repository tooling is compiled Go under <code>internal/le</code>; package-owned fixtures
+belong in that package's <code>testdata/</code> directory.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><code>ai/rules/writing.md</code> -- canonical documentation rules,
-  including the BLOCKING Documentation Update Checklist for specs</li>
+including the BLOCKING Documentation Update Checklist for specs</li>
 <li><code>ai/rules/repo-maintenance.md</code> -- required discovery updates when new
-  checks, tools, or verification gates are added</li>
-<li><code>ai/rules/repo-maintenance.md</code> -- which hooks and make gates enforce which rules</li>
-<li><code>mk/check-docs.mk</code> -- owning make targets for documentation, inventory,
-  command validation, and wiring/doc gates</li>
+checks, tools, or verification gates are added</li>
+<li><code>ai/rules/repo-maintenance.md</code> -- which native gates enforce which rules</li>
+<li><code>internal/le/doc/check</code> and <code>internal/le/doc/wiring</code> -- documentation checks,
+command validation, and changed-file wiring</li>
 </ul>
+
             </section>
         </main>
 
@@ -375,7 +439,7 @@ and scans <code>docs/</code>/<code>scripts/</code> for references to packages th
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 20:21 UTC</span>
                 </div>
             </div>
         </footer>

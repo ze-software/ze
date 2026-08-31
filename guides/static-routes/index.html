@@ -106,7 +106,6 @@ the main table at the kernel's default metric without reporting anything.
 Ze's released targets are 64-bit, where the full uint32 range is available.</p>
 <!-- source: internal/core/routingtable/registry.go — validateTableID, maxEncodableTableID -->
 <!-- source: internal/plugins/static/config.go — validateRouteMetric, maxNetlinkInt -->
-
 <h3 id="interface-only-next-hops">Interface-only next-hops</h3>
 <p>For point-to-point links (PPPoE, GRE tunnels) where the next-hop is
 the interface itself:</p>
@@ -244,7 +243,7 @@ outgoing interface:</p>
 <pre><code>static {
     table default {
         route 172.16.0.0/12 {
-            description &quot;internal networks&quot;
+            description "internal networks"
             metric 100
             tag 42
             next { hop 10.0.0.1 { } }
@@ -279,6 +278,7 @@ framework. BGP redistribute can import static routes:</p>
     }
 }
 </code></pre>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -320,7 +320,7 @@ framework. BGP redistribute can import static routes:</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

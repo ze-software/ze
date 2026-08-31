@@ -259,21 +259,21 @@
                 "type": "uint8"
               },
               {
-                "description": "Shared secret for the keyed digest. Redacted\nfrom `ze config show` output. MD5 variants\nuse the first 16 bytes of the secret, SHA1\nvariants the first 20.",
+                "description": "Shared secret. Redacted from `ze config show`\noutput. MD5 variants use the first 16 bytes of\nthe secret, SHA1 variants the first 20, and\nboth pad a shorter secret with zeros. The\nsimple-password type carries the secret itself\non the wire, so it must be 1 to 16 bytes and a\nlonger one is refused at parse time (RFC 5880\nSection 6.7.2).",
                 "kind": "leaf",
                 "name": "secret",
                 "source": "config",
                 "type": "string"
               },
               {
-                "description": "Authentication type. Simple Password is\nintentionally absent from the enum.",
+                "description": "Authentication type. There is no default: the\noperator names the type, and simple-password is\nnever selected on their behalf.",
                 "kind": "leaf",
                 "name": "type",
                 "source": "config",
                 "type": "enumeration"
               }
             ],
-            "description": "RFC 5880 Section 6.7 authentication parameters.\nSessions inheriting this profile sign every\noutgoing Control packet with the configured type\nand verify incoming packets using the same key.\nSimple Password (type 1) is rejected at parse\ntime -- it provides no cryptographic protection\nand RFC 5880 warns against using it.",
+            "description": "RFC 5880 Section 6.7 authentication parameters.\nSessions inheriting this profile sign every\noutgoing Control packet with the configured type\nand verify incoming packets using the same key.\nThere is no default type: authentication runs\nonly on the type the operator names here.",
             "kind": "container",
             "name": "auth",
             "source": "config"
@@ -738,7 +738,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Message types this program may send toward the\npeer. Valid: update, refresh, enhanced-refresh\n(BORR/EORR markers, RFC 7313), and '*' for every type.\nA direction has no meaning here, because every send\ntype is sent.\nValidated at runtime against known send types.",
+                    "description": "Message types this program may send toward the\npeer. Valid: update, refresh, raw (a whole BGP message\nthe program builds itself), enhanced-refresh\n(BORR/EORR markers, RFC 7313), and '*' for every type.\nA direction has no meaning here, because every send\ntype is sent.\nValidated at runtime against known send types.",
                     "kind": "leaf-list",
                     "name": "send",
                     "source": "config",
@@ -751,7 +751,7 @@
                 "source": "config"
               }
             ],
-            "description": "Programs this peer attaches. Each attachment names one\nprogram declared under plugin/external and states what\nthat program receives from this peer and what it may\nsend to it. Written as one statement per program:\n`attach process <name> { ... }`.",
+            "description": "Programs this peer attaches. Each attachment names one\nprogram declared under plugin/external and states what\nthat program receives from this peer and what it may\nsend to it. Written as one statement per program:\n`attach process \u003cname\u003e { ... }`.",
             "kind": "container",
             "name": "attach",
             "source": "config"
@@ -817,7 +817,7 @@
           {
             "children": [
               {
-                "description": "Directory holding this peer's capture files, created if absent. One file\nper peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room\nfor the configured maximum-size, twice over when on-limit is rotate.\n'ze doctor' reports whether the directory is writable.",
+                "description": "Directory holding this peer's capture files, created if absent. One file\nper peer, named bgp-\u003cpeer-address\u003e.jsonl. Choose a filesystem with room\nfor the configured maximum-size, twice over when on-limit is rotate.\n'ze doctor' reports whether the directory is writable.",
                 "kind": "leaf",
                 "name": "directory",
                 "source": "config",
@@ -838,14 +838,14 @@
                 "type": "uint32"
               },
               {
-                "description": "What happens when a capture file reaches maximum-size. 'rotate' renames\nit to <file>.1, replacing any earlier rotation, and starts a fresh file,\nso capture continues and the newest events are kept. 'stop' closes the\nfile and captures nothing further, so the oldest events are kept.\nEither way the daemon is unaffected and the file ends with a\ncapture-stop record.",
+                "description": "What happens when a capture file reaches maximum-size. 'rotate' renames\nit to \u003cfile\u003e.1, replacing any earlier rotation, and starts a fresh file,\nso capture continues and the newest events are kept. 'stop' closes the\nfile and captures nothing further, so the oldest events are kept.\nEither way the daemon is unaffected and the file ends with a\ncapture-stop record.",
                 "kind": "leaf",
                 "name": "on-limit",
                 "source": "config",
                 "type": "enumeration"
               }
             ],
-            "description": "Protocol event capture for this peer. When enabled, every message the peer\nsends is written to a JSONL file as raw wire bytes plus arrival metadata,\ntogether with the config operations applied while the capture runs. Replay\nthe file on a developer machine with 'ze-test replay <file>' to drive the\nsame state machine over the same input. Capture is a diagnostic aid: leave\nit off in steady state.\nThe file holds the peer's routing data (prefixes, AS paths, communities,\nnext-hops). It holds no local secret: TCP-MD5 keys never appear on the wire,\nand captured config payloads are redacted. Handle a capture file like a\nrouting-table dump.",
+            "description": "Protocol event capture for this peer. When enabled, every message the peer\nsends is written to a JSONL file as raw wire bytes plus arrival metadata,\ntogether with the config operations applied while the capture runs. Replay\nthe file on a developer machine with 'ze-test replay \u003cfile\u003e' to drive the\nsame state machine over the same input. Capture is a diagnostic aid: leave\nit off in steady state.\nThe file holds the peer's routing data (prefixes, AS paths, communities,\nnext-hops). It holds no local secret: TCP-MD5 keys never appear on the wire,\nand captured config payloads are redacted. Handle a capture file like a\nrouting-table dump.",
             "kind": "container",
             "name": "capture",
             "source": "config"
@@ -869,7 +869,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Multi-hop minimum acceptable TTL (RFC 5883 \u00a75).\nIgnored for single-hop. Zero means use the\nplugin default (254).",
+                    "description": "Multi-hop minimum acceptable TTL (RFC 5883 §5).\nIgnored for single-hop. Zero means use the\nplugin default (254).",
                     "kind": "leaf",
                     "name": "min-ttl",
                     "source": "config",
@@ -1225,7 +1225,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Message types this program may send toward the\npeer. Valid: update, refresh, enhanced-refresh\n(BORR/EORR markers, RFC 7313), and '*' for every type.\nA direction has no meaning here, because every send\ntype is sent.\nValidated at runtime against known send types.",
+                        "description": "Message types this program may send toward the\npeer. Valid: update, refresh, raw (a whole BGP message\nthe program builds itself), enhanced-refresh\n(BORR/EORR markers, RFC 7313), and '*' for every type.\nA direction has no meaning here, because every send\ntype is sent.\nValidated at runtime against known send types.",
                         "kind": "leaf-list",
                         "name": "send",
                         "source": "config",
@@ -1238,7 +1238,7 @@
                     "source": "config"
                   }
                 ],
-                "description": "Programs this peer attaches. Each attachment names one\nprogram declared under plugin/external and states what\nthat program receives from this peer and what it may\nsend to it. Written as one statement per program:\n`attach process <name> { ... }`.",
+                "description": "Programs this peer attaches. Each attachment names one\nprogram declared under plugin/external and states what\nthat program receives from this peer and what it may\nsend to it. Written as one statement per program:\n`attach process \u003cname\u003e { ... }`.",
                 "kind": "container",
                 "name": "attach",
                 "source": "config"
@@ -1304,7 +1304,7 @@
               {
                 "children": [
                   {
-                    "description": "Directory holding this peer's capture files, created if absent. One file\nper peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room\nfor the configured maximum-size, twice over when on-limit is rotate.\n'ze doctor' reports whether the directory is writable.",
+                    "description": "Directory holding this peer's capture files, created if absent. One file\nper peer, named bgp-\u003cpeer-address\u003e.jsonl. Choose a filesystem with room\nfor the configured maximum-size, twice over when on-limit is rotate.\n'ze doctor' reports whether the directory is writable.",
                     "kind": "leaf",
                     "name": "directory",
                     "source": "config",
@@ -1325,14 +1325,14 @@
                     "type": "uint32"
                   },
                   {
-                    "description": "What happens when a capture file reaches maximum-size. 'rotate' renames\nit to <file>.1, replacing any earlier rotation, and starts a fresh file,\nso capture continues and the newest events are kept. 'stop' closes the\nfile and captures nothing further, so the oldest events are kept.\nEither way the daemon is unaffected and the file ends with a\ncapture-stop record.",
+                    "description": "What happens when a capture file reaches maximum-size. 'rotate' renames\nit to \u003cfile\u003e.1, replacing any earlier rotation, and starts a fresh file,\nso capture continues and the newest events are kept. 'stop' closes the\nfile and captures nothing further, so the oldest events are kept.\nEither way the daemon is unaffected and the file ends with a\ncapture-stop record.",
                     "kind": "leaf",
                     "name": "on-limit",
                     "source": "config",
                     "type": "enumeration"
                   }
                 ],
-                "description": "Protocol event capture for this peer. When enabled, every message the peer\nsends is written to a JSONL file as raw wire bytes plus arrival metadata,\ntogether with the config operations applied while the capture runs. Replay\nthe file on a developer machine with 'ze-test replay <file>' to drive the\nsame state machine over the same input. Capture is a diagnostic aid: leave\nit off in steady state.\nThe file holds the peer's routing data (prefixes, AS paths, communities,\nnext-hops). It holds no local secret: TCP-MD5 keys never appear on the wire,\nand captured config payloads are redacted. Handle a capture file like a\nrouting-table dump.",
+                "description": "Protocol event capture for this peer. When enabled, every message the peer\nsends is written to a JSONL file as raw wire bytes plus arrival metadata,\ntogether with the config operations applied while the capture runs. Replay\nthe file on a developer machine with 'ze-test replay \u003cfile\u003e' to drive the\nsame state machine over the same input. Capture is a diagnostic aid: leave\nit off in steady state.\nThe file holds the peer's routing data (prefixes, AS paths, communities,\nnext-hops). It holds no local secret: TCP-MD5 keys never appear on the wire,\nand captured config payloads are redacted. Handle a capture file like a\nrouting-table dump.",
                 "kind": "container",
                 "name": "capture",
                 "source": "config"
@@ -1356,7 +1356,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "Multi-hop minimum acceptable TTL (RFC 5883 \u00a75).\nIgnored for single-hop. Zero means use the\nplugin default (254).",
+                        "description": "Multi-hop minimum acceptable TTL (RFC 5883 §5).\nIgnored for single-hop. Zero means use the\nplugin default (254).",
                         "kind": "leaf",
                         "name": "min-ttl",
                         "source": "config",
@@ -1791,7 +1791,7 @@
                     "type": "boolean"
                   }
                 ],
-                "description": "Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)",
+                "description": "Per-peer/group RPKI action overrides (peer \u003e group \u003e global, resolved per leaf)",
                 "kind": "container",
                 "name": "rpki",
                 "source": "config"
@@ -1822,7 +1822,7 @@
                         "type": "asn"
                       },
                       {
-                        "description": "Modifiers for local-as behavior.\nno-prepend: real ASN not prepended before local-as.\nreplace-as: local-as replaces real ASN entirely.\nBoth together: full replacement with no prepend.",
+                        "description": "Modifiers for local-as behavior. The two options act in different\ndirections, so each one is set on its own.\nno-prepend: inbound, the local-as is not added to a route received\nfrom this peer.\nreplace-as: outbound, this peer sees the local-as alone instead of\nthe local-as followed by the globally configured ASN.\nWith neither option, this peer sees the local-as followed by the\nglobally configured ASN.",
                         "kind": "leaf-list",
                         "name": "local-options",
                         "source": "config",
@@ -2165,6 +2165,13 @@
                     "type": "union"
                   },
                   {
+                    "description": "Advertise the BGP Prefix-SID attribute (code 40) to this EBGP peer.\nRFC 8669 Section 8: the propagation to other ASes MUST be explicitly\nconfigured, so the attribute is removed from every UPDATE sent to an\nEBGP peer that does not set this leaf. Set it on an EBGP neighbor that\nis inside the same SR domain: an SR domain can span more than one AS,\nand ze cannot derive that membership from the ASN. Has no effect on\nIBGP (always advertised).",
+                    "kind": "leaf",
+                    "name": "propagate-srv6-prefix-sid",
+                    "source": "config",
+                    "type": "boolean"
+                  },
+                  {
                     "description": "Mark this peer as a route reflector client (RFC 4456).\nRoutes from clients are forwarded to all clients and non-clients.\nRoutes from non-clients are forwarded to clients only.",
                     "kind": "leaf",
                     "name": "route-reflector-client",
@@ -2208,7 +2215,7 @@
                     "type": "uint16"
                   },
                   {
-                    "description": "Receive hold time in seconds (RFC 4271: 0 or >= 3). Proposed in OPEN.",
+                    "description": "Receive hold time in seconds (RFC 4271: 0 or \u003e= 3). Proposed in OPEN.",
                     "kind": "leaf",
                     "name": "receive-hold-time",
                     "source": "config",
@@ -2413,7 +2420,7 @@
                         "type": "boolean"
                       }
                     ],
-                    "description": "Watchdog-controlled route - held until 'bgp watchdog announce <name>'",
+                    "description": "Watchdog-controlled route - held until 'bgp watchdog announce \u003cname\u003e'",
                     "kind": "container",
                     "name": "watchdog",
                     "source": "config"
@@ -2579,7 +2586,7 @@
                 "type": "boolean"
               }
             ],
-            "description": "Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)",
+            "description": "Per-peer/group RPKI action overrides (peer \u003e group \u003e global, resolved per leaf)",
             "kind": "container",
             "name": "rpki",
             "source": "config"
@@ -2610,7 +2617,7 @@
                     "type": "asn"
                   },
                   {
-                    "description": "Modifiers for local-as behavior.\nno-prepend: real ASN not prepended before local-as.\nreplace-as: local-as replaces real ASN entirely.\nBoth together: full replacement with no prepend.",
+                    "description": "Modifiers for local-as behavior. The two options act in different\ndirections, so each one is set on its own.\nno-prepend: inbound, the local-as is not added to a route received\nfrom this peer.\nreplace-as: outbound, this peer sees the local-as alone instead of\nthe local-as followed by the globally configured ASN.\nWith neither option, this peer sees the local-as followed by the\nglobally configured ASN.",
                     "kind": "leaf-list",
                     "name": "local-options",
                     "source": "config",
@@ -2953,6 +2960,13 @@
                 "type": "union"
               },
               {
+                "description": "Advertise the BGP Prefix-SID attribute (code 40) to this EBGP peer.\nRFC 8669 Section 8: the propagation to other ASes MUST be explicitly\nconfigured, so the attribute is removed from every UPDATE sent to an\nEBGP peer that does not set this leaf. Set it on an EBGP neighbor that\nis inside the same SR domain: an SR domain can span more than one AS,\nand ze cannot derive that membership from the ASN. Has no effect on\nIBGP (always advertised).",
+                "kind": "leaf",
+                "name": "propagate-srv6-prefix-sid",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
                 "description": "Mark this peer as a route reflector client (RFC 4456).\nRoutes from clients are forwarded to all clients and non-clients.\nRoutes from non-clients are forwarded to clients only.",
                 "kind": "leaf",
                 "name": "route-reflector-client",
@@ -2996,7 +3010,7 @@
                 "type": "uint16"
               },
               {
-                "description": "Receive hold time in seconds (RFC 4271: 0 or >= 3). Proposed in OPEN.",
+                "description": "Receive hold time in seconds (RFC 4271: 0 or \u003e= 3). Proposed in OPEN.",
                 "kind": "leaf",
                 "name": "receive-hold-time",
                 "source": "config",
@@ -3201,7 +3215,7 @@
                     "type": "boolean"
                   }
                 ],
-                "description": "Watchdog-controlled route - held until 'bgp watchdog announce <name>'",
+                "description": "Watchdog-controlled route - held until 'bgp watchdog announce \u003cname\u003e'",
                 "kind": "container",
                 "name": "watchdog",
                 "source": "config"
@@ -3385,7 +3399,7 @@
       {
         "children": [
           {
-            "description": "Maximum number of equal-cost paths to install per prefix.\n1 means single best path (default, RFC 4271 Section 9.1.2).\nValues > 1 enable ECMP with N-way load balancing.",
+            "description": "Maximum number of equal-cost paths to install per prefix.\n1 means single best path (default, RFC 4271 Section 9.1.2).\nValues \u003e 1 enable ECMP with N-way load balancing.",
             "kind": "leaf",
             "name": "maximum-paths",
             "source": "config",
@@ -3474,7 +3488,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Message types this program may send toward the\npeer. Valid: update, refresh, enhanced-refresh\n(BORR/EORR markers, RFC 7313), and '*' for every type.\nA direction has no meaning here, because every send\ntype is sent.\nValidated at runtime against known send types.",
+                    "description": "Message types this program may send toward the\npeer. Valid: update, refresh, raw (a whole BGP message\nthe program builds itself), enhanced-refresh\n(BORR/EORR markers, RFC 7313), and '*' for every type.\nA direction has no meaning here, because every send\ntype is sent.\nValidated at runtime against known send types.",
                     "kind": "leaf-list",
                     "name": "send",
                     "source": "config",
@@ -3487,7 +3501,7 @@
                 "source": "config"
               }
             ],
-            "description": "Programs this peer attaches. Each attachment names one\nprogram declared under plugin/external and states what\nthat program receives from this peer and what it may\nsend to it. Written as one statement per program:\n`attach process <name> { ... }`.",
+            "description": "Programs this peer attaches. Each attachment names one\nprogram declared under plugin/external and states what\nthat program receives from this peer and what it may\nsend to it. Written as one statement per program:\n`attach process \u003cname\u003e { ... }`.",
             "kind": "container",
             "name": "attach",
             "source": "config"
@@ -3553,7 +3567,7 @@
           {
             "children": [
               {
-                "description": "Directory holding this peer's capture files, created if absent. One file\nper peer, named bgp-<peer-address>.jsonl. Choose a filesystem with room\nfor the configured maximum-size, twice over when on-limit is rotate.\n'ze doctor' reports whether the directory is writable.",
+                "description": "Directory holding this peer's capture files, created if absent. One file\nper peer, named bgp-\u003cpeer-address\u003e.jsonl. Choose a filesystem with room\nfor the configured maximum-size, twice over when on-limit is rotate.\n'ze doctor' reports whether the directory is writable.",
                 "kind": "leaf",
                 "name": "directory",
                 "source": "config",
@@ -3574,14 +3588,14 @@
                 "type": "uint32"
               },
               {
-                "description": "What happens when a capture file reaches maximum-size. 'rotate' renames\nit to <file>.1, replacing any earlier rotation, and starts a fresh file,\nso capture continues and the newest events are kept. 'stop' closes the\nfile and captures nothing further, so the oldest events are kept.\nEither way the daemon is unaffected and the file ends with a\ncapture-stop record.",
+                "description": "What happens when a capture file reaches maximum-size. 'rotate' renames\nit to \u003cfile\u003e.1, replacing any earlier rotation, and starts a fresh file,\nso capture continues and the newest events are kept. 'stop' closes the\nfile and captures nothing further, so the oldest events are kept.\nEither way the daemon is unaffected and the file ends with a\ncapture-stop record.",
                 "kind": "leaf",
                 "name": "on-limit",
                 "source": "config",
                 "type": "enumeration"
               }
             ],
-            "description": "Protocol event capture for this peer. When enabled, every message the peer\nsends is written to a JSONL file as raw wire bytes plus arrival metadata,\ntogether with the config operations applied while the capture runs. Replay\nthe file on a developer machine with 'ze-test replay <file>' to drive the\nsame state machine over the same input. Capture is a diagnostic aid: leave\nit off in steady state.\nThe file holds the peer's routing data (prefixes, AS paths, communities,\nnext-hops). It holds no local secret: TCP-MD5 keys never appear on the wire,\nand captured config payloads are redacted. Handle a capture file like a\nrouting-table dump.",
+            "description": "Protocol event capture for this peer. When enabled, every message the peer\nsends is written to a JSONL file as raw wire bytes plus arrival metadata,\ntogether with the config operations applied while the capture runs. Replay\nthe file on a developer machine with 'ze-test replay \u003cfile\u003e' to drive the\nsame state machine over the same input. Capture is a diagnostic aid: leave\nit off in steady state.\nThe file holds the peer's routing data (prefixes, AS paths, communities,\nnext-hops). It holds no local secret: TCP-MD5 keys never appear on the wire,\nand captured config payloads are redacted. Handle a capture file like a\nrouting-table dump.",
             "kind": "container",
             "name": "capture",
             "source": "config"
@@ -3605,7 +3619,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Multi-hop minimum acceptable TTL (RFC 5883 \u00a75).\nIgnored for single-hop. Zero means use the\nplugin default (254).",
+                    "description": "Multi-hop minimum acceptable TTL (RFC 5883 §5).\nIgnored for single-hop. Zero means use the\nplugin default (254).",
                     "kind": "leaf",
                     "name": "min-ttl",
                     "source": "config",
@@ -4040,7 +4054,7 @@
                 "type": "boolean"
               }
             ],
-            "description": "Per-peer/group RPKI action overrides (peer > group > global, resolved per leaf)",
+            "description": "Per-peer/group RPKI action overrides (peer \u003e group \u003e global, resolved per leaf)",
             "kind": "container",
             "name": "rpki",
             "source": "config"
@@ -4071,7 +4085,7 @@
                     "type": "asn"
                   },
                   {
-                    "description": "Modifiers for local-as behavior.\nno-prepend: real ASN not prepended before local-as.\nreplace-as: local-as replaces real ASN entirely.\nBoth together: full replacement with no prepend.",
+                    "description": "Modifiers for local-as behavior. The two options act in different\ndirections, so each one is set on its own.\nno-prepend: inbound, the local-as is not added to a route received\nfrom this peer.\nreplace-as: outbound, this peer sees the local-as alone instead of\nthe local-as followed by the globally configured ASN.\nWith neither option, this peer sees the local-as followed by the\nglobally configured ASN.",
                     "kind": "leaf-list",
                     "name": "local-options",
                     "source": "config",
@@ -4414,6 +4428,13 @@
                 "type": "union"
               },
               {
+                "description": "Advertise the BGP Prefix-SID attribute (code 40) to this EBGP peer.\nRFC 8669 Section 8: the propagation to other ASes MUST be explicitly\nconfigured, so the attribute is removed from every UPDATE sent to an\nEBGP peer that does not set this leaf. Set it on an EBGP neighbor that\nis inside the same SR domain: an SR domain can span more than one AS,\nand ze cannot derive that membership from the ASN. Has no effect on\nIBGP (always advertised).",
+                "kind": "leaf",
+                "name": "propagate-srv6-prefix-sid",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
                 "description": "Mark this peer as a route reflector client (RFC 4456).\nRoutes from clients are forwarded to all clients and non-clients.\nRoutes from non-clients are forwarded to clients only.",
                 "kind": "leaf",
                 "name": "route-reflector-client",
@@ -4457,7 +4478,7 @@
                 "type": "uint16"
               },
               {
-                "description": "Receive hold time in seconds (RFC 4271: 0 or >= 3). Proposed in OPEN.",
+                "description": "Receive hold time in seconds (RFC 4271: 0 or \u003e= 3). Proposed in OPEN.",
                 "kind": "leaf",
                 "name": "receive-hold-time",
                 "source": "config",
@@ -4662,7 +4683,7 @@
                     "type": "boolean"
                   }
                 ],
-                "description": "Watchdog-controlled route - held until 'bgp watchdog announce <name>'",
+                "description": "Watchdog-controlled route - held until 'bgp watchdog announce \u003cname\u003e'",
                 "kind": "container",
                 "name": "watchdog",
                 "source": "config"
@@ -5480,7 +5501,7 @@
                 "type": "boolean"
               }
             ],
-            "description": "Watchdog-controlled route - held until 'bgp watchdog announce <name>'",
+            "description": "Watchdog-controlled route - held until 'bgp watchdog announce \u003cname\u003e'",
             "kind": "container",
             "name": "watchdog",
             "source": "config"
@@ -5805,7 +5826,7 @@
             "type": "uint32"
           },
           {
-            "description": "When true, a critical-severity AttackDetected (peak >= 5x threshold) auto-engages an immediate upstream discard (RTBH-style) without waiting for characterization. When false (default) the upstream rule is announced only from AttackCharacterized, so it is precise before the box goes blind behind the filter.",
+            "description": "When true, a critical-severity AttackDetected (peak \u003e= 5x threshold) auto-engages an immediate upstream discard (RTBH-style) without waiting for characterization. When false (default) the upstream rule is announced only from AttackCharacterized, so it is precise before the box goes blind behind the filter.",
             "kind": "leaf",
             "name": "blackhole-fallback",
             "source": "config",
@@ -6069,7 +6090,7 @@
             "source": "config"
           },
           {
-            "description": "Bearer token for API authentication. When set, clients must send\nAuthorization: Bearer <token> header. Leave empty to allow\nunauthenticated access.",
+            "description": "Bearer token for API authentication. When set, clients must send\nAuthorization: Bearer \u003ctoken\u003e header. Leave empty to allow\nunauthenticated access.",
             "kind": "leaf",
             "name": "token",
             "source": "config",
@@ -6496,7 +6517,7 @@
                 "type": "string"
               },
               {
-                "description": "HTTPS URL of the authorization server. The\nresource server reads AS metadata from\n<url>/.well-known/oauth-authorization-server\n(RFC 8414) to discover the jwks_uri.",
+                "description": "HTTPS URL of the authorization server. The\nresource server reads AS metadata from\n\u003curl\u003e/.well-known/oauth-authorization-server\n(RFC 8414) to discover the jwks_uri.",
                 "kind": "leaf",
                 "name": "authorization-server",
                 "source": "config",
@@ -7249,14 +7270,14 @@
                         "type": "ip-prefix"
                       },
                       {
-                        "description": "Match source address against IRR-resolved prefixes for\nthis AS-SET. Requires cached prefix data (run 'update\nfirewall irr as-set <name>' first). Config commit\nrejects if no cached data exists.",
+                        "description": "Match source address against IRR-resolved prefixes for\nthis AS-SET. Requires cached prefix data (run 'update\nfirewall irr as-set \u003cname\u003e' first). Config commit\nrejects if no cached data exists.",
                         "kind": "leaf",
                         "name": "source-as-set",
                         "source": "config",
                         "type": "string"
                       },
                       {
-                        "description": "Match source address against IRR-resolved prefixes for\nthis ASN. Requires cached prefix data (run 'update\nfirewall irr asn <N>' first). Config commit rejects\nif no cached data exists.",
+                        "description": "Match source address against IRR-resolved prefixes for\nthis ASN. Requires cached prefix data (run 'update\nfirewall irr asn \u003cN\u003e' first). Config commit rejects\nif no cached data exists.",
                         "kind": "leaf",
                         "name": "source-asn",
                         "source": "config",
@@ -7895,28 +7916,28 @@
           {
             "children": [
               {
-                "description": "Generic Receive Offload. Aggregates small incoming\npackets into larger ones before passing them up the\nnetwork stack, reducing per-packet CPU overhead.\nSoftware-based (works on all NIC types including\nveth and dummy). Applied via kernel ioctl\n(ETHTOOL_SGRO). Equivalent to: ethtool -K <dev>\ngro on|off.",
+                "description": "Generic Receive Offload. Aggregates small incoming\npackets into larger ones before passing them up the\nnetwork stack, reducing per-packet CPU overhead.\nSoftware-based (works on all NIC types including\nveth and dummy). Applied via kernel ioctl\n(ETHTOOL_SGRO). Equivalent to: ethtool -K \u003cdev\u003e\ngro on|off.",
                 "kind": "leaf",
                 "name": "gro",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Generic Segmentation Offload. Delays segmentation\nof large outgoing packets until just before the NIC\ndriver transmit path, reducing CPU work in the upper\nstack. Software-based counterpart of TSO. Applied\nvia kernel ioctl (ETHTOOL_SGSO). Equivalent to:\nethtool -K <dev> gso on|off.",
+                "description": "Generic Segmentation Offload. Delays segmentation\nof large outgoing packets until just before the NIC\ndriver transmit path, reducing CPU work in the upper\nstack. Software-based counterpart of TSO. Applied\nvia kernel ioctl (ETHTOOL_SGSO). Equivalent to:\nethtool -K \u003cdev\u003e gso on|off.",
                 "kind": "leaf",
                 "name": "gso",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Hardware Traffic Control Offload. Enables the NIC to\nexecute TC flower / u32 filter rules in hardware,\nbypassing kernel processing for matched flows.\nRequires NIC firmware support (common on mlx5, bnxt,\nnfp). Applied via kernel ioctl (ETHTOOL_SFEATURES).\nEquivalent to: ethtool -K <dev> hw-tc-offload\non|off.",
+                "description": "Hardware Traffic Control Offload. Enables the NIC to\nexecute TC flower / u32 filter rules in hardware,\nbypassing kernel processing for matched flows.\nRequires NIC firmware support (common on mlx5, bnxt,\nnfp). Applied via kernel ioctl (ETHTOOL_SFEATURES).\nEquivalent to: ethtool -K \u003cdev\u003e hw-tc-offload\non|off.",
                 "kind": "leaf",
                 "name": "hw-tc-offload",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Large Receive Offload. Hardware-based counterpart of\nGRO: the NIC coalesces incoming TCP segments before\nDMA. Can break forwarding and bridging because the\ncoalesced frame no longer matches the original wire\nformat. Disable on routers or bridges that forward\ntraffic between interfaces. Applied via kernel ioctl\n(ETHTOOL_SLRO). Equivalent to: ethtool -K <dev>\nlro on|off.",
+                "description": "Large Receive Offload. Hardware-based counterpart of\nGRO: the NIC coalesces incoming TCP segments before\nDMA. Can break forwarding and bridging because the\ncoalesced frame no longer matches the original wire\nformat. Disable on routers or bridges that forward\ntraffic between interfaces. Applied via kernel ioctl\n(ETHTOOL_SLRO). Equivalent to: ethtool -K \u003cdev\u003e\nlro on|off.",
                 "kind": "leaf",
                 "name": "lro",
                 "source": "config",
@@ -7930,21 +7951,21 @@
                 "type": "boolean"
               },
               {
-                "description": "Receive Packet Steering. Software-based distribution\nof incoming packets across multiple CPUs by hashing\nthe packet header and steering to a target CPU receive\nqueue. Useful when the NIC has fewer hardware RSS\nqueues than available CPUs. When enabled, ze writes\na bitmask covering all online CPUs to each rx queue\nsysfs entry (/sys/class/net/<dev>/queues/rx-*/\nrps_cpus). When disabled, ze writes 0 to each entry.\nNot an ethtool feature; uses sysfs directly.",
+                "description": "Receive Packet Steering. Software-based distribution\nof incoming packets across multiple CPUs by hashing\nthe packet header and steering to a target CPU receive\nqueue. Useful when the NIC has fewer hardware RSS\nqueues than available CPUs. When enabled, ze writes\na bitmask covering all online CPUs to each rx queue\nsysfs entry (/sys/class/net/\u003cdev\u003e/queues/rx-*/\nrps_cpus). When disabled, ze writes 0 to each entry.\nNot an ethtool feature; uses sysfs directly.",
                 "kind": "leaf",
                 "name": "rps",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Scatter-Gather I/O. Allows the NIC to assemble a\nsingle frame from multiple non-contiguous memory\nbuffers, avoiding data copies. Required by TSO and\nGSO on most drivers. Applied via kernel ioctl\n(ETHTOOL_SSG). Equivalent to: ethtool -K <dev>\nsg on|off.",
+                "description": "Scatter-Gather I/O. Allows the NIC to assemble a\nsingle frame from multiple non-contiguous memory\nbuffers, avoiding data copies. Required by TSO and\nGSO on most drivers. Applied via kernel ioctl\n(ETHTOOL_SSG). Equivalent to: ethtool -K \u003cdev\u003e\nsg on|off.",
                 "kind": "leaf",
                 "name": "sg",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "TCP Segmentation Offload. Offloads TCP segmentation\nto the NIC hardware, allowing the kernel to hand off\nlarge (up to 64 KB) TCP segments that the NIC splits\ninto MTU-sized frames on the wire. Requires NIC\nhardware support. Disable when passing traffic to\nVPP or virtual switches that cannot handle oversized\nframes. Applied via kernel ioctl (ETHTOOL_STSO).\nEquivalent to: ethtool -K <dev> tso on|off.",
+                "description": "TCP Segmentation Offload. Offloads TCP segmentation\nto the NIC hardware, allowing the kernel to hand off\nlarge (up to 64 KB) TCP segments that the NIC splits\ninto MTU-sized frames on the wire. Requires NIC\nhardware support. Disable when passing traffic to\nVPP or virtual switches that cannot handle oversized\nframes. Applied via kernel ioctl (ETHTOOL_STSO).\nEquivalent to: ethtool -K \u003cdev\u003e tso on|off.",
                 "kind": "leaf",
                 "name": "tso",
                 "source": "config",
@@ -8033,7 +8054,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.<iface>.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
+                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.\u003ciface\u003e.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
                     "kind": "leaf",
                     "name": "arp-accept",
                     "source": "config",
@@ -8047,7 +8068,7 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.<iface>.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
+                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.\u003ciface\u003e.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
                     "kind": "leaf",
                     "name": "arp-filter",
                     "source": "config",
@@ -8090,14 +8111,14 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.<iface>.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
+                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.\u003ciface\u003e.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
                     "type": "boolean"
                   },
                   {
-                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
+                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.\u003ciface\u003e.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "source": "config",
@@ -8115,7 +8136,7 @@
                       {
                         "children": [
                           {
-                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Drives FSM/owner\nsemantics only (not dataplane-enforced this pass).",
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Enforced on the\ndataplane: with false on a non-owner, the router still\nanswers ARP and Neighbor Discovery for the virtual\naddresses and still forwards for the virtual MAC, but\ndoes not accept packets addressed to them, so a ping to\na virtual address gets no reply. The address owner\naccepts whatever this leaf says.",
                             "kind": "leaf",
                             "name": "accept-mode",
                             "source": "config",
@@ -8249,7 +8270,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
+                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.\u003ciface\u003e.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
@@ -8487,7 +8508,7 @@
               {
                 "children": [
                   {
-                    "description": "Enable MPLS label input on this interface (net.mpls.conf.<iface>.input). The global label table size is set via net.mpls.platform_labels.",
+                    "description": "Enable MPLS label input on this interface (net.mpls.conf.\u003ciface\u003e.input). The global label table size is set via net.mpls.platform_labels.",
                     "kind": "leaf",
                     "name": "enable",
                     "source": "config",
@@ -8521,7 +8542,7 @@
                 "type": "uint16"
               },
               {
-                "description": "Assign this unit to a VRF (Virtual Routing and Forwarding) instance.\nThe VRF must be defined separately. Traffic on this unit uses the VRF's\nrouting table instead of the main table.",
+                "description": "Not implemented. A config that sets this leaf is refused.\nZe creates no VRF device and enslaves no interface, so a unit\ncannot use a routing table other than the main table. The leaf\nstays in the schema so the refusal can say why; it becomes\nfunctional when VRF support ships.",
                 "kind": "leaf",
                 "name": "vrf",
                 "source": "config",
@@ -8601,28 +8622,28 @@
           {
             "children": [
               {
-                "description": "Generic Receive Offload. Aggregates small incoming\npackets into larger ones before passing them up the\nnetwork stack, reducing per-packet CPU overhead.\nSoftware-based (works on all NIC types including\nveth and dummy). Applied via kernel ioctl\n(ETHTOOL_SGRO). Equivalent to: ethtool -K <dev>\ngro on|off.",
+                "description": "Generic Receive Offload. Aggregates small incoming\npackets into larger ones before passing them up the\nnetwork stack, reducing per-packet CPU overhead.\nSoftware-based (works on all NIC types including\nveth and dummy). Applied via kernel ioctl\n(ETHTOOL_SGRO). Equivalent to: ethtool -K \u003cdev\u003e\ngro on|off.",
                 "kind": "leaf",
                 "name": "gro",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Generic Segmentation Offload. Delays segmentation\nof large outgoing packets until just before the NIC\ndriver transmit path, reducing CPU work in the upper\nstack. Software-based counterpart of TSO. Applied\nvia kernel ioctl (ETHTOOL_SGSO). Equivalent to:\nethtool -K <dev> gso on|off.",
+                "description": "Generic Segmentation Offload. Delays segmentation\nof large outgoing packets until just before the NIC\ndriver transmit path, reducing CPU work in the upper\nstack. Software-based counterpart of TSO. Applied\nvia kernel ioctl (ETHTOOL_SGSO). Equivalent to:\nethtool -K \u003cdev\u003e gso on|off.",
                 "kind": "leaf",
                 "name": "gso",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Hardware Traffic Control Offload. Enables the NIC to\nexecute TC flower / u32 filter rules in hardware,\nbypassing kernel processing for matched flows.\nRequires NIC firmware support (common on mlx5, bnxt,\nnfp). Applied via kernel ioctl (ETHTOOL_SFEATURES).\nEquivalent to: ethtool -K <dev> hw-tc-offload\non|off.",
+                "description": "Hardware Traffic Control Offload. Enables the NIC to\nexecute TC flower / u32 filter rules in hardware,\nbypassing kernel processing for matched flows.\nRequires NIC firmware support (common on mlx5, bnxt,\nnfp). Applied via kernel ioctl (ETHTOOL_SFEATURES).\nEquivalent to: ethtool -K \u003cdev\u003e hw-tc-offload\non|off.",
                 "kind": "leaf",
                 "name": "hw-tc-offload",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Large Receive Offload. Hardware-based counterpart of\nGRO: the NIC coalesces incoming TCP segments before\nDMA. Can break forwarding and bridging because the\ncoalesced frame no longer matches the original wire\nformat. Disable on routers or bridges that forward\ntraffic between interfaces. Applied via kernel ioctl\n(ETHTOOL_SLRO). Equivalent to: ethtool -K <dev>\nlro on|off.",
+                "description": "Large Receive Offload. Hardware-based counterpart of\nGRO: the NIC coalesces incoming TCP segments before\nDMA. Can break forwarding and bridging because the\ncoalesced frame no longer matches the original wire\nformat. Disable on routers or bridges that forward\ntraffic between interfaces. Applied via kernel ioctl\n(ETHTOOL_SLRO). Equivalent to: ethtool -K \u003cdev\u003e\nlro on|off.",
                 "kind": "leaf",
                 "name": "lro",
                 "source": "config",
@@ -8636,21 +8657,21 @@
                 "type": "boolean"
               },
               {
-                "description": "Receive Packet Steering. Software-based distribution\nof incoming packets across multiple CPUs by hashing\nthe packet header and steering to a target CPU receive\nqueue. Useful when the NIC has fewer hardware RSS\nqueues than available CPUs. When enabled, ze writes\na bitmask covering all online CPUs to each rx queue\nsysfs entry (/sys/class/net/<dev>/queues/rx-*/\nrps_cpus). When disabled, ze writes 0 to each entry.\nNot an ethtool feature; uses sysfs directly.",
+                "description": "Receive Packet Steering. Software-based distribution\nof incoming packets across multiple CPUs by hashing\nthe packet header and steering to a target CPU receive\nqueue. Useful when the NIC has fewer hardware RSS\nqueues than available CPUs. When enabled, ze writes\na bitmask covering all online CPUs to each rx queue\nsysfs entry (/sys/class/net/\u003cdev\u003e/queues/rx-*/\nrps_cpus). When disabled, ze writes 0 to each entry.\nNot an ethtool feature; uses sysfs directly.",
                 "kind": "leaf",
                 "name": "rps",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Scatter-Gather I/O. Allows the NIC to assemble a\nsingle frame from multiple non-contiguous memory\nbuffers, avoiding data copies. Required by TSO and\nGSO on most drivers. Applied via kernel ioctl\n(ETHTOOL_SSG). Equivalent to: ethtool -K <dev>\nsg on|off.",
+                "description": "Scatter-Gather I/O. Allows the NIC to assemble a\nsingle frame from multiple non-contiguous memory\nbuffers, avoiding data copies. Required by TSO and\nGSO on most drivers. Applied via kernel ioctl\n(ETHTOOL_SSG). Equivalent to: ethtool -K \u003cdev\u003e\nsg on|off.",
                 "kind": "leaf",
                 "name": "sg",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "TCP Segmentation Offload. Offloads TCP segmentation\nto the NIC hardware, allowing the kernel to hand off\nlarge (up to 64 KB) TCP segments that the NIC splits\ninto MTU-sized frames on the wire. Requires NIC\nhardware support. Disable when passing traffic to\nVPP or virtual switches that cannot handle oversized\nframes. Applied via kernel ioctl (ETHTOOL_STSO).\nEquivalent to: ethtool -K <dev> tso on|off.",
+                "description": "TCP Segmentation Offload. Offloads TCP segmentation\nto the NIC hardware, allowing the kernel to hand off\nlarge (up to 64 KB) TCP segments that the NIC splits\ninto MTU-sized frames on the wire. Requires NIC\nhardware support. Disable when passing traffic to\nVPP or virtual switches that cannot handle oversized\nframes. Applied via kernel ioctl (ETHTOOL_STSO).\nEquivalent to: ethtool -K \u003cdev\u003e tso on|off.",
                 "kind": "leaf",
                 "name": "tso",
                 "source": "config",
@@ -8732,7 +8753,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.<iface>.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
+                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.\u003ciface\u003e.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
                     "kind": "leaf",
                     "name": "arp-accept",
                     "source": "config",
@@ -8746,7 +8767,7 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.<iface>.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
+                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.\u003ciface\u003e.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
                     "kind": "leaf",
                     "name": "arp-filter",
                     "source": "config",
@@ -8789,14 +8810,14 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.<iface>.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
+                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.\u003ciface\u003e.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
                     "type": "boolean"
                   },
                   {
-                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
+                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.\u003ciface\u003e.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "source": "config",
@@ -8814,7 +8835,7 @@
                       {
                         "children": [
                           {
-                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Drives FSM/owner\nsemantics only (not dataplane-enforced this pass).",
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Enforced on the\ndataplane: with false on a non-owner, the router still\nanswers ARP and Neighbor Discovery for the virtual\naddresses and still forwards for the virtual MAC, but\ndoes not accept packets addressed to them, so a ping to\na virtual address gets no reply. The address owner\naccepts whatever this leaf says.",
                             "kind": "leaf",
                             "name": "accept-mode",
                             "source": "config",
@@ -8948,7 +8969,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
+                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.\u003ciface\u003e.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
@@ -9186,7 +9207,7 @@
               {
                 "children": [
                   {
-                    "description": "Enable MPLS label input on this interface (net.mpls.conf.<iface>.input). The global label table size is set via net.mpls.platform_labels.",
+                    "description": "Enable MPLS label input on this interface (net.mpls.conf.\u003ciface\u003e.input). The global label table size is set via net.mpls.platform_labels.",
                     "kind": "leaf",
                     "name": "enable",
                     "source": "config",
@@ -9220,7 +9241,7 @@
                 "type": "uint16"
               },
               {
-                "description": "Assign this unit to a VRF (Virtual Routing and Forwarding) instance.\nThe VRF must be defined separately. Traffic on this unit uses the VRF's\nrouting table instead of the main table.",
+                "description": "Not implemented. A config that sets this leaf is refused.\nZe creates no VRF device and enslaves no interface, so a unit\ncannot use a routing table other than the main table. The leaf\nstays in the schema so the refusal can say why; it becomes\nfunctional when VRF support ships.",
                 "kind": "leaf",
                 "name": "vrf",
                 "source": "config",
@@ -9293,28 +9314,28 @@
           {
             "children": [
               {
-                "description": "Generic Receive Offload. Aggregates small incoming\npackets into larger ones before passing them up the\nnetwork stack, reducing per-packet CPU overhead.\nSoftware-based (works on all NIC types including\nveth and dummy). Applied via kernel ioctl\n(ETHTOOL_SGRO). Equivalent to: ethtool -K <dev>\ngro on|off.",
+                "description": "Generic Receive Offload. Aggregates small incoming\npackets into larger ones before passing them up the\nnetwork stack, reducing per-packet CPU overhead.\nSoftware-based (works on all NIC types including\nveth and dummy). Applied via kernel ioctl\n(ETHTOOL_SGRO). Equivalent to: ethtool -K \u003cdev\u003e\ngro on|off.",
                 "kind": "leaf",
                 "name": "gro",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Generic Segmentation Offload. Delays segmentation\nof large outgoing packets until just before the NIC\ndriver transmit path, reducing CPU work in the upper\nstack. Software-based counterpart of TSO. Applied\nvia kernel ioctl (ETHTOOL_SGSO). Equivalent to:\nethtool -K <dev> gso on|off.",
+                "description": "Generic Segmentation Offload. Delays segmentation\nof large outgoing packets until just before the NIC\ndriver transmit path, reducing CPU work in the upper\nstack. Software-based counterpart of TSO. Applied\nvia kernel ioctl (ETHTOOL_SGSO). Equivalent to:\nethtool -K \u003cdev\u003e gso on|off.",
                 "kind": "leaf",
                 "name": "gso",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Hardware Traffic Control Offload. Enables the NIC to\nexecute TC flower / u32 filter rules in hardware,\nbypassing kernel processing for matched flows.\nRequires NIC firmware support (common on mlx5, bnxt,\nnfp). Applied via kernel ioctl (ETHTOOL_SFEATURES).\nEquivalent to: ethtool -K <dev> hw-tc-offload\non|off.",
+                "description": "Hardware Traffic Control Offload. Enables the NIC to\nexecute TC flower / u32 filter rules in hardware,\nbypassing kernel processing for matched flows.\nRequires NIC firmware support (common on mlx5, bnxt,\nnfp). Applied via kernel ioctl (ETHTOOL_SFEATURES).\nEquivalent to: ethtool -K \u003cdev\u003e hw-tc-offload\non|off.",
                 "kind": "leaf",
                 "name": "hw-tc-offload",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Large Receive Offload. Hardware-based counterpart of\nGRO: the NIC coalesces incoming TCP segments before\nDMA. Can break forwarding and bridging because the\ncoalesced frame no longer matches the original wire\nformat. Disable on routers or bridges that forward\ntraffic between interfaces. Applied via kernel ioctl\n(ETHTOOL_SLRO). Equivalent to: ethtool -K <dev>\nlro on|off.",
+                "description": "Large Receive Offload. Hardware-based counterpart of\nGRO: the NIC coalesces incoming TCP segments before\nDMA. Can break forwarding and bridging because the\ncoalesced frame no longer matches the original wire\nformat. Disable on routers or bridges that forward\ntraffic between interfaces. Applied via kernel ioctl\n(ETHTOOL_SLRO). Equivalent to: ethtool -K \u003cdev\u003e\nlro on|off.",
                 "kind": "leaf",
                 "name": "lro",
                 "source": "config",
@@ -9328,21 +9349,21 @@
                 "type": "boolean"
               },
               {
-                "description": "Receive Packet Steering. Software-based distribution\nof incoming packets across multiple CPUs by hashing\nthe packet header and steering to a target CPU receive\nqueue. Useful when the NIC has fewer hardware RSS\nqueues than available CPUs. When enabled, ze writes\na bitmask covering all online CPUs to each rx queue\nsysfs entry (/sys/class/net/<dev>/queues/rx-*/\nrps_cpus). When disabled, ze writes 0 to each entry.\nNot an ethtool feature; uses sysfs directly.",
+                "description": "Receive Packet Steering. Software-based distribution\nof incoming packets across multiple CPUs by hashing\nthe packet header and steering to a target CPU receive\nqueue. Useful when the NIC has fewer hardware RSS\nqueues than available CPUs. When enabled, ze writes\na bitmask covering all online CPUs to each rx queue\nsysfs entry (/sys/class/net/\u003cdev\u003e/queues/rx-*/\nrps_cpus). When disabled, ze writes 0 to each entry.\nNot an ethtool feature; uses sysfs directly.",
                 "kind": "leaf",
                 "name": "rps",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Scatter-Gather I/O. Allows the NIC to assemble a\nsingle frame from multiple non-contiguous memory\nbuffers, avoiding data copies. Required by TSO and\nGSO on most drivers. Applied via kernel ioctl\n(ETHTOOL_SSG). Equivalent to: ethtool -K <dev>\nsg on|off.",
+                "description": "Scatter-Gather I/O. Allows the NIC to assemble a\nsingle frame from multiple non-contiguous memory\nbuffers, avoiding data copies. Required by TSO and\nGSO on most drivers. Applied via kernel ioctl\n(ETHTOOL_SSG). Equivalent to: ethtool -K \u003cdev\u003e\nsg on|off.",
                 "kind": "leaf",
                 "name": "sg",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "TCP Segmentation Offload. Offloads TCP segmentation\nto the NIC hardware, allowing the kernel to hand off\nlarge (up to 64 KB) TCP segments that the NIC splits\ninto MTU-sized frames on the wire. Requires NIC\nhardware support. Disable when passing traffic to\nVPP or virtual switches that cannot handle oversized\nframes. Applied via kernel ioctl (ETHTOOL_STSO).\nEquivalent to: ethtool -K <dev> tso on|off.",
+                "description": "TCP Segmentation Offload. Offloads TCP segmentation\nto the NIC hardware, allowing the kernel to hand off\nlarge (up to 64 KB) TCP segments that the NIC splits\ninto MTU-sized frames on the wire. Requires NIC\nhardware support. Disable when passing traffic to\nVPP or virtual switches that cannot handle oversized\nframes. Applied via kernel ioctl (ETHTOOL_STSO).\nEquivalent to: ethtool -K \u003cdev\u003e tso on|off.",
                 "kind": "leaf",
                 "name": "tso",
                 "source": "config",
@@ -9424,7 +9445,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.<iface>.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
+                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.\u003ciface\u003e.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
                     "kind": "leaf",
                     "name": "arp-accept",
                     "source": "config",
@@ -9438,7 +9459,7 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.<iface>.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
+                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.\u003ciface\u003e.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
                     "kind": "leaf",
                     "name": "arp-filter",
                     "source": "config",
@@ -9481,14 +9502,14 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.<iface>.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
+                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.\u003ciface\u003e.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
                     "type": "boolean"
                   },
                   {
-                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
+                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.\u003ciface\u003e.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "source": "config",
@@ -9506,7 +9527,7 @@
                       {
                         "children": [
                           {
-                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Drives FSM/owner\nsemantics only (not dataplane-enforced this pass).",
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Enforced on the\ndataplane: with false on a non-owner, the router still\nanswers ARP and Neighbor Discovery for the virtual\naddresses and still forwards for the virtual MAC, but\ndoes not accept packets addressed to them, so a ping to\na virtual address gets no reply. The address owner\naccepts whatever this leaf says.",
                             "kind": "leaf",
                             "name": "accept-mode",
                             "source": "config",
@@ -9640,7 +9661,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
+                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.\u003ciface\u003e.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
@@ -9878,7 +9899,7 @@
               {
                 "children": [
                   {
-                    "description": "Enable MPLS label input on this interface (net.mpls.conf.<iface>.input). The global label table size is set via net.mpls.platform_labels.",
+                    "description": "Enable MPLS label input on this interface (net.mpls.conf.\u003ciface\u003e.input). The global label table size is set via net.mpls.platform_labels.",
                     "kind": "leaf",
                     "name": "enable",
                     "source": "config",
@@ -9912,7 +9933,7 @@
                 "type": "uint16"
               },
               {
-                "description": "Assign this unit to a VRF (Virtual Routing and Forwarding) instance.\nThe VRF must be defined separately. Traffic on this unit uses the VRF's\nrouting table instead of the main table.",
+                "description": "Not implemented. A config that sets this leaf is refused.\nZe creates no VRF device and enslaves no interface, so a unit\ncannot use a routing table other than the main table. The leaf\nstays in the schema so the refusal can say why; it becomes\nfunctional when VRF support ships.",
                 "kind": "leaf",
                 "name": "vrf",
                 "source": "config",
@@ -9958,7 +9979,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.<iface>.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
+                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.\u003ciface\u003e.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
                     "kind": "leaf",
                     "name": "arp-accept",
                     "source": "config",
@@ -9972,7 +9993,7 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.<iface>.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
+                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.\u003ciface\u003e.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
                     "kind": "leaf",
                     "name": "arp-filter",
                     "source": "config",
@@ -10015,14 +10036,14 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.<iface>.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
+                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.\u003ciface\u003e.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
                     "type": "boolean"
                   },
                   {
-                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
+                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.\u003ciface\u003e.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "source": "config",
@@ -10102,7 +10123,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
+                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.\u003ciface\u003e.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
@@ -10275,7 +10296,7 @@
               {
                 "children": [
                   {
-                    "description": "Enable MPLS label input on this interface (net.mpls.conf.<iface>.input). The global label table size is set via net.mpls.platform_labels.",
+                    "description": "Enable MPLS label input on this interface (net.mpls.conf.\u003ciface\u003e.input). The global label table size is set via net.mpls.platform_labels.",
                     "kind": "leaf",
                     "name": "enable",
                     "source": "config",
@@ -10309,7 +10330,7 @@
                 "type": "uint16"
               },
               {
-                "description": "Assign this unit to a VRF (Virtual Routing and Forwarding) instance.\nThe VRF must be defined separately. Traffic on this unit uses the VRF's\nrouting table instead of the main table.",
+                "description": "Not implemented. A config that sets this leaf is refused.\nZe creates no VRF device and enslaves no interface, so a unit\ncannot use a routing table other than the main table. The leaf\nstays in the schema so the refusal can say why; it becomes\nfunctional when VRF support ships.",
                 "kind": "leaf",
                 "name": "vrf",
                 "source": "config",
@@ -11210,7 +11231,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.<iface>.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
+                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.\u003ciface\u003e.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
                     "kind": "leaf",
                     "name": "arp-accept",
                     "source": "config",
@@ -11224,7 +11245,7 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.<iface>.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
+                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.\u003ciface\u003e.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
                     "kind": "leaf",
                     "name": "arp-filter",
                     "source": "config",
@@ -11267,14 +11288,14 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.<iface>.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
+                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.\u003ciface\u003e.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
                     "type": "boolean"
                   },
                   {
-                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
+                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.\u003ciface\u003e.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "source": "config",
@@ -11354,7 +11375,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
+                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.\u003ciface\u003e.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
@@ -11527,7 +11548,7 @@
               {
                 "children": [
                   {
-                    "description": "Enable MPLS label input on this interface (net.mpls.conf.<iface>.input). The global label table size is set via net.mpls.platform_labels.",
+                    "description": "Enable MPLS label input on this interface (net.mpls.conf.\u003ciface\u003e.input). The global label table size is set via net.mpls.platform_labels.",
                     "kind": "leaf",
                     "name": "enable",
                     "source": "config",
@@ -11561,7 +11582,7 @@
                 "type": "uint16"
               },
               {
-                "description": "Assign this unit to a VRF (Virtual Routing and Forwarding) instance.\nThe VRF must be defined separately. Traffic on this unit uses the VRF's\nrouting table instead of the main table.",
+                "description": "Not implemented. A config that sets this leaf is refused.\nZe creates no VRF device and enslaves no interface, so a unit\ncannot use a routing table other than the main table. The leaf\nstays in the schema so the refusal can say why; it becomes\nfunctional when VRF support ships.",
                 "kind": "leaf",
                 "name": "vrf",
                 "source": "config",
@@ -11634,28 +11655,28 @@
           {
             "children": [
               {
-                "description": "Generic Receive Offload. Aggregates small incoming\npackets into larger ones before passing them up the\nnetwork stack, reducing per-packet CPU overhead.\nSoftware-based (works on all NIC types including\nveth and dummy). Applied via kernel ioctl\n(ETHTOOL_SGRO). Equivalent to: ethtool -K <dev>\ngro on|off.",
+                "description": "Generic Receive Offload. Aggregates small incoming\npackets into larger ones before passing them up the\nnetwork stack, reducing per-packet CPU overhead.\nSoftware-based (works on all NIC types including\nveth and dummy). Applied via kernel ioctl\n(ETHTOOL_SGRO). Equivalent to: ethtool -K \u003cdev\u003e\ngro on|off.",
                 "kind": "leaf",
                 "name": "gro",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Generic Segmentation Offload. Delays segmentation\nof large outgoing packets until just before the NIC\ndriver transmit path, reducing CPU work in the upper\nstack. Software-based counterpart of TSO. Applied\nvia kernel ioctl (ETHTOOL_SGSO). Equivalent to:\nethtool -K <dev> gso on|off.",
+                "description": "Generic Segmentation Offload. Delays segmentation\nof large outgoing packets until just before the NIC\ndriver transmit path, reducing CPU work in the upper\nstack. Software-based counterpart of TSO. Applied\nvia kernel ioctl (ETHTOOL_SGSO). Equivalent to:\nethtool -K \u003cdev\u003e gso on|off.",
                 "kind": "leaf",
                 "name": "gso",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Hardware Traffic Control Offload. Enables the NIC to\nexecute TC flower / u32 filter rules in hardware,\nbypassing kernel processing for matched flows.\nRequires NIC firmware support (common on mlx5, bnxt,\nnfp). Applied via kernel ioctl (ETHTOOL_SFEATURES).\nEquivalent to: ethtool -K <dev> hw-tc-offload\non|off.",
+                "description": "Hardware Traffic Control Offload. Enables the NIC to\nexecute TC flower / u32 filter rules in hardware,\nbypassing kernel processing for matched flows.\nRequires NIC firmware support (common on mlx5, bnxt,\nnfp). Applied via kernel ioctl (ETHTOOL_SFEATURES).\nEquivalent to: ethtool -K \u003cdev\u003e hw-tc-offload\non|off.",
                 "kind": "leaf",
                 "name": "hw-tc-offload",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Large Receive Offload. Hardware-based counterpart of\nGRO: the NIC coalesces incoming TCP segments before\nDMA. Can break forwarding and bridging because the\ncoalesced frame no longer matches the original wire\nformat. Disable on routers or bridges that forward\ntraffic between interfaces. Applied via kernel ioctl\n(ETHTOOL_SLRO). Equivalent to: ethtool -K <dev>\nlro on|off.",
+                "description": "Large Receive Offload. Hardware-based counterpart of\nGRO: the NIC coalesces incoming TCP segments before\nDMA. Can break forwarding and bridging because the\ncoalesced frame no longer matches the original wire\nformat. Disable on routers or bridges that forward\ntraffic between interfaces. Applied via kernel ioctl\n(ETHTOOL_SLRO). Equivalent to: ethtool -K \u003cdev\u003e\nlro on|off.",
                 "kind": "leaf",
                 "name": "lro",
                 "source": "config",
@@ -11669,21 +11690,21 @@
                 "type": "boolean"
               },
               {
-                "description": "Receive Packet Steering. Software-based distribution\nof incoming packets across multiple CPUs by hashing\nthe packet header and steering to a target CPU receive\nqueue. Useful when the NIC has fewer hardware RSS\nqueues than available CPUs. When enabled, ze writes\na bitmask covering all online CPUs to each rx queue\nsysfs entry (/sys/class/net/<dev>/queues/rx-*/\nrps_cpus). When disabled, ze writes 0 to each entry.\nNot an ethtool feature; uses sysfs directly.",
+                "description": "Receive Packet Steering. Software-based distribution\nof incoming packets across multiple CPUs by hashing\nthe packet header and steering to a target CPU receive\nqueue. Useful when the NIC has fewer hardware RSS\nqueues than available CPUs. When enabled, ze writes\na bitmask covering all online CPUs to each rx queue\nsysfs entry (/sys/class/net/\u003cdev\u003e/queues/rx-*/\nrps_cpus). When disabled, ze writes 0 to each entry.\nNot an ethtool feature; uses sysfs directly.",
                 "kind": "leaf",
                 "name": "rps",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "Scatter-Gather I/O. Allows the NIC to assemble a\nsingle frame from multiple non-contiguous memory\nbuffers, avoiding data copies. Required by TSO and\nGSO on most drivers. Applied via kernel ioctl\n(ETHTOOL_SSG). Equivalent to: ethtool -K <dev>\nsg on|off.",
+                "description": "Scatter-Gather I/O. Allows the NIC to assemble a\nsingle frame from multiple non-contiguous memory\nbuffers, avoiding data copies. Required by TSO and\nGSO on most drivers. Applied via kernel ioctl\n(ETHTOOL_SSG). Equivalent to: ethtool -K \u003cdev\u003e\nsg on|off.",
                 "kind": "leaf",
                 "name": "sg",
                 "source": "config",
                 "type": "boolean"
               },
               {
-                "description": "TCP Segmentation Offload. Offloads TCP segmentation\nto the NIC hardware, allowing the kernel to hand off\nlarge (up to 64 KB) TCP segments that the NIC splits\ninto MTU-sized frames on the wire. Requires NIC\nhardware support. Disable when passing traffic to\nVPP or virtual switches that cannot handle oversized\nframes. Applied via kernel ioctl (ETHTOOL_STSO).\nEquivalent to: ethtool -K <dev> tso on|off.",
+                "description": "TCP Segmentation Offload. Offloads TCP segmentation\nto the NIC hardware, allowing the kernel to hand off\nlarge (up to 64 KB) TCP segments that the NIC splits\ninto MTU-sized frames on the wire. Requires NIC\nhardware support. Disable when passing traffic to\nVPP or virtual switches that cannot handle oversized\nframes. Applied via kernel ioctl (ETHTOOL_STSO).\nEquivalent to: ethtool -K \u003cdev\u003e tso on|off.",
                 "kind": "leaf",
                 "name": "tso",
                 "source": "config",
@@ -11772,7 +11793,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.<iface>.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
+                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.\u003ciface\u003e.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
                     "kind": "leaf",
                     "name": "arp-accept",
                     "source": "config",
@@ -11786,7 +11807,7 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.<iface>.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
+                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.\u003ciface\u003e.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
                     "kind": "leaf",
                     "name": "arp-filter",
                     "source": "config",
@@ -11829,14 +11850,14 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.<iface>.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
+                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.\u003ciface\u003e.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
                     "type": "boolean"
                   },
                   {
-                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
+                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.\u003ciface\u003e.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "source": "config",
@@ -11854,7 +11875,7 @@
                       {
                         "children": [
                           {
-                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Drives FSM/owner\nsemantics only (not dataplane-enforced this pass).",
+                            "description": "Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner\nActive accepts packets addressed to the virtual addresses.\nv3 semantics only; combining true with version 2 is\nrejected by the plugin verifier. Enforced on the\ndataplane: with false on a non-owner, the router still\nanswers ARP and Neighbor Discovery for the virtual\naddresses and still forwards for the virtual MAC, but\ndoes not accept packets addressed to them, so a ping to\na virtual address gets no reply. The address owner\naccepts whatever this leaf says.",
                             "kind": "leaf",
                             "name": "accept-mode",
                             "source": "config",
@@ -11988,7 +12009,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
+                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.\u003ciface\u003e.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
@@ -12226,7 +12247,7 @@
               {
                 "children": [
                   {
-                    "description": "Enable MPLS label input on this interface (net.mpls.conf.<iface>.input). The global label table size is set via net.mpls.platform_labels.",
+                    "description": "Enable MPLS label input on this interface (net.mpls.conf.\u003ciface\u003e.input). The global label table size is set via net.mpls.platform_labels.",
                     "kind": "leaf",
                     "name": "enable",
                     "source": "config",
@@ -12260,7 +12281,7 @@
                 "type": "uint16"
               },
               {
-                "description": "Assign this unit to a VRF (Virtual Routing and Forwarding) instance.\nThe VRF must be defined separately. Traffic on this unit uses the VRF's\nrouting table instead of the main table.",
+                "description": "Not implemented. A config that sets this leaf is refused.\nZe creates no VRF device and enslaves no interface, so a unit\ncannot use a routing table other than the main table. The leaf\nstays in the schema so the refusal can say why; it becomes\nfunctional when VRF support ships.",
                 "kind": "leaf",
                 "name": "vrf",
                 "source": "config",
@@ -12420,7 +12441,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.<iface>.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
+                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.\u003ciface\u003e.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
                     "kind": "leaf",
                     "name": "arp-accept",
                     "source": "config",
@@ -12434,7 +12455,7 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.<iface>.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
+                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.\u003ciface\u003e.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
                     "kind": "leaf",
                     "name": "arp-filter",
                     "source": "config",
@@ -12477,14 +12498,14 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.<iface>.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
+                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.\u003ciface\u003e.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
                     "type": "boolean"
                   },
                   {
-                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
+                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.\u003ciface\u003e.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "source": "config",
@@ -12564,7 +12585,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
+                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.\u003ciface\u003e.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
@@ -12737,7 +12758,7 @@
               {
                 "children": [
                   {
-                    "description": "Enable MPLS label input on this interface (net.mpls.conf.<iface>.input). The global label table size is set via net.mpls.platform_labels.",
+                    "description": "Enable MPLS label input on this interface (net.mpls.conf.\u003ciface\u003e.input). The global label table size is set via net.mpls.platform_labels.",
                     "kind": "leaf",
                     "name": "enable",
                     "source": "config",
@@ -12771,7 +12792,7 @@
                 "type": "uint16"
               },
               {
-                "description": "Assign this unit to a VRF (Virtual Routing and Forwarding) instance.\nThe VRF must be defined separately. Traffic on this unit uses the VRF's\nrouting table instead of the main table.",
+                "description": "Not implemented. A config that sets this leaf is refused.\nZe creates no VRF device and enslaves no interface, so a unit\ncannot use a routing table other than the main table. The leaf\nstays in the schema so the refusal can say why; it becomes\nfunctional when VRF support ships.",
                 "kind": "leaf",
                 "name": "vrf",
                 "source": "config",
@@ -12859,7 +12880,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.<iface>.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
+                    "description": "Accept gratuitous ARP frames and add their entries to the ARP cache\n(net.ipv4.conf.\u003ciface\u003e.arp_accept). Useful for failover scenarios\nwhere a peer announces a new MAC for an existing IP.",
                     "kind": "leaf",
                     "name": "arp-accept",
                     "source": "config",
@@ -12873,7 +12894,7 @@
                     "type": "uint8"
                   },
                   {
-                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.<iface>.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
+                    "description": "Only respond to ARP requests for addresses on the receiving interface\n(net.ipv4.conf.\u003ciface\u003e.arp_filter). Prevents answering for addresses\nassigned to other interfaces. Recommended for multi-homed hosts.",
                     "kind": "leaf",
                     "name": "arp-filter",
                     "source": "config",
@@ -12916,14 +12937,14 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.<iface>.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
+                    "description": "Allow this interface to forward IPv4 packets between interfaces.\nSets net.ipv4.conf.\u003ciface\u003e.forwarding. Required for routing.\nWhen disabled, packets not destined for a local address are dropped.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
                     "type": "boolean"
                   },
                   {
-                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.<iface>.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
+                    "description": "Answer ARP requests on behalf of other hosts that are reachable via\nthis router (net.ipv4.conf.\u003ciface\u003e.proxy_arp). Used for bridging\nsubnets without L2 connectivity or for unnumbered interfaces.",
                     "kind": "leaf",
                     "name": "proxy-arp",
                     "source": "config",
@@ -13003,7 +13024,7 @@
                     "source": "config"
                   },
                   {
-                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.<iface>.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
+                    "description": "Allow this interface to forward IPv6 packets between interfaces.\nSets net.ipv6.conf.\u003ciface\u003e.forwarding. Implicitly disables RA\nacceptance unless accept-ra is set to 2.",
                     "kind": "leaf",
                     "name": "forwarding",
                     "source": "config",
@@ -13176,7 +13197,7 @@
               {
                 "children": [
                   {
-                    "description": "Enable MPLS label input on this interface (net.mpls.conf.<iface>.input). The global label table size is set via net.mpls.platform_labels.",
+                    "description": "Enable MPLS label input on this interface (net.mpls.conf.\u003ciface\u003e.input). The global label table size is set via net.mpls.platform_labels.",
                     "kind": "leaf",
                     "name": "enable",
                     "source": "config",
@@ -13210,7 +13231,7 @@
                 "type": "uint16"
               },
               {
-                "description": "Assign this unit to a VRF (Virtual Routing and Forwarding) instance.\nThe VRF must be defined separately. Traffic on this unit uses the VRF's\nrouting table instead of the main table.",
+                "description": "Not implemented. A config that sets this leaf is refused.\nZe creates no VRF device and enslaves no interface, so a unit\ncannot use a routing table other than the main table. The leaf\nstays in the schema so the refusal can say why; it becomes\nfunctional when VRF support ships.",
                 "kind": "leaf",
                 "name": "vrf",
                 "source": "config",
@@ -13600,7 +13621,7 @@
           {
             "children": [
               {
-                "description": "Accounting interim-update interval in seconds.",
+                "description": "Accounting interim-update interval in seconds.\nRFC 2869 Section 2.1 states that a locally configured value on the NAS MUST\noverride the value found in an Access-Accept. A leaf that is set pins the cadence\nof every session, and the Acct-Interim-Interval attribute (type 85) of an\nAccess-Accept then changes nothing. This leaf has no default. An unset leaf\nis the absent case, and it lets each Access-Accept set that session's cadence.\nA session runs at 300 seconds when neither side states an interval.",
                 "kind": "leaf",
                 "name": "acct-interval",
                 "source": "config",
@@ -13628,6 +13649,13 @@
                 "type": "string"
               },
               {
+                "description": "Discard a CoA-Request or a Disconnect-Request\nthat carries no Message-Authenticator attribute. RFC 5176 Section 3.4 makes the\nattribute optional, so the default is false and a request without one is\nprocessed after its Request Authenticator verifies against the shared secret.\nSet this leaf to true when every Dynamic Authorization Client sends the\nattribute. The attribute is an HMAC-MD5 keyed with the shared secret, and it is\nthe mitigation for the Blast-RADIUS class of attack (CVE-2024-3596), which\nforges a RADIUS/UDP packet with a chosen-prefix MD5 collision against the\nauthenticator. A client that sends no attribute gets no answer while this leaf\nis true.",
+                "kind": "leaf",
+                "name": "require-message-authenticator",
+                "source": "config",
+                "type": "boolean"
+              },
+              {
                 "description": "Number of retransmit attempts per server.",
                 "kind": "leaf",
                 "name": "retries",
@@ -13651,7 +13679,7 @@
                     "type": "uint16"
                   },
                   {
-                    "description": "RADIUS shared secret.",
+                    "description": "RADIUS shared secret. RFC 2865 Section 3 states the\nsecret MUST NOT be empty (length 0), since an empty\nsecret allows packets to be trivially forged.",
                     "kind": "leaf",
                     "name": "shared-key",
                     "source": "config",
@@ -13982,7 +14010,7 @@
             "type": "string"
           }
         ],
-        "description": "L2TP dial targets: remote LNS/LAC endpoints ze initiates\ntunnels toward (sends SCCRQ to). Referenced by name from\n'request l2tp outgoing-call remote <name>' and from PPPoE\nrelay bindings. Declaring a remote grants no dial by itself;\nan operator action (RPC) or a relay binding drives the dial.",
+        "description": "L2TP dial targets: remote LNS/LAC endpoints ze initiates\ntunnels toward (sends SCCRQ to). Referenced by name from\n'request l2tp outgoing-call remote \u003cname\u003e' and from PPPoE\nrelay bindings. Declaring a remote grants no dial by itself;\nan operator action (RPC) or a relay binding drives the dial.",
         "kind": "list[name]",
         "name": "remote",
         "source": "config"
@@ -14228,7 +14256,7 @@
                             "type": "uint16"
                           },
                           {
-                            "description": "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be > 0).",
+                            "description": "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be \u003e 0).",
                             "kind": "leaf",
                             "name": "transmit-delay",
                             "source": "config",
@@ -14253,7 +14281,7 @@
                 "source": "config"
               },
               {
-                "description": "OSPFv3 Instance ID; the RFC 5838 \u00a72.1 IPv4-multicast range is 96-127.",
+                "description": "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv4-multicast range is 96-127.",
                 "kind": "leaf",
                 "name": "instance-id",
                 "source": "config",
@@ -14344,7 +14372,7 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "ESP confidentiality algorithm (RFC 4552 \u00a74: only ESP, never AH). Omit or null for authentication-only ESP.",
+                            "description": "ESP confidentiality algorithm (RFC 4552 §4: only ESP, never AH). Omit or null for authentication-only ESP.",
                             "kind": "leaf",
                             "name": "encryption-algorithm",
                             "source": "config",
@@ -14372,14 +14400,14 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "Security Parameters Index (RFC 4303 \u00a72.1 reserves 0..255).",
+                            "description": "Security Parameters Index (RFC 4303 §2.1 reserves 0..255).",
                             "kind": "leaf",
                             "name": "spi",
                             "source": "config",
                             "type": "uint32"
                           }
                         ],
-                        "description": "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode\nkernel Security Association plus a proto-89 policy is installed on interface\nup; the kernel applies AH/ESP below the socket and silently discards\nunprotected or failed-integrity OSPF packets (RFC 4552 \u00a73/\u00a74). This is a\nDISTINCT auth path from the RFC 7166 authentication trailer and is mutually\nexclusive with a per-interface authentication key-chain. Manual keying only\n(RFC 4552 \u00a77: IKE cannot key the multicast group); the key is shared by the\ninbound and outbound SA.",
+                        "description": "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode\nkernel Security Association plus a proto-89 policy is installed on interface\nup; the kernel applies AH/ESP below the socket and silently discards\nunprotected or failed-integrity OSPF packets (RFC 4552 §3/§4). This is a\nDISTINCT auth path from the RFC 7166 authentication trailer and is mutually\nexclusive with a per-interface authentication key-chain. Manual keying only\n(RFC 4552 §7: IKE cannot key the multicast group); the key is shared by the\ninbound and outbound SA.",
                         "kind": "container",
                         "name": "ipsec",
                         "source": "config"
@@ -14523,7 +14551,7 @@
                         "type": "uint32"
                       },
                       {
-                        "description": "Last MPLS label of the SRGB (inclusive). Must be >= lower-bound.",
+                        "description": "Last MPLS label of the SRGB (inclusive). Must be \u003e= lower-bound.",
                         "kind": "leaf",
                         "name": "upper-bound",
                         "source": "config",
@@ -14545,7 +14573,7 @@
                         "type": "uint32"
                       },
                       {
-                        "description": "Last MPLS label of the SRLB (inclusive). Must be >= lower-bound.",
+                        "description": "Last MPLS label of the SRLB (inclusive). Must be \u003e= lower-bound.",
                         "kind": "leaf",
                         "name": "upper-bound",
                         "source": "config",
@@ -14571,7 +14599,7 @@
                 "source": "config"
               }
             ],
-            "description": "IPv4-multicast over OSPFv3 (RFC 5838 \u00a72.1: Instance ID 96-127).\nReachability is computed unicast-shaped; MOSPF tree computation is not implemented.",
+            "description": "IPv4-multicast over OSPFv3 (RFC 5838 §2.1: Instance ID 96-127).\nReachability is computed unicast-shaped; MOSPF tree computation is not implemented.",
             "kind": "container",
             "name": "ipv4-multicast",
             "source": "config"
@@ -14613,7 +14641,7 @@
                             "type": "uint16"
                           },
                           {
-                            "description": "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be > 0).",
+                            "description": "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be \u003e 0).",
                             "kind": "leaf",
                             "name": "transmit-delay",
                             "source": "config",
@@ -14638,7 +14666,7 @@
                 "source": "config"
               },
               {
-                "description": "OSPFv3 Instance ID; the RFC 5838 \u00a72.1 IPv4-unicast range is 64-95.",
+                "description": "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv4-unicast range is 64-95.",
                 "kind": "leaf",
                 "name": "instance-id",
                 "source": "config",
@@ -14729,7 +14757,7 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "ESP confidentiality algorithm (RFC 4552 \u00a74: only ESP, never AH). Omit or null for authentication-only ESP.",
+                            "description": "ESP confidentiality algorithm (RFC 4552 §4: only ESP, never AH). Omit or null for authentication-only ESP.",
                             "kind": "leaf",
                             "name": "encryption-algorithm",
                             "source": "config",
@@ -14757,14 +14785,14 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "Security Parameters Index (RFC 4303 \u00a72.1 reserves 0..255).",
+                            "description": "Security Parameters Index (RFC 4303 §2.1 reserves 0..255).",
                             "kind": "leaf",
                             "name": "spi",
                             "source": "config",
                             "type": "uint32"
                           }
                         ],
-                        "description": "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode\nkernel Security Association plus a proto-89 policy is installed on interface\nup; the kernel applies AH/ESP below the socket and silently discards\nunprotected or failed-integrity OSPF packets (RFC 4552 \u00a73/\u00a74). This is a\nDISTINCT auth path from the RFC 7166 authentication trailer and is mutually\nexclusive with a per-interface authentication key-chain. Manual keying only\n(RFC 4552 \u00a77: IKE cannot key the multicast group); the key is shared by the\ninbound and outbound SA.",
+                        "description": "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode\nkernel Security Association plus a proto-89 policy is installed on interface\nup; the kernel applies AH/ESP below the socket and silently discards\nunprotected or failed-integrity OSPF packets (RFC 4552 §3/§4). This is a\nDISTINCT auth path from the RFC 7166 authentication trailer and is mutually\nexclusive with a per-interface authentication key-chain. Manual keying only\n(RFC 4552 §7: IKE cannot key the multicast group); the key is shared by the\ninbound and outbound SA.",
                         "kind": "container",
                         "name": "ipsec",
                         "source": "config"
@@ -14908,7 +14936,7 @@
                         "type": "uint32"
                       },
                       {
-                        "description": "Last MPLS label of the SRGB (inclusive). Must be >= lower-bound.",
+                        "description": "Last MPLS label of the SRGB (inclusive). Must be \u003e= lower-bound.",
                         "kind": "leaf",
                         "name": "upper-bound",
                         "source": "config",
@@ -14930,7 +14958,7 @@
                         "type": "uint32"
                       },
                       {
-                        "description": "Last MPLS label of the SRLB (inclusive). Must be >= lower-bound.",
+                        "description": "Last MPLS label of the SRLB (inclusive). Must be \u003e= lower-bound.",
                         "kind": "leaf",
                         "name": "upper-bound",
                         "source": "config",
@@ -14956,7 +14984,7 @@
                 "source": "config"
               }
             ],
-            "description": "IPv4-unicast over OSPFv3 (RFC 5838 \u00a72.1/\u00a72.7: Instance ID 64-95). Carries\nIPv4 prefixes in the address-free OSPFv3 LSA model; routes install into the IPv4 RIB.",
+            "description": "IPv4-unicast over OSPFv3 (RFC 5838 §2.1/§2.7: Instance ID 64-95). Carries\nIPv4 prefixes in the address-free OSPFv3 LSA model; routes install into the IPv4 RIB.",
             "kind": "container",
             "name": "ipv4-unicast",
             "source": "config"
@@ -14998,7 +15026,7 @@
                             "type": "uint16"
                           },
                           {
-                            "description": "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be > 0).",
+                            "description": "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be \u003e 0).",
                             "kind": "leaf",
                             "name": "transmit-delay",
                             "source": "config",
@@ -15023,7 +15051,7 @@
                 "source": "config"
               },
               {
-                "description": "OSPFv3 Instance ID (RFC 5340 \u00a72.5); the RFC 5838 \u00a72.1 IPv6-unicast range is 0-31.",
+                "description": "OSPFv3 Instance ID (RFC 5340 §2.5); the RFC 5838 §2.1 IPv6-unicast range is 0-31.",
                 "kind": "leaf",
                 "name": "instance-id",
                 "source": "config",
@@ -15114,7 +15142,7 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "ESP confidentiality algorithm (RFC 4552 \u00a74: only ESP, never AH). Omit or null for authentication-only ESP.",
+                            "description": "ESP confidentiality algorithm (RFC 4552 §4: only ESP, never AH). Omit or null for authentication-only ESP.",
                             "kind": "leaf",
                             "name": "encryption-algorithm",
                             "source": "config",
@@ -15142,14 +15170,14 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "Security Parameters Index (RFC 4303 \u00a72.1 reserves 0..255).",
+                            "description": "Security Parameters Index (RFC 4303 §2.1 reserves 0..255).",
                             "kind": "leaf",
                             "name": "spi",
                             "source": "config",
                             "type": "uint32"
                           }
                         ],
-                        "description": "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode\nkernel Security Association plus a proto-89 policy is installed on interface\nup; the kernel applies AH/ESP below the socket and silently discards\nunprotected or failed-integrity OSPF packets (RFC 4552 \u00a73/\u00a74). This is a\nDISTINCT auth path from the RFC 7166 authentication trailer and is mutually\nexclusive with a per-interface authentication key-chain. Manual keying only\n(RFC 4552 \u00a77: IKE cannot key the multicast group); the key is shared by the\ninbound and outbound SA.",
+                        "description": "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode\nkernel Security Association plus a proto-89 policy is installed on interface\nup; the kernel applies AH/ESP below the socket and silently discards\nunprotected or failed-integrity OSPF packets (RFC 4552 §3/§4). This is a\nDISTINCT auth path from the RFC 7166 authentication trailer and is mutually\nexclusive with a per-interface authentication key-chain. Manual keying only\n(RFC 4552 §7: IKE cannot key the multicast group); the key is shared by the\ninbound and outbound SA.",
                         "kind": "container",
                         "name": "ipsec",
                         "source": "config"
@@ -15293,7 +15321,7 @@
                         "type": "uint32"
                       },
                       {
-                        "description": "Last MPLS label of the SRGB (inclusive). Must be >= lower-bound.",
+                        "description": "Last MPLS label of the SRGB (inclusive). Must be \u003e= lower-bound.",
                         "kind": "leaf",
                         "name": "upper-bound",
                         "source": "config",
@@ -15315,7 +15343,7 @@
                         "type": "uint32"
                       },
                       {
-                        "description": "Last MPLS label of the SRLB (inclusive). Must be >= lower-bound.",
+                        "description": "Last MPLS label of the SRLB (inclusive). Must be \u003e= lower-bound.",
                         "kind": "leaf",
                         "name": "upper-bound",
                         "source": "config",
@@ -15383,7 +15411,7 @@
                             "type": "uint16"
                           },
                           {
-                            "description": "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be > 0).",
+                            "description": "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be \u003e 0).",
                             "kind": "leaf",
                             "name": "transmit-delay",
                             "source": "config",
@@ -15408,7 +15436,7 @@
                 "source": "config"
               },
               {
-                "description": "OSPFv3 Instance ID; the RFC 5838 \u00a72.1 IPv6-multicast range is 32-63.",
+                "description": "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv6-multicast range is 32-63.",
                 "kind": "leaf",
                 "name": "instance-id",
                 "source": "config",
@@ -15499,7 +15527,7 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "ESP confidentiality algorithm (RFC 4552 \u00a74: only ESP, never AH). Omit or null for authentication-only ESP.",
+                            "description": "ESP confidentiality algorithm (RFC 4552 §4: only ESP, never AH). Omit or null for authentication-only ESP.",
                             "kind": "leaf",
                             "name": "encryption-algorithm",
                             "source": "config",
@@ -15527,14 +15555,14 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "Security Parameters Index (RFC 4303 \u00a72.1 reserves 0..255).",
+                            "description": "Security Parameters Index (RFC 4303 §2.1 reserves 0..255).",
                             "kind": "leaf",
                             "name": "spi",
                             "source": "config",
                             "type": "uint32"
                           }
                         ],
-                        "description": "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode\nkernel Security Association plus a proto-89 policy is installed on interface\nup; the kernel applies AH/ESP below the socket and silently discards\nunprotected or failed-integrity OSPF packets (RFC 4552 \u00a73/\u00a74). This is a\nDISTINCT auth path from the RFC 7166 authentication trailer and is mutually\nexclusive with a per-interface authentication key-chain. Manual keying only\n(RFC 4552 \u00a77: IKE cannot key the multicast group); the key is shared by the\ninbound and outbound SA.",
+                        "description": "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode\nkernel Security Association plus a proto-89 policy is installed on interface\nup; the kernel applies AH/ESP below the socket and silently discards\nunprotected or failed-integrity OSPF packets (RFC 4552 §3/§4). This is a\nDISTINCT auth path from the RFC 7166 authentication trailer and is mutually\nexclusive with a per-interface authentication key-chain. Manual keying only\n(RFC 4552 §7: IKE cannot key the multicast group); the key is shared by the\ninbound and outbound SA.",
                         "kind": "container",
                         "name": "ipsec",
                         "source": "config"
@@ -15678,7 +15706,7 @@
                         "type": "uint32"
                       },
                       {
-                        "description": "Last MPLS label of the SRGB (inclusive). Must be >= lower-bound.",
+                        "description": "Last MPLS label of the SRGB (inclusive). Must be \u003e= lower-bound.",
                         "kind": "leaf",
                         "name": "upper-bound",
                         "source": "config",
@@ -15700,7 +15728,7 @@
                         "type": "uint32"
                       },
                       {
-                        "description": "Last MPLS label of the SRLB (inclusive). Must be >= lower-bound.",
+                        "description": "Last MPLS label of the SRLB (inclusive). Must be \u003e= lower-bound.",
                         "kind": "leaf",
                         "name": "upper-bound",
                         "source": "config",
@@ -15726,7 +15754,7 @@
                 "source": "config"
               }
             ],
-            "description": "IPv6-multicast OSPFv3 address family (RFC 5838 \u00a72.1: Instance ID 32-63).\nReachability is computed unicast-shaped; MOSPF tree computation is not implemented.",
+            "description": "IPv6-multicast OSPFv3 address family (RFC 5838 §2.1: Instance ID 32-63).\nReachability is computed unicast-shaped; MOSPF tree computation is not implemented.",
             "kind": "container",
             "name": "ipv6-multicast",
             "source": "config"
@@ -15768,7 +15796,7 @@
                             "type": "uint16"
                           },
                           {
-                            "description": "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be > 0).",
+                            "description": "Estimated LSA transmission delay (RFC 5340 / RFC 2328 InfTransDelay must be \u003e 0).",
                             "kind": "leaf",
                             "name": "transmit-delay",
                             "source": "config",
@@ -15793,7 +15821,7 @@
                 "source": "config"
               },
               {
-                "description": "OSPFv3 Instance ID; the RFC 5838 \u00a72.1 IPv6-unicast range is 0-31.",
+                "description": "OSPFv3 Instance ID; the RFC 5838 §2.1 IPv6-unicast range is 0-31.",
                 "kind": "leaf",
                 "name": "instance-id",
                 "source": "config",
@@ -15884,7 +15912,7 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "ESP confidentiality algorithm (RFC 4552 \u00a74: only ESP, never AH). Omit or null for authentication-only ESP.",
+                            "description": "ESP confidentiality algorithm (RFC 4552 §4: only ESP, never AH). Omit or null for authentication-only ESP.",
                             "kind": "leaf",
                             "name": "encryption-algorithm",
                             "source": "config",
@@ -15912,14 +15940,14 @@
                             "type": "enumeration"
                           },
                           {
-                            "description": "Security Parameters Index (RFC 4303 \u00a72.1 reserves 0..255).",
+                            "description": "Security Parameters Index (RFC 4303 §2.1 reserves 0..255).",
                             "kind": "leaf",
                             "name": "spi",
                             "source": "config",
                             "type": "uint32"
                           }
                         ],
-                        "description": "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode\nkernel Security Association plus a proto-89 policy is installed on interface\nup; the kernel applies AH/ESP below the socket and silently discards\nunprotected or failed-integrity OSPF packets (RFC 4552 \u00a73/\u00a74). This is a\nDISTINCT auth path from the RFC 7166 authentication trailer and is mutually\nexclusive with a per-interface authentication key-chain. Manual keying only\n(RFC 4552 \u00a77: IKE cannot key the multicast group); the key is shared by the\ninbound and outbound SA.",
+                        "description": "RFC 4552 manual IPsec (AH/ESP) for this OSPFv3 interface. A transport-mode\nkernel Security Association plus a proto-89 policy is installed on interface\nup; the kernel applies AH/ESP below the socket and silently discards\nunprotected or failed-integrity OSPF packets (RFC 4552 §3/§4). This is a\nDISTINCT auth path from the RFC 7166 authentication trailer and is mutually\nexclusive with a per-interface authentication key-chain. Manual keying only\n(RFC 4552 §7: IKE cannot key the multicast group); the key is shared by the\ninbound and outbound SA.",
                         "kind": "container",
                         "name": "ipsec",
                         "source": "config"
@@ -16063,7 +16091,7 @@
                         "type": "uint32"
                       },
                       {
-                        "description": "Last MPLS label of the SRGB (inclusive). Must be >= lower-bound.",
+                        "description": "Last MPLS label of the SRGB (inclusive). Must be \u003e= lower-bound.",
                         "kind": "leaf",
                         "name": "upper-bound",
                         "source": "config",
@@ -16085,7 +16113,7 @@
                         "type": "uint32"
                       },
                       {
-                        "description": "Last MPLS label of the SRLB (inclusive). Must be >= lower-bound.",
+                        "description": "Last MPLS label of the SRLB (inclusive). Must be \u003e= lower-bound.",
                         "kind": "leaf",
                         "name": "upper-bound",
                         "source": "config",
@@ -16111,7 +16139,7 @@
                 "source": "config"
               }
             ],
-            "description": "IPv6-unicast OSPFv3 address family (RFC 5838 \u00a72.1: Instance ID 0-31).",
+            "description": "IPv6-unicast OSPFv3 address family (RFC 5838 §2.1: Instance ID 0-31).",
             "kind": "container",
             "name": "ipv6-unicast",
             "source": "config"
@@ -16245,7 +16273,7 @@
                     "type": "uint16"
                   },
                   {
-                    "description": "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be > 0).",
+                    "description": "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be \u003e 0).",
                     "kind": "leaf",
                     "name": "transmit-delay",
                     "source": "config",
@@ -16663,7 +16691,7 @@
                 "source": "config"
               },
               {
-                "description": "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be > 0).",
+                "description": "Estimated LSA transmission delay (RFC 2328 InfTransDelay must be \u003e 0).",
                 "kind": "leaf",
                 "name": "transmit-delay",
                 "source": "config",
@@ -16939,7 +16967,7 @@
                 "type": "uint32"
               },
               {
-                "description": "Last MPLS label of the SRGB (inclusive). Must be >= lower-bound.",
+                "description": "Last MPLS label of the SRGB (inclusive). Must be \u003e= lower-bound.",
                 "kind": "leaf",
                 "name": "upper-bound",
                 "source": "config",
@@ -16961,7 +16989,7 @@
                 "type": "uint32"
               },
               {
-                "description": "Last MPLS label of the SRLB (inclusive). Must be >= lower-bound.",
+                "description": "Last MPLS label of the SRLB (inclusive). Must be \u003e= lower-bound.",
                 "kind": "leaf",
                 "name": "upper-bound",
                 "source": "config",
@@ -17145,6 +17173,13 @@
           {
             "children": [
               {
+                "description": "SHA-256 fingerprint of the hub certificate, in hex. The client\nrefuses any other certificate and sends no token to it. Use it\nwhen the hub certificate comes from no CA the client trusts.\nThe hub logs this value when its managed listener starts. The\nze.managed.tls.certificate-fingerprint environment variable\noverrides this leaf.",
+                "kind": "leaf",
+                "name": "certificate-fingerprint",
+                "source": "config",
+                "type": "string"
+              },
+              {
                 "description": "Remote hub address",
                 "kind": "leaf",
                 "name": "host",
@@ -17180,6 +17215,13 @@
           },
           {
             "children": [
+              {
+                "description": "Name of a pki certificate the managed-client listener on this\nblock serves. An empty name serves a self-signed certificate\nthat changes on every restart. No CA can vouch for that one, so\na client must pin its fingerprint or skip verification.",
+                "kind": "leaf",
+                "name": "certificate",
+                "source": "config",
+                "type": "string"
+              },
               {
                 "children": [
                   {
@@ -18180,7 +18222,7 @@
               {
                 "children": [
                   {
-                    "description": "One or more A/AAAA addresses (v4 => A, v6 => AAAA when type omitted)",
+                    "description": "One or more A/AAAA addresses (v4 =\u003e A, v6 =\u003e AAAA when type omitted)",
                     "kind": "leaf-list",
                     "name": "address",
                     "source": "config",
@@ -18271,7 +18313,7 @@
             "source": "config"
           },
           {
-            "description": "Nameserver IPv4 addresses; ns1..nsN.<zone> A glue is synthesised (max 9)",
+            "description": "Nameserver IPv4 addresses; ns1..nsN.\u003czone\u003e A glue is synthesised (max 9)",
             "kind": "leaf-list",
             "name": "nameserver",
             "source": "config",
@@ -18301,7 +18343,7 @@
                 "type": "uint32"
               },
               {
-                "description": "Primary nameserver (SOA MNAME). Defaults to ns1.<first-zone> when unset.",
+                "description": "Primary nameserver (SOA MNAME). Defaults to ns1.\u003cfirst-zone\u003e when unset.",
                 "kind": "leaf",
                 "name": "mname",
                 "source": "config",
@@ -18450,7 +18492,7 @@
             "type": "uint16"
           },
           {
-            "description": "Salted argon2id of the installer rescue token, as '<saltHex>:<digestHex>'. Emitted on the installer kernel cmdline (ze.rescue-auth) to gate the rescue shell; empty means the installer fails closed (no shell on fatal). This value is published unauthenticated on the PXE network, so it commits only to a dedicated rescue token, never to the admin password.",
+            "description": "Salted argon2id of the installer rescue token, as '\u003csaltHex\u003e:\u003cdigestHex\u003e'. Emitted on the installer kernel cmdline (ze.rescue-auth) to gate the rescue shell; empty means the installer fails closed (no shell on fatal). This value is published unauthenticated on the PXE network, so it commits only to a dedicated rescue token, never to the admin password.",
             "kind": "leaf",
             "name": "rescue-auth",
             "source": "config",
@@ -18891,7 +18933,7 @@
               {
                 "children": [
                   {
-                    "description": "RADIUS shared secret (RFC 2865)",
+                    "description": "RADIUS shared secret (RFC 2865). RFC 2865 Section 3\nstates the secret MUST NOT be empty (length 0),\nsince an empty secret allows packets to be\ntrivially forged.",
                     "kind": "leaf",
                     "name": "key",
                     "source": "config",
@@ -20538,7 +20580,7 @@
                         "type": "enumeration"
                       },
                       {
-                        "description": "Identity the remote endpoint must assert. When it is set,\nZe refuses an IKE_AUTH whose ID payload names another identity.\nComparable types are ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN,\nID_RFC822_ADDR, ID_KEY_ID, and ID_DER_ASN1_DN, and an address value\naccepts the two address types alone. A distinguished name is\ncompared in RFC 4514 string form, and it binds against the\ncertificate subject exactly, octet for octet.\nWhen it is empty Ze checks no identity, so every certificate the\nca-certificate issued authenticates as this peer. Set it whenever\nthat authority issues to more than one client.",
+                        "description": "Identity the remote endpoint must assert. When it is set,\nZe refuses an IKE_AUTH whose ID payload names another identity.\nComparable types are ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN,\nID_RFC822_ADDR, ID_KEY_ID, and ID_DER_ASN1_DN, and an address value\naccepts the two address types alone. A distinguished name is\ncompared in RFC 4514 string form, and it binds against the\ncertificate subject exactly, octet for octet.\n\nA value can name ONE peer or a SET of peers. RFC 4301 Section\n4.4.3.1 requires both forms of Peer Authorization Database entry.\nA set is written with the hierarchy separator in front, and it\nadmits the identities BELOW it and not the value itself:\n'.example.com' admits vpn.example.com, '@example.com' admits\ngateway@example.com, and ',ST=MA,C=US' admits every distinguished\nname whose top relative distinguished names are ST=MA,C=US. An\naddress entry takes the same CIDR prefix the traffic-selector\nleaves take, so '10.0.0.0/24' admits every address in that block.\nID_KEY_ID is always compared exactly, because an opaque octet\nstring has no hierarchy to cut.\n\nThe certificate binding stays per peer whichever form is used. A\npeer admitted by a set must still assert an identity its own\ncertificate carries, so a set never widens what one certificate\nproves.\n\nWhen it is empty Ze checks no identity, so every certificate the\nca-certificate issued authenticates as this peer. Set it whenever\nthat authority issues to more than one client.",
                         "kind": "leaf",
                         "name": "remote-id",
                         "source": "config",
@@ -20613,6 +20655,13 @@
                     "name": "mode",
                     "source": "config",
                     "type": "enumeration"
+                  },
+                  {
+                    "description": "Where this peer's Security Policy Database entries sit in the\noperator's ordering of that database. A LOWER value is searched\nFIRST, in Ze and in the Linux kernel.\n\nRFC 4301 Section 4.4.1: 'The ordering requirement arises because\nentries often will overlap due to the presence of (non-trivial)\nranges as values for selectors. Thus, a user or administrator MUST\nbe able to order the entries to express a desired access control\npolicy.' The same section binds this interface: it 'MUST support\n(total) ordering of these entries, as seen via this interface'.\n\nTwo peers whose traffic selectors overlap, 0.0.0.0/0 on both for\nexample, describe the same traffic. Give the one that must win the\nlower value. Peers that share a value are ordered by whichever\nestablished last, which is what every peer did before this leaf\nexisted, so the default 2000 keeps an unordered configuration\ninstalling exactly what it installed before.\n\nThe range starts above 100, which is where the IKE control-plane\nbypass sits. A peer entry at or above that rank captures the IKE\nexchange that builds and rekeys the very SA it protects, and the\ntunnel could then never renegotiate. It ends at 2147483647, the\nlargest rank Ze can carry to a dataplane.",
+                    "kind": "leaf",
+                    "name": "policy-priority",
+                    "source": "config",
+                    "type": "uint32"
                   },
                   {
                     "description": "Remote endpoint address or DNS hostname.",

@@ -428,12 +428,14 @@ Dev entries use PCI address as the key with a nested block for per-device option
 <h3 id="mellanox-rdma-exception">Mellanox RDMA Exception</h3>
 <p>mlx5 NICs use bifurcated driver mode. The kernel <code>mlx5_core</code> driver stays loaded. VPP creates
 the interface via <code>create interface rdma host-if &lt;pci-addr&gt;</code> instead of a DPDK dev entry.</p>
-<p>This means:
-- No vfio binding step
-- No driver save/restore
-- DPDK section in startup.conf does NOT include mlx5 devices
-- Interface creation uses GoVPP <code>RdmaCreate</code> API instead of DPDK auto-discovery
-- Performance is equivalent to DPDK for mlx5</p>
+<p>This means:</p>
+<ul>
+<li>No vfio binding step</li>
+<li>No driver save/restore</li>
+<li>DPDK section in startup.conf does NOT include mlx5 devices</li>
+<li>Interface creation uses GoVPP <code>RdmaCreate</code> API instead of DPDK auto-discovery</li>
+<li>Performance is equivalent to DPDK for mlx5</li>
+</ul>
 <p>This describes VPP's general Mellanox handling. Ze's own VPP integration does not yet
 implement RDMA/mlx5 interface creation (there is no <code>RdmaCreate</code> call in the codebase);
 this section is background for a future deployment path.</p>
@@ -531,10 +533,12 @@ from the management plane. Ze's BGP reactor, SSH, web UI all run in this netns.<
 <h2 id="govpp-connection">GoVPP Connection</h2>
 <h3 id="socket-transport">Socket Transport</h3>
 <p>GoVPP connects via Unix socket at <code>/run/vpp/api.sock</code>. Pure Go, no CGo.</p>
-<p>AsyncConnect pattern:
-- 10 connection attempts, 1 second interval (initial connect only)
-- Returns event channel for connection state changes (Connected, Disconnected)
-- Ze consumes the first state event and returns an error on any non-Connected state; there is no automatic reconnect-with-backoff loop after an established session drops (reconnection is the caller's responsibility)</p>
+<p>AsyncConnect pattern:</p>
+<ul>
+<li>10 connection attempts, 1 second interval (initial connect only)</li>
+<li>Returns event channel for connection state changes (Connected, Disconnected)</li>
+<li>Ze consumes the first state event and returns an error on any non-Connected state; there is no automatic reconnect-with-backoff loop after an established session drops (reconnection is the caller's responsibility)</li>
+</ul>
 <h3 id="api-clients">API Clients</h3>
 <p>GoVPP provides typed RPC service clients generated from VPP's <code>.api.json</code> files:</p>
 <table>
@@ -744,6 +748,7 @@ at a time), 256 = saturated (processing full vectors). Production typically 4-16
 <li>DPDK/RDMA NIC drivers only (not all hardware supported).</li>
 <li>Minimum 4 physical CPU cores, 8 GB RAM.</li>
 </ul>
+
             </section>
         </main>
 
@@ -753,7 +758,7 @@ at a time), 256 = saturated (processing full vectors). Production typically 4-16
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
                 </div>
             </div>
         </footer>

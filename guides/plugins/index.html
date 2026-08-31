@@ -66,7 +66,8 @@
 <li><a href="#reading-the-delivery-graph">Reading the delivery graph</a></li>
 </ol></li>
 <li><a href="#invocation-modes">Invocation Modes</a></li>
-<li><a href="#built-in-plugins">Built-In Plugins</a>
+<li><a href="#built-in-plugins">Built-In Plugins</a></li>
+<li><a href="#reporting-a-setup-outcome">Reporting a Setup Outcome</a>
 <ol>
 <li><a href="#storage-and-policy">Storage and Policy</a></li>
 <li><a href="#protocol">Protocol</a></li>
@@ -86,7 +87,7 @@
 <li><a href="#writing-external-plugins">Writing External Plugins</a>
 <ol>
 <li><a href="#answering-a-command-with-rows">Answering a command with rows</a></li>
-<li><a href="#declaring-what-your-commands-answer-holds">Declaring what your command&#x27;s answer holds</a></li>
+<li><a href="#declaring-what-your-commands-answer-holds">Declaring what your command&#39;s answer holds</a></li>
 <li><a href="#naming-a-pipe-alias-for-your-own-command">Naming a pipe alias for your own command</a></li>
 </ol></li>
 <li><a href="#dependencies">Dependencies</a></li>
@@ -99,7 +100,6 @@
 <li><a href="#debugging-plugins">Debugging Plugins</a></li>
 </ol></nav>
 <!-- source: internal/component/plugin/registry/registry.go -- plugin registry; internal/component/plugin/all/ -- blank imports -->
-
 <h2 id="choosing-plugins">Choosing plugins</h2>
 <table>
 <thead>
@@ -164,7 +164,6 @@
 </table>
 <p>NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically when you configure the corresponding address family. You don't need to declare them.</p>
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->
-
 <h2 id="config-driven-loading">Config-Driven Loading</h2>
 <p>BGP itself is a config-driven plugin. If your config has a <code>bgp { }</code> section, BGP loads automatically. If it doesn't, ze starts without BGP (useful for interface-only or FIB-only deployments). Native OSPFv2 follows the same pattern: an <code>ospf { }</code> section auto-loads the <code>ospf</code> edge plugin through <code>ConfigRoots ["ospf"]</code>.</p>
 <!-- source: internal/component/plugin/server/startup_autoload.go -- getConfigPathPlugins, autoLoadForNewConfigPaths -->
@@ -172,7 +171,6 @@
 <!-- source: internal/plugins/ospf/neighbor/table.go -- Table, Hello -->
 <!-- source: internal/plugins/ospf/neighbor/dd.go -- HandleDBDesc -->
 <!-- source: internal/plugins/ospf/lsdb/lsdb.go -- LSDB -->
-
 <h2 id="loading-plugins">Loading Plugins</h2>
 <p>Plugins are declared in the <code>plugin { }</code> block. Built-in plugins use <code>internal</code>, external processes use <code>external</code>:</p>
 <pre><code>plugin {
@@ -304,7 +302,6 @@ is the one that moves data.</p>
 <p>Plugins can register custom event types via the <code>EventTypes</code> field in their registration.
 These become valid in <code>receive</code> config directives and <code>subscribe-events</code> RPCs.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.EventTypes -->
-
 <h3 id="runtime-subscriptions">Runtime subscriptions</h3>
 <p>The Go SDK can subscribe at startup with <code>SetStartupSubscriptions</code> or after
 startup with <code>SubscribeEvents</code>. Each subscription carries its own namespace,
@@ -317,10 +314,10 @@ event. Events registered later require a new subscription.</p>
 <code>SetEnvelope(true)</code> before startup when one handler needs to distinguish events
 from several namespaces or event types. Delivery then wraps the payload:</p>
 <pre><code class="language-json">{
-  &quot;namespace&quot;: &quot;vpn-ipsec&quot;,
-  &quot;event&quot;: &quot;sa-up&quot;,
-  &quot;payload&quot;: {
-    &quot;peer&quot;: &quot;branch-a&quot;
+  "namespace": "vpn-ipsec",
+  "event": "sa-up",
+  "payload": {
+    "peer": "branch-a"
   }
 }
 </code></pre>
@@ -330,7 +327,6 @@ byte-compatible with earlier releases.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions, SetEnvelope -->
 <!-- source: pkg/plugin/rpc/types.go -- SubscribeEventsInput, EventEnvelope -->
 <!-- source: internal/component/plugin/server/dispatch.go -- wildcard expansion and enveloped delivery -->
-
 <h3 id="directions">Directions</h3>
 <pre><code>attach process my-plugin {
     receive [ update-received ]   # UPDATEs the peer sends to ze
@@ -402,7 +398,6 @@ received UPDATEs and its session state. <code>show event delivery</code> lists t
 address each one connected from.</p>
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- buildDynamicPeerSettings -->
-
 <h3 id="the-send-permission">The send permission</h3>
 <p><code>send</code> is a permission, and ze enforces it on the peers a command resolves to.
 A program that issues <code>peer * update ...</code> reaches the peers that attach it with
@@ -410,7 +405,7 @@ A program that issues <code>peer * update ...</code> reaches the peers that atta
 dropped from the command, and ze writes one WARN naming the peer, the process
 and the message type. When the selector names ONLY peers that refuse it, the
 whole command fails and the program is told why.</p>
-<p>The two BASE message types are separate permissions. A plugin registers more,
+<p>The three BASE message types are separate permissions. A plugin registers more,
 and naming one auto-loads the plugin that enables it, <code>enhanced-refresh</code> from
 bgp-route-refresh among them:</p>
 <table>
@@ -432,9 +427,16 @@ bgp-route-refresh among them:</p>
 <td>asking the peer to re-advertise</td>
 <td><code>peer &lt;sel&gt; refresh</code>, <code>borr</code>, <code>eorr</code>, <code>clear soft</code></td>
 </tr>
+<tr>
+<td><code>raw</code></td>
+<td>writing a whole BGP message the program built itself</td>
+<td><code>peer &lt;sel&gt; raw ...</code></td>
+</tr>
 </tbody>
 </table>
-<p><code>send [ * ]</code> grants both, and every send type registered later.</p>
+<p><code>raw</code> is the widest of the three, because the bytes can be any BGP message, an
+OPEN or a NOTIFICATION included. <code>send [ update ]</code> does not imply it.</p>
+<p><code>send [ * ]</code> grants all three, and every send type registered later.</p>
 <p>An operator at the CLI, over SSH or through the REST API is not a process and is
 not gated by this: their authority is the one AAA already checked.</p>
 <p>Counter: <code>ze_bgp_send_refused_total{process,type}</code> counts messages the permission
@@ -442,7 +444,6 @@ refused. A non-zero value with no config change means a program is asking for a
 peer it was never attached to.</p>
 <!-- source: internal/component/bgp/reactor/send_permission.go -- Peer.maySend, sendPermissionDenied, ze_bgp_send_refused_total -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
-
 <h3 id="reading-the-delivery-graph">Reading the delivery graph</h3>
 <p><code>show event delivery</code> prints the peer-to-process edges the running config
 produces: one block per peer, one row per <code>attach process</code> block on it, with the
@@ -465,7 +466,6 @@ registry name of a plugin loaded with <code>--plugin</code>.</p>
 <!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect, PeerScopedProcs -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowEventDelivery -->
 <!-- source: internal/component/bgp/reactor/delivery_graph.go -- DeliveryPeersFromSettings -->
-
 <h2 id="invocation-modes">Invocation Modes</h2>
 <table>
 <thead>
@@ -490,11 +490,58 @@ registry name of a plugin loaded with <code>--plugin</code>.</p>
 </table>
 <p>Internal mode (<code>use pluginname</code>) runs a compiled-in plugin as a goroutine within the ze process. Startup still uses the same YANG RPC handshake as external plugins, then DirectBridge bypasses socket I/O for supported hot paths. External mode starts a separate process; that process connects back to the plugin hub over TLS and authenticates with its per-plugin token.</p>
 <!-- source: internal/component/plugin/server/ -- plugin invocation modes; internal/component/plugin/cli/cli.go -- RunPlugin -->
-
 <h2 id="built-in-plugins">Built-In Plugins</h2>
 <p>List available plugins:</p>
-<pre><code>ze --plugins
+<pre><code>ze show plugins
 </code></pre>
+<h2 id="reporting-a-setup-outcome">Reporting a Setup Outcome</h2>
+<p>A plugin that sets something up in its own <code>init()</code> records what happened, so
+an operator can ask why a feature is absent. The <code>outcome</code> and <code>reason</code> columns
+of <code>show plugins</code> carry it:</p>
+<pre><code>ze show plugins
+</code></pre>
+<p>The record is one call, made from the plugin's <code>init()</code> beside its
+registration:</p>
+<table>
+<thead>
+<tr>
+<th>Outcome</th>
+<th>Meaning</th>
+<th>Effect on the daemon</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>registry.SetupSucceeded</code></td>
+<td>The setup completed</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>registry.SetupFailedSoft</code></td>
+<td>The feature is absent and the daemon runs correctly without it</td>
+<td>The daemon starts</td>
+</tr>
+<tr>
+<td><code>registry.SetupFailedHard</code></td>
+<td>The daemon cannot run without it</td>
+<td>The daemon refuses to start, naming every failing plugin</td>
+</tr>
+</tbody>
+</table>
+<p>The two writes a plugin makes from <code>init()</code>, <code>registry.Register</code> and
+<code>registry.RecordSetup</code>, are keyed by the plugin name and neither reads the
+other, so their order does not matter. Go initializes the files of one package
+in filename order and no plugin author has to know it.</p>
+<p>Recording is optional at the call site, and a plugin that records nothing is
+listed as <code>unknown</code>. That is the signal that the plugin owes a record, not that
+it is absent. <code>memlock</code> is the worked example: it locks the executable in
+<code>init()</code> and records a soft failure carrying the cause and the remedy when
+<code>RLIMIT_MEMLOCK</code> is too small. Its <code>memlock-rlimit</code> doctor check answers the
+question this record cannot: whether the host could lock the executable at all,
+BEFORE ze runs (<code>docs/architecture/doctor-and-health-checks.md</code>).</p>
+<p>A reason string reaches CLI output as data, so never put a secret in one.</p>
+<!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupOutcome -->
+<!-- source: internal/plugins/memlock/memlock_linux.go -- init, the worked example -->
 <h3 id="storage-and-policy">Storage and Policy</h3>
 <table>
 <thead>
@@ -543,7 +590,6 @@ registry name of a plugin loaded with <code>--plugin</code>.</p>
 <!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs registration -->
 <!-- source: internal/component/bgp/plugins/rr/register.go -- bgp-rr registration -->
 <!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog registration -->
-
 <h3 id="protocol">Protocol</h3>
 <table>
 <thead>
@@ -610,7 +656,6 @@ registry name of a plugin loaded with <code>--plugin</code>.</p>
 <!-- source: internal/component/bgp/plugins/softver/register.go -- bgp-softver registration -->
 <!-- source: internal/component/bgp/plugins/llnh/register.go -- bgp-llnh registration -->
 <!-- source: internal/component/bgp/plugins/bmp/register.go -- bgp-bmp registration -->
-
 <h3 id="infrastructure">Infrastructure</h3>
 <table>
 <thead>
@@ -723,7 +768,6 @@ registry name of a plugin loaded with <code>--plugin</code>.</p>
 <!-- source: internal/plugins/fib/p4/register.go -- fib-p4 registration -->
 <!-- source: internal/plugins/fib/kernel/register.go -- fib-kernel registration -->
 <!-- source: internal/plugins/firewall/vpp/register.go -- firewall-vpp backend registration -->
-
 <h3 id="l2tp">L2TP</h3>
 <table>
 <thead>
@@ -760,7 +804,6 @@ session lifecycle events via the EventBus.</p>
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -->
 <!-- source: internal/component/l2tp/plugins/pool/register.go -->
 <!-- source: internal/component/l2tp/plugins/shaper/register.go -->
-
 <p>The <code>iface</code> plugin defines a <code>Backend</code> interface and loads a backend by name (YANG
 <code>backend</code> leaf, default <code>netlink</code>). The <code>iface-netlink</code> backend handles all Linux
 interface operations. <code>iface-dhcp</code> is a separate plugin for DHCP client lifecycle.
@@ -802,12 +845,10 @@ two-layer model: physical interfaces + logical units (VLANs).</p>
 </tbody>
 </table>
 <!-- source: internal/component/iface/iface.go -- topic constants and payload types -->
-
 <p>The <code>rib</code> plugin aggregates best routes from all protocol RIBs and selects
 the system-wide best per prefix by administrative distance (lower wins).
 Subscribes to <code>bgp-rib/best-change/</code> Bus topic prefix, publishes <code>system-rib/best-change</code>.</p>
 <!-- source: internal/component/sysrib/sysrib.go -- system-rib topic, protocolRoute, admin distance selection -->
-
 <p>The <code>fib-kernel</code> plugin programs OS routes from the system RIB into the kernel
 via netlink (Linux). Uses a custom rtm_protocol ID (RTPROT_ZE=250) to identify
 ze-installed routes. Crash recovery marks existing ze routes as stale at startup
@@ -815,7 +856,6 @@ and sweeps them after reconvergence. A kernel route monitor detects external
 changes and re-asserts ze routes when overwritten.</p>
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- fibKernel, startupSweep, sweepStale -->
 <!-- source: internal/plugins/fib/kernel/monitor_linux.go -- kernel route monitor -->
-
 <p>Bus topics in the FIB pipeline:</p>
 <table>
 <thead>
@@ -851,7 +891,6 @@ changes and re-asserts ze routes when overwritten.</p>
 <!-- source: internal/component/sysrib/sysrib.go -- system-rib topic -->
 <!-- source: internal/plugins/fib/kernel/monitor.go -- externalChangeEvent, publishExternalChange -->
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- system-rib/best-change subscription -->
-
 <p>Bus topics in the sysctl pipeline:</p>
 <table>
 <thead>
@@ -915,7 +954,6 @@ changes and re-asserts ze routes when overwritten.</p>
 </table>
 <!-- source: internal/component/sysctl/events/events.go -- Namespace, EventDefault, EventSet, EventApplied -->
 <!-- source: internal/component/sysctl/register.go -- EventBus subscribe/emit -->
-
 <h3 id="route-filters">Route Filters</h3>
 <p>Plugins can declare named filters at stage 1 for import and/or export filtering.
 Each filter specifies which attributes it needs, and the engine sends only those
@@ -952,7 +990,6 @@ attributes as text for each UPDATE. Filters respond accept, reject, or modify
 <p>Filters can declare <code>overrides</code> to remove default filters from the chain
 (e.g., <code>allow-own-as:relaxed</code> overrides <code>rfc:no-self-as</code> for a specific peer).</p>
 <!-- source: internal/component/bgp/config/redistribution.go -- extractFilterChain and canonicalizeFilterRefs -->
-
 <h3 id="cross-protocol-redistribute-redistribute-orchestrator">Cross-Protocol Redistribute (<code>redistribute-orchestrator</code>)</h3>
 <p><code>redistribute-orchestrator</code> is the single subscriber that dispatches non-consumer
 protocol route-change events to registered <code>RedistConsumer</code> implementations.
@@ -996,11 +1033,9 @@ gap for dynamic/inbound peers not present in the reactor map at injection time.<
 <!-- source: internal/component/bgp/plugins/redistribute_egress/redistribute.go -- consumer plugin -->
 <!-- source: internal/component/bgp/plugins/redistribute_egress/replay.go -- late-join replay-on-peer-up -->
 <!-- source: internal/core/redistevents/registry.go -- ProtocolID + producer registration -->
-
 <h3 id="prefix-list-filter-bgp-filter-prefix">Prefix-List Filter (<code>bgp-filter-prefix</code>)</h3>
 <p><code>bgp-filter-prefix</code> is a built-in filter plugin that matches IPv4 and IPv6
-routes against ordered prefix lists defined in <code>bgp { policy { prefix-list
-NAME { ... } } }</code>. Each list is a sequence of <code>entry &lt;CIDR&gt;</code> blocks with
+routes against ordered prefix lists defined in <code>bgp { policy { prefix-list NAME { ... } } }</code>. Each list is a sequence of <code>entry &lt;CIDR&gt;</code> blocks with
 optional <code>ge</code> / <code>le</code> bounds and an <code>action</code> of <code>accept</code> or <code>reject</code>; the
 first matching entry wins and no match is an implicit deny.</p>
 <p>Filter chain references use the standard <code>&lt;plugin&gt;:&lt;filter&gt;</code> form:
@@ -1045,11 +1080,9 @@ rewriting the attribute value directly.</p>
 <!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate, cmd-4 phase 1 & 2 -->
 <!-- source: internal/component/bgp/plugins/filter_prefix/match.go -- partitionUpdate -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- extractLegacyNLRIOverride -->
-
 <h3 id="as-path-filter-bgp-filter-aspath">AS-Path Filter (<code>bgp-filter-aspath</code>)</h3>
 <p><code>bgp-filter-aspath</code> matches the UPDATE's AS-path against ordered regex
-entries defined in <code>bgp { policy { as-path-list NAME { entry REGEX { action
-accept|reject; } } } }</code>. The AS-path is converted to a space-separated
+entries defined in <code>bgp { policy { as-path-list NAME { entry REGEX { action accept|reject; } } } }</code>. The AS-path is converted to a space-separated
 decimal string (e.g., <code>"65001 65002 65003"</code>) and each entry's regex is
 matched using Go's RE2 engine (linear time, inherently ReDoS-safe). First
 match wins; no match is implicit deny.</p>
@@ -1058,12 +1091,10 @@ match wins; no match is implicit deny.</p>
 because ze's config parser interprets backslash as an escape character.</p>
 <!-- source: internal/component/bgp/plugins/filter_aspath/filter_aspath.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/plugins/filter_aspath/match.go -- evaluateASPath, extractASPathField -->
-
 <h3 id="community-match-filter-bgp-filter-community-match">Community Match Filter (<code>bgp-filter-community-match</code>)</h3>
 <p><code>bgp-filter-community-match</code> checks for presence of a specific community
 value in the route's standard, large, or extended community attributes.
-Defined in <code>bgp { policy { community-match NAME { entry COMMUNITY { type
-standard|large|extended; action accept|reject; } } } }</code>. First match wins;
+Defined in <code>bgp { policy { community-match NAME { entry COMMUNITY { type standard|large|extended; action accept|reject; } } } }</code>. First match wins;
 no match is implicit deny.</p>
 <p>Separate from the tag/strip community plugin (<code>bgp-filter-community</code>) because
 intent differs: this plugin filters (accept/reject), that one modifies
@@ -1073,19 +1104,16 @@ intent differs: this plugin filters (accept/reject), that one modifies
 work as match values because the filter text format renders them as names.</p>
 <!-- source: internal/component/bgp/plugins/filter_community_match/filter_community_match.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/plugins/filter_community_match/match.go -- evaluateCommunities -->
-
 <h3 id="route-attribute-modifier-bgp-filter-modify">Route Attribute Modifier (<code>bgp-filter-modify</code>)</h3>
 <p><code>bgp-filter-modify</code> applies declared operations to every route that reaches it
 in the filter chain. A definition that states a <code>match</code> container applies them
 only to the routes that meet it. The operations are:</p>
-<p><strong>Set</strong> (absolute value): <code>set { local-preference 200; med 50; origin igp;
-next-hop 10.0.0.1; as-path-prepend 3; }</code>. Only present leaves are applied.</p>
+<p><strong>Set</strong> (absolute value): <code>set { local-preference 200; med 50; origin igp; next-hop 10.0.0.1; as-path-prepend 3; }</code>. Only present leaves are applied.</p>
 <p><strong>Increment/Decrement</strong> (relative adjustment): <code>increment { local-preference 50; }</code>
 or <code>decrement { med 30; }</code>. Supported attributes: local-preference, med, aigp.
 Increment saturates at uint32 max (4294967295). Decrement floors at 0.
 Set and increment/decrement for the same attribute are mutually exclusive.</p>
-<p><strong>Community Add/Remove</strong>: <code>set { community-add [ 65000:200 ]; community-remove
-[ 65000:100 ]; large-community-add [ 65000:100:200 ]; }</code>. Adds or removes
+<p><strong>Community Add/Remove</strong>: <code>set { community-add [ 65000:200 ]; community-remove [ 65000:100 ]; large-community-add [ 65000:100:200 ]; }</code>. Adds or removes
 individual community values (standard, large, extended) without replacing the
 entire attribute. The engine maps these to AttrModAdd/AttrModRemove operations.</p>
 <p><strong>MED removal</strong>: <code>del { med; }</code>. This directive removes MULTI_EXIT_DISC (RFC
@@ -1100,9 +1128,7 @@ route without it causes route loops. The directive is mutually exclusive with
 neighboring AS is already kept off a session toward another with no
 configuration at all (Section 5.1.4). This directive is for the operator who
 wants the metric gone from the route itself.</p>
-<p><strong>Match</strong> (the condition the operations apply under): <code>match { community [
-65535:666 ]; large-community [ 65001:100:200 ]; extended-community [
-target:65001:1 ]; }</code>. The three leaf-lists hold alternatives, so any one value
+<p><strong>Match</strong> (the condition the operations apply under): <code>match { community [ 65535:666 ]; large-community [ 65001:100:200 ]; extended-community [ target:65001:1 ]; }</code>. The three leaf-lists hold alternatives, so any one value
 present in the route satisfies the condition. A route that matches none passes
 through UNCHANGED rather than rejected. An absent <code>match</code> container applies the
 operations to every route, which is what every definition written before this
@@ -1121,7 +1147,6 @@ when you want the rest dropped:
 <!-- source: internal/component/bgp/plugins/filter_modify/filter_modify.go -- appendMEDRemove -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractASPathPrependOps, communityDirectives -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractMEDRemoveOps -->
-
 <h3 id="as-path-length-filter-bgp-filter-aspath-length">AS-Path Length Filter (<code>bgp-filter-aspath-length</code>)</h3>
 <p><code>bgp-filter-aspath-length</code> accepts or rejects routes based on AS_PATH hop count.
 Configure named filters with min and/or max bounds:
@@ -1132,7 +1157,6 @@ following RFC 4271 Section 9.1.2.2.</p>
 <p>Chain references: <code>bgp-filter-aspath-length:NAME</code> or <code>as-path-length:NAME</code>.</p>
 <!-- source: internal/component/bgp/plugins/filter_aspath_length/filter_aspath_length.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/plugins/filter_aspath_length/aspath_length.go -- evaluateASPathLength, countASPathHops -->
-
 <h3 id="remove-private-as-bgp-filter-remove-private-as">Remove Private AS (<code>bgp-filter-remove-private-as</code>)</h3>
 <p><code>bgp-filter-remove-private-as</code> removes RFC 6996 Private Use ASNs from AS path
 attributes in an import or export policy chain. Define named actions in
@@ -1166,14 +1190,12 @@ to EBGP peers, private-AS removal runs before the normal local-AS prepend.</p>
 <!-- source: internal/component/bgp/plugins/filter_remove_private_as/filter_remove_private_as.go -- handleFilterUpdate -->
 <!-- source: internal/component/bgp/reactor/filter_delta.go -- ExtractRemovePrivateASOps -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- export policy before EBGP prepend -->
-
 <p>To test what a filter would do without sending traffic, use <code>show policy test</code>:</p>
 <pre><code>ze show policy test peer upstream1 export filter STRIP update &lt;BGP-UPDATE-HEX&gt;
 </code></pre>
 <p>This returns per-filter trace output showing accept/reject/modify decisions and
 changed attributes. See the <a href="../command-reference/">command reference</a> for full syntax.</p>
 <!-- source: internal/component/bgp/plugins/cmd/policy/handler.go -- handleShowPolicyTest -->
-
 <h3 id="nlri-encodersdecoders">NLRI Encoders/Decoders</h3>
 <p>NLRI plugins register address family support at init time via <code>family.MustRegister(afi, safi, afiStr, safiStr)</code>. The four base families (<code>ipv4/unicast</code>, <code>ipv6/unicast</code>, <code>ipv4/multicast</code>, <code>ipv6/multicast</code>) live in <code>internal/core/family/registry.go</code> itself; everything else is owned by its plugin's <code>types.go</code>. Plugins are loaded automatically when the corresponding family is configured.</p>
 <table>
@@ -1232,7 +1254,6 @@ changed attributes. See the <a href="../command-reference/">command reference</a
 <!-- source: internal/component/bgp/plugins/nlri/rtc/types.go -- RTC family types -->
 <!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS family types -->
 <!-- source: internal/core/family/registry.go -- family registry -->
-
 <h2 id="hub-configuration">Hub Configuration</h2>
 <p>For external plugins that connect over TLS (non-internal mode), configure the hub:</p>
 <pre><code>plugin {
@@ -1246,30 +1267,18 @@ changed attributes. See the <a href="../command-reference/">command reference</a
 }
 </code></pre>
 <!-- source: internal/component/hub/yang/ -- hub config YANG schema; pkg/plugin/sdk/ -- TLS auth -->
-
 <h2 id="writing-external-plugins">Writing External Plugins</h2>
-<p>External plugins communicate with ze using the same newline-framed YANG RPC protocol as internal plugins: <code>#&lt;id&gt; &lt;verb&gt; [json]</code>. External processes connect back to the plugin hub over TLS using the <code>ZE_PLUGIN_HUB_*</code> environment variables set by the engine. The Go SDK in <code>pkg/plugin/sdk</code> is the reference implementation; the functional-test helper <code>test/scripts/ze_api.py</code> shows the Python shape:</p>
-<pre><code class="language-python">from ze_api import API
-
-api = API()
-api.declare_done()
-api.wait_for_config()
-api.capability_done()
-api.wait_for_registry()
-api.subscribe(['update direction received'])
-api.ready()
-
-# Event loop
-while True:
-    event = api.read_line(timeout=1.0)
-    if event:
-        # process event JSON
-        pass
-</code></pre>
-<p>See <a href="../../developers/plugins/protocol/">plugin-development/protocol.md</a> for the full protocol reference.</p>
+<p>External plugins communicate with Ze through the same newline-framed YANG RPC
+protocol as internal plugins: <code>#&lt;id&gt; &lt;verb&gt; [json]</code>. External processes connect
+to the plugin hub over TLS with the <code>ZE_PLUGIN_HUB_*</code> environment supplied by
+the engine. The Go SDK in <code>pkg/plugin/sdk</code> is the reference implementation. A
+plugin written in another language implements the same documented wire
+protocol; no first-party Python launcher or helper is required.</p>
+<p>See <a href="../../developers/plugins/protocol/">plugin-development/protocol.md</a> for the
+protocol and <a href="https://github.com/ze-software/ze/tree/main/docs/../examples/plugin/go" target="_blank" rel="noopener"><code>examples/plugin/go</code></a> for a complete
+plugin.</p>
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
-<!-- source: test/scripts/ze_api.py -- API YANG RPC client -->
-
+<!-- source: examples/plugin/go/main.go -- main -->
 <h3 id="answering-a-command-with-rows">Answering a command with rows</h3>
 <p>A command handler returns <code>(status string, data any, error)</code>. When <code>data</code> is a
 built value, the operator gets that value. When the command walks a large
@@ -1278,10 +1287,10 @@ each row past the first 256, and neither the plugin nor the engine holds the
 whole answer. A walk that ends inside those 256 rows collapses to the one
 document the command answered with before it produced rows at all.</p>
 <pre><code class="language-go">p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
-    return &quot;done&quot;, sdk.Records{
-        Key:  &quot;sessions&quot;,
-        Rows: sessionRows(),
-    }, nil
+	return "done", sdk.Records{
+		Key:  "sessions",
+		Rows: sessionRows(),
+	}, nil
 })
 </code></pre>
 <p><code>Key</code> names the envelope the rows belong under. <code>Rows</code> is an
@@ -1292,14 +1301,13 @@ appended before the yield that carried it returns and nothing keeps a reference
 to it, so a producer can hand back one row value for every row of the walk and
 refill it in place.</p>
 <!-- source: pkg/plugin/records.go -- Row, Record, Records -->
-
 <p><code>Fields</code> names the columns when every row of the walk shares one schema. Declare
 them and each row is a JSON array of values in that order, so the names travel
 once on the head instead of on every row:</p>
-<pre><code class="language-go">return &quot;done&quot;, sdk.Records{
-    Key:    &quot;sessions&quot;,
-    Fields: []string{&quot;peer&quot;, &quot;state&quot;, &quot;uptime&quot;},
-    Rows:   sessionColumnRows(),
+<pre><code class="language-go">return "done", sdk.Records{
+	Key:    "sessions",
+	Fields: []string{"peer", "state", "uptime"},
+	Rows:   sessionColumnRows(),
 }, nil
 </code></pre>
 <p>An operator sees the same objects either way. The engine reads the names off the
@@ -1310,7 +1318,6 @@ are read against each other by POSITION. A short row would gain a column it neve
 carried, and a long one would lose a value, so such a row is refused rather than
 repaired.</p>
 <!-- source: pkg/plugin/rpc/answer_row.go -- checkRowArity, zipRow -->
-
 <p>Three rules bind a handler that answers this way.</p>
 <table>
 <thead>
@@ -1341,24 +1348,22 @@ each fit and whose one collapsed document does not is refused the same way, and
 the operator reads that rejection alone.</p>
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
 <!-- source: pkg/plugin/rpc/collapse.go -- CollapseRecords, AnswerErrorsKey -->
-
 <p>A plugin also READS a record answer. <code>Plugin.DispatchCommandAnswer</code> runs an
 engine command and yields each row as it arrives, which is what bounds the memory
 of a walk over a large table. <code>Plugin.DispatchCommand</code> reads the same answer as
 one document for a caller that wants the whole payload.</p>
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- Plugin.DispatchCommandAnswer, Plugin.DispatchCommand -->
-
 <h3 id="declaring-what-your-commands-answer-holds">Declaring what your command's answer holds</h3>
 <p>Each <code>CommandDecl</code> carries an optional <code>Shape</code>, <code>Columns</code> and <code>AddressFields</code>.
 Declare them and the CLI publishes the pipe operators your command supports, and
 refuses the others BY NAME before your handler runs. Declare nothing and the CLI
 waits for the answer, then refuses from what it has in hand.</p>
 <pre><code class="language-go">Commands: []sdk.CommandDecl{{
-    Name:          &quot;my-plugin peers&quot;,
-    Description:   &quot;Show the sessions&quot;,
-    Shape:         &quot;tab&quot;,
-    Columns:       []string{&quot;address&quot;, &quot;state&quot;, &quot;up&quot;},
-    AddressFields: []string{&quot;address&quot;},
+	Name:          "my-plugin peers",
+	Description:   "Show the sessions",
+	Shape:         "tab",
+	Columns:       []string{"address", "state", "up"},
+	AddressFields: []string{"address"},
 }},
 </code></pre>
 <p>The shape MUST be <code>doc</code>, <code>map</code> or <code>tab</code>, and a column or address-field list MUST
@@ -1368,7 +1373,6 @@ field list, the bounds and the four refusals are in
 <a href="../../developers/plugins/commands/#declaring-what-your-answer-holds">plugin-development/commands</a>.</p>
 <!-- source: pkg/plugin/sdk/sdk_types.go -- CommandDecl, Registration -->
 <!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls -->
-
 <h3 id="naming-a-pipe-alias-for-your-own-command">Naming a pipe alias for your own command</h3>
 <p>A plugin declares a CLI pipe alias in the <code>Pipes</code> list of the same
 <code>Registration</code>. An alias is the word an operator types after the pipe character,
@@ -1376,15 +1380,14 @@ and it stands for an operator chain. The BGP RPKI plugin declares <code>summary<
 <code>show bgp rpki</code>, so <code>show bgp rpki | summary</code> answers the counters without the
 cache server rows.</p>
 <pre><code class="language-go">Pipes: []sdk.PipeDecl{{
-    Command:     &quot;my-plugin status&quot;,
-    Name:        &quot;totals&quot;,
-    Description: &quot;The counters, without the per-session rows&quot;,
-    Expansion:   &quot;display sessions-total sessions-established&quot;,
+	Command:     "my-plugin status",
+	Name:        "totals",
+	Description: "The counters, without the per-session rows",
+	Expansion:   "display sessions-total sessions-established",
 }},
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
-
 <p>The pipe layer selects and re-sequences. It renames no key, adds no numbers and
 counts no matching rows. So your handler MUST emit the aggregate fields beside
 the detail rows, as siblings at one level. A command whose second view needs
@@ -1404,7 +1407,6 @@ command argument, which expands the chain in the client process and answers
 <code>pipe error: unknown pipe operator: totals</code>.</p>
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
 <!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
-
 <h2 id="dependencies">Dependencies</h2>
 <p>Plugins can declare dependencies on other plugins. The engine starts plugins in dependency order and delivers state/EOR events to dependents first.</p>
 <pre><code># bgp-gr depends on bgp-rib
@@ -1436,33 +1438,28 @@ command argument, which expands the chain in the client process and answers
 <p><code>bgp-rs</code> uses <code>bgp-adj-rib-in</code> optionally: when both are loaded, replay-on-peer-up works; when <code>bgp-adj-rib-in</code> is absent, forwarding still works and a single WARN log announces that replay is disabled. <code>bgp-rs</code> forwards via the typed <code>Plugin.ForwardCached</code> / <code>ReleaseCached</code> fast path (rs-fastpath-3) instead of the legacy text-RPC <code>bgp cache forward &lt;id&gt; &lt;sel&gt;</code> pipeline. See <a href="../../architecture/api/commands/#fast-path-typed-sdk-rs-fastpath-3">architecture/api/commands</a> for the full SDK surface.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies + Registration.OptionalDependencies -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch via Plugin.ForwardCached -->
-
 <h2 id="exclusive-roles">Exclusive Roles</h2>
 <p>When two plugins both implement a behaviour but only one should run it, the plugin that takes over declares the role in its static registration (<code>Claims</code>), and the other stands down. The engine unions the claims of every plugin in the startup set and delivers the union on each plugin's Stage-2 configure callback; the standing-down plugin reads it with <code>sdk.Plugin.ClaimActive(role)</code> from its <code>OnConfigure</code> handler.</p>
 <p>Stage 2 is part of the sequential handshake, so the decision is recorded before any plugin sends Stage-5 ready and therefore before the engine starts peers. A handler reading it during a runtime event always sees the final answer.</p>
 <p><code>bgp-rs</code> claims <code>bgp-peer-up-replay</code>; <code>bgp-adj-rib-in</code> stands its own replay down when that claim is active. The decision must not be re-derived from <code>OnAllPluginsReady</code>: that callback is fanned out on detached goroutines that race session establishment, and when the ownership decision was taken there both plugins replayed, so a peer received a byte-identical duplicate UPDATE. An unclaimed or unresolvable role reads <code>false</code>, which is the fail-closed direction: nobody promised to do this, so keep doing it yourself.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Claims -->
 <!-- source: pkg/plugin/sdk/sdk.go -- Plugin.ClaimActive -->
-
 <h3 id="a-claim-is-daemon-wide-and-delivery-is-per-peer">A claim is daemon-wide, and delivery is per-peer</h3>
 <p>A claim says a role has an owner in this daemon. It cannot say the owner will act on a given peer, because Stage 2 runs before any session exists. Two things make the claim wrong for one peer, and the plugin that stood down can see neither: the claimant takes no delivery of that peer's events, because the peer's <code>attach process</code> blocks do not name it, or the claimant never reached Running at all.</p>
 <p>So the engine RETRACTS the claim, per event, for the peers it does not cover. Each peer-scoped event carries the claimed roles that no process being fed this event holds: <code>StructuredEvent.UnheldRoles</code> for a plugin on the direct bridge, and the <code>unheld-roles</code> member of the state event for a JSON one. A plugin that stood a role down MUST run its own default behaviour for an event that names it, because nothing else will. The list is absent whenever every claim holds, which is the common case and costs no bytes.</p>
 <p><code>bgp-adj-rib-in</code> reads it at peer-up: it replays a peer that <code>bgp-rs</code> is not fed, and stands down for the peers <code>bgp-rs</code> drives. Without the retraction such a peer was served by nobody, because <code>bgp-rs</code> replays and forwards only peers it takes <code>state</code> delivery of.</p>
 <!-- source: internal/component/plugin/server/startup_claims.go -- (*Server).UnheldRoles -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_claims.go -- (*AdjRIBInManager).replayDrivenElsewhere -->
-
 <h2 id="peer-up-barrier">Peer-Up Barrier</h2>
 <p>A plugin that decides on the peer-up event whether a peer may receive traffic declares <code>PeerUpBarrier: true</code>. The engine then holds that peer's initial-sync End-of-RIB until every barrier-declaring plugin subscribed to state events has taken delivery of the peer-up event, so "End-of-RIB sent" means "every barrier plugin has registered this peer".</p>
 <p><code>bgp-rs</code> declares it: it registers the peer as a forward target on that event, and an UPDATE arriving before that is forwarded nowhere. The wait is bounded and never blocks establishment. A plugin that does not acknowledge only delays the End-of-RIB to the timeout, which logs a WARN naming the peer and the shortfall. The expected count is taken over the plugins the event is actually delivered to, so declaring the field without subscribing to state events does not stall anything. It is a separate counter from the API-sync wait, which counts plugins that send routes: merging them would let a route sender's signal satisfy a registrar's obligation.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.PeerUpBarrier -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- waitPeerUpBarrier before End-of-RIB -->
-
 <h2 id="startup-timing">Startup Timing</h2>
 <p>Each handshake stage is bounded by progress, not by wall clock. A stage fails only when the whole startup tier goes <code>ze.plugin.stage.timeout</code> (default 5s) without any plugin completing a stage; every completion re-arms the window. A BGP config puts twenty or more plugins in one tier (<code>bgp</code>, <code>bgp-bmp</code>, <code>bgp-rpki</code>, every <code>bgp-filter-*</code>), and a flat per-tier budget meant a CPU-starved or slow-disk host could lose all of them at once and come up with its BGP plugins missing.</p>
 <p>The wait stays bounded three ways: a repeated stage completion is ignored, so a looping plugin cannot hold the window open; a wedged tier trips within one timeout of the last progress; and shutdown ends the wait. Worst case is <code>(plugins + 1) x timeout</code> per stage.</p>
 <!-- source: internal/component/plugin/startup_coordinator.go -- WaitForStageProgress -->
 <!-- source: internal/component/plugin/server/server.go -- ze.plugin.stage.timeout -->
-
 <h2 id="debugging-plugins">Debugging Plugins</h2>
 <p>The plugin debug shell lets you manually interact with the engine using the plugin protocol. This is useful when debugging plugin code -- you can send individual commands and inspect responses.</p>
 <pre><code>ze bgp plugin cli
@@ -1511,6 +1508,7 @@ command argument, which expands the chain in the client process and answers
 </table>
 <p>Use <code>--name &lt;name&gt;</code> to set a custom plugin name for the session.</p>
 <!-- source: internal/component/bgp/cli/cmd_plugin.go -- cmdPluginCLI -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -1552,7 +1550,7 @@ command argument, which expands the chain in the client process and answers
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

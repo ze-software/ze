@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/features/cli-commands/" />
         <meta property="og:url" content="https://ze-software.net/features/cli-commands/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -65,8 +65,7 @@
 <h3 id="every-command-starts-with-its-verb">Every command starts with its verb</h3>
 <p><code>show</code>, <code>clear</code>, <code>monitor</code>, <code>request</code>, <code>set</code>, and <code>delete</code> are the six verbs. The
 words after the verb are the YANG path. A bare form with no verb is not in the
-command tree, and the dispatcher answers <code>unknown command</code> for it. <code>daemon
-reload</code> is now <code>request reload</code>, <code>daemon status</code> is <code>show status</code>, <code>daemon quit</code>
+command tree, and the dispatcher answers <code>unknown command</code> for it. <code>daemon reload</code> is now <code>request reload</code>, <code>daemon status</code> is <code>show status</code>, <code>daemon quit</code>
 is <code>request halt</code>, <code>daemon shutdown</code> is <code>request shutdown</code>, and <code>bgp summary</code> is
 <code>show bgp</code>.</p>
 <p><code>stop</code>, <code>restart</code>, and <code>reboot</code> are the exception, and they keep their bare
@@ -74,20 +73,17 @@ spelling. The SSH exec middleware intercepts those three lifecycle verbs before
 the dispatcher, which registers no key for them.</p>
 <!-- source: internal/plugins/signal/main.go -- Commands table ExecCommand column -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware lifecycle interception -->
-
 <p>Every subcommand of <code>ze show</code>, <code>ze clear</code>, <code>ze monitor</code>, <code>ze request</code>, <code>ze set</code>,
 and <code>ze delete</code> resolves against the daemon's own registrations. The verb-relative
 tree is built from the same registration set the dispatcher is keyed on, so the
 client and the daemon cannot disagree about which words are a command.</p>
 <!-- source: internal/component/cli/client/verb_tree.go -- BuildVerbCommandTree, AbsoluteVerbPath -->
-
 <p>A local in-process handler is refused for any argv that reaches a declared
 command below it. <code>show interface</code> is registered at two words and takes an
 interface name, so <code>brief</code>, <code>scan</code>, <code>type</code>, <code>errors</code>, <code>rate</code>, and the two
 <code>name &lt;name&gt; ...</code> forms all go to the daemon rather than being read as interface
 names.</p>
 <!-- source: internal/component/command/registry/registry.go -- LookupLocal prefix refusal -->
-
 <h3 id="peer-selectors-on-a-destructive-command">Peer selectors on a destructive command</h3>
 <p>One resolver answers the peer selector for every peer-scoped command. It accepts
 a name, an address, an ASN (<code>as65001</code>), or a prefix, so a selector that works on
@@ -101,17 +97,21 @@ exclusion, because a complement is a good answer when the command filters rather
 than acts.</p>
 <!-- source: internal/component/plugin/server/command.go -- ResolveSinglePeer, errExcludePeerSelector -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- handleTeardown, handleBgpPeerFlush -->
-
 <h3 id="positional-arguments">Positional arguments</h3>
 <p>Every declared argument kind takes part in positional matching, typed kinds
 included, and mandatory definitions are offered a token before optional ones. A
-<code>uint16</code> port no longer skips its token and then fails with <code>required argument
-missing</code>, and an optional string can no longer starve a required argument of its
+<code>uint16</code> port no longer skips its token and then fails with <code>required argument missing</code>, and an optional string can no longer starve a required argument of its
 value. One spare token becomes the peer selector when the command declares that
 it requires one, no selector arrived out of band, and exactly one token is spare,
 which is what makes <code>delete bgp peer 127.0.0.1</code> work.</p>
-<!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens -->
-
+<p>A value that sits BETWEEN two keywords reaches the leaf the model anchored to
+the first of them. A leaf declared on a grouping container carries that
+container's name. That name is the word the operator types the value after, so
+<code>peer &lt;selector&gt; announce unicast &lt;prefix&gt;</code> binds the selector and leaves the
+prefix to the handler. The shape-based fallback stays for a command that
+anchors nothing, and both refuse ambiguity: two candidates name none.</p>
+<!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens, anchoredDef, implicitSelectorDef -->
+<!-- source: internal/component/config/yang/command.go -- appendAnchored -->
 <h3 id="a-command-declares-what-its-answer-holds">A command declares what its answer holds</h3>
 <p>A command declares whether its answer holds rows or one document, and which of
 its fields hold an IP address. The CLI refuses an operator that declaration
@@ -132,7 +132,6 @@ refuses what it cannot support, from the answer it has in hand, after it runs.</
 <!-- source: internal/component/command/answer_shape.go -- RegisterShape, RegisterAddressFields, RegisterPluginShapes -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerShapes -->
 <!-- source: internal/component/plugin/server/startup.go -- registerPluginShapes -->
-
 <h3 id="protocol-tools">Protocol Tools</h3>
 <table>
 <thead>
@@ -153,7 +152,6 @@ refuses what it cannot support, from the answer it has in hand, after it runs.</
 </tbody>
 </table>
 <!-- source: internal/component/bgp/cli/main.go -- bgp decode/encode dispatch -->
-
 <h3 id="configuration-management">Configuration Management</h3>
 <table>
 <thead>
@@ -219,7 +217,6 @@ refuses what it cannot support, from the answer it has in hand, after it runs.</
 <!-- source: internal/component/config/cli/cmd_migrate.go -- migrate command -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- dump command -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- diff command -->
-
 <h3 id="schema-discovery">Schema Discovery</h3>
 <table>
 <thead>
@@ -256,7 +253,6 @@ refuses what it cannot support, from the answer it has in hand, after it runs.</
 </tbody>
 </table>
 <!-- source: internal/component/config/yang/cli/main.go -- schema subcommand dispatch -->
-
 <h3 id="daemon-control">Daemon Control</h3>
 <table>
 <thead>
@@ -297,11 +293,9 @@ refuses what it cannot support, from the answer it has in hand, after it runs.</
 </tbody>
 </table>
 <p>Each <code>ze signal</code> subcommand sends one SSH exec command to the daemon. <code>reload</code>
-sends <code>request reload</code>, <code>status</code> sends <code>show status</code>, and <code>quit</code> sends <code>request
-halt</code>. <code>stop</code>, <code>restart</code>, and <code>reboot</code> keep their bare spelling because the SSH
+sends <code>request reload</code>, <code>status</code> sends <code>show status</code>, and <code>quit</code> sends <code>request halt</code>. <code>stop</code>, <code>restart</code>, and <code>reboot</code> keep their bare spelling because the SSH
 exec middleware intercepts them before the dispatcher.</p>
 <!-- source: internal/plugins/signal/main.go -- Commands registry, ExecCommand column -->
-
 <h3 id="runtime-interaction">Runtime Interaction</h3>
 <table>
 <thead>
@@ -326,19 +320,17 @@ exec middleware intercepts them before the dispatcher.</p>
 <pre><code>ze show ping 8.8.8.8 count 5 timeout 3s
 ze show ping 8.8.8.8 size 1400
 ze show traceroute 8.8.8.8 max-hops 10 probes 1
-ze cli -c &quot;monitor ping 8.8.8.8 interval 500ms&quot;
-ze cli -c &quot;monitor ping 8.8.8.8 count 5 size 1400&quot;
-ze cli -c &quot;monitor traceroute 8.8.8.8 | log | resolve&quot;
+ze cli -c "monitor ping 8.8.8.8 interval 500ms"
+ze cli -c "monitor ping 8.8.8.8 count 5 size 1400"
+ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 </code></pre>
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal, monitorPingLocal -->
 <!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
 <!-- source: internal/component/cli/model_ping_test.go -- parsePingMonitorArgs -->
 <!-- source: internal/component/cli/model_traceroute_test.go -- parseTracerouteMonitorArgs -->
-
 <p><strong>Live peer dashboard:</strong> <code>monitor bgp</code> in the interactive CLI opens a live dashboard showing router identity, a sortable colour-coded peer table with update rates, and a drill-down detail view. It refreshes every 2 seconds. Use j/k to move, s/S to sort, Enter for detail, and Esc to exit. The state column renders green for <code>established</code>, yellow for the transitional states, and red for <code>stopped</code>, <code>idle</code>, and <code>idle-hold</code>. <code>idle-hold</code> is the state a prefix limit leaves a peer in when the family that overflowed asked for no reconnect, so it needs an operator and is coloured like the other down states.</p>
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 <!-- source: internal/component/cli/model_dashboard_render.go -- stateStyled -->
-
 <figure class="terminal-demo" data-terminal-demo="cli-dashboard">
   <div class="terminal-demo__intro">
     <div>
@@ -357,7 +349,7 @@ ze cli -c &quot;monitor traceroute 8.8.8.8 | log | resolve&quot;
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/cli-dashboard.cast?v=c3364cbe6a"
+      data-cast-src="../../assets/demos/cli-dashboard.cast?v=3dda17bc16"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -365,12 +357,12 @@ ze cli -c &quot;monitor traceroute 8.8.8.8 | log | resolve&quot;
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/cli-dashboard.cast?v=c3364cbe6a">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/cli-dashboard.cast?v=3dda17bc16">Download the asciicast</a> or
       <a href="../../assets/demos/cli-dashboard.txt?v=86542601eb">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>44 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.08.31</span><span>44 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/cli-dashboard.txt?v=86542601eb">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -379,22 +371,17 @@ ze cli -c &quot;monitor traceroute 8.8.8.8 | log | resolve&quot;
 ze# exit
 ze&gt; monitor bgp
 
-The dashboard polls three local BGP sessions. Press &quot;s&quot; to sort by the next column, use the arrow keys to select a peer, and press Enter for live session details. Press Escape to return and &quot;q&quot; to leave the dashboard.</code></pre>
+The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the next column, use the arrow keys to select a peer, and press Enter for live session details. Press Escape to return and &#34;q&#34; to leave the dashboard.</code></pre>
   </details>
 </figure>
-
 <p><strong>Commit confirmed:</strong> The editor supports <code>commit confirmed &lt;seconds&gt;</code> for safe remote changes. The config is applied immediately but auto-reverts if <code>confirm</code> is not issued within the timeout window (1-3600 seconds). Use <code>confirm abort</code> to revert manually. Modeled after Junos commit confirmed.</p>
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
-
 <p><strong>Command history persistence:</strong> Both <code>ze config edit</code> and <code>ze cli</code> persist command history to the zefs blob store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).</p>
 <!-- source: internal/component/cli/history.go -- History type -->
-
 <p><strong>Login warnings:</strong> When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with <code>prefix-updated</code> older than 6 months); run <code>update bgp peer * prefix</code> to refresh from PeeringDB.</p>
 <!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->
-
 <p><strong>Plugin debug shell:</strong> <code>ze bgp plugin cli</code> connects to the daemon via SSH, runs the 5-stage plugin handshake, and enters interactive command mode. Developers can test plugin protocol interactions by hand -- sending dispatch-command, subscribe-events, decode-nlri, etc. Accepts defaults (Enter through Q&amp;A) or custom registration parameters (families, plugin name).</p>
 <!-- source: internal/component/bgp/cli/cmd_plugin.go -- cmdPluginCLI -->
-
 <h3 id="other">Other</h3>
 <table>
 <thead>
@@ -421,14 +408,15 @@ The dashboard polls three local BGP sessions. Press &quot;s&quot; to sort by the
 <td>Generate shell completion scripts</td>
 </tr>
 <tr>
-<td><code>ze --plugins</code></td>
-<td>List available internal plugins</td>
+<td><code>ze show plugins</code></td>
+<td>List the plugins compiled into this binary</td>
 </tr>
 </tbody>
 </table>
 <!-- source: internal/plugins/completion/main.go -- completion subcommand -->
 <!-- source: internal/component/plugin/cli/main.go -- plugin subcommand -->
 <!-- source: internal/plugins/exabgp/main.go -- exabgp subcommand -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -462,7 +450,7 @@ The dashboard polls three local BGP sessions. Press &quot;s&quot; to sort by the
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 15:04 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

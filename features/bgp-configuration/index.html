@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/features/bgp-configuration/" />
         <meta property="og:url" content="https://ze-software.net/features/bgp-configuration/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -149,7 +149,6 @@ straight from each plugin's own YANG module.</p>
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree config resolution -->
 <!-- source: internal/component/bgp/config/peers.go -- peer config parsing -->
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema -->
-
 <h3 id="required-field-validation">Required Field Validation</h3>
 <p>The <code>ze:required</code> and <code>ze:suggest</code> YANG extensions declare which fields must be present in a peer after config inheritance resolution (bgp -&gt; group -&gt; peer merge).</p>
 <table>
@@ -181,13 +180,11 @@ surfaces rather than a refusal.</p>
 <!-- source: internal/component/config/validate_sections.go -- ValidateCustomSections, ErrCustomValidation -->
 <!-- source: internal/component/config/loader.go -- LoadConfig calls ValidateCustomSections -->
 <!-- source: cmd/ze/hub/main.go -- recoverableLoadError declines recovery for ErrCustomValidation -->
-
 <p>Peer required fields: <code>connection/remote/ip</code>, <code>session/asn/local</code>, <code>session/asn/remote</code>. Suggested: <code>connection/local/ip</code>.</p>
 <p>Fields can be satisfied by inheritance: <code>session/asn/local</code> set at bgp level satisfies the requirement for all peers; <code>session/asn/remote</code> set at group level satisfies it for group members.</p>
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- ze:required, ze:suggest extensions -->
 <!-- source: internal/component/config/required.go -- CheckRequired (generic, any list) -->
 <!-- source: internal/component/bgp/config/resolve.go -- CheckRequiredFields (BGP-specific) -->
-
 <h3 id="prefix-limits-rfc-4486">Prefix Limits (RFC 4486)</h3>
 <p>Per-peer per-family prefix maximum enforcement. Mandatory for every negotiated family.</p>
 <table>
@@ -220,12 +217,12 @@ surfaces rather than a refusal.</p>
 <td>Seconds to wait before reconnect after this family caused a teardown. Default 0, which keeps the peer down.</td>
 </tr>
 <tr>
-<td><code>prefix { reconnect never\|backoff\|timer; }</code></td>
+<td><code>prefix { reconnect never|backoff|timer; }</code></td>
 <td>Per family</td>
 <td>What the peer does after this family stopped the session. No value means <code>timer</code> when <code>idle-timeout</code> is above 0, and <code>never</code> when it is 0.</td>
 </tr>
 <tr>
-<td><code>prefix { count offered\|installed; }</code></td>
+<td><code>prefix { count offered|installed; }</code></td>
 <td>Per family</td>
 <td>Which prefixes the count compared against <code>maximum</code> holds. Default <code>offered</code>.</td>
 </tr>
@@ -233,10 +230,8 @@ surfaces rather than a refusal.</p>
 </table>
 <p>When a family exceeds its maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With <code>teardown false</code> on that family, the session stays up and the UPDATE that crossed the maximum is dropped. The drop is per UPDATE, not per NLRI: Ze consumes the whole message and delivers none of it, so routes of other families in that same UPDATE are dropped with it. Each family reads its own <code>teardown</code> value, so one family can warn while another stops the session.</p>
 <!-- source: internal/component/bgp/reactor/session_read.go -- processMessage returns before plugin delivery when prefixDrop is set -->
-
 <p><code>count</code> states which prefixes the number compared against <code>maximum</code> holds, and it changes what happens after <code>teardown false</code> drops an UPDATE. RFC 4271 Section 6.7 does not say whether a prefix limit governs what the peer offered or what the receiver kept, so the operator chooses. <code>offered</code>, the default, keeps a dropped UPDATE's prefixes in the count: the count stays above the maximum, and Ze drops every later announce of that family until the peer withdraws them. <code>installed</code> leaves the count where it was, so the family accepts the next announce that fits. Neither value is the size of the RIB, because import policy can reject a counted prefix. The choice never changes enforcement: both values drop the same UPDATE and send the same NOTIFICATION.</p>
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- applyInstalledPrefixDeltas settles an installed family before the count moves -->
-
 <p>A peer stopped by a prefix limit STAYS DOWN by default. Its state reads <code>idle-hold</code>, <code>ze show warnings</code> carries a <code>prefix-hold</code> warning that names the family, and the log line says <code>peer held down</code>. The peer comes back when an operator recreates it: change that peer's config and commit, or delete and add the peer. This is what Cisco and Juniper do for the same event.</p>
 <p><code>reconnect backoff</code> asks for the opposite: the peer comes back on its usual connect backoff, 5 to 60 seconds. <code>reconnect timer</code>, or an <code>idle-timeout</code> above 0, waits idle-timeout x 2^(N-1), capped at 1 hour. The wait comes from the family that exceeded its maximum, and resets on a stable session. A <code>reconnect</code> value that contradicts <code>idle-timeout</code> in the same block is a config error.</p>
 <p><strong>PeeringDB integration:</strong> <code>resolve peeringdb max-prefix &lt;asn&gt;</code> queries PeeringDB for a peer's ASN and updates prefix maximums automatically. A configurable margin (default 10%) is added to PeeringDB values. The PeeringDB URL is configurable under <code>system { peeringdb { url; margin; } }</code> for private mirrors. Staleness warnings appear when prefix data is older than 6 months.</p>
@@ -244,7 +239,6 @@ surfaces rather than a refusal.</p>
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- prefixReconnectDecision and holdDownAfterPrefixTeardown, per-family reconnect -->
 <!-- source: internal/component/resolve/cmd/resolve.go -- handlePeeringDBMaxPrefix -->
-
 <h3 id="cross-peer-update-groups">Cross-Peer Update Groups</h3>
 <p>Peers with identical outbound encoding contexts (same ContextID, same policy) are automatically grouped. The reactor builds each UPDATE once per group and fans out the wire bytes to all members, eliminating redundant per-peer UPDATE construction. GroupKey combines the peer's <code>sendCtxID</code> (which encodes ASN4, ADD-PATH, Extended Message, Extended Next Hop, iBGP/eBGP, and ASN values) with a policy key (uniform today, extensible for per-peer export policy).</p>
 <p>Groups are maintained by the reactor: peers are added on session establishment and removed on session close. When disabled or when all peers have unique contexts, behavior is identical to per-peer building with negligible overhead (one map lookup per peer lifecycle event).</p>
@@ -255,7 +249,6 @@ surfaces rather than a refusal.</p>
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- group-aware ForwardUpdate with fwdBodyCache -->
 <!-- source: internal/component/config/environment.go -- ze.bgp.reactor.update-groups env var registration -->
 <!-- source: internal/exabgp/migration/migrate.go -- injectUpdateGroupsDisabled -->
-
 <h3 id="session-resilience">Session Resilience</h3>
 <table>
 <thead>
@@ -279,7 +272,7 @@ surfaces rather than a refusal.</p>
 </tr>
 <tr>
 <td>Send Hold Timer (RFC 9687)</td>
-<td>Detects when local side cannot write to peer. Duration: max(8min, 2x hold-time). Sends NOTIFICATION code 8 on expiry.</td>
+<td>Detects when local side cannot write to peer. Duration: max(8min, 2x hold-time), or the per-peer <code>send-hold-time</code>, which must exceed the hold time. Sends NOTIFICATION code 8 on expiry. Stopped when the negotiated hold time is zero, since such a session sends nothing.</td>
 </tr>
 <tr>
 <td>Hold timer expiry (RFC 4271 Section 8.2.2, Event 10)</td>
@@ -313,7 +306,6 @@ surfaces rather than a refusal.</p>
 <!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- write deadline, overflow pool -->
 <!-- source: internal/component/bgp/reactor/forward_pool_congestion.go -- two-threshold enforcement -->
-
 <h3 id="route-loop-detection">Route Loop Detection</h3>
 <table>
 <thead>
@@ -353,7 +345,6 @@ Cluster ID defaults to Router ID per RFC 4456 Section 7.</p>
 <!-- source: internal/component/bgp/reactor/filter/loop.go -- LoopIngress -->
 <!-- source: internal/component/bgp/filterapi/filterapi.go -- FilterStageProtocol -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- enforceRFC7606; internal/component/bgp/reactor/session_prefix.go -- checkPrefixLimits -->
-
 <h3 id="capabilities-configuration">Capabilities Configuration</h3>
 <table>
 <thead>
@@ -434,7 +425,6 @@ external and skip expansion, so both hard and optional dependencies were dropped
 with no error: a route server configured that way ran with no <code>bgp-adj-rib-in</code>
 and therefore no peer-up Adj-RIB-In replay.</p>
 <!-- source: internal/component/config/loader.go -- registryName, ExpandDependencies -->
-
 <p>A config root that no plugin and no hub handler claims is stored and delivered to
 nobody, so it has no effect. <code>ze doctor</code> reports it as
 <code>doctor-config-root-unclaimed</code>, naming the path and the two causes: the owning
@@ -442,13 +432,12 @@ plugin is not in this binary or did not load, or its config root is missing. The
 check fails closed and reports <code>doctor-config-claims-unavailable</code> when no plugin
 in the build declares a config root at all.</p>
 <!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims, configClaimDiagnostics -->
-
 <figure class="terminal-demo" data-terminal-demo="config-graph">
   <div class="terminal-demo__intro">
     <div>
       <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
       <h3>Find every peer affected by a group change</h3>
-      <p>Inspect and validate a BGP group, then use Ze&#x27;s dependency graph to prove which peers inherit the value before scheduling maintenance.</p>
+      <p>Inspect and validate a BGP group, then use Ze&#39;s dependency graph to prove which peers inherit the value before scheduling maintenance.</p>
     </div>
     <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
   </div>
@@ -461,7 +450,7 @@ in the build declares a config root at all.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/config-graph.cast?v=b2868dc650"
+      data-cast-src="../../assets/demos/config-graph.cast?v=1ea1811466"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -469,17 +458,17 @@ in the build declares a config root at all.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/config-graph.cast?v=b2868dc650">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/config-graph.cast?v=1ea1811466">Download the asciicast</a> or
       <a href="../../assets/demos/config-graph.txt?v=7a64ac5a0c">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>1 minute 8 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.08.31</span><span>1 minute 10 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/config-graph.txt?v=7a64ac5a0c">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
-    <pre><code>An operator needs to change the transit group&#x27;s remote ASN and identify every peer that inherits it before scheduling maintenance.
+    <pre><code>An operator needs to change the transit group&#39;s remote ASN and identify every peer that inherits it before scheduling maintenance.
 
 $ ze config show router.conf bgp group transit
 The scoped configuration shows `upstream-a` and `upstream-b` inside the transit group.
@@ -492,9 +481,10 @@ $ ze config graph router.conf | ze pipe text | ze pipe match group/transit
 $ ze config graph router.conf | ze pipe text | ze pipe match inherits
 The graph answer holds two lists, `nodes` and `edges`. A row operator such as `match` has no single set of rows there, so Ze refuses it by name instead of picking one list. `| text` renders both lists as aligned rows, one relationship to a line. `| match` then keeps the lines that name the two peers, the group they share, and the two `inherits` relationships.
 
-No reporting helper creates the displayed relationships. The command filters Ze&#x27;s graph output directly through Ze&#x27;s format pipeline.</code></pre>
+No reporting helper creates the displayed relationships. The command filters Ze&#39;s graph output directly through Ze&#39;s format pipeline.</code></pre>
   </details>
 </figure>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -528,7 +518,7 @@ No reporting helper creates the displayed relationships. The command filters Ze&
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

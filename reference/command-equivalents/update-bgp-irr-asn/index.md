@@ -1,25 +1,37 @@
-# `update bgp irr asn <asn>`
+# `update bgp irr asn`
+
+Refresh IRR prefix-list for a specific ASN.
 
 ## Ze command
 
-- Syntax: `update bgp irr asn <asn>`
 - Registry path: `update bgp irr asn`
+- Usage: `update bgp irr asn <asn>`
 - Mode: Daemon
 - Wire method: `ze-update:irr-asn`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Refresh IRR prefix-list for a specific ASN. Usage: update bgp irr asn <asn>. Re-queries the IRR server for the given ASN only.
+Re-queries the IRR server for the given ASN only.
+
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `asn` | string | yes | any value of this type |
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

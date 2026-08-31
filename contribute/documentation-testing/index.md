@@ -1,76 +1,76 @@
 # Documentation Testing
 
-Ze ships several tools that validate documentation against the live code.
-They live in `scripts/` and are exposed as `make ze-*` targets. The full
-documentation check is still explicit, while `make ze-precommit-verify` runs a
-changed-file-aware wiring, documentation, command, and inventory gate.
+Ze ships native Go tools that compare documentation with the live registries
+and source tree. Pre-commit verification selects the checks affected by a
+change.
 
-<!-- source: mk/check-docs.mk -- ze-doc-verify and ze-doc-wiring-check -->
-<!-- source: scripts/status/verify_run.go -- stagesForMode -->
+<!-- source: internal/le/doc/check/actions.go -- Actions -->
+<!-- source: internal/le/doc/wiring/docwiring.go -- Run -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 
 ## Quick start
 
 ```sh
-make ze-doc-verify              # Run all documentation tests
-make ze-doc-wiring-check    # Run changed-file-aware wiring/doc/inventory gate
+./le doc check verify              # Run all documentation tests
+./le doc wiring    # Run changed-file-aware wiring/doc/inventory gate
 ```
 
-`ze-doc-verify` runs every documentation checker and returns non-zero if any of
+`./le doc check verify` runs every documentation checker and returns non-zero if any of
 them report drift. Run it after editing documentation files, after adding or
-removing plugins, or as part of review. `ze-doc-wiring-check` selects the
-checks needed for the current diff and is included in `make ze-precommit-verify`.
+removing plugins, or as part of review. `./le doc wiring` selects the
+checks needed for the current diff and is included in `./le verify current mode full`.
 
 ## What gets checked
 
-| Tool | Make target | What it validates |
-|------|-------------|-------------------|
-| `scripts/docvalid/doc_drift.go` | `ze-doc-drift-check` | `docs/DESIGN.md` plugin counts, family lists, `.ci` test totals, interop scenario count, fuzz target count, Go test count, compared to the live plugin registry, family registry, and filesystem walk. Also `docs/comparison.md` family rows, README test-count claims, `docs/features.md` status labels, `docs/functional-tests.md` release-gate suite claims derived from the Makefile, and narrow forbidden stale-claim checks such as the old text parser allocation claim. |
-| `scripts/docvalid/commands.go` | `ze-command-contract-check` | Every YANG `ze:command` declaration has a registered RPC or local CLI handler, and every registered RPC handler has a matching YANG declaration. |
-| `scripts/dev/code_to_docs.py --check` | `ze-doc-index-check`, `ze-doc-verify` and `ze-generated-files-check` | Two things: every `<!-- source: ... -->` path under `docs/` points to an existing source file or directory, and every SYMBOL the anchor names after its `--` is declared in the `.go` file it points at. Check mode never writes. It does NOT check that `ai/CODE-TO-DOCS.md` is current: that file is generated on demand and gitignored, so git holds no copy that can go stale, and a comparison would only fail on a clone where it was never generated. The failures report separately: a broken ANCHOR prints `MISSING: <path>` with its referencing doc and line, and an undeclared symbol prints `CLAIM:` with the doc, the line, the anchored file and the token. |
-| `scripts/dev/check_doc_links.py` | `ze-doc-links-check`, and the `--md-only` subset at the end of `ze-generated-files-reconcile` | Five checks over the path references in the tree: every backticked path and markdown link in `ai/`, `.claude/rules/` and the `plan/` meta documents resolves; every `// Design:` target resolves; every backticked `*.sh` filename and `c_*`/`check_*` function name in the hook-describing documents names something in the tree; every `doc-links: ignore` marker states a reason; and every path reference in every OTHER tracked file resolves too. The last two checks read every TRACKED file, not the walked corpus. A marker no other check reads is audited, and a dead path in any tracked file fails the gate. `make ze-doc-verify` does NOT run this script: `ze-doc-links-check` is its own `ze-precommit-verify` stage. |
-| `scripts/dev/digest_check.py` | `ze-digest-check` and `ze-doc-verify` | Every `file:line` anchor in `ai/digests/*.md` resolves to a real file (subsystem-relative via each digest's `<!-- digest-base: -->` header) and an in-range line. Keeps the hand-maintained flow digests from rotting silently as code moves. |
-| `scripts/lint/consistency.go` | `ze-consistency-check` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
-| `scripts/dev/verify_wiring_docs.py` | `ze-doc-wiring-check` | Changed-file-aware router used by `make ze-precommit-verify`. It runs wiring checks for new exported Go symbols, `ze-command-contract-check` for command sources, `ze-doc-verify` and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources. |
-| `scripts/dev/ste_check.py --check` | `ze-ste-check`, and `commit_helper.py create` | The six banned ASD-STE100 habits (synonym rotation, hedging, frozen verbs, marketing adjectives, run-ons, phrasal verbs) in every changed file. Each file is compared against its own HEAD version, and it fails when a habit grew, so a document nobody touched can never fail. The BLOCKING form runs at commit time over the commit's own files. Read the whole tree with `make ze-ste-review`. Rule: `ai/rules/writing.md`. |
+| Native action | What it validates |
+|---------------|-------------------|
+| `./le docvalid doc-drift` | Published counts and lists agree with live registries and the tree |
+| `./le docvalid command-contract` | Every YANG `ze:command` has a registered handler |
+| `./le docvalid usage-contract` | The model states every command's argument grammar, and no description spells one in prose |
+| `./le docvalid help-shape` | Every command node, every RPC and every offline local command declares a one-line summary, and the report states how much of each corpus is written |
+| `./le docs-to-code check` | Documentation source paths and claimed symbols resolve |
+| `./le doc check links` | Tracked path citations resolve |
+| `./le digest` | Every `file:line` anchor in `ai/digests/*.md` resolves |
+| `./le consistency` | Design references, cross-references, JSON tags, and package citations agree |
+| `./le doc wiring` | Changed files trigger their documentation and inventory checks |
+| `./le ste check` | No ASD-STE100 habit grew against `HEAD` |
 
-`ze-doc-verify` runs doc drift, command validation, and source-anchor validation
-(path and symbol) unconditionally and reports
-a combined verdict. `ze-doc-wiring-check` is the changed-file-aware gate used
-by `make ze-precommit-verify`; it delegates to the direct targets in the table only when
-the current diff touches matching sources. `ze-consistency-check` is left standalone
-because it covers both documentation and code-style concerns and is run as part
-of code review, not doc review.
+`./le doc check verify` combines documentation drift, command validation, the two
+command help gates, and source-anchor validation. `./le doc wiring` is the changed-file-aware
+pre-commit gate.
 
-<!-- source: scripts/docvalid/doc_drift.go -- runChecks, checkForbiddenDocClaims -->
-<!-- source: scripts/docvalid/commands.go -- main -->
-<!-- source: scripts/dev/code_to_docs.py -- check_anchor_symbols, anchor_symbol_tokens, go_declarations -->
-<!-- source: scripts/dev/check_doc_links.py -- check_markdown, check_design_refs, check_hook_names, check_ignore_reasons, check_tracked_citations, sweep_tracked, check_baseline_growth -->
-<!-- source: scripts/lint/consistency.go -- package doc -->
-<!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
-<!-- source: scripts/dev/ste_check.py -- review, read_baseline -->
+<!-- source: internal/le/docvalid/actions.go -- Answer -->
+<!-- source: internal/le/docvalid/actions.go -- Answer -->
+<!-- source: internal/le/docstocode/actions.go -- Answer -->
+<!-- source: internal/le/doc/check/actions.go -- Answer -->
+<!-- source: internal/le/consistency/consistency.go -- Answer -->
+<!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
+<!-- source: internal/le/ste/actions.go -- Answer -->
 
 ## When to run
 
 | Situation | Recommended target |
 |-----------|--------------------|
-| After you write any prose, in any file | `make ze-ste-review-changed` |
-| After editing any file under `docs/` | `make ze-doc-verify` |
-| After adding or removing a plugin | `make ze-doc-verify` |
-| After writing a path reference in ANY tracked file | `make ze-doc-links-check` (`ze-doc-verify` does not cover it) |
-| After adding or renaming a YANG `ze:command` | `make ze-command-contract-check` |
-| After adding a doc validator, inventory source, command source, or exported Go API | `make ze-doc-wiring-check` |
-| Before opening a documentation PR | `make ze-doc-verify` |
+| After you write any prose, in any file | `./le ste review-changed` |
+| After editing any file under `docs/` | `./le doc check verify` |
+| After adding or removing a plugin | `./le doc check verify` |
+| After writing a path reference in ANY tracked file | `./le doc check links` (`./le doc check verify` does not cover it) |
+| After adding or renaming a YANG `ze:command` | `./le docvalid command-contract` |
+| After writing the `description` or the `ze:help` of a command node or an RPC | `./le docvalid help-shape` |
+| After writing the `Description` or the `LongHelp` of a `registry.Meta` | `./le docvalid help-shape` |
+| After adding a doc validator, inventory source, command source, or exported Go API | `./le doc wiring` |
+| Before opening a documentation PR | `./le doc check verify` |
 
-The full `ze-doc-verify` remains the explicit documentation review target.
-`make ze-precommit-verify` runs `ze-doc-wiring-check`, which invokes the relevant doc,
+The full `./le doc check verify` remains the explicit documentation review target.
+`./le verify current mode full` runs `./le doc wiring`, which invokes the relevant doc,
 command, inventory, and wiring checks for changed files.
 
-<!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
-<!-- source: scripts/status/verify_run.go -- stagesForMode -->
+<!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
+<!-- source: internal/le/verify/engine/run.go -- Run, RunMode -->
 
 ## How to interpret output
 
-### `ze-doc-drift-check`
+### `./le docvalid doc-drift`
 
 ```
   Documentation drift detected (N issues)
@@ -84,7 +84,7 @@ Each issue points at a file, a line number (0 = file-level), and a
 description. Most fixes are mechanical: update a count, add a missing
 table row, remove a stale entry.
 
-### `ze-command-contract-check`
+### `./le docvalid command-contract`
 
 ```
 # Command Validation
@@ -104,6 +104,77 @@ Two-direction check. Both directions are contract bugs:
 - YANG declares a command but no Go code registered an RPC or local handler -> dead command
 - RPC handler registered but YANG doesn't declare it -> command unreachable from CLI
 
+### `./le docvalid help-shape`
+
+```
+# Command Help Shape
+
+Command tree nodes: 601
+Nodes that run a command: 390
+Nodes with a summary: 601
+Nodes with a long help: 0
+RPCs: 211
+RPCs with a summary: 211
+RPCs with a long help: 0
+Offline local commands: 19
+Offline local commands with a summary: 19
+Offline local commands with a long help: 0
+
+Nodes with a broken summary: 419
+RPCs with a broken summary: 170
+Offline local commands with a broken summary: 11
+
+## Broken rules (1095)
+
+  no-newline 333
+  ...
+
+  command show sockets
+    rule:    word-cap
+    problem: the summary is 32 words (STE Rule 6.3 allows 25)
+    summary: ...
+  local generate wireguard keypair
+    rule:    one-sentence
+    problem: the summary is 2 sentences
+    summary: ...
+  rpc ze-rib-api:show
+    rule:    no-usage-marker
+    problem: the summary prescribes a CLI spelling under "Syntax:"
+    summary: ...
+```
+
+The gate walks three corpora and holds all three to the same seven rules. A
+`-cmd.yang` node declares the CLI path an operator types. An `-api.yang` rpc
+declares the wire method that path reaches, and the plugin IPC modules in
+`internal/core/ipc/yang/` declare 22 more. Every loaded module is walked, so a
+module whose name carries no `-api` suffix is judged with the rest. An offline
+local command declares its help in a `registry.Meta` beside its handler and
+reaches no YANG module at all, and `ze help command --json` merges it with the
+tree (`cmd/ze/help_command.go`, `collectCommands`).
+
+The third corpus is read two ways, because Go forbids importing a main package.
+The registrations this binary links are read from the registry. The four
+`cmd/ze` declares in `package main` are read from its source, and a registration
+there whose path is not a literal STOPS the gate rather than being skipped. A
+path the command tree also holds is left to the command half: the catalog
+publishes the node's description for such a path and never the registration's.
+Development commands under `le ` are left out, for the reason the published
+catalog leaves them out.
+
+The coverage counts say how much of each corpus is written. A node with no
+summary and a node with no long help are both counted, so an unwritten command
+is visible rather than silent. Each refusal opens with its surface, `command`,
+`rpc` or `local`, then the name that finds it. That name is the CLI path for a
+command node and for a local command, and `<module>:<rpc-name>` for an rpc. A
+summary that breaks two rules is reported twice. The report therefore states the
+number of nodes, of RPCs and of local commands as well as the number of
+refusals.
+
+Fix the summary in the YANG `description` of that node or that rpc, or in the
+`Description` of that registration. Prose that does not fit one short sentence
+belongs in the `ze:help` beside it, or in the `LongHelp` beside it, which no
+one-line surface reads.
+
 ## How to fix common issues
 
 | Issue | Fix |
@@ -112,9 +183,9 @@ Two-direction check. Both directions are contract bugs:
 | Family list missing entries in DESIGN.md | Add the missing entries; the script lists which |
 | `.ci` test count claim wrong | Update the count or phrase it as an approximate dated claim |
 | Feature inventory row has no status | Add one of: Supported, Partial, Experimental, Stub-backed, Rejected, Future |
-| Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `ze-functional-test` in the Makefile |
+| Functional test release-gate list wrong | Update `docs/functional-tests.md` to match `internal/le/functional/catalog.go` |
 | Stale text parser allocation claim | Update `docs/architecture/api/text-parser.md` to describe `textparse.NewScanner` and source-linked result allocations |
-| Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `make ze-doc-verify` |
+| Stale source anchor path | Fix or remove the `<!-- source: ... -->` path, then rerun `./le doc check verify` |
 | `CLAIM: ... names 'Sym', which is not declared there` | Read the anchored file. When the symbol moved, point the anchor at the file that DECLARES it; when the name changed, write the new one; when the symbol is gone, the sentence above the anchor is wrong too, so fix the sentence. Never reword a real symbol into prose to silence the finding: the check already ignores a token the anchored file names anywhere, so a finding means the token is absent from that file, which no call, field, parameter or env key of that file can be |
 | `cannot read the anchored file, so its symbols are unverifiable` | The anchor points at a file the checker could not read or decode. Fix the path. The check fails closed here on purpose: an unreadable file proves nothing about the claims above it |
 | `doc-links: ignore marker states no reason` | Write the reason inline, `<!-- doc-links: ignore (why this path cannot resolve) -->`, or delete the marker and repair the reference it was hiding. A marker with no reason is a silent allowlist |
@@ -123,39 +194,42 @@ Two-direction check. Both directions are contract bugs:
 | Handler with no YANG `ze:command` | Add a YANG declaration in the appropriate `*-cmd.yang` schema |
 ## How the tools find drift
 
-`scripts/docvalid/doc_drift.go` imports `internal/component/plugin/all` so all
-plugins register themselves at init, then queries `registry.All()` and
-`registry.FamilyMap()`, walks the filesystem for `.ci` files, derives the
-functional release-gate suite list from the Makefile, and compares those live
-counts/lists against documented claims in `docs/DESIGN.md`,
-`docs/comparison.md`, `README.md`, `docs/features.md`, and
-`docs/functional-tests.md`. It also scans narrowly scoped stale claims that
-previously escaped the broad live-data checks.
+`internal/le/docvalid.Answer` imports `internal/component/plugin/all` so all
+plugins register themselves, then queries `registry.All()` and
+`registry.FamilyMap()`. It walks the `.ci` files and reads the native functional
+suite catalog from `internal/le/functional`. It compares those facts with
+claims in `docs/DESIGN.md`, `docs/comparison.md`, `README.md`,
+`docs/features.md`, and `docs/functional-tests.md`.
 
-`scripts/docvalid/commands.go` imports the same set plus the BGP cmd plugin
+`internal/le/docvalid.Answer` imports the same set plus the BGP cmd plugin
 schema/handler packages, loads the YANG modules, and walks the schema tree
 looking for `ze:command` extensions. For each extension it checks
 `registry.CollectRPCHandlers()` for a matching method name.
 
-`scripts/dev/code_to_docs.py --check` scans every markdown source anchor under
-`docs/`, extracts referenced code paths, and fails if any referenced file or
-directory is missing. The same script writes `ai/CODE-TO-DOCS.md` when run
-without `--check`; check mode is read-only. That output is gitignored: it is a
-pure derivation of the tree that no code reads, it rebuilds in about a second,
-and tracking it meant a diff on every commit that added a source anchor.
+`./le docs-to-code check` scans every Markdown source anchor under `docs/` and
+refuses a missing source path or symbol. `./le docs-to-code update` regenerates
+the two documentation indexes.
 
-One walk of `docs/` also feeds the symbol half. An anchor is
-`<!-- source: <path> -- Sym1, Sym2 -->`, and the tokens after the `--` used to
-be discarded. `anchor_symbol_tokens` keeps a token only when it is an identifier
-or a dotted chain of them, so a description holding a space or a hyphen is prose
-and is never checked. `go_declarations` then reads the anchored `.go` file's own
-text for top-level funcs, methods, types, vars, consts, struct fields and
-interface methods. It is a text scan rather than a `gopls` query, so it carries
-no build context and finds a `//go:build linux` declaration on a macOS host.
-`check_anchor_symbols` compares the two, and the `report=` argument `main()`
-passes decides whether a finding is printed.
+One walk of `docs/` feeds the path and symbol checks. An anchor is
+`<!-- source: <path> -- Sym1, Sym2 -->`. `internal/le/docstocode.CheckCodeIndex`
+keeps an identifier or dotted method chain from the claim and compares it with
+the declarations in the anchored Go file. The scan is independent of build
+tags, so a Linux declaration remains visible on a macOS host.
 
-`scripts/dev/check_doc_links.py` walks the instruction corpus for paths,
+The same walk answers the opposite question. `internal/le/docstocode.ClaimsByPath`
+maps a code path to the claims written about it, each with the symbols its
+anchor names, and the `doc-drift` check in `internal/le/doc/wiring` refuses a
+commit that changed one of those symbols and left its page alone.
+<!-- source: internal/le/doc/wiring/checks.go -- checkDocDrift, touchedSymbols -->
+The check reads the diff hunks, maps each to the declaration it lands in, and
+compares those names with the anchor's claim. So an edit elsewhere in the same
+file reports nothing, and a page counts for itself alone. A test file is out of
+scope. A claim naming no resolvable symbol blocks nothing and is counted in the
+verdict line, because silence and "nothing to say" must not read alike.
+`ai/rules/documentation.md` states the obligation this enforces: the page edit
+belongs in the same work as the code edit.
+
+`internal/le/doc/check.Answer` walks the instruction corpus for paths,
 `// Design:` targets and hook names. Its last two checks do not use that
 corpus. `sweep_tracked` reads every file `git ls-files` names, one time, and
 `check_ignore_reasons` and `check_tracked_citations` share that one walk.
@@ -166,44 +240,42 @@ Two moves remove a finding: repair the reference, or mark its line with a
 marker that states why the path cannot resolve.
 
 The references that predate check 5 are grandfathered in
-`scripts/dev/doc_citation_baseline.txt`, one `citing file<TAB>dead target` pair
-per line. It records pairs rather than bare targets, so a NEW file that cites
-an already-dead target is reported. `check_baseline_growth` compares the file
-against its own version at HEAD. It refuses every pair HEAD does not hold, so
-the baseline only shrinks. The comparison is over the pairs, never over their
-number: a repair and a new dead citation in one commit leave the total unmoved
-and are refused all the same.
+`internal/le/doc/check/testdata/doc_citation_baseline.txt`, one
+`citing file<TAB>dead target` pair per line. It records pairs rather than bare
+targets, so a new file that cites an already-dead target is reported. The check
+compares the file with its version at `HEAD` and refuses every pair that `HEAD`
+does not hold, so the baseline only shrinks.
 
-Repair a citation to remove its pair, then delete that line from the baseline.
-`python3 scripts/dev/check_doc_links.py --write-baseline` regenerates the whole
-file from the WORKING TREE, so in a checkout several sessions share it absorbs
-whatever they are part way through editing. Use it to shrink the file, and read
-the diff it produces before you keep it. A pair the tree no longer carries
-prints a `WARN` line, and the exit code stays 0. One session's repair therefore
-never reds another session's run. Three roots are outside check 5:
-`vendor/` and `third_party/` hold another repository's files, and
-`plan/handover/` records the tree as it was.
+Repair a citation and delete its pair from the baseline in the same change.
+`./le doc check links` validates the result against the working tree and warns
+when a baseline pair is no longer needed. The command does not rewrite the
+shared baseline, so one session cannot absorb another session's unfinished
+edits.
 
-`scripts/lint/consistency.go` walks `.go` files, parses `// Design:`,
-`// Detail:`, `// Overview:`, `// Related:` comments, checks for asymmetries,
-and scans `docs/`/`scripts/` for references to packages that no longer exist.
+The three roots outside the tracked citation scan are `vendor/`,
+`third_party/`, and `plan/handover/`: the first two hold another repository's
+files, while the last records an earlier tree.
+
+`internal/le/consistency` parses `// Design:`, `// Detail:`, `// Overview:`, and
+`// Related:` comments, checks their symmetry, and reports references to
+packages that no longer exist.
 
 ## Adding a new documentation check
 
-1. Write the check as a `//go:build ignore` Go program in `scripts/docvalid/`,
-   following the patterns in `doc_drift.go`.
-2. Add a `make ze-foo-check` target to `mk/check-docs.mk` or the owning `mk/`
-   file.
-3. Add the new target to `ze-doc-verify` if failure should fail the umbrella.
-4. Add the new target to `scripts/dev/verify_wiring_docs.py` if changed files
-   should trigger it during `make ze-precommit-verify`.
-5. Add a row to the table in this file.
-6. Update `ai/INDEX.md`, and the discovery-surface table of
-   `ai/rules/repo-maintenance.md`, when the new check changes what future
-   agents should run or discover. That rule file is GENERATED: edit its point
-   file under `ai/rules/points/repo-maintenance/`, then run
-   `make ze-rules-condensed-update`.
-7. Add a help entry in the Makefile or owning `mk/` quick reference.
+1. Add callable Go behavior to the owning package under `internal/le/`.
+2. Add one action to that package's table and register its area through
+   `leroot.Register`. A related check joins an existing area rather than opening
+   another root name.
+3. Register the action with `internal/le/leroot` and expose it as
+   `./le <area> <action>`.
+4. Add the callable action to `internal/le/doc/wiring` when changed files should
+   trigger it during pre-commit verification.
+5. Add its producer and exact command to this page and `ai/INDEX.md`.
+6. If agent rules need the command, edit the canonical rule point and render the
+   rule corpus through `./le rules render-update`.
+
+Repository tooling is compiled Go under `internal/le`; package-owned fixtures
+belong in that package's `testdata/` directory.
 
 ## See also
 
@@ -211,6 +283,6 @@ and scans `docs/`/`scripts/` for references to packages that no longer exist.
   including the BLOCKING Documentation Update Checklist for specs
 - `ai/rules/repo-maintenance.md` -- required discovery updates when new
   checks, tools, or verification gates are added
-- `ai/rules/repo-maintenance.md` -- which hooks and make gates enforce which rules
-- `mk/check-docs.mk` -- owning make targets for documentation, inventory,
-  command validation, and wiring/doc gates
+- `ai/rules/repo-maintenance.md` -- which native gates enforce which rules
+- `internal/le/doc/check` and `internal/le/doc/wiring` -- documentation checks,
+  command validation, and changed-file wiring

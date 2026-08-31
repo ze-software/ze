@@ -1,21 +1,30 @@
 # `show ospf ipv6 database`
 
+Show the OSPFv3 (IPv6) link-state database with each native scope-aware LSA decoded (RFC 5340).
+
 ## Ze command
 
-- Syntax: `show ospf ipv6 database`
 - Registry path: `show ospf ipv6 database`
+- Usage: `show ospf ipv6 database`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-database`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `detail`, `extended`, `router`, `router-information`, `scope`, `segment-routing`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show the OSPFv3 (IPv6) link-state database with each native scope-aware LSA decoded (RFC 5340). Base types decode into named fields; unknown function codes fall back to a scope-aware header + body-hex view (spec-ospf-ext-14).
+Base types decode into named fields; unknown function codes fall back to a scope-aware header + body-hex view (spec-ospf-ext-14).
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

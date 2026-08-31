@@ -86,15 +86,13 @@
 <li><a href="#single-command">Single Command</a></li>
 </ol></nav>
 <!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
-
 <h2 id="live-peer-dashboard">Live Peer Dashboard</h2>
-<pre><code>ze cli -c &quot;monitor bgp&quot;
+<pre><code>ze cli -c "monitor bgp"
 </code></pre>
 <p>The dashboard refreshes every 2 seconds and shows router identity plus a sortable, colour-coded peer table with update rates. Keys: j/k moves, s/S sorts, Enter opens detail, and Esc exits.</p>
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
-
 <h2 id="event-streaming">Event Streaming</h2>
-<pre><code>ze cli -c &quot;monitor event&quot;
+<pre><code>ze cli -c "monitor event"
 </code></pre>
 <h3 id="filters">Filters</h3>
 <table>
@@ -129,7 +127,7 @@
 </tbody>
 </table>
 <p>Combine filters:</p>
-<pre><code>ze cli -c &quot;monitor event peer upstream1 include update direction received&quot;
+<pre><code>ze cli -c "monitor event peer upstream1 include update direction received"
 </code></pre>
 <h3 id="event-types">Event Types</h3>
 <table>
@@ -189,61 +187,59 @@
 </tbody>
 </table>
 <!-- source: internal/component/bgp/event.go -- event type definitions -->
-
 <h3 id="output-formats">Output Formats</h3>
 <p>Pipe the output through format operators:</p>
-<pre><code>ze cli -c &quot;monitor event | json&quot;      # Full JSON envelope
-ze cli -c &quot;monitor event | table&quot;     # Tabular format
-ze cli -c &quot;monitor event | match rx&quot;  # Regex filter on output
+<pre><code>ze cli -c "monitor event | json"      # Full JSON envelope
+ze cli -c "monitor event | table"     # Tabular format
+ze cli -c "monitor event | match rx"  # Regex filter on output
 </code></pre>
 <!-- source: internal/component/command/ -- ApplyJSON, ApplyTable pipe operators -->
-
 <h2 id="json-event-format">JSON Event Format</h2>
 <p>All events follow the ze-bgp JSON envelope:</p>
 <pre><code class="language-json">{
-  &quot;type&quot;: &quot;bgp&quot;,
-  &quot;bgp&quot;: {
-    &quot;peer&quot;: {
-      &quot;address&quot;: &quot;10.0.0.1&quot;,
-      &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000},
-      &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}
+  "type": "bgp",
+  "bgp": {
+    "peer": {
+      "address": "10.0.0.1",
+      "local": {"address": "10.0.0.2", "as": 65000},
+      "remote": {"address": "10.0.0.1", "as": 65001}
     },
-    &quot;message&quot;: {
-      &quot;id&quot;: 42,
-      &quot;direction&quot;: &quot;received&quot;,
-      &quot;type&quot;: &quot;update&quot;
+    "message": {
+      "id": 42,
+      "direction": "received",
+      "type": "update"
     }
   }
 }
 </code></pre>
 <h3 id="update-event">UPDATE Event</h3>
 <pre><code class="language-json">{
-  &quot;type&quot;: &quot;bgp&quot;,
-  &quot;bgp&quot;: {
-    &quot;peer&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000}, &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}},
-    &quot;message&quot;: {&quot;id&quot;: 1, &quot;direction&quot;: &quot;received&quot;, &quot;type&quot;: &quot;update&quot;},
-    &quot;update&quot;: {
-      &quot;ipv4/unicast&quot;: [
+  "type": "bgp",
+  "bgp": {
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
+    "message": {"id": 1, "direction": "received", "type": "update"},
+    "update": {
+      "ipv4/unicast": [
         {
-          &quot;next-hop&quot;: &quot;10.0.0.1&quot;,
-          &quot;action&quot;: &quot;add&quot;,
-          &quot;nlri&quot;: [&quot;10.0.0.0/24&quot;, &quot;10.0.1.0/24&quot;]
+          "next-hop": "10.0.0.1",
+          "action": "add",
+          "nlri": ["10.0.0.0/24", "10.0.1.0/24"]
         }
       ]
     },
-    &quot;origin&quot;: &quot;igp&quot;,
-    &quot;as-path&quot;: [65001, 65002],
-    &quot;local-preference&quot;: 100
+    "origin": "igp",
+    "as-path": [65001, 65002],
+    "local-preference": 100
   }
 }
 </code></pre>
 <h3 id="state-event">State Event</h3>
 <pre><code class="language-json">{
-  &quot;type&quot;: &quot;bgp&quot;,
-  &quot;bgp&quot;: {
-    &quot;peer&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;local&quot;: {&quot;address&quot;: &quot;10.0.0.2&quot;, &quot;as&quot;: 65000}, &quot;remote&quot;: {&quot;address&quot;: &quot;10.0.0.1&quot;, &quot;as&quot;: 65001}},
-    &quot;message&quot;: {&quot;type&quot;: &quot;state&quot;},
-    &quot;state&quot;: &quot;up&quot;
+  "type": "bgp",
+  "bgp": {
+    "peer": {"address": "10.0.0.1", "local": {"address": "10.0.0.2", "as": 65000}, "remote": {"address": "10.0.0.1", "as": 65001}},
+    "message": {"type": "state"},
+    "state": "up"
   }
 }
 </code></pre>
@@ -255,7 +251,6 @@ ze cli -c &quot;monitor event | match rx&quot;  # Regex filter on output
 </code></pre>
 <p>The plugin receives events through its <code>OnEvent</code> callback. See <a href="../plugins/">Plugins guide</a> for details.</p>
 <!-- source: internal/component/plugin/server/ -- event dispatch to plugins -->
-
 <h2 id="prometheus-metrics">Prometheus Metrics</h2>
 <p>Ze exposes Prometheus metrics when <code>telemetry { prometheus { ... } }</code> is configured. BGP metrics are refreshed every 10 seconds. By default the HTTP listener binds to <code>127.0.0.1:9273</code>; configure an explicit server address to expose it to remote scrapers.</p>
 <p>The <code>netdata</code> block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as <code>ze_bgp_*</code>, <code>ze_bfd_*</code>, or <code>ze_l2tp_*</code>.</p>
@@ -270,7 +265,7 @@ ze cli -c &quot;monitor event | match rx&quot;  # Regex filter on output
         basic-auth {
             enabled true;
             username prometheus;
-            plaintext-password &quot;secret&quot;;
+            plaintext-password "secret";
         }
         netdata {
             enabled true;
@@ -362,12 +357,11 @@ ze cli -c &quot;monitor event | match rx&quot;  # Regex filter on output
 <p>When <code>basic-auth/enabled</code> is true, Ze requires HTTP Basic Authentication for every handler on the Prometheus service, including both <code>/metrics</code> and <code>/health</code>. The password is stored as a bcrypt hash in the persisted config. Use <code>plaintext-password</code> when you edit the config and Ze replaces it with <code>password</code> at commit. If automation already has a hash from <code>ze passwd</code>, set <code>password</code> directly.</p>
 <p>A config file loaded at daemon start or at SIGHUP gets the same transform. Ze hashes the leaf in memory and leaves your file as you wrote it. It warns that the plaintext is still on disk.</p>
 <!-- source: internal/component/config/loader.go -- LoadConfig, warnPlaintextOnDisk -->
-
 <p>Prometheus scrape configuration:</p>
 <pre><code class="language-yaml">scrape_configs:
   - job_name: ze
     static_configs:
-      - targets: [&quot;router.example.net:9273&quot;]
+      - targets: ["router.example.net:9273"]
     basic_auth:
       username: prometheus
       password: secret
@@ -381,7 +375,6 @@ ze cli -c &quot;monitor event | match rx&quot;  # Regex filter on output
 </code></pre>
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics, metricsUpdateLoop -->
 <!-- source: internal/component/telemetry/exporter/yang/ze-telemetry-conf.yang -->
-
 <h3 id="os-metrics-netdata-compatible">OS Metrics (Netdata-compatible)</h3>
 <p>Ze exports 138 OS metrics matching Netdata's Prometheus format exactly (same names, labels, values), acting as a drop-in replacement for Netdata's <code>/api/v1/allmetrics?format=prometheus</code> endpoint. Existing Grafana dashboards built against Netdata continue to work unchanged.</p>
 <p>Metric name format: <code>{prefix}_{context}_{units}_average{chart="...",dimension="...",family="..."}</code>, where <code>{prefix}</code> is <code>telemetry.prometheus.netdata.prefix</code>.</p>
@@ -528,15 +521,13 @@ ze cli -c &quot;monitor event | match rx&quot;  # Regex filter on output
 </table>
 <p>Collectors whose data sources are absent (no ZFS loaded, no btrfs mounts, no wireless NICs, etc.) skip silently.</p>
 <p>Side-by-side validation against Netdata:</p>
-<pre><code>curl -s http://localhost:9273/api/v1/allmetrics?format=prometheus | grep &quot;^netdata_&quot; | sed 's/ .*//' | sort -u &gt; nd.txt
-curl -s http://localhost:9274/metrics | grep &quot;^netdata_&quot; | sed 's/ .*//' | sort -u &gt; ze.txt
+<pre><code>curl -s http://localhost:9273/api/v1/allmetrics?format=prometheus | grep "^netdata_" | sed 's/ .*//' | sort -u &gt; nd.txt
+curl -s http://localhost:9274/metrics | grep "^netdata_" | sed 's/ .*//' | sort -u &gt; ze.txt
 diff nd.txt ze.txt
 </code></pre>
 <!-- source: internal/component/telemetry/collector/ -- Netdata-compatible OS collectors -->
-
 <h3 id="host-inventory-metrics">Host Inventory Metrics</h3>
 <!-- source: internal/component/host/metrics.go -- RegisterMetrics, collectFrom -->
-
 <table>
 <thead>
 <tr>
@@ -618,7 +609,6 @@ diff nd.txt ze.txt
 <p>Host metrics are refreshed on a configurable interval (default 60 seconds). Linux only; on other platforms no host metrics are registered.</p>
 <h3 id="bgp-metrics">BGP Metrics</h3>
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
-
 <h4 id="instance">Instance</h4>
 <table>
 <thead>
@@ -761,7 +751,6 @@ the value directly, not a rate: it already IS a count.</p>
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go -- handleOpen -->
 <!-- source: internal/component/bgp/fsm/connect_retry_counter.go -- ConnectRetryCounter -->
-
 <h4 id="startup-and-connection-timing">Startup and Connection Timing</h4>
 <table>
 <thead>
@@ -812,7 +801,6 @@ the value directly, not a rate: it already IS a count.</p>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
-
 <h4 id="forward-pool-congestion">Forward Pool / Congestion</h4>
 <table>
 <thead>
@@ -877,7 +865,6 @@ means either an unusual peer or an attribute set worth raising the inline size
 for.</p>
 <!-- source: internal/core/bgp/attribute/span.go -- SpanInline -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
-
 <h4 id="egress-modification-failures">Egress Modification Failures</h4>
 <table>
 <thead>
@@ -904,13 +891,11 @@ label set is closed: <code>malformed</code>, <code>overflow</code>, <code>attr-l
 peer input: <code>no-failure</code> must never be emitted, and <code>unclassified</code> means a reason
 reached the counter that no constant produced.</p>
 <!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure -->
-
 <p>Treat any increment as a policy that did not take effect. Ze counts the failure
 at the point the modification is built, on all five paths that build one: the
 forward rail, the route-server rail, the ingress and egress policy chains, and
 the RFC 9494 stale re-advertise rail.</p>
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload -->
-
 <h4 id="well-known-community-suppressions">Well-Known Community Suppressions</h4>
 <table>
 <thead>
@@ -936,12 +921,10 @@ observation is one destination, so a route withheld from 20 peers counts 20. The
 suppression is not configurable and is never logged per route, so this counter is
 the only place an operator sees it.</p>
 <!-- source: internal/component/bgp/reactor/forward_wellknown.go -- wellKnownAllowsEgress -->
-
 <p>The <code>community</code> label set is closed and holds three values: <code>no-advertise</code>,
 <code>no-export-subconfed</code>, <code>no-export</code>. A route carrying more than one is counted
 under the strictest, so one suppressed route is always one observation.</p>
 <!-- source: internal/component/bgp/wireu/wellknown.go -- WellKnown.BlockingName -->
-
 <p>The counter says nothing about withdrawals. RFC 1997 forbids ADVERTISING such a
 route, so a suppressed destination still receives the withdrawals of the same
 UPDATE and keeps no route ze cannot take back.</p>
@@ -969,13 +952,11 @@ before it writes, so no truncated UPDATE goes out: the announce is abandoned
 whole. Nothing else reports this to the operator, because the peer is not
 notified and the session is not disturbed.</p>
 <!-- source: internal/component/bgp/reactor/announce_metrics.go -- recordAnnounceDroppedOversize -->
-
 <p>Both label sets are closed. <code>rail</code> is <code>batch</code> for an announce built from the API
 and <code>queued</code> for one built from the RIB. <code>stage</code> is <code>nlri</code> when the prefix block
 did not fit and <code>attributes</code> when the path-attribute block did not.</p>
 <!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- logAnnounceTooLarge -->
 <!-- source: internal/component/bgp/reactor/peer_rib_routes.go -- logRIBRouteTooLarge -->
-
 <p>A <code>batch</code> increment also reaches the caller: <code>AnnounceNLRIBatch</code> returns
 <code>errAnnounceTooLarge</code>, which the dispatcher turns into a <code>StatusError</code> response,
 so a plugin sees its own announce refused. A <code>queued</code> increment has no such
@@ -1016,7 +997,6 @@ peer-driven cardinality), and it prints the exact block to add.</p>
 their authority is checked by AAA, and <code>send</code> grants authority to a program.</p>
 <!-- source: internal/component/bgp/reactor/send_permission.go -- recordSendRefused, sendPermissionDenied -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel -->
-
 <h4 id="prefix-limits-rfc-4486">Prefix Limits (RFC 4486)</h4>
 <table>
 <thead>
@@ -1078,14 +1058,15 @@ their authority is checked by AAA, and <code>send</code> grants authority to a p
 </tr>
 </tbody>
 </table>
-<hr />
+<hr>
 <h2 id="single-command">Single Command</h2>
 <p>For scripting, use <code>-c</code> to execute a single command and exit:</p>
-<pre><code>ze cli -c &quot;show bgp&quot;
-ze cli -c &quot;show bgp rib received&quot;
-ze cli -c &quot;show bgp rpki status&quot;
+<pre><code>ze cli -c "show bgp"
+ze cli -c "show bgp rib received"
+ze cli -c "show bgp rpki status"
 </code></pre>
 <!-- source: internal/component/cli/client/main.go -- Run, Execute, StreamMonitor -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -1127,7 +1108,7 @@ ze cli -c &quot;show bgp rpki status&quot;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

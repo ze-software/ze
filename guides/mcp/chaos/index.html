@@ -55,12 +55,12 @@ query chaos test state, detect problems, and control the chaos scheduler.</p>
 <li><a href="#ze-mcp-injection">Ze MCP Injection</a></li>
 <li><a href="#tools">Tools</a>
 <ol>
-<li><a href="#chaos_status">chaos_status</a></li>
-<li><a href="#chaos_problems">chaos_problems</a></li>
-<li><a href="#chaos_peers">chaos_peers</a></li>
-<li><a href="#chaos_scenario">chaos_scenario</a></li>
-<li><a href="#chaos_control">chaos_control</a></li>
-<li><a href="#chaos_execute">chaos_execute</a></li>
+<li><a href="#chaos-status">chaos_status</a></li>
+<li><a href="#chaos-problems">chaos_problems</a></li>
+<li><a href="#chaos-peers">chaos_peers</a></li>
+<li><a href="#chaos-scenario">chaos_scenario</a></li>
+<li><a href="#chaos-control">chaos_control</a></li>
+<li><a href="#chaos-execute">chaos_execute</a></li>
 </ol></li>
 <li><a href="#watchdog">Watchdog</a>
 <ol>
@@ -85,23 +85,23 @@ clients):</p>
 </code></pre>
 <p>This adds <code>environment { mcp { port 9718; } }</code> to the generated Ze config.</p>
 <h2 id="tools">Tools</h2>
-<h3 id="chaos_status">chaos_status</h3>
+<h3 id="chaos-status">chaos_status</h3>
 <p>Full snapshot of the chaos test state: peer counts, route counts, convergence
 statistics (min/avg/max/p50/p90/p99 with histogram), per-family convergence,
 throughput, property results.</p>
-<h3 id="chaos_problems">chaos_problems</h3>
+<h3 id="chaos-problems">chaos_problems</h3>
 <p>Filtered list of actionable issues. Returns an empty JSON array when healthy.
 Problem types: missing-routes, peer-stuck-down, route-plateau, slow-convergence,
 dropped-events, property-violation.</p>
-<h3 id="chaos_peers">chaos_peers</h3>
+<h3 id="chaos-peers">chaos_peers</h3>
 <p>Per-peer detail. Omit the <code>peer</code> argument for a summary of all peers. Provide
 a peer index for full detail including recent chaos history (last 5 actions).</p>
-<h3 id="chaos_scenario">chaos_scenario</h3>
+<h3 id="chaos-scenario">chaos_scenario</h3>
 <p>Static scenario metadata: seed, peer count.</p>
-<h3 id="chaos_control">chaos_control</h3>
+<h3 id="chaos-control">chaos_control</h3>
 <p>Control chaos scheduling. Actions: pause, resume, trigger, rate, stop.
 The description steers AI to check status before changing anything.</p>
-<h3 id="chaos_execute">chaos_execute</h3>
+<h3 id="chaos-execute">chaos_execute</h3>
 <p>Escape hatch for arbitrary orchestrator commands. Prefer the specific tools
 when possible.</p>
 <h2 id="watchdog">Watchdog</h2>
@@ -165,29 +165,27 @@ at most once per 10 seconds.</p>
 HTTP transport at the <code>/mcp</code> endpoint. This server uses the same implementation
 as the ze daemon's MCP server: <code>NewStreamable</code> with the chaos <code>ToolProvider</code>.</p>
 <!-- source: internal/chaos/orchestrator/run.go -- NewStreamable(Provider) mount -->
-
 <p>The transport is stateless, so every request stands alone: no handshake, no
 session id to thread. Provider mode changes only which tools the server offers.
 Provider mode does not change how the server validates a request. A chaos
 request therefore carries the same standard headers and the same
 <code>params._meta</code> block as any other MCP request.</p>
 <!-- source: internal/component/mcp/streamable.go -- StreamableConfig.Provider, handlePOST -->
-
 <p><code>ze-chaos</code> configures no token and no auth mode, which infers <code>auth-mode none</code>:
 an authenticator that accepts every caller as an anonymous identity. There is
 no unauthenticated code path, only an accept-all authenticator.</p>
 <!-- source: internal/component/mcp/bearer.go -- noneAuthenticator.Authenticate -->
-
 <pre><code class="language-bash">curl -s http://127.0.0.1:8001/mcp \
   -H 'Content-Type: application/json' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: tools/call' \
   -H 'Mcp-Name: chaos_status' \
-  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/call&quot;,&quot;params&quot;:{
-        &quot;name&quot;:&quot;chaos_status&quot;,&quot;arguments&quot;:{},
-        &quot;_meta&quot;:{&quot;io.modelcontextprotocol/protocolVersion&quot;:&quot;2026-07-28&quot;,
-                 &quot;io.modelcontextprotocol/clientCapabilities&quot;:{}}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+        "name":"chaos_status","arguments":{},
+        "_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+                 "io.modelcontextprotocol/clientCapabilities":{}}}}'
 </code></pre>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -229,7 +227,7 @@ no unauthenticated code path, only an accept-all authenticator.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

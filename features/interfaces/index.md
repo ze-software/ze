@@ -217,10 +217,10 @@ name that differs from the OS device (via the `os-name` or `mac/match` selector)
 is honored uniformly: the `iface` CLI ops (set MTU, add/remove address, admin
 up/down, bridge, mirror, ...), the DHCP client socket binding, and the
 routing/protocol consumers all act on the bound kernel device. The dispatch
-layer performs this translation for the by-name backend ops, leaving
-`GetInterface`/`ListInterfaces` raw because the resolver is built on them. A
-checks gate (`make ze-iface-resolution-check`) keeps new consumers from
-resolving the kernel directly instead of through the resolver.
+layer performs this translation for the by-name backend ops and leaves
+`GetInterface` and `ListInterfaces` raw because the resolver is built on them.
+`./le iface-resolution check` keeps new consumers from resolving the kernel
+directly instead of through the resolver.
 
 The **config apply path** resolves separately, and on purpose. It takes ONE interface
 listing per apply and binds every ethernet entry from it, so each logical name resolves
@@ -245,7 +245,7 @@ to the capture port's kernel device.
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
-<!-- source: scripts/checks/iface_resolution.go -- no-direct-resolution guard -->
+<!-- source: internal/le/ifaceresolution/ifaceresolution.go -- Answer -->
 
 A MAC address validator (`ze:validate "mac-address"`) provides format checking (colon-separated
 hex octets) and live OS autocomplete. The `CompleteFn` calls `DiscoverInterfaces` on each
@@ -652,7 +652,7 @@ Ze picks each unsolicited interval at random between `minimum-interval` and
 (RFC 4861 Section 6.2.4). The first three advertisements after a start wait
 16 seconds at most, so a new router is found quickly.
 
-<!-- source: internal/plugins/iface/ra/ifacera.go -- unsolicitedInterval, maxInitialAdvertisements -->
+<!-- source: internal/core/ndp/schedule.go -- UnsolicitedInterval, MaxInitialAdvertisements -->
 
 ### Prefix list
 
@@ -758,7 +758,8 @@ One goroutine owns the socket and every timer of one sender. It joins `ff02::2`
 to receive Router Solicitations, and it sends to `ff02::1`. Every advertisement
 leaves with Hop Limit 255, which RFC 4861 Section 6.1.2 makes a receiver check.
 
-A solicitation draws an answer after a random wait of 500 milliseconds at most.
+A solicitation draws an answer after a random wait of 500 milliseconds at most,
+and a burst of solicitations draws one answer, timed from the first of them.
 Consecutive multicast advertisements stay 3 seconds apart, so a flood of
 solicitations cannot become a flood of advertisements (RFC 4861 Section 6.2.6).
 A sender that stops sends up to three advertisements with a Router Lifetime of
@@ -768,7 +769,7 @@ Nothing leaves a link that is down. The next link-up event restarts the initial
 burst.
 
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- openRASocket, run, sendFinal -->
-<!-- source: internal/plugins/iface/ra/ifacera.go -- solicitedDelay, solicitedSendTime, minDelayBetweenRAs -->
+<!-- source: internal/core/ndp/schedule.go -- SolicitedDelay, SolicitedSendTime, MinDelayBetweenRAs -->
 
 ### Counters
 

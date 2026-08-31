@@ -57,86 +57,87 @@
 <li><a href="#testing">Testing</a></li>
 </ol></nav>
 <h2 id="bgp-and-routing">BGP and routing</h2>
-<p><strong>Adj-RIB-In</strong><br />
+<p><strong>Adj-RIB-In</strong><br>
 Routes accepted from a peer and retained before or alongside local best-path selection. Ze does not keep every import-rejected route unless a component explicitly records it.</p>
-<p><strong>Adj-RIB-Out</strong><br />
+<p><strong>Adj-RIB-Out</strong><br>
 Routes selected and prepared for advertisement to one peer.</p>
-<p><strong>AFI/SAFI</strong><br />
+<p><strong>AFI/SAFI</strong><br>
 Address Family Identifier and Subsequent Address Family Identifier. Together they identify a BGP family such as IPv4 unicast, EVPN, or FlowSpec.</p>
-<p><strong>AS path</strong><br />
+<p><strong>AS path</strong><br>
 The sequence of autonomous systems a BGP route has traversed. Ze uses it for loop detection, policy, best-path selection, and topology display.</p>
-<p><strong>BGP Role</strong><br />
+<p><strong>BGP Role</strong><br>
 An RFC 9234 relationship such as provider, customer, peer, route server, or route-server client. Roles help detect route leaks and control OTC processing.</p>
-<p><strong>End-of-RIB</strong><br />
+<p><strong>End-of-RIB</strong><br>
 A BGP marker indicating that the initial or refreshed update stream for a family is complete.</p>
-<p><strong>FIB</strong><br />
+<p><strong>FIB</strong><br>
 Forwarding Information Base. The routes programmed into a dataplane such as the Linux kernel, VPP, or P4.</p>
-<p><strong>Loc-RIB</strong><br />
+<p><strong>Loc-RIB</strong><br>
 The local set of selected routes after protocol and policy processing.</p>
-<p><strong>NLRI</strong><br />
+<p><strong>NLRI</strong><br>
 Network Layer Reachability Information. The family-specific route payload carried by BGP.</p>
-<p><strong>RIB</strong><br />
+<p><strong>RIB</strong><br>
 Routing Information Base. A route store used for candidate, accepted, selected, or advertised routing state, depending on context.</p>
-<p><strong>RPKI</strong><br />
+<p><strong>RPKI</strong><br>
 Resource Public Key Infrastructure. Ze uses validated ROA data received over RTR to determine whether a route origin is Valid, Invalid, or NotFound.</p>
-<p><strong>RTR</strong><br />
+<p><strong>RTR</strong><br>
 RPKI-to-Router protocol used between a validating cache and a router.</p>
 <h2 id="resilience-and-policy">Resilience and policy</h2>
-<p><strong>ADD-PATH</strong><br />
+<p><strong>ADD-PATH</strong><br>
 A BGP capability that allows more than one path for the same prefix to cross a session. Send and receive modes are negotiated per family.</p>
-<p><strong>Graceful Restart</strong><br />
+<p><strong>Graceful Restart</strong><br>
 RFC 4724 behaviour that retains stale forwarding state while a BGP speaker restarts and refreshes its routes.</p>
-<p><strong>Long-Lived Graceful Restart</strong><br />
+<p><strong>Long-Lived Graceful Restart</strong><br>
 RFC 9494 extension that retains and deprioritises stale routes beyond the ordinary Graceful Restart window.</p>
-<p><strong>Import filter</strong><br />
+<p><strong>Import filter</strong><br>
 An ordered policy chain applied to a route received from a peer before it enters eligible local routing state.</p>
-<p><strong>Export filter</strong><br />
+<p><strong>Export filter</strong><br>
 An ordered policy chain applied for one destination peer before advertisement.</p>
-<p><strong>OTC</strong><br />
+<p><strong>OTC</strong><br>
 Only-to-Customer, the RFC 9234 path attribute used with BGP Roles to detect and prevent route leaks.</p>
-<p><strong>Route reflection</strong><br />
+<p><strong>Route reflection</strong><br>
 RFC 4456 distribution of iBGP routes through reflectors and clients, avoiding a full iBGP mesh.</p>
-<p><strong>Route server</strong><br />
+<p><strong>Route server</strong><br>
 A BGP speaker that distributes eligible routes between participants while preserving the participant next hop and applying per-member policy.</p>
 <h2 id="ze-configuration-and-operation">Ze configuration and operation</h2>
-<p><strong>Active configuration</strong><br />
+<p><strong>Active configuration</strong><br>
 The configuration revision currently applied to the running system.</p>
-<p><strong>Candidate configuration</strong><br />
+<p><strong>Candidate configuration</strong><br>
 A proposed configuration revision being edited and validated before commit.</p>
-<p><strong>Commit</strong><br />
+<p><strong>Commit</strong><br>
 The transaction that verifies, applies, and activates a candidate configuration. In route injection, a named commit window groups route operations atomically.</p>
-<p><strong>Component</strong><br />
+<p><strong>Component</strong><br>
 A Ze subsystem that owns runtime behaviour, configuration, commands, health, metrics, or plugins.</p>
-<p><strong>Doctor</strong><br />
+<p><strong>Doctor</strong><br>
 Offline readiness checks run with <code>ze doctor</code>. Findings have structured diagnostic codes that can be inspected with <code>ze explain</code>.</p>
-<p><strong>Handler</strong><br />
+<p><strong>Handler</strong><br>
 A callback registered by a component or plugin for configuration, commands, events, codecs, validation, or lifecycle stages.</p>
-<p><strong>Plugin</strong><br />
+<p><strong>Plugin</strong><br>
 A registered Ze extension. Plugins may run in process or as external programs and can own configuration, commands, events, filters, families, services, or dataplane integration.</p>
-<p><strong>Plugin hub</strong><br />
+<p><strong>Plugin hub</strong><br>
 The authenticated transport and dispatch layer used by external plugins and managed components. It is separate from Fleet Management even when configuration shares a surrounding plugin block.</p>
-<p><strong>ZeFS</strong><br />
+<p><strong>ZeFS</strong><br>
 Ze's blob storage format for configuration, credentials, revisions, and other registered data.</p>
 <h2 id="operator-surfaces">Operator surfaces</h2>
-<p><strong>CLI</strong><br />
+<p><strong>CLI</strong><br>
 The interactive or one-shot command interface reached over Ze's SSH server.</p>
-<p><strong>gNMI</strong><br />
+<p><strong>gNMI</strong><br>
 The OpenConfig gRPC Network Management Interface used for YANG-oriented Capabilities, Get, Set, and Subscribe operations.</p>
-<p><strong>Looking Glass</strong><br />
+<p><strong>Looking Glass</strong><br>
 The public read-only BGP peer, route, search, and AS-path view. It runs separately from the authenticated web workbench.</p>
-<p><strong>MCP</strong><br />
+<p><strong>MCP</strong><br>
 Model Context Protocol. Ze exposes registered commands and structured resources to authorised AI clients through its MCP server.</p>
-<p><strong>Web workbench</strong><br />
+<p><strong>Web workbench</strong><br>
 The authenticated browser interface for configuration, commands, operational tables, and live state.</p>
 <h2 id="testing">Testing</h2>
-<p><strong>Functional transcript</strong><br />
+<p><strong>Functional transcript</strong><br>
 A <code>.ci</code> scenario that drives real processes, commands, files, HTTP requests, peers, and expected outputs.</p>
-<p><strong>Interop test</strong><br />
+<p><strong>Interop test</strong><br>
 A scenario that runs Ze against another real implementation such as FRR, BIRD, GoBGP, strongSwan, xl2tpd, or accel-ppp.</p>
-<p><strong>Property</strong><br />
+<p><strong>Property</strong><br>
 An invariant checked across a scenario, such as convergence, route isolation, or state consistency.</p>
-<p><strong>Shrink</strong><br />
+<p><strong>Shrink</strong><br>
 Reduction of a recorded chaos event sequence to the smallest sequence that still reproduces a failure.</p>
+
             </section>
         </main>
 
@@ -146,7 +147,7 @@ Reduction of a recorded chaos event sequence to the smallest sequence that still
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
                 </div>
             </div>
         </footer>

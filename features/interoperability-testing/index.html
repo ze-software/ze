@@ -44,9 +44,8 @@
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-observe">
-<!-- source: test/interop/run.py -- interop test runner -->
-<!-- source: test/interop/interop.py -- scenario framework -->
-
+<!-- source: internal/le/interoplab/bgp/run.go -- native interop runner -->
+<!-- source: internal/le/interoplab/lab.go -- scenario lifecycle -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="interoperability-testing">Interoperability Testing</h1>
@@ -75,7 +74,7 @@ daemon instances in containers and exchange real BGP messages.</p>
 </tr>
 <tr>
 <td>Runner</td>
-<td><code>make ze-interop-test</code> (all) or <code>make ze-interop-test INTEROP_SCENARIO=name</code> (single)</td>
+<td><code>./le integration interop</code> (all) or <code>INTEROP_SCENARIO=&lt;name&gt; ./le integration interop</code> (single)</td>
 </tr>
 <tr>
 <td>Container images</td>
@@ -285,6 +284,7 @@ IS-IS, and OSPF/OSPFv3 interoperability against FRR.</p>
 </table>
 <p>Only Ze and rustbgpd ship cross-implementation interop test suites among open-source
 BGP daemons. Ze's suite has more scenarios and tests against more target implementations.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -318,7 +318,7 @@ BGP daemons. Ze's suite has more scenarios and tests against more target impleme
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

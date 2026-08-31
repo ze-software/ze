@@ -65,12 +65,11 @@
 <li><a href="#interactive-features">Interactive Features</a></li>
 </ol></nav>
 <!-- source: internal/component/cli/client/main.go -- Run -->
-
 <h2 id="usage">Usage</h2>
 <pre><code class="language-bash">ze cli                              # Interactive CLI with tab completion
-ze cli -c &quot;show bgp peer list&quot;              # Execute single command and exit
+ze cli -c "show bgp peer list"              # Execute single command and exit
 ze show bgp peer upstream1 detail           # Read-only query (safe for scripts)
-ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full access)
+ze cli -c "request peer upstream1 teardown 2" # One-shot command (full access)
 </code></pre>
 <h3 id="modes">Modes</h3>
 <table>
@@ -144,7 +143,6 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 </table>
 <p><strong>Peer selector:</strong> <code>*</code> (all), exact IP, glob patterns (<code>192.168.*.*</code>), exclusion (<code>!addr</code>), or peer name.</p>
 <!-- source: internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -- module ze-peer-cmd -->
-
 <h2 id="route-commands">Route Commands</h2>
 <table>
 <thead>
@@ -181,7 +179,6 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang -- show/bgp/rib, clear/bgp/rib; internal/component/bgp/plugins/cmd/rib/rib.go -- route filters -->
-
 <p>See <a href="../route-injection/">Route Injection guide</a> for UPDATE syntax details.</p>
 <h2 id="cache-commands">Cache Commands</h2>
 <table>
@@ -215,7 +212,6 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/cache/yang/ze-cli-cache-cmd.yang -- module ze-cli-cache-cmd -->
-
 <h2 id="event-subscription">Event Subscription</h2>
 <table>
 <thead>
@@ -236,7 +232,6 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang -- module ze-monitor-cmd; internal/plugins/meta/yang/ze-command-monitor-cmd.yang -- module ze-command-monitor-cmd; internal/component/plugin/server/event_monitor.go -- ParseEventMonitorArgs -->
-
 <h2 id="commit-workflow">Commit Workflow</h2>
 <p>Named update windows for atomic route changes:</p>
 <table>
@@ -313,7 +308,6 @@ ze cli -c &quot;request peer upstream1 teardown 2&quot; # One-shot command (full
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- handleCommand, overviewCommand -->
-
 <p><code>show bgp rpki | summary</code> answers the counters without the cache server rows,
 through a pipe alias the plugin declares. It resolves over <code>ze cli -c "..."</code> and
 over ssh, and NOT inside <code>ze cli</code> with no command argument
@@ -355,7 +349,6 @@ over ssh, and NOT inside <code>ze cli</code> with no command argument
 </table>
 <!-- source: internal/component/bgp/plugins/route_refresh/yang/ze-refresh-cmd.yang -- module ze-refresh-cmd; internal/component/bgp/plugins/route_refresh/handler/refresh.go -- handleRefreshMarker -->
 <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd -->
-
 <h2 id="signals">Signals</h2>
 <table>
 <thead>
@@ -388,16 +381,23 @@ over ssh, and NOT inside <code>ze cli</code> with no command argument
 </tbody>
 </table>
 <!-- source: internal/plugins/signal/main.go -- Run, RunStatus -->
-
 <h2 id="interactive-features">Interactive Features</h2>
 <p>In <code>ze cli</code> interactive mode:</p>
 <ul>
 <li><strong>Tab completion</strong> for commands, peer names, address families, and log levels</li>
-<li><strong>Pipe operators:</strong> <code>| json</code>, <code>| table</code>, <code>| match &lt;regex&gt;</code>, <code>| count</code>, <code>| no-more</code></li>
+<li><strong>Pipe operators</strong> with per-command availability. <code>match &lt;text&gt;</code> keeps rows
+containing the text, while a match after a line format reads rendered lines.
+<code>ze help command --json</code> publishes the exact operator contract for each
+command. Each row also carries the command's one-line summary under
+<code>description</code> and its long explanation under <code>long-help</code>. Neither is derived
+from the other, and no row is cut at a sentence or a newline.
+<!-- source: internal/component/command/pipe.go -- applyMatch, applyMatchLines -->
+<!-- source: cmd/ze/help_command.go -- operatorsFor, collectCommands -->
+</li>
 <li><strong>History</strong> persisted across sessions</li>
 <li><strong>Ctrl-C</strong> cancels current command, <strong>Ctrl-D</strong> exits</li>
 </ul>
-<!-- source: internal/component/cli/client/main.go -- pipe operators, bubbletea model, history -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -439,7 +439,7 @@ over ssh, and NOT inside <code>ze cli</code> with no command argument
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

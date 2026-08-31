@@ -77,9 +77,9 @@
 <li><a href="#systemd">systemd</a></li>
 <li><a href="#troubleshooting">Troubleshooting</a>
 <ol>
-<li><a href="#peer-wont-connect">Peer Won&#x27;t Connect</a></li>
+<li><a href="#peer-wont-connect">Peer Won&#39;t Connect</a></li>
 <li><a href="#peer-drops-after-open">Peer Drops After OPEN</a></li>
-<li><a href="#daemon-wont-start">Daemon Won&#x27;t Start</a></li>
+<li><a href="#daemon-wont-start">Daemon Won&#39;t Start</a></li>
 <li><a href="#plugin-not-working">Plugin Not Working</a></li>
 <li><a href="#no-routes-in-rib">No Routes in RIB</a></li>
 <li><a href="#crash-capture">Crash Capture</a></li>
@@ -94,7 +94,6 @@
 <p>Defaults: <code>127.0.0.1:2222</code>, ED25519 host key auto-generated.</p>
 <p>Credentials are stored in the ze database (<code>database.zefs</code>) with bcrypt-hashed passwords.</p>
 <!-- source: internal/plugins/init/main.go -- keyUsername/keyPassword/keyHost/keyPort, defaultHost, defaultPort -->
-
 <h3 id="reinitializing">Reinitializing</h3>
 <p>Running <code>ze init</code> a second time fails with <code>error: database already exists</code>. This is intentional -- it prevents accidental credential loss.</p>
 <p>To reinitialize:</p>
@@ -103,15 +102,13 @@ ze init --force                # prompts for confirmation interactively
 </code></pre>
 <p><code>--force</code> moves the old database to <code>database.zefs.replaced-&lt;date&gt;</code> as a backup before creating a new one. The backup contains your previous SSH credentials and any stored configs. Non-interactive use (piped stdin) is rejected for safety -- <code>--force</code> requires interactive confirmation.</p>
 <!-- source: internal/plugins/init/main.go -- forceFlag -->
-
 <h3 id="connection">Connection</h3>
 <pre><code class="language-bash">ze cli                         # interactive CLI
-ze cli -c &quot;show bgp peer list&quot;  # single command
+ze cli -c "show bgp peer list"  # single command
 ze show bgp peer list                # read-only shorthand
-ze cli -c &quot;request peer transit teardown 2&quot; # one-shot command
+ze cli -c "request peer transit teardown 2" # one-shot command
 </code></pre>
 <!-- source: internal/component/cli/client/main.go -- Run -->
-
 <h3 id="override-hostport">Override Host/Port</h3>
 <pre><code class="language-bash"># Environment variables
 export ZE_SSH_HOST=10.0.0.1
@@ -121,7 +118,6 @@ export ZE_SSH_PORT=2222
 ze signal reload --host 10.0.0.1 --port 2222
 </code></pre>
 <!-- source: internal/core/ssh/client/client.go -- ze.ssh.host, ze.ssh.port env vars -->
-
 <h2 id="signals">Signals</h2>
 <h3 id="via-ssh-preferred">Via SSH (preferred)</h3>
 <table>
@@ -155,7 +151,6 @@ ze signal reload --host 10.0.0.1 --port 2222
 </tbody>
 </table>
 <!-- source: internal/plugins/signal/main.go -- Commands registry -->
-
 <h3 id="via-unix-signals">Via Unix Signals</h3>
 <table>
 <thead>
@@ -180,7 +175,6 @@ ze signal reload --host 10.0.0.1 --port 2222
 </tbody>
 </table>
 <!-- source: cmd/ze/hub/main.go -- signal.Notify, SIGHUP/SIGTERM/SIGINT handling -->
-
 <p>Reload writes the edited config as a candidate version. The active pointer moves
 only after verification, apply, and subsystem reload succeed. A failed reload
 clears the candidate and keeps the previous active config.</p>
@@ -212,24 +206,22 @@ clears the candidate and keeps the previous active config.</p>
 </tbody>
 </table>
 <!-- source: internal/plugins/signal/main.go -- ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
-
 <h2 id="health-checks">Health Checks</h2>
 <h3 id="liveness">Liveness</h3>
 <pre><code class="language-bash">ze status                      # exit 0 = running, exit 1 = not running
 </code></pre>
 <p>This dials the SSH port without completing a handshake. Suitable for systemd watchdog or load balancer TCP check.</p>
 <!-- source: internal/plugins/signal/main.go -- RunStatus, net.Dialer -->
-
 <h3 id="scripting">Scripting</h3>
 <pre><code class="language-bash">if ze status --host 127.0.0.1 --port 2222; then
-    echo &quot;ze is running&quot;
+    echo "ze is running"
 else
-    echo &quot;ze is down&quot;
+    echo "ze is down"
 fi
 </code></pre>
 <h3 id="peer-health">Peer Health</h3>
-<pre><code class="language-bash">ze cli -c &quot;show bgp peer list&quot;  # brief peer list with state
-ze cli -c &quot;show bgp&quot;            # summary table with uptime and prefix counts
+<pre><code class="language-bash">ze cli -c "show bgp peer list"  # brief peer list with state
+ze cli -c "show bgp"            # summary table with uptime and prefix counts
 </code></pre>
 <h2 id="environment-variables">Environment Variables</h2>
 <p>Ze environment variables use dot notation (<code>ze.log.bgp</code>) and are case-insensitive. All forms are equivalent: <code>ze.log.bgp</code>, <code>ZE_LOG_BGP</code>, <code>ze_log_bgp</code>.</p>
@@ -300,7 +292,6 @@ ze env get ze.log              # details for one var
 <!-- source: cmd/ze/ze_core_dispatch.go -- ze.storage.blob registration -->
 <!-- source: internal/core/resolve/resolve.go -- ze.storage.blob lookup -->
 <!-- source: internal/core/paths/paths.go -- ze.config.dir -->
-
 <h2 id="cli-flags">CLI Flags</h2>
 <table>
 <thead>
@@ -338,14 +329,9 @@ ze env get ze.log              # details for one var
 <td><code>-V</code>, <code>--version</code></td>
 <td>Show version</td>
 </tr>
-<tr>
-<td><code>--plugins</code></td>
-<td>List registered plugins (with optional <code>--json</code>)</td>
-</tr>
 </tbody>
 </table>
 <!-- source: cmd/ze/main.go -- global flag parsing -->
-
 <h2 id="systemd">systemd</h2>
 <p>Use <code>ze install systemd</code> on standard Linux hosts:</p>
 <pre><code class="language-bash">sudo ze init
@@ -384,12 +370,15 @@ ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
+LimitCORE=infinity
+LimitMEMLOCK=infinity
 WorkingDirectory=/etc/ze
 Environment=ZE_CONFIG_DIR=/etc/ze
 Environment=XDG_RUNTIME_DIR=/run/ze
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
+ProtectSystem=true
 ProtectHome=true
 RuntimeDirectory=ze
 
@@ -398,42 +387,43 @@ WantedBy=multi-user.target
 </code></pre>
 <!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall -->
 <!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
-
 <h2 id="troubleshooting">Troubleshooting</h2>
 <h3 id="peer-wont-connect">Peer Won't Connect</h3>
 <pre><code>Symptom: peer stays in Connect/Active state
 </code></pre>
 <ol>
 <li>
-<p><strong>Check connectivity:</strong> Can you reach the peer IP on port 179?
-   <code>bash
-   nc -zv 10.0.0.2 179</code></p>
+<p><strong>Check connectivity:</strong> Can you reach the peer IP on port 179?</p>
+<pre><code class="language-bash">nc -zv 10.0.0.2 179
+</code></pre>
 </li>
 <li>
-<p><strong>Check config:</strong> Validate before debugging network issues
-   <code>bash
-   ze config validate config.conf</code></p>
+<p><strong>Check config:</strong> Validate before debugging network issues</p>
+<pre><code class="language-bash">ze config validate config.conf
+</code></pre>
 </li>
 <li>
-<p><strong>Enable debug logging:</strong>
-   <code>bash
-   ze cli -c "request log level bgp.fsm debug"
-   ze cli -c "bgp monitor event state"</code></p>
+<p><strong>Enable debug logging:</strong></p>
+<pre><code class="language-bash">ze cli -c "request log level bgp.fsm debug"
+ze cli -c "bgp monitor event state"
+</code></pre>
 </li>
 <li>
-<p><strong>Common causes:</strong>
-   - Firewall blocking TCP 179
-   - Peer not configured for your address
-   - AS number mismatch (check <code>local { as }</code> and <code>remote { as }</code>)
-   - Hold time rejected (must be 0 or &gt;= 3)</p>
+<p><strong>Common causes:</strong></p>
+<ul>
+<li>Firewall blocking TCP 179</li>
+<li>Peer not configured for your address</li>
+<li>AS number mismatch (check <code>local { as }</code> and <code>remote { as }</code>)</li>
+<li>Hold time rejected (must be 0 or &gt;= 3)</li>
+</ul>
 </li>
 </ol>
 <h3 id="peer-drops-after-open">Peer Drops After OPEN</h3>
 <pre><code>Symptom: session establishes briefly then NOTIFICATION received
 </code></pre>
 <ol>
-<li>Check the NOTIFICATION code in monitor output:</li>
-</ol>
+<li>
+<p>Check the NOTIFICATION code in monitor output:</p>
 <table>
 <thead>
 <tr>
@@ -475,14 +465,14 @@ WantedBy=multi-user.target
 </tr>
 </tbody>
 </table>
-<ol start="2">
+</li>
 <li>
 <p><strong>Role mismatch:</strong> If using <code>role { import customer; strict true; }</code>, both peers must advertise compatible roles.</p>
 </li>
 <li>
-<p><strong>Capability issues:</strong> Enable debug to see negotiated vs offered capabilities:
-   <code>bash
-   ze cli -c "request log level bgp.reactor debug"</code></p>
+<p><strong>Capability issues:</strong> Enable debug to see negotiated vs offered capabilities:</p>
+<pre><code class="language-bash">ze cli -c "request log level bgp.reactor debug"
+</code></pre>
 </li>
 </ol>
 <h3 id="daemon-wont-start">Daemon Won't Start</h3>
@@ -493,13 +483,12 @@ WantedBy=multi-user.target
 <li><strong>Missing credentials:</strong> Run <code>ze init</code> before starting</li>
 </ol>
 <!-- source: internal/component/config/cli/cmd_validate.go -- cmdValidate; internal/component/ssh/ -- SSH server -->
-
 <h3 id="plugin-not-working">Plugin Not Working</h3>
 <ol>
 <li>
-<p><strong>Check plugin is loaded:</strong>
-   <code>bash
-   ze --plugins                  # list compiled-in plugins</code></p>
+<p><strong>Check plugin is loaded:</strong></p>
+<pre><code class="language-bash">ze show plugins               # list compiled-in plugins
+</code></pre>
 </li>
 <li>
 <p><strong>Check plugin is bound to peer:</strong> Config must have <code>attach process &lt;name&gt; { receive [...] }</code> on the peer</p>
@@ -512,23 +501,22 @@ WantedBy=multi-user.target
 </li>
 </ol>
 <!-- source: internal/component/plugin/server/server.go -- plugin stage timeout; internal/component/plugin/registry/registry.go -- plugin registration -->
-
 <h3 id="no-routes-in-rib">No Routes in RIB</h3>
 <ol>
 <li>
-<p><strong>Check RIB plugin is loaded and bound:</strong>
-   <code>bash
-   ze cli -c "show bgp rib status"</code></p>
+<p><strong>Check RIB plugin is loaded and bound:</strong></p>
+<pre><code class="language-bash">ze cli -c "show bgp rib status"
+</code></pre>
 </li>
 <li>
-<p><strong>Check peer is sending updates:</strong>
-   <code>bash
-   ze cli -c "bgp monitor peer transit-a event update direction received"</code></p>
+<p><strong>Check peer is sending updates:</strong></p>
+<pre><code class="language-bash">ze cli -c "bgp monitor peer transit-a event update direction received"
+</code></pre>
 </li>
 <li>
-<p><strong>Check RPKI validation:</strong> If bgp-rpki is loaded, routes may be pending validation. Check:
-   <code>bash
-   ze cli -c "show bgp rpki status"</code></p>
+<p><strong>Check RPKI validation:</strong> If bgp-rpki is loaded, routes may be pending validation. Check:</p>
+<pre><code class="language-bash">ze cli -c "show bgp rpki status"
+</code></pre>
 </li>
 </ol>
 <h3 id="crash-capture">Crash Capture</h3>
@@ -575,11 +563,12 @@ ze show crashes latest   # display most recent crash report
 <pre><code class="language-bash">ze --version                   # ze version
 ze config validate config.conf        # config validity
 ze status                      # daemon state
-ze cli -c &quot;show bgp peer list&quot;  # peer states
-ze cli -c &quot;show bgp&quot;            # session summary
+ze cli -c "show bgp peer list"  # peer states
+ze cli -c "show bgp"            # session summary
 ze env list -v                 # effective configuration
 ze signal quit                 # goroutine dump (kills daemon!)
 </code></pre>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -621,7 +610,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

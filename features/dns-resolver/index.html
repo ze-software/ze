@@ -47,7 +47,6 @@
 <!-- source: internal/component/resolve/dns/resolver.go -- miekg/dns resolver with cache -->
 <!-- source: internal/component/resolve/dns/cache.go -- O(1) LRU cache with TTL -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system DNS config -->
-
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="dns-resolver">DNS Resolver</h1>
@@ -116,11 +115,11 @@ The two sides share no configuration and no cache.</p>
 <td>List entries, inspect by name, selective delete by name/type, flush all, reset counters</td>
 </tr>
 <tr>
-<td><code>\| resolve</code> pipe</td>
+<td><code>| resolve</code> pipe</td>
 <td>Reverse DNS enrichment for IP addresses in any command's JSON output</td>
 </tr>
 <tr>
-<td><code>\| origin</code> pipe</td>
+<td><code>| origin</code> pipe</td>
 <td>ASN/network enrichment for IP addresses via Team Cymru DNS queries</td>
 </tr>
 </tbody>
@@ -200,11 +199,11 @@ clear dns cache record example.com type AAAA    # Delete a single name+type entr
 </thead>
 <tbody>
 <tr>
-<td><code>\| resolve</code></td>
+<td><code>| resolve</code></td>
 <td>Adds a <code>&lt;key&gt;-name</code> field with the PTR (reverse DNS) hostname for each IP address value in the JSON output. Uses the system DNS resolver with cache. 500ms timeout per lookup.</td>
 </tr>
 <tr>
-<td><code>\| origin</code></td>
+<td><code>| origin</code></td>
 <td>Adds <code>&lt;key&gt;-asn</code>, <code>&lt;key&gt;-as-name</code>, and <code>&lt;key&gt;-prefix</code> fields for each IP address value via Team Cymru DNS queries. 2s timeout.</td>
 </tr>
 </tbody>
@@ -216,6 +215,7 @@ In <code>monitor traceroute | log</code> mode, they enrich the hop legend.</p>
 <p>DNS resolver settings and resolv.conf are applied at startup. Changing
 <code>name-server</code> or <code>dns</code> settings via config reload requires a process restart
 to take effect.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -249,7 +249,7 @@ to take effect.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

@@ -95,7 +95,8 @@
           "bullets": [
             "**table**, **json**, **yaml**, **ndjson**",
             "**match**, **count**, **first**/**last**",
-            "Offline via **ze format**"
+            "Offline via **ze format**",
+            "**Every command**, no rendering flags"
           ]
         },
         {
@@ -1200,7 +1201,7 @@
             }
           ],
           "bullets": [
-            "Per-client **configuration** and authentication",
+            "Per-client **configuration** and **pinned** hub certificate",
             "Cached config with **reconnect** and heartbeat",
             "Version hashing and **two-phase** fetch"
           ]

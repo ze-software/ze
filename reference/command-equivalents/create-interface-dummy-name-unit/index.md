@@ -1,25 +1,36 @@
-# `create interface dummy name <name> unit <vid>`
+# `create interface dummy name unit`
+
+Add a VLAN sub-interface to the dummy.
 
 ## Ze command
 
-- Syntax: `create interface dummy name <name> unit <vid>`
 - Registry path: `create interface dummy name unit`
+- Usage: `create interface dummy name <name> unit <vid>`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-unit-add`
+- Backends: `netlink`
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Add a VLAN sub-interface to the dummy. Usage: create interface dummy name <name> unit <vid>.
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `name` | string | yes | any value of this type |
+| `vid` | uint | yes | any value of this type |
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

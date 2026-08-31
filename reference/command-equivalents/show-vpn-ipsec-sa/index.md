@@ -1,21 +1,30 @@
 # `show vpn ipsec sa`
 
+Show all IKE and Child Security Associations.
+
 ## Ze command
 
-- Syntax: `show vpn ipsec sa`
 - Registry path: `show vpn ipsec sa`
+- Usage: `show vpn ipsec sa`
 - Mode: Read-only
 - Wire method: `ze-show:vpn-ipsec-sa`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show all IKE and Child Security Associations. Lists every SA with peer, negotiated algorithms, byte counts, rekey timers, and uptime. Includes SPIs, NAT detection, and child SA traffic selectors. Your main IPsec status command.
+Lists every SA with peer, negotiated algorithms, byte counts, rekey timers, and uptime. Includes SPIs, NAT detection, and child SA traffic selectors. It is the main IPsec status command.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

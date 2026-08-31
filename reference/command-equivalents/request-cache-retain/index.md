@@ -1,25 +1,35 @@
-# `request cache retain <id>`
+# `request cache retain`
+
+Prevent eviction of a cached message.
 
 ## Ze command
 
-- Syntax: `request cache retain <id>`
 - Registry path: `request cache retain`
+- Usage: `request cache retain <id>`
 - Mode: Daemon
 - Wire method: `ze-bgp:cache-retain`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Prevent eviction of a cached message. Usage: request cache retain <id>.
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `id` | string | yes | any value of this type |
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

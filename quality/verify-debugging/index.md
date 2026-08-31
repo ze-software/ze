@@ -1,24 +1,24 @@
 # Verify and Debugging Workflow
 
-Use this page when `make ze-precommit-verify` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
+Use this page when `./le verify current mode full` fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.
 
-`make ze-precommit-verify` is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.
+`./le verify current mode full` is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.
 
 ```
-make ze-precommit-verify-changed
-make ze-precommit-verify
+./le verify current mode changed
+./le verify current mode full
 ```
 
 ## What verify does
 
 | Stage | Purpose | Typical rerun |
 | --- | --- | --- |
-| Lint and architecture checks | Formatting, static analysis, generated docs, wiring, and project rules. | `make ze-lint` or the printed validation target. |
+| Lint and architecture checks | Formatting, static analysis, generated docs, wiring, and project rules. | `./le verify lint run` or the printed validation target. |
 | Unit and race checks | Package contracts, changed groups, and race-sensitive paths. | `go test -race -run TestName ./path/...` |
 | Functional suites | `.ci`, `.wb`, and `.et` behavior that an operator or browser can observe. | `bin/ze-test <suite> NAME -v` |
 | Compatibility checks | ExaBGP and related protocol compatibility gates that belong in the local pass. | The command printed by the failure group. |
 
-The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. The lock in `scripts/dev/verify-lock.sh` prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
+The verify runner writes logs under `tmp/`, keeps a compact failure index, and prints grouped failures. The lock in `internal/le/verify/lock/register.go` prevents two verify-class runs from corrupting shared temp state or making failures unreadable.
 
 ## Reading the failure
 
@@ -33,7 +33,7 @@ If the rerun prints a temporary directory, keep it only when you need the artifa
 
 ```
 ZE_TEST_KEEP_TMP=1 bin/ze-test bgp plugin 42 -v
-make ze-qemu-debug RUN='bin/ze-test-linux-arm64 bgp plugin 79 -v'
+./le qemu run command 'bin/ze-test-linux-arm64 bgp plugin 79 -v' keep-alive
 ```
 
 ## Trace output
@@ -57,7 +57,7 @@ Ze logging is controlled per subsystem through environment variables. Enable the
 | BGP peer behavior | `ze.log.bgp.reactor.peer=debug bin/ze-test bgp plugin NAME -v` |
 | Plugin server behavior | `ze.log.plugin.server=debug bin/ze-test bgp plugin NAME -v` |
 | Config parsing | `ze.log.config=debug bin/ze-test bgp parse NAME -v` |
-| Linux diagnosis | `make ze-qemu-shell`, then inspect `ip`, `nft`, `dmesg`, and temp files. |
+| Linux diagnosis | `./le qemu run command '...' keep-alive`, then inspect `ip`, `nft`, `dmesg`, and temp files. |
 
 Do not turn on every log by default. Broad logs can hide the one line that matters and can change timing in concurrent tests.
 

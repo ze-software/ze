@@ -22,7 +22,7 @@ FIB kernel: programs OS routes from system RIB via netlink/route socket
 
 ## Used by
 
-- Required dependency for: [`isis`](../isis/index.md), [`ldp-port`](../ldp-port/index.md), [`ospf`](../ospf/index.md), [`rsvp-te-rawsock`](../rsvp-te-rawsock/index.md)
+- Required dependency for: [`isis`](../isis/index.md), [`ldp`](../ldp/index.md), [`ospf`](../ospf/index.md), [`rsvp-te`](../rsvp-te/index.md)
 - Optional dependency for: None
 
 ## Repository artifacts

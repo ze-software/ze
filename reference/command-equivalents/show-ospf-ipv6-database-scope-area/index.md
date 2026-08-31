@@ -1,25 +1,33 @@
 # `show ospf ipv6 database scope area`
 
+Show only area-scope (S2/S1 = 01) LSAs.
+
 ## Ze command
 
-- Syntax: `show ospf ipv6 database scope area`
 - Registry path: `show ospf ipv6 database scope area`
+- Usage: `show ospf ipv6 database scope area`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-database-scope-area`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show only area-scope (S2/S1 = 01) LSAs.
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

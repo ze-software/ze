@@ -1,25 +1,35 @@
 # `show ospf spf detail`
 
+Explain why each route won (spec-ospf-ext-14): the candidate paths considered per prefix, the winning cost, and the RFC 2328 section 16.4 path-preference tie-break.
+
 ## Ze command
 
-- Syntax: `show ospf spf detail`
 - Registry path: `show ospf spf detail`
+- Usage: `show ospf spf detail`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-spf-detail`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Explain why each route won (spec-ospf-ext-14): the candidate paths considered per prefix, the winning cost, and the RFC 2328 section 16.4 path-preference tie-break. Read-only; the route table and SPF run count are unchanged.
+Read-only; the route table and SPF run count are unchanged.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

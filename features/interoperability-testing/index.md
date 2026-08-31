@@ -1,7 +1,7 @@
 # Interoperability Testing
 
-<!-- source: test/interop/run.py -- interop test runner -->
-<!-- source: test/interop/interop.py -- scenario framework -->
+<!-- source: internal/le/interoplab/bgp/run.go -- native interop runner -->
+<!-- source: internal/le/interoplab/lab.go -- scenario lifecycle -->
 
 Ze ships a Docker-based interoperability test suite that verifies protocol correctness
 against real third-party BGP implementations. Tests are not mocks -- they launch actual
@@ -11,7 +11,7 @@ daemon instances in containers and exchange real BGP messages.
 |---------|-------------|
 | Target daemons | FRR, BIRD, GoBGP (tested), rustbgpd, RustyBGP, freeRtr (Dockerfiles ready) |
 | Scenario count | 100+ scenarios covering core BGP protocol and extensions plus adjacent protocols (RPKI, BMP, IS-IS, OSPF/OSPFv3) |
-| Runner | `make ze-interop-test` (all) or `make ze-interop-test INTEROP_SCENARIO=name` (single) |
+| Runner | `./le integration interop` (all) or `INTEROP_SCENARIO=<name> ./le integration interop` (single) |
 | Container images | Customizable via env vars (e.g., `FRR_IMAGE=quay.io/frrouting/frr:10.3`) |
 
 ## Scenarios

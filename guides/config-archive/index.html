@@ -75,7 +75,6 @@
 </ol></nav>
 <!-- source: internal/component/config/archive/archive.go -- archive core logic -->
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- system and archive YANG schema -->
-
 <h2 id="configuration">Configuration</h2>
 <p>Archive destinations are named blocks under <code>system { archive { } }</code>. Each block defines one destination with its own trigger, filename format, and timeout.</p>
 <pre><code>system {
@@ -92,12 +91,11 @@
         trigger daily;
         on-change true;
         timeout 10s;
-        filename &quot;{host}-{date}-{time}&quot;;
+        filename "{host}-{date}-{time}";
     }
 }
 </code></pre>
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- archive list definition -->
-
 <h3 id="fields">Fields</h3>
 <table>
 <thead>
@@ -166,7 +164,6 @@
 </table>
 <p>Use absolute paths for <code>file://</code> locations. <code>file://./relative</code> does not work correctly in Go's URL parser.</p>
 <!-- source: internal/component/config/archive/archive.go -- ToFile, ToHTTP, ValidateLocation -->
-
 <h3 id="triggers">Triggers</h3>
 <table>
 <thead>
@@ -206,7 +203,6 @@
 </table>
 <p>Time-based triggers (<code>daily</code>, <code>hourly</code>) always fire once on daemon boot regardless of <code>on-change</code>, establishing a baseline. Subsequent ticks respect the <code>on-change</code> flag.</p>
 <!-- source: internal/component/config/archive/archive.go -- TriggerCommit, TriggerManual, TriggerDaily, TriggerHourly -->
-
 <h3 id="filename-tokens">Filename Tokens</h3>
 <table>
 <thead>
@@ -251,7 +247,6 @@
 </table>
 <p>The <code>.conf</code> extension is always appended. With the default format <code>{name}-{host}-{date}-{time}</code>, a file named <code>router.conf</code> on host <code>router1</code> produces <code>router-router1-20260329-143045.conf</code>.</p>
 <!-- source: internal/component/config/archive/archive.go -- FormatFilename, DefaultFilenameFormat -->
-
 <h2 id="system-identity">System Identity</h2>
 <p>The <code>system</code> block provides hostname and domain values used in archive filenames and elsewhere.</p>
 <pre><code>system {
@@ -267,7 +262,6 @@
 </code></pre>
 <p>If the environment variable is empty or unset, the literal string is kept (e.g., <code>$HOSTNAME</code> stays as-is). When <code>host</code> is not configured, it defaults to <code>unknown</code>. No <code>os.Hostname()</code> fallback is used.</p>
 <!-- source: internal/component/config/system/system.go -- ExpandEnvValue, ExtractSystemConfig -->
-
 <h2 id="cli-usage">CLI Usage</h2>
 <p>Archive a configuration to a named destination:</p>
 <pre><code class="language-bash">ze config archive &lt;name&gt; &lt;config-file&gt;
@@ -281,7 +275,6 @@ ze config archive offsite router.conf
 </code></pre>
 <p>If the named block does not exist, the command prints the available archive names and exits with code 1.</p>
 <!-- source: internal/component/config/cli/cmd_archive.go -- cmdArchiveImpl -->
-
 <h3 id="exit-codes">Exit Codes</h3>
 <table>
 <thead>
@@ -302,23 +295,19 @@ ze config archive offsite router.conf
 </tbody>
 </table>
 <!-- source: internal/component/config/cli/cmd_archive.go -- exitOK, exitError -->
-
 <h2 id="editor-integration">Editor Integration</h2>
 <p>When the editor starts, it reads archive blocks from the config. Blocks with <code>trigger commit</code> are wired into the editor's commit path. After every successful <code>commit</code>, the editor archives the current config content to all <code>trigger commit</code> destinations.</p>
 <p>Archive errors during commit are non-fatal. The commit succeeds and the editor reports the number of archive failures in the status line. Other trigger types (<code>manual</code>, <code>daily</code>, <code>hourly</code>) are not fired by the editor.</p>
 <!-- source: internal/component/config/cli/cmd_edit.go -- Wire archive notifier -->
 <!-- source: internal/component/cli/model_commands.go -- cmdCommit archive dispatch -->
-
 <p>Archive locations are read from the config at editor startup. Adding an <code>archive</code> block during an editing session requires restarting the editor for it to take effect.</p>
 <h2 id="fan-out-behavior">Fan-Out Behavior</h2>
 <p>All configured destinations are attempted regardless of individual failures. Errors are collected per destination. A failure uploading to one location does not prevent archiving to other locations.</p>
 <!-- source: internal/component/config/archive/archive.go -- NewNotifier -->
-
 <h2 id="change-detection">Change Detection</h2>
 <p>For time-based triggers with <code>on-change true</code>, ze tracks config changes using SHA-256 hashes in memory. Each named archive block has its own hash. The first check after daemon start always reports "changed" (no baseline yet), so the boot archive fires unconditionally. Subsequent checks compare the current config hash against the last archived hash and skip the archive if unchanged.</p>
 <p>The tracker resets on daemon restart since hashes are in-memory only.</p>
 <!-- source: internal/component/config/archive/archive.go -- ChangeTracker, HasChanged -->
-
 <h2 id="examples">Examples</h2>
 <h3 id="local-backup-on-every-commit">Local backup on every commit</h3>
 <pre><code>system {
@@ -339,7 +328,7 @@ ze config archive offsite router.conf
         trigger daily;
         on-change true;
         timeout 10s;
-        filename &quot;{host}-{domain}-{date}&quot;;
+        filename "{host}-{domain}-{date}";
     }
 }
 </code></pre>
@@ -380,6 +369,7 @@ ze config archive offsite router.conf
 </tbody>
 </table>
 <p>The body is the raw config file content. Any HTTP 2xx response is treated as success.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -421,7 +411,7 @@ ze config archive offsite router.conf
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

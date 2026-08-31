@@ -56,9 +56,9 @@ hop, native or extended.
 
 Inject one route, inspect BGP best-path selection, and verify Linux installed it with Ze's route protocol ID. Validation also proves withdrawal removes it.
 
-[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=908cbeb9d1) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
+[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=51ebb3f282) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 49 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 50 seconds.
 
 ```console
 $ ze cli -c 'request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42'
@@ -251,19 +251,13 @@ ze cli -c "request commit end my-batch"    # All routes sent together
 
 ## From Plugins
 
-External plugins send routes through the SDK:
-
-```python
-from ze_api import API
-
-api = API()
-# ... 5-stage startup ...
-api.send("peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
-```
+External plugins send the same newline-framed YANG RPC command over the plugin
+hub. The wire protocol is language-independent; the repository no longer
+ships a Python launcher or helper.
 
 Go plugins use the SDK method:
 
 ```go
 p.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
 ```
-<!-- source: pkg/plugin/sdk/ -- SDK DispatchCommand; test/scripts/ze_api.py -- Python SDK -->
+<!-- source: pkg/plugin/sdk/sdk.go -- Plugin -->

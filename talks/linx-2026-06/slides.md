@@ -480,7 +480,7 @@ Ze Engine Core (event bus for components and plugins)
 
 - `bin/ze help command [filter]`: live command catalog
 - `bin/ze help --ai`: machine-readable reference for agents
-- `bin/ze --plugins`, `bin/ze schema list`: what this binary can do
+- `bin/ze show plugins`, `bin/ze schema list`: what this binary can do
 - `bin/ze -d <config>` or `ze debug enable <subsystem|all>`
 
 ---

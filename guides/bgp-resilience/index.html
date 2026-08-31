@@ -61,8 +61,8 @@
 </ol></nav>
 <h2 id="route-refresh">Route Refresh</h2>
 <p>When both peers negotiate Route Refresh, request a new advertisement without tearing down TCP:</p>
-<pre><code class="language-console">ze cli -c &quot;request peer transit-a refresh ipv4/unicast&quot;
-ze cli -c &quot;request peer transit-a clear soft&quot;
+<pre><code class="language-console">ze cli -c "request peer transit-a refresh ipv4/unicast"
+ze cli -c "request peer transit-a clear soft"
 </code></pre>
 <p>Enhanced Route Refresh adds Begin-of-RR and End-of-RR markers so stale routes can be removed after the replacement stream completes. Verify the negotiated capability with <code>show bgp peer transit-a capabilities</code> before relying on it.</p>
 <h2 id="graceful-restart">Graceful Restart</h2>
@@ -148,6 +148,7 @@ bgp {
 <li><a href="../add-path/">ADD-PATH</a></li>
 <li><a href="../lifecycle/">Lifecycle and rollback</a></li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -189,7 +190,7 @@ bgp {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

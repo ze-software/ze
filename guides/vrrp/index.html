@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/guides/vrrp/" />
         <meta property="og:url" content="https://ze-software.net/guides/vrrp/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -78,7 +78,7 @@ proven in production. See
 <a href="../../reference/rfcs/#first-hop-redundancy">RFC status</a>.</p>
 </blockquote>
 <p>The Docker interop lab runs the <code>vrrp-mastership-keepalived</code> scenario
-(<code>make ze-interop-test</code>). Ze at priority 200 and keepalived 2.3.1 at 100 contend
+(<code>./le integration interop</code>). Ze at priority 200 and keepalived 2.3.1 at 100 contend
 for one virtual IP on a shared segment, VRID 10, VRRPv3 pinned on both sides
 (keepalived speaks v2 by default, and RFC 9568 Section 7.1 has a v3 router discard
 a v2 advertisement, so the two would never see each other). Every assertion reads
@@ -108,9 +108,8 @@ never from ze's own output.</p>
 </table>
 <p>Split brain is its own assertion: two owners is what a scenario watching only its
 own side would call a pass.</p>
-<!-- source: test/interop/scenarios/vrrp-mastership-keepalived/check.py -- the three mastership phases -->
-<!-- source: test/interop/interop.py -- keepalived.conf starts a keepalived on the run's .8 address -->
-
+<!-- source: internal/le/interoplab/bgp/checkers.go -- the three mastership phases -->
+<!-- source: internal/le/interoplab/bgp/prepare.go -- keepalived container preparation -->
 <p>The IPv6 unsolicited Neighbor Advertisement burst on promotion is resolved on the
 caller's goroutine, because netlink sockets are created in the calling thread's
 network namespace and a lazy resolution on the announcer worker saw the wrong one.
@@ -118,7 +117,6 @@ A compile-time check pins that path: a type assertion cannot report a break, so 
 break is a build error instead.</p>
 <!-- source: internal/plugins/vrrp/transport/transport.go -- AnnounceMaster, v6SourceWarmer -->
 <!-- source: internal/plugins/vrrp/transport/backend_linux.go -- warmV6Source, var _ v6SourceWarmer -->
-
 <h2 id="configuration">Configuration</h2>
 <p>A VRRP group lives under the interface unit's address family, next to the
 addresses it backs:</p>
@@ -183,7 +181,7 @@ to win the higher number.</p>
 <tr>
 <td><code>accept-mode</code></td>
 <td>false</td>
-<td>VRRPv3 only. Records whether a non-owner Active should accept packets addressed to the virtual IP. <strong>Not enforced on the dataplane yet: see the limitation below.</strong></td>
+<td>VRRPv3 only. Whether a non-owner Active accepts packets addressed to the virtual IP. False is the RFC default and means a ping to the virtual IP gets no reply from a non-owner. Forwarding, ARP and Neighbor Discovery are unaffected.</td>
 </tr>
 <tr>
 <td><code>advertise-interval-milliseconds</code></td>
@@ -335,24 +333,24 @@ keepalived under QEMU (<code>ze-test</code>'s VRRP interop lab).</p>
 <p>A few consequences of this mechanism are worth knowing:</p>
 <ul>
 <li><strong>Ze owns the parent's <code>arp_ignore</code>, <code>arp_filter</code>, and <code>rp_filter</code> while a
-  group is active.</strong> It re-asserts them on every config apply, so if you also set
-  those knobs on the same interface unit, ze's values win for as long as VRRP
-  runs there. Do not rely on a conflicting manual setting on a VRRP interface.</li>
+group is active.</strong> It re-asserts them on every config apply, so if you also set
+those knobs on the same interface unit, ze's values win for as long as VRRP
+runs there. Do not rely on a conflicting manual setting on a VRRP interface.</li>
 <li><strong><code>net.ipv4.conf.all.rp_filter</code> is set to 0</strong> (host-wide) while any IPv4 group
-  is active, because a per-device <code>rp_filter</code> cannot go below the <code>all</code> value.
-  Ze restores the previous value when the last group is removed, but a hard kill
-  (SIGKILL, power loss) skips that cleanup and leaves it at 0. This matches
-  keepalived, which never restores it.</li>
+is active, because a per-device <code>rp_filter</code> cannot go below the <code>all</code> value.
+Ze restores the previous value when the last group is removed, but a hard kill
+(SIGKILL, power loss) skips that cleanup and leaves it at 0. This matches
+keepalived, which never restores it.</li>
 <li><strong>The address owner is a special case.</strong> When the virtual IP equals a real
-  address on the unit, that address already lives on the parent, so it keeps
-  answering with the parent's real MAC (ze installs it as a host route on the
-  macvlan to avoid a duplicate subnet route). Virtual-MAC ownership does not
-  apply to the owner, which never fails the address over anyway.</li>
+address on the unit, that address already lives on the parent, so it keeps
+answering with the parent's real MAC (ze installs it as a host route on the
+macvlan to avoid a duplicate subnet route). Virtual-MAC ownership does not
+apply to the owner, which never fails the address over anyway.</li>
 <li><strong>First-resolution race (IPv4 only).</strong> The very first host to ARP for the
-  virtual IP right as a router becomes Active can, for one resolution, cache the
-  parent's real MAC before the macvlan takes over; it converges to the virtual
-  MAC on its next resolution. keepalived's <code>use_vmac</code> behaves identically. IPv6
-  has no such race (Neighbor Solicitation is not a broadcast).</li>
+virtual IP right as a router becomes Active can, for one resolution, cache the
+parent's real MAC before the macvlan takes over; it converges to the virtual
+MAC on its next resolution. keepalived's <code>use_vmac</code> behaves identically. IPv6
+has no such race (Neighbor Solicitation is not a broadcast).</li>
 </ul>
 <h2 id="operating">Operating</h2>
 <table>
@@ -401,7 +399,7 @@ keepalived under QEMU (<code>ze-test</code>'s VRRP interop lab).</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/vrrp-failover.cast?v=eabb1c82f7"
+      data-cast-src="../../assets/demos/vrrp-failover.cast?v=078435fe9b"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -409,13 +407,13 @@ keepalived under QEMU (<code>ze-test</code>'s VRRP interop lab).</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/vrrp-failover.cast?v=eabb1c82f7">Download the asciicast</a> or
-      <a href="../../assets/demos/vrrp-failover.txt?v=9d5d29cb11">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/vrrp-failover.cast?v=078435fe9b">Download the asciicast</a> or
+      <a href="../../assets/demos/vrrp-failover.txt?v=0405f1f484">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>2 minutes 46 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/vrrp-failover.txt?v=9d5d29cb11">Plain-text transcript</a>
+    <span>Ze 26.08.31</span><span>1 minute 48 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/vrrp-failover.txt?v=0405f1f484">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -424,23 +422,22 @@ keepalived under QEMU (<code>ze-test</code>'s VRRP interop lab).</p>
 $ ze config show demos/terminal/vrrp-failover/ze.conf interface ethernet eth0 unit 0 ipv4 vrrp group gateway
 The daemon configuration shows VRID 10, VIP 192.0.2.1, priority 200, and the advertisement interval.
 
-$ grep -E &#x27;interface|virtual_router_id|priority|192.0.2.1&#x27; /src/demos/terminal/vrrp-failover/keepalived.conf
+$ grep -E &#39;interface|virtual_router_id|priority|192.0.2.1&#39; /src/demos/terminal/vrrp-failover/keepalived.conf
 The peer is configured as BACKUP on the same interface, VRID, and VIP with a lower priority of 100.
 
-$ ze cli -c &#x27;show vrrp&#x27; | ze pipe yaml
+$ ze cli -c &#39;show vrrp&#39; | ze pipe yaml
 The complete live state shows Ze is master.
 
-$ ip -n vrrp-ze -o addr show | grep 192.0.2.1 | tr -s &#x27; &#x27; | cut -d&#x27; &#x27; -f2,4
-The kernel shows the VIP on Ze&#x27;s RFC virtual-MAC interface.
+$ ip -n vrrp-ze -o addr show | grep 192.0.2.1 | tr -s &#39; &#39; | cut -d&#39; &#39; -f2,4
+The kernel shows the VIP on Ze&#39;s RFC virtual-MAC interface.
 
-$ cat /src/demos/terminal/vrrp-failover/failover-proof.sh
-$ bash -x /src/demos/terminal/vrrp-failover/failover-proof.sh
-The recording displays and traces the exact commands that kill Ze, remove its namespace, inspect the VIP on keepalived, and send two probes.
+$ ze-demo run vrrp-failover proof-show
+$ ze-demo run vrrp-failover proof
+The recording runs the compiled proof that stops Ze, removes its namespace, inspects the VIP on keepalived, and sends two probes.
 
-The final kernel output shows 192.0.2.1 on keepalived&#x27;s `vrrp.10` interface, and both probes succeed after failover.</code></pre>
+The final kernel output shows 192.0.2.1 on keepalived&#39;s `vrrp.10` interface, and both probes succeed after failover.</code></pre>
   </details>
 </figure>
-
 <p>For Prometheus:</p>
 <table>
 <thead>
@@ -461,17 +458,16 @@ The final kernel output shows 192.0.2.1 on keepalived&#x27;s `vrrp.10` interface
 </tbody>
 </table>
 <h2 id="requirements-and-limits">Requirements and limits</h2>
-<p><strong><code>accept-mode</code> is not enforced on the dataplane.</strong> RFC 9568 Section 6.4.3 says a
-non-owner Active with <code>Accept_Mode</code> false must not accept packets addressed to
-the virtual IP, other than the adverts themselves. Ze records the leaf, validates
-it (rejecting it under <code>version 2</code>), and reports it in <code>show vrrp</code>, but does not
-yet install the filtering: the virtual address is configured on the group's
-macvlan while the router is Active, so the kernel answers ping and other traffic
-for it whichever way you set the leaf. In practice this means an Active ze router
-answers on the virtual IP, which is what <code>accept-mode true</code> asks for and what
-most deployments want. If you are relying on <code>accept-mode false</code> to make the
-virtual IP unreachable except as a forwarding next hop, it will not do that
-today.</p>
+<p><strong>A ping to the virtual IP gets no reply unless you ask for one.</strong> RFC 9568
+Section 6.4.3 says a non-owner Active router must not accept packets addressed to
+the virtual IP, and <code>accept-mode</code> defaults to false, so ze installs a drop rule
+for the virtual addresses while the group is Active. Forwarding is unaffected:
+hosts using the virtual IP as their default gateway keep working, the router
+still answers ARP and Neighbor Discovery for it, and IPv6 Neighbor Solicitations
+and Advertisements are never dropped. Set <code>accept-mode true</code> if you monitor the
+gateway by pinging its virtual IP. The router that owns the address as a real
+interface address accepts on it whatever the leaf says. The rules appear in
+<code>show firewall ruleset</code> under the <code>vrrp</code> table.</p>
 <p><strong>No priority tracking.</strong> A group's <code>priority</code> is fixed at the value you
 configure. Ze does not decrement it in response to an uplink going down, a route
 disappearing, or a health check failing, so it will not on its own hand the
@@ -522,10 +518,10 @@ filters link-local multicast will break the election.</p>
 <!-- source: internal/plugins/vrrp/engine.go -- state-change log line -->
 <!-- source: internal/component/iface/macvlan.go -- per-group macvlan virtual MAC (private mode) -->
 <!-- source: internal/plugins/vrrp/dataplane_linux.go -- ARP-ownership sysctls that make the virtual MAC answer for the VIP -->
-
 <!-- test: test/vrrp/vrrp-config.ci -- every valid shape shown above validates -->
 <!-- test: test/vrrp/vrrp-config-invalid.ci -- every rejection rule described above -->
 <!-- test: test/vrrp/vrrp-doctor.ci -- the diagnostic codes are explainable -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -567,7 +563,7 @@ filters link-local multicast will break the election.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,21 +1,30 @@
 # `show pki certificates`
 
+List all loaded certificates with expiry dates.
+
 ## Ze command
 
-- Syntax: `show pki certificates`
 - Registry path: `show pki certificates`
+- Usage: `show pki certificates`
 - Mode: Read-only
 - Wire method: `ze-show:pki-certificates`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-List all loaded certificates with expiry dates. Shows name, type (CA or device), subject, issuer, expiry, and validity status. Check here to find certificates approaching expiration.
+Shows name, type (CA or device), subject, issuer, expiry, and validity status. Check here to find certificates approaching expiration.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

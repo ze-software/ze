@@ -423,9 +423,9 @@ The runtime can be reset without reconfiguring via `clear ospf process` (tear do
 
 Inspect the active OSPF configuration, query the running control plane with Ze's CLI, trace a Full neighbor through the LSDB, and confirm the expected route.
 
-[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=f9a5d056ce) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=b074a3b6ad)
+[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=df457bbcb6) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=b074a3b6ad)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 49 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 50 seconds.
 
 ```console
 An operator is investigating why 10.255.0.3/32 is missing.

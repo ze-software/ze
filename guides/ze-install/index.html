@@ -199,12 +199,14 @@ Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
 LimitCORE=infinity
+LimitMEMLOCK=infinity
 WorkingDirectory=&lt;config-dir&gt;
 Environment=ZE_CONFIG_DIR=&lt;config-dir&gt;
 Environment=XDG_RUNTIME_DIR=/run/ze
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
+ProtectSystem=true
 ProtectHome=true
 RuntimeDirectory=ze
 
@@ -268,18 +270,15 @@ ze uninstall local --dry-run    # preview what would be removed
 confirmation before proceeding.</p>
 <p>To check the service status, use <code>systemctl status ze.service</code> directly.</p>
 <h2 id="installing-on-real-hardware-end-to-end">Installing on Real Hardware (End to End)</h2>
-<p>This is the bare-metal walkthrough for the PXE install flow. It is exactly what
-<code>make ze-qemu-install-test</code> exercises in software (build an image, serve it,
-boot an installer kernel + initrd that writes the disk, then log in over SSH). It lets you
-dry-run the
-same chain before touching hardware. The reference subsections below
-(Remote Provisioning, Installer Kernel, Installer Initrd, Bootstrap Mode) cover
-each piece in detail; this section sequences them.</p>
+<p>This bare-metal PXE walkthrough follows the same chain as
+<code>./le qemu install-test</code>: build an image, serve it, boot an installer kernel
+and initrd, write the disk, then log in over SSH. The reference sections below
+describe each piece.</p>
 <h3 id="1-build-the-disk-image">1. Build the disk image</h3>
 <p>Use the structured appliance builder (full reference:
 <a href="../appliance/">appliance guide</a>, "ze appliance"):</p>
 <pre><code class="language-bash">ze appliance init prod
-# For real hardware: set image.kernel-profile to &quot;hardware&quot; and
+# For real hardware: set image.kernel-profile to "hardware" and
 # image.arch to match the target CPU in appliance.json before build.
 ze appliance build prod
 </code></pre>
@@ -292,10 +291,10 @@ target architecture:</p>
 <pre><code class="language-bash">ze appliance kernel prod                     # reads arch + profile from appliance.json
 ze appliance initrd                          # build/initrd/initrd.img.gz (pure Go)
 </code></pre>
-<p>Or build directly with Make:</p>
-<pre><code class="language-bash">make -C tools/installer-kernel PROFILE=hardware ARCH=amd64   # real hardware, x86_64
-make -C tools/installer-kernel PROFILE=hardware ARCH=arm64   # real hardware, ARM
-ze appliance initrd                                          # initrd builds in pure Go
+<p>Choose the profile and architecture through the native command:</p>
+<pre><code class="language-bash">ze appliance kernel --profile hardware --arch amd64 prod
+ze appliance kernel --profile hardware --arch arm64 prod
+ze appliance initrd
 </code></pre>
 <p>The <code>PROFILE</code> selects the driver set: <code>qemu</code> (default, virtio only) or
 <code>hardware</code> (EFI stub, framebuffer, Intel/Realtek/Broadcom/Mellanox NICs,
@@ -304,7 +303,6 @@ see <a href="#installer-kernel">Installer Kernel</a>.</p>
 <h3 id="3-start-the-provisioning-server">3. Start the provisioning server</h3>
 <p>On a ze device on the (isolated) provisioning network:</p>
 <!-- source: internal/plugins/provision/main.go -- Run -->
-
 <pre><code class="language-bash">sudo ze install remote \
   --interface eth0 \
   --network 192.168.50.0/24 \
@@ -319,7 +317,6 @@ Stock iPXE binaries from <code>tools/ipxe-binaries/</code> are copied to
 <code>build/pxe/tftp/</code> if not already present. If the files are already
 staged from a previous run, omit <code>--kernel</code> and <code>--initrd</code>.</p>
 <!-- source: internal/plugins/provision/staging.go -- stageArtifacts -->
-
 <p>This runs DHCP (with PXE options and iPXE chainloading), TFTP (bootloaders),
 and the HTTP image server on <code>eth0</code>. It serves the image at
 <code>/install/image/&lt;filename&gt;</code>, a dynamically generated iPXE boot script at
@@ -327,19 +324,18 @@ and the HTTP image server on <code>eth0</code>. It serves the image at
 <code>--ssh-*</code>, password stored hashed) at <code>/install/database.zefs</code>.
 See <a href="#remote-provisioning-pxe">Remote Provisioning (PXE)</a>.</p>
 <!-- source: internal/plugins/imageserver/handler.go -- serveBootIPXE -->
-
 <h3 id="4-net-boot-the-target">4. Net-boot the target</h3>
 <p>Set the target firmware to network boot. It then:</p>
 <ol>
 <li>DHCPs an address and TFTP bootfile, chainloads iPXE.</li>
 <li>iPXE sends a second DHCP request; the server detects iPXE via option 77 and
-   responds with the HTTP boot script URL instead of the TFTP bootfile.</li>
+responds with the HTTP boot script URL instead of the TFTP bootfile.</li>
 <li>iPXE fetches <code>boot.ipxe</code> from the image server, which contains the kernel
-   command line with <code>ze.server</code>, <code>ze.image</code>, and <code>ip=dhcp</code>.</li>
+command line with <code>ze.server</code>, <code>ze.image</code>, and <code>ip=dhcp</code>.</li>
 <li>iPXE loads the installer kernel + initrd via HTTP and boots.</li>
 <li>The initrd downloads the image and <code>database.zefs</code>, writes the first fixed
-   disk (<code>/dev/sda</code>, <code>/dev/nvme0n1</code>, <code>/dev/mmcblk0</code> ...; removable, virtual,
-   optical and <code>mtdblock</code> flash devices are skipped), and reboots.</li>
+disk (<code>/dev/sda</code>, <code>/dev/nvme0n1</code>, <code>/dev/mmcblk0</code> ...; removable, virtual,
+optical and <code>mtdblock</code> flash devices are skipped), and reboots.</li>
 <li>The target boots ze in <a href="#bootstrap-mode">bootstrap mode</a> and starts SSH.</li>
 </ol>
 <h3 id="5-log-in-and-configure">5. Log in and configure</h3>
@@ -350,21 +346,20 @@ commit; the committed config replaces the bootstrap config on the next restart.<
 <h3 id="troubleshooting">Troubleshooting</h3>
 <ul>
 <li><strong>Installer drops to a shell</strong> instead of rebooting on a bad <code>ze.server</code>, no
-  writable disk, or a download that fails 3 times. Read the serial/VGA console
-  for the <code>[ze-install] FATAL:</code> line.</li>
+writable disk, or a download that fails 3 times. Read the serial/VGA console
+for the <code>[ze-install] FATAL:</code> line.</li>
 <li><strong>Wrong disk</strong> written: the initrd picks the first non-removable disk; detach
-  extra fixed disks or net-boot into the shell and inspect <code>/sys/block</code>.</li>
+extra fixed disks or net-boot into the shell and inspect <code>/sys/block</code>.</li>
 <li><strong>Download stalls / non-standard port</strong>: confirm the image server's port and
-  pass <code>ze.port=</code> in the iPXE cmdline.</li>
-<li><strong>Dry-run first</strong>: <code>make ze-qemu-install-test</code> reproduces the whole chain in
-  QEMU and will surface a broken image, kernel, or initrd without hardware.</li>
+pass <code>ze.port=</code> in the iPXE cmdline.</li>
+<li><strong>Dry-run first</strong>: <code>./le qemu install-test</code> reproduces the whole chain and
+reports a broken image, kernel, or initrd before hardware is touched.</li>
 </ul>
 <h2 id="appliance-iso-install">Appliance ISO Install</h2>
 <p>For appliances built with <code>ze appliance build</code>, ISO media is an offline
 install transport for the gokrazy image. The image is gzip-compressed inside the
 ISO; the installer initrd decompresses it during installation. Create it with:</p>
 <!-- source: internal/appliance/cmd_iso.go -- runIso -->
-
 <pre><code class="language-bash">ze appliance build prod
 ze appliance kernel --profile hardware prod   # download or build installer kernel (reads arch from config)
 ze appliance initrd                           # download or build installer initrd
@@ -372,9 +367,9 @@ ze appliance iso prod
 </code></pre>
 <p>Use <code>ze appliance iso --check</code> to verify all prerequisites (kernel, initrd,
 grub, xorriso) are available before building. The <code>kernel</code> and <code>initrd</code> commands
-download pre-built artifacts from the release server when available, falling
-back to a local QEMU VM build (kernel) or make build (initrd). Cached artifacts
-are stored under <code>$XDG_CACHE_HOME/ze/</code> (default <code>~/.cache/ze/</code>).</p>
+download pre-built artifacts when configured, then fall back to the native
+local QEMU or Docker kernel builder and the Go initrd builder. Cached artifacts
+are stored under <code>$XDG_CACHE_HOME/ze/</code>.</p>
 <p>For arm64 targets (the kernel version is single-sourced in
 <code>internal/appliance/kernel.version</code>; <code>--version</code> only overrides it and must be a
 kernel &gt;= 7):</p>
@@ -387,20 +382,17 @@ separate database after the disk image, because the appliance build already
 injected <code>/perm/ze/database.zefs</code> into the image.</p>
 <!-- source: internal/install/disk/run.go -- runISO -->
 <!-- source: internal/appliance/cmd_build.go -- injectZeFS -->
-
 <p>The ISO bootloader target follows <code>image.arch</code>: amd64 images produce
 <code>BOOTX64.EFI</code>, arm64 images produce <code>BOOTAA64.EFI</code>. By default the command
 checks for a cached kernel under <code>$XDG_CACHE_HOME/ze/installer-kernel/</code> then
 falls back to <code>build/kernel/Image</code>. Pass <code>--kernel</code> to use a
 specific kernel path.</p>
 <!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget, defaultISOKernelPath -->
-
 <p>If the target has more than one fixed disk, create the ISO with an explicit
 whole-disk target. The initrd rejects ambiguous implicit disk selection in ISO
 mode, excludes the ISO source media from target candidates, and requires a
 builder-generated media id match before it trusts a mounted installer volume.</p>
 <!-- source: internal/install/disk/detect.go -- findTargetDisk; internal/install/disk/iso.go -- find ISO media -->
-
 <pre><code class="language-bash">ze appliance iso --target /dev/vda prod
 </code></pre>
 <p>The generated ISO includes the installer kernel, initrd, the selected image,
@@ -416,15 +408,12 @@ is not supported.</p>
 be removed before the next boot. They do not auto-reboot while the ISO is still
 present.</p>
 <!-- source: internal/install/disk/run.go -- runISO -->
-
 <!-- source: internal/appliance/cmd_iso.go -- stageISO -->
-
 <h2 id="remote-provisioning-pxe">Remote Provisioning (PXE)</h2>
 <p><code>ze install remote</code> is a one-command provisioning server that PXE-boots
 target machines with a gokrazy image containing ze.</p>
 <blockquote>
-<p><strong>Warning: the provisioning network MUST be isolated.</strong> Run <code>ze install
-remote</code> only on a dedicated segment with no other DHCP server. On a shared
+<p><strong>Warning: the provisioning network MUST be isolated.</strong> Run <code>ze install remote</code> only on a dedicated segment with no other DHCP server. On a shared
 network a foreign DHCP server (for example a corporate one) can win the
 boot-time race and hand the target a lease with no route back to <code>ze.server</code>;
 the installer then probes an unreachable server until <code>ze.wait</code> expires and
@@ -436,17 +425,17 @@ the same L2 segment is unsupported and can still break provisioning.</p>
 <h3 id="how-it-works">How It Works</h3>
 <ol>
 <li>The operator runs <code>ze install remote</code> on an existing ze device connected
-   to the provisioning network.</li>
+to the provisioning network.</li>
 <li>Ze generates a config enabling DHCP (with PXE extensions), TFTP, and
-   an HTTP image server, then forks itself (<code>ze -</code>) with the config piped
-   to stdin.</li>
+an HTTP image server, then forks itself (<code>ze -</code>) with the config piped
+to stdin.</li>
 <li>A target machine PXE-boots: DHCP assigns an IP and directs it to the
-   TFTP bootloader, which chain-loads the installer kernel and initrd
-   via HTTP.</li>
+TFTP bootloader, which chain-loads the installer kernel and initrd
+via HTTP.</li>
 <li>The installer writes the gokrazy image to disk and reboots.</li>
 <li>The target boots into ze in bootstrap mode: discovers all interfaces,
-   enables DHCP client on each ethernet NIC, and starts SSH for operator
-   access.</li>
+enables DHCP client on each ethernet NIC, and starts SSH for operator
+access.</li>
 </ol>
 <h3 id="quick-start_1">Quick Start</h3>
 <pre><code class="language-bash">ze install remote \
@@ -592,7 +581,6 @@ excluded from the pool. Examples:</p>
 <p>The DHCP server detects PXE clients via option 60 (<code>PXEClient:</code>) and
 reads option 93 (client architecture) to select the bootfile:</p>
 <!-- source: internal/plugins/dhcpserver/handler.go -- appendPXEOptions -->
-
 <table>
 <thead>
 <tr>
@@ -617,23 +605,19 @@ URL as the bootfile instead of the TFTP binary. This two-stage chainload
 (firmware -&gt; iPXE via TFTP -&gt; boot.ipxe via HTTP) eliminates the need for
 custom-embedded iPXE builds.</p>
 <!-- source: internal/plugins/dhcpserver/handler.go -- isIPXE -->
-
 <p>The image server generates <code>boot.ipxe</code> dynamically at <code>/install/boot/boot.ipxe</code>
 with the correct <code>ze.server</code>, <code>ze.image</code> (lexicographically last <code>.img</code> file),
 and <code>ze.port</code> (when not 80). A static <code>boot.ipxe</code> file in the boot directory
 takes precedence over dynamic generation for operator customization.</p>
 <!-- source: internal/plugins/imageserver/handler.go -- serveBootIPXE -->
-
 <p>Bootfiles are served from <code>build/pxe/tftp/</code> via TFTP.
 The installer kernel and initrd are served from <code>build/pxe/boot/</code>
 via HTTP. Stock iPXE binaries are bundled in <code>tools/ipxe-binaries/</code> and
 staged automatically by <code>ze install remote</code>.</p>
-<p>The default <code>--pxe-dir build/pxe</code> is relative, resolved against the working
-directory. <code>make ze-pxe-build</code> stages artifacts into <code>build/pxe</code> from the repo root,
-so run <code>ze install remote</code> from the repo root too (as <code>pxe.sh</code> does), or pass an
-absolute <code>--pxe-dir</code>. Run from a different directory and the server looks for
-<code>build/pxe</code> under that directory and reports the missing artifacts by their
-resolved absolute path.</p>
+<p>The default <code>--pxe-dir build/pxe</code> is relative to the working directory. Run
+<code>ze install remote</code> from the repository root, or pass an absolute
+<code>--pxe-dir</code>. The command stages bundled iPXE files and the explicit
+<code>--kernel</code> and <code>--initrd</code> artifacts under that root.</p>
 <h3 id="ssh-credentials">SSH Credentials</h3>
 <p>The <code>--ssh-password</code> is bcrypt-hashed (cost 10) before being embedded
 in the generated config as <code>ssh-password-hash</code>. The plaintext password
@@ -657,13 +641,12 @@ terminal shows the live boot sequence with no extra flags:</p>
 <li><strong>dhcpserver</strong> logs each lease: <code>dhcpserver: lease request=DISCOVER reply=OFFER mac=… ip=… bootfile=…</code></li>
 <li><strong>tftpserver</strong> logs each bootloader fetch: <code>tftpserver: read request file=ipxe.efi client=…</code></li>
 <li><strong>imageserver</strong> logs each HTTP request (<code>boot.ipxe</code>, <code>vmlinuz</code>, <code>initrd.img.gz</code>, the
-  disk image, <code>database.zefs</code>) and, at startup, the image it will serve with its build
-  identity: <code>imageserver: image to install image=ze-&lt;ts&gt;.img built=&lt;ts&gt; ze-version=… sha256=…</code></li>
+disk image, <code>database.zefs</code>) and, at startup, the image it will serve with its build
+identity: <code>imageserver: image to install image=ze-&lt;ts&gt;.img built=&lt;ts&gt; ze-version=… sha256=…</code></li>
 </ul>
 <p>Set <code>ze.log</code> to change verbosity (<code>ze.log=debug</code>, <code>ze.log=warn</code>); an explicit <code>ze.log</code>
 or per-subsystem <code>ze.log.{dhcpserver,tftpserver,imageserver}</code> overrides the info default.</p>
 <!-- source: internal/plugins/provision/main.go -- withInstallLogDefaults -->
-
 <p>If you see the iPXE downloads (<code>boot.ipxe</code>, <code>vmlinuz</code>, <code>initrd.img.gz</code>) but never an
 <code>/install/image/&lt;name&gt;</code> request, the target booted the kernel but its initrd could not
 reach the server to pull the image (commonly a foreign DHCP lease on a non-isolated
@@ -685,18 +668,17 @@ Compare the <code>image:</code>/<code>built</code> line on the target with that 
 the latest image installed.</p>
 <!-- source: internal/core/version/version.go -- Extended, ReadManifestFile -->
 <!-- source: internal/appliance/cmd_build.go -- injectZeFS baked manifest -->
-
 <h3 id="requirements">Requirements</h3>
 <ul>
 <li>An <strong>isolated</strong> provisioning network: no second DHCP server on the L2
-  segment, or a foreign lease can leave the target with no route to <code>ze.server</code></li>
+segment, or a foreign lease can leave the target with no route to <code>ze.server</code></li>
 <li>Root privileges (DHCP, TFTP, and HTTP bind to privileged ports;
-  interface auto-configuration uses netlink)</li>
+interface auto-configuration uses netlink)</li>
 <li>Disk image at the path specified by <code>--image</code></li>
 <li>Installer kernel and initrd: pass <code>--kernel</code> and <code>--initrd</code> on first run,
-  or pre-stage files in <code>build/pxe/boot/</code></li>
+or pre-stage files in <code>build/pxe/boot/</code></li>
 <li>iPXE binaries: bundled in <code>tools/ipxe-binaries/</code>, auto-staged to
-  <code>build/pxe/tftp/</code> if not present</li>
+<code>build/pxe/tftp/</code> if not present</li>
 </ul>
 <h3 id="shutdown">Shutdown</h3>
 <p>SIGTERM or SIGINT sent to <code>ze install remote</code> is forwarded to the child
@@ -712,28 +694,28 @@ a PXE-provisioned device boots for the first time.</p>
 <li>Ze detects no config in zefs (no <code>file/active/ze.conf</code>, no <code>file/template/ze.conf</code>).</li>
 <li>Interface discovery enumerates all OS network interfaces.</li>
 <li>A minimal config is generated: DHCP client enabled on every ethernet
-   interface, SSH server enabled.</li>
+interface, SSH server enabled.</li>
 <li>Ze starts with this config. DHCP clients acquire addresses, SSH becomes
-   reachable.</li>
+reachable.</li>
 </ol>
 <h3 id="operator-workflow">Operator Workflow</h3>
 <ol>
 <li>SSH into the device using the credentials pre-provisioned by <code>ze install remote</code>.</li>
 <li>Configure ze via the CLI (<code>ze config edit</code>, then commit).</li>
 <li>The committed config replaces the bootstrap config. On the next restart,
-   ze starts in normal mode.</li>
+ze starts in normal mode.</li>
 </ol>
 <h3 id="constraints">Constraints</h3>
 <ul>
 <li>Only ethernet interfaces get DHCP. Bridge, veth, dummy, loopback,
-  wireguard, and xfrm interfaces are skipped.</li>
+wireguard, and xfrm interfaces are skipped.</li>
 <li>SSH credentials come from zefs (written by the installer initrd), not
-  from the generated config.</li>
+from the generated config.</li>
 <li>Bootstrap mode is only intended for trusted/provisioning networks.
-  SSH is enabled on all interfaces.</li>
+SSH is enabled on all interfaces.</li>
 <li>If no ethernet interfaces are found (or the netlink backend is not
-  available), bootstrap mode does not activate and ze falls through to
-  the next startup path (error; use <code>--web-only</code> for standalone web UI).</li>
+available), bootstrap mode does not activate and ze falls through to
+the next startup path (error; use <code>--web-only</code> for standalone web UI).</li>
 </ul>
 <h3 id="limitations">Limitations</h3>
 <ul>
@@ -750,17 +732,17 @@ and the initrd's init script installs ze.</p>
 <h3 id="what-it-does_1">What It Does</h3>
 <ol>
 <li>Parses <code>ze.source</code>, <code>ze.server</code>, <code>ze.port</code>, <code>ze.image</code>, <code>ze.target</code>, and
-   <code>ze.media-id</code> from the kernel command line</li>
+<code>ze.media-id</code> from the kernel command line</li>
 <li>In HTTP mode, downloads the gokrazy disk image from
-   <code>http://&lt;server&gt;:&lt;port&gt;/install/image/&lt;name&gt;</code></li>
+<code>http://&lt;server&gt;:&lt;port&gt;/install/image/&lt;name&gt;</code></li>
 <li>In ISO mode, mounts local ISO media read-only and selects the embedded
-   compressed image</li>
+compressed image</li>
 <li>Writes the image to the selected non-removable block device (decompressing
-   in ISO mode)</li>
+in ISO mode)</li>
 <li>In HTTP mode only, re-reads the partition table, mounts partition 4 (ext4,
-   <code>/perm</code>), downloads <code>database.zefs</code>, and writes it to <code>/perm/ze/database.zefs</code></li>
+<code>/perm</code>), downloads <code>database.zefs</code>, and writes it to <code>/perm/ze/database.zefs</code></li>
 <li>In HTTP mode, reboots. In ISO mode, powers off so the operator can remove
-   the installer media before the next boot.</li>
+the installer media before the next boot.</li>
 </ol>
 <h3 id="building-the-initrd">Building the Initrd</h3>
 <p>Prerequisites: the Go toolchain only. The initrd is built in pure Go, so no
@@ -858,21 +840,18 @@ up to 30 times. Each probe distinguishes "TCP unreachable" from "HTTP error
 response" so a server that returns 404 is still considered reachable. Interface
 state and routing tables are logged every 10 attempts for diagnostics.</p>
 <!-- source: internal/install/disk/network.go -- ensureNetwork -->
-
 <p>The installer fans its progress and <code>FATAL</code> lines to every console listed in
 <code>/sys/class/tty/console/active</code>, not just the single <code>/dev/console</code> the kernel
 marks preferred. On a headless box the preferred console can be a dead VGA tty
 while kernel messages still reach the serial line, which would otherwise hide all
 installer output. The generated <code>boot.ipxe</code> also selects the console set per
-client architecture via iPXE's <code>${buildarch}</code>: x86 clients get <code>console=tty0
-console=ttyS0</code>, while arm64 also keeps <code>console=ttyAMA0</code> (the ARM PL011 UART,
+client architecture via iPXE's <code>${buildarch}</code>: x86 clients get <code>console=tty0 console=ttyS0</code>, while arm64 also keeps <code>console=ttyAMA0</code> (the ARM PL011 UART,
 which never registers on x86 and can dead-end <code>/dev/console</code> if left on an x86
 cmdline).</p>
 <!-- source: internal/install/disk/console_linux.go -- setupConsoles; internal/plugins/imageserver/handler.go -- serveBootIPXE -->
 <p>Existing <code>ze install remote</code> deployments need no <code>ze.source</code> change because the
 default source is <code>http</code>.</p>
 <!-- source: internal/install/disk/cmdline.go -- parseCmdline -->
-
 <p>The installer selects a non-removable block device via sysfs. Virtual devices
 (loop, ram, dm, zram, md), optical drives (sr), floppies (fd), and firmware/CFI
 flash (<code>mtdblock</code>, the QEMU <code>virt</code> machine's pflash) are skipped.</p>
@@ -896,7 +875,6 @@ ungated (the operator is physically present); with no credential on a network
 install it prints the error, waits ~30 seconds, and reboots, so an unattended
 box never hangs waiting for a credential nobody can supply.</p>
 <!-- source: internal/install/disk/rescue_linux.go -- fatalInitrd, rescueOnConsoles -->
-
 <p><code>ze plugin provision</code> mints the rescue token, prints it once, and writes only
 its salted argon2id digest into the generated config as <code>rescue-auth</code>. The image
 server puts that digest on the installer kernel cmdline as <code>ze.rescue-auth</code>, and
@@ -918,7 +896,6 @@ shell nor strand an unattended box at a prompt nobody can answer.</p>
 <!-- source: internal/install/disk/rescue_linux.go -- selectFatalBranch -->
 <!-- source: internal/core/rescueauth/rescueauth.go -- Value, Check, NewValue -->
 <!-- source: internal/plugins/imageserver/handler.go -- serveBootIPXE, rescueAuth -->
-
 <h3 id="running-tests">Running Tests</h3>
 <p>The installer logic has Go unit tests alongside each source file in
 <code>internal/install/disk</code> (cmdline parsing, disk detection, the netlink lease
@@ -928,8 +905,8 @@ console / fatal policy):</p>
 </code></pre>
 <p>End-to-end boot and install are covered by the QEMU evidence harness, which
 boots the real Go initrd:</p>
-<pre><code class="language-bash">make ze-qemu-install-test       # HTTP PXE install
-make ze-qemu-install-iso-test   # ISO install
+<pre><code class="language-bash">./le qemu install-test       # HTTP PXE install
+./le qemu install-iso-test   # ISO install
 </code></pre>
 <h3 id="no-external-binaries">No External Binaries</h3>
 <p>The initrd contains exactly one file: the <code>cmd/ze-installer</code> Go binary as
@@ -971,68 +948,41 @@ the right kernel is site-specific.</p>
 </table>
 <p>Both profiles merge onto a shared base (<code>kernel.config</code>) that provides IP
 autoconfiguration, SCSI, ext4, initramfs, devtmpfs and serial console.</p>
-<pre><code class="language-bash">ze appliance kernel prod                       # reads arch + profile from appliance.json
+<pre><code class="language-bash">ze appliance kernel prod
 ze appliance kernel --profile hardware --arch amd64
 ze appliance kernel --builder qemu --arch arm64 prod
-
-# Or build directly with Make:
-make -C tools/installer-kernel                              # qemu profile, arm64 (default)
-make -C tools/installer-kernel BUILDER=docker ARCH=amd64   # docker backend, x86_64
-make -C tools/installer-kernel PROFILE=hardware ARCH=amd64 # hardware profile, x86_64
 </code></pre>
 <p>Set <code>image.kernel-profile</code> to <code>"hardware"</code> in <code>appliance.json</code> so
 <code>ze appliance kernel &lt;name&gt;</code> picks it up automatically. The CLI selects Docker
 first, then the shared QEMU backend, unless <code>--builder</code> forces one path.</p>
-<p><code>ze appliance kernel</code> resolves the open profile registry in Go, passes the
-resolved fragments to <code>tools/kernel-builder/build.py</code>, reads the emitted
-<code>build/kernel/config</code>, and fails loudly if any required symbol is not <code>=y</code>. The
-installer Makefile keeps its config fragments and <code>.require</code> manifests in
-<code>tools/installer-kernel/</code> and delegates Docker/QEMU execution to
-<code>tools/kernel-builder/</code>. The QEMU path is <code>tools/kernel-builder/qemu-build.py</code>,
-which validates repo-relative builder, source, and output paths before booting
-the VM. Output is <code>build/kernel/Image</code> (the kernel) and <code>build/kernel/config</code>
-(the resolved config). See <code>tools/installer-kernel/README.md</code> for the full
-rationale and driver lists.</p>
-<p>The Makefile is incremental. It rebuilds when a
-fragment, a builder file, the Makefile, or <code>internal/appliance/kernel.version</code>
-is newer than the built image. It also rebuilds when the requested arch,
-profile, or builder is different from the last build, which it records in
-<code>build/kernel/.request</code>. <code>ze appliance kernel</code> deletes that record on every
-installer-target run, so the next <code>make</code> rebuilds. It deletes
-<code>build/kernel/.variant</code> with it: that record says which arch, profile and version
-was BUILT, and <code>ze appliance iso</code> reads it to decide the image in
-<code>build/kernel/</code> is the one it needs.</p>
+<p><code>ze appliance kernel</code> resolves the open profile registry in Go and passes the
+fragments to <code>internal/appliance/kernelbuilder</code>. The worker merges and checks
+the config, then rejects any required symbol that is not built in. Docker and
+QEMU are native backends of the same Go driver. Output is cached by target,
+architecture, profile, config, and kernel version.</p>
 <!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
 <!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
-<!-- source: tools/kernel-builder/build.py -- main -->
-<!-- source: tools/kernel-builder/qemu-build.py -- repo_relative, main -->
-<!-- source: tools/installer-kernel/Makefile -- all -->
-
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- runQEMU -->
 <h2 id="end-to-end-qemu-verification">End-to-End QEMU Verification</h2>
-<p><code>make ze-qemu-install-test</code> exercises the entire chain in QEMU with no hardware:
-it builds the initrd, builds a real appliance image with <code>ze appliance</code>
-(see the <a href="../appliance/">appliance guide</a>), boots the installer kernel + initrd
-against a blank virtio disk, has the initrd download and write the image and
-zefs over HTTP, then boots the <strong>written disk</strong> and logs in over SSH as the
-provisioned power user. That final login is the regression test for credential
-loading from the installed zefs.</p>
-<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-qemu-install-test
+<p><code>./le qemu install-test</code> exercises the entire chain with no hardware. It builds
+the initrd and an appliance image, boots the installer kernel and initrd against
+a blank virtio disk, downloads and writes the image and ZeFS over HTTP, then
+boots the written disk and logs in over SSH.</p>
+<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le qemu install-test
 </code></pre>
-<p><code>make ze-qemu-install-iso-test</code> exercises the appliance ISO transport. It builds
-the initrd and appliance image, creates an ISO through <code>ze appliance
-iso</code>, boots that ISO in QEMU, verifies the embedded image is written without the
-PXE-only ZeFS download branch, verifies the installer powers off safely, inspects
-the written GPT layout, and logs in over SSH using credentials from the embedded
-ZeFS database.</p>
-<!-- source: scripts/evidence/effective-install-iso-qemu.py -- main -->
-
-<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-qemu-install-iso-test
+<p><code>./le qemu install-iso-test</code> exercises the ISO transport. It creates an ISO
+through <code>ze appliance iso</code>, boots it, verifies the embedded image is written
+without the PXE-only branch, checks safe poweroff and the GPT layout, then logs
+in with the embedded ZeFS credentials.</p>
+<!-- source: internal/le/qemu/actions.go -- Actions -->
+<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le qemu install-iso-test
 </code></pre>
 <p>The ISO evidence self-skips with <code>INSTALL-ISO-QEMU: SKIP</code> when QEMU, a suitable
 installer kernel, UEFI firmware, <code>grub-mkstandalone</code>/<code>grub2-mkstandalone</code>,
 <code>xorriso</code>, or image-build tooling is unavailable.</p>
-<!-- source: scripts/evidence/effective-install-iso-qemu.py -- main, skip -->
-
+<!-- source: internal/le/qemu/actions.go -- Answer -->
 <p>The test self-skips (does not fail) when <code>ZE_INSTALL_KERNEL</code> is unset or a
 container runtime / <code>qemu-system-*</code> is unavailable, because there is no safe
 default installer kernel.</p>
@@ -1089,12 +1039,12 @@ default installer kernel.</p>
 </tbody>
 </table>
 <h3 id="qemu-networking-note">QEMU Networking Note</h3>
-<p>The test points the guest at the slirp gateway (<code>ze.server=10.0.2.2
-ze.port=&lt;ephemeral&gt;</code>) rather than a <code>guestfwd</code> forward. A <code>guestfwd</code> services
+<p>The test points the guest at the slirp gateway (<code>ze.server=10.0.2.2 ze.port=&lt;ephemeral&gt;</code>) rather than a <code>guestfwd</code> forward. A <code>guestfwd</code> services
 only the first guest connection, which stalls the installer's second and third
 downloads (image, zefs); the gateway handles the sequential connections the
 installer makes. This is only a test-harness concern; real PXE installs use a
 real network and <code>ze install remote</code> on port 80.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -1136,7 +1086,7 @@ real network and <code>ze install remote</code> on port 80.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 02:01 UTC</span>
                 </div>
             </div>
         </footer>

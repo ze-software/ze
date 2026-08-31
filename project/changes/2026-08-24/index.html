@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>Week of 2026-08-24 - Ze</title>
+        <meta name="description" content="Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Aro" />
+        <meta property="og:title" content="Week of 2026-08-24 - Ze" />
+        <meta property="og:description" content="Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Aro" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Week of 2026-08-24 - Ze" />
+        <meta name="twitter:description" content="Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Aro" />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/project/changes/2026-08-24/" />
+        <meta property="og:url" content="https://ze-software.net/project/changes/2026-08-24/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <link rel="alternate" type="application/rss+xml" title="Ze weekly updates" href="../feed.xml" />
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section class="blog-post" aria-labelledby="post-title">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Weekly update</span>
+    <h1 id="post-title">Week of 2026-08-24</h1>
+    <p>Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.</p>
+</div>
+                <p class="post-back"><a href="../">&larr; All weekly updates</a></p>
+            </section>
+            <section class="blog-post reveal">
+                <div class="blog-grid">
+                    <div class="blog-block" aria-label="🖥️ CLI">
+                        <div class="md-content">
+                            <h2>🖥️ CLI</h2>
+                            <p>New:</p>
+<ul>
+<li>Every command renders its answer through the pipe operators, so the rendering flags are gone. <code>--json</code> is removed from <code>config dump</code>, <code>config show</code>, <code>config validate</code>, <code>config diff</code>, <code>config fix</code>, <code>config completion</code>, <code>schema list</code>, <code>schema handlers</code>, <code>schema methods</code>, <code>schema events</code>, <code>yang tree</code>, <code>yang completion</code>, <code>tacacs show</code> and <code>interface scan</code>. <code>--yaml</code> is removed from <code>interface scan</code>, and <code>--format</code> from <code>config migrate</code>. Write <code>ze show config dump | json</code> instead. There is no alias and no deprecation period.</li>
+<li><code>ze --plugins</code> is now <code>show plugins</code>. It returns one structured payload, so <code>| json</code>, <code>| yaml</code>, <code>| table</code>, <code>| count</code> and <code>| match</code> all work over it.</li>
+<li><code>announce</code> is three commands, one per form: <code>announce unicast</code>, <code>announce blackhole</code> and <code>announce flowspec</code>. What an operator types does not change.</li>
+<li><code>ze help &lt;path&gt;</code> prints a usage line built from the command model, naming the arguments a command actually takes. <code>ze help command "&lt;path&gt;" --json</code> now reports <code>usage</code>, <code>grammar</code>, <code>operators</code>, <code>answer-shape</code>, <code>address-fields</code> and <code>pipe-aliases</code>.</li>
+<li>The prompt color says what the session is doing: blue in operational mode, green in configuration mode, magenta after a command fails.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>A pipe operator a command cannot support is refused by name before the command runs, instead of being answered wrongly.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🛰️ Routing and subscribers">
+                        <div class="md-content">
+                            <h2>🛰️ Routing and subscribers</h2>
+                            <p>New:</p>
+<ul>
+<li>A per-neighbor <code>propagate-srv6-prefix-sid</code> leaf controls whether the BGP Prefix-SID attribute crosses an external session. It previously left the autonomous system with nothing asking it to (RFC 8669 Section 8).</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>Two ranges on one FlowSpec field emitted two components of the same type. GoBGP answers that with a session reset, so an ordinary filter flapped the peering on every commit that touched it. The ranges now merge into one component (RFC 8955 Section 4.2).</li>
+<li>Every PPPoE subscriber session leaked its pool address on teardown, so the pool ran to exhaustion and only a restart recovered it.</li>
+<li>Changing <code>refresh-period</code> on a running box advertised one value and refreshed at another, so a neighbor's cleanup timer expired live LSPs. The advertised period, the refresh cadence and the state lifetime now come from one value (RFC 2205 Section 3.7).</li>
+<li>VPN, EVPN, MVPN, MUP, FlowSpec, VPLS and BGP-LS produced no best-path changes at all, so BMP mirroring, redistribution and telemetry saw nothing for those families.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔒 Access, tunnels and configuration">
+                        <div class="md-content">
+                            <h2>🔒 Access, tunnels and configuration</h2>
+                            <p>New:</p>
+<ul>
+<li>Rotating a RADIUS or TACACS+ shared secret, address or timeout now takes effect on reload. It was accepted into the configuration and reached nothing until the daemon restarted, so SSH kept authenticating against the retired secret.</li>
+<li>Managed mode serves a named certificate from the PKI store, and the client can pin it by SHA-256 fingerprint including on first boot. <code>ze.managed.tls.insecure</code> is no longer needed for an authenticated deployment.</li>
+</ul>
+<p>Fixed:</p>
+<ul>
+<li>A TACACS+ reply that claimed to be unencrypted was parsed as cleartext even with a shared secret configured. An off-path packet carrying PASS could therefore log a user in with no proof of the secret. Such a reply is refused now and the connection is dropped (RFC 8907 Section 10.5.2).</li>
+<li>If the interface named in the IPsec configuration had no address at boot, the box came up with no IPsec at all. That included peers carrying their own <code>local-address</code>. Startup now serves every peer it can bind, and a reload still refuses.</li>
+<li>A firewall <code>term</code> list reached the dataplane in random order on a first-match-wins path, and the BGP filter lists refused any entry past the first. The operator's order now travels with the list.</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="📚 Standards programme">
+                        <div class="md-content">
+                            <h2>📚 Standards programme</h2>
+                            <p>Ze is being checked against every RFC it implements, one MUST at a time. The work has started rather than finished.</p>
+<p>Of 4,748 requirements, 3,071 are MUST-level and 2,976 are checked. 68 MUSTs still owe work. Six of the 171 documents have been read end to end.</p>
+<p>The 68 was 51 last week, and all 17 of the difference come from one document newly written up: RFC 7627, whose MUSTs have no tests yet. No requirement that was already checked was reclassified. Closing a gap moves a requirement between two states that both count as owing nothing, which is why a week of closures leaves that number flat.</p>
+<p>A green run proves the written list, not its completeness. The remaining 165 documents still need end-to-end reading.</p>
+<p>What that turned up this week:</p>
+<ul>
+<li><code>local-as no-prepend</code> and <code>replace-as</code> put identical AS_PATHs on the wire. No prepend governs what is learned from the peer and relayed inward. Replace-as governs what is sent to it, and it alone drops the globally configured ASN outbound (RFC 7705 Section 3.3).</li>
+<li>With <code>accept-mode false</code>, a non-owner Active VRRP router still answered traffic addressed to the virtual address (RFC 9568 Section 6.4.3).</li>
+<li>Ze signed IKEv2 authentication with a hash the peer never advertised, and treated an empty algorithm list as permission to use any (RFC 7427 Section 4).</li>
+</ul>
+                        </div>
+                    </div>
+                    <div class="blog-block" aria-label="🔭 Coming up">
+                        <div class="md-content">
+                            <h2>🔭 Coming up</h2>
+                            <p>Next week finishes the tooling move, brings the website back up to date, and spends the steadier tooling on defects. Standards closure follows: close what the checking found, then add tests for the 68 MUSTs that still owe work, then read the remaining 165 documents end to end. SHOULD-level work waits behind all of it.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Change note</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More context</h2>
+                    <a class="page-sidebar-link" href="../../../project/changes/">
+                        <span class="page-sidebar-link-label">All changes</span>
+                        <small>Return to the weekly update index.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/milestones/">
+                        <span class="page-sidebar-link-label">Milestones</span>
+                        <small>See which changes became landmarks.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/roadmap/">
+                        <span class="page-sidebar-link-label">Roadmap</span>
+                        <small>Map this week to the release plan.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../project/activity/">
+                        <span class="page-sidebar-link-label">Activity</span>
+                        <small>View commit cadence around this week.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

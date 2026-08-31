@@ -83,21 +83,19 @@
 <code>p.Run()</code>. The <code>Schema</code> field is a pointer to <code>sdk.SchemaDecl</code>.</p>
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, SchemaDecl -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl -->
-
-<pre><code class="language-go">p := sdk.NewWithConn(&quot;my-plugin&quot;, conn)
+<pre><code class="language-go">p := sdk.NewWithConn("my-plugin", conn)
 
 p.Run(ctx, sdk.Registration{
     Schema: &amp;sdk.SchemaDecl{
-        Module:    &quot;ze-my-plugin&quot;,
-        Namespace: &quot;urn:ze:my-plugin&quot;,
+        Module:    "ze-my-plugin",
+        Namespace: "urn:ze:my-plugin",
         YANGText:  myPluginYANG,        // YANG module text (string)
-        Handlers:  []string{&quot;my-plugin&quot;},
+        Handlers:  []string{"my-plugin"},
     },
-    WantsConfig: []string{&quot;my-plugin&quot;},
+    WantsConfig: []string{"my-plugin"},
 })
 </code></pre>
 <!-- source: pkg/plugin/sdk/sdk.go -- Run -->
-
 <h3 id="schemadecl-fields">SchemaDecl Fields</h3>
 <table>
 <thead>
@@ -131,13 +129,11 @@ p.Run(ctx, sdk.Registration{
 </tbody>
 </table>
 <!-- source: pkg/plugin/rpc/types.go -- SchemaDecl -->
-
 <h3 id="embedding-yang-files">Embedding YANG Files</h3>
 <p>Internal plugins use <code>//go:embed</code> to embed YANG files at compile time:</p>
 <!-- source: internal/component/bgp/plugins/rib/yang/embed.go -- ZeRibYANG (go:embed) -->
 <!-- source: internal/component/bgp/plugins/rib/register.go -- YANG field set to ribschema.ZeRibYANG -->
-
-<pre><code class="language-go">import _ &quot;embed&quot;
+<pre><code class="language-go">import _ "embed"
 
 //go:embed my-plugin.yang
 var myPluginYANG string
@@ -146,7 +142,7 @@ var myPluginYANG string
 <p>For external plugins, the YANG text can come from any source (file read, constant, etc.).</p>
 <h2 id="minimal-schema">Minimal Schema</h2>
 <pre><code class="language-yang">module my-plugin {
-    namespace &quot;urn:my-company:my-plugin&quot;;
+    namespace "urn:my-company:my-plugin";
     prefix mp;
 
     container my-plugin {
@@ -159,7 +155,7 @@ var myPluginYANG string
 </code></pre>
 <h2 id="module-structure">Module Structure</h2>
 <pre><code class="language-yang">module name {
-    namespace &quot;urn:...&quot;;  // Unique namespace URI
+    namespace "urn:...";  // Unique namespace URI
     prefix prefix;        // Short prefix for references
 
     // Content: containers, lists, leafs
@@ -201,20 +197,20 @@ var myPluginYANG string
 <h3 id="range-numbers">Range (Numbers)</h3>
 <pre><code class="language-yang">leaf port {
     type uint16 {
-        range &quot;1..65535&quot;;
+        range "1..65535";
     }
 }
 
 leaf hold-time {
     type uint16 {
-        range &quot;0 | 3..65535&quot;;  // 0 or 3+
+        range "0 | 3..65535";  // 0 or 3+
     }
 }
 </code></pre>
 <h3 id="length-strings">Length (Strings)</h3>
 <pre><code class="language-yang">leaf name {
     type string {
-        length &quot;1..64&quot;;
+        length "1..64";
     }
 }
 </code></pre>
@@ -249,7 +245,7 @@ leaf hold-time {
 </code></pre>
 <h3 id="list-multiple-instances">List (Multiple Instances)</h3>
 <pre><code class="language-yang">list endpoint {
-    key &quot;name&quot;;
+    key "name";
 
     leaf name { type string; }
     leaf url { type string; }
@@ -258,10 +254,10 @@ leaf hold-time {
 </code></pre>
 <p>Config:</p>
 <pre><code>endpoint api {
-    url &quot;https://api.example.com&quot;;
+    url "https://api.example.com";
 }
 endpoint backup {
-    url &quot;https://backup.example.com&quot;;
+    url "https://backup.example.com";
     enabled false;
 }
 </code></pre>
@@ -280,14 +276,14 @@ leaf optional-field {
 <p>Reference values from other parts of config:</p>
 <pre><code class="language-yang">// In ze-bgp-conf module
 list peer-group {
-    key &quot;name&quot;;
+    key "name";
     leaf name { type string; }
 }
 
 // In your module - reference peer-group
 leaf group {
     type leafref {
-        path &quot;/bgp/peer-group/name&quot;;
+        path "/bgp/peer-group/name";
     }
 }
 </code></pre>
@@ -305,33 +301,33 @@ leaf group {
 <pre><code class="language-go">package main
 
 import (
-    &quot;context&quot;
-    _ &quot;embed&quot;
-    &quot;log&quot;
-    &quot;os&quot;
-    &quot;os/signal&quot;
+    "context"
+    _ "embed"
+    "log"
+    "os"
+    "os/signal"
 
-    &quot;github.com/ze-software/ze/pkg/plugin/sdk&quot;
+    "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 //go:embed acme-monitor.yang
 var acmeMonitorYANG string
 
 func main() {
-    p, err := sdk.NewFromEnv(&quot;acme-monitor&quot;)
+    p, err := sdk.NewFromEnv("acme-monitor")
     if err != nil {
         log.Fatal(err)
     }
 
     p.OnConfigure(func(sections []sdk.ConfigSection) error {
         for _, s := range sections {
-            log.Printf(&quot;config root=%s data=%s&quot;, s.Root, s.Data)
+            log.Printf("config root=%s data=%s", s.Root, s.Data)
         }
         return nil
     })
 
     p.OnEvent(func(event string) error {
-        log.Printf(&quot;event: %s&quot;, event)
+        log.Printf("event: %s", event)
         return nil
     })
 
@@ -340,12 +336,12 @@ func main() {
 
     if err := p.Run(ctx, sdk.Registration{
         Schema: &amp;sdk.SchemaDecl{
-            Module:    &quot;acme-monitor&quot;,
-            Namespace: &quot;urn:acme:monitor&quot;,
+            Module:    "acme-monitor",
+            Namespace: "urn:acme:monitor",
             YANGText:  acmeMonitorYANG,
-            Handlers:  []string{&quot;acme-monitor&quot;},
+            Handlers:  []string{"acme-monitor"},
         },
-        WantsConfig: []string{&quot;acme-monitor&quot;},
+        WantsConfig: []string{"acme-monitor"},
     }); err != nil {
         log.Fatal(err)
     }
@@ -354,38 +350,37 @@ func main() {
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv, Run -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnEvent -->
 <!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl, ConfigSection -->
-
 <h3 id="example-yang-schema">Example YANG Schema</h3>
 <pre><code class="language-yang">module acme-monitor {
-    namespace &quot;urn:acme:monitor&quot;;
+    namespace "urn:acme:monitor";
     prefix acme;
 
-    description &quot;ACME endpoint monitoring plugin&quot;;
+    description "ACME endpoint monitoring plugin";
 
     container acme-monitor {
-        description &quot;Monitor configuration&quot;;
+        description "Monitor configuration";
 
         leaf endpoint {
             type string;
             mandatory true;
-            description &quot;HTTPS endpoint to monitor&quot;;
+            description "HTTPS endpoint to monitor";
         }
 
         leaf interval {
             type uint32 {
-                range &quot;10..3600&quot;;
+                range "10..3600";
             }
             default 60;
-            description &quot;Check interval in seconds&quot;;
+            description "Check interval in seconds";
         }
 
         list alert {
-            key &quot;name&quot;;
-            description &quot;Alert destinations&quot;;
+            key "name";
+            description "Alert destinations";
 
             leaf name {
                 type string {
-                    length &quot;1..64&quot;;
+                    length "1..64";
                 }
             }
 
@@ -396,6 +391,7 @@ func main() {
     }
 }
 </code></pre>
+
             </section>
         </main>
 
@@ -405,7 +401,7 @@ func main() {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

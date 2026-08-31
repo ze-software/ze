@@ -81,12 +81,14 @@ Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
 LimitCORE=infinity
+LimitMEMLOCK=infinity
 WorkingDirectory=<config-dir>
 Environment=ZE_CONFIG_DIR=<config-dir>
 Environment=XDG_RUNTIME_DIR=/run/ze
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
+ProtectSystem=true
 ProtectHome=true
 RuntimeDirectory=ze
 
@@ -137,13 +139,10 @@ To check the service status, use `systemctl status ze.service` directly.
 
 ## Installing on Real Hardware (End to End)
 
-This is the bare-metal walkthrough for the PXE install flow. It is exactly what
-`make ze-qemu-install-test` exercises in software (build an image, serve it,
-boot an installer kernel + initrd that writes the disk, then log in over SSH). It lets you
-dry-run the
-same chain before touching hardware. The reference subsections below
-(Remote Provisioning, Installer Kernel, Installer Initrd, Bootstrap Mode) cover
-each piece in detail; this section sequences them.
+This bare-metal PXE walkthrough follows the same chain as
+`./le qemu install-test`: build an image, serve it, boot an installer kernel
+and initrd, write the disk, then log in over SSH. The reference sections below
+describe each piece.
 
 ### 1. Build the disk image
 
@@ -171,12 +170,12 @@ ze appliance kernel prod                     # reads arch + profile from applian
 ze appliance initrd                          # build/initrd/initrd.img.gz (pure Go)
 ```
 
-Or build directly with Make:
+Choose the profile and architecture through the native command:
 
 ```bash
-make -C tools/installer-kernel PROFILE=hardware ARCH=amd64   # real hardware, x86_64
-make -C tools/installer-kernel PROFILE=hardware ARCH=arm64   # real hardware, ARM
-ze appliance initrd                                          # initrd builds in pure Go
+ze appliance kernel --profile hardware --arch amd64 prod
+ze appliance kernel --profile hardware --arch arm64 prod
+ze appliance initrd
 ```
 
 The `PROFILE` selects the driver set: `qemu` (default, virtio only) or
@@ -248,8 +247,8 @@ commit; the committed config replaces the bootstrap config on the next restart.
   extra fixed disks or net-boot into the shell and inspect `/sys/block`.
 - **Download stalls / non-standard port**: confirm the image server's port and
   pass `ze.port=` in the iPXE cmdline.
-- **Dry-run first**: `make ze-qemu-install-test` reproduces the whole chain in
-  QEMU and will surface a broken image, kernel, or initrd without hardware.
+- **Dry-run first**: `./le qemu install-test` reproduces the whole chain and
+  reports a broken image, kernel, or initrd before hardware is touched.
 
 ## Appliance ISO Install
 
@@ -267,9 +266,9 @@ ze appliance iso prod
 
 Use `ze appliance iso --check` to verify all prerequisites (kernel, initrd,
 grub, xorriso) are available before building. The `kernel` and `initrd` commands
-download pre-built artifacts from the release server when available, falling
-back to a local QEMU VM build (kernel) or make build (initrd). Cached artifacts
-are stored under `$XDG_CACHE_HOME/ze/` (default `~/.cache/ze/`).
+download pre-built artifacts when configured, then fall back to the native
+local QEMU or Docker kernel builder and the Go initrd builder. Cached artifacts
+are stored under `$XDG_CACHE_HOME/ze/`.
 
 For arm64 targets (the kernel version is single-sourced in
 `internal/appliance/kernel.version`; `--version` only overrides it and must be a
@@ -431,12 +430,10 @@ The installer kernel and initrd are served from `build/pxe/boot/`
 via HTTP. Stock iPXE binaries are bundled in `tools/ipxe-binaries/` and
 staged automatically by `ze install remote`.
 
-The default `--pxe-dir build/pxe` is relative, resolved against the working
-directory. `make ze-pxe-build` stages artifacts into `build/pxe` from the repo root,
-so run `ze install remote` from the repo root too (as `pxe.sh` does), or pass an
-absolute `--pxe-dir`. Run from a different directory and the server looks for
-`build/pxe` under that directory and reports the missing artifacts by their
-resolved absolute path.
+The default `--pxe-dir build/pxe` is relative to the working directory. Run
+`ze install remote` from the repository root, or pass an absolute
+`--pxe-dir`. The command stages bundled iPXE files and the explicit
+`--kernel` and `--initrd` artifacts under that root.
 
 ### SSH Credentials
 
@@ -718,8 +715,8 @@ End-to-end boot and install are covered by the QEMU evidence harness, which
 boots the real Go initrd:
 
 ```bash
-make ze-qemu-install-test       # HTTP PXE install
-make ze-qemu-install-iso-test   # ISO install
+./le qemu install-test       # HTTP PXE install
+./le qemu install-iso-test   # ISO install
 ```
 
 ### No External Binaries
@@ -750,76 +747,52 @@ Both profiles merge onto a shared base (`kernel.config`) that provides IP
 autoconfiguration, SCSI, ext4, initramfs, devtmpfs and serial console.
 
 ```bash
-ze appliance kernel prod                       # reads arch + profile from appliance.json
+ze appliance kernel prod
 ze appliance kernel --profile hardware --arch amd64
 ze appliance kernel --builder qemu --arch arm64 prod
-
-# Or build directly with Make:
-make -C tools/installer-kernel                              # qemu profile, arm64 (default)
-make -C tools/installer-kernel BUILDER=docker ARCH=amd64   # docker backend, x86_64
-make -C tools/installer-kernel PROFILE=hardware ARCH=amd64 # hardware profile, x86_64
 ```
 
 Set `image.kernel-profile` to `"hardware"` in `appliance.json` so
 `ze appliance kernel <name>` picks it up automatically. The CLI selects Docker
 first, then the shared QEMU backend, unless `--builder` forces one path.
 
-`ze appliance kernel` resolves the open profile registry in Go, passes the
-resolved fragments to `tools/kernel-builder/build.py`, reads the emitted
-`build/kernel/config`, and fails loudly if any required symbol is not `=y`. The
-installer Makefile keeps its config fragments and `.require` manifests in
-`tools/installer-kernel/` and delegates Docker/QEMU execution to
-`tools/kernel-builder/`. The QEMU path is `tools/kernel-builder/qemu-build.py`,
-which validates repo-relative builder, source, and output paths before booting
-the VM. Output is `build/kernel/Image` (the kernel) and `build/kernel/config`
-(the resolved config). See `tools/installer-kernel/README.md` for the full
-rationale and driver lists.
+`ze appliance kernel` resolves the open profile registry in Go and passes the
+fragments to `internal/appliance/kernelbuilder`. The worker merges and checks
+the config, then rejects any required symbol that is not built in. Docker and
+QEMU are native backends of the same Go driver. Output is cached by target,
+architecture, profile, config, and kernel version.
 
-The Makefile is incremental. It rebuilds when a
-fragment, a builder file, the Makefile, or `internal/appliance/kernel.version`
-is newer than the built image. It also rebuilds when the requested arch,
-profile, or builder is different from the last build, which it records in
-`build/kernel/.request`. `ze appliance kernel` deletes that record on every
-installer-target run, so the next `make` rebuilds. It deletes
-`build/kernel/.variant` with it: that record says which arch, profile and version
-was BUILT, and `ze appliance iso` reads it to decide the image in
-`build/kernel/` is the one it needs.
 <!-- source: internal/appliance/kernelreg.go -- resolveKernelProfile -->
 <!-- source: internal/appliance/kernelreq.go -- enforceKernelRequirements -->
-<!-- source: tools/kernel-builder/build.py -- main -->
-<!-- source: tools/kernel-builder/qemu-build.py -- repo_relative, main -->
-<!-- source: tools/installer-kernel/Makefile -- all -->
+<!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
+<!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
+<!-- source: internal/appliance/kernelbuilder/qemu.go -- runQEMU -->
 
 ## End-to-End QEMU Verification
 
-`make ze-qemu-install-test` exercises the entire chain in QEMU with no hardware:
-it builds the initrd, builds a real appliance image with `ze appliance`
-(see the [appliance guide](../appliance/index.md)), boots the installer kernel + initrd
-against a blank virtio disk, has the initrd download and write the image and
-zefs over HTTP, then boots the **written disk** and logs in over SSH as the
-provisioned power user. That final login is the regression test for credential
-loading from the installed zefs.
+`./le qemu install-test` exercises the entire chain with no hardware. It builds
+the initrd and an appliance image, boots the installer kernel and initrd against
+a blank virtio disk, downloads and writes the image and ZeFS over HTTP, then
+boots the written disk and logs in over SSH.
 
 ```bash
-ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-qemu-install-test
+ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le qemu install-test
 ```
 
-`make ze-qemu-install-iso-test` exercises the appliance ISO transport. It builds
-the initrd and appliance image, creates an ISO through `ze appliance
-iso`, boots that ISO in QEMU, verifies the embedded image is written without the
-PXE-only ZeFS download branch, verifies the installer powers off safely, inspects
-the written GPT layout, and logs in over SSH using credentials from the embedded
-ZeFS database.
-<!-- source: scripts/evidence/effective-install-iso-qemu.py -- main -->
+`./le qemu install-iso-test` exercises the ISO transport. It creates an ISO
+through `ze appliance iso`, boots it, verifies the embedded image is written
+without the PXE-only branch, checks safe poweroff and the GPT layout, then logs
+in with the embedded ZeFS credentials.
+<!-- source: internal/le/qemu/actions.go -- Actions -->
 
 ```bash
-ZE_INSTALL_KERNEL=$PWD/build/kernel/Image make ze-qemu-install-iso-test
+ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le qemu install-iso-test
 ```
 
 The ISO evidence self-skips with `INSTALL-ISO-QEMU: SKIP` when QEMU, a suitable
 installer kernel, UEFI firmware, `grub-mkstandalone`/`grub2-mkstandalone`,
 `xorriso`, or image-build tooling is unavailable.
-<!-- source: scripts/evidence/effective-install-iso-qemu.py -- main, skip -->
+<!-- source: internal/le/qemu/actions.go -- Answer -->
 
 The test self-skips (does not fail) when `ZE_INSTALL_KERNEL` is unset or a
 container runtime / `qemu-system-*` is unavailable, because there is no safe

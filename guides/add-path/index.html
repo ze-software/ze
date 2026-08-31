@@ -69,7 +69,6 @@
 </ol></nav>
 <p>PATHS-LIMIT (draft-abraitis-idr-addpath-paths-limit) lets a receiver advertise the maximum number of paths it wants per prefix per family, preventing uncontrolled path proliferation.</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path capability config -->
-
 <h2 id="configuration">Configuration</h2>
 <p>All ADD-PATH and PATHS-LIMIT config lives under <code>session &gt; capability &gt; add-path</code>.</p>
 <h3 id="default-direction-and-limit">Default Direction and Limit</h3>
@@ -175,7 +174,6 @@
 </tbody>
 </table>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- add-path direction/mode config -->
-
 <h2 id="paths-limit">PATHS-LIMIT</h2>
 <p>The <code>limit</code> leaf on a per-family entry advertises a PATHS-LIMIT capability (code 76) for that family. The value (1-65535) is the maximum number of paths per prefix the receiver wants.</p>
 <table>
@@ -201,7 +199,6 @@
 </tbody>
 </table>
 <!-- source: internal/core/bgp/capability/capability.go -- PathsLimit struct -->
-
 <h2 id="how-it-works">How It Works</h2>
 <p>When ADD-PATH is negotiated, each NLRI is prefixed with a 4-byte Path Identifier. This allows the same prefix (e.g., <code>10.0.0.0/24</code>) to appear multiple times with different path IDs, each carrying different attributes.</p>
 <h3 id="wire-format">Wire Format</h3>
@@ -214,7 +211,6 @@
 <h3 id="encoding-context">Encoding Context</h3>
 <p>Peers that negotiate the same ADD-PATH modes share an encoding context (<code>ContextID</code>). The route server can forward wire bytes unchanged between peers with matching contexts, avoiding re-encoding.</p>
 <!-- source: internal/component/bgp/reactor/session.go -- ContextID; internal/component/bgp/reactor/reactor_api_forward.go -- zero-copy forwarding -->
-
 <h3 id="route-withdrawal">Route Withdrawal</h3>
 <p>To withdraw a specific path, the withdrawal NLRI includes the same path ID used in the announcement. Withdrawing without a path ID removes all paths for that prefix.</p>
 <h3 id="ze-generates-its-own-path-identifiers">Ze Generates Its Own Path Identifiers</h3>
@@ -253,10 +249,10 @@
 <p>Regeneration runs whenever either side of the forward frames identifiers. A session where neither side negotiated ADD-PATH keeps its zero-copy forward.</p>
 <!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdPathIDs, fwdRegenerateRawPathIDs -->
 <!-- source: internal/component/bgp/reactor/forward_body.go -- fwdReencodeNLRIs -->
-
 <h2 id="interaction-with-route-reflection">Interaction with Route Reflection</h2>
 <p>ADD-PATH fits the route server plugin (<code>bgp-rs</code>). Without ADD-PATH, the route server can only forward one path per prefix to each peer. With ADD-PATH, it forwards all received paths, and downstream routers make their own best-path decisions.</p>
 <!-- source: internal/component/bgp/plugins/rs/ -- route server ADD-PATH forwarding -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -298,7 +294,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
                 </div>
             </div>
         </footer>

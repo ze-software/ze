@@ -1,25 +1,35 @@
-# `create interface dummy name <name>`
+# `create interface dummy name`
+
+Create a dummy (loopback-style) interface.
 
 ## Ze command
 
-- Syntax: `create interface dummy name <name>`
 - Registry path: `create interface dummy name`
+- Usage: `create interface dummy name <name>`
 - Mode: Daemon
 - Wire method: `ze-iface:interface-create-dummy`
+- Backends: `netlink`
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `address`, `unit`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Create a dummy (loopback-style) interface. Usage: create interface dummy name <name>.
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `name` | string | yes | any value of this type |
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

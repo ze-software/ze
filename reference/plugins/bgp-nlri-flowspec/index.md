@@ -9,7 +9,7 @@ FlowSpec NLRI encoding/decoding
 | Registry area | BGP NLRI |
 | Kind | Runtime plugin |
 | Source path | `internal/component/bgp/plugins/nlri/flowspec` |
-| YANG modules | 0 |
+| YANG modules | 1 |
 
 ## Configuration
 
@@ -29,5 +29,5 @@ None
 
 Package: `internal/component/bgp/plugins/nlri/flowspec`
 
-YANG files: None
+YANG files: `internal/component/bgp/plugins/nlri/flowspec/yang/ze-flowspec-cmd.yang`
 Metadata source: `Registration`

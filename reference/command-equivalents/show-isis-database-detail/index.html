@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>show isis database detail - Command Equivalents - Ze</title>
-        <meta name="description" content="Command details and vendor equivalents for show isis database detail." />
+        <meta name="description" content="Show the IS-IS link-state database with TLV detail." />
         <meta property="og:title" content="show isis database detail - Command Equivalents - Ze" />
-        <meta property="og:description" content="Command details and vendor equivalents for show isis database detail." />
+        <meta property="og:description" content="Show the IS-IS link-state database with TLV detail." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="show isis database detail - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Command details and vendor equivalents for show isis database detail." />
+        <meta name="twitter:description" content="Show the IS-IS link-state database with TLV detail." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,24 +45,27 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
 
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
-                <div class="journey-hero reveal">
-                    <span class="journey-eyebrow">Command map</span>
-                    <h1 id="command-equivalent-detail-title">show isis database detail</h1>
-                    <p>Command details and vendor equivalents for show isis database detail.</p>
-                </div>
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Command map</span>
+    <h1 id="command-equivalent-detail-title">show isis database detail</h1>
+    <p>Show the IS-IS link-state database with TLV detail.</p>
+</div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Syntax</dt><dd><code>show isis database detail</code></dd></div>
 <div><dt>Registry path</dt><dd><code>show isis database detail</code></dd></div>
+<div><dt>Usage</dt><dd><code>show isis database detail</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-show:isis-database-detail</code></dd></div>
+<div><dt>Backends</dt><dd>any backend</dd></div>
+<div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
+<div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>Show the IS-IS link-state database with TLV detail.<br>Expands each LSP into its decoded TLVs (type, length, value) so you<br>can read exactly what each node advertises. It carries the same fields<br>as the summary view, the own field included.</p>
+<h3>Description</h3><p>Expands each LSP into its decoded TLVs (type, length, value) so you can read<br>exactly what each node advertises. It carries the same fields as the summary<br>view, the own field included.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -127,7 +130,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 27 August 2026 02:57 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

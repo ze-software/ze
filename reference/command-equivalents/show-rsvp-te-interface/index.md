@@ -1,25 +1,35 @@
 # `show rsvp-te interface`
 
+Show RSVP-TE bandwidth allocation per interface.
+
 ## Ze command
 
-- Syntax: `show rsvp-te interface`
 - Registry path: `show rsvp-te interface`
+- Usage: `show rsvp-te interface`
 - Mode: Read-only
 - Wire method: `ze-show:rsvp-te-interface`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show RSVP-TE bandwidth allocation per interface. Returns reserved, available, and maximum bandwidth for each TE-enabled interface.
+Returns reserved, available, and maximum bandwidth for each TE-enabled interface.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

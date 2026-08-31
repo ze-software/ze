@@ -100,7 +100,6 @@
 <!-- source: cmd/ze/hub/service_web.go -- buildWebService -->
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAAABundleAuthenticator, liveAAABundleAuthenticator.Authenticate -->
 <!-- source: internal/component/authz/auth.go -- LocalAuthenticator.Authenticate, authenticateUser -->
-
 <h2 id="starting-the-web-server">Starting the Web Server</h2>
 <h3 id="command-line">Command Line</h3>
 <pre><code class="language-bash">ze start --web 8443                              # Start daemon + web on port 8443
@@ -109,7 +108,6 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 <p>When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address.</p>
 <!-- source: cmd/ze/ze_core_start.go -- cmdStart, flagStartWeb, flagStartInsecureWeb -->
 <!-- source: internal/core/selfcert/selfcert.go -- GenerateWebCertWithAddr, GenerateWebCertWithNames -->
-
 <table>
 <thead>
 <tr>
@@ -150,11 +148,9 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 }
 </code></pre>
 <!-- source: internal/component/web/yang/ze-web-conf.yang -- web container, server list -->
-
 <h2 id="authentication">Authentication</h2>
 <p>The web interface uses the same user database as the SSH server. Users log in through a browser login page or authenticate API requests with HTTP Basic Auth.</p>
 <!-- source: internal/component/web/auth.go -- authMiddleware, loginHandler, parseBasicAuth -->
-
 <h3 id="browser-sessions">Browser Sessions</h3>
 <ol>
 <li>Navigate to <code>https://&lt;host&gt;:8443/</code>. Unauthenticated requests receive a login page.</li>
@@ -171,10 +167,8 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 <h3 id="security-headers">Security Headers</h3>
 <p>Every response carries <code>X-Frame-Options: DENY</code>, <code>X-Content-Type-Options: nosniff</code>, <code>Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'</code>, and HSTS (<code>max-age=63072000; includeSubDomains</code>). An authenticated response adds <code>Cache-Control: no-store</code> and <code>X-Ze-Version</code>.</p>
 <!-- source: internal/component/web/auth.go -- setSecurityHeaders, addSecurityHeaders -->
-
 <p><code>script-src 'self'</code> refuses an inline script and refuses <code>Function()</code>. No page therefore carries an inline event handler, and no htmx attribute uses a bracketed trigger filter, because htmx compiles such a filter into source and calls <code>Function()</code> on it. A test refuses both in any <code>.templ</code> source.</p>
 <!-- source: internal/component/web/markup_contract_test.go -- TestNoTriggerFilterNeedsEval, TestSelfReplacingControlsCarryAStableID -->
-
 <h3 id="secret-masking">Secret Masking</h3>
 <p>No render path prints a value the schema marks <code>ze:sensitive</code> or <code>ze:bcrypt</code>. One
 predicate, <code>config.LeafHoldsSecret</code>, answers whether a leaf holds a secret. The
@@ -207,7 +201,6 @@ apart.</p>
 </tbody>
 </table>
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, ChangedSecretPaths, RejectMaskedSecretLeaves -->
-
 <h2 id="rendering">Rendering</h2>
 <p>Every page, panel, fragment and out-of-band swap is written in a <code>.templ</code> source
 and compiled to Go by <a href="https://templ.guide" target="_blank" rel="noopener">templ</a>. No Go file in the package
@@ -223,37 +216,31 @@ rendered a blank panel and answered 200.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>make generate</code></td>
+<td><code>./le repository generate</code></td>
 <td>Regenerates every <code>*_templ.go</code> from its <code>.templ</code> source. Run it after any <code>.templ</code> edit</td>
 </tr>
 <tr>
-<td><code>make ze-templ-output-check</code></td>
-<td>Refuses a <code>*_templ.go</code> that its source no longer produces. Writes nothing and deletes nothing</td>
-</tr>
-<tr>
-<td><code>make ze-templ-orphan-check</code></td>
-<td>Reports a <code>*_templ.go</code> whose <code>.templ</code> source is gone, and a <code>.templ</code> outside the walk</td>
+<td><code>./le doc check templ-output</code></td>
+<td>Refuses stale generated output, orphaned <code>*_templ.go</code> files, and <code>.templ</code> sources outside the generator walk</td>
 </tr>
 </tbody>
 </table>
-<p>The generator runs from <code>vendor/</code>, so <code>make generate</code> needs no network and
-nothing on <code>PATH</code>. Run <code>make generate</code>, not a bare <code>templ generate</code>: the walk
+<p>The generator runs from <code>vendor/</code>, so <code>./le repository generate</code> needs no network and
+nothing on <code>PATH</code>. Run <code>./le repository generate</code>, not a bare <code>templ generate</code>: the walk
 root is written into the generated Go, so a bare run rewrites every file and
 reds the check.</p>
 <p>The browser assets are vendored in <code>third_party/web/</code> and copied to each
-consumer by the same <code>make generate</code> run. htmx 4.0.0-beta6 and its
+consumer by the same <code>./le repository generate</code> run. htmx 4.0.0-beta6 and its
 <code>hx-sse.min.js</code> extension serve the web interface, the looking glass and the
-chaos dashboard. <code>scripts/codegen/web_assets.go</code> derives each page's asset set
+chaos dashboard. <code>internal/le/webassets.Write</code> derives each page's asset set
 from its component graph, so a page loads only what it reaches.</p>
 <!-- source: internal/component/web/markup_check_test.go -- webMarkupExempt, TestNoGoFileBuildsMarkup -->
 <!-- source: third_party/web/MANIFEST.md -- vendored versions, consumers, sync targets -->
-
 <h2 id="navigation">Navigation</h2>
 <h3 id="url-scheme">URL Scheme</h3>
 <p>URLs follow a verb-first three-tier pattern:</p>
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes, configVerbs -->
 <!-- source: internal/component/web/handler_config_form.go -- HandleConfigDeleteWithAuthorizer -->
-
 <table>
 <thead>
 <tr>
@@ -360,18 +347,15 @@ from its component graph, so a page loads only what it reaches.</p>
 <h3 id="finder-navigation">Finder Navigation</h3>
 <p>The left panel uses a Finder-style column browser (similar to macOS Finder). It shows up to 3 columns, scrolling horizontally as you navigate deeper.</p>
 <!-- source: internal/component/web/fragment.go -- buildFinderColumns, buildColumnAt -->
-
 <p><strong>Named vs unnamed containers:</strong> Named containers (lists with YANG keys, like <code>peer</code>, <code>group</code>) appear above unnamed containers (global settings like <code>local</code>, <code>timer</code>), separated by a horizontal rule. This makes keyed sections easy to find.</p>
 <p><strong>Simple lists:</strong> Lists without unique constraints show as a flat column of clickable entries with a <code>+ new</code> button.</p>
 <h3 id="context-heading">Context Heading</h3>
 <p>When inside a list entry, the detail panel shows a context heading at the top with the list name and entry key (e.g., <code>PEER london</code>). This provides immediate context without checking the breadcrumb.</p>
 <!-- source: internal/component/web/fragment.go -- buildContextHeading, ContextEntry -->
-
 <h3 id="list-table-view">List Table View</h3>
 <p>Lists that have YANG <code>unique</code> constraints (e.g., <code>peer</code> with <code>unique "remote/ip"</code>) display as an interactive table in the detail panel. The table shows the list key and all unique fields as columns.</p>
 <!-- source: internal/component/web/fragment.go -- buildListTable, collectUniqueFields -->
 <!-- source: internal/component/web/component_list_table.templ -->
-
 <table>
 <thead>
 <tr>
@@ -401,11 +385,9 @@ from its component graph, so a page loads only what it reaches.</p>
 <p>The <code>+ new</code> button below the table opens a server-rendered form (via HTMX) with inputs for the entry name and all unique fields. Field values are validated against YANG types before the entry is created.</p>
 <!-- source: internal/component/web/handler_config_entry.go -- HandleConfigAddWithAuthorizer, HandleConfigAddForm -->
 <!-- source: internal/component/web/component_add_form_overlay.templ -->
-
 <h3 id="breadcrumb-navigation">Breadcrumb Navigation</h3>
 <p>Every page displays a breadcrumb trail from root to the current YANG path. Clicking any breadcrumb segment navigates to that level.</p>
 <!-- source: internal/component/web/handler_config_leaf.go -- buildBreadcrumbs -->
-
 <h3 id="content-negotiation">Content Negotiation</h3>
 <p>The response format is determined by:</p>
 <ol>
@@ -416,7 +398,6 @@ from its component graph, so a page loads only what it reaches.</p>
 <h2 id="config-editing">Config Editing</h2>
 <p>Each authenticated user gets an independent editor session with its own working tree. Changes are tracked per-user and do not affect other users until committed.</p>
 <!-- source: internal/component/web/editor.go -- EditorManager, userSession -->
-
 <h3 id="workflow">Workflow</h3>
 <ol>
 <li><strong>Browse:</strong> Navigate to a list (e.g., <code>/show/bgp/peer/</code>) to see entries in a table.</li>
@@ -430,7 +411,6 @@ from its component graph, so a page loads only what it reaches.</p>
 <h3 id="validation">Validation</h3>
 <p>Field values are validated server-side against YANG types before being accepted:</p>
 <!-- source: internal/component/config/schema.go -- ValidateValue -->
-
 <table>
 <thead>
 <tr>
@@ -467,40 +447,32 @@ from its component graph, so a page loads only what it reaches.</p>
 </table>
 <p>YANG <code>unique</code> constraints are enforced: duplicate values are rejected with an error naming the conflicting entry.</p>
 <!-- source: internal/component/web/handler_config_walk.go -- checkUniqueConstraint, validateUniqueOnSet -->
-
 <p>Entry key names are automatically lowercased and trimmed for both add and rename operations.</p>
 <p>Duplicate entry keys are rejected. Validation runs before the entry is created, so invalid input never produces a partial entry.</p>
 <p>Navigating to a non-existent list entry (e.g., <code>/show/bgp/peer/london/</code> when <code>london</code> has not been created) redirects to the root view with an error notification.</p>
 <!-- source: internal/component/web/fragment.go -- HandleFragment, isListEntryPath check -->
-
 <h3 id="notifications">Notifications</h3>
 <p>Error notifications appear as toasts in the top-right corner with a 30-second countdown. Click the countdown to pause (for screenshots). Click the close button to dismiss immediately.</p>
 <!-- source: internal/component/web/component_notification_error.templ -->
-
 <p>A refused action raises a toast carrying the status and the message the daemon wrote, and the same message lands in the field or panel the action came from. A request that gets no answer at all raises a toast that says so instead: the daemon is unreachable, and nothing was changed.</p>
 <!-- source: internal/component/web/assets/notification.js -- handleResponseError and handleRequestError -->
-
 <h3 id="input-auto-save">Input Auto-Save</h3>
 <p>Text and number fields auto-save 1 second after the user stops typing, in addition to saving on blur and Enter. This prevents data loss when navigating away before a field loses focus. Enter commits inside the debounce, so three keystrokes and an Enter send one POST, not four.</p>
 <p>Enter arrives as <code>ze-enter</code>, a named event a delegated listener in <code>assets/cli.js</code> dispatches. The listener reads the element's own <code>hx-trigger</code>, lives in a file rather than in an attribute, and survives every swap. An inline editor replaces itself, so each input also carries a stable id derived from its leaf path: without one, htmx restored focus by looking up the empty string and the caret was lost on every save.</p>
 <!-- source: internal/component/web/input_text.templ -- hx-trigger="blur changed, ze-enter, input changed delay:1s" -->
 <!-- source: internal/component/web/assets/cli.js -- initEnterSubmit -->
 <!-- source: internal/component/web/view.go -- fieldInputID, fieldInputIDEscaper -->
-
 <h3 id="conflict-detection">Conflict Detection</h3>
 <p>When two users edit the same leaf concurrently, the commit reports which paths conflict, showing both the local and other user's values. The user must resolve conflicts before committing.</p>
 <!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
 <!-- source: internal/component/cli/contract/contract.go -- CommitResult.Conflicts, Conflict -->
-
 <h3 id="session-limits">Session Limits</h3>
 <p>The editor manager allows up to 50 concurrent user sessions. Idle sessions (no activity for 1 hour) are evicted when capacity is reached.</p>
 <!-- source: internal/component/web/editor.go -- NewEditorManager, maxSessions, idleTimeout -->
-
 <h2 id="cli-bar">CLI Bar</h2>
 <p>The web interface includes a CLI bar at the bottom of the page that accepts the same command grammar as the SSH CLI. The CLI bar sends the current URL path as context, so <code>set</code> and <code>delete</code> commands operate relative to the current view.</p>
 <!-- source: internal/component/web/cli.go -- HandleCLICommand, knownCLIVerbs -->
 <!-- source: internal/component/web/assets/cli.js -- path extraction, fetch to /cli -->
-
 <h3 id="integrated-mode">Integrated Mode</h3>
 <p>In integrated mode, CLI commands update the page content directly:</p>
 <table>
@@ -549,22 +521,18 @@ from its component graph, so a page loads only what it reaches.</p>
 </tr>
 </tbody>
 </table>
-<p>The prompt shows the current context path: <code>ze[bgp peer]#</code>.</p>
+<p>The prompt shows the current context path: <code>ze[bgp peer]# </code>.</p>
 <!-- source: internal/component/web/cli.go -- formatCLIPrompt, dispatchCLICommand -->
-
 <h3 id="terminal-mode">Terminal Mode</h3>
 <p>Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo.</p>
 <!-- source: internal/component/web/cli_terminal.go -- HandleCLITerminalWithDispatchAuthorizerAndAudit, executeTerminalCommand -->
-
 <h3 id="tab-completion">Tab Completion</h3>
-<p>The CLI bar provides tab completion via a JSON endpoint at <code>/cli/complete</code>. Completions are context-aware: when at <code>/show/bgp/peer/london/</code>, typing <code>set</code> + Tab suggests <code>remote</code>, <code>local</code>, <code>timer</code> (children of the peer entry), not root-level items. For YANG union types that include an enum (e.g., <code>local/ip</code> accepting an IP address or <code>auto</code>), the enum values are offered as completions.</p>
+<p>The CLI bar provides tab completion via a JSON endpoint at <code>/cli/complete</code>. Completions are context-aware: when at <code>/show/bgp/peer/london/</code>, typing <code>set </code> + Tab suggests <code>remote</code>, <code>local</code>, <code>timer</code> (children of the peer entry), not root-level items. For YANG union types that include an enum (e.g., <code>local/ip</code> accepting an IP address or <code>auto</code>), the enum values are offered as completions.</p>
 <!-- source: internal/component/web/cli.go -- HandleCLIComplete -->
 <!-- source: internal/component/cli/completer.go -- valueCompletions, Yunion handling -->
-
 <h2 id="live-updates">Live Updates</h2>
 <p>The web interface uses Server-Sent Events (SSE) to notify connected browsers when configuration changes are committed by any user. A notification banner appears with the username and a "Refresh" button.</p>
 <!-- source: internal/component/web/sse.go -- EventBroker, BroadcastConfigChange -->
-
 <p>Connect to the SSE stream at <code>/events</code> (requires authentication). The broker supports up to 100 concurrent SSE clients. Slow clients that fall behind have events dropped rather than blocking other clients.</p>
 <h3 id="event-format">Event Format</h3>
 <p>Events use the standard SSE wire format:</p>
@@ -575,14 +543,13 @@ data: &lt;html-fragment&gt;
 <h2 id="admin-commands">Admin Commands</h2>
 <p>The <code>/admin/</code> tier provides a browsable tree of administrative commands. Container nodes display navigable links to sub-commands. Leaf commands display a parameter form with an "Execute" button.</p>
 <!-- source: internal/component/web/handler_admin.go -- HandleAdminView, HandleAdminExecute -->
-
 <p>Admin command results are displayed as titled cards showing the command name, output text, and success/error styling.</p>
 <h2 id="resilience">Resilience</h2>
 <p><strong>Corrupt change files:</strong> If a per-user change file in the blob store is unparseable (e.g., from a previous bug), it is automatically discarded with a warning log. The user can continue editing without manual intervention.</p>
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
-
 <p><strong>Asset caching:</strong> Static assets (<code>/assets/</code>) are served with <code>Cache-Control: no-cache, must-revalidate</code> so browsers always pick up changes after binary updates without requiring a hard refresh.</p>
 <!-- source: internal/component/web/render.go -- AssetHandler -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -624,7 +591,7 @@ data: &lt;html-fragment&gt;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

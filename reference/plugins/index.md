@@ -1,6 +1,6 @@
 # Plugin catalog
 
-90 runtime plugins generated from `data/plugin-registry.json`, plus 6 test fixtures. 69 runtime plugins declare configuration roots and 70 ship YANG modules.
+91 runtime plugins generated from `data/plugin-registry.json`. 69 runtime plugins declare configuration roots and 71 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -10,9 +10,9 @@ Generated group for registry entries mapped to the Anomaly area. Config roots: `
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`anomaly-detect-feature-source`](anomaly-detect-feature-source/index.md) | Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature | `anomaly/detect` | `config-loaded` | `internal/plugins/anomaly/detect` |
+| [`anomaly-detect`](anomaly-detect/index.md) | Behavioral anomaly detector (report-only): per-entity pattern-of-life over trafficfeature | `anomaly/detect` | None | `internal/plugins/anomaly/detect` |
 | [`anomaly-observe`](anomaly-observe/index.md) | Behavioral anomaly observability: incident lifecycle store and show anomaly observe CLI | `anomaly/observe` | None | `internal/plugins/anomaly/observe` |
-| [`anomaly-shape-firewall`](anomaly-shape-firewall/index.md) | Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch | `anomaly/shape` | `config-loaded` | `internal/plugins/anomaly/shape` |
+| [`anomaly-shape`](anomaly-shape/index.md) | Shadow-first autonomous anomaly responder: per-source rate-limit with arm/auto-revert/kill-switch | `anomaly/shape` | `firewall` | `internal/plugins/anomaly/shape` |
 
 ## BFD
 
@@ -113,7 +113,7 @@ Generated group for registry entries mapped to the Control Plane Protection area
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`copp-input-chain`](copp-input-chain/index.md) | Control-plane policing: rate-limit new TCP connections to BGP listen port | `control-plane-protection` | `firewall` | `internal/plugins/copp` |
+| [`copp`](copp/index.md) | Control-plane policing: rate-limit new TCP connections to BGP listen port | `control-plane-protection` | `firewall` | `internal/plugins/copp` |
 
 ## DDoS
 
@@ -121,7 +121,7 @@ Generated group for registry entries mapped to the DDoS area. Config roots: `ddo
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ddos-detect-flow-source`](ddos-detect-flow-source/index.md) | Automatic DDoS attack detector with two-stage detection | `ddos/detect` | `config-loaded` | `internal/plugins/ddos/detect` |
+| [`ddos-detect`](ddos-detect/index.md) | Automatic DDoS attack detector with two-stage detection | `ddos/detect` | `interface` | `internal/plugins/ddos/detect` |
 | [`ddos-flowspec`](ddos-flowspec/index.md) | DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear | `ddos/flowspec` | None | `internal/plugins/ddos/flowspec` |
 | [`ddos-flowtriq`](ddos-flowtriq/index.md) | DDoS incident reporter for Flowtriq cloud API | `ddos/flowtriq` | None | `internal/plugins/ddos/flowtriq` |
 | [`ddos-local`](ddos-local/index.md) | DDoS local responder: on-host nft drop on attack detection | `ddos/local` | `firewall` | `internal/plugins/ddos/local` |
@@ -168,7 +168,7 @@ Generated group for registry entries mapped to the Flow Export area. Config root
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`flow-export-conntrack-tracking`](flow-export-conntrack-tracking/index.md) | sFlow, NetFlow v9, and IPFIX counter export | `flow-export` | `config-loaded` | `internal/plugins/flowexport` |
+| [`flow-export`](flow-export/index.md) | sFlow, NetFlow v9, and IPFIX counter export | `flow-export` | `interface` | `internal/plugins/flowexport` |
 
 ## Flowspec Firewall
 
@@ -212,7 +212,7 @@ Generated group for registry entries mapped to the L2TP area. Config roots: `l2t
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`l2tp-auth-local`](l2tp-auth-local/index.md) | Static local user list for L2TP PPP authentication | `l2tp` | None | `internal/component/l2tp/plugins/authlocal` |
-| [`l2tp-auth-radius-servers`](l2tp-auth-radius-servers/index.md) | RADIUS authentication and accounting for L2TP PPP sessions | `l2tp` | `radius-server` | `internal/component/l2tp/plugins/authradius` |
+| [`l2tp-auth-radius`](l2tp-auth-radius/index.md) | RADIUS authentication and accounting for L2TP PPP sessions | `l2tp` | None | `internal/component/l2tp/plugins/authradius` |
 | [`l2tp-pool`](l2tp-pool/index.md) | IPv4 address and IPv6 prefix pool for L2TP PPP sessions | `l2tp` | None | `internal/component/l2tp/plugins/pool` |
 | [`l2tp-shaper`](l2tp-shaper/index.md) | Traffic shaping for L2TP subscriber sessions | `l2tp` | None | `internal/component/l2tp/plugins/shaper` |
 
@@ -222,7 +222,7 @@ Generated group for registry entries mapped to the LDP area. Config roots: `ldp`
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ldp-port`](ldp-port/index.md) | Label Distribution Protocol (RFC 5036): MPLS label distribution | `ldp` | `fib-kernel` | `internal/plugins/ldp` |
+| [`ldp`](ldp/index.md) | Label Distribution Protocol (RFC 5036): MPLS label distribution | `ldp` | `fib-kernel`, `sysctl` | `internal/plugins/ldp` |
 
 ## MRT
 
@@ -231,6 +231,14 @@ Generated group for registry entries mapped to the MRT area. Config roots: `mrt`
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`mrt`](mrt/index.md) | MRT routing information export (RFC 6396) | `mrt` | None | `internal/plugins/mrt` |
+
+## Memlock
+
+Generated group for registry entries mapped to the Memlock area. Source area: `internal/plugins/memlock`.
+
+| Plugin | Used for | Config | Depends on | Source path |
+|--------|----------|--------|------------|-------------|
+| [`memlock`](memlock/index.md) | Memory lock: keep the running executable resident under memory pressure | None | None | `internal/plugins/memlock` |
 
 ## OSPF
 
@@ -262,7 +270,7 @@ Generated group for registry entries mapped to the RSVP TE area. Config roots: `
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`rsvp-te-rawsock`](rsvp-te-rawsock/index.md) | RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) | `rsvp-te` | `fib-kernel` | `internal/plugins/rsvpte` |
+| [`rsvp-te`](rsvp-te/index.md) | RSVP-TE: Resource Reservation Protocol - Traffic Engineering (RFC 3209) | `rsvp-te` | `fib-kernel`, `sysctl` | `internal/plugins/rsvpte` |
 
 ## Routing Table
 
@@ -315,7 +323,7 @@ Generated group for registry entries mapped to the VPN area. Config roots: `pki`
 
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
-| [`ipsec-xfrm`](ipsec-xfrm/index.md) | IKEv2 engine for native IPsec VPN | `vpn`, `pki` | `config-loaded` | `internal/component/ike/engine` |
+| [`ike`](ike/index.md) | IKEv2 engine for native IPsec VPN | `vpn`, `pki` | None | `internal/component/ike/engine` |
 
 ## VPP
 
@@ -324,16 +332,3 @@ Generated group for registry entries mapped to the VPP area. Config roots: `vpp`
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`vpp`](vpp/index.md) | VPP data plane lifecycle management | `vpp` | None | `internal/component/vpp` |
-
-## Test Harness
-
-Generated group for registry entries mapped to the Test Harness area. Config roots: `ddos`. Source area: `internal/test/plugins`.
-
-| Plugin | Used for | Config | Depends on | Source path |
-|--------|----------|--------|------------|-------------|
-| [`ddos-fake`](ddos-fake/index.md) | Test-only synthetic DDoS attack injector for the ddos-local withdraw test (harmless unless `ddos { fake { enabled true; } }` is configured) | `ddos/fake` | `firewall` | `internal/test/plugins/fakeddos` |
-| [`fakeas112`](fakeas112/index.md) | Test-only synthetic AS112 route producer (use ze.fakeas112; harmless when not invoked) | None | None | `internal/test/plugins/fakeas112` |
-| [`fakeenrich`](fakeenrich/index.md) | Test-only in-process enricher (harmless when not invoked) | None | None | `internal/test/plugins/fakeenrich` |
-| [`fakefib`](fakefib/index.md) | Test-only sysrib event emitter for FIB functional tests (use ze.fakefib) | None | None | `internal/test/plugins/fakefib` |
-| [`fakel2tp`](fakel2tp/index.md) | Test-only synthetic L2TP route producer (use ze.fakel2tp; harmless when not invoked) | None | None | `internal/test/plugins/fakel2tp` |
-| [`fakeredist`](fakeredist/index.md) | Test-only synthetic route producer (use ze.fakeredist; harmless when not invoked) | None | None | `internal/test/plugins/fakeredist` |

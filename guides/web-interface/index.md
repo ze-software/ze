@@ -110,19 +110,18 @@ rendered a blank panel and answered 200.
 
 | Command | What it does |
 |---------|--------------|
-| `make generate` | Regenerates every `*_templ.go` from its `.templ` source. Run it after any `.templ` edit |
-| `make ze-templ-output-check` | Refuses a `*_templ.go` that its source no longer produces. Writes nothing and deletes nothing |
-| `make ze-templ-orphan-check` | Reports a `*_templ.go` whose `.templ` source is gone, and a `.templ` outside the walk |
+| `./le repository generate` | Regenerates every `*_templ.go` from its `.templ` source. Run it after any `.templ` edit |
+| `./le doc check templ-output` | Refuses stale generated output, orphaned `*_templ.go` files, and `.templ` sources outside the generator walk |
 
-The generator runs from `vendor/`, so `make generate` needs no network and
-nothing on `PATH`. Run `make generate`, not a bare `templ generate`: the walk
+The generator runs from `vendor/`, so `./le repository generate` needs no network and
+nothing on `PATH`. Run `./le repository generate`, not a bare `templ generate`: the walk
 root is written into the generated Go, so a bare run rewrites every file and
 reds the check.
 
 The browser assets are vendored in `third_party/web/` and copied to each
-consumer by the same `make generate` run. htmx 4.0.0-beta6 and its
+consumer by the same `./le repository generate` run. htmx 4.0.0-beta6 and its
 `hx-sse.min.js` extension serve the web interface, the looking glass and the
-chaos dashboard. `scripts/codegen/web_assets.go` derives each page's asset set
+chaos dashboard. `internal/le/webassets.Write` derives each page's asset set
 from its component graph, so a page loads only what it reaches.
 
 <!-- source: internal/component/web/markup_check_test.go -- webMarkupExempt, TestNoGoFileBuildsMarkup -->

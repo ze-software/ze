@@ -1,25 +1,33 @@
 # `show ospf ipv6 spf`
 
+Show the OSPFv3 (IPv6) per-area SPF run history.
+
 ## Ze command
 
-- Syntax: `show ospf ipv6 spf`
 - Registry path: `show ospf ipv6 spf`
+- Usage: `show ospf ipv6 spf`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-spf`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `detail`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show the OSPFv3 (IPv6) per-area SPF run history.
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

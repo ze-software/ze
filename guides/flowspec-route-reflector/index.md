@@ -84,7 +84,7 @@ set bgp peer edge-b attach process bgp-rr receive [ update-received state open-r
 set bgp peer edge-b attach process bgp-rr send [ update ]
 EOF
 
-/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
 sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
@@ -128,7 +128,7 @@ If the source peer (`mitigation-upstream`, `10.0.0.2`) is itself a Ze node, anno
 
 ```bash
 export XDG_RUNTIME_DIR=/run/ze
-/usr/local/bin/ze cli -c "peer 10.0.0.1 update text extended-community discard nlri ipv4/flow add destination 10.0.0.0/8 protocol tcp destination-port =80"
+/usr/local/bin/ze cli -c "peer 10.0.0.1 update text extended-community discard nlri ipv4/flow add destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
 ```
 
 The `peer <selector>` prefix is required; the update command does not dispatch without it. On a non-Ze source, use that router's FlowSpec origination syntax instead.

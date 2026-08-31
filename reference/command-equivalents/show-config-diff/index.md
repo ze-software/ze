@@ -1,21 +1,30 @@
 # `show config diff`
 
+Compare two configuration versions side by side.
+
 ## Ze command
 
-- Syntax: `show config diff`
 - Registry path: `show config diff`
+- Usage: `show config diff`
 - Mode: Read-only
 - Wire method: `ze-show:config-diff`
-- Answer shape: not declared
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
+- Answer shape: doc
 - Address fields: none
-- Pipes, always: none
-- Pipes, on rows: none
-- Pipes, while streaming: none
-- Pipes, local process only: none
+- Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
+- Pipes, on its rows: none
+- Pipes, while streaming: log
+- Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Compare two configuration versions side by side. Shows what was added, removed, or changed. Commonly used with rollback revisions to review what changed before you roll back.
+Shows what was added, removed, or changed. Commonly used with rollback revisions to review what changed before you roll back.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

@@ -14,7 +14,7 @@ is the source of truth for the artifacts.** This page explains how to run them.
 |-----------|-----|
 | netlab 26.08 | Renders the topology and calls containerlab |
 | containerlab and docker | Start the nodes |
-| `netlab/ze:latest` | The lab image, built by `make ze-docker-lab-build` |
+| `netlab/ze:latest` | The lab image, built from `docker/Dockerfile.lab` |
 
 The lab image is not the deployment image. See [Docker](https://github.com/ze-software/ze/blob/main/docs/guide/docker.md) for the two images
 and what separates them.
@@ -22,13 +22,13 @@ and what separates them.
 ## Step 1: build the image
 
 ```bash
-make ze-docker-lab-build
+docker build -t netlab/ze:latest -f docker/Dockerfile.lab .
 ```
 
-`contrib/netlab/ze.yml` sets `clab.build: False` and `image: netlab/ze:latest`, so netlab
-starts this image and builds nothing. `ZE_LAB_IMAGE` and `ZE_LAB_TAG` change the name.
-Change them and change `image:` in `ze.yml` to match.
-<!-- source: Makefile -- ze-docker-lab-build, ZE_LAB_IMAGE, ZE_LAB_TAG -->
+`contrib/netlab/ze.yml` sets `clab.build: False` and names
+`netlab/ze:latest`, so netlab starts this image and builds nothing. Change its
+`image:` value when you choose a different Docker tag.
+<!-- source: docker/Dockerfile.lab -- lab image -->
 <!-- source: contrib/netlab/ze.yml -- clab.build, clab.image -->
 
 ## Step 2: give netlab the daemon definition
@@ -42,10 +42,10 @@ cp -R contrib/netlab/ze   <netlab>/netsim/daemons/ze
 ```
 
 Or leave the netlab install alone and let a topology carry them, which is what
-`make ze-netlab-render-check` does. netlab reads a `topology-defaults.yml` beside the
+`./le netlab render-check` does. netlab reads a `topology-defaults.yml` beside the
 topology and a `templates/ze/` directory beside it.
 <!-- source: contrib/netlab/README.md -- Installing it into a netlab checkout -->
-<!-- source: scripts/dev/netlab_render_check.py -- build_lab -->
+<!-- source: internal/le/netlab/actions.go -- Answer -->
 
 ## Step 3: run the reference topology
 
@@ -115,12 +115,12 @@ not validated against netlab's own integration tests.
 
 | Statement | Evidence |
 |-----------|----------|
-| netlab accepts the daemon definition and finds a template for each module | `netlab create` exits 0 on the reference topology, in `make ze-netlab-render-check` |
+| netlab accepts the daemon definition and finds a template for each module | `netlab create` exits 0 on the reference topology, in `./le netlab render-check` |
 | The render is valid ze configuration | `ze config validate` exits 0 on each file under `contrib/netlab/golden/` |
 | A daemon runs one of those renders and answers the show command with JSON | `test/plugin/netlab-lab-profile.ci` |
 | Routes reach the FIB of a running lab, and a `ping` validation passes | Not run |
 | Each declared feature passes netlab's integration test for it | Not run |
-<!-- source: scripts/dev/netlab_render_check.py -- run_netlab_create, compare, validate_golden -->
+<!-- source: internal/le/netlab/actions.go -- Answer -->
 <!-- source: test/plugin/netlab-lab-profile.ci -- daemon start, SSH login, json compact -->
 
 Ze also sends and receives no LLDP frame, so a netlab validation that reads LLDP data
@@ -130,12 +130,13 @@ links.
 ## Keeping the templates from drifting
 
 ```bash
-make ze-netlab-render-check
+./le netlab render-check
 ```
 
-It renders the templates with a real netlab, compares the result against
-`contrib/netlab/golden/`, and runs `ze config validate` on each golden file. A missing
-netlab is an error exit, never a skip. `ARGS=--update` rewrites the golden files.
-`test/plugin/netlab-lab-profile.ci` is the other half and needs no netlab: it starts a
-daemon from a golden file and parses the show command output.
-<!-- source: mk/test-integration.mk -- ze-netlab-render-check -->
+It renders the templates with a real netlab, compares the result with
+`contrib/netlab/golden/`, and runs `ze config validate` on each golden file. A
+missing netlab is an error exit, never a skip. Use
+`./le netlab render-update` to rewrite the golden files.
+`test/plugin/netlab-lab-profile.ci` is the other half and needs no netlab: it
+starts a daemon from a golden file and parses the show command output.
+<!-- source: internal/le/netlab/actions.go -- Actions -->

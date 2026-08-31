@@ -55,7 +55,10 @@
 <li><a href="#ike-features">IKE features</a></li>
 <li><a href="#ikev2-responder-role">IKEv2 responder role</a></li>
 <li><a href="#pre-shared-secret-encoding">Pre-shared secret encoding</a></li>
-<li><a href="#remote-identity">Remote identity</a></li>
+<li><a href="#remote-identity">Remote identity</a>
+<ol>
+<li><a href="#one-peer-or-a-set-of-peers">One peer, or a set of peers</a></li>
+</ol></li>
 <li><a href="#certificate-chain-length">Certificate chain length</a></li>
 <li><a href="#hash-and-url-certificates">Hash and URL certificates</a></li>
 <li><a href="#eap-tls-with-tls-13">EAP-TLS with TLS 1.3</a></li>
@@ -63,7 +66,10 @@
 <li><a href="#denial-of-service-protection">Denial-of-service protection</a></li>
 <li><a href="#diffie-hellman-group-correction">Diffie-Hellman group correction</a></li>
 <li><a href="#rekeying">Rekeying</a></li>
-<li><a href="#child-sa-and-dataplane">Child SA and dataplane</a></li>
+<li><a href="#child-sa-and-dataplane">Child SA and dataplane</a>
+<ol>
+<li><a href="#spd-ordering">SPD ordering</a></li>
+</ol></li>
 <li><a href="#both-esp-wire-forms">Both ESP wire forms</a></li>
 <li><a href="#traffic-selectors-and-narrowing">Traffic selectors and narrowing</a></li>
 <li><a href="#transport-mode">Transport mode</a></li>
@@ -183,21 +189,20 @@ list of leaves that count and leaves that do not: the whole peer configuration a
 resolved groups are compared, so a leaf that Ze gains in a later release restarts the tunnel
 from the day it exists.</p>
 <p>Rotating a cipher is the case worth naming, because it edits no peer block at all. A peer
-holds the NAME of its groups and none of the crypto, so <code>ike-group IKE-1 { proposal 1 {
-encryption ...</code> restarts every peer that names <code>IKE-1</code> and no other.</p>
+holds the NAME of its groups and none of the crypto, so <code>ike-group IKE-1 { proposal 1 { encryption ...</code> restarts every peer that names <code>IKE-1</code> and no other.</p>
 <p>A commit that leaves a peer's block and its two groups unchanged does not touch that peer,
 whatever else in the configuration moved. Adding a second peer, editing a firewall rule or
 changing a log level leaves a running tunnel carrying traffic.</p>
 <p>Three consequences are worth planning around:</p>
 <ul>
 <li><strong>A tunnel bounce is how a narrowing takes effect.</strong> Narrowing a peer's
-  <code>traffic-selector</code> list to stop carrying a prefix works, and it costs the tunnel a
-  re-negotiation. RFC 7296 Section 2.9.2 leaves no other route: a Child SA cannot be
-  narrowed in place.</li>
+<code>traffic-selector</code> list to stop carrying a prefix works, and it costs the tunnel a
+re-negotiation. RFC 7296 Section 2.9.2 leaves no other route: a Child SA cannot be
+narrowed in place.</li>
 <li><strong>Batch peer edits into one commit.</strong> Three commits touching one peer bounce it three
-  times. One commit carrying all three edits bounces it once.</li>
+times. One commit carrying all three edits bounces it once.</li>
 <li><strong>A group is shared, so an edit to it bounces every peer that names it.</strong> Give a peer its
-  own group when you want to rotate its crypto without touching the others.</li>
+own group when you want to rotate its crypto without touching the others.</li>
 </ul>
 <p>A commit is REFUSED when <code>interface</code> cannot supply an address and some peer has no
 <code>local-address</code> of its own. The transaction rolls back and every running tunnel keeps
@@ -209,7 +214,6 @@ is no running tunnel to protect, and the peers that carry their own <code>local-
 come up.</p>
 <!-- source: internal/component/ike/engine/reconcile.go -- reconcilePeers, peerConfigChanged -->
 <!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal -->
-
 <h2 id="ike-features">IKE features</h2>
 <table>
 <thead>
@@ -275,7 +279,6 @@ This lets a responder recover immediately after an operator clear or peer
 restart instead of waiting for Dead Peer Detection.</p>
 <!-- source: internal/component/ike/engine/established.go -- owned SA routing -->
 <!-- source: internal/component/ike/engine/auth.go -- INITIAL_CONTACT -->
-
 <pre><code class="language-text">vpn {
     ipsec {
         interface eth0;
@@ -296,9 +299,9 @@ restart instead of waiting for Dead Peer Detection.</p>
                 remote-address  172.28.0.3;
                 authentication {
                     mode              pre-shared-secret;
-                    local-id          &quot;172.28.0.2&quot;;
-                    remote-id         &quot;172.28.0.3&quot;;
-                    pre-shared-secret &quot;$9$encoded&quot;;
+                    local-id          "172.28.0.2";
+                    remote-id         "172.28.0.3";
+                    pre-shared-secret "$9$encoded";
                 }
             }
         }
@@ -310,7 +313,6 @@ restart instead of waiting for Dead Peer Detection.</p>
 it, so a <code>pool</code> assigns no address and an <code>eap-user</code> list authenticates nobody.
 <code>plan/spec-ipsec-remote-access.md</code> owns the work.</p>
 <!-- source: internal/component/ike/engine/register.go -- runEngine discards the pool it builds from RemoteAccess -->
-
 <p>Every EAP mode and X.509 needs a <code>ca-certificate</code>. The daemon refuses a remote
 certificate it cannot chain to that anchor. A certificate with no trust anchor
 authenticates nobody: any self-signed certificate that carries a valid signature
@@ -329,7 +331,6 @@ not run a plugin's config verifier.</p>
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidatePKIRefs -->
 <!-- source: internal/component/ike/engine/config.go -- validateIPsecSections is the ike plugin's OnConfigVerify body -->
 <!-- source: internal/component/ike/engine/auth.go -- getRemoteCert -->
-
 <h2 id="pre-shared-secret-encoding">Pre-shared secret encoding</h2>
 <p><code>pre-shared-secret-encoding</code> reads the secret as <code>ascii</code>, the default, or as <code>hex</code>. RFC
 7296 Section 2.15 requires the management interface to accept both. Use <code>hex</code> for a secret
@@ -341,7 +342,6 @@ non-hexadecimal character is refused at commit rather than read as ASCII.</p>
 <p>The at-rest <code>$9$</code> obfuscation is unwrapped first, so a hex secret can also be stored
 obfuscated.</p>
 <!-- source: internal/component/ike/ipsec/config.go -- parsePreSharedSecret -->
-
 <h2 id="remote-identity">Remote identity</h2>
 <p><code>remote-id</code> is the identity Ze expects the remote endpoint to assert. When it is
 set, Ze enforces it twice on every authentication.</p>
@@ -391,6 +391,65 @@ asserts <code>ID_DER_ASN1_GN</code> is refused, because Ze compares no general n
 <p>A <code>local-id</code> written as a distinguished name is still refused at commit. Ze
 derives the type it SENDS from the shape of the value, and that derivation has no
 <code>ID_DER_ASN1_DN</code> form.</p>
+<h3 id="one-peer-or-a-set-of-peers">One peer, or a set of peers</h3>
+<p>A <code>remote-id</code> can name one peer or a group of them. RFC 4301 Section 4.4.3.1
+requires both forms of Peer Authorization Database entry. Write a group with the
+hierarchy separator in front. Such an entry admits the identities BELOW it and
+never the entry text itself.</p>
+<table>
+<thead>
+<tr>
+<th>You write</th>
+<th>It admits</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vpn.example.com</code></td>
+<td>that name alone</td>
+</tr>
+<tr>
+<td><code>.example.com</code></td>
+<td><code>vpn.example.com</code>, <code>gw.branch.example.com</code></td>
+</tr>
+<tr>
+<td><code>gateway@example.com</code></td>
+<td>that address alone</td>
+</tr>
+<tr>
+<td><code>@example.com</code></td>
+<td><code>gateway@example.com</code></td>
+</tr>
+<tr>
+<td><code>CN=hq,O=Example</code></td>
+<td>that distinguished name alone</td>
+</tr>
+<tr>
+<td><code>,ST=MA,C=US</code></td>
+<td>every distinguished name whose top RDNs are <code>ST=MA,C=US</code></td>
+</tr>
+<tr>
+<td><code>10.0.0.1</code></td>
+<td>that address alone</td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>10.0.0.0/24</code></span></span></td>
+<td>every address in the block</td>
+</tr>
+</tbody>
+</table>
+<p>RFC 4514 renders the most significant RDN last, so a distinguished-name group is
+written with the top of the tree at the end and a leading comma in front. An
+address group takes the same CIDR prefix a traffic selector takes. <code>ID_KEY_ID</code>
+is always compared exactly: an opaque octet string has no hierarchy, so a
+leading <code>.</code> or <code>@</code> in one is content.</p>
+<p>Substring matching is not offered. <code>.example.com</code> refuses <code>notexample.com</code>, and
+it refuses the bare <code>example.com</code> too. Write the apex exactly when you mean it.</p>
+<p><strong>A group never widens what one certificate proves.</strong> The certificate check
+above still binds the identity the peer ASSERTED, so a peer admitted by
+<code>.example.com</code> must hold a certificate that carries its own name. A <code>local-id</code>
+that names a group is refused at commit, because Ze asserts exactly one identity
+and would send the pattern text verbatim.</p>
 <p>RFC 7296 Section 4 requires that you can configure Ze to accept a PKIX peer whose
 identity is <code>ID_KEY_ID</code>. An opaque key id matches no certificate field, so Ze
 cannot derive that binding and denies it by default. Set <code>remote-id-type key-id</code>
@@ -405,10 +464,9 @@ mail address. Ze then refuses a peer that asserts <code>ID_FQDN</code> with the 
 authority issued then authenticates as this peer. Ze logs a warning that names
 the peer and the identity it accepted. Set <code>remote-id</code> whenever the authority
 issues to more than one client.</p>
-<!-- source: internal/component/ike/engine/remote_id.go -- checkRemoteIdentity, certificateCarriesIdentity, assertedIdentity, hasSubjectAltName, configuredClass -->
+<!-- source: internal/component/ike/engine/remote_id.go -- checkRemoteIdentity, certificateCarriesIdentity, assertedIdentity, hasSubjectAltName, configuredClass, subtreeMatches, addressEntryMatches -->
 <!-- source: internal/component/ike/engine/cert_payload.go -- getRemoteCert, storeRemoteCerts, buildCertPayloads -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidateIdentities -->
-
 <h2 id="certificate-chain-length">Certificate chain length</h2>
 <p><code>certificate-count</code> bounds the X.509 chain in both directions. It is the most
 certificates Ze sends for the peer, and the most it accepts from it. RFC 7296
@@ -422,7 +480,6 @@ your device certificate toward the trust anchor. Ze refuses at commit a peer who
 <code>certificate-count</code> is smaller than the chain its PKI entry holds.</p>
 <!-- source: internal/component/ike/engine/cert_payload.go -- storeRemoteCerts, localCertChain -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidateCertificateChains -->
-
 <h2 id="hash-and-url-certificates">Hash and URL certificates</h2>
 <p><code>hash-and-url</code> replaces the certificate on the wire with a 20-octet SHA-1 hash and
 a URL that resolves to it (RFC 7296 Section 3.6). It keeps IKE messages short. Set
@@ -476,12 +533,10 @@ sends no such payload, and Ze drops one from a peer that sends it anyway.</p>
 <!-- source: internal/component/ike/engine/certurl.go -- fetchHashAndURL, certURLDenied, certURLClient -->
 <!-- source: internal/component/ike/engine/certbundle.go -- encodeCertBundle, decodeCertBundle -->
 <!-- source: internal/component/ike/engine/doctor_certurl.go -- checkIPsecCertURL -->
-
 <p>The EAP peer validates the authenticator's certificate chain against that trust
 anchor. EAP-TLS has no server hostname, so the check validates the chain without
 DNS-name matching.</p>
 <!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, startTLSClient -->
-
 <h2 id="eap-tls-with-tls-13">EAP-TLS with TLS 1.3</h2>
 <p>RFC 9190 Section 2.5 requires an encrypted TLS record that carries application data
 <code>0x00</code>. The EAP-TLS 1.3 server sends it once it has processed the client Finished and sent
@@ -495,7 +550,6 @@ before, because the version test reads the negotiated version.</p>
 Go keys ticket encryption on that instance. No other session can redeem a ticket minted in
 one. EAP-TLS session resumption is therefore not available.</p>
 <!-- source: internal/component/ike/eap/eap_tls.go -- indicateSuccess, newTLSMethod -->
-
 <h2 id="eap-tls-with-tls-12-needs-rfc-7627">EAP-TLS with TLS 1.2 needs RFC 7627</h2>
 <p>RFC 5216 Section 2.3 derives the EAP-TLS MSK from a TLS key material export, and Go
 refuses that export on a TLS 1.2 session that did not negotiate the RFC 7627 extended
@@ -534,7 +588,6 @@ environment. Go 1.27 removed the <code>tlsunsafeekm</code> GODEBUG setting that 
 removed setting carrying its old value is a fatal error that the Go runtime raises before
 the daemon starts, so setting it stops ze rather than reaching the peer.</p>
 <!-- source: internal/component/ike/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
-
 <h2 id="denial-of-service-protection">Denial-of-service protection</h2>
 <p>RFC 7296 Section 2.6 names two attacks on an IKE responder: state and CPU exhaustion
 from initiation requests with forged source addresses. The answer is a COOKIE. Ze
@@ -562,7 +615,6 @@ the RFC requires: the message is processed as though it carried no cookie, which
 pressured responder means issuing a fresh challenge.</p>
 <!-- source: internal/component/ike/engine/cookie.go -- mintCookie, verifyCookie, cookieRequired -->
 <!-- source: internal/component/ike/engine/register.go -- tryResponderSAInit, the gate before the half-open slot -->
-
 <h2 id="diffie-hellman-group-correction">Diffie-Hellman group correction</h2>
 <p>An initiator has to guess which Diffie-Hellman group the responder will pick. When the
 guess is wrong the responder answers INVALID_KE_PAYLOAD naming the group it accepts, and
@@ -575,7 +627,6 @@ notify choose the cipher. Ze also refuses a group it never proposed, which stops
 attacker choosing the group. Both COOKIE and INVALID_KE_PAYLOAD retries share one budget
 of three per connection attempt, so two peers can never oscillate between them.</p>
 <!-- source: internal/component/ike/engine/sa_init_retry.go -- retrySAInit, parseInvalidKEGroup, groupIsProposed -->
-
 <h2 id="rekeying">Rekeying</h2>
 <p>Both Child SAs and IKE SAs are rekeyed with an on-wire CREATE_CHILD_SA exchange. This replaced an earlier local-only key roll that could silently desynchronise a live tunnel. A Child SA rekey carries <code>N(REKEY_SA)</code> with fresh nonces and traffic selectors. An IKE SA rekey performs a fresh Diffie-Hellman exchange and resets the message-ID counters.</p>
 <p>Rekeying is make-before-break: the replacement SA is installed before the old one is deleted, so forwarding does not pause. Simultaneous rekeys are resolved by the RFC 7296 nonce rule. Section 2.8.1 states it as a recommendation: if redundant SAs are created, the endpoint that created the SA with the lowest of the four nonces SHOULD close that SA. Ze resolves the collision one step earlier and abandons its own pending exchange when its nonce is the lower one, so the redundant SA is never created and both ends converge on one SA. Ze rekeys at the ESP or IKE soft lifetime and retransmits a lost CREATE_CHILD_SA before tearing the tunnel down. Rekeys are counted by <code>ze_ipsec_rekey_total{peer}</code> and streamed as <code>child-rekey</code> events by <code>monitor vpn ipsec</code>.</p>
@@ -607,14 +658,34 @@ of three per connection attempt, so two peers can never oscillate between them.<
 </tr>
 <tr>
 <td>Replay protection</td>
-<td>Anti-replay window, default 32</td>
+<td>Anti-replay window, default 64, the size RFC 4303 Section 3.4.3 says SHOULD be the default</td>
 </tr>
 <tr>
 <td>Lifetime</td>
-<td>Time-based and byte-based rekeying thresholds</td>
+<td>Time-based rekeying, from the ESP group's <code>lifetime</code> in seconds. Ze carries no byte lifetime, so RFC 4301 Section 4.4.2.1's simultaneous use of both is not met</td>
+</tr>
+<tr>
+<td>Policy order</td>
+<td><code>policy-priority</code> ranks this peer's SPD entries, lower first. See SPD ordering below</td>
 </tr>
 </tbody>
 </table>
+<h3 id="spd-ordering">SPD ordering</h3>
+<p>RFC 4301 Section 4.4.1 makes the Security Policy Database an ordered database,
+because entries with range selectors overlap: "Thus, a user or administrator
+MUST be able to order the entries to express a desired access control policy."</p>
+<p><code>policy-priority</code> under a peer is that order. A LOWER value is searched FIRST,
+in Ze and in the Linux kernel. Two peers that both negotiate <code>0.0.0.0/0</code>
+describe the same traffic, so give the one that must win the lower value.</p>
+<p>The default is 2000, which every peer took before the leaf existed, so an
+unordered configuration installs what it installed before. The range starts at
+101 because 100 holds the IKE control-plane bypass. A peer entry at or above
+that rank matches the IKE datagrams first, which hands the exchange that builds
+and rekeys the SA to the SA itself, and the tunnel could then never
+renegotiate. Ze refuses such a value at commit.</p>
+<!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
+<!-- source: internal/component/ike/ipsec/validate.go -- ValidatePolicyOrder -->
+<!-- source: internal/component/ike/dataplane/dataplane.go -- PriorityIKEBypass, PriorityChildSA -->
 <h2 id="both-esp-wire-forms">Both ESP wire forms</h2>
 <p>RFC 7296 Section 2.23 requires a device that supports NAT traversal to receive
 UDP-encapsulated ESP and bare ESP at any time. One Linux XFRM state serves one form. A
@@ -626,14 +697,12 @@ established Child SA therefore keeps carrying traffic when its peer changes ESP 
 mid-session, with no rekey and no delete.</p>
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- InstallSA, the AcceptBothESPForms branch -->
 <!-- source: internal/component/ike/engine/child.go -- inbound.AcceptBothESPForms -->
-
 <p>The reader carries a per-socket inbound policy exemption. Linux applies the inbound IPsec
 policy check before it queues a packet to a raw socket. Ze's own Child SA policy refuses
 exactly the datagrams this reader exists to recover. The exemption reaches that one socket.
 XFRM still decrypts, still owns the replay window, and still applies the inbound policy to
 the re-presented datagram.</p>
 <!-- source: internal/component/ike/dataplane/espform_linux.go -- espFormBypassInboundPolicy -->
-
 <p>The second-form reader serves IPv4. An SA that asks for both forms over IPv6 is refused
 rather than installed with one form. The form Ze SENDS is a separate decision and follows
 the NAT verdict alone: Ze encapsulates when it detected a NAT.</p>
@@ -653,18 +722,15 @@ policy RFC 7296 Section 2.9 narrows a peer's proposal against.</p>
 } } } }
 </code></pre>
 <!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- traffic-selector list -->
-
 <p>When the list is absent the peer accepts whatever the remote endpoint proposes. That is the
 behaviour of every configuration written before the list existed, so adding the list is what
 restricts a peer, never omitting it.</p>
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, the empty-policy branch -->
-
 <p>As responder, Ze narrows the initiator's proposed TSi and TSr to a subset the list allows,
 and leads the answer with the initiator's first choices. A proposal it cannot narrow to a
 non-empty subset draws a <code>TS_UNACCEPTABLE</code> notification. As initiator, Ze proposes the list
 in order, because RFC 7296 reads the order as the preference order.</p>
 <!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, narrowChildSelectors -->
-
 <p>The selectors Ze puts on the wire are the selectors it programs. A proposal it cannot
 program exactly is narrowed FURTHER, never rounded outward: an address range that is not a
 prefix becomes the largest prefix inside it, and a port range that is neither all ports nor
@@ -687,7 +753,6 @@ lifetime tick, so a repeating <code>narrows the scope in use</code> line means t
 shrank and the tunnel will hard-expire unless one end is corrected.</p>
 <!-- source: internal/component/ike/engine/ts_narrow.go -- programmableSelector, largestPrefixIn, floorWithinProposal, coversFloor -->
 <!-- source: internal/component/ike/engine/rekey.go -- applyChildRekeyResponse, newRekeyedChild -->
-
 <table>
 <thead>
 <tr>
@@ -715,7 +780,6 @@ the protocol is 0, so the combination is refused at commit rather than widened s
 Opaque ports are refused for the same reason: no dataplane backend can express an exact
 match on port 0, so accepting one would install an any-port policy.</p>
 <!-- source: internal/component/ike/ipsec/traffic_selector.go -- checkPortProgrammable, PortSelector.Wire -->
-
 <h2 id="transport-mode">Transport mode</h2>
 <p><code>mode transport</code> asks the peer for transport mode with the <code>USE_TRANSPORT_MODE</code>
 notification of RFC 7296 Section 1.3.1. Tunnel mode is the default, and it is the RFC's own
@@ -730,25 +794,21 @@ default.</p>
 } } } }
 </code></pre>
 <!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- mode, transport-required -->
-
 <p>Transport mode constrains the selectors. RFC 7296 Section 2.23.1 requires exactly one IP
 address in TSi and in TSr, so every prefix must be a single host, and a <code>vti</code> binding is
 refused because an XFRM interface carries tunnel encapsulation. Several selectors are still
 allowed when they share that one address, for example to negotiate several ports.</p>
 <!-- source: internal/component/ike/engine/transport_mode.go -- transportSelectorPairs -->
-
 <p>A peer that declines the request establishes the Child SA in tunnel mode. Set
 <code>transport-required true</code> when that downgrade is unacceptable: Ze then deletes the SA
 instead, which is what Section 1.3.1 asks of an initiator. It defaults to false, so a peer
 without transport mode keeps a working tunnel.</p>
 <!-- source: internal/component/ike/engine/transport_mode.go -- recordInitiatorTransportMode -->
-
 <p>The VPP dataplane backend does not implement transport mode. It refuses a transport-mode
 install with a clear error rather than programming a tunnel-mode entry and reporting
 success. The SA path and the policy path each refuse it on their own.</p>
 <!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSA -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppProtectMode -->
-
 <p><strong>The VPP dataplane backend cannot be driven by IKE, and no configuration selects it.</strong>
 It installs security associations, and it refuses every security policy the IKE engine
 produces for them. VPP has no node-wide policy database: a policy lives in a security
@@ -759,15 +819,13 @@ through it. Use the XFRM backend, which is the default and the production path.<
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppPolicyInterface -->
 <!-- source: internal/component/ike/engine/child.go -- childPolicyParams -->
 <!-- source: internal/component/ike/engine/testport.go -- ikeDataplaneName -->
-
 <h2 id="pki-certificate-store">PKI certificate store</h2>
 <p>The <code>pki { }</code> block stores X.509 certificates, private keys, and CA certificates. Certificates are loaded from PEM files and validated at commit time. The PKI store also serves TLS certificates for the web UI and gRPC API.</p>
 <p>Health monitoring reports certificate expiry as a warning at 30 days and an error after expiry. Prometheus exposes <code>ze_pki_certificate_expiry_seconds</code> and <code>ze_pki_certificate_valid</code>.</p>
 <h2 id="xfrm-interfaces">XFRM interfaces</h2>
 <p>XFRM interfaces provide route-based IPsec. Traffic routed through the XFRM interface is encrypted, and incoming traffic is decrypted before it appears on the interface. The generated <a href="https://ze-software.net/reference/configuration/#xfrm-interfaces">configuration reference</a> documents the interface surface.</p>
 <h2 id="reading-the-kernel-dataplane">Reading the kernel dataplane</h2>
-<p>Every other IPsec command reports what the IKE engine believes it installed. The <code>show vpn
-ipsec dataplane</code> commands read the kernel instead. Three failures become visible: a state
+<p>Every other IPsec command reports what the IKE engine believes it installed. The <code>show vpn ipsec dataplane</code> commands read the kernel instead. Three failures become visible: a state
 the kernel refused, a state it expired, and a policy that outlived its owner.</p>
 <table>
 <thead>
@@ -797,7 +855,6 @@ that cannot enumerate, and a process without CAP_NET_ADMIN each get their own me
 empty table answers "is my tunnel programmed?" with "no", and that is the wrong answer when
 the truth is that nobody asked the kernel.</p>
 <!-- source: internal/component/ike/cmd/show_dataplane.go -- handleShowVPNIPsecDataplaneSA, dataplaneReadError, activeDataplane -->
-
 <p>Drift is compared in ONE direction. An SPI the kernel holds that the engine does not name
 is not drift. RFC 7296 Section 2.8 keeps the old and the new Child SA alive until the old
 one is deleted. A rekey window therefore holds two SPIs.</p>
@@ -807,12 +864,10 @@ the kernel because the IKE engine never sees ESP payload. Each is null rather th
 when Ze cannot read the SAD, and <code>counters-known</code> says which answer you hold. Null says
 nobody asked the kernel. Zero says the SA carried nothing.</p>
 <!-- source: internal/component/ike/cmd/show_ipsec.go -- readSADCounters, addChildCounters -->
-
 <p>The health registry folds the same comparison in. A peer whose Child SA the kernel does not
 hold reports <code>degraded</code> and names the peer. A dataplane that cannot be read is not drift,
 so it never turns the status green on a question nobody asked.</p>
 <!-- source: internal/component/ike/engine/health_drift.go -- driftingPeers, driftDetail -->
-
 <p><code>ze doctor</code> reports <code>doctor-ipsec-xfrm-unavailable</code> as a warning when <code>vpn ipsec</code> is
 configured and the kernel XFRM dataplane does not answer. The two causes need different
 action: a kernel without CONFIG_XFRM_USER and CONFIG_INET_ESP, or a process without
@@ -821,7 +876,6 @@ would not bind as well as one the kernel will not decapsulate through. Both leav
 that establishes and carries no traffic.</p>
 <!-- source: internal/component/ike/engine/doctor_xfrm.go -- checkXFRMReachable -->
 <!-- source: internal/component/ike/engine/udpencap.go -- checkIPsecUDPEncap, udpEncapReady -->
-
 <h2 id="cli">CLI</h2>
 <table>
 <thead>
@@ -874,12 +928,10 @@ the peer promised in its SET_WINDOW_SIZE notification. Zero means the peer sent 
 RFC 7296 Section 2.3 reads as a window of one. Ze holds one request outstanding and accepts
 exactly one request id.</p>
 <!-- source: internal/component/ike/engine/msgid.go -- reserveRequestWindow, releaseRequestWindow -->
-
 <p><code>clear vpn ipsec sa</code> sends a best-effort encrypted IKE Delete before removing
 local state. Initiator peers then re-establish immediately. If the UDP Delete is
 lost, the normal DPD path still removes the stale remote SA.</p>
 <!-- source: internal/component/ike/engine/established.go -- graceful stop and sendDeleteIKE -->
-
 <h2 id="health-and-metrics">Health and metrics</h2>
 <p>The IPsec component registers with the health registry. It reports <code>healthy</code> when all configured tunnels are established, <code>degraded</code> when some are down, and <code>down</code> when critical tunnels fail.</p>
 <p>Prometheus exposes <code>ze_ipsec_sa_count</code>, <code>ze_ipsec_tunnel_up{peer}</code>, <code>ze_ipsec_tunnel_degraded{peer}</code>, and <code>ze_ipsec_rekey_total{peer}</code>.</p>
@@ -895,9 +947,7 @@ control plane and carries no encrypted traffic. Alert on the degraded gauge, bec
 the two gauges together separate a lost session from a session with no ESP.</p>
 <!-- source: internal/component/ike/engine/metrics.go -- tunnelUp, tunnelDegraded, cookieChallenges, cookieVerifyFailures, saInitRetries -->
 <!-- source: internal/component/ike/engine/child.go -- ChildSA.ESPInstalled -->
-
-<p>The daemon logs <code>child-sa: dataplane refused the ESP state, tunnel is degraded and
-carries no encrypted traffic</code> when this happens.</p>
+<p>The daemon logs <code>child-sa: dataplane refused the ESP state, tunnel is degraded and carries no encrypted traffic</code> when this happens.</p>
 <h2 id="interop-testing">Interop testing</h2>
 <p>The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
 image. The infrastructure in <code>test/interop-ipsec/</code> drives strongSwan containers as remote
@@ -935,7 +985,6 @@ IKE peers. Sixteen scenarios run today:</p>
 <p>There is no certificate-only (<code>mode x509</code>) scenario. The certificate paths are proven by
 unit tests and by the EAP-TLS scenarios, which authenticate both ends with certificates.</p>
 <!-- source: test/interop-ipsec/scenarios -- the sixteen strongSwan scenarios -->
-
 <p>Ze holds every gated MUST-level requirement extracted from RFC 7296 in
 <code>rfc/short/rfc7296.md</code>. That is 222 of the summary's 227 rows, each proven in both
 directions by <code>RFC requirement:</code> tagged tests. The remaining five rows are SHOULD-level and
@@ -951,7 +1000,8 @@ ungated.</p>
 <!-- source: internal/component/ike/engine/rekey.go -- make-before-break rekeying -->
 <!-- source: internal/component/ike/dataplane/dataplane.go -- XFRM state and policy programming -->
 <!-- source: internal/component/ike/ipsec/config.go -- configuration and validation -->
-<!-- source: test/interop-ipsec/run.py -- strongSwan interoperability scenarios -->
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- strongSwan interoperability scenarios -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -993,7 +1043,7 @@ ungated.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

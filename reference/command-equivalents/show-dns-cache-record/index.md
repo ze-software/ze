@@ -1,21 +1,30 @@
-# `show dns cache record <name>`
+# `show dns cache record`
+
+Show DNS cache entries for one record name.
 
 ## Ze command
 
-- Syntax: `show dns cache record <name>`
 - Registry path: `show dns cache record`
+- Usage: `show dns cache record <name>`
 - Mode: Read-only
 - Wire method: `ze-show:dns-cache-record`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show DNS cache entries for one record name.
+## Arguments
+
+| Name | Type | Required | Values |
+| --- | --- | --- | --- |
+| `name` | string | yes | any value of this type |
 
 ## Mapping intents
 

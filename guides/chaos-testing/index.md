@@ -5,11 +5,12 @@ Ze includes a chaos testing mode that injects faults during operation to verify 
 ## Quick Start
 
 ```bash
-# Run all chaos tests
-make ze-chaos-test
+# Run the native chaos unit suites.
+./le test-chaos unit
+./le test-chaos cli-unit
 
-# Start ze with chaos mode enabled
-ze --chaos-seed 42 --chaos-rate 0.1 config.conf
+# Build the chaos command.
+go build -tags ze_chaos -o bin/ze-chaos ./cmd/ze
 ```
 
 ## Flags
@@ -90,10 +91,10 @@ done
 
 `./le setup` adds 127.0.0.2 through 127.0.0.5 (and the IPv6 address the
 functional suite binds), so the loop above is needed only for a run with more
-than four peers. `./le setup --check` reports which addresses are missing.
+than four peers. `./le setup check` reports which addresses are missing.
 Neither route survives a reboot; re-run `./le setup` after one.
 
-<!-- source: scripts/le/devtools/system.py -- LOOPBACK_IPV4_DARWIN, apply_loopback -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 
 #### Running via Docker
 
@@ -192,12 +193,13 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 Seed `0` disables chaos entirely (zero overhead). Seed `-1` uses the current time (non-reproducible).
 <!-- source: cmd/ze/main.go -- chaosSeed handling -->
 
-## Make Targets
+## Native Commands
 
-| Target | Description |
-|--------|-------------|
-| `make ze-chaos-test` | Run chaos unit + functional tests |
-| `make ze-chaos-build` | Build ze-chaos binary |
+| Command | Description |
+|---------|-------------|
+| `./le test-chaos unit` | Run chaos simulator unit tests |
+| `./le test-chaos cli-unit` | Run reduced-tag CLI tests |
+| `go build -tags ze_chaos -o bin/ze-chaos ./cmd/ze` | Build the chaos command |
 
 ## When to Use
 

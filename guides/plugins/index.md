@@ -250,7 +250,7 @@ dropped from the command, and ze writes one WARN naming the peer, the process
 and the message type. When the selector names ONLY peers that refuse it, the
 whole command fails and the program is told why.
 
-The two BASE message types are separate permissions. A plugin registers more,
+The three BASE message types are separate permissions. A plugin registers more,
 and naming one auto-loads the plugin that enables it, `enhanced-refresh` from
 bgp-route-refresh among them:
 
@@ -258,8 +258,12 @@ bgp-route-refresh among them:
 |------|---------|----------|
 | `update` | originating routes toward the peer | `update text ... add`, `update text ... del`, an End-of-RIB marker, a named commit |
 | `refresh` | asking the peer to re-advertise | `peer <sel> refresh`, `borr`, `eorr`, `clear soft` |
+| `raw` | writing a whole BGP message the program built itself | `peer <sel> raw ...` |
 
-`send [ * ]` grants both, and every send type registered later.
+`raw` is the widest of the three, because the bytes can be any BGP message, an
+OPEN or a NOTIFICATION included. `send [ update ]` does not imply it.
+
+`send [ * ]` grants all three, and every send type registered later.
 
 An operator at the CLI, over SSH or through the REST API is not a process and is
 not gated by this: their authority is the one AAA already checked.
@@ -315,8 +319,44 @@ Internal mode (`use pluginname`) runs a compiled-in plugin as a goroutine within
 List available plugins:
 
 ```
-ze --plugins
+ze show plugins
 ```
+
+## Reporting a Setup Outcome
+
+A plugin that sets something up in its own `init()` records what happened, so
+an operator can ask why a feature is absent. The `outcome` and `reason` columns
+of `show plugins` carry it:
+
+```
+ze show plugins
+```
+
+The record is one call, made from the plugin's `init()` beside its
+registration:
+
+| Outcome | Meaning | Effect on the daemon |
+|---------|---------|----------------------|
+| `registry.SetupSucceeded` | The setup completed | None |
+| `registry.SetupFailedSoft` | The feature is absent and the daemon runs correctly without it | The daemon starts |
+| `registry.SetupFailedHard` | The daemon cannot run without it | The daemon refuses to start, naming every failing plugin |
+
+The two writes a plugin makes from `init()`, `registry.Register` and
+`registry.RecordSetup`, are keyed by the plugin name and neither reads the
+other, so their order does not matter. Go initializes the files of one package
+in filename order and no plugin author has to know it.
+
+Recording is optional at the call site, and a plugin that records nothing is
+listed as `unknown`. That is the signal that the plugin owes a record, not that
+it is absent. `memlock` is the worked example: it locks the executable in
+`init()` and records a soft failure carrying the cause and the remedy when
+`RLIMIT_MEMLOCK` is too small. Its `memlock-rlimit` doctor check answers the
+question this record cannot: whether the host could lock the executable at all,
+BEFORE ze runs (`docs/architecture/doctor-and-health-checks.md`).
+
+A reason string reaches CLI output as data, so never put a secret in one.
+<!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupOutcome -->
+<!-- source: internal/plugins/memlock/memlock_linux.go -- init, the worked example -->
 
 ### Storage and Policy
 
@@ -785,30 +825,18 @@ plugin {
 
 ## Writing External Plugins
 
-External plugins communicate with ze using the same newline-framed YANG RPC protocol as internal plugins: `#<id> <verb> [json]`. External processes connect back to the plugin hub over TLS using the `ZE_PLUGIN_HUB_*` environment variables set by the engine. The Go SDK in `pkg/plugin/sdk` is the reference implementation; the functional-test helper `test/scripts/ze_api.py` shows the Python shape:
+External plugins communicate with Ze through the same newline-framed YANG RPC
+protocol as internal plugins: `#<id> <verb> [json]`. External processes connect
+to the plugin hub over TLS with the `ZE_PLUGIN_HUB_*` environment supplied by
+the engine. The Go SDK in `pkg/plugin/sdk` is the reference implementation. A
+plugin written in another language implements the same documented wire
+protocol; no first-party Python launcher or helper is required.
 
-```python
-from ze_api import API
-
-api = API()
-api.declare_done()
-api.wait_for_config()
-api.capability_done()
-api.wait_for_registry()
-api.subscribe(['update direction received'])
-api.ready()
-
-# Event loop
-while True:
-    event = api.read_line(timeout=1.0)
-    if event:
-        # process event JSON
-        pass
-```
-
-See [plugin-development/protocol.md](../../developers/plugins/protocol/index.md) for the full protocol reference.
+See [plugin-development/protocol.md](../../developers/plugins/protocol/index.md) for the
+protocol and [`examples/plugin/go`](https://github.com/ze-software/ze/tree/main/docs/../examples/plugin/go) for a complete
+plugin.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, Run -->
-<!-- source: test/scripts/ze_api.py -- API YANG RPC client -->
+<!-- source: examples/plugin/go/main.go -- main -->
 
 ### Answering a command with rows
 

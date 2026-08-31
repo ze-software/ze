@@ -89,7 +89,6 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 </ol></nav>
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang — interface container -->
 <!-- source: internal/component/iface/register.go — registration -->
-
 <h2 id="capability-table">Capability Table</h2>
 <table>
 <thead>
@@ -896,9 +895,8 @@ JunOS-style two-layer model: physical interfaces with named logical units.</p>
 <!-- source: internal/plugins/iface/dhcp/dhcp_v4_linux.go — DHCPv4 worker -->
 <!-- source: internal/plugins/iface/dhcp/dhcp_v6_linux.go — DHCPv6 worker -->
 <!-- source: internal/component/bgp/reactor/reactor_iface.go — BGP integration -->
-
 <h2 id="architecture">Architecture</h2>
-<pre><code>Config (YANG: ze-iface-conf.yang, &quot;backend&quot; leaf selects backend)
+<pre><code>Config (YANG: ze-iface-conf.yang, "backend" leaf selects backend)
   |
   v
 iface component (register.go) -- OnConfigure() loads backend, starts monitor
@@ -927,7 +925,6 @@ entries. The <code>DiscoverInterfaces</code> function enumerates interfaces via 
 bridge, veth, dummy, or loopback. On Linux, the netlink <code>device</code> type maps to ethernet
 (except <code>lo</code>, which maps to loopback). Results are sorted by type then name.</p>
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces, infoToZeType -->
-
 <p>The generated config uses descriptive names as YANG list keys (the OS interface name at
 discovery time). The MAC address serves as the physical binding between configuration and
 hardware. For ethernet, veth, and bridge interfaces, the MAC address (<code>mac { address }</code>) is
@@ -935,22 +932,20 @@ optional and, when set, must be unique within each list. Omit it to keep the
 hardware-assigned MAC, or set it to override the address and pin the named config entry to
 a specific physical device.</p>
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique on ethernet/veth/bridge lists -->
-
 <p>Each discovered interface also records an <code>os-name</code> hidden leaf that preserves the original
 OS interface name. This field is auto-populated during discovery and remains available for
 debugging and internal binding after the user renames the config entry.</p>
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- os-name hidden leaf in interface-common grouping -->
-
 <p>Operator-facing interface operations resolve the logical name to its kernel
 device through the shared resolver before touching the kernel, so a configured
 name that differs from the OS device (via the <code>os-name</code> or <code>mac/match</code> selector)
 is honored uniformly: the <code>iface</code> CLI ops (set MTU, add/remove address, admin
 up/down, bridge, mirror, ...), the DHCP client socket binding, and the
 routing/protocol consumers all act on the bound kernel device. The dispatch
-layer performs this translation for the by-name backend ops, leaving
-<code>GetInterface</code>/<code>ListInterfaces</code> raw because the resolver is built on them. A
-checks gate (<code>make ze-iface-resolution-check</code>) keeps new consumers from
-resolving the kernel directly instead of through the resolver.</p>
+layer performs this translation for the by-name backend ops and leaves
+<code>GetInterface</code> and <code>ListInterfaces</code> raw because the resolver is built on them.
+<code>./le iface-resolution check</code> keeps new consumers from resolving the kernel
+directly instead of through the resolver.</p>
 <p>The <strong>config apply path</strong> resolves separately, and on purpose. It takes ONE interface
 listing per apply and binds every ethernet entry from it, so each logical name resolves
 once and Phase 2, Phase 2c and the address reconcile all key their work by the same
@@ -971,8 +966,7 @@ to the capture port's kernel device.</p>
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
-<!-- source: scripts/checks/iface_resolution.go -- no-direct-resolution guard -->
-
+<!-- source: internal/le/ifaceresolution/ifaceresolution.go -- Answer -->
 <p>A MAC address validator (<code>ze:validate "mac-address"</code>) provides format checking (colon-separated
 hex octets) and live OS autocomplete. The <code>CompleteFn</code> calls <code>DiscoverInterfaces</code> on each
 tab press, returning MAC addresses from currently active OS interfaces. The <code>os-name</code>
@@ -982,93 +976,90 @@ does not check that the device exists: the YANG promises a binding that defers u
 device appears, and a config is validated on machines that will never run it.</p>
 <!-- source: internal/component/config/validators.go -- MACAddressValidator, OSDeviceNameValidator -->
 <!-- source: internal/component/iface/validators.go -- macAddressCompleteFn, osDeviceNameCompleteFn -->
-
 <!-- source: internal/component/config/validators.go -- MACAddressValidator, CompleteFn -->
 <!-- source: internal/component/config/validators_register.go -- mac-address registration -->
-
 <h2 id="key-design-decisions">Key Design Decisions</h2>
 <ul>
 <li><strong>Descriptive names as keys, MAC as binding.</strong> Interface names in config are user-chosen
-  descriptive labels. The MAC address ties the config entry to physical hardware. This
-  separates the logical identity (name) from the physical identity (MAC).</li>
+descriptive labels. The MAC address ties the config entry to physical hardware. This
+separates the logical identity (name) from the physical identity (MAC).</li>
 <li><strong>Pluggable backends.</strong> The iface component defines a <code>Backend</code> interface (34 methods).
-  OS-specific operations live in backend plugins (<code>ifacenetlink</code> for Linux). The YANG
-  <code>backend</code> leaf selects the backend (default: <code>netlink</code>). DHCP is a separate plugin
-  (<code>ifacedhcp</code>) that uses the backend for address operations.</li>
+OS-specific operations live in backend plugins (<code>ifacenetlink</code> for Linux). The YANG
+<code>backend</code> leaf selects the backend (default: <code>netlink</code>). DHCP is a separate plugin
+(<code>ifacedhcp</code>) that uses the backend for address operations.</li>
 <li><strong>Pure netlink, no shell-outs.</strong> The netlink backend uses <code>github.com/vishvananda/netlink</code>.</li>
 <li><strong>Event-driven.</strong> Monitor publishes to bus; consumers subscribe and react. No polling.</li>
 <li><strong>Per-family addresses.</strong> Addresses live inside <code>ipv4 { address [...]; }</code> and
-  <code>ipv6 { address [...]; }</code> containers within each unit, following the Junos/Nokia model.</li>
+<code>ipv6 { address [...]; }</code> containers within each unit, following the Junos/Nokia model.</li>
 <li><strong>DAD-aware.</strong> IPv6 addresses with <code>IFA_F_TENTATIVE</code> flag are held until DAD completes.</li>
 <li><strong>Make-before-break.</strong> Migration adds new address, waits for BGP readiness, then removes old.
-  Prevents session loss during address moves.</li>
+Prevents session loss during address moves.</li>
 <li><strong>Same-subnet renumbers keep working.</strong> Because the new address is added first, a renumber
-  inside one subnet (<code>10.0.0.1/24</code> -&gt; <code>10.0.0.2/24</code>) briefly leaves the new address as a Linux
-  IPv4 <em>secondary</em> of the old one, and Linux deletes every secondary of a subnet along with its
-  primary. Before such a removal the netlink backend enables
-  <code>net.ipv4.conf.&lt;device&gt;.promote_secondaries</code> so the kernel promotes a secondary instead of
-  flushing the subnet, logging <code>enabled promote_secondaries</code> when it changes the knob. If the
-  knob cannot be set the removal fails, naming the addresses that would have been destroyed,
-  rather than silently emptying the interface. The knob is left enabled: restoring it would
-  re-arm the same hazard on the next removal. IPv6 has no primary/secondary distinction and is
-  untouched, as is the VPP backend, which deletes exactly the requested address.</li>
+inside one subnet (<code>10.0.0.1/24</code> -&gt; <code>10.0.0.2/24</code>) briefly leaves the new address as a Linux
+IPv4 <em>secondary</em> of the old one, and Linux deletes every secondary of a subnet along with its
+primary. Before such a removal the netlink backend enables
+<code>net.ipv4.conf.&lt;device&gt;.promote_secondaries</code> so the kernel promotes a secondary instead of
+flushing the subnet, logging <code>enabled promote_secondaries</code> when it changes the knob. If the
+knob cannot be set the removal fails, naming the addresses that would have been destroyed,
+rather than silently emptying the interface. The knob is left enabled: restoring it would
+re-arm the same hazard on the next removal. IPv6 has no primary/secondary distinction and is
+untouched, as is the VPP backend, which deletes exactly the requested address.</li>
 </ul>
 <!-- source: internal/plugins/iface/netlink/addr_primary.go -- ensureDeleteIsolated, flushedByDelete -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go -- RemoveAddress delegates to removeAddressGuarded -->
 <ul>
 <li><strong>Virtual interface state.</strong> Dummy/bridge/veth report <code>OperUnknown</code> not <code>OperUp</code>;
-  monitor checks <code>IFF_UP</code> flag as fallback.</li>
+monitor checks <code>IFF_UP</code> flag as fallback.</li>
 <li><strong>Tunnel encapsulation as YANG choice/case.</strong> The <code>tunnel</code> list at the iface level
-  is one container with an <code>encapsulation</code> choice that branches into one case per
-  Linux netlink kind (gre, gretap, ip6gre, ip6gretap, ipip, sit, ip6tnl, ipip6).
-  Per-case leaf sets are constrained by the schema: <code>key</code> only appears in GRE-family
-  cases, <code>hoplimit</code>/<code>tclass</code>/<code>encaplimit</code> only in v6-underlay cases. Local and
-  remote endpoints use the same <code>local { ip ... } remote { ip ... }</code> shape as the
-  BGP peer connection block, with <code>local { interface ... }</code> as an alternative when
-  the source should be taken from another interface.</li>
+is one container with an <code>encapsulation</code> choice that branches into one case per
+Linux netlink kind (gre, gretap, ip6gre, ip6gretap, ipip, sit, ip6tnl, ipip6).
+Per-case leaf sets are constrained by the schema: <code>key</code> only appears in GRE-family
+cases, <code>hoplimit</code>/<code>tclass</code>/<code>encaplimit</code> only in v6-underlay cases. Local and
+remote endpoints use the same <code>local { ip ... } remote { ip ... }</code> shape as the
+BGP peer connection block, with <code>local { interface ... }</code> as an alternative when
+the source should be taken from another interface.</li>
 <li><strong>Idempotent cleanup.</strong> Delete and mirror removal succeed even if already gone.</li>
 <li><strong>The mirror shares its qdisc, so it owns only its filters.</strong> Mirroring attaches a
-  tc mirred filter at priority 1 to the qdisc at handle <code>ffff:</code> on the source
-  interface. That qdisc is a shared attachment point: flow-export sampling attaches
-  its own filter at priority 100 to the same object, and both hooks, ingress and
-  egress, hang off it. So mirror setup accepts a qdisc another subsystem created
-  (<code>EEXIST</code> is not an error), and mirror teardown deletes its own filters and leaves
-  the qdisc standing, empty. A teardown cannot know who created a shared qdisc, and
-  the set of filters on it can change between the moment it is read and the moment
-  it is acted on. An empty qdisc carries no filter and classifies no packet, and the
-  next mirror or sampling setup adopts it. Only the rollback of a failed setup
-  deletes a qdisc, because it created that qdisc moments earlier and knows so. Ze always creates clsact, never the older ingress qdisc, because clsact
-  carries both hooks and can therefore serve a mirror with a different destination
-  per direction. <code>tc qdisc show</code> on an interface that once mirrored reports a clsact
-  qdisc with no filter on it, which is expected.</li>
+tc mirred filter at priority 1 to the qdisc at handle <code>ffff:</code> on the source
+interface. That qdisc is a shared attachment point: flow-export sampling attaches
+its own filter at priority 100 to the same object, and both hooks, ingress and
+egress, hang off it. So mirror setup accepts a qdisc another subsystem created
+(<code>EEXIST</code> is not an error), and mirror teardown deletes its own filters and leaves
+the qdisc standing, empty. A teardown cannot know who created a shared qdisc, and
+the set of filters on it can change between the moment it is read and the moment
+it is acted on. An empty qdisc carries no filter and classifies no packet, and the
+next mirror or sampling setup adopts it. Only the rollback of a failed setup
+deletes a qdisc, because it created that qdisc moments earlier and knows so. Ze always creates clsact, never the older ingress qdisc, because clsact
+carries both hooks and can therefore serve a mirror with a different destination
+per direction. <code>tc qdisc show</code> on an interface that once mirrored reports a clsact
+qdisc with no filter on it, which is expected.</li>
 </ul>
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go -- RemoveMirror, removeMirrorFilters, undoMirrorSetup, ensureClsactQdisc -->
 <ul>
 <li><strong>A mirror the config drops is removed.</strong> <code>applyConfig</code> compares the mirrors the
-  new config asks for against the mirrors the previous config installed, and removes
-  every one that was dropped or changed before it installs the new set. A changed
-  destination is a remove followed by an install, because tc filters are additive:
-  installing the new destination would otherwise leave the old one duplicating
-  traffic.</li>
+new config asks for against the mirrors the previous config installed, and removes
+every one that was dropped or changed before it installs the new set. A changed
+destination is a remove followed by an install, because tc filters are additive:
+installing the new destination would otherwise leave the old one duplicating
+traffic.</li>
 <li><strong>The reconcile reads the dataplane, so a restart retires a stranded mirror.</strong>
-  A second pass runs inside the config reconcile. It compares the mirrors the
-  dataplane carries against the mirrors the configuration asks for, so it needs
-  no previous config. A mirror the operator deleted while ze was down is
-  therefore removed on the next boot. So is a mirror an earlier apply failed to
-  remove. A backend that cannot read its live mirrors removes nothing, because
-  "the read failed" is not "no mirror is installed".</li>
+A second pass runs inside the config reconcile. It compares the mirrors the
+dataplane carries against the mirrors the configuration asks for, so it needs
+no previous config. A mirror the operator deleted while ze was down is
+therefore removed on the next boot. So is a mirror an earlier apply failed to
+remove. A backend that cannot read its live mirrors removes nothing, because
+"the read failed" is not "no mirror is installed".</li>
 <li><strong>The pass acts only on the interfaces the configuration names.</strong> A priority-1
-  matchall mirred filter is a shape, not a mark of ownership, and another tool
-  can install the same one. So ze removes a mirror only on an interface named by
-  the current config or the previous one. One case is out of reach: an interface
-  whose whole stanza was deleted while ze was down keeps its mirror. Nothing then
-  tells that mirror apart from a filter ze never installed. To retire that
-  mirror, delete the interface from the configuration while ze runs, or clear the
-  mirror leaves first.</li>
+matchall mirred filter is a shape, not a mark of ownership, and another tool
+can install the same one. So ze removes a mirror only on an interface named by
+the current config or the previous one. One case is out of reach: an interface
+whose whole stanza was deleted while ze was down keeps its mirror. Nothing then
+tells that mirror apart from a filter ze never installed. To retire that
+mirror, delete the interface from the configuration while ze runs, or clear the
+mirror leaves first.</li>
 </ul>
 <!-- source: internal/component/iface/config_mirror.go -- indexMirrorSpecs, removeStaleMirrors, reconcileMirrors, applyMirror -->
 <!-- source: internal/plugins/iface/netlink/mirror_linux.go -- ListMirrors, mirrorDestinationName -->
-
 <h2 id="tunnel-configuration">Tunnel Configuration</h2>
 <pre><code>interface {
     tunnel gre0 {
@@ -1207,11 +1198,9 @@ of the seven: vmlinuz grew 98304 bytes, 0.60%.</p>
 <!-- source: gokrazy/kernel/runtime.config -- the seven tunnel symbols set to =y -->
 <!-- source: gokrazy/kernel/runtime.require -- the same seven pinned -->
 <!-- source: test/plugin/iface-tunnel-kinds.ci -- every kind created on the appliance kernel -->
-
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- list tunnel, choice kind, tunnel-v4-endpoints / tunnel-v6-endpoints groupings -->
 <!-- source: internal/component/iface/tunnel.go -- TunnelKind enum, TunnelSpec struct -->
 <!-- source: internal/plugins/iface/netlink/tunnel_linux.go -- CreateTunnel switch and per-kind builders -->
-
 <h2 id="tunnel-reload-behaviour">Tunnel Reload Behaviour</h2>
 <p>On config reload (SIGHUP or transaction commit), <code>applyConfig</code> compares each
 tunnel's spec against the previously applied config, which <code>indexTunnelSpecs</code>
@@ -1252,7 +1241,6 @@ already there. What holds the name decides the result:</p>
 </table>
 <!-- source: internal/component/iface/config_apply.go — applyConfig, the tunnel create step -->
 <!-- source: test/plugin/iface-tunnel-restart.ci — ze runs twice over one tunnel config; the kernel ifindex is compared across the restart -->
-
 <p>The last row is also what an operator meets after editing <code>encapsulation</code> while
 the daemon is down. There is no previous spec to compare against, so the edit
 does not reach the delete-and-recreate path. Ze refuses the config instead of
@@ -1260,7 +1248,6 @@ running the old encapsulation under the new addresses. Delete the tunnel, or
 give the new encapsulation a new interface name.</p>
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, indexTunnelSpecs -->
 <!-- source: internal/component/iface/tunnel.go -- kernelLinkTypes, the link type each kind reports -->
-
 <h2 id="tunnel-validation-scope">Tunnel Validation Scope</h2>
 <p><code>ze config validate</code>, API pre-save validation, and CLI commit validation run
 YANG schema checks plus registered side-effect-free in-process plugin verifiers.
@@ -1276,7 +1263,6 @@ callback is verified at daemon transaction time, not by <code>ze config validate
 <!-- source: internal/component/config/plugin_verify.go -- VerifyPluginConfig uses InProcessConfigVerifier only -->
 <!-- source: internal/component/iface/config.go -- parseTunnelEntry used by iface in-process verifier and OnConfigVerify -->
 <!-- source: internal/component/api/config_session.go -- failed reload restores previous content -->
-
 <h2 id="wireguard-configuration">WireGuard Configuration</h2>
 <p>WireGuard interfaces are a top-level <code>wireguard</code> list under <code>interface</code>,
 alongside <code>ethernet</code>, <code>tunnel</code>, and the other iface kinds. Each entry carries
@@ -1286,10 +1272,10 @@ ride the same <code>interface-unit</code> grouping used everywhere else.</p>
     wireguard wg0 {
         listen-port 51820
         fwmark 0
-        private-key &quot;$9$ABCabc...&quot;        # $9$-encoded; see below
+        private-key "$9$ABCabc..."        # $9$-encoded; see below
         peer site2 {
-            public-key &quot;YYYY...&quot;           # base64, plaintext
-            preshared-key &quot;$9$DEF...&quot;      # optional, also $9$-encoded
+            public-key "YYYY..."           # base64, plaintext
+            preshared-key "$9$DEF..."      # optional, also $9$-encoded
             endpoint {
                 ip 198.51.100.2
                 port 51820
@@ -1309,12 +1295,10 @@ ride the same <code>interface-unit</code> grouping used everywhere else.</p>
 <!-- source: internal/component/iface/wireguard.go -- WireguardSpec / WireguardPeerSpec types -->
 <!-- source: internal/component/iface/config.go -- parseWireguardEntry, parseWireguardPeer -->
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, indexWireguardSpecs, wireguardSpecEqual -->
-
 <h3 id="key-material-and-9-encoding">Key material and <code>$9$</code> encoding</h3>
 <p><code>private-key</code> and peer <code>preshared-key</code> are marked <code>ze:sensitive</code> in YANG.
 The config parser auto-decodes <code>$9$</code>-prefixed values on load
-(<code>internal/component/config/parser.go</code>); <code>ze config show</code> / <code>ze config
-dump</code> always re-encodes them on output (<code>internal/component/config/cli/cmd_dump.go</code>),
+(<code>internal/component/config/parser.go</code>); <code>ze config show</code> / <code>ze config dump</code> always re-encodes them on output (<code>internal/component/config/cli/cmd_dump.go</code>),
 so the plaintext base64 form never reaches the config file on disk. Public
 keys are public and stored plaintext.</p>
 <p><strong><code>$9$</code> is JunOS-compatible obfuscation, not encryption.</strong> Anyone with
@@ -1324,7 +1308,6 @@ protection is on the filesystem layer: <code>chmod 600 /etc/ze/ze.conf</code> (o
 equivalent on the <code>.zefs</code> blob). This is the same posture ze uses for BGP
 MD5 passwords, SSH secrets, MCP tokens, and API tokens.</p>
 <!-- source: internal/component/config/secret/secret.go -- Encode, Decode, IsEncoded ($9$ implementation) -->
-
 <h3 id="reconciliation">Reconciliation</h3>
 <p>On reload, <code>applyConfig</code> compares the new spec to the previously
 applied spec via <code>wireguardSpecEqual</code>. Unchanged entries are a no-op; the
@@ -1343,7 +1326,6 @@ with synthetic names (<code>peer0</code>, <code>peer1</code>, ...) which operato
 rename via <code>ze config edit</code>.</p>
 <!-- source: internal/component/iface/config_apply.go -- wireguardSpecEqual, wireguardPeerEqual -->
 <!-- source: internal/component/iface/backend.go -- CreateWireguardDevice, ConfigureWireguardDevice, GetWireguardDevice interface methods -->
-
 <h3 id="port-conflict-detection">Port conflict detection</h3>
 <p><code>listen-port</code> participates in the same conflict-detection mechanism as
 TCP services (web, ssh, mcp, etc.) with one Phase-5 extension:
@@ -1351,7 +1333,6 @@ TCP services (web, ssh, mcp, etc.) with one Phase-5 extension:
 never clash with a TCP service on the same port. Two wireguards with
 the same <code>listen-port</code> are rejected at reload time.</p>
 <!-- source: internal/component/config/listener.go -- ListenerEndpoint.Protocol, buildListenerService, CollectListeners, FindListenerConflict -->
-
 <h3 id="dependencies">Dependencies</h3>
 <p>WireGuard peer and key configuration uses
 <a href="https://github.com/WireGuard/wgctrl-go" target="_blank" rel="noopener"><code>golang.zx2c4.com/wireguard/wgctrl</code></a>,
@@ -1377,7 +1358,6 @@ with <code>feature not supported by backend "vpp"</code>.</p>
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- container router-advertisement -->
 <!-- source: internal/component/config/backend_gate.go -- ze:backend commit-time feature gate -->
 <!-- source: internal/plugins/iface/ra/register.go -- iface-ra registration -->
-
 <h3 id="send-and-accept-are-separate">Send and accept are separate</h3>
 <p>An advertising interface tells hosts to send it their off-link traffic. Set
 <code>ipv6 forwarding true</code> on that unit, or the kernel drops that traffic and every
@@ -1388,7 +1368,6 @@ profile after verify runs. Ze reports the state instead. The
 <code>doctor-iface-ra-forwarding</code> check emits one warning for each advertising
 interface whose <code>net.ipv6.conf.&lt;device&gt;.forwarding</code> is 0.</p>
 <!-- source: internal/plugins/iface/ra/doctor.go -- checkRAForwarding, doctor-iface-ra-forwarding -->
-
 <h3 id="receiving-advertisements-needs-the-netlink-backend">Receiving advertisements needs the netlink backend</h3>
 <p>The <code>autoconf</code> and <code>accept-ra</code> leaves of the per-unit <code>ipv6</code> container each carry
 <code>ze:backend "netlink"</code>. The kernel builds a SLAAC address only when Router
@@ -1404,7 +1383,6 @@ names the unit. This matches the refusal the <code>dhcp</code>, <code>dhcpv6</co
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf autoconf, leaf accept-ra -->
 <!-- source: internal/component/config/backend_gate.go -- ValidateBackendFeatures, backendAnnotation -->
 <!-- source: internal/component/iface/config_sysctl.go -- applySysctl emits the two keys -->
-
 <h3 id="container-leaves">Container leaves</h3>
 <table>
 <thead>
@@ -1496,8 +1474,7 @@ names the unit. This matches the refusal the <code>dhcp</code>, <code>dhcpv6</co
 <code>maximum-interval</code>, which keeps two routers on one link from synchronizing
 (RFC 4861 Section 6.2.4). The first three advertisements after a start wait
 16 seconds at most, so a new router is found quickly.</p>
-<!-- source: internal/plugins/iface/ra/ifacera.go -- unsolicitedInterval, maxInitialAdvertisements -->
-
+<!-- source: internal/core/ndp/schedule.go -- UnsolicitedInterval, MaxInitialAdvertisements -->
 <h3 id="prefix-list">Prefix list</h3>
 <p>Each <code>prefix</code> entry becomes one Prefix Information option (RFC 4861
 Section 4.6.2). The list key is the prefix in CIDR notation. SLAAC needs a
@@ -1544,7 +1521,6 @@ Section 4.6.2). The list key is the prefix in CIDR notation. SLAAC needs a
 </tbody>
 </table>
 <!-- source: internal/component/iface/config_ra.go -- raParsePrefixEntry, raDefaultValidLifetime, raDefaultPreferredLifetime -->
-
 <h3 id="resolvers-rdnss">Resolvers (RDNSS)</h3>
 <p>The <code>rdnss</code> container points a link at a resolver without a DHCPv6 server
 (RFC 8106 Section 5.1). <code>server</code> is a leaf-list of up to 8 IPv6 addresses, and
@@ -1578,7 +1554,6 @@ that.</p>
 </tbody>
 </table>
 <!-- source: internal/component/iface/config_ra.go -- raUnitConfig.RDNSSLifetime, EffectiveRDNSSLifetime -->
-
 <h3 id="validation">Validation</h3>
 <p>The YANG ranges bound each leaf on its own. Config verify applies the cross-leaf
 rules of RFC 4861 that no single range can express, and every one of them
@@ -1628,7 +1603,6 @@ that number is rejected. Set both leaves together.</p>
 <p>Ze rejects a prefix with host bits rather than masking them, because a masked
 prefix advertises something the operator did not write.</p>
 <!-- source: internal/component/iface/config_ra.go -- raValidate, raParsePrefixEntry -->
-
 <h3 id="example">Example</h3>
 <p>A LAN unit that advertises one prefix, two resolvers, and itself as the default
 router:</p>
@@ -1662,12 +1636,12 @@ router:</p>
 }
 </code></pre>
 <!-- source: test/parse/iface-router-advertisement.ci -- accepted router-advertisement unit -->
-
 <h3 id="send-loop">Send loop</h3>
 <p>One goroutine owns the socket and every timer of one sender. It joins <code>ff02::2</code>
 to receive Router Solicitations, and it sends to <code>ff02::1</code>. Every advertisement
 leaves with Hop Limit 255, which RFC 4861 Section 6.1.2 makes a receiver check.</p>
-<p>A solicitation draws an answer after a random wait of 500 milliseconds at most.
+<p>A solicitation draws an answer after a random wait of 500 milliseconds at most,
+and a burst of solicitations draws one answer, timed from the first of them.
 Consecutive multicast advertisements stay 3 seconds apart, so a flood of
 solicitations cannot become a flood of advertisements (RFC 4861 Section 6.2.6).
 A sender that stops sends up to three advertisements with a Router Lifetime of
@@ -1675,8 +1649,7 @@ A sender that stops sends up to three advertisements with a Router Lifetime of
 <p>Nothing leaves a link that is down. The next link-up event restarts the initial
 burst.</p>
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- openRASocket, run, sendFinal -->
-<!-- source: internal/plugins/iface/ra/ifacera.go -- solicitedDelay, solicitedSendTime, minDelayBetweenRAs -->
-
+<!-- source: internal/core/ndp/schedule.go -- SolicitedDelay, SolicitedSendTime, MinDelayBetweenRAs -->
 <h3 id="counters">Counters</h3>
 <table>
 <thead>
@@ -1705,7 +1678,6 @@ burst.</p>
 <p>A solicited advertisement increments both counters, so <code>ze_iface_ra_sent_total</code>
 stays the total.</p>
 <!-- source: internal/plugins/iface/ra/ifacera.go -- SetMetricsRegistry, incSent, incSolicited -->
-
 <h2 id="plugin-owned-devices-macvlan">Plugin-Owned Devices (Macvlan)</h2>
 <p>Beyond the plugin-owned <strong>address</strong> registry (a plugin declares addresses ze
 should keep on an interface), iface offers a plugin-owned <strong>device</strong> registry
@@ -1718,12 +1690,12 @@ but the mechanism is generic and carries zero VRRP knowledge.</p>
 registry):</p>
 <ul>
 <li><code>MacvlanSpec{Name, Parent, MAC}</code> -- <code>Parent</code> is the parent's OS device name;
-  mode is always bridge (no field).</li>
+mode is always bridge (no field).</li>
 <li><code>ComposeOwnedDeviceName(prefix, parentIfindex, id)</code> -- builds a deterministic,
-  collision-free name <code>&lt;prefix&gt;-&lt;parentIfindex&gt;-&lt;id&gt;</code> that fits the 15-char
-  IFNAMSIZ budget, rejecting (never truncating) an over-budget candidate.</li>
+collision-free name <code>&lt;prefix&gt;-&lt;parentIfindex&gt;-&lt;id&gt;</code> that fits the 15-char
+IFNAMSIZ budget, rejecting (never truncating) an over-budget candidate.</li>
 <li><code>RegisterOwnedMacvlan(owner, spec)</code>, <code>UnregisterOwnedMacvlan(owner, name)</code>,
-  <code>UnregisterOwnedMacvlans(owner)</code>.</li>
+<code>UnregisterOwnedMacvlans(owner)</code>.</li>
 </ul>
 <p><strong>Ownership marker.</strong> At create, the device's kernel link alias (IFLA_IFALIAS)
 is set to <code>ze:owned:&lt;owner&gt;</code>, atomically with the MAC in one RTM_NEWLINK. The
@@ -1751,7 +1723,6 @@ fail-closed (exact-or-reject).</p>
 <!-- source: internal/component/iface/config_apply.go -- reconcileOwnedDevices (device pass) -->
 <!-- source: internal/plugins/iface/netlink/macvlan_linux.go -- CreateMacvlanDevice -->
 <!-- source: internal/plugins/iface/netlink/doctor.go -- doctor-iface-macvlan capability check -->
-
 <h2 id="bus-topics">Bus Topics</h2>
 <table>
 <thead>
@@ -1810,7 +1781,6 @@ fail-closed (exact-or-reject).</p>
 </tbody>
 </table>
 <!-- source: internal/component/iface/iface.go — Topic* constants, *Payload structs -->
-
 <h2 id="compound-commands-auto-ensure-parent">Compound Commands (Auto-Ensure Parent)</h2>
 <p>When a command creates a sub-resource (VLAN unit, address) on an interface
 that may not exist yet, the compound form auto-creates the parent:</p>
@@ -1861,8 +1831,7 @@ chain at registration time and wraps the leaf handler automatically.</p>
 <p>Telling those two rollback cases apart requires the creation handler to
 report whether it created the resource or found it already present. That
 report is mandatory: if a handler on an ensure-exists path returns no
-<code>created</code> flag, the command is refused with <code>ensure-exists contract
-violation</code> naming the handler, and the sub-resource step never runs.
+<code>created</code> flag, the command is refused with <code>ensure-exists contract violation</code> naming the handler, and the sub-resource step never runs.
 Ze fails closed here rather than guessing, because each guess corrupts a
 different case: assuming "created" would delete an interface the operator
 already owned, and assuming "not created" would leave a half-built
@@ -1876,7 +1845,6 @@ the direct form on either end.</p>
 <!-- source: internal/component/iface/yang/ze-iface-cmd.yang — ze:ensure-exists on dummy, bridge; veth has none -->
 <!-- source: internal/component/plugin/server/ensure.go — wrapWithEnsureChain, buildEnsureChain, wasCreated, ErrEnsureContract -->
 <!-- source: internal/component/iface/cmd/manage.go — idempotent handleCreateTyped; handleCreateVeth requires a peer arg -->
-
 <h2 id="backend-implementations">Backend Implementations</h2>
 <p>The <code>Backend</code> interface declares 34 methods. Three implementations ship in
 tree; coverage varies per platform and dataplane. The table below lists
@@ -2170,8 +2138,7 @@ underlying mechanism. Cells with a footnote carry a caveat.</p>
 </tr>
 </tbody>
 </table>
-<p>[1] <code>CreateTunnel</code> rejects an unknown kind with <code>unsupported tunnel kind
-&lt;k&gt;</code>. Valid kinds are gre, gretap, ip6gre, ip6gretap, ipip, sit, ip6tnl,
+<p>[1] <code>CreateTunnel</code> rejects an unknown kind with <code>unsupported tunnel kind &lt;k&gt;</code>. Valid kinds are gre, gretap, ip6gre, ip6gretap, ipip, sit, ip6tnl,
 ipip6.</p>
 <p>[2] VPP has no kernel-style address lifetimes. The VPP backend ignores
 the <code>validLft</code>/<code>preferredLft</code> arguments and installs the address without
@@ -2204,7 +2171,6 @@ stub backend described below.</p>
 <!-- source: internal/plugins/iface/netlink/show_linux.go -- ListInterfaces/GetInterface/GetStats -->
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- StartMonitor/StopMonitor -->
 <!-- source: internal/component/iface/counters.go -- ResetCounters baseline-delta fallback -->
-
 <h3 id="vpp-opt-in-via-govpp">VPP (opt-in, via GoVPP)</h3>
 <p>Selected by the <code>backend vpp</code> leaf. 17 methods drive the VPP binary API
 through GoVPP; 16 return <code>errNotSupported</code> with a string naming the
@@ -2219,7 +2185,6 @@ main gaps against feature parity.</p>
 <!-- source: internal/plugins/iface/vpp/query.go -- ListInterfaces/GetInterface/GetMACAddress/SetMACAddress via SwInterfaceDump, SwInterfaceSetMacAddress -->
 <!-- source: internal/plugins/iface/vpp/monitor.go -- StartMonitor/StopMonitor via WantInterfaceEvents + SubscribeNotification -->
 <!-- source: internal/plugins/iface/vpp/naming.go -- ze short name <-> VPP SwIfIndex map -->
-
 <h3 id="stub-non-linux">Stub (non-Linux)</h3>
 <p>On darwin, macOS, BSD, and Windows the netlink backend package compiles
 to a stub whose constructor succeeds but whose every method returns
@@ -2232,6 +2197,7 @@ that actually tries <code>ze interface show</code> or any config-driven
 reconciliation sees the explicit error and rejects under
 exact-or-reject.</p>
 <!-- source: internal/plugins/iface/netlink/backend_other.go -- stubBackend, unsupported() returning "not supported on <GOOS>" -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -2265,7 +2231,7 @@ exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 11:34 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

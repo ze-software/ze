@@ -112,7 +112,7 @@ Default enabled. Configurable via `ze.bgp.reactor.update-groups` (boolean, defau
 | TCP_NODELAY | Disables Nagle's algorithm. BGP messages are application-framed; Nagle only adds latency. |
 | DSCP CS6 (RFC 4271 S5.1) | Sets IP_TOS/IPV6_TCLASS to 0xC0 so network QoS policies prioritize BGP traffic. |
 | Graceful TCP close | Half-close (CloseWrite) before Close sends FIN instead of RST, ensuring remote peers read pending NOTIFICATIONs. |
-| Send Hold Timer (RFC 9687) | Detects when local side cannot write to peer. Duration: max(8min, 2x hold-time). Sends NOTIFICATION code 8 on expiry. |
+| Send Hold Timer (RFC 9687) | Detects when local side cannot write to peer. Duration: max(8min, 2x hold-time), or the per-peer `send-hold-time`, which must exceed the hold time. Sends NOTIFICATION code 8 on expiry. Stopped when the negotiated hold time is zero, since such a session sends nothing. |
 | Hold timer expiry (RFC 4271 Section 8.2.2, Event 10) | Every expiry sends NOTIFICATION code 4 (Hold Timer Expired) and stops the session. Ze grants no reprieve for CPU congestion. |
 | Write deadline | Forward pool batch writes use a 30s TCP write deadline (configurable via `ze.fwd.write.deadline`) to prevent stuck peers from blocking workers. |
 | Bounded overflow pool | Two-tier pool: per-peer pools (64 slots) absorb steady-state traffic, shared MixedBufMux overflow pool (auto-sized from peer prefix maximums, overridable via `ze.fwd.pool.size` byte budget) bounds overflow memory. |
@@ -203,9 +203,9 @@ in the build declares a config root at all.
 
 Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
 
-[Download the asciicast recording](../../assets/demos/config-graph.cast?v=b2868dc650) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=7a64ac5a0c)
+[Download the asciicast recording](../../assets/demos/config-graph.cast?v=1ea1811466) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=7a64ac5a0c)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 8 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 10 seconds.
 
 ```console
 An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.

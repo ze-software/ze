@@ -61,8 +61,8 @@ user-facing behaviour; the wire format is documented in
 <li><a href="#dual-stack-ipv6">Dual-stack IPv6</a></li>
 <li><a href="#observing-and-clearing-is-is">Observing and clearing IS-IS</a>
 <ol>
-<li><a href="#which-lsps-are-this-nodes-own">Which LSPs are this node&#x27;s own</a></li>
-<li><a href="#when-another-router-claims-one-of-this-nodes-lsps">When another router claims one of this node&#x27;s LSPs</a></li>
+<li><a href="#which-lsps-are-this-nodes-own">Which LSPs are this node&#39;s own</a></li>
+<li><a href="#when-another-router-claims-one-of-this-nodes-lsps">When another router claims one of this node&#39;s LSPs</a></li>
 <li><a href="#web-views">Web views</a></li>
 <li><a href="#metrics">Metrics</a></li>
 <li><a href="#readiness-checks">Readiness checks</a></li>
@@ -70,7 +70,6 @@ user-facing behaviour; the wire format is documented in
 </ol></nav>
 <!-- This page is the shared IS-IS user guide. Each child spec adds its section;
      keep sections in feature order. -->
-
 <blockquote>
 <p><strong>Interface names are logical.</strong> <code>interface &lt;name&gt;</code> in an <code>isis { }</code> block refers to
 the Ze <em>logical</em> interface name, not necessarily the kernel device name. By default
@@ -81,7 +80,6 @@ the name to its kernel device through the shared iface resolver. See
 </blockquote>
 <!-- source: internal/plugins/isis/circuits.go -- interfaceIPv4/interfaceIPv6LinkLocal via iface.Addresses -->
 <!-- source: internal/plugins/isis/transport/backend_linux.go -- resolveInterface via iface.Resolve -->
-
 <h2 id="the-dynamic-hostname">The dynamic hostname</h2>
 <p><code>hostname</code> names this router in the IS-IS network. Ze floods it in the Dynamic
 Hostname TLV 137, and a peer renders it wherever it would otherwise print a
@@ -125,7 +123,7 @@ can be any string an operator wants. So <code>core_1</code> and a name with spac
 accepted.</p>
 <p><strong>A name outside that shape is REFUSED, not repaired.</strong> <code>ze config validate</code> and
 a commit both fail, and the error names the offending octet or label:</p>
-<pre><code>isis: isis/hostname: &quot;café.example&quot; is not a valid IS-IS hostname for isis/hostname:
+<pre><code>isis: isis/hostname: "café.example" is not a valid IS-IS hostname for isis/hostname:
 octet 4 is 0xc3. RFC 5301 section 3 encodes the value in 7-bit ASCII, so each
 character must be a printable ASCII character from space (0x20) to tilde (0x7e)
 </code></pre>
@@ -140,7 +138,6 @@ this router.</p>
 <!-- source: internal/component/config/validators.go -- ISISHostnameValidator -->
 <!-- source: internal/plugins/isis/lsdb/encode.go -- hostnameTLV -->
 <!-- source: internal/plugins/isis/show.go -- sanitizeHostname -->
-
 <h2 id="broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</h2>
 <p>On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh
 of adjacencies. Instead one router per level is elected the <strong>Designated IS</strong>
@@ -323,17 +320,17 @@ IPv6 reachability:</p>
 <p>With <code>ipv6-unicast</code> enabled on at least one circuit, the node:</p>
 <ul>
 <li>advertises the IPv6 NLPID <strong>0x8E</strong> in the Protocols Supported TLV (129) next to
-  IPv4's 0xCC;</li>
+IPv4's 0xCC;</li>
 <li>carries its IPv6 <strong>link-local</strong> address in the Hello (IIH) IPv6 Interface
-  Address TLV (232), and its <strong>non-link-local</strong> addresses in the LSP TLV 232
-  (RFC 5308 sec 3 scope rules), so a dual-stack neighbour learns the IPv6
-  next-hop (a link-local <code>fe80::</code> address with the egress interface);</li>
+Address TLV (232), and its <strong>non-link-local</strong> addresses in the LSP TLV 232
+(RFC 5308 sec 3 scope rules), so a dual-stack neighbour learns the IPv6
+next-hop (a link-local <code>fe80::</code> address with the egress interface);</li>
 <li>advertises its IPv6 prefixes as IPv6 Reachability (TLV 236) in its own LSP;
-  <strong>link-local prefixes are never advertised</strong> in TLV 236 (RFC 5308 sec 2);</li>
+<strong>link-local prefixes are never advertised</strong> in TLV 236 (RFC 5308 sec 2);</li>
 <li>runs an IPv6 route-extraction pass over the <strong>same</strong> Dijkstra tree (no second
-  SPF), resolves the IPv6 next-hop, and installs IPv6 routes into the kernel FIB
-  through the same Loc-RIB path as IPv4 (<code>AdminDistance</code> 115, tagged
-  <code>RTPROT_ze</code>).</li>
+SPF), resolves the IPv6 next-hop, and installs IPv6 routes into the kernel FIB
+through the same Loc-RIB path as IPv4 (<code>AdminDistance</code> 115, tagged
+<code>RTPROT_ze</code>).</li>
 </ul>
 <p>Inspect the installed IPv6 routes with <code>show isis route ipv6</code>.</p>
 <p><strong>Wide metrics only.</strong> The TLV 236 prefix metric is a full 32-bit value. A prefix
@@ -342,8 +339,7 @@ decoded but excluded from normal SPF (RFC 5308 sec 2), so it never enters the
 IPv6 routing table.</p>
 <p><strong>IPv6 redistribution</strong> works in both directions exactly like IPv4, under the same
 single <code>isis</code> source/consumer: <code>redistribute { destination bgp { import isis } }</code>
-exports IS-IS IPv6 routes to BGP IPv6 unicast, and <code>redistribute { destination
-isis { import connected/static/bgp } }</code> imports IPv6 prefixes as TLV 236 entries
+exports IS-IS IPv6 routes to BGP IPv6 unicast, and <code>redistribute { destination isis { import connected/static/bgp } }</code> imports IPv6 prefixes as TLV 236 entries
 (with the external bit set, RFC 5308 sec 2). The redistribution counters carry an
 <code>afi=ipv6</code> label.</p>
 <p><strong>Single-topology caveat.</strong> Because IPv6 rides the IPv4 SPF tree, Ze assumes the
@@ -449,7 +445,6 @@ authentication.</p>
 <!-- source: internal/plugins/isis/lsdb/lsdb.go -- ownConflictResult -->
 <!-- source: internal/plugins/isis/lsdb/origination.go -- RaiseSequenceFloor -->
 <!-- source: internal/plugins/isis/lsdb/snp.go -- the ack-only PSNP queue -->
-
 <p>The regeneration counts on <code>ze_isis_lsp_originations_total{level}</code>, which counts
 every own-LSP origination, refreshes and regenerations included.</p>
 <p>Every <code>show isis ...</code> command routes its JSON through the pipe machinery, so you
@@ -479,13 +474,14 @@ with labels is listed in <code>docs/plugin-development/metrics.md</code>.</p>
 <p><code>ze doctor</code> reports IS-IS readiness problems before the engine starts:</p>
 <ul>
 <li><code>doctor-isis-raw-socket</code>: IS-IS is configured but a raw <code>AF_PACKET</code> socket
-  cannot be opened (needs <code>CAP_NET_RAW</code>); IS-IS forms no adjacencies without it.</li>
+cannot be opened (needs <code>CAP_NET_RAW</code>); IS-IS forms no adjacencies without it.</li>
 <li><code>doctor-isis-net-missing</code>: the <code>isis</code> block is present but no <code>net</code> is set;
-  IS-IS cannot derive a System ID or originate LSPs.</li>
+IS-IS cannot derive a System ID or originate LSPs.</li>
 <li><code>doctor-isis-system-id-mismatch</code>: an explicit <code>system-id</code> disagrees with the
-  System ID embedded in the first NET.</li>
+System ID embedded in the first NET.</li>
 </ul>
 <p>Each code is explainable with <code>ze explain &lt;code&gt;</code>.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -527,7 +523,7 @@ with labels is listed in <code>docs/plugin-development/metrics.md</code>.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

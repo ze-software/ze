@@ -1,25 +1,33 @@
 # `clear dns cache stats`
 
+Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.
+
 ## Ze command
 
-- Syntax: `clear dns cache stats`
 - Registry path: `clear dns cache stats`
+- Usage: `clear dns cache stats`
 - Mode: Daemon
 - Wire method: `ze-clear:dns-cache-stats`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Reset DNS cache hit, miss, eviction, and expiry counters without removing cached entries.
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

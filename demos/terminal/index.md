@@ -12,9 +12,9 @@ Each demo also appears beside the documentation for the feature it exercises. Th
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Download the asciicast recording](../../assets/demos/launcher.cast?v=c49373f1b2) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
+[Download the asciicast recording](../../assets/demos/launcher.cast?v=12a2019323) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 57 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 57 seconds.
 
 ```console
 $ ze
@@ -32,9 +32,9 @@ Press Escape to move back through the menu and return to the shell.
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=c3364cbe6a) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
+[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=3dda17bc16) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 44 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 44 seconds.
 
 ```console
 $ ssh ze-demo
@@ -51,9 +51,9 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 
 Create the ZeFS database, edit the active configuration through Ze's SSH management plane, and verify the committed setting.
 
-[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=2fa05c76b4) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=f6537d09e3)
+[Download the asciicast recording](../../assets/demos/zefs-config.cast?v=2c132bab3e) · [Plain-text transcript](../../assets/demos/zefs-config.txt?v=e55d622677)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 2 minutes 55 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 2 minutes 58 seconds.
 
 ```console
 $ cat $ZE_INIT_INPUT
@@ -63,7 +63,7 @@ secret123
 2222
 ze-demo
 $ ze init < $ZE_INIT_INPUT
-$ ze config ls
+$ ze config list
 ze.conf
 $ ze data check
 
@@ -94,9 +94,9 @@ The five lines answer `ze init`'s prompts in order: username, password, host, po
 
 Run an allowed NOC command, then show Ze explicitly refuse a known state-changing command.
 
-[Download the asciicast recording](../../assets/demos/rbac.cast?v=f2c3d93465) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
+[Download the asciicast recording](../../assets/demos/rbac.cast?v=5f85fa730f) · [Plain-text transcript](../../assets/demos/rbac.txt?v=939addc51a)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 10 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 11 seconds.
 
 ```console
 $ ze config show rbac.conf system authorization profile read-only
@@ -125,9 +125,9 @@ The recording displays the command restriction and the NOC user's profile bindin
 
 Run Ze's live traceroute through a deterministic Linux network-namespace lab.
 
-[Download the asciicast recording](../../assets/demos/traceroute.cast?v=8ee8ee05dc) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
+[Download the asciicast recording](../../assets/demos/traceroute.cast?v=9afb6d1ee3) · [Plain-text transcript](../../assets/demos/traceroute.txt?v=2b9d95cc69)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 46 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 46 seconds.
 
 ```console
 $ ssh ze-demo
@@ -144,9 +144,9 @@ The destination and router live in an isolated Linux network-namespace lab. Ze s
 
 Change a YANG-backed setting, review the generated diff, commit the draft, and verify the active value.
 
-[Play the WebM recording](../../assets/demos/web-config.webm?v=c9196c88c2) · [View the poster](../../assets/demos/web-config.png?v=300f2e8e47) · [Plain-text transcript](../../assets/demos/web-config.txt?v=a614767cf2)
+[Play the WebM recording](../../assets/demos/web-config.webm?v=20f53de68b) · [View the poster](../../assets/demos/web-config.png?v=dd42e3113f) · [Plain-text transcript](../../assets/demos/web-config.txt?v=a614767cf2)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Playwright 1.55.0. Duration: 58 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Playwright 1.55.0. Duration: 58 seconds.
 
 ```console
 Ze web configuration demo
@@ -170,9 +170,9 @@ Expected result: Ze commits the browser user's isolated draft and the active YAN
 
 Commit a hostname change in the interactive editor, leave the confirmation window unanswered, and verify Ze restores the previous configuration.
 
-[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=3be3651dab) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
+[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=77e5c4efab) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 8 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 7 seconds.
 
 ```console
 $ ze config edit -f ze.conf
@@ -206,9 +206,9 @@ The first change is left unconfirmed and rolls back. The second receives `confir
 
 Feed three local routes through a deterministic RTR cache, then show Valid and NotFound routes installed while the Invalid route is absent.
 
-[Download the asciicast recording](../../assets/demos/rpki.cast?v=3edba2c02c) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
+[Download the asciicast recording](../../assets/demos/rpki.cast?v=2f6b944206) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 32 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 33 seconds.
 
 ```console
 $ ze cli -c 'show bgp rpki status | no-more'
@@ -228,9 +228,9 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
 
 Inject one route, inspect BGP best-path selection, and verify Linux installed it with Ze's route protocol ID. Validation also proves withdrawal removes it.
 
-[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=908cbeb9d1) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
+[Download the asciicast recording](../../assets/demos/rib-fib.cast?v=51ebb3f282) · [Plain-text transcript](../../assets/demos/rib-fib.txt?v=ca05c09bc8)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 49 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 50 seconds.
 
 ```console
 $ ze cli -c 'request bgp rib inject 192.0.2.10 ipv4/unicast 198.51.100.0/24 origin igp nexthop 127.0.0.1 med 42'
@@ -259,9 +259,9 @@ The route enters Ze's BGP RIB, wins best-path selection, reaches the protocol-in
 
 Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze's plugin registry.
 
-[Download the asciicast recording](../../assets/demos/config-views.cast?v=46af3dc00a) · [Plain-text transcript](../../assets/demos/config-views.txt?v=35a1a90923)
+[Download the asciicast recording](../../assets/demos/config-views.cast?v=3698ec29e0) · [Plain-text transcript](../../assets/demos/config-views.txt?v=f4f89fbe3c)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 19 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 21 seconds.
 
 ```console
 $ ze config show router.conf bgp peer transit-a
@@ -273,7 +273,7 @@ session {
     asn { local 65000; remote 65001; }
     family ipv4/unicast { prefix maximum 1000000; }
 }
-$ ze config migrate --format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'
+$ ze config migrate format set router.conf 2>/dev/null | ze pipe match 'bgp peer transit-a'
 set bgp peer transit-a connection local ip 192.0.2.1
 set bgp peer transit-a connection remote ip 192.0.2.2
 set bgp peer transit-a session asn local 65000
@@ -281,11 +281,11 @@ set bgp peer transit-a session asn remote 65001
 ...
 $ cmp -s router.set roundtrip.set && echo 'canonical output: identical'
 canonical output: identical
-$ ze --plugins | ze pipe match flowspec
+$ ze show plugins | ze pipe match flowspec
 bgp-nlri-flowspec
 flowspec-firewall
 ...
-$ ze --plugins | ze pipe match flowspec | ze pipe count
+$ ze show plugins | ze pipe match flowspec | ze pipe count
 {"count":3,"pipe":{"count":true}}
 
 Hierarchical and set syntax are alternate presentations of the same parsed configuration. Converting to set syntax and back produces identical canonical set commands. The standalone formatter composes the same match and count operators for shell pipelines.
@@ -298,9 +298,9 @@ Hierarchical and set syntax are alternate presentations of the same parsed confi
 
 Establish BFD and BGP with a local FRR peer, cut the peer link, and verify BFD drives BGP down before protocol timers expire.
 
-[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=fc05c4fe4a) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=5e444cee6f)
+[Download the asciicast recording](../../assets/demos/bfd-failover.cast?v=912e24f2ca) · [Plain-text transcript](../../assets/demos/bfd-failover.txt?v=5e444cee6f)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 1 minute 47 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 1 minute 48 seconds.
 
 ```console
 An operator needs to verify that BFD, not the 300-second BGP hold timer, protects an edge session.
@@ -332,9 +332,9 @@ Every protocol result comes directly from `ze cli`; the lab helper is used only 
 
 Inspect the active OSPF configuration, query the running control plane with Ze's CLI, trace a Full neighbor through the LSDB, and confirm the expected route.
 
-[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=f9a5d056ce) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=b074a3b6ad)
+[Download the asciicast recording](../../assets/demos/ospf-adjacency.cast?v=df457bbcb6) · [Plain-text transcript](../../assets/demos/ospf-adjacency.txt?v=b074a3b6ad)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 49 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 50 seconds.
 
 ```console
 An operator is investigating why 10.255.0.3/32 is missing.
@@ -361,9 +361,9 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
 
 Attach Ze's pure-Go eBPF accounting to a local veth, generate ICMP and HTTP traffic, and inspect source, protocol, port, and byte totals.
 
-[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=de2a0154a3) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=ebe3635e22)
+[Download the asciicast recording](../../assets/demos/traffic-anomaly.cast?v=5d47b9c9bd) · [Plain-text transcript](../../assets/demos/traffic-anomaly.txt?v=ebe3635e22)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 1 minute 24 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 1 minute 25 seconds.
 
 ```console
 An operator sees an unexpected burst on `traffic0` and needs to identify the source and application without capturing payloads.
@@ -389,9 +389,9 @@ The complete live snapshot attributes bytes to source 10.77.0.2, ICMP, TCP desti
 
 Inspect the active and live VRRP state, stop the higher-priority Ze router, and prove keepalived takes the same reachable VIP.
 
-[Download the asciicast recording](../../assets/demos/vrrp-failover.cast?v=eabb1c82f7) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=9d5d29cb11)
+[Download the asciicast recording](../../assets/demos/vrrp-failover.cast?v=078435fe9b) · [Plain-text transcript](../../assets/demos/vrrp-failover.txt?v=0405f1f484)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 2 minutes 46 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 1 minute 48 seconds.
 
 ```console
 An operator needs to stop the active router without changing the default gateway on every host.
@@ -408,9 +408,9 @@ The complete live state shows Ze is master.
 $ ip -n vrrp-ze -o addr show | grep 192.0.2.1 | tr -s ' ' | cut -d' ' -f2,4
 The kernel shows the VIP on Ze's RFC virtual-MAC interface.
 
-$ cat /src/demos/terminal/vrrp-failover/failover-proof.sh
-$ bash -x /src/demos/terminal/vrrp-failover/failover-proof.sh
-The recording displays and traces the exact commands that kill Ze, remove its namespace, inspect the VIP on keepalived, and send two probes.
+$ ze-demo run vrrp-failover proof-show
+$ ze-demo run vrrp-failover proof
+The recording runs the compiled proof that stops Ze, removes its namespace, inspects the VIP on keepalived, and sends two probes.
 
 The final kernel output shows 192.0.2.1 on keepalived's `vrrp.10` interface, and both probes succeed after failover.
 ```
@@ -422,9 +422,9 @@ The final kernel output shows 192.0.2.1 on keepalived's `vrrp.10` interface, and
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=ede5ff9591) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=130e81dfc9) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 36 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 37 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.
@@ -448,9 +448,9 @@ The commands work without a running Ze daemon. Every field returned by `ze show 
 
 Inspect and validate a BGP group, then use Ze's dependency graph to prove which peers inherit the value before scheduling maintenance.
 
-[Download the asciicast recording](../../assets/demos/config-graph.cast?v=b2868dc650) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=7a64ac5a0c)
+[Download the asciicast recording](../../assets/demos/config-graph.cast?v=1ea1811466) · [Plain-text transcript](../../assets/demos/config-graph.txt?v=7a64ac5a0c)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 8 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 10 seconds.
 
 ```console
 An operator needs to change the transit group's remote ASN and identify every peer that inherits it before scheduling maintenance.

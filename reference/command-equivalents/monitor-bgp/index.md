@@ -1,21 +1,30 @@
 # `monitor bgp`
 
+Live BGP peer dashboard that refreshes automatically.
+
 ## Ze command
 
-- Syntax: `monitor bgp`
 - Registry path: `monitor bgp`
+- Usage: `monitor bgp`
 - Mode: Read-only
 - Wire method: `ze-bgp:monitor`
+- Backends: any backend
+- Task support: required: the MCP server always answers with a task handle
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Live BGP peer dashboard that refreshes automatically. Shows all peers with state, uptime, and prefix counts. State changes highlight as they happen. Ctrl-C to stop.
+Shows all peers with state, uptime, and prefix counts. State changes highlight as they happen. Ctrl-C to stop.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

@@ -1,21 +1,30 @@
 # `show isis database`
 
+Show the IS-IS link-state database.
+
 ## Ze command
 
-- Syntax: `show isis database`
 - Registry path: `show isis database`
+- Usage: `show isis database`
 - Mode: Read-only
 - Wire method: `ze-show:isis-database`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `detail`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show the IS-IS link-state database. Lists each LSP with its LSP ID, sequence number, remaining lifetime, checksum, and overload bit, across Level-1 and Level-2. The own field is true on the LSPs this node originated and false on the LSPs it learned from a neighbor.
+Lists each LSP with its LSP ID, sequence number, remaining lifetime, checksum, and overload bit, across Level-1 and Level-2. The own field is true on the LSPs this node originated and false on the LSPs it learned from a neighbor.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

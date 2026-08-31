@@ -3,10 +3,10 @@
 <!-- source: internal/component/config/yang/cli/main.go -- ze schema subcommands -->
 <!-- source: internal/plugins/env/env.go -- ze env subcommands -->
 <!-- source: cmd/ze/help_ai.go -- ze help ai output -->
-<!-- source: scripts/inventory/inventory.go -- make ze-inventory -->
-<!-- source: scripts/inventory/commands.go -- make ze-command-list -->
-<!-- source: scripts/docvalid/commands.go -- make ze-command-contract-check -->
-<!-- source: scripts/docvalid/doc_drift.go -- make ze-doc-drift-check -->
+<!-- source: internal/le/inventory/inventory.go -- Answer -->
+<!-- source: internal/le/command/list/commandlist.go -- Answer -->
+<!-- source: internal/le/docvalid/actions.go -- Answer -->
+<!-- source: internal/le/docvalid/actions.go -- Answer -->
 
 Ze is self-documenting: every plugin, environment variable, RPC, event type, and CLI command
 is registered at startup and discoverable at runtime. Nothing exists unregistered -- the
@@ -26,31 +26,39 @@ unregistered access (`env.MustRegister()`).
 | `ze env list` | All registered environment variables with types and defaults |
 | `ze env list -v` | Same, plus current values |
 | `ze env get <key>` | Details for a single environment variable |
-| `ze --plugins` | All registered plugins with families, capabilities, dependencies |
+| `ze show plugins` | All registered plugins with families, RFCs, and capability codes |
 | `ze help command [filter]` | Full command catalog, filterable, with descriptions |
 | `ze help command --json` | Command catalog as JSON (for wiki generation, tooling) |
 | `ze help ai` | Machine-readable command reference generated from live binary |
 | `ze help ai api` | Daemon API endpoints (`ze-show:*`, `ze-set:*`, ...) with parameters |
 
 One registration is out of reach of both catalogs. `ze help command --json` and
-`make ze-command-list` read the compiled command tree in their own process, and
+`./le command list` read the compiled command tree in their own process, and
 they start no plugin. Neither reports a pipe alias a plugin declared in its
 Stage 1 message. The running daemon answers that question, through
 `command help "<name>"` and through Tab completion in the interactive session.
 The wiki catalog built from the JSON therefore lists a plugin's commands without
-its aliases.
+its aliases. That answer carries a command's two help texts under `description`
+(the one-line summary) and `long-help` (the explanation), for a builtin and for
+a plugin command alike.
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp -->
 
 ## Build-Time Verification
 
-| Make target | What it does |
-|-------------|--------------|
-| `make ze-inventory` | Full project inventory: plugins, YANG modules, RPCs, families, tests, packages |
-| `make ze-inventory-json` | Same as above, machine-readable JSON |
-| `make ze-command-list` | Every CLI command of the compiled tree, with wire method, help text, read-only flag, source |
-| `make ze-command-contract-check` | Cross-check YANG command tree against registered handlers |
-| `make ze-doc-drift-check` | Detect documentation that no longer matches code |
+| Native action | What it does |
+|---------------|--------------|
+| `./le inventory` | Reports plugins, YANG modules, RPCs, families, tests, and packages |
+| `./le command list` | Reads every CLI command from the compiled registries |
+| `./le docvalid command-contract` | Cross-checks YANG commands and handlers |
+| `./le docvalid doc-drift` | Detects documentation drift |
+
+Each plugin the inventory reports also carries the package directory it
+registers from and every YANG file beside it. Both are DERIVED, so no plugin
+declares either: the directory is the package the plugin's engine function was
+compiled in, and the file list is the directory holding the module the
+registration carries. The public plugin catalog publishes both.
+<!-- source: internal/le/inventory/plugins.go -- pluginPackageDir, pluginYANGFiles -->
 
 ## Design Principle
 

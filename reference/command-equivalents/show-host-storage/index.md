@@ -1,25 +1,35 @@
 # `show host storage`
 
+Show storage devices attached to this box.
+
 ## Ze command
 
-- Syntax: `show host storage`
 - Registry path: `show host storage`
+- Usage: `show host storage`
 - Mode: Read-only
 - Wire method: `ze-show:host-storage`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show storage devices attached to this box. Returns size, model, transport type (nvme, sata, mmc, virtio), rotational flag, and NVMe firmware version where applicable.
+Returns size, model, transport type (nvme, sata, mmc, virtio), rotational flag, and NVMe firmware version where applicable.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

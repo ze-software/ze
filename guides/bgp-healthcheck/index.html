@@ -62,12 +62,11 @@
 <li><a href="#migration-from-exabgp">Migration from ExaBGP</a></li>
 </ol></nav>
 <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- RunHealthcheckPlugin -->
-
 <h2 id="quick-start">Quick Start</h2>
 <pre><code>bgp {
     healthcheck {
         probe dns {
-            command &quot;dig @127.0.0.1 example.com +short&quot;
+            command "dig @127.0.0.1 example.com +short"
             group hc-dns
         }
     }
@@ -176,7 +175,6 @@
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/healthcheck/yang/ze-healthcheck-conf.yang -- YANG leaves -->
-
 <h3 id="ip-management-internal-mode-only">IP Management (internal mode only)</h3>
 <pre><code>ip-setup {
     interface lo
@@ -217,16 +215,14 @@
 </table>
 <p>IPs are added at probe startup (before the first check), regardless of the <code>dynamic</code> setting. Non-dynamic probes keep IPs present through all states except EXIT. Not available in external plugin mode.</p>
 <!-- source: internal/component/bgp/plugins/healthcheck/ip.go -- ipTracker -->
-
 <h3 id="hooks">Hooks</h3>
-<pre><code>on-up &quot;curl -X POST http://notify/up&quot;
-on-down &quot;curl -X POST http://notify/down&quot;
-on-disabled &quot;curl -X POST http://notify/disabled&quot;
-on-change &quot;logger -t healthcheck state=$STATE&quot;
+<pre><code>on-up "curl -X POST http://notify/up"
+on-down "curl -X POST http://notify/down"
+on-disabled "curl -X POST http://notify/disabled"
+on-change "logger -t healthcheck state=$STATE"
 </code></pre>
 <p>Each hook is a leaf-list (multiple commands per event). Hooks execute asynchronously in goroutines with a 30-second timeout and process group kill. The <code>STATE</code> environment variable is set to the current state name (UP, DOWN, DISABLED, etc.). State-specific hooks fire before on-change hooks.</p>
 <!-- source: internal/component/bgp/plugins/healthcheck/hooks.go -- runHooks -->
-
 <h2 id="fsm-states">FSM States</h2>
 <table>
 <thead>
@@ -301,7 +297,6 @@ and <code>| display</code> act on either. The list rows come back in ascending p
 The two answers carry different field sets, so the command declares the <code>map</code>
 shape and <code>| fill</code> is refused by name.</p>
 <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleShow, commandDecls -->
-
 <h2 id="migration-from-exabgp">Migration from ExaBGP</h2>
 <p>Ze's healthcheck replaces ExaBGP's <code>healthcheck.py</code> program. Key differences:</p>
 <ul>
@@ -313,6 +308,7 @@ shape and <code>| fill</code> is refused by name.</p>
 </ul>
 <!-- source: internal/component/bgp/plugins/healthcheck/hooks.go -- hookTimeout, the 30-second hook bound -->
 <!-- source: internal/component/bgp/plugins/healthcheck/config.go -- Disable and the watchdog metric fields -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -354,7 +350,7 @@ shape and <code>| fill</code> is refused by name.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

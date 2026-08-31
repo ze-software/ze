@@ -56,7 +56,7 @@
 <li><a href="#cache-management">Cache Management</a></li>
 <li><a href="#event-subscription">Event Subscription</a></li>
 <li><a href="#commit-workflow">Commit Workflow</a></li>
-<li><a href="#raw-introspection">Raw &amp;amp; Introspection</a></li>
+<li><a href="#raw-introspection">Raw &amp; Introspection</a></li>
 </ol></nav>
 <h3 id="peer-management">Peer Management</h3>
 <table>
@@ -103,7 +103,6 @@
 </table>
 <p>Peer selector supports: <code>*</code> (all), exact IP, peer name, ASN (<code>as65001</code>), glob patterns (<code>192.168.*.*</code>), exclusion (<code>!addr</code>, <code>!as65001</code>). Tab completion for peer selectors in <code>ze show</code> and <code>ze cli</code> when daemon is running.</p>
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer management RPC handlers -->
-
 <h3 id="route-updates">Route Updates</h3>
 <table>
 <thead>
@@ -127,7 +126,6 @@
 <p>NLRI operations: <code>add</code>, <code>del</code>, <code>eor</code> per address family.</p>
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text_test.go -- text update parsing -->
 <!-- source: internal/core/bgp/attribute/builder_parse.go -- text attribute parsing -->
-
 <h3 id="rib-operations">RIB Operations</h3>
 <table>
 <thead>
@@ -166,7 +164,6 @@
 <p>Inject attributes: <code>origin &lt;igp|egp|incomplete&gt;</code>, <code>nhop|nexthop &lt;ip&gt;</code>, <code>aspath &lt;asn,asn,...&gt;</code>, <code>localpref &lt;n&gt;</code>, <code>med &lt;n&gt;</code>. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast).</p>
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute, withdrawRoute -->
 <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB command handlers -->
-
 <h3 id="cache-management">Cache Management</h3>
 <table>
 <thead>
@@ -258,7 +255,6 @@
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/commit/commit.go -- commit workflow handlers -->
-
 <h3 id="raw-introspection">Raw &amp; Introspection</h3>
 <table>
 <thead>
@@ -291,6 +287,7 @@
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw BGP message handler -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -324,7 +321,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

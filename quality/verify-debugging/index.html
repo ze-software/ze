@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Quality</span>
     <h1 id="verify-and-debugging-workflow">Verify and Debugging Workflow</h1>
-    <p>Use this page when <code>make ze-precommit-verify</code> fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.</p>
+    <p>Use this page when <code>./le verify current mode full</code> fails, when a test needs to be rerun narrowly, or when debug logging should be enabled without turning the whole run into noise.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#what-verify-does">What verify does</a></li>
@@ -57,29 +57,26 @@
 <li><a href="#skips-and-flakes">Skips and flakes</a></li>
 <li><a href="#debugging-order">Debugging order</a></li>
 </ol></nav>
-<!-- source: ../main/Makefile -- verify entry points -->
-<!-- source: ../main/scripts/status/verify_run.go -- staged verify runner -->
-<!-- source: ../main/scripts/dev/verify-lock.sh -- verify lock -->
+<!-- source: ../main/internal/le/verify/engine/run.go -- verify entry point -->
+<!-- source: ../main/internal/le/verify/lock/register.go -- verify lock -->
 <!-- source: ../main/internal/test/runner/failure_group.go -- failure grouping -->
 <!-- source: ../main/internal/test/trace/trace.go -- per-step trace output -->
 <!-- source: ../main/docs/guide/debugging-tools.md -- debugging tools -->
-
-<p><code>make ze-precommit-verify</code> is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.</p>
-<pre><code class="language-bash">make ze-precommit-verify-changed
-make ze-precommit-verify
+<p><code>./le verify current mode full</code> is the normal pre-handoff gate. It is staged, locked, and designed to tell a developer where to rerun. The changed-only command is useful during development, but a finished change should pass the shared gate that would catch cross-package and functional regressions.</p>
+<pre><code class="language-bash">./le verify current mode changed
+./le verify current mode full
 </code></pre>
 <h2 id="what-verify-does">What verify does</h2>
 <table>
 <thead><tr><th>Stage</th><th>Purpose</th><th>Typical rerun</th></tr></thead>
 <tbody>
-<tr><td>Lint and architecture checks</td><td>Formatting, static analysis, generated docs, wiring, and project rules.</td><td><code>make ze-lint</code> or the printed validation target.</td></tr>
+<tr><td>Lint and architecture checks</td><td>Formatting, static analysis, generated docs, wiring, and project rules.</td><td><code>./le verify lint run</code> or the printed validation target.</td></tr>
 <tr><td>Unit and race checks</td><td>Package contracts, changed groups, and race-sensitive paths.</td><td><code>go test -race -run TestName ./path/...</code></td></tr>
 <tr><td>Functional suites</td><td><code>.ci</code>, <code>.wb</code>, and <code>.et</code> behavior that an operator or browser can observe.</td><td><code>bin/ze-test &lt;suite&gt; NAME -v</code></td></tr>
 <tr><td>Compatibility checks</td><td>ExaBGP and related protocol compatibility gates that belong in the local pass.</td><td>The command printed by the failure group.</td></tr>
 </tbody>
 </table>
-
-<p>The verify runner writes logs under <code>tmp/</code>, keeps a compact failure index, and prints grouped failures. The lock in <code>scripts/dev/verify-lock.sh</code> prevents two verify-class runs from corrupting shared temp state or making failures unreadable.</p>
+<p>The verify runner writes logs under <code>tmp/</code>, keeps a compact failure index, and prints grouped failures. The lock in <code>internal/le/verify/lock/register.go</code> prevents two verify-class runs from corrupting shared temp state or making failures unreadable.</p>
 <h2 id="reading-the-failure">Reading the failure</h2>
 <p>Start with the first failing group. It tells you the stage, summary, related files, and rerun command. If the failure came from a functional transcript, rerun exactly that test with <code>-v</code>. If it came from a Go package, rerun one test or one package before rerunning a group target.</p>
 <pre><code class="language-bash">bin/ze-test bgp plugin 42 -v
@@ -87,13 +84,13 @@ go test -race -run TestName ./internal/component/bgp/...
 </code></pre>
 <p>If the rerun prints a temporary directory, keep it only when you need the artifacts. If the test is Linux-only, go straight to QEMU rather than trying to make Darwin behave like Linux.</p>
 <pre><code class="language-bash">ZE_TEST_KEEP_TMP=1 bin/ze-test bgp plugin 42 -v
-make ze-qemu-debug RUN='bin/ze-test-linux-arm64 bgp plugin 79 -v'
+./le qemu run command 'bin/ze-test-linux-arm64 bgp plugin 79 -v' keep-alive
 </code></pre>
 <h2 id="trace-output">Trace output</h2>
 <p>Functional runners emit per-step trace records. Human output shows the line and status. Machine output uses <code>VERIFY STEP</code> JSON so failure grouping can stay stable even when prose changes.</p>
 <pre><code class="language-text">  12 ✓ action open
-  13 ✗ expect element -&gt; expected element with text &quot;Routes&quot; not found
-VERIFY STEP: {&quot;file&quot;:&quot;test/web/foo.wb&quot;,&quot;step&quot;:13,&quot;kind&quot;:&quot;expect&quot;,&quot;status&quot;:&quot;fail&quot;}
+  13 ✗ expect element -&gt; expected element with text "Routes" not found
+VERIFY STEP: {"file":"test/web/foo.wb","step":13,"kind":"expect","status":"fail"}
 </code></pre>
 <p>Trace output is available for <code>.ci</code>, <code>.wb</code>, and <code>.et</code>. Use it to locate the first broken transition, not the last assertion that happened to fail.</p>
 <h2 id="debug-logging">Debug logging</h2>
@@ -104,16 +101,16 @@ VERIFY STEP: {&quot;file&quot;:&quot;test/web/foo.wb&quot;,&quot;step&quot;:13,&
 <tr><td>BGP peer behavior</td><td><code>ze.log.bgp.reactor.peer=debug bin/ze-test bgp plugin NAME -v</code></td></tr>
 <tr><td>Plugin server behavior</td><td><code>ze.log.plugin.server=debug bin/ze-test bgp plugin NAME -v</code></td></tr>
 <tr><td>Config parsing</td><td><code>ze.log.config=debug bin/ze-test bgp parse NAME -v</code></td></tr>
-<tr><td>Linux diagnosis</td><td><code>make ze-qemu-shell</code>, then inspect <code>ip</code>, <code>nft</code>, <code>dmesg</code>, and temp files.</td></tr>
+<tr><td>Linux diagnosis</td><td><code>./le qemu run command '...' keep-alive</code>, then inspect <code>ip</code>, <code>nft</code>, <code>dmesg</code>, and temp files.</td></tr>
 </tbody>
 </table>
-
 <p>Do not turn on every log by default. Broad logs can hide the one line that matters and can change timing in concurrent tests.</p>
 <h2 id="skips-and-flakes">Skips and flakes</h2>
 <p>A skip is not proof. <code>option=needs-linux</code> is the correct marker for functional behavior that requires Linux. <code>.wb</code> has an explicit skip option for external browser fixtures. Go tests should skip only when an optional capability is genuinely absent and another gate covers the required behavior.</p>
 <p>Flakes should be fixed at the source. Replace timing guesses with readiness checks, process waits, observable browser state, or protocol synchronization. If the test only passes after a sleep grows, the runner is missing a signal.</p>
 <h2 id="debugging-order">Debugging order</h2>
 <p>Use the failure index first, rerun the narrow command second, enable one debug log third, and escalate to QEMU or interop only when the contract needs that environment. After the fix, rerun the narrow command and then the gate that would have caught the regression.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -139,7 +136,7 @@ VERIFY STEP: {&quot;file&quot;:&quot;test/web/foo.wb&quot;,&quot;step&quot;:13,&
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

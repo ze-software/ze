@@ -1,21 +1,30 @@
 # `show pppoe sessions`
 
+List all active PPPoE sessions.
+
 ## Ze command
 
-- Syntax: `show pppoe sessions`
 - Registry path: `show pppoe sessions`
+- Usage: `show pppoe sessions`
 - Mode: Read-only
 - Wire method: `ze-pppoe-api:sessions`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-List all active PPPoE sessions. One line per session: session ID, MAC, subscriber login, uptime, and assigned addresses.
+One line per session: session ID, MAC, subscriber login, uptime, and assigned addresses.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

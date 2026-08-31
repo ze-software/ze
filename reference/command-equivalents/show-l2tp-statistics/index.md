@@ -1,25 +1,35 @@
 # `show l2tp statistics`
 
+Show aggregate L2TP protocol counters.
+
 ## Ze command
 
-- Syntax: `show l2tp statistics`
 - Registry path: `show l2tp statistics`
+- Usage: `show l2tp statistics`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:statistics`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show aggregate L2TP protocol counters. Tunnels and sessions established, control messages sent/received, retransmits, and errors. Your first stop for L2TP health.
+Tunnels and sessions established, control messages sent and received, retransmits, and errors. It is the first command to run for L2TP health.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

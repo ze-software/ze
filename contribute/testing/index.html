@@ -52,22 +52,20 @@ interpret their output. For the full technical reference (<code>.ci</code> forma
 directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
-<li><a href="#first-time-setup">First time setup</a></li>
-<li><a href="#make-target-naming">Make target naming</a></li>
+<li><a href="#first-time-setup">First-time setup</a></li>
 <li><a href="#the-escalation-ladder">The escalation ladder</a>
 <ol>
-<li><a href="#the-cadence-targets">The cadence targets</a></li>
 <li><a href="#component-groups-for-step-3">Component groups for step 3</a></li>
 </ol></li>
 <li><a href="#test-types">Test types</a>
 <ol>
-<li><a href="#unit-tests-_testgo">Unit tests (*_test.go)</a></li>
+<li><a href="#unit-tests-testgo">Unit tests (*_test.go)</a></li>
 <li><a href="#functional-tests-ci-files">Functional tests (.ci files)</a></li>
 <li><a href="#mutation-tests-gomu">Mutation tests (gomu)</a></li>
 <li><a href="#interop-and-integration-tests">Interop and integration tests</a></li>
 </ol></li>
 <li><a href="#when-a-test-must-be-weakened">When a test must be weakened</a></li>
-<li><a href="#how-ze-precommit-verify-works">How ze-precommit-verify works</a>
+<li><a href="#how-le-verify-current-mode-full-works">How ./le verify current mode full works</a>
 <ol>
 <li><a href="#the-builds-the-linter-reads">The builds the linter reads</a></li>
 <li><a href="#feature-tag-structural-type-check">Feature-tag structural type check</a></li>
@@ -79,36 +77,22 @@ directives, fuzz target list), see <code>docs/functional-tests.md</code>.</p>
 <li><a href="#functional-test-failures">Functional test failures</a></li>
 <li><a href="#fuzz-failures">Fuzz failures</a></li>
 </ol></li>
+<li><a href="#a-test-that-exists-is-not-a-test-that-gates">A test that exists is not a test that gates</a></li>
+<li><a href="#boundary-values-for-common-ranges">Boundary values for common ranges</a></li>
+<li><a href="#flake-shapes-seen-in-this-repository">Flake shapes seen in this repository</a></li>
 <li><a href="#cheat-sheet">Cheat sheet</a></li>
 </ol></nav>
-<h2 id="first-time-setup">First time setup</h2>
-<pre><code class="language-sh">./le setup    # install all dev tools: build deps, linters, appliance tools (one-time)
-make ze-smoke-verify    # verify everything works: lint + unit + build (~2 min)
+<h2 id="first-time-setup">First-time setup</h2>
+<pre><code class="language-sh">./le setup
+./le verify current mode full
 </code></pre>
-<p>If <code>ze-smoke-verify</code> passes, your environment is ready.</p>
-<h2 id="make-target-naming">Make target naming</h2>
-<p>Public project targets use:</p>
-<pre><code class="language-text">ze-&lt;family&gt;[-&lt;scope&gt;...][-&lt;subject&gt;]-&lt;action&gt;[-&lt;mode&gt;][-&lt;format&gt;]
-</code></pre>
-<p>The family and scope come first, then the subject, then the action. For
-example, <code>ze-unit-bgp-test</code>, <code>ze-functional-plugin-test</code>, and
-<code>ze-qemu-install-iso-test</code> identify progressively more specific test families
-before saying that they run tests. Modes follow the action
-(<code>ze-unit-test-cached</code>, <code>ze-fuzz-test-one</code>, <code>ze-qemu-test-all</code>), and output
-formats come last (<code>ze-inventory-json</code>).</p>
+<p><code>./le</code> is the compiled repository development entry point. Each area exposes
+its own verbs, for example <code>./le functional plugin</code>,
+<code>./le qemu install-iso-test</code>, and <code>./le test-unit bgp</code>. Legacy command names
+have no compatibility aliases.</p>
 <p>Action words describe the contract: <code>check</code> is a read-only verdict, <code>verify</code> is
-a composite policy gate, <code>report</code> is advisory output, <code>update</code> rewrites tracked
-state, <code>reconcile</code> rewrites generated state before checking whether it was
-current, <code>record</code> appends durable evidence, <code>sync</code> copies canonical state, and
-<code>build</code> produces an artifact. Build targets include the action rather than
-reusing a bare binary basename: <code>ze-build</code> produces <code>bin/ze</code>,
-<code>ze-appliance-build</code> produces <code>bin/ze-appliance</code>, and <code>ze-test-build</code> produces
-<code>bin/ze-test</code>.</p>
-<p>The conventional unprefixed entry points (<code>build</code>, <code>check</code>, <code>clean</code>, <code>fmt</code>,
-<code>generate</code>, <code>help</code>, <code>test</code>, <code>tidy</code>, and <code>vet</code>) remain short. Retired names have
-no compatibility aliases, so scripts and documentation must use the current
-spelling. <code>make help</code>, <code>make help-test</code>, <code>make help-deploy</code>, and <code>make help-dev</code>
-show the common entry points, not an exhaustive target inventory.</p>
+a composite policy gate, <code>report</code> is advisory output, and <code>write</code> or <code>update</code>
+changes tracked state.</p>
 <h2 id="the-escalation-ladder">The escalation ladder</h2>
 <p>Use the narrowest test that covers your change. Escalate only when needed.</p>
 <table>
@@ -123,130 +107,90 @@ show the common entry points, not an exhaustive target inventory.</p>
 <tbody>
 <tr>
 <td>1</td>
-<td><code>make ze-unit-pkg-test PKG=./pkg/... RUN=TestName</code></td>
+<td><code>./le job run label one-test command go test ./pkg/... -run TestName</code></td>
 <td>Iterating on one test</td>
 <td>seconds</td>
 </tr>
 <tr>
 <td>2</td>
-<td><code>make ze-unit-pkg-test PKG=./internal/component/bgp/reactor/...</code></td>
-<td>Iterating on one package</td>
-<td>seconds</td>
+<td><code>./le test-unit bgp</code></td>
+<td>Checking one component group</td>
+<td>10s to 1:30</td>
 </tr>
 <tr>
 <td>3</td>
-<td><code>make ze-unit-bgp-test</code></td>
-<td>Done with a component, want to check for regressions</td>
-<td>10s - 1:30</td>
+<td><code>./le functional plugin</code></td>
+<td>Checking the user-visible path</td>
+<td>varies</td>
 </tr>
 <tr>
 <td>4</td>
-<td><code>make ze-precommit-verify</code></td>
+<td><code>./le verify current mode full</code></td>
 <td>Ready to commit</td>
-<td>~2 min</td>
+<td>about 2 minutes</td>
 </tr>
 </tbody>
 </table>
-<p><code>make ze-precommit-verify</code> is the pre-commit gate. Everything below that is a development tool.</p>
-<p>Every step goes through <code>make</code>, and that is not a style preference. Several
-sessions share this machine, so <code>make</code> hands each heavy job to
-<code>scripts/dev/ze-run.sh</code>, which runs it now, queues it, or attaches it to an
-equivalent run already in flight. A <code>go test</code> typed into a shell skips that,
-and it also drops the feature tags, the timeout, <code>GOMAXPROCS</code> and the shared
-build cache that the <code>make</code> variables carry. The Bash hook refuses the raw form
-(<code>ai/rules/commands.md</code>).</p>
-<h3 id="the-cadence-targets">The cadence targets</h3>
-<p>The ladder above is keyed to a change you are making. Three targets are keyed to
-the calendar instead, and they exist for one reason: <code>make ze-precommit-verify</code> runs 27
-checks and the nightly workflows run a dozen more, which leaves a set that is in
-NEITHER and is therefore run by nobody.</p>
-<table>
-<thead>
-<tr>
-<th>Target</th>
-<th>Time</th>
-<th>What it is for</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>make ze-cadence-daily-run</code></td>
-<td>seconds</td>
-<td>Run it every morning. No Docker, no network, and it never takes the verify lock, so it cannot block</td>
-</tr>
-<tr>
-<td><code>make ze-cadence-weekly-run</code></td>
-<td>minutes</td>
-<td>Takes the same repo-wide lock as <code>ze-precommit-verify</code>. Do not start it beside one: it blocks rather than fails, which reads as a hang</td>
-</tr>
-<tr>
-<td><code>make ze-cadence-monthly-run</code></td>
-<td>long</td>
-<td>Needs Docker, QEMU or root. Its preflight probe runs first and says what this machine can do</td>
-</tr>
-</tbody>
-</table>
-<p>Each member is one of two kinds. A <code>gate</code> has a verdict, and a non-zero exit
-fails the run. A <code>note</code> is a census or a report that exits 0 whatever it finds,
-so it is printed and never fails the run. Mixing the two under one exit code is
-what makes an aggregate meaningless: the censuses would drag it red every day
-until it was ignored. The summary table is the product; the exit code covers the
-gates.</p>
-<p><code>make ze-cadence-daily-run</code> is where <code>ze-repository-check</code> finally runs. <code>ze-precommit-verify</code> runs
-<code>ze-repository-tree-check</code>, which passes <code>--changed-file ''</code>, and two of validate's
-checks return empty before reading anything when that list is empty.</p>
+<p><code>./le verify current mode full</code> is the pre-commit gate. The narrower commands
+are development tools. <code>./le job run</code> admits an individual heavy command
+through <code>internal/le/job</code>, so concurrent sessions do not oversubscribe the
+machine.</p>
 <h3 id="component-groups-for-step-3">Component groups for step 3</h3>
 <table>
 <thead>
 <tr>
-<th>Target</th>
+<th>Command</th>
 <th>Scope</th>
 <th>Time</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>make ze-unit-bgp-test</code></td>
+<td><code>./le test-unit bgp</code></td>
 <td>BGP engine, wire, reactor</td>
-<td>~1:30</td>
+<td>about 1:30</td>
 </tr>
 <tr>
-<td><code>make ze-unit-core-test</code></td>
+<td><code>./le test-unit core</code></td>
 <td>Core libraries</td>
-<td>~30s</td>
+<td>about 30 seconds</td>
 </tr>
 <tr>
-<td><code>make ze-unit-plugins-test</code></td>
+<td><code>./le test-unit plugins</code></td>
 <td>All plugins</td>
-<td>~40s</td>
+<td>about 40 seconds</td>
 </tr>
 <tr>
-<td><code>make ze-unit-config-test</code></td>
-<td>Config parsing, YANG</td>
-<td>~20s</td>
+<td><code>./le test-unit config</code></td>
+<td>Config parsing and YANG</td>
+<td>about 20 seconds</td>
 </tr>
 <tr>
-<td><code>make ze-unit-cli-test</code></td>
+<td><code>./le test-unit cli</code></td>
 <td>CLI component</td>
-<td>~10s</td>
+<td>about 10 seconds</td>
 </tr>
 <tr>
-<td><code>make ze-unit-rest-test</code></td>
-<td>Everything else</td>
-<td>~1:00</td>
+<td><code>./le test-unit installer</code></td>
+<td>Installer initrd logic behind the <code>ze_installer</code> tag</td>
+<td>about 10 seconds</td>
 </tr>
 </tbody>
 </table>
 <p>Pick the group matching your change.</p>
+<p>The <code>installer</code> group runs the tests on Linux. On another host <code>go test</code>
+cross-compiles a Linux binary it cannot start, so the group runs <code>go vet</code>
+and type-checks the same files instead. <code>./le qemu all-tests</code> runs them for
+real inside the Alpine virtual machine.</p>
 <h2 id="test-types">Test types</h2>
 <p>Ze has four levels of testing, each covering a different concern.</p>
-<h3 id="unit-tests-_testgo">Unit tests (<code>*_test.go</code>)</h3>
+<h3 id="unit-tests-testgo">Unit tests (<code>*_test.go</code>)</h3>
 <p>Standard Go tests. They validate logic in isolation: does the parser produce the
 right output, does the state machine transition correctly, does the encoder
 round-trip.</p>
-<pre><code class="language-sh">make ze-unit-pkg-test PKG=./internal/component/bgp/message/...   # one package
-make ze-unit-pkg-test PKG=./internal/... RUN=TestParseOrigin     # one test
-make ze-unit-test                                                # all packages (~5 min)
+<pre><code class="language-sh">./le job run label bgp-message command go test ./internal/component/bgp/message/...
+./le job run label parse-origin command go test ./internal/... -run TestParseOrigin
+./le verify current mode full
 </code></pre>
 <h3 id="functional-tests-ci-files">Functional tests (<code>.ci</code> files)</h3>
 <p>These spin up real Ze processes and test behavior end-to-end: does the config
@@ -328,26 +272,25 @@ parse, does the BGP session establish, does the plugin produce the right output.
 </tr>
 </tbody>
 </table>
-<p>Run a single test by one-based id or exact name, list the available ids, or
-resume from the last printed id after an interrupted run. No <code>make</code> target
-expresses a selection, so queue the runner yourself: <code>ze-run.sh</code> takes a label
-and the command, and gives it the same admission a suite target gets.</p>
-<pre><code class="language-sh">scripts/dev/ze-run.sh plugin-42 bin/ze-test bgp plugin 42          # test id 42
-scripts/dev/ze-run.sh encode-list bin/ze-test bgp encode --list    # list N/TOTAL, id, and name
-scripts/dev/ze-run.sh plugin-from-42 bin/ze-test bgp plugin --start 42  # id 42 and every later test
-scripts/dev/ze-run.sh editor-7 bin/ze-test editor 7                # editor test id 7
-scripts/dev/ze-run.sh editor-nav bin/ze-test editor -p nav         # editor tests matching &quot;nav&quot;
-scripts/dev/ze-run.sh exabgp-from-20 bin/ze-test exabgp --start 20 # resume ExaBGP compatibility
+<p>Run a single test by one-based ID or exact name, list the available IDs, or
+resume from the last printed ID after an interrupted run. Queue the runner
+through <code>./le job run label &lt;label&gt; command &lt;argv...&gt;</code> to use the same admission
+as a full suite.</p>
+<pre><code class="language-sh">./le job run label plugin-42 command bin/ze-test bgp plugin 42          # test id 42
+./le job run label encode-list command bin/ze-test bgp encode --list    # list N/TOTAL, id, and name
+./le job run label plugin-from-42 command bin/ze-test bgp plugin --start 42  # id 42 and every later test
+./le job run label editor-7 command bin/ze-test editor 7                # editor test id 7
+./le job run label editor-nav command bin/ze-test editor -p nav         # editor tests matching "nav"
+./le job run label exabgp-from-20 command bin/ze-test exabgp --start 20 # resume ExaBGP compatibility
 </code></pre>
 <!-- source: internal/test/runner/selection.go -- Selection -->
 <!-- source: internal/test/runner/display.go -- TestFinished -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- ExaBGP compatibility selection -->
-
 <p>Run a full suite:</p>
-<pre><code class="language-sh">make ze-functional-encode-test     # all encode tests
-make ze-functional-plugin-test     # all plugin tests
-make ze-functional-test # all release-gate suites
-make ze-functional-exabgp-test     # ExaBGP compatibility through ze-test
+<pre><code class="language-sh">./le functional encode
+./le functional plugin
+./le functional
+./le functional exabgp-test
 </code></pre>
 <h3 id="mutation-tests-gomu">Mutation tests (gomu)</h3>
 <p>Coverage tells you which lines ran. Mutation testing tells you whether the tests
@@ -355,46 +298,112 @@ would notice if those lines did something different.
 <a href="https://github.com/sivchari/gomu" target="_blank" rel="noopener">gomu</a> rewrites the AST (arithmetic, conditional,
 logical, bitwise, branch, return value, and error handling operators), runs the test
 suite against each mutation, and reports which mutations survived.</p>
-<p>gomu uses overlay-based execution, so it never modifies source files on disk. It is
-vendored in <code>tools.go</code> and runs via <code>go run</code>; no separate install is needed.</p>
-<pre><code class="language-sh">make ze-mutation-test-changed                              # changed files only (fast)
-make ze-mutation-pkg-test PKG=./internal/core/textbuf/     # one package
-make ze-mutation-test                                 # all non-excluded packages (slow)
-make ze-mutation-report                               # full run with HTML report
-</code></pre>
-<p>Mutation testing is advisory. It never gates <code>ze-precommit-verify</code> or CI. A surviving mutant
+<p>gomu uses overlay-based execution, so it never modifies source files on disk.
+It is a Go tool recorded in <code>tools.go</code>. The native <code>./le mutation combine</code>
+command combines completed reports, and <code>./le mutation record-history</code> appends
+their per-package scores to the committed history.</p>
+<p>Mutation testing is advisory. It never gates <code>./le verify current mode full</code> or CI. A surviving mutant
 is a signal that a test could be stronger, not a blocking failure.</p>
+<p>One consumer reads a gomu report for a narrower question. <code>./le rfc discriminate &lt;selector&gt; report &lt;path&gt;</code> scopes the report to ONE RFC-tagged test: it keeps the
+KILLED mutants that lie in code that test's own coverage profile executes, and
+offers them as candidate breaks. <code>./le rfc discriminate-record</code> then applies one,
+runs that test alone, and records the red it observed. gomu's status stays
+unchanged, because nothing in <code>./le rfc check</code> starts a mutation run: the gate
+reads a stored record. See <code>docs/contributing/rfc-conformance-gates.md</code>, "The
+discrimination record".</p>
 <p>Files with custom build tags and <code>cmd/ze/</code> are excluded via <code>.gomuignore</code> because
 gomu has no <code>--tags</code> support. Reports land in <code>tmp/</code> (gitignored). Mutation score
 history is tracked in <code>test/mutation/history.ndjson</code>.</p>
-<p>Tuning: <code>GOMU_WORKERS</code> (default: half CPU cores), <code>GOMU_TIMEOUT</code> (default: 120s),
-<code>GOMU_THRESHOLD</code> (default: 0%).</p>
+<p>gomu is vendored and runs through <code>go run</code>, so it needs no install.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>go run github.com/sivchari/gomu/cmd/gomu run --output json --incremental=false --fail-on-gate=false</code></td>
+<td>Full advisory mutation run</td>
+</tr>
+<tr>
+<td><code>go run github.com/sivchari/gomu/cmd/gomu run --output json --incremental --base-branch=main --fail-on-gate=false</code></td>
+<td>Changed-file advisory mutation run</td>
+</tr>
+<tr>
+<td><code>./le mutation combine</code></td>
+<td>Combine the per-package JSON reports</td>
+</tr>
+</tbody>
+</table>
+<p>Tuning is by flag on <code>gomu run</code>, not by environment variable. gomu reads only
+<code>GITHUB_TOKEN</code> and <code>GITHUB_REPOSITORY</code>, both for its GitHub integration.</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--workers</code></td>
+<td>4</td>
+<td>Parallel workers</td>
+</tr>
+<tr>
+<td><code>--timeout</code></td>
+<td>30</td>
+<td>Test timeout in seconds</td>
+</tr>
+<tr>
+<td><code>--incremental</code></td>
+<td>true</td>
+<td>Analyse changed files only</td>
+</tr>
+<tr>
+<td><code>--base-branch</code></td>
+<td><code>main</code></td>
+<td>Base branch for the incremental analysis</td>
+</tr>
+<tr>
+<td><code>--fail-on-gate</code></td>
+<td>true</td>
+<td>Fail the build when the quality gate is not met</td>
+</tr>
+<tr>
+<td><code>--output</code></td>
+<td><code>console</code></td>
+<td><code>console</code>, <code>json</code>, <code>html</code>, or <code>text</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: vendor/github.com/sivchari/gomu/cmd/gomu/main.go -- runCmd flag defaults -->
 <h3 id="interop-and-integration-tests">Interop and integration tests</h3>
 <p>These require external infrastructure (Docker, root/CAP_NET_ADMIN, QEMU, or internet).
 They are not part of the normal development cycle.</p>
-<pre><code class="language-sh">make ze-interop-test              # FRR/BIRD in Docker
-make ze-integration-test          # netns tests (needs root)
-make ze-qemu-integration-test     # same tests in QEMU (macOS-friendly)
-make ze-live-rpki-test            # real RPKI data (needs internet)
+<pre><code class="language-sh">./le integration interop
+./le integration iface
+./le qemu all-tests
+./le integration live-rpki
 </code></pre>
-<p>See <code>make help-test</code> for the full list.</p>
 <h2 id="when-a-test-must-be-weakened">When a test must be weakened</h2>
 <p>A red test means the CODE is wrong by default. Fix the code. When the coverage is
 genuinely gone, because the feature it proved was removed or another test now
 proves it, the removal is recorded rather than silent.</p>
-<p>The record is <code>test/weakened.md</code>. It holds one row per weakened test, <code>| Test |
-Reason |</code>, and it is REPLACED per commit. Delete the rows of the last commit,
+<p>The record is <code>test/weakened.md</code>. It holds one row per weakened test, <code>| Test | Reason |</code>, and it is REPLACED per commit. Delete the rows of the last commit,
 write the rows of this one, and commit the file with the change. Git history
 holds every past row beside the change it accepted, so
 <code>git log -p -- test/weakened.md</code> is how you read them.</p>
 <p>The route, in order:</p>
 <ol>
-<li>Write the row FIRST. <code>c_test_weakening</code> (<code>.claude/hooks/pretool-writeedit.py</code>)
-   reads the file from disk, so a row written after the edit buys nothing until
-   you retry. The refusal message prints the exact row to write.</li>
+<li>Write the row first. The native write-edit hook reads the file from disk, so
+a row added after the edit takes effect only after the edit is retried.</li>
 <li>Make the edit.</li>
-<li>Name <code>test/weakened.md</code> in the commit. <code>scripts/dev/commit_helper.py</code> refuses
-   a commit that weakens a test and leaves the row in the working tree.</li>
+<li>Name <code>test/weakened.md</code> in the commit. <code>internal/le/commit.Answer</code> refuses
+a commit that weakens a test and leaves the row in the working tree.</li>
 </ol>
 <p>The test name is the enclosing top-level <code>func TestXxx</code> for Go, and the file stem
 for a <code>.ci</code> or a <code>.et</code>. Write <code>package.TestName</code> when the bare name matches two
@@ -403,27 +412,26 @@ weakened tests in one commit.</p>
 three cases into one table lowers a count exactly as deleting a check does. The
 COMMIT still needs a row for it, and that row is where you say which of the two
 happened.</p>
-<p><code>make ze-test-weakened-check</code> runs the checker over the file and is a stage of
-<code>ze-precommit-verify</code> in both modes. The rule is <code>ai/rules/testing.md</code>, and the design is
+<p><code>./le test-weakened check</code> runs the checker over the file and is a stage of
+<code>./le verify current mode full</code> in both modes. The rule is <code>ai/rules/testing.md</code>, and the design is
 <code>docs/architecture/testing/test-health.md</code>.</p>
-<h2 id="how-ze-precommit-verify-works">How <code>ze-precommit-verify</code> works</h2>
-<p><code>ze-precommit-verify</code> is the pre-commit gate. It uses a two-pass strategy to stay fast:</p>
+<h2 id="how-le-verify-current-mode-full-works">How <code>./le verify current mode full</code> works</h2>
+<p><code>./le verify current mode full</code> is the pre-commit gate. It uses a two-pass strategy to stay fast:</p>
 <ol>
 <li><strong>Lint</strong> (27 linters via golangci-lint)</li>
-<li><strong>Vet evidence</strong> (cross-compile evidence scripts for Linux)</li>
+<li><strong>Vet evidence</strong> (cross-compile the Go evidence packages for Linux)</li>
 <li><strong>Cached full pass</strong> (<code>go test</code> without <code>-race</code>): Go caches by source hash,
-   so when nothing changed this is instant. Catches logic regressions everywhere.</li>
+so when nothing changed this is instant. Catches logic regressions everywhere.</li>
 <li><strong>Changed-group pass</strong>: uses the test-only <code>CGO_ENABLED=1 go test -race</code>
-   path on Linux and Darwin. Its test binaries are never release/build evidence.</li>
-<li><strong>Functional tests</strong> (the gating functional suites; see <code>mk/test-functional.mk</code>)</li>
+path on Linux and Darwin. Its test binaries are never release/build evidence.</li>
+<li><strong>Functional tests</strong> from <code>internal/le/functional/catalog.go</code></li>
 <li><strong>ExaBGP compatibility</strong></li>
 </ol>
 <p>Common case (one group changed): ~2 min total instead of 6+.</p>
 <h3 id="the-builds-the-linter-reads">The builds the linter reads</h3>
-<!-- source: scripts/dev/lint_flavors.py -- FLAVORS, scopes -->
-
+<!-- source: internal/le/verify/lint/actions.go -- Answer -->
 <p>golangci-lint analyzes ONE build for each run: one GOOS, one GOARCH, one tag
-set. <code>make ze-lint</code> therefore runs more than one.</p>
+set. <code>./le verify lint run</code> therefore runs more than one.</p>
 <table>
 <thead>
 <tr>
@@ -445,7 +453,7 @@ set. <code>make ze-lint</code> therefore runs more than one.</p>
 </tr>
 <tr>
 <td>3..N</td>
-<td>one for each row of <code>FLAVORS</code>. <span class="ev-src"><span class="ev-ref"><code>scripts/dev/lint_flavors.py</code></span></span></td>
+<td>one for each row of <code>FLAVORS</code>. <span class="ev-src"><span class="ev-ref"><code>internal/le/verify/lint.Answer</code></span></span></td>
 <td><code>ze_installer</code>, <code>ze_distro</code>, <code>ze_appliance</code>, <code>ze_setup</code>, <code>tinygo</code>, and the capability tags (<code>debug</code>, <code>race</code>, <code>live</code>, ...). Also the GOOS and GOARCH targets no other pass compiles: <code>darwin</code>, <code>freebsd</code>, <code>openbsd</code>, <code>dragonfly</code>, <code>wasip1</code>, <code>linux/arm64</code> and <code>linux/riscv64</code>. Also the <code>compile-out</code> build, which drops every feature gate and keeps <code>ze_core</code> alone</td>
 </tr>
 </tbody>
@@ -455,12 +463,9 @@ not load. That package set is DERIVED from the tree with <code>go list</code> on
 A hand-written list drifts the moment somebody adds a <code>//go:build debug</code>
 file in a new package, and the drift is silent.</p>
 <p>The driver then asserts coverage. Every tracked Go file must be loaded by some
-pass. The exceptions are <code>vendor/</code>, <code>gokrazy/modcache/</code>, and the <code>//go:build
-ignore</code> files that belong to no build. <code>make ze-lint</code> fails when one file is not
-loaded. Ask for the answer alone with:</p>
-<pre><code class="language-sh">python3 scripts/dev/lint_flavors.py --coverage   # about 40 seconds
-python3 scripts/dev/lint_flavors.py --list       # the flavor table
-</code></pre>
+pass. The exceptions are <code>vendor/</code>, <code>gokrazy/modcache/</code>, and the <code>//go:build ignore</code> files that belong to no build. <code>./le verify lint run</code> executes the
+native plan and returns its flavor rows as structured output; <code>./le verify lint run</code>
+retains the established target interface.</p>
 <p>Two files are still outside it, and the driver names both on every run.
 <code>examples/plugin/go/main.go</code>, which is a separate Go module. And <code>tools.go</code>,
 whose imports are programs rather than packages.</p>
@@ -475,9 +480,8 @@ negated term at once. A feature-only helper must therefore carry its consumer's
 build constraint. Without it, the bare-core build reports the helper as
 <code>unused</code>, which is what it is in a binary that compiles its only caller out.</p>
 <h3 id="feature-tag-structural-type-check">Feature-tag structural type check</h3>
-<!-- source: scripts/checks/staticcheck_feature_matrix.go -- buildFeatureMatrix, runStaticcheckFeatureMatrix -->
-
-<p><code>make ze-staticcheck-feature-matrix-check</code> type-checks the working tree in N+2
+<!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
+<p><code>./le staticcheck-feature-matrix check</code> type-checks the working tree in N+2
 configurations derived from the N unique features in <code>feature-gates.txt</code>: one
 distro all-on row, one bare-core row, and one row that omits each feature.
 Staticcheck includes selected <code>_test.go</code> files. This stage type-checks those
@@ -490,42 +494,38 @@ reached. Typing the target yourself judges every row, because only a verify run
 publishes the feature-tag answer it scopes by. What widens the scope back to
 every row is <code>../architecture/testing/verify-freshness-scope.md</code>. Rerun the stage
 directly:</p>
-<pre><code class="language-sh">make ze-staticcheck-feature-matrix-check
+<pre><code class="language-sh">./le staticcheck-feature-matrix check
 </code></pre>
 <p>The matrix checks package and test variants in the working tree.
-<code>ze-repository-tracked-build-check</code> remains the committed-tree final-link check for shipped
+<code>./le repository tracked-build check</code> remains the committed-tree final-link check for shipped
 build flavors.</p>
 <h3 id="the-one-stage-that-does-not-read-your-working-tree">The one stage that does not read your working tree</h3>
 <p>Every stage above compiles and runs the files on your disk, uncommitted ones
-included. <code>ze-repository-tracked-build-check</code> (<code>scripts/checks/tracked_build.go</code>) is the
+included. <code>./le repository tracked-build check</code> (<code>internal/le/repository/trackedbuild.Answer</code>) is the
 exception: it extracts the commit with <code>git archive</code> and compiles the extracted
 tree, so it sees only what git holds.</p>
 <p>That is the population that breaks when a commit takes a consumer and leaves its
 producer uncommitted. The build is green on your disk and red for everybody who
 clones. Run it after the commit script when the commit carried Go:</p>
-<pre><code class="language-sh">make ze-repository-tracked-build-check              # HEAD
-make ze-repository-tracked-build-check REV=7abe8a07e  # any commit
+<pre><code class="language-sh">./le repository tracked-build check
+REV=7abe8a07e ./le repository tracked-build check
 </code></pre>
-<p>It builds six flavors over <code>./...</code>: <code>ze_core ze_distro</code>, <code>ze_test</code> and
-<code>ze_core ze_appliance</code> each carry the feature tags that commit declared in
-<code>feature-gates.txt</code>; <code>ze_setup</code>, <code>ze_core ze_setup</code> and <code>ze_installer</code> carry
-none, matching the Makefile targets that build them. The installer flavor pins
-<code>GOOS=linux</code>, and every flavor must select the tag-gated FILES its own tags own
-(<code>ze_core_dispatch.go</code> for the core flavors, <code>setup_dispatch.go</code> for <code>ze_setup</code>,
-and so on). Naming the package is not enough: <code>cmd/ze/main.go</code> carries no build
-constraint, so the package resolves under any tag set at all, and <code>go build
-./...</code> skips every file its constraints exclude while still exiting 0.
+<p>The action builds every flavor in <code>internal/le/repository/trackedbuild/matrix.go</code> over
+<code>./...</code>. Each row pins its tags, operating system where required, and a
+tag-gated anchor file that proves the flavor selected code. Naming the package
+alone is insufficient because <code>go build ./...</code> can skip every constrained file
+and still exit zero.
 About 45 seconds warm. It does not compile <code>_test.go</code> files, because <code>go build</code>
 never does.</p>
 <p>Output is captured to <code>tmp/ze-verify.log</code>. On failure:</p>
-<pre><code class="language-sh">grep -E &quot;^--- FAIL|^FAIL|TEST FAILURE&quot; tmp/ze-verify.log
+<pre><code class="language-sh">grep -E "^--- FAIL|^FAIL|TEST FAILURE" tmp/ze-verify.log
 </code></pre>
 <h2 id="interpreting-output">Interpreting output</h2>
 <h3 id="unit-test-failures">Unit test failures</h3>
 <p>Standard Go test output. Look for <code>--- FAIL: TestName</code> lines:</p>
 <pre><code>--- FAIL: TestParseOrigin (0.00s)
     origin_test.go:42: expected 0, got 1
-FAIL    github.com/ze-software/ze/internal/core/bgp/attribute   0.003s
+FAIL	github.com/ze-software/ze/internal/core/bgp/attribute	0.003s
 </code></pre>
 <h3 id="functional-test-failures">Functional test failures</h3>
 <p><code>ze-test</code> prints a summary at the end of each suite. Look for the test name
@@ -538,6 +538,102 @@ and the expectation that failed:</p>
 <p>Go places the failing input in <code>testdata/fuzz/&lt;TestName&gt;/</code> under the package.
 The file contains the input that triggered the crash. Fix the code, then the
 fuzz corpus entry becomes a regression test automatically.</p>
+<h2 id="a-test-that-exists-is-not-a-test-that-gates">A test that exists is not a test that gates</h2>
+<p>A <code>.ci</code> or <code>.et</code> can pass whether or not the feature works when the observed
+effect reaches the assertion by a path OTHER than the one under test. That is a
+FALSE PASS. Three <code>redistribute-late-join*.ci</code> tests kept passing with the
+late-join replay (<code>handleReplayBatch</code>) disabled: the route reached the peer by
+some other path, so they guarded nothing and shipped green.</p>
+<p>Mutation testing through the Go <code>gomu</code> binary runs unit tests only; it never
+executes <code>.ci</code> or <code>.et</code>. Proving that a functional test gates is therefore the
+discipline this page has always prescribed: disable the producing function,
+confirm the test flips to red, and revert.</p>
+<p>For an RFC-tagged carrier that walk now has a runner and a record.
+<code>./le rfc discriminate-record ... route revert producer &lt;path&gt;::&lt;Func&gt;</code> disables
+the named function, runs ONE <code>.ci</code> or ONE interop scenario, requires the red, and
+puts the producer back byte for byte. What it writes is a
+<code>rfc/discrimination/&lt;stem&gt;.json</code> record that <code>./le rfc check</code> re-verifies on every
+run, so the red is remembered rather than done once and forgotten. An untagged
+<code>.ci</code> still owes the walk by hand.</p>
+<p>When a behavior genuinely cannot be made to fail under mutation because it is
+not observable end to end (the reactor suppresses a duplicate announce, so
+per-peer targeting is wire-indistinguishable), guard it with a unit test that
+inspects the producing value directly and say so in the test comment. Do not keep
+a <code>.ci</code> that passes with the feature disabled.</p>
+<h2 id="boundary-values-for-common-ranges">Boundary values for common ranges</h2>
+<p>Every numeric range is tested at three points: the last valid value, the first
+invalid value below, and the first invalid value above.</p>
+<table>
+<thead>
+<tr>
+<th>Range</th>
+<th>Last valid</th>
+<th>Invalid below</th>
+<th>Invalid above</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Port 1-65535</td>
+<td>65535</td>
+<td>0</td>
+<td>65536</td>
+</tr>
+<tr>
+<td>Hold time 0, 3+</td>
+<td>0, 3</td>
+<td>1, 2</td>
+<td>none</td>
+</tr>
+<tr>
+<td>Prefix IPv4 0-32</td>
+<td>32</td>
+<td>none</td>
+<td>33</td>
+</tr>
+<tr>
+<td>Message length 19-4096</td>
+<td>4096</td>
+<td>18</td>
+<td>4097</td>
+</tr>
+</tbody>
+</table>
+<h2 id="flake-shapes-seen-in-this-repository">Flake shapes seen in this repository</h2>
+<p>Check each of these against the test before investigating a new race or
+isolation flake: locked-write with unlocked-read, subscribe-before-broadcast,
+gate-handler queue state, barrier FIFO order, cleanup-drains-work, a fixed port
+behind an <code>SO_REUSEPORT</code> gate, and colliding test-fake pool IDs.</p>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Root cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Port reuse race in reactor tests</td>
+<td><code>Stop()</code> not waiting for cleanup</td>
+<td>Ensure cleanup goroutines complete before returning</td>
+</tr>
+<tr>
+<td>Completion test fails intermittently</td>
+<td>A real bug, not a flake</td>
+<td>Check <code>completeShowPath</code> includes YANG schema children</td>
+</tr>
+<tr>
+<td>Inter-message timing in plugin tests</td>
+<td>Sleep too tight under load</td>
+<td>Increase the inter-message delay, or synchronize</td>
+</tr>
+</tbody>
+</table>
+<p>A darwin <code>FAIL</code> caused by a <code>_other.go</code> stub returning <code>ErrUnsupported</code> is a
+test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
+<p>Reproducing a load-dependent flake is
+<code>../architecture/testing/runner-architecture.md</code>.</p>
 <h2 id="cheat-sheet">Cheat sheet</h2>
 <table>
 <thead>
@@ -548,87 +644,60 @@ fuzz corpus entry becomes a regression test automatically.</p>
 </thead>
 <tbody>
 <tr>
-<td>Check my setup works</td>
-<td><code>make ze-smoke-verify</code></td>
+<td>Check my setup</td>
+<td><code>./le verify current mode full</code></td>
 </tr>
 <tr>
 <td>Run one Go test</td>
-<td><code>make ze-unit-pkg-test PKG=./pkg/... RUN=TestName</code></td>
+<td><code>./le job run label one-test command go test ./pkg/... -run TestName</code></td>
 </tr>
 <tr>
 <td>Run one functional test</td>
-<td><code>scripts/dev/ze-run.sh plugin-42 bin/ze-test bgp plugin 42</code></td>
+<td><code>./le job run label plugin-42 command bin/ze-test bgp plugin 42</code></td>
 </tr>
 <tr>
-<td>Run tests for what I changed</td>
-<td><code>make ze-unit-bgp-test</code> (pick your group)</td>
+<td>Run a component group</td>
+<td><code>./le test-unit bgp</code></td>
 </tr>
 <tr>
-<td>Pre-commit check</td>
-<td><code>make ze-precommit-verify</code></td>
+<td>Run the pre-commit check</td>
+<td><code>./le verify current mode full</code></td>
 </tr>
 <tr>
-<td>Type-check every supported direct feature omission</td>
-<td><code>make ze-staticcheck-feature-matrix-check</code></td>
+<td>Type-check every supported feature combination</td>
+<td><code>./le staticcheck-feature-matrix check</code></td>
 </tr>
 <tr>
-<td>See all test targets</td>
-<td><code>make help-test</code></td>
+<td>List native test actions</td>
+<td><code>./le help</code></td>
 </tr>
 <tr>
 <td>List functional tests</td>
-<td><code>scripts/dev/ze-run.sh encode-list bin/ze-test bgp encode --list</code></td>
+<td><code>./le job run label encode-list command bin/ze-test bgp encode --list</code></td>
 </tr>
 <tr>
-<td>Run fuzz for one target</td>
-<td><code>make ze-fuzz-test-one FUZZ=FuzzName PKG=./path/... TIME=30s</code></td>
+<td>Run one fuzz target</td>
+<td><code>FUZZ=FuzzName PKG=./path/... TIME=30s ./le fuzz run</code></td>
 </tr>
 <tr>
-<td>Check test coverage</td>
-<td><code>make ze-unit-test-coverage</code> then open <code>coverage.html</code></td>
+<td>Run all fuzz targets</td>
+<td><code>./le fuzz run</code></td>
 </tr>
 <tr>
-<td>Mutation test changed files</td>
-<td><code>make ze-mutation-test-changed</code></td>
+<td>Check the commit compiles</td>
+<td><code>./le repository tracked-build check</code></td>
 </tr>
 <tr>
-<td>Mutation test one package</td>
-<td><code>make ze-mutation-pkg-test PKG=./internal/core/textbuf/</code></td>
-</tr>
-<tr>
-<td>Debug a verify failure</td>
-<td><code>grep FAIL tmp/ze-verify.log</code></td>
-</tr>
-<tr>
-<td>Check the commit I just made compiles</td>
-<td><code>make ze-repository-tracked-build-check</code></td>
-</tr>
-<tr>
-<td>Prove a web or looking-glass template renders the same bytes</td>
-<td><code>make ze-web-golden-check</code></td>
-</tr>
-<tr>
-<td>Prove a web or looking-glass ROUTE answers the same bytes</td>
-<td><code>make ze-web-golden-check</code> (the handler capture runs in the same target)</td>
-</tr>
-<tr>
-<td>Prove an HTML builder that no template holds renders the same bytes</td>
-<td><code>make ze-web-golden-check</code> (the markup capture runs in the same target)</td>
-</tr>
-<tr>
-<td>Recapture those bytes after a deliberate markup change</td>
-<td><code>make ze-web-golden-update</code>, then read the diff</td>
-</tr>
-<tr>
-<td>Prove a rendering-engine port changed no page</td>
-<td><code>make ze-templ-port-check REF=&lt;sha&gt;</code>. It compares every fixture against the bytes it held at REF, under <code>golden.AssertPortFidelity</code>. Whitespace layout, doctype case, the attribute delimiter and the character-reference spelling fold. Nothing else does. Run it BEFORE you recapture. After a recapture, <code>ze-web-golden-check</code> compares the port against itself</td>
+<td>Check web behavior</td>
+<td><code>./le functional web</code></td>
 </tr>
 <tr>
 <td>Check that every <code>*_templ.go</code> matches its <code>.templ</code> source</td>
-<td><code>make ze-templ-output-check</code>, and <code>make generate</code> to bring it back in step. Both walk <code>internal/</code> only. Run neither templ command by hand, and switch off an editor's on-save templ integration. A bare <code>templ generate</code> walks from the repo root. It writes that root into every generated file, and it reds the gate</td>
+<td><code>./le doc check templ-output</code>, and <code>./le repository generate</code> to bring it back in step. Both walk <code>internal/</code> only. Run neither templ command by hand, and switch off an editor's on-save templ integration. A bare <code>templ generate</code> walks from the repo root. It writes that root into every generated file, and it reds the gate</td>
 </tr>
 </tbody>
 </table>
+
             </section>
         </main>
 
@@ -638,7 +707,7 @@ fuzz corpus entry becomes a regression test automatically.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 13:35 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

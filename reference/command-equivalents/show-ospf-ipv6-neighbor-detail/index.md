@@ -1,25 +1,33 @@
 # `show ospf ipv6 neighbor detail`
 
+Show full per-neighbor OSPFv3 state (spec-ospf-ext-14): the advertised Interface ID, DD sequence, decoded Options (R/V6/E/N/AF), list sizes, last NSM event, and timers.
+
 ## Ze command
 
-- Syntax: `show ospf ipv6 neighbor detail`
 - Registry path: `show ospf ipv6 neighbor detail`
+- Usage: `show ospf ipv6 neighbor detail`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-neighbor-detail`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show full per-neighbor OSPFv3 state (spec-ospf-ext-14): the advertised Interface ID, DD sequence, decoded Options (R/V6/E/N/AF), list sizes, last NSM event, and timers.
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

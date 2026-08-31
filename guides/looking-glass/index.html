@@ -61,7 +61,6 @@
 <li><a href="#security">Security</a></li>
 </ol></nav>
 <!-- source: internal/component/lg/server.go -- LGServer -->
-
 <h2 id="configuration">Configuration</h2>
 <p>Add the <code>looking-glass</code> block under <code>environment</code> in your Ze config:</p>
 <pre><code>environment {
@@ -75,7 +74,6 @@
 }
 </code></pre>
 <!-- source: internal/component/lg/yang/ze-lg-conf.yang -- YANG schema -->
-
 <table>
 <thead>
 <tr>
@@ -118,11 +116,11 @@
 it serves HTTPS unless you turn TLS off. Two rules apply:</p>
 <ul>
 <li>Write <code>tls false</code> (or set <code>ze.looking-glass.tls=false</code>) to serve plaintext,
-  for example behind a proxy that terminates TLS.</li>
+for example behind a proxy that terminates TLS.</li>
 <li>Without blob storage there is no certificate. If you wrote <code>tls true</code>, Ze
-  reports the error and does not start the looking glass. If you wrote nothing
-  and took the default, Ze serves plaintext and prints a warning that names
-  <code>ze init</code> as the remedy.</li>
+reports the error and does not start the looking glass. If you wrote nothing
+and took the default, Ze serves plaintext and prints a warning that names
+<code>ze init</code> as the remedy.</li>
 </ul>
 <h3 id="optional-bearer-token">Optional bearer token</h3>
 <p>A looking glass is normally public and read-only, so <code>token</code> is off by default.
@@ -131,7 +129,6 @@ constant-time over SHA-256 digests. A request with no token, a wrong token, or
 an <code>Authorization</code> header that is not <code>Bearer &lt;token&gt;</code> gets <code>401</code>.</p>
 <p>When the <code>looking-glass</code> block is absent, no HTTP server is started and no resources are consumed.</p>
 <!-- source: cmd/ze/hub/service_lg.go -- buildLGService -->
-
 <h2 id="web-ui">Web UI</h2>
 <p>The HTMX web UI is available at <code>https://&lt;host&gt;:&lt;port&gt;/lg/</code> (<code>http://</code> when you
 set <code>tls false</code>). No authentication is required unless you set <code>token</code>.</p>
@@ -179,7 +176,6 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 <p>Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v4.0.0-beta6) is embedded, and the peers page also loads hx-sse.min.js, htmx 4's SSE extension.</p>
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
 <!-- source: internal/component/lg/handler_graph.go -- Graph handler -->
-
 <h2 id="birdwatcher-rest-api">Birdwatcher REST API</h2>
 <p>The looking glass exposes a birdwatcher-compatible JSON API for integration with tools like Alice-LG.</p>
 <table>
@@ -228,14 +224,13 @@ counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
 <!-- source: internal/component/bgp/plugins/cmd/peer/summary.go -- fetchRibRouteCounts, mergeRibRouteCounts -->
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- status per-peer route-counts -->
 <!-- source: internal/component/lg/handler_api.go -- API handlers and birdwatcher transform -->
-
 <h2 id="alice-lg-integration">Alice-LG Integration</h2>
 <p>To use Ze as a data source for <a href="https://github.com/alice-lg/alice-lg" target="_blank" rel="noopener">Alice-LG</a>, point Alice-LG's birdwatcher source configuration at the looking glass API:</p>
 <pre><code class="language-yaml">sources:
-  - name: &quot;Ze Router&quot;
+  - name: "Ze Router"
     type: birdwatcher
     birdwatcher:
-      api: &quot;https://ze-host:8443/api/looking-glass&quot;
+      api: "https://ze-host:8443/api/looking-glass"
 </code></pre>
 <h2 id="security">Security</h2>
 <p>The looking glass is designed for public IXP deployment. It is read-only, and open unless you set <code>token</code>. Security measures include:</p>
@@ -249,8 +244,8 @@ counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
 </ul>
 <!-- source: internal/component/lg/markup_check_test.go -- TestTemplatesAvoidInlineScriptAndStyle, lgMarkupExempt -->
 <!-- source: internal/component/lg/layout.go -- renderGraphSVG label escaping -->
-
 <p>When TLS is enabled, the server uses TLS 1.2 minimum with the same certificate infrastructure as the web UI.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -292,7 +287,7 @@ counts are only present when the <code>bgp-rib</code> plugin is loaded.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

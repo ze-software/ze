@@ -88,14 +88,12 @@
 <!-- source: internal/component/api/rest/server.go -- REST config and auth-fail audit recording -->
 <!-- source: internal/component/api/grpc/server.go -- gRPC config and auth-fail audit recording -->
 <!-- source: internal/component/mcp/audit.go -- MCP auth-fail audit recording -->
-
 <h2 id="storage">Storage</h2>
 <p>For a daemon started from a real config file, the audit log is stored next to that file as <code>&lt;config-base&gt;.audit.jsonl</code>. For stdin configs (<code>ze -</code>) and web-only test mode, Ze uses an in-memory audit log.</p>
 <p>The in-memory query cache keeps the newest records up to the configured retention limit in code. The default is 10,000 entries, with accepted bounds from 100 to 100,000.</p>
 <!-- source: cmd/ze/hub/audit.go -- defaultAuditPath and openAuditLog -->
 <!-- source: internal/core/audit/audit.go -- retention bounds -->
 <!-- source: internal/core/audit/store.go -- JSON-lines persistence -->
-
 <h2 id="querying">Querying</h2>
 <p>Use <code>show audit</code> from the daemon CLI or <code>ze show audit</code> from the shell:</p>
 <pre><code>ze show audit
@@ -106,12 +104,12 @@ ze show audit since 2026-05-24T10:00:00Z until 2026-05-24T11:00:00Z
 </code></pre>
 <p>The response is structured data with <code>entries</code> and <code>count</code>. Filters can be combined. Time filters use RFC 3339 timestamps.</p>
 <!-- source: internal/component/cmd/show/audit.go -- show audit filters -->
-
 <h2 id="authorization-notes">Authorization Notes</h2>
 <p>Web config mutations now use the same profile authorizer as SSH, API, and MCP command dispatch. A read-only user can still open <code>/show/</code> pages, but <code>POST /config/set/</code>, add, delete, rename, commit, and discard are denied before the draft is changed.</p>
 <p>REST and gRPC without a configured token or per-user authenticator use the built-in <code>api</code> identity in read-only mode. Read commands work. Command writes and config sessions return 403.</p>
 <!-- source: internal/component/web/handler_config.go -- authorizeWebConfigMutation -->
 <!-- source: internal/component/api/engine.go -- read-only caller enforcement -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -153,7 +151,7 @@ ze show audit since 2026-05-24T10:00:00Z until 2026-05-24T11:00:00Z
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

@@ -4,9 +4,9 @@ This page starts from a blank Ubuntu server and leaves you with an installed `ze
 
 The commands assume Ubuntu 24.04 or newer, `sudo`, and an `amd64` or `arm64` host. Replace `edge-01` and every password before running them on a real box.
 
-<!-- source: scripts/le/devtools/tools.py -- Ubuntu package names, in Tool.apt -->
-<!-- source: scripts/le/application/setup.py -- action, the setup helper -->
-<!-- source: Makefile -- build target and default feature tags -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
+<!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
 <!-- source: internal/plugins/init/main.go -- ze init input format and database.zefs creation -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
@@ -22,9 +22,6 @@ sudo apt-get install -y \
   curl \
   git \
   build-essential \
-  make \
-  python3 \
-  pipx \
   jq \
   protobuf-compiler
 ```
@@ -66,34 +63,28 @@ Ze also ships a setup checker. It uses the same tool list as the developer and a
 ```bash
 git clone https://github.com/ze-software/ze.git
 cd ze
-./le setup --check || true
+./le setup check
 ```
 
-In check mode (`--check`) this lists anything missing as `[missing] <tool>` and exits non-zero. It probes only and changes nothing. Run plain `./le setup` without `--check` and it installs the missing packages itself, echoing each command first. Every command it runs as root goes through `sudo -n`, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once, with `sudo -v`, and only when a terminal is attached; with no terminal it prints the command and exits non-zero instead.
+The `check` action lists anything missing as `[missing] <tool>` and exits non-zero. It changes nothing. `./le setup install` installs missing packages and prints each command first. Commands that need root use `sudo -n`, so nothing waits on a prompt it cannot answer. When sudo wants a password it asks once through `sudo -v`, and only when a terminal is attached; without a terminal it prints the command and exits non-zero.
 
 ## 2. Build Ze
 
-`make build` compiles the normal Ze binary and helper binaries.
+Build the daemon directly with Go:
 
 ```bash
 cd ~/ze
-make build
+CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_mrt ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' -o bin/ze ./cmd/ze
 ```
 
-Expected files:
+The default feature-tag list is derived from `feature-gates.txt`.
+`./le feature-tags check` verifies every checked-in consumer of that list, and
+`./le repository tracked-build matrix` shows the shipped build flavors.
+
+For a deliberately smaller custom binary, name its feature tags explicitly:
 
 ```bash
-ls -1 bin/ze bin/ze-setup bin/ze-test bin/ze-chaos bin/ze-perf
-```
-
-`make build` also produces `bin/ze-appliance`, `bin/ze-stripped`, and `bin/ze-analyze`.
-
-The default build includes the feature gates listed in `feature-gates.txt` through `ZE_FEATURES` in the Makefile. Services such as SSH, web, REST, gRPC, gNMI, telemetry, looking glass, OSPF, IS-IS, LDP, and RSVP-TE are compiled in by the normal `make build` path.
-
-If you deliberately want a smaller custom binary, override the feature set. `ZE_TAGS` only *appends* to the full default feature set, so overriding `ZE_FEATURES` (or using the `ze-stripped-build` target, or `go build -tags ze_core`) is what actually shrinks the binary. This is for packagers and lab work, not the normal install path.
-
-```bash
-make ze-build ZE_FEATURES="ze_ssh ze_lg ze_web"
+go build -tags 'ze_core ze_ssh ze_lg ze_web' -o bin/ze ./cmd/ze
 ```
 
 ## 3. Install the binary
@@ -158,10 +149,10 @@ set system authorization profile read-only run default-action allow
 set system authorization profile read-only edit default-action deny
 EOF
 
-/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
 sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
-sudo /usr/local/bin/ze config ls
+sudo /usr/local/bin/ze config list
 ```
 
 Expected validation output:
@@ -211,7 +202,7 @@ There are two kinds of feature work.
 
 | Feature type | What you change | Example |
 | --- | --- | --- |
-| Compiled service | Build tags or the default `make build` path | `ze_lg` compiles the looking glass server |
+| Compiled service | Explicit Go build tags | `ze_lg` compiles the looking glass server |
 | Runtime feature | Config lines and plugin declarations | `environment looking-glass`, `plugin internal bgp-rr`, `firewall backend nft` |
 
 For normal installs, keep the default binary and add runtime features to the active zefs config. The feature pages use this pattern: read the current zefs entry, normalize it to set format, append set-format lines, render a checked import file, validate, import, and reload.
@@ -230,7 +221,7 @@ cat >>"$CONFIG_SET" <<'EOF'
 set plugin internal bgp-rr use bgp-rr
 EOF
 
-/usr/local/bin/ze config migrate --format hierarchical -o "$CONFIG_IMPORT" "$CONFIG_SET"
+/usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
 sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service

@@ -1,25 +1,35 @@
 # `show bgp encode`
 
+Turn a route announcement into wire-format hex.
+
 ## Ze command
 
-- Syntax: `show bgp encode`
 - Registry path: `show bgp encode`
+- Usage: `show bgp encode`
 - Mode: Read-only
 - Wire method: `ze-show:bgp-encode`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-Turn a route announcement into wire-format hex. Takes a route in API syntax and returns the BGP UPDATE as a hex string. Useful for building test payloads, feeding to ze-test, or verifying that your announcement encodes correctly.
+Takes a route in API syntax and returns the BGP UPDATE as a hex string. Use it to build a test payload, to feed ze-test, or to verify that an announcement encodes correctly.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

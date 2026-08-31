@@ -6,15 +6,15 @@ A `.ci` file is an executable transcript. The runner reads key-value directives,
 
 ## Where it belongs
 
-| Behavior | Files | Narrow run | Make target |
+| Behavior | Files | Narrow run | Native suite |
 | --- | --- | --- | --- |
-| BGP encode and route output | `test/encode/*.ci` | `bin/ze-test bgp encode NAME -v` | `make ze-functional-encode-test` |
-| BGP plugin behavior | `test/plugin/*.ci` | `bin/ze-test bgp plugin NAME -v` | `make ze-functional-plugin-test` |
-| Config parsing | `test/parse/*.ci` | `bin/ze-test bgp parse NAME -v` | `make ze-functional-parse-test` |
-| Decode command output | `test/decode/*.ci` | `bin/ze-test bgp decode NAME -v` | `make ze-functional-decode-test` |
-| Reload behavior | `test/reload/*.ci` | `bin/ze-test bgp reload NAME -v` | `make ze-functional-reload-test` |
-| CLI output | `test/ui/*.ci` | `bin/ze-test ui NAME -v` | `make ze-functional-ui-test` |
-| L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows | `test/<suite>/*.ci` | `bin/ze-test <suite> NAME -v` | Suite-specific target in `mk/test-functional.mk` |
+| BGP encode and route output | `test/encode/*.ci` | `bin/ze-test bgp encode NAME -v` | `./le functional encode-test` |
+| BGP plugin behavior | `test/plugin/*.ci` | `bin/ze-test bgp plugin NAME -v` | `./le functional plugin-test` |
+| Config parsing | `test/parse/*.ci` | `bin/ze-test bgp parse NAME -v` | `./le functional parse-test` |
+| Decode command output | `test/decode/*.ci` | `bin/ze-test bgp decode NAME -v` | `./le functional decode-test` |
+| Reload behavior | `test/reload/*.ci` | `bin/ze-test bgp reload NAME -v` | `./le functional reload-test` |
+| CLI output | `test/ui/*.ci` | `bin/ze-test ui NAME -v` | `./le functional ui-test` |
+| L2TP, firewall, policy, LDP, RSVP-TE, IS-IS, OSPF, OSPFv3, static, traffic, VPP, and install flows | `test/<suite>/*.ci` | `bin/ze-test <suite> NAME -v` | `./le functional <suite>-test` |
 
 Run `bin/ze-test bgp plugin --list` or the equivalent suite command before picking an id. The list output gives the exact test name, id, status, and rerun shape.
 
@@ -62,7 +62,7 @@ A `.ci` file that needs netlink, nftables, eBPF, PPP, L2TP, namespaces, kernel r
 option=needs-linux
 ```
 
-On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use `make ze-qemu-needs-linux-test` to run only those functional files in one VM boot, or use `make ze-qemu-debug RUN='...'` when the failing command needs interactive Linux context.
+On macOS that test reports SKIP. Inside QEMU the option is inert and the same file runs for real. Use `./le qemu netns-test` for the curated Linux kernel suites. For one command or an interactive investigation, use `./le qemu run command '...' keep-alive`.
 
 ## Failure reading
 
@@ -74,4 +74,4 @@ ZE_TEST_KEEP_TMP=1 bin/ze-test bgp plugin 42 -v
 ze.log.bgp.reactor.peer=debug bin/ze-test bgp plugin 42 -v
 ```
 
-If the failure only reproduces under Linux, rerun the same test through the QEMU debug target rather than adding sleeps or Darwin-only skips.
+If the failure only reproduces under Linux, rerun it through `./le qemu run` rather than adding sleeps or Darwin-only skips.

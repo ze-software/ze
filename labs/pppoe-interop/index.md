@@ -12,19 +12,19 @@ A peer-isolated Docker lab proves Ze's PPPoE client discovers, negotiates PPP, a
 
 - **Proves:** RFC 2516 PPPoE discovery + PPP negotiation against a real access concentrator, not a stub
 - **Peer:** Real accel-ppp access concentrator
-- **Requires:** Docker, or the QEMU path with a staged kernel
+- **Requires:** Docker, or Linux root with accel-ppp and PPPoE kernel support
 - **Source:** [docs/labs/pppoe-interop.md](https://github.com/ze-software/ze/blob/main/docs/labs/pppoe-interop.md)
 
 ```
 # Docker lab
-$ make ze-deployment-docker-pppoe-accel-test
+$ ./le deployment docker-pppoe-accel-test
 
-# QEMU path (needs tmp/kernel/vmlinuz)
-$ make ze-qemu-pppoe-accel-test
+# native Linux network-namespace path
+$ ./le qemu pppoe-accel-test
 ```
 
 `Prerequisites`
 
-Docker for the primary path. The QEMU runner is the one to use where Docker Desktop's VM lacks the needed kernel modules.
+Docker for the peer-isolated lab. The native Linux action uses paired network namespaces and needs `ip`, `ping`, `accel-pppd`, and PPPoE kernel support.
 
 - [test/interop-pppoe/ lab source](https://github.com/ze-software/ze/tree/main/test/interop-pppoe)

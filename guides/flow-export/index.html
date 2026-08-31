@@ -48,7 +48,6 @@
 <!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- YANG config -->
 <!-- source: internal/plugins/flowexport/cmd_show.go -- ze-show:flow-export RPC -->
 <!-- source: internal/plugins/flowexport/metrics.go -- ze_flowexport_* Prometheus metrics -->
-
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="flow-export">Flow Export</h1>
@@ -309,15 +308,15 @@ section is configured the command returns <code>{"status": "not-configured"}</co
 format <code>environment cli format default</code> names, whose registered value is <code>text</code>.</p>
 <pre><code class="language-json">[
   {
-    &quot;name&quot;: &quot;edge-sflow&quot;,
-    &quot;address&quot;: &quot;192.0.2.10&quot;,
-    &quot;port&quot;: 6343,
-    &quot;protocol&quot;: &quot;sflow&quot;,
-    &quot;datagrams-sent&quot;: 1842,
-    &quot;bytes-sent&quot;: 1325760,
-    &quot;errors&quot;: 0,
-    &quot;sequence&quot;: 1842,
-    &quot;last-export-time&quot;: 1748430000
+    "name": "edge-sflow",
+    "address": "192.0.2.10",
+    "port": 6343,
+    "protocol": "sflow",
+    "datagrams-sent": 1842,
+    "bytes-sent": 1325760,
+    "errors": 0,
+    "sequence": 1842,
+    "last-export-time": 1748430000
   }
 ]
 </code></pre>
@@ -423,27 +422,27 @@ set of pipe operators selects another one.</p>
 <h2 id="limitations">Limitations</h2>
 <ul>
 <li><strong>BGP enrichment</strong> attaches next-hop, origin AS, and the AS path from the RIB
-  best-change event to flow records. Full-table replay events omit the AS data
-  (the stored best-path record does not keep the AS-path handle); those entries
-  are corrected by the next incremental best-path change.</li>
+best-change event to flow records. Full-table replay events omit the AS data
+(the stored best-path record does not keep the AS-path handle); those entries
+are corrected by the next incremental best-path change.</li>
 <li><strong>Extended sFlow <code>if_counters</code>.</strong> ifType, ifIndex, status, octet/packet/
-  error/discard counters, promiscuous mode, ifSpeed, ifDirection (duplex), and
-  inbound multicast packets are populated. ifSpeed and ifDirection come from
-  sysfs (<code>/sys/class/net/&lt;if&gt;/speed</code> and <code>/duplex</code>) and read zero / unknown for
-  virtual or down links, where the kernel does not report them. Outbound
-  multicast and both inbound and outbound broadcast packet counts are left zero:
-  <code>rtnl_link_stats64</code> exposes only an inbound multicast counter, with no
-  transmit-multicast and no broadcast counters at all.</li>
+error/discard counters, promiscuous mode, ifSpeed, ifDirection (duplex), and
+inbound multicast packets are populated. ifSpeed and ifDirection come from
+sysfs (<code>/sys/class/net/&lt;if&gt;/speed</code> and <code>/duplex</code>) and read zero / unknown for
+virtual or down links, where the kernel does not report them. Outbound
+multicast and both inbound and outbound broadcast packet counts are left zero:
+<code>rtnl_link_stats64</code> exposes only an inbound multicast counter, with no
+transmit-multicast and no broadcast counters at all.</li>
 <li><strong>Conntrack export combines periodic dumps with destroy events.</strong> Records
-  are emitted on each table dump (<code>active-timeout</code>), and a
-  <code>NFNLGRP_CONNTRACK_DESTROY</code> netlink listener exports each torn-down flow's
-  residual counters immediately, so flows that begin and end between two dumps
-  are not lost. The destroy listener needs <code>CAP_NET_ADMIN</code> and the
-  <code>nf_conntrack_netlink</code> module; without them the worker logs that it is
-  running in dump-only mode and continues with the periodic path alone.</li>
+are emitted on each table dump (<code>active-timeout</code>), and a
+<code>NFNLGRP_CONNTRACK_DESTROY</code> netlink listener exports each torn-down flow's
+residual counters immediately, so flows that begin and end between two dumps
+are not lost. The destroy listener needs <code>CAP_NET_ADMIN</code> and the
+<code>nf_conntrack_netlink</code> module; without them the worker logs that it is
+running in dump-only mode and continues with the periodic path alone.</li>
 <li><strong>Sampling requires Linux with <code>CAP_NET_ADMIN</code> and the kernel <code>psample</code>
-  module.</strong> On platforms without these, the sampling worker degrades and no
-  flow samples are produced.</li>
+module.</strong> On platforms without these, the sampling worker degrades and no
+flow samples are produced.</li>
 </ul>
 <h2 id="scale-conntrack-vs-sampling">Scale: conntrack vs sampling</h2>
 <p>Conntrack per-flow export gives <strong>exact</strong> per-flow accounting and suits edge /
@@ -467,6 +466,7 @@ exact accounting where flow rates are modest.</p>
 <p>The export protocols (sFlow, NetFlow v9, IPFIX) are unencrypted UDP and carry
 no authentication. Run flow export over a dedicated management VLAN, and keep
 the collector endpoints off any untrusted path.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -508,7 +508,7 @@ the collector endpoints off any untrusted path.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

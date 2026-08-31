@@ -1,25 +1,33 @@
 # `show ospf database router`
 
+Show only Router-LSAs (Type 1).
+
 ## Ze command
 
-- Syntax: `show ospf database router`
 - Registry path: `show ospf database router`
+- Usage: `show ospf database router`
 - Mode: Read-only
 - Wire method: `ze-show:ospf-database-router`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show only Router-LSAs (Type 1).
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

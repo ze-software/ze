@@ -1,25 +1,35 @@
 # `show l2tp observer`
 
+Show recent events for a session (debug aid).
+
 ## Ze command
 
-- Syntax: `show l2tp observer`
 - Registry path: `show l2tp observer`
+- Usage: `show l2tp observer`
 - Mode: Read-only
 - Wire method: `ze-l2tp-api:observer`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show recent events for a session (debug aid). Returns the event ring buffer for one session ID or 'all'. Useful for understanding why a session failed to establish.
+Returns the event ring buffer for one session ID or 'all'. Use it to find why a session failed to establish.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

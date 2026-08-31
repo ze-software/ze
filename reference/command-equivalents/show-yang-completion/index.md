@@ -1,25 +1,35 @@
 # `show yang completion`
 
+Show YANG paths available for tab completion.
+
 ## Ze command
 
-- Syntax: `show yang completion`
 - Registry path: `show yang completion`
+- Usage: `show yang completion`
 - Mode: Read-only
 - Wire method: `ze-show:yang-completion`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: tab
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
-- Pipes, on rows: none
+- Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show YANG paths available for tab completion. Lists every valid completion point in the command tree.
+Lists every valid completion point in the command tree.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

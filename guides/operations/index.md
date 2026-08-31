@@ -159,7 +159,6 @@ ze env get ze.log              # details for one var
 | `--chaos-seed <N>` | Chaos testing seed (0=off, -1=time-based) |
 | `--chaos-rate <0-1>` | Chaos fault probability |
 | `-V`, `--version` | Show version |
-| `--plugins` | List registered plugins (with optional `--json`) |
 <!-- source: cmd/ze/main.go -- global flag parsing -->
 
 ## systemd
@@ -218,12 +217,15 @@ ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65536
+LimitCORE=infinity
+LimitMEMLOCK=infinity
 WorkingDirectory=/etc/ze
 Environment=ZE_CONFIG_DIR=/etc/ze
 Environment=XDG_RUNTIME_DIR=/run/ze
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
 NoNewPrivileges=true
+ProtectSystem=true
 ProtectHome=true
 RuntimeDirectory=ze
 
@@ -299,7 +301,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 
 1. **Check plugin is loaded:**
    ```bash
-   ze --plugins                  # list compiled-in plugins
+   ze show plugins               # list compiled-in plugins
    ```
 
 2. **Check plugin is bound to peer:** Config must have `attach process <name> { receive [...] }` on the peer

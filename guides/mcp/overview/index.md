@@ -382,7 +382,7 @@ so it is never out of date.
 | Command | Content |
 |---------|---------|
 | `ze help ai` | Summary with counts and quick start |
-| `ze help ai --json` | Machine-readable JSON with commands, RPCs, plugins, families, services |
+| `ze help ai --json` | Machine-readable JSON with commands, RPCs, plugins, families, services. An RPC carries its one-line summary under `description` and its long explanation under `long-help`, and omits `long-help` when the module declares no `ze:help` |
 | `ze help ai cli` | CLI subcommands (ze bgp, ze config, ...) |
 | `ze help ai api` | Daemon API commands with parameters (YANG RPCs) |
 | `ze help ai mcp` | MCP tools with parameters and examples |
@@ -397,9 +397,9 @@ Offline commands for agent-driven config validation and repair:
 
 | Command | Purpose |
 |---------|---------|
-| `ze config validate --json <file>` | Structured diagnostics with stable codes |
+| `ze cli -c "validate config <file> \| json"` | Structured diagnostics with stable codes |
 | `ze explain [--json] <code>` | Explain a diagnostic code |
-| `ze config fix --plan --json <file>` | Plan-only repair candidates |
+| `ze config fix --plan <file>` | Plan-only repair candidates |
 | `ze skills list [--json]` | List bundled agent skills |
 | `ze skills get <name> [--full]` | Load version-matched skill content |
 

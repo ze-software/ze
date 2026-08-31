@@ -1,25 +1,34 @@
 # `doctor`
 
+Check that this system is ready to run Ze.
+
 ## Ze command
 
-- Syntax: `doctor`
 - Registry path: `doctor`
 - Mode: Offline
 - Wire method: `not listed`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-Verify kernel features, file descriptor limits, sockets, and required dependencies. Run this before first start or after platform changes.
+The checks cover kernel features, file descriptor limits, listening sockets and the dependencies Ze needs. Run it before the first start, and again after a change to the platform.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

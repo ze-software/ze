@@ -61,19 +61,20 @@
 <p>Ze keeps the programmable event model and builds those surrounding responsibilities into one system. Its native BGP engine, YANG configuration, plugin registry, CLI, web interface, APIs, MCP server, Looking Glass, telemetry, and optional dataplane integrations share the same runtime state and command dispatcher.</p>
 <h2 id="the-first-development-period">The first development period</h2>
 <p>The first tracked development week began in December 2025 with the BGP wire engine, capability negotiation, path attributes, address families, RIB work, session state, and ExaBGP interop. The project then expanded through configuration and plugin architecture, route server and reflector paths, policy, operator surfaces, interfaces, FIB backends, routing protocols, access services, security, diagnostics, packaging, and interoperability.</p>
-<p>The <a href="https://ze-software.net/project/changes/">weekly changes</a> retain the detailed chronological record. <a href="https://ze-software.net/project/milestones/">Milestones</a> selects the larger product changes, while the <a href="https://ze-software.net/project/roadmap/">roadmap</a> describes what remains before a stable release.</p>
+<p>The <a href="https://ze-software.net/changes/">weekly changes</a> retain the detailed chronological record. <a href="https://ze-software.net/milestones/">Milestones</a> selects the larger product changes, while the <a href="https://ze-software.net/roadmap/">roadmap</a> describes what remains before a stable release.</p>
 <h2 id="what-remained-familiar">What remained familiar</h2>
 <p>The ExaBGP migration path preserves two useful ideas:</p>
 <ul>
 <li>Existing ExaBGP configuration can be converted into Ze's configuration model.</li>
 <li>Existing process scripts can continue through the compatibility bridge before being ported to the native plugin SDK.</li>
 </ul>
-<p>This allows a routing-engine migration and an application rewrite to happen separately. The <a href="https://ze-software.net/use-cases/exabgp-migration/">ExaBGP migration example</a> documents that path.</p>
+<p>This allows a routing-engine migration and an application rewrite to happen separately. The <a href="https://ze-software.net/usage/exabgp-migration/">ExaBGP migration example</a> documents that path.</p>
 <h2 id="why-the-architecture-changed">Why the architecture changed</h2>
 <p>Ze needs to support both a small programmable speaker and a more complete Linux network system. Plugins provide that boundary. BGP, policy, RIB storage, interfaces, FIB backends, routing protocols, services, and operator features register what they own. A deployment loads only the components selected by configuration and build tags.</p>
 <p>The shared registration model also keeps operator surfaces aligned. A command registered by a component can be discovered and dispatched through the CLI, web interface, REST, gRPC, and MCP without each surface building a separate implementation.</p>
 <h2 id="current-state">Current state</h2>
-<p>Ze remains pre-release. Capability and maturity claims are generated from current source and evidence where possible. Use the <a href="https://ze-software.net/features/">feature inventory</a>, <a href="../../reference/rfcs/">RFC status</a>, <a href="https://ze-software.net/quality/">quality evidence</a>, and <a href="https://ze-software.net/project/roadmap/">roadmap</a> for current decisions rather than treating this history as a readiness statement.</p>
+<p>Ze remains pre-release. Capability and maturity claims are generated from current source and evidence where possible. Use the <a href="https://ze-software.net/features/">feature inventory</a>, <a href="../../reference/rfcs/">RFC status</a>, <a href="https://ze-software.net/quality/">quality evidence</a>, and <a href="https://ze-software.net/roadmap/">roadmap</a> for current decisions rather than treating this history as a readiness statement.</p>
+
             </section>
         </main>
 
@@ -83,7 +84,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
                 </div>
             </div>
         </footer>

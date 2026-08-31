@@ -105,7 +105,7 @@ data is read directly from the kernel AF_MPLS routing table.</p>
 <ul>
 <li><strong>LDP</strong> (RFC 5036) for IGP-shortest-path label distribution.</li>
 <li><strong>RSVP-TE</strong> (RFC 3209) for traffic-engineered explicit-path LSPs with bandwidth
-  reservation -- see <a href="../rsvp-te/">RSVP-TE</a>.</li>
+reservation -- see <a href="../rsvp-te/">RSVP-TE</a>.</li>
 </ul>
 <h3 id="ldp-configuration">LDP configuration</h3>
 <pre><code>ldp {
@@ -119,9 +119,9 @@ data is read directly from the kernel AF_MPLS routing table.</p>
 <li><code>lsr-id</code> -- this router's LSR identifier (IPv4 address format).</li>
 <li><code>transport-address</code> -- address advertised for the LDP TCP session.</li>
 <li><code>interfaces</code> -- a list entry per interface on which LDP Hello discovery runs
-  (repeat the leaf for each interface).</li>
+(repeat the leaf for each interface).</li>
 <li><code>hello-interval</code> / <code>hello-hold-time</code> / <code>keepalive-time</code> -- optional soft-state
-  timers (defaults 5s / 15s / 60s).</li>
+timers (defaults 5s / 15s / 60s).</li>
 </ul>
 <p>Inspect LDP state with <code>show ldp neighbor</code> (session state, transport address)
 and <code>show ldp binding</code> (FEC-to-label bindings). A label binding learned from a
@@ -131,6 +131,7 @@ neighbor.</p>
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildMPLSEncap (push) -->
 <!-- source: internal/component/iface/config_sysctl.go -- net.mpls.conf.<iface>.input -->
 <!-- source: internal/component/mpls/show_forwarding.go -- show mpls forwarding -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -172,7 +173,7 @@ neighbor.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 13:35 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
                 </div>
             </div>
         </footer>

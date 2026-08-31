@@ -44,9 +44,8 @@
 
         <main id="top" tabindex="-1">
             <section class="md-content reveal cat-platform">
-<!-- source: scripts/le/devtools/tools.py -- REQUIRED_TOOLS, OPTIONAL_TOOLS, ALL_TOOLS -->
-<!-- source: scripts/le/devtools/install.py -- detect_package_manager -->
-
+<!-- source: internal/le/setup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="developer-setup">Developer Setup</h1>
@@ -56,15 +55,14 @@
 <li><a href="#quick-start">Quick Start</a></li>
 <li><a href="#check-mode">Check Mode</a>
 <ol>
-<li><a href="#editor-plugins">Editor plugins</a></li>
+<li><a href="#editor-plugin">Editor plugin</a></li>
 </ol></li>
 <li><a href="#what-it-installs">What It Installs</a>
 <ol>
 <li><a href="#build-and-lint">Build and Lint</a></li>
-<li><a href="#appliance-and-evidence">Appliance and Evidence</a></li>
+<li><a href="#appliance">Appliance</a></li>
 <li><a href="#optional">Optional</a></li>
 </ol></li>
-<li><a href="#lint-the-python-tree">Lint the Python Tree</a></li>
 <li><a href="#platform-notes">Platform Notes</a>
 <ol>
 <li><a href="#macos">macOS</a></li>
@@ -79,29 +77,47 @@
 </code></pre>
 <p>This detects your OS (macOS with Homebrew or Debian/Ubuntu with apt), installs
 missing tools, vendors Go dependencies, and reports what it did.</p>
-<p><code>le</code> is the Python build entry point at the root of the checkout. It has two
-subprograms, <code>setup</code> and <code>lint</code>, and each one also runs on its own:</p>
-<pre><code class="language-bash">PYTHONPATH=scripts python3 -m le.application.setup --check
+<p><code>le</code> is the native development-tool personality built from <code>cmd/ze</code>. The root
+launcher executes the cached <code>bin/le</code> binary and builds it only when absent.
+Setup behavior lives in <code>internal/le/setup.Answer</code>.</p>
+<p>The cache is an existence test, never a freshness test, so a change under
+<code>internal/le/</code> does not reach <code>./le</code> on its own.</p>
+<!-- source: le -- the binary existence cache -->
+<p>Do not delete <code>bin/le</code>. Several sessions share one checkout and one of them can
+be executing that file right now. Ask for a build of your own instead:</p>
+<pre><code class="language-bash">./le --name mywork verify current mode full
 </code></pre>
-<p>That route calls the same action with the same options as <code>./le setup --check</code>,
-so the two cannot diverge.</p>
+<p><code>--name</code> comes first, before the command, and the launcher consumes it. Every
+argument after it reaches the binary unchanged. The build lands in
+<code>bin/le-mywork/le</code>, which <code>bin/</code> already keeps out of git, and it runs on every
+call, so the toolchain decides what to recompile and the binary carries your
+edits. The shared <code>bin/le</code> is never written and never waits for a peer.</p>
+<!-- source: le -- the --name option -->
+<p>A name accepts letters, digits, dot, underscore and hyphen. A name carrying <code>/</code>
+or <code>..</code> is refused with a message and exit 2, never repaired into something safe.</p>
+<p>The launcher exports the name to the process it runs and to that process's
+children, so a script that calls <code>./le</code> inside a named session reaches the same
+build without repeating the option. A binary that is not the one you named
+refuses to answer and reports both names:</p>
+<pre><code>le: --name asked for 'mywork' and this process is 'le' (/home/you/ze/bin/le).
+    Reach the named build through ./le --name mywork, never through a hardcoded binary path.
+</code></pre>
+<!-- source: cmd/ze/le_build_name.go -- refuseWrongBuildName -->
 <h2 id="check-mode">Check Mode</h2>
 <p>Probe the current host without installing anything:</p>
-<pre><code class="language-bash">./le setup --check
+<pre><code class="language-bash">./le setup check
 </code></pre>
-<p><code>--check</code> probes only and changes nothing: it installs no package, edits no
+<p>The <code>check</code> action probes only and changes nothing: it installs no package, edits no
 sysctl, and adds no loopback address. It exits 0 if all required tools are
-present, nonzero if any are missing. Use it as a CI preflight check. Drop
-<code>--check</code> and the same run installs what it found missing.</p>
-<p>Two of the rows are behaviour, not binaries: <code>gopls-answers</code> and
-<code>pyright-answers</code> run each language server and check that it replies. A server
-on PATH that does not answer fails this check, because every LSP call against
-it fails the same silent way.</p>
-<h3 id="editor-plugins">Editor plugins</h3>
+present, nonzero if any are missing. Use it as a CI preflight check. Run
+<code>./le setup install</code> to install what the probe found missing.</p>
+<p>One row is behaviour rather than a binary: <code>gopls-answers</code> runs the language
+server and checks that it replies. A server on PATH that does not answer fails
+this check, because every LSP call against it fails the same way.</p>
+<h3 id="editor-plugin">Editor plugin</h3>
 <p>A language server on PATH is not the whole capability. Claude Code reaches it
-through a plugin, and without that plugin the LSP tool refuses every file of
-that language. A session then reads whole scripts to find one symbol.</p>
-<p><code>./le setup --check</code> reports a missing plugin as a pending step and names the
+through a plugin, and without that plugin the LSP tool refuses every Go file.</p>
+<p><code>./le setup check</code> reports a missing plugin as a pending step and names the
 command that installs it:</p>
 <table>
 <thead>
@@ -116,11 +132,6 @@ command that installs it:</p>
 <td><code>gopls-lsp</code></td>
 <td><code>.go</code></td>
 <td><code>/plugin install gopls-lsp@claude-plugins-official</code></td>
-</tr>
-<tr>
-<td><code>pyright-lsp</code></td>
-<td><code>.py</code>, <code>.pyi</code></td>
-<td><code>/plugin install pyright-lsp@claude-plugins-official</code></td>
 </tr>
 </tbody>
 </table>
@@ -159,7 +170,7 @@ of the two is absent.</p>
 </tr>
 <tr>
 <td><code>staticcheck</code></td>
-<td>Feature-tag structural type checker, pinned to 2026.1 (via <code>go install</code>)</td>
+<td>Feature-tag structural type checker, pinned to 2026.2.1 (via <code>go install</code>)</td>
 </tr>
 <tr>
 <td><code>goimports</code></td>
@@ -169,30 +180,21 @@ of the two is absent.</p>
 <td><code>gopls</code></td>
 <td>Go language server behind the agent LSP tool (via <code>go install</code>)</td>
 </tr>
-<tr>
-<td><code>python3</code></td>
-<td>Runs evidence and dev scripts</td>
-</tr>
-<tr>
-<td><code>pipx</code></td>
-<td>Python tool installer</td>
-</tr>
-<tr>
-<td><code>ruff</code></td>
-<td>Python linter (via <code>pipx</code>)</td>
-</tr>
-<tr>
-<td><code>pyright</code></td>
-<td>Python language server behind the agent LSP tool (via <code>pipx</code>)</td>
-</tr>
 </tbody>
 </table>
+<p>Regenerate the checked-in protobuf Go files after you change
+<code>api/proto/ze.proto</code> or the module path:</p>
+<pre><code class="language-bash">./le setup proto-generate
+</code></pre>
+<p>The action builds both protoc plugins from the vendored module versions, runs
+<code>protoc</code>, and applies explicit <code>json_name</code> options to Go struct tags.</p>
+<!-- source: internal/le/setup/proto_generate.go -- protoGenerator.run -->
 <p>Run the installed checker through the repository gate:</p>
-<pre><code class="language-bash">make ze-staticcheck-feature-matrix-check
+<pre><code class="language-bash">./le staticcheck-feature-matrix check
 </code></pre>
 <p>The target and its checked feature population are documented in
 <code>docs/contributing/testing.md</code>.</p>
-<h3 id="appliance-and-evidence">Appliance and Evidence</h3>
+<h3 id="appliance">Appliance</h3>
 <table>
 <thead>
 <tr>
@@ -201,10 +203,6 @@ of the two is absent.</p>
 </tr>
 </thead>
 <tbody>
-<tr>
-<td><code>uv</code></td>
-<td>Python package runner for SSH probe (<code>uv run --with paramiko</code>, via <code>pipx</code>)</td>
-</tr>
 <tr>
 <td><code>qemu</code></td>
 <td>QEMU functional and install gate tests</td>
@@ -234,7 +232,7 @@ of the two is absent.</p>
 <tbody>
 <tr>
 <td><code>sshpass</code></td>
-<td>SSH probe fallback (uv+paramiko is primary)</td>
+<td>Optional SSH probe fallback</td>
 </tr>
 <tr>
 <td><code>docker</code> / <code>colima</code></td>
@@ -242,40 +240,27 @@ of the two is absent.</p>
 </tr>
 </tbody>
 </table>
-<h2 id="lint-the-python-tree">Lint the Python Tree</h2>
-<pre><code class="language-bash">./le lint
-</code></pre>
-<p>This runs ruff over the whole tree and mypy <code>--strict</code> over <code>scripts/le</code>. The
-older Python under <code>scripts/</code> is held to a finding ceiling recorded in
-<code>pyproject.toml</code>. A new finding there fails the run, and the ceiling falls as
-the findings are fixed. <code>--fix</code> applies the fixes ruff can make and formats the
-strict scope. <code>--strict-only</code> checks <code>scripts/le</code> alone. <code>--lint-only</code> and
-<code>--types-only</code> each run one half.</p>
-<p>No Makefile target does this. <code>./le lint</code> is the only entry point.</p>
-<!-- source: scripts/le/application/lint.py -- legacy_ceiling, _ruff_strict, _ruff_legacy, _mypy -->
-
 <h2 id="platform-notes">Platform Notes</h2>
 <h3 id="macos">macOS</h3>
 <ul>
 <li><strong>The Homebrew prefix is resolved, never assumed.</strong> It is <code>/opt/homebrew</code> on
-  Apple Silicon and <code>/usr/local</code> on Intel, so a hardcoded path is absent on half
-  the Macs. Every consumer asks in the same order: <code>HOMEBREW_PREFIX</code> when
-  <code>brew shellenv</code> has exported it, then the <code>brew</code> binary's own location
-  (<code>&lt;prefix&gt;/bin/brew</code>), then the two documented defaults. The <code>brew</code> link is
-  not followed: on Intel it points into <code>&lt;prefix&gt;/Homebrew</code>, which would answer
-  with the wrong prefix.</li>
+Apple Silicon and <code>/usr/local</code> on Intel, so a hardcoded path is absent on half
+the Macs. Every consumer asks in the same order: <code>HOMEBREW_PREFIX</code> when
+<code>brew shellenv</code> has exported it, then the <code>brew</code> binary's own location
+(<code>&lt;prefix&gt;/bin/brew</code>), then the two documented defaults. The <code>brew</code> link is
+not followed: on Intel it points into <code>&lt;prefix&gt;/Homebrew</code>, which would answer
+with the wrong prefix.</li>
 <li><strong>e2fsprogs</strong> is keg-only on Homebrew, so none of it is linked onto <code>PATH</code> and
-  <code>which</code> finds nothing however well it is installed. It is looked for under
-  <code>&lt;prefix&gt;/opt/e2fsprogs/sbin</code>, the link kept at the current version, and under
-  <code>&lt;prefix&gt;/Cellar/e2fsprogs/&lt;version&gt;/sbin</code>, where an interrupted upgrade
-  leaves it with no link. No PATH modification is needed after
-  <code>brew install e2fsprogs</code>.</li>
+<code>which</code> finds nothing however well it is installed. It is looked for under
+<code>&lt;prefix&gt;/opt/e2fsprogs/sbin</code>, the link kept at the current version, and under
+<code>&lt;prefix&gt;/Cellar/e2fsprogs/&lt;version&gt;/sbin</code>, where an interrupted upgrade
+leaves it with no link. No PATH modification is needed after
+<code>brew install e2fsprogs</code>.</li>
 <li><strong>grub</strong> has no first-party Homebrew formula. ISO builds require Linux or
-  a container (colima/docker). The setup script skips grub on macOS.</li>
+a container (colima/docker). The setup action skips grub on macOS.</li>
 </ul>
 <!-- source: internal/appliance/homebrew.go -- brewPrefixes, brewKegDirs -->
-<!-- source: scripts/evidence/homebrew.py -- brew_prefixes, brew_keg_dirs -->
-
+<!-- source: internal/le/setup/actions.go -- Answer -->
 <h3 id="linux">Linux</h3>
 <p><code>./le setup</code> installs the apt packages itself, the same way it installs the
 Homebrew ones on macOS. Each command is echoed before it runs. It takes
@@ -310,12 +295,8 @@ prompt cannot stop the run.</p>
 </tr>
 </tbody>
 </table>
-<!-- source: scripts/le/process.py -- Privilege, privilege, run_privileged -->
-<!-- source: scripts/le/devtools/install.py -- Installer._apt_install -->
-
-<p><strong>uv</strong> is not in the Debian or Ubuntu repositories, so it installs through
-<code>pipx</code> on both platforms. One route is one thing to fix, and it keeps
-<code>curl | sh</code> off every dev machine.</p>
+<!-- source: internal/le/setup/actions.go -- Answer -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 <p><strong>GRUB follows your host architecture.</strong> Debian packages one module set per
 architecture: an amd64 host takes <code>grub-efi-amd64-bin</code>, an arm64 host takes
 <code>grub-efi-arm64-bin</code>. Asking an arm64 host for the amd64 package installs
@@ -323,45 +304,41 @@ nothing at all, <code>grub-mkstandalone</code> included. <code>ze appliance iso<
 target from the architecture of the image it packs, so building an ISO for the
 OTHER architecture needs that architecture's set too, through
 <code>dpkg --add-architecture</code>.</p>
-<!-- source: scripts/le/devtools/tools.py -- grub_apt_package, GRUB_APT_PACKAGE -->
+<!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/appliance/cmd_iso.go -- isoGRUBTarget -->
-
 <p><strong>Unprivileged user namespaces.</strong> Ubuntu 23.10+ ships
 <code>kernel.apparmor_restrict_unprivileged_userns=1</code>, which blocks the sandbox
 Chrome relies on and makes the <code>agent-browser</code> web functional tests fail to
 launch Chrome (<code>No usable sandbox!</code>). Setup checks this tunable as
 <code>userns-unrestricted</code>. When it is restricted, <code>./le setup</code> (install mode)
 echoes and then runs these commands via <code>sudo</code> to lift it globally:</p>
-<pre><code class="language-bash">echo &quot;kernel.apparmor_restrict_unprivileged_userns = 0&quot; | sudo tee /etc/sysctl.d/60-ze-userns.conf
+<pre><code class="language-bash">echo "kernel.apparmor_restrict_unprivileged_userns = 0" | sudo tee /etc/sysctl.d/60-ze-userns.conf
 sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 </code></pre>
 <p>The <code>/etc/sysctl.d</code> drop-in makes the change survive reboots. It goes through
 the same root route as the package installs, so on a root run the echoed lines
 carry no <code>sudo</code>, and when root is out of reach it prints the commands to run by
-hand instead. <code>./le setup --check</code> only reports the state, never changes it.</p>
+hand instead. <code>./le setup check</code> only reports the state, never changes it.</p>
 <p><strong>KVM device access.</strong> <code>/dev/kvm</code> is <code>root:kvm</code> mode 0660, so QEMU-backed
 evidence (the appliance boot proofs and every <code>ze-qemu-*</code> target) needs your
 user in the <code>kvm</code> group. Without it QEMU does not quietly fall back to
-emulation: it refuses to start with <code>Could not access KVM kernel module:
-Permission denied</code>, and the calling script reports a timeout instead. Setup
+emulation: it refuses to start with <code>Could not access KVM kernel module: Permission denied</code>, and the calling native QEMU action reports a timeout instead. Setup
 checks this as <code>kvm-access</code> and, in install mode, runs:</p>
 <pre><code class="language-bash">sudo usermod -aG kvm $USER
 </code></pre>
-<!-- source: scripts/le/devtools/system.py -- Kvm, kvm_state, apply_kvm, print_kvm_fix -->
-
+<!-- source: internal/le/setup/actions.go -- Answer -->
 <p>Group membership is fixed at login, so an existing shell keeps the old groups
 even after the command succeeds. Log out and back in, or run one command with
 the new group:</p>
-<pre><code class="language-bash">sg kvm -c 'make ze-qemu-vpp-hugepages-test'
+<pre><code class="language-bash">sg kvm -c './le qemu vpp-hugepages-test'
 </code></pre>
 <p>Setup distinguishes the two states: <code>kvm-access</code> reports <code>pending</code> when the
 group database lists you but the running session predates it, and <code>missing</code>
 when the group is not granted at all. A host with no <code>/dev/kvm</code> (no hardware
 virtualisation, or a VM without nested virt) reports <code>n/a</code>: QEMU runs under
 <code>tcg</code> there, only slower. macOS has no <code>/dev/kvm</code> and needs no group; the
-evidence scripts select the Apple hypervisor (<code>hvf</code>) by platform.</p>
-<!-- source: scripts/evidence/effective-vpp-hugepages-qemu.py -- QEMU_ACCEL per-OS selection -->
-
+native QEMU actions select the Apple hypervisor (<code>hvf</code>) by platform.</p>
+<!-- source: internal/le/qemu/actions.go -- Answer -->
 <p><strong>Loopback addresses.</strong> The functional fixtures give each end of a BGP session
 its own address: RFC 4271 Section 5.1.3 forbids a peer its own address as
 NEXT_HOP, so a session whose two ends share one address has every originated
@@ -374,8 +351,7 @@ cannot leak a packet toward a real destination. Setup checks this as
 <pre><code class="language-bash">sudo ifconfig lo0 inet6 fd00::2/128 alias      # macOS
 sudo ip -6 addr add fd00::2/128 dev lo         # Linux
 </code></pre>
-<!-- source: scripts/le/devtools/system.py -- loopback_addresses, missing_loopback, apply_loopback -->
-
+<!-- source: internal/le/setup/actions.go -- Answer -->
 <p>Presence is decided by binding a socket to the address, which is the same
 question a fixture asks and a stronger one than reading the interface list: an
 IPv6 address is listed while duplicate-address detection still refuses it. The
@@ -383,25 +359,25 @@ test runner cannot add either family itself (the ioctl returns EPERM
 unprivileged, and the Linux route needs CAP_NET_ADMIN), so a test that binds a
 missing address fails at once naming the command above.</p>
 <!-- source: internal/test/runner/loopback.go -- the runner's probe and its error -->
-
 <p>Neither addition survives a reboot. Re-run <code>./le setup</code> after one;
-<code>./le setup --check</code> says when it is needed. The merge gate adds the IPv6
+<code>./le setup check</code> says when it is needed. The merge gate adds the IPv6
 address the same way, as its own workflow step (<code>.github/workflows/verify.yml</code>).</p>
 <p>These three, and the apt installs above, are every place setup reaches for root.
 All of them go through one helper, so the table of states earlier in this
 section governs each of them.</p>
 <h2 id="after-setup">After Setup</h2>
 <p>Verify everything works:</p>
-<pre><code class="language-bash">make ze-smoke-verify    # lint + unit tests + build (~2 min)
+<pre><code class="language-bash">./le verify current mode full
 </code></pre>
 <p>Check that appliance tools are detected:</p>
-<pre><code class="language-bash">bin/ze-setup appliance iso --check
+<pre><code class="language-bash">./le setup check
 </code></pre>
 <h2 id="drift-guard">Drift Guard</h2>
-<p>The dev setup script and <code>ze doctor</code> appliance checks share the same tool
+<p>The dev setup action and <code>ze doctor</code> appliance checks share the same tool
 list. A Go test (<code>TestDevSetupMatchesDoctor</code> in
 <code>internal/appliance/dev_setup_drift_test.go</code>) fails if they disagree,
 preventing the lists from drifting apart.</p>
+
             </section>
         </main>
 
@@ -411,7 +387,7 @@ preventing the lists from drifting apart.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 14:09 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:20 UTC</span>
                 </div>
             </div>
         </footer>

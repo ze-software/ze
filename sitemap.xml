@@ -550,6 +550,9 @@
     <loc>https://ze-software.net/project/changes/2026-08-17/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/project/changes/2026-08-24/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/project/history/</loc>
   </url>
   <url>
@@ -595,7 +598,13 @@
     <loc>https://ze-software.net/reference/command-equivalents/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/announce/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/announce-blackhole/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/announce-flowspec/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/announce-unicast/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-bgp-rib-in/</loc>
@@ -760,10 +769,28 @@
     <loc>https://ze-software.net/reference/command-equivalents/monitor-vpn-ipsec/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/peer-announce-blackhole/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/peer-announce-flowspec/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/peer-announce-unicast/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/peer-raw/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/peer-update/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/peer-withdraw-all/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/peer-withdraw-id/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/peer-withdraw-tag/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/plugin-ack/</loc>
@@ -1084,7 +1111,7 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-config-history/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/show-config-ls/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/show-config-list/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-crashes/</loc>
@@ -1093,7 +1120,7 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-data-cat/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/show-data-ls/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/show-data-list/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-data-registered/</loc>
@@ -1489,10 +1516,22 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-ping/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-pki-certificate-name-bundle-pem/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-pki-certificate-name-fingerprint/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-pki-certificate-name-pem/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-pki-certificate-name/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-pki-certificates/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-plugins/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-policy-chain-peer/</loc>
@@ -1777,7 +1816,13 @@
     <loc>https://ze-software.net/reference/command-equivalents/validate-config/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/withdraw/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/withdraw-all/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/withdraw-id/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/withdraw-tag/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/configuration/</loc>
@@ -1798,13 +1843,13 @@
     <loc>https://ze-software.net/reference/plugins/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/plugins/anomaly-detect-feature-source/</loc>
+    <loc>https://ze-software.net/reference/plugins/anomaly-detect/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/anomaly-observe/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/plugins/anomaly-shape-firewall/</loc>
+    <loc>https://ze-software.net/reference/plugins/anomaly-shape/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/as112/</loc>
@@ -1933,16 +1978,13 @@
     <loc>https://ze-software.net/reference/plugins/connected/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/plugins/copp-input-chain/</loc>
+    <loc>https://ze-software.net/reference/plugins/copp/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/cos/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/plugins/ddos-detect-flow-source/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/plugins/ddos-fake/</loc>
+    <loc>https://ze-software.net/reference/plugins/ddos-detect/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/ddos-flowspec/</loc>
@@ -1963,21 +2005,6 @@
     <loc>https://ze-software.net/reference/plugins/exabgp-bridge/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/plugins/fakeas112/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/plugins/fakeenrich/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/plugins/fakefib/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/plugins/fakel2tp/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/plugins/fakeredist/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/reference/plugins/fib-kernel/</loc>
   </url>
   <url>
@@ -1993,7 +2020,7 @@
     <loc>https://ze-software.net/reference/plugins/firewall/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/plugins/flow-export-conntrack-tracking/</loc>
+    <loc>https://ze-software.net/reference/plugins/flow-export/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/flowspec-firewall/</loc>
@@ -2008,13 +2035,13 @@
     <loc>https://ze-software.net/reference/plugins/iface-ra/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/plugins/ike/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/plugins/imageserver/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/interface/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/plugins/ipsec-xfrm/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/isis/</loc>
@@ -2026,7 +2053,7 @@
     <loc>https://ze-software.net/reference/plugins/l2tp-auth-local/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/plugins/l2tp-auth-radius-servers/</loc>
+    <loc>https://ze-software.net/reference/plugins/l2tp-auth-radius/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/l2tp-pool/</loc>
@@ -2035,10 +2062,13 @@
     <loc>https://ze-software.net/reference/plugins/l2tp-shaper/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/plugins/ldp-port/</loc>
+    <loc>https://ze-software.net/reference/plugins/ldp/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/loop/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/plugins/memlock/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/mrt/</loc>
@@ -2062,7 +2092,7 @@
     <loc>https://ze-software.net/reference/plugins/routing-table/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/plugins/rsvp-te-rawsock/</loc>
+    <loc>https://ze-software.net/reference/plugins/rsvp-te/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/static/</loc>

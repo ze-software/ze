@@ -1,21 +1,28 @@
 # `show ospf ipv6 neighbor`
 
+Show OSPFv3 (IPv6) neighbors: the link-local address as identity, adjacency state, DR/BDR by Router ID, and dead time.
+
 ## Ze command
 
-- Syntax: `show ospf ipv6 neighbor`
 - Registry path: `show ospf ipv6 neighbor`
+- Usage: `show ospf ipv6 neighbor`
 - Mode: Read-only
 - Wire method: `ze-show:ospfv3-neighbor`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `detail`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show OSPFv3 (IPv6) neighbors: the link-local address as identity, adjacency state, DR/BDR by Router ID, and dead time.
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

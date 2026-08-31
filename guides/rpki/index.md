@@ -469,9 +469,9 @@ Validation states are predictable (for routes from AS 65001 with default flags):
 
 Feed three local routes through a deterministic RTR cache, then show Valid and NotFound routes installed while the Invalid route is absent.
 
-[Download the asciicast recording](../../assets/demos/rpki.cast?v=3edba2c02c) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
+[Download the asciicast recording](../../assets/demos/rpki.cast?v=2f6b944206) · [Plain-text transcript](../../assets/demos/rpki.txt?v=bf49f52038)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 32 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 33 seconds.
 
 ```console
 $ ze cli -c 'show bgp rpki status | no-more'

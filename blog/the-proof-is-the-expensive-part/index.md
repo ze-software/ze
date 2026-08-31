@@ -110,7 +110,7 @@ RFC-tagged tests are one example. They are part of a public compliance claim. If
 
 The failure it prevents is common with generated code. The model sees a failing test, changes the test to match the bug, gets a green run, and presents that as progress. For normal code this is already bad. For a public RFC claim it is much worse.
 
-The generated ledger is protected too. `ai/RFC-REQUIREMENTS.md` is built by `make ze-rfc-index-update`. It maps requirements back to tests, annotations, evidence type and audit state. If the ledger is stale, `make ze-rfc-check` says so. The fix is to regenerate it from source, not edit the table by hand.
+The generated ledger is protected too. `ai/RFC-REQUIREMENTS.md` is built by `./le rfc index-update`. It maps requirements back to tests, annotations, evidence type and audit state. If the ledger is stale, `./le rfc check` says so. The fix is to regenerate it from source rather than edit the table by hand.
 
 Again, this is for the AI as much as for the human. The model gets concrete failure messages: missing bad-packet test, unknown requirement id, tag in a file that no pipeline runs, gap missing from the public status page, stale audit verdict, stale generated ledger. Those messages are much better prompts than "make the quality better".
 
@@ -120,13 +120,13 @@ Again, this is for the AI as much as for the human. The model gets concrete fail
 
 The final guard is the commit path. A commit should carry evidence that this exact set of files was checked. That matters more when several agents can share one working tree and one git index. A failed commit can leave files staged, and the next commit could accidentally carry them.
 
-Ze does not let an agent type `git add` and `git commit` directly. The approved path goes through `internal/le/commit/actions.go`.
+Ze does not let an agent type `git add` and `git commit` directly. The approved path is `./le commit create`, followed by the exact generated script it reports.
 
 Before the helper prepares a commit script, it asks whether the current tree is byte-for-byte identical to the last successful verify run. The fingerprint includes the current commit, tracked changes and untracked file contents. If the tree changed, or the last verify failed, the helper refuses a normal commit.
 
 When the helper does prepare a commit, it writes a message file and an executable script. The script stages only the explicit files listed for that commit. Then it checks the shared index. If any staged file exists which is not part of this commit, the script aborts. Only then does it run `git commit -F`.
 
-There is one extra check after commits containing Go code. `make ze-repository-tracked-build-check` runs after the commit because it tests the source tree git now holds. A pre-commit test can check the working tree. This check catches the case where the committed set itself does not build.
+There is one extra check after commits containing Go code. `./le repository tracked-build check` runs after the commit because it tests the source tree git now holds. A pre-commit test can check the working tree. This check catches the case where the committed set itself does not build.
 
 That sounds fussy because it is fussy. It is change control for generated code.
 

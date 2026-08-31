@@ -1,21 +1,30 @@
 # `show warnings`
 
+Show active warnings across all subsystems.
+
 ## Ze command
 
-- Syntax: `show warnings`
 - Registry path: `show warnings`
+- Usage: `show warnings`
 - Mode: Read-only
 - Wire method: `ze-show:warnings`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show active warnings across all subsystems. Displays any conditions that need your attention (degraded peers, resource limits approaching, etc.). Use 'source <name>' to filter to a single subsystem.
+Displays any conditions that need your attention (degraded peers, resource limits approaching, etc.). Use 'source <name>' to filter to a single subsystem.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

@@ -1,25 +1,35 @@
 # `show subscriber`
 
+Show a summary of all subscriber sessions.
+
 ## Ze command
 
-- Syntax: `show subscriber`
 - Registry path: `show subscriber`
+- Usage: `show subscriber`
 - Mode: Read-only
 - Wire method: `ze-subscriber-api:summary`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `id`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show a summary of all subscriber sessions. Counts by access type (PPPoE, L2TP, IPoE) with totals. Quick way to see how many subscribers are online.
+Counts by access type (PPPoE, L2TP, IPoE) with totals. It is the quick way to see how many subscribers are online.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

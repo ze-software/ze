@@ -1,25 +1,34 @@
 # `help ai`
 
+Print the agent reference this binary builds from its own registries.
+
 ## Ze command
 
-- Syntax: `help ai`
 - Registry path: `help ai`
 - Mode: Offline
 - Wire method: `not listed`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).
+The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON for a program to read.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

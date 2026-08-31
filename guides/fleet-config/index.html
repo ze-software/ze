@@ -62,7 +62,6 @@
 <li><a href="#cli-overrides">CLI Overrides</a></li>
 </ol></nav>
 <!-- source: cmd/ze/hub/managed_server.go -- fleet hub server; internal/component/managed/ -- managed client and fleet protocol -->
-
 <blockquote>
 <p><strong>Status:</strong> Implemented. Named hub blocks, per-client auth, managed client lifecycle (fetch, reconnect, heartbeat), and <code>ze start</code> managed mode are functional.</p>
 </blockquote>
@@ -84,13 +83,14 @@ ze init --managed                   # Managed client (connects to hub)
 ze init --force                     # Replace existing database
 </code></pre>
 <!-- source: internal/plugins/init/main.go -- managedFlag, forceFlag -->
-
-<p><code>ze init</code> prompts for:
-- SSH username and password
-- Host and port for the SSH server
-- Instance name (e.g., <code>edge-01</code>)</p>
+<p><code>ze init</code> prompts for:</p>
+<ul>
+<li>SSH username and password</li>
+<li>Host and port for the SSH server</li>
+<li>Instance name (e.g., <code>edge-01</code>)</li>
+</ul>
 <h3 id="non-interactive">Non-Interactive</h3>
-<pre><code class="language-bash">echo -e &quot;admin\nsecret\n10.0.0.1\n2222\nedge-01&quot; | ze init --managed
+<pre><code class="language-bash">echo -e "admin\nsecret\n10.0.0.1\n2222\nedge-01" | ze init --managed
 </code></pre>
 <h2 id="hub-configuration">Hub Configuration</h2>
 <p>The hub declares which clients can connect:</p>
@@ -99,14 +99,14 @@ ze init --force                     # Replace existing database
         server local {
             ip 127.0.0.1;
             port 1790;
-            secret &quot;local-plugin-secret&quot;;
+            secret "local-plugin-secret";
         }
         server central {
             ip 0.0.0.0;
             port 1791;
-            secret &quot;remote-plugin-secret&quot;;
-            client edge-01 { secret &quot;client-1-token&quot;; }
-            client edge-02 { secret &quot;client-2-token&quot;; }
+            secret "remote-plugin-secret";
+            client edge-01 { secret "client-1-token"; }
+            client edge-02 { secret "client-2-token"; }
         }
     }
 }
@@ -119,12 +119,12 @@ ze init --force                     # Replace existing database
         server local {
             ip 127.0.0.1;
             port 1790;
-            secret &quot;local-secret&quot;;
+            secret "local-secret";
         }
         client edge-01 {
             host 10.0.0.1;
             port 1791;
-            secret &quot;client-1-token&quot;;
+            secret "client-1-token";
         }
     }
 }
@@ -138,7 +138,6 @@ ze config history edge-01.conf      # View rollback history
 <!-- source: internal/component/config/cli/cmd_edit.go -- config edit command -->
 <!-- source: internal/component/config/cli/cmd_history.go -- config history command -->
 <!-- source: internal/component/config/cli/cmd_archive.go -- config archive command -->
-
 <h2 id="resilience">Resilience</h2>
 <ul>
 <li><strong>Partition tolerance:</strong> Clients cache their last known config locally</li>
@@ -169,6 +168,7 @@ ze config history edge-01.conf      # View rollback history
 </tbody>
 </table>
 <!-- source: internal/component/managed/ -- fleet TLS and client auth -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -210,7 +210,7 @@ ze config history edge-01.conf      # View rollback history
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

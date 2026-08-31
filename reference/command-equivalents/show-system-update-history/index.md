@@ -1,25 +1,35 @@
 # `show system update history`
 
+Show recent firmware update activity.
+
 ## Ze command
 
-- Syntax: `show system update history`
 - Registry path: `show system update history`
+- Usage: `show system update history`
 - Mode: Read-only
 - Wire method: `ze-show:system-update-history`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show recent firmware update activity. Lists the last 20 update events: checks, downloads, installs, and rollbacks with timestamps and outcomes.
+Lists the last 20 update events: checks, downloads, installs, and rollbacks with timestamps and outcomes.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

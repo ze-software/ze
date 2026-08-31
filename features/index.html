@@ -43,15 +43,14 @@
         </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
-
             <section aria-labelledby="features-title">
-                <div class="journey-hero reveal">
-                    <span class="journey-eyebrow">Project</span>
-                    <h1 id="features-title">Every feature Ze ships.</h1>
-                    <p>52 shipped features plus the planned roadmap.</p>
-                </div>
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Project</span>
+    <h1 id="features-title">Every feature Ze ships.</h1>
+    <p>52 shipped features plus the planned roadmap.</p>
+</div>
                 <div class="section-note reveal">
-                    <p>Each card's color is its category: how the feature fits into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards at the bottom are specs, not code. Everything shipped runs in both daemon and appliance modes unless a card says otherwise. Click a category to filter, click again to show everything.</p>
+                    <p>Each card&#39;s color is its category: how the feature fits into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards at the bottom are specs, not code. Everything shipped runs in both daemon and appliance modes unless a card says otherwise. Click a category to filter, click again to show everything.</p>
                 </div>
                 <div class="legend reveal" role="group" aria-label="Filter features by category">
                     <button class="cat-operate" data-cat="operate" aria-pressed="false" aria-label="Filter features by Operate, 6 features">Operate <span class="legend-count" aria-hidden="true">6</span></button>
@@ -122,6 +121,7 @@
                     <li><strong>table</strong>, <strong>json</strong>, <strong>yaml</strong>, <strong>ndjson</strong></li>
                     <li><strong>match</strong>, <strong>count</strong>, <strong>first</strong>/<strong>last</strong></li>
                     <li>Offline via <strong>ze format</strong></li>
+                    <li><strong>Every command</strong>, no rendering flags</li>
                     </ul>
                     </article>
                     <article class="card feature-card cat-operate" data-cat="operate">
@@ -777,7 +777,7 @@
                     <span class="chip">TLS hub</span>
                     </div>
                     <ul>
-                    <li>Per-client <strong>configuration</strong> and authentication</li>
+                    <li>Per-client <strong>configuration</strong> and <strong>pinned</strong> hub certificate</li>
                     <li>Cached config with <strong>reconnect</strong> and heartbeat</li>
                     <li>Version hashing and <strong>two-phase</strong> fetch</li>
                     </ul>
@@ -805,12 +805,12 @@
                     <p>Aspirations with written, reviewed specs. Nothing here is usable today.</p>
                 </div>
                 <div class="section-note reveal">
-                    <p>Every card links to a pending spec in the main repo's <code>plan/</code> directory. Captured intent moves from skeleton, to design, to ready, to in progress. A spec is deleted only when the work ships.</p>
+                    <p>Every card links to a pending spec in the main repo&#39;s <code>plan/</code> directory. Captured intent moves from skeleton, to design, to ready, to in progress. A spec is deleted only when the work ships.</p>
                 </div>
                 <div class="cards feature-grid reveal">
                     <article class="card feature-card aspiration cat-routing" data-cat="routing">
                     <span class="cat">Routing</span>
-                    <span class="status">Spec&#x27;d</span>
+                    <span class="status">Spec&#39;d</span>
                     <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md" target="_blank" rel="noopener">OSPF L3VPN PE-CE</a></h3>
                     <div class="chips">
                     <span class="chip">RFC 4576</span>
@@ -825,7 +825,7 @@
                     </article>
                     <article class="card feature-card aspiration cat-routing" data-cat="routing">
                     <span class="cat">Routing</span>
-                    <span class="status">Spec&#x27;d</span>
+                    <span class="status">Spec&#39;d</span>
                     <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-vrf-0-umbrella.md" target="_blank" rel="noopener">VRF</a></h3>
                     <div class="chips">
                     <span class="chip">VRF</span>
@@ -839,7 +839,7 @@
                     </article>
                     <article class="card feature-card aspiration cat-secure" data-cat="secure">
                     <span class="cat">Secure</span>
-                    <span class="status">Spec&#x27;d</span>
+                    <span class="status">Spec&#39;d</span>
                     <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md" target="_blank" rel="noopener">Kernel Lockdown</a></h3>
                     <div class="chips">
                     <span class="chip">Lockdown</span>
@@ -853,7 +853,7 @@
                     </article>
                     <article class="card feature-card aspiration cat-platform" data-cat="platform">
                     <span class="cat">Platform</span>
-                    <span class="status">Spec&#x27;d</span>
+                    <span class="status">Spec&#39;d</span>
                     <h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-install-9-cloud-init.md" target="_blank" rel="noopener">Cloud-Init Provisioning</a></h3>
                     <div class="chips">
                     <span class="chip">Cloud-init</span>
@@ -900,7 +900,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

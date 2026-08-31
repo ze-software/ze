@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/guides/production-diagnostics/" />
         <meta property="og:url" content="https://ze-software.net/guides/production-diagnostics/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -47,7 +47,6 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal cat-observe">
 <!-- Design: plan/spec-diag-core.md -- symptom-based diagnostic guide -->
-
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="production-diagnostics-guide">Production Diagnostics Guide</h1>
@@ -57,7 +56,7 @@
 <li><a href="#quick-reference">Quick Reference</a></li>
 <li><a href="#failure-categories">Failure Categories</a>
 <ol>
-<li><a href="#1-bgp-session-wont-establish">1. BGP Session Won&#x27;t Establish</a></li>
+<li><a href="#1-bgp-session-wont-establish">1. BGP Session Won&#39;t Establish</a></li>
 <li><a href="#2-bgp-session-flapping">2. BGP Session Flapping</a></li>
 <li><a href="#3-bgp-routes-not-received">3. BGP Routes Not Received</a></li>
 <li><a href="#4-bgp-routes-not-advertised">4. BGP Routes Not Advertised</a></li>
@@ -308,7 +307,6 @@ ze explain doctor-config-root-unclaimed
 <p><code>doctor-config-root-unclaimed</code> names the subtree. The usual cause is a plugin
 that is not in this binary or did not start; check with <code>ze plugin list</code>.</p>
 <!-- source: internal/component/doctor/checks_config_claims.go -- checkConfigClaims -->
-
 <h3 id="13b-ipsec-peers-never-establish">13b. IPsec Peers Never Establish</h3>
 <pre><code>ze doctor --json
 ze explain doctor-ipsec-iface
@@ -344,7 +342,6 @@ benign partial config.</p>
 resolves through the iface resolver. It therefore does not honour <code>os-name</code> or
 <code>mac</code> selectors and is blind to VPP interfaces.</p>
 <!-- source: internal/component/ike/engine/doctor.go -- checkIPsecInterface -->
-
 <h3 id="14-plugin-crash-restart-loop">14. Plugin Crash / Restart Loop</h3>
 <pre><code>show errors count 20
 show warnings
@@ -388,7 +385,7 @@ reverse DNS hostnames instead.</p>
     <div>
       <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
       <h3>Trace a live path without external services</h3>
-      <p>Run Ze&#x27;s live traceroute through a deterministic Linux network-namespace lab.</p>
+      <p>Run Ze&#39;s live traceroute through a deterministic Linux network-namespace lab.</p>
     </div>
     <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
   </div>
@@ -401,7 +398,7 @@ reverse DNS hostnames instead.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/traceroute.cast?v=8ee8ee05dc"
+      data-cast-src="../../assets/demos/traceroute.cast?v=9afb6d1ee3"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -409,12 +406,12 @@ reverse DNS hostnames instead.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/traceroute.cast?v=8ee8ee05dc">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/traceroute.cast?v=9afb6d1ee3">Download the asciicast</a> or
       <a href="../../assets/demos/traceroute.txt?v=2b9d95cc69">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>46 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.08.31</span><span>46 seconds</span><span>Linux namespace lab</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/traceroute.txt?v=2b9d95cc69">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -426,7 +423,6 @@ ze# run monitor traceroute 192.0.2.53
 The destination and router live in an isolated Linux network-namespace lab. Ze sends real ICMP probes, then shows the same path as a one-shot trace and as a continuously refreshed loss and latency table. No public DNS or Internet route is used.</code></pre>
   </details>
 </figure>
-
 <h2 id="profiling-workflow">Profiling Workflow</h2>
 <h3 id="cpu-profile">CPU Profile</h3>
 <pre><code>show system profile cpu duration 10s
@@ -451,6 +447,7 @@ show system platform | json
 <p>Platform information is also included in <code>ze doctor</code> checks (e.g. gokrazy /perm writability) and <code>ze support</code> archives (as the <code>platform</code> module).</p>
 <h2 id="platform-notes">Platform Notes</h2>
 <p>Commands that read <code>/proc</code> (sockets, kernel-log, file-descriptors, memory-map) are Linux-only. On other platforms they return "not available on this platform". The remaining commands (tcp-check, traceroute, goroutines, dns, profile) work on all platforms but traceroute requires CAP_NET_RAW.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -488,7 +485,7 @@ show system platform | json
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 15:04 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

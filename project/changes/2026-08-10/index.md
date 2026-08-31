@@ -34,7 +34,7 @@ Fixed:
 New:
 
 - The web interface, Looking Glass and chaos dashboard now use templ components and htmx 4.0.0-beta6.
-- Ze ships a netlab daemon definition for BGP, OSPF, IS-IS, BFD and static routing. `make ze-docker-lab-build` builds the local lab image.
+- Ze ships a netlab daemon definition for BGP, OSPF, IS-IS, BFD and static routing. `docker build -f docker/Dockerfile.lab -t netlab/ze:latest .` builds the local lab image.
 
 Fixed:
 

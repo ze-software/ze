@@ -145,19 +145,42 @@ remediation guidance.</p>
 </tr>
 <tr>
 <td><code>doctor-*-unreachable</code></td>
-<td>External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (<code>doctor-radius-admin-unreachable</code>), RPKI cache (<code>doctor-rpki-unreachable</code>), BMP collector (<code>doctor-bmp-unreachable</code>), NTP (<code>doctor-ntp-server-unreachable</code>), management hub (<code>doctor-hub-unreachable</code>)</td>
+<td>External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (<code>doctor-radius-admin-unreachable</code>), RPKI cache (<code>doctor-rpki-unreachable</code>), BMP collector (<code>doctor-bmp-unreachable</code>), NTP (<code>doctor-ntp-server-unreachable</code>), management hub (<code>doctor-hub-unreachable</code>) <!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable --></td>
+</tr>
+<tr>
+<td><code>doctor-clock-skew</code></td>
+<td>System clock vs NTP (&gt;5 min)</td>
+</tr>
+<tr>
+<td><code>doctor-vpp-unreachable</code></td>
+<td>VPP API socket (Linux)</td>
+</tr>
+<tr>
+<td><code>doctor-vpp-version</code></td>
+<td>VPP version compatibility (Linux)</td>
+</tr>
+<tr>
+<td><code>doctor-module-missing</code></td>
+<td>Kernel modules (Linux)</td>
+</tr>
+<tr>
+<td><code>doctor-platform-detect</code></td>
+<td>Platform detection failure</td>
+</tr>
+<tr>
+<td><code>doctor-platform-unknown</code></td>
+<td>Unrecognized runtime platform</td>
+</tr>
+<tr>
+<td><code>doctor-platform-perm</code></td>
+<td>Gokrazy /perm not writable</td>
+</tr>
+<tr>
+<td><code>doctor-platform-container-ro</code></td>
+<td>Container with read-only root</td>
 </tr>
 </tbody>
 </table>
-<!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable -->
-<p>| <code>doctor-clock-skew</code> | System clock vs NTP (&gt;5 min) |
-| <code>doctor-vpp-unreachable</code> | VPP API socket (Linux) |
-| <code>doctor-vpp-version</code> | VPP version compatibility (Linux) |
-| <code>doctor-module-missing</code> | Kernel modules (Linux) |
-| <code>doctor-platform-detect</code> | Platform detection failure |
-| <code>doctor-platform-unknown</code> | Unrecognized runtime platform |
-| <code>doctor-platform-perm</code> | Gokrazy /perm not writable |
-| <code>doctor-platform-container-ro</code> | Container with read-only root |</p>
 <p>Exit code 0 means ready; exit code 1 means at least one error-severity issue.</p>
 <h2 id="runtime-show-health">Runtime: <code>show health</code></h2>
 <p>The health registry aggregates component status from the running daemon.</p>
@@ -234,14 +257,13 @@ or <code>down</code>. The overall status is the worst of all components.</p>
      recording shows the session again.
      Recorded in plan/journal/green-that-could-not-have-been-red.md -->
 <!-- terminal-demo-disabled: health-reports -->
-
 <h2 id="runtime-show-warnings-show-errors">Runtime: <code>show warnings</code> / <code>show errors</code></h2>
 <p>The report bus surfaces individual anomalies:</p>
 <ul>
 <li><strong>Warnings</strong> are state-based (raised when a condition exists, cleared when it
-  resolves). Example: <code>session-stuck</code> clears when the peer reaches Established.</li>
+resolves). Example: <code>session-stuck</code> clears when the peer reaches Established.</li>
 <li><strong>Errors</strong> are event-based (recorded when something happens). Example:
-  <code>fib-sync-failure</code> fires once per failed route install.</li>
+<code>fib-sync-failure</code> fires once per failed route install.</li>
 </ul>
 <pre><code>show warnings
 show warnings | json
@@ -354,15 +376,15 @@ There are two registration paths depending on whether the owner is a plugin.</p>
 bridges these at execution time. Each check receives a <code>DoctorCheckContext</code>
 (config tree + platform) and returns diagnostics.</p>
 <pre><code class="language-go">reg := registry.Registration{
-    Name: &quot;my-plugin&quot;,
+    Name: "my-plugin",
     // ...
     DoctorChecks: []registry.DoctorCheckDef{{
-        Name:         &quot;my-plugin-reachable&quot;,
+        Name:         "my-plugin-reachable",
         Phase:        rpc.DoctorPhasePostConfig,
         Order:        700,
-        Dependencies: []string{&quot;config-parse&quot;},
-        Platforms:    []string{&quot;any&quot;},
-        Codes:        []string{&quot;doctor-my-plugin-unreachable&quot;},
+        Dependencies: []string{"config-parse"},
+        Platforms:    []string{"any"},
+        Codes:        []string{"doctor-my-plugin-unreachable"},
         Check:        checkMyService,
     }},
 }
@@ -373,13 +395,13 @@ bridges these at execution time. Each check receives a <code>DoctorCheckContext<
 <code>diagnostic.RegisterDoctorCheck()</code> from their owning package's <code>init()</code>.</p>
 <pre><code class="language-go">func init() {
     diagnostic.RegisterDoctorCheck(diagnostic.DoctorCheck{
-        Name:         &quot;my-component-ready&quot;,
-        Phase:        &quot;post-config&quot;,
+        Name:         "my-component-ready",
+        Phase:        "post-config",
         Order:        500,
-        Component:    &quot;my-component&quot;,
-        Dependencies: []string{&quot;config-parse&quot;},
-        Platforms:    []string{&quot;any&quot;},
-        Codes:        []string{&quot;doctor-my-component-missing&quot;},
+        Component:    "my-component",
+        Dependencies: []string{"config-parse"},
+        Platforms:    []string{"any"},
+        Codes:        []string{"doctor-my-component-missing"},
         Check:        checkMyComponent,
     })
 }
@@ -390,23 +412,23 @@ registration, then handle the <code>doctor-check</code> callback at runtime.</p>
 <p>Declaration (in <code>sdk.Registration</code>):</p>
 <pre><code class="language-go">p.Run(ctx, sdk.Registration{
     DoctorChecks: []rpc.DoctorCheckDecl{{
-        Name:         &quot;my-cache-reachable&quot;,
+        Name:         "my-cache-reachable",
         Phase:        rpc.DoctorPhasePostConfig,
         Order:        700,
-        Dependencies: []string{&quot;config-parse&quot;},
-        Platforms:    []string{&quot;any&quot;},
-        Codes:        []string{&quot;doctor-my-cache-unreachable&quot;},
+        Dependencies: []string{"config-parse"},
+        Platforms:    []string{"any"},
+        Codes:        []string{"doctor-my-cache-unreachable"},
     }},
 })
 </code></pre>
 <p>Callback handler:</p>
 <pre><code class="language-go">p.OnDoctorCheck(func(name string) ([]rpc.DoctorCheckDiagnostic, error) {
-    if name == &quot;my-cache-reachable&quot; {
+    if name == "my-cache-reachable" {
         if err := pingCache(); err != nil {
             return []rpc.DoctorCheckDiagnostic{{
-                Code:     &quot;doctor-my-cache-unreachable&quot;,
-                Severity: &quot;error&quot;,
-                Message:  &quot;cache server not reachable: &quot; + err.Error(),
+                Code:     "doctor-my-cache-unreachable",
+                Severity: "error",
+                Message:  "cache server not reachable: " + err.Error(),
             }}, nil
         }
     }
@@ -421,10 +443,11 @@ for the full protocol.</p>
 <ol>
 <li>Use a diagnostic code with the <code>doctor-</code> prefix.</li>
 <li>Register the code in <code>internal/core/diagnostic/codes.go</code> so
-   <code>ze explain &lt;code&gt;</code> works.</li>
+<code>ze explain &lt;code&gt;</code> works.</li>
 <li>Include a unit test proving the check fires when the relevant config
-   is present and emits the registered code.</li>
+is present and emits the registered code.</li>
 </ol>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -466,7 +489,7 @@ for the full protocol.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

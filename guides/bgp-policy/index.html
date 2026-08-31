@@ -155,7 +155,6 @@
 <p>Each suppression increments <code>ze_bgp_wellknown_community_suppressed_total</code> with the community as its label. Nothing else reports it: there is no per-route log line and no configuration switch, because a switch here would be a switch to violate the RFC.</p>
 <!-- source: internal/component/bgp/wireu/wellknown.go — ScanWellKnown, WellKnown.AllowsEgressTo -->
 <!-- source: internal/component/bgp/reactor/forward_wellknown.go — wellKnownAllowsEgress -->
-
 <h2 id="ingress-community-rules">Ingress community rules</h2>
 <p>The <code>bgp-filter-community</code> plugin adds three RFC-derived rules to the ingress
 direction, beside the named <code>tag</code> and <code>strip</code> sets. Each one is a leaf under
@@ -252,7 +251,6 @@ makes ignoring the community conformant, so <code>none</code> is a supported sta
 <!-- source: internal/component/bgp/plugins/filter_community/filter.go -- applyIngressFilter, applyRelationTag -->
 <!-- source: internal/component/bgp/plugins/filter_community/scrub.go -- scrubOwnGACommunities -->
 <!-- source: internal/component/bgp/plugins/filter_community/blackhole.go -- blackholePropagationGuard -->
-
 <h2 id="suppressing-communities-on-egress">Suppressing communities on egress</h2>
 <p><code>session { community { send ... } }</code> selects which community attribute types
 leave on a session. The list takes <code>standard</code>, <code>large</code>, <code>extended</code>, <code>all</code>, or
@@ -270,7 +268,6 @@ loud rather than silently: <code>OTC</code> (RFC 9234 Section 5) and <code>ORIGI
 is logged and not applied.</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- session/community/send -->
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsSendCommunity -->
-
 <h2 id="route-server-control-communities">Route-server control communities</h2>
 <p>When ze runs as a route server, a client can steer its own routes by tagging them with communities the route server reads and then removes. A peer becomes a route-server client with <code>rs-client true</code> under its <code>session</code> block; the communities below are only interpreted for such peers.</p>
 <table>
@@ -314,17 +311,16 @@ is silent on the wire, so a non-zero value is the one signal that a producer is
 violating the arity contract and that an attribute went out unchanged.</p>
 <!-- source: internal/component/bgp/wireu/community.go — ParseCommunityPolicy, ShouldForwardTo, StripControlCommunities -->
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go — general forwarding rail; forward_rs.go — route-server fast path -->
-
 <h2 id="redistribution">Redistribution</h2>
 <p>The top-level <code>redistribute</code> block moves selected routes between protocol RIBs. Redistribution is separate from ordinary per-peer BGP filtering, but the resulting routes still pass through the destination protocol's policy and loop-prevention rules.</p>
 <p>Use named destinations and specify the source protocols deliberately. Avoid broad two-way redistribution unless the topology and loop controls have been proven. Connected, static, kernel, OSPF, IS-IS, and BGP route sources have different ownership and withdrawal behaviour.</p>
 <p>See <a href="../redistribution/">Route filters and redistribution</a> for the current chain rules and configuration syntax.</p>
 <h2 id="verify-policy">Verify policy</h2>
 <p>Use the same route at each boundary:</p>
-<pre><code class="language-console">ze cli -c &quot;show bgp rib peer transit-a&quot;
-ze cli -c &quot;show bgp rib best&quot;
-ze cli -c &quot;show bgp irr check peer transit-a prefix 192.0.2.0/24&quot;
-ze cli -c &quot;show bgp peer transit-b rib&quot;
+<pre><code class="language-console">ze cli -c "show bgp rib peer transit-a"
+ze cli -c "show bgp rib best"
+ze cli -c "show bgp irr check peer transit-a prefix 192.0.2.0/24"
+ze cli -c "show bgp peer transit-b rib"
 </code></pre>
 <p>Confirm:</p>
 <ol>
@@ -342,6 +338,7 @@ ze cli -c &quot;show bgp peer transit-b rib&quot;
 <li><a href="../rpki/">RPKI origin validation</a></li>
 <li><a href="../route-injection/">Route injection</a></li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -383,7 +380,7 @@ ze cli -c &quot;show bgp peer transit-b rib&quot;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

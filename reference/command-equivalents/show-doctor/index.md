@@ -1,21 +1,30 @@
 # `show doctor`
 
+Check if this box is ready to run Ze.
+
 ## Ze command
 
-- Syntax: `show doctor`
 - Registry path: `show doctor`
+- Usage: `show doctor`
 - Mode: Read-only
 - Wire method: `ze-show:doctor`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Check if this box is ready to run Ze. Verifies runtime dependencies: required files, sockets, ports, and kernel modules. Each check reports pass or fail with a reason. Run this before first start or after changing the platform setup.
+Verifies runtime dependencies: required files, sockets, ports, and kernel modules. Each check reports pass or fail with a reason. Run this before first start or after changing the platform setup.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

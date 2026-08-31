@@ -79,7 +79,6 @@
 <li><a href="#without-graceful-restart">Without Graceful Restart</a></li>
 </ol></nav>
 <!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr registration, RFCs 4724/9494 -->
-
 <h2 id="configuration">Configuration</h2>
 <pre><code>plugin {
     internal gr {
@@ -143,7 +142,6 @@ bgp {
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/gr/yang/ -- ze-graceful-restart YANG schema -->
-
 <h2 id="how-it-works">How It Works</h2>
 <h3 id="normal-session">Normal Session</h3>
 <ol>
@@ -165,14 +163,14 @@ bgp {
 <h3 id="fail-safe">Fail-Safe</h3>
 <p>If the GR plugin crashes or fails to issue <code>purge-stale</code>, the RIB automatically expires stale routes after <code>restart-time + 5s</code>.</p>
 <!-- source: internal/component/bgp/plugins/gr/ -- GR state machine, retain-routes/purge-stale commands -->
-
 <h2 id="plugin-bindings">Plugin Bindings</h2>
-<p>The GR plugin requires:
-- <code>receive [ open-received state eor ]</code> -- needs the peer's OPEN, its up/down events, and End-of-RIB markers
-- The RIB plugin must also be loaded with <code>receive [ update state refresh ]</code> and <code>send [ update ]</code></p>
+<p>The GR plugin requires:</p>
+<ul>
+<li><code>receive [ open-received state eor ]</code> -- needs the peer's OPEN, its up/down events, and End-of-RIB markers</li>
+<li>The RIB plugin must also be loaded with <code>receive [ update state refresh ]</code> and <code>send [ update ]</code></li>
+</ul>
 <p>The GR plugin depends on <code>bgp-rib</code> (declared in its registration). The engine ensures bgp-rib starts first.</p>
 <!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
-
 <h3 id="keep-the-bgp-gr-engine-in-the-daemon-process">Keep the bgp-gr engine in the daemon process</h3>
 <p>Load the plugin with <code>internal &lt;name&gt; { use bgp-gr; }</code>, as every example on this
 page does. <code>run "ze plugin bgp-gr"</code> starts the plugin engine in a child process,
@@ -188,9 +186,8 @@ the child engine get that same treatment.</p>
 <code>ze explain doctor-bgp-gr-out-of-process</code> for the full text.</p>
 <!-- source: internal/component/bgp/plugins/gr/doctor.go -- checkGRInProcess, doctor-bgp-gr-out-of-process -->
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter reads egressState -->
-
 <h2 id="cli">CLI</h2>
-<pre><code> $ ze cli -c &quot;show bgp rib received&quot;
+<pre><code> $ ze cli -c "show bgp rib received"
 # Shows routes with stale flag when applicable
 </code></pre>
 <h2 id="long-lived-graceful-restart-rfc-9494">Long-Lived Graceful Restart (RFC 9494)</h2>
@@ -224,15 +221,17 @@ the child engine get that same treatment.</p>
 </table>
 <p>LLGR is only active when both peers negotiate it. Ze advertises LLGR capability (code 71) in OPEN when <code>long-lived-stale-time</code> is configured. LLGR requires GR capability (code 64) to also be present -- LLGR without GR is ignored per RFC 9494.</p>
 <!-- source: internal/component/bgp/plugins/gr/register.go -- CapabilityCodes: 64, 71 -->
-
 <h3 id="how-it-works_1">How It Works</h3>
 <ol>
 <li><strong>GR period expires</strong> -- peer has not reconnected within <code>restart-time</code> seconds</li>
 <li><strong>LLGR begins</strong> -- for each family with <code>long-lived-stale-time &gt; 0</code>:
-   - Routes carrying the NO_LLGR community (0xFFFF0007) are deleted
-   - LLGR_STALE community (0xFFFF0006) is attached to remaining stale routes
-   - Routes are marked as stale level 2 (deprioritized in best-path selection)
-   - Per-family LLST timer starts</li>
+<ul>
+<li>Routes carrying the NO_LLGR community (0xFFFF0007) are deleted</li>
+<li>LLGR_STALE community (0xFFFF0006) is attached to remaining stale routes</li>
+<li>Routes are marked as stale level 2 (deprioritized in best-path selection)</li>
+<li>Per-family LLST timer starts</li>
+</ul>
+</li>
 <li><strong>During LLGR</strong> -- LLGR-stale routes lose to any non-stale route in best-path selection. Between two LLGR-stale routes, normal tiebreaking applies.</li>
 <li><strong>LLST timer expires</strong> -- stale routes for that family are purged</li>
 <li><strong>Peer reconnects during LLGR</strong> -- standard RFC 4724 procedures apply; families with F-bit=0 or missing from the new OPEN are purged</li>
@@ -291,7 +290,6 @@ the child engine get that same treatment.</p>
 </table>
 <p>The filter fails closed. When it cannot read the peer capability state, it answers "LLGR was not received" for every destination. It raises one warning per process and then withdraws or depreferences. An unread state used to accept, which put a long-lived stale route into a neighbor that never agreed to hold one.</p>
 <!-- source: internal/component/bgp/plugins/gr/gr_egress.go -- LLGREgressFilter, egressState -->
-
 <p>The one arrangement that leaves the state permanently unread is <code>run "ze plugin bgp-gr"</code>. See <a href="#keep-the-bgp-gr-engine-in-the-daemon-process">Keep the bgp-gr engine in the daemon process</a>.</p>
 <h3 id="special-case-skip-gr">Special Case: Skip GR</h3>
 <p>If <code>restart-time</code> is 0 but <code>long-lived-stale-time</code> is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately.</p>
@@ -349,7 +347,6 @@ the child engine get that same treatment.</p>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/gr/register.go -- CommunityLLGRStale, CommunityNoLLGR -->
-
 <h3 id="cli_1">CLI</h3>
 <p>Decode LLGR capability from hex:</p>
 <pre><code>$ ze plugin bgp-gr --capa 00010180000e10
@@ -358,6 +355,7 @@ the child engine get that same treatment.</p>
 <h2 id="without-graceful-restart">Without Graceful Restart</h2>
 <p>When GR is not configured or the peer does not advertise the GR capability, routes are withdrawn immediately on session down. No stale state, no restart timer.</p>
 <!-- source: internal/component/bgp/plugins/gr/ -- GR plugin implementation -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -399,7 +397,7 @@ the child engine get that same treatment.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 02:01 UTC</span>
                 </div>
             </div>
         </footer>

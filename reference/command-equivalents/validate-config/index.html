@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>validate config - Command Equivalents - Ze</title>
-        <meta name="description" content="Command details and vendor equivalents for validate config." />
+        <meta name="description" content="Check a config for errors without applying it." />
         <meta property="og:title" content="validate config - Command Equivalents - Ze" />
-        <meta property="og:description" content="Command details and vendor equivalents for validate config." />
+        <meta property="og:description" content="Check a config for errors without applying it." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="validate config - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Command details and vendor equivalents for validate config." />
+        <meta name="twitter:description" content="Check a config for errors without applying it." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -45,29 +45,27 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
 
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
-                <div class="journey-hero reveal">
-                    <span class="journey-eyebrow">Command map</span>
-                    <h1 id="command-equivalent-detail-title">validate config</h1>
-                    <p>Command details and vendor equivalents for validate config.</p>
-                </div>
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Command map</span>
+    <h1 id="command-equivalent-detail-title">validate config</h1>
+    <p>Check a config for errors without applying it.</p>
+</div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Syntax</dt><dd><code>validate config</code></dd></div>
 <div><dt>Registry path</dt><dd><code>validate config</code></dd></div>
 <div><dt>Mode</dt><dd>Offline</dd></div>
 <div><dt>Wire method</dt><dd><code>not listed</code></dd></div>
+<div><dt>Backends</dt><dd>any backend</dd></div>
+<div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
+<div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
 <div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
 </dl>
-<h3>Description</h3><p>Check your config for errors without applying anything. Reports syntax and semantic issues.</p>
+<h3>Description</h3><p>Both the grammar of the file and the meaning of its values are checked, and each problem is reported with the diagnostic code that explains it.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
-<article class="cmd-detail-card"><h2>Mapping intents</h2>
-<section class="cmd-intent"><h3>Validate and commit configuration</h3>
-<p><strong>Category:</strong> Configuration</p>
-</section>
-</article>
+<article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
 <p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
 </article>
@@ -78,9 +76,7 @@
 <p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
 </article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>VyOS</h2>
-<section class="cmd-vendor-intent"><h3>Validate and commit configuration</h3>
-<div class="cmd-vendor-line"><code>commit</code> <span class="cmd-confidence cmd-confidence-verified">verified</span> <span class="cmd-sources">source: <a href="https://docs.vyos.io/en/1.4/cli.html" target="_blank" rel="noopener">Command Line Interface</a></span></div>
-</section>
+<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
 </article>
 </div></section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -130,7 +126,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 20:21 UTC</span>
                 </div>
             </div>
         </footer>

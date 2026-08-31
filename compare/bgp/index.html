@@ -54,10 +54,10 @@
 <li><a href="#address-families">Address Families</a></li>
 <li><a href="#core-protocol">Core Protocol</a></li>
 <li><a href="#cross-protocol-redistribute">Cross-Protocol Redistribute</a></li>
-<li><a href="#policy-route-manipulation">Policy &amp;amp; Route Manipulation</a></li>
+<li><a href="#policy-route-manipulation">Policy &amp; Route Manipulation</a></li>
 <li><a href="#security">Security</a></li>
-<li><a href="#monitoring-observability">Monitoring &amp;amp; Observability</a></li>
-<li><a href="#api-programmability">API &amp;amp; Programmability</a></li>
+<li><a href="#monitoring-observability">Monitoring &amp; Observability</a></li>
+<li><a href="#api-programmability">API &amp; Programmability</a></li>
 <li><a href="#operations">Operations</a></li>
 <li><a href="#best-path-selection">Best-Path Selection</a></li>
 <li><a href="#bng-capabilities">BNG Capabilities</a></li>
@@ -79,7 +79,6 @@
   </label>
   <p class="compare-status" data-compare-status aria-live="polite"></p>
 </div>
-
 <h2 id="overview">Overview</h2>
 <table>
 <thead>
@@ -605,7 +604,7 @@
 </tr>
 <tr>
 <td>Notification GR (RFC 8538)</td>
-<td class="cell-yes">✓</td>
+<td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
@@ -2039,7 +2038,7 @@ injector/receiver, not a router.</p>
 </tr>
 <tr>
 <td>AIGP</td>
-<td class="cell-yes">✓</td>
+<td class="cell-partial">∿</td>
 <td class="cell-no">✕</td>
 <td class="cell-no">✕</td>
 <td class="cell-yes">✓</td>
@@ -2178,8 +2177,8 @@ has been actively developed since 2012 with 4000+ functional test cases. It
 has no programmatic API, YANG model, or structured logging.</p>
 <h2 id="faq">FAQ</h2>
 <p><strong>Ze is pre-release. Why trust it yet?</strong></p>
-<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">23,700+</span> unit tests,
-<span data-ze-stat="tests.e2e_display">1,700+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">78</span> fuzz targets, and
+<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">26,900+</span> unit tests,
+<span data-ze-stat="tests.e2e_display">1,800</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">79</span> fuzz targets, and
 interop testing against <span data-ze-stat="interop.target_display">9</span> independent BGP
 implementations. That evidence can be checked. It is not a promise. Ze
 does not have operational mileage yet: real deployments over real time,
@@ -2205,6 +2204,7 @@ numbers measured so far.</p>
 BFD integration, no custom filter DSL, no privilege separation, and no
 embeddable library mode. The full-router comparison belongs on the
 <a href="../nos/">Open Source Network OS comparison</a>.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">BGP comparison</p>
@@ -2288,7 +2288,7 @@ embeddable library mode. The full-router comparison belongs on the
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,21 +1,30 @@
 # `clear ospf neighbor`
 
+Tear down every OSPF adjacency so neighbors re-form.
+
 ## Ze command
 
-- Syntax: `clear ospf neighbor`
 - Registry path: `clear ospf neighbor`
+- Usage: `clear ospf neighbor`
 - Mode: Daemon
 - Wire method: `ze-clear:ospf-neighbor`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Tear down every OSPF adjacency so neighbors re-form. Usage: clear ospf neighbor. Adjacencies re-learn from the next Hello.
+Adjacencies re-learn from the next Hello.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

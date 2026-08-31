@@ -122,9 +122,9 @@ bgp {
 different AS paths:</p>
 <pre><code class="language-console">ze config validate as-path-lab.conf
 ze start as-path-lab.conf
-ze cli -c &quot;show bgp rib best prefix 203.0.113.0/24&quot;
-curl -fsS &quot;http://127.0.0.1:8443/api/looking-glass/routes/search?prefix=203.0.113.0%2F24&quot;
-curl -fsS &quot;http://127.0.0.1:8443/lg/graph?prefix=203.0.113.0%2F24&quot; -o as-path.svg
+ze cli -c "show bgp rib best prefix 203.0.113.0/24"
+curl -fsS "http://127.0.0.1:8443/api/looking-glass/routes/search?prefix=203.0.113.0%2F24"
+curl -fsS "http://127.0.0.1:8443/lg/graph?prefix=203.0.113.0%2F24" -o as-path.svg
 </code></pre>
 <p>Open <code>http://127.0.0.1:8443/lg/search?prefix=203.0.113.0%2F24</code> for the route
 details and inline graph. The graph endpoint returns SVG without a client-side
@@ -150,6 +150,7 @@ graph engine or external topology service.</p>
 <li>A public graph can expose routing information the operator considers sensitive.</li>
 </ul>
 <p>Apply the same exposure policy and rate limits as the rest of the public Looking Glass.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -183,7 +184,7 @@ graph engine or external topology service.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

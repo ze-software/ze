@@ -1,25 +1,32 @@
 # `show debug profile`
 
+Show stored debug profiles (list, 'name <name>' for one, add 'module <prefix>' to filter).
+
 ## Ze command
 
-- Syntax: `show debug profile`
 - Registry path: `show debug profile`
 - Mode: Offline
 - Wire method: `not listed`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-Show stored debug profiles (list, 'name <name>' for one, add 'module <prefix>' to filter).
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

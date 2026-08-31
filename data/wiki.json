@@ -1,0 +1,918 @@
+{
+  "base-url": "https://github.com/ze-software/ze/wiki/",
+  "groups": [
+    {
+      "title": "Home",
+      "pages": [
+        {
+          "title": "Home",
+          "slug": "Home",
+          "summary": "Ze turns a Linux server into a programmable network device. It speaks BGP, manages interfaces, programs the FIB, and exposes one config tree over five surfaces (CLI, Web UI, Looking Glass, MCP..."
+        }
+      ]
+    },
+    {
+      "title": "About",
+      "pages": [
+        {
+          "title": "About",
+          "slug": "about",
+          "summary": "This section is the starting point if you have never heard of Ze, or if you have and want to know what is actually inside it."
+        },
+        {
+          "title": "What is Ze",
+          "slug": "what-is-ze",
+          "summary": "Ze turns a Linux server into a programmable network device."
+        },
+        {
+          "title": "Why Ze",
+          "slug": "why-ze",
+          "summary": "This is the long version of \"what is this for, should I care\"."
+        },
+        {
+          "title": "Architecture",
+          "slug": "architecture",
+          "summary": "This page is the mental model."
+        },
+        {
+          "title": "History",
+          "slug": "history",
+          "summary": "Where Ze came from, and how it got to where it is now."
+        },
+        {
+          "title": "Status",
+          "slug": "status",
+          "summary": "Ze is in early active development."
+        }
+      ]
+    },
+    {
+      "title": "First Steps",
+      "pages": [
+        {
+          "title": "First Steps",
+          "slug": "first-steps",
+          "summary": "This section takes you from an empty Linux box to a Ze daemon with its first BGP peer up."
+        },
+        {
+          "title": "Install",
+          "slug": "install",
+          "summary": "You build Ze from source."
+        },
+        {
+          "title": "Docker",
+          "slug": "docker",
+          "summary": "Run Ze in a Docker container for evaluation, lab testing, or lightweight deployments where you don't need interface configuration or kernel-level features (VPP, L2TP, nftables)."
+        },
+        {
+          "title": "netlab",
+          "slug": "netlab",
+          "summary": "netlab builds a lab from a short YAML topology and starts each node under containerlab."
+        },
+        {
+          "title": "Appliance",
+          "slug": "appliance",
+          "summary": "Ze ships a bootable VM appliance image: a minimal Linux system built with gokrazy that runs Ze as its only application."
+        },
+        {
+          "title": "Quick Start",
+          "slug": "quick-start",
+          "summary": "You have a built ze binary."
+        },
+        {
+          "title": "ExaBGP Migration",
+          "slug": "exabgp-migration",
+          "summary": "This is the first page to read if you already run ExaBGP."
+        },
+        {
+          "title": "CLI Tour",
+          "slug": "cli-tour",
+          "summary": "The Ze CLI is a network-OS shell, not a Unix CLI bolted on top of a daemon."
+        },
+        {
+          "title": "Web UI Tour",
+          "slug": "web-ui-tour",
+          "summary": "The web UI is the same engine as the CLI with a different surface on top."
+        }
+      ]
+    },
+    {
+      "title": "Configuration",
+      "pages": [
+        {
+          "title": "Configuration",
+          "slug": "configuration",
+          "summary": "This is the configuration section."
+        },
+        {
+          "title": "Overview",
+          "slug": "overview",
+          "summary": "Configuration in Ze is one tree, validated by one set of YANG schemas, edited from any of the five operator surfaces (CLI, web UI, Looking Glass, MCP, REST API), committed atomically, and rolled back..."
+        },
+        {
+          "title": "YANG Model",
+          "slug": "yang-model",
+          "summary": "Every field in Ze comes from a YANG schema."
+        },
+        {
+          "title": "Editor Workflow",
+          "slug": "editor-workflow",
+          "summary": "The config editor is the piece of Ze that turns \"edit a text file and hope\" into the network-OS workflow operators actually expect."
+        },
+        {
+          "title": "Archive and Rollback",
+          "slug": "archive-and-rollback",
+          "summary": "Every committed configuration in Ze is kept."
+        },
+        {
+          "title": "System",
+          "slug": "system",
+          "summary": "The system { } block carries the identity of the Ze instance and the global settings that do not belong to a specific subsystem."
+        },
+        {
+          "title": "Interfaces",
+          "slug": "configuration-interfaces",
+          "summary": "Ze manages Linux network interfaces through the iface component, backed by pure netlink."
+        },
+        {
+          "title": "VRRP",
+          "slug": "vrrp",
+          "summary": "VRRP gives a LAN a gateway address that survives the loss of the router holding it."
+        },
+        {
+          "title": "BFD",
+          "slug": "bfd",
+          "summary": "Ze includes a full BFD implementation (RFC 5880/5881/5882/5883) as a plugin."
+        },
+        {
+          "title": "FIB",
+          "slug": "fib",
+          "summary": "The FIB pipeline in Ze takes BGP best-path output and programs the forwarding table."
+        },
+        {
+          "title": "OSPF",
+          "slug": "ospf",
+          "summary": "Ze includes an experimental native OSPF engine under the ospf config root."
+        },
+        {
+          "title": "IS-IS",
+          "slug": "isis",
+          "summary": "Ze implements IS-IS (Intermediate System to Intermediate System, ISO/IEC 10589 as updated by RFC 1195 / RFC 5305 / RFC 5308 / RFC 5301) as a native link-state interior gateway protocol that runs..."
+        },
+        {
+          "title": "MPLS / LDP / RSVP-TE",
+          "slug": "mpls",
+          "summary": "Ze can act as a Linux MPLS label-switching router (LSR)."
+        },
+        {
+          "title": "RSVP-TE",
+          "slug": "rsvp-te",
+          "summary": "RSVP-TE (RFC 3209, on top of RFC 2205 RSVP) signals explicitly-routed MPLS LSP tunnels with bandwidth reservation."
+        },
+        {
+          "title": "SRv6",
+          "slug": "srv6",
+          "summary": "SRv6 (Segment Routing over IPv6) Prefix-SID support (RFC 8669, RFC 9252)."
+        },
+        {
+          "title": "Static Routes",
+          "slug": "static-routes",
+          "summary": "Ze supports static routes with ECMP, weighted load balancing, BFD-tracked failover, blackhole, and reject."
+        },
+        {
+          "title": "Policy Routing",
+          "slug": "policy-routing",
+          "summary": "Ze supports policy-based routing (PBR) to steer traffic through alternate routing tables or next-hops based on L3/L4 match criteria."
+        },
+        {
+          "title": "Firewall",
+          "slug": "firewall",
+          "summary": "Ze manages nftables packet filter and NAT rules from a single firewall { } YANG section."
+        },
+        {
+          "title": "Traffic Control",
+          "slug": "traffic-control",
+          "summary": "Ze programs per-interface queueing disciplines, classes, and filters from a single traffic { control { } } YANG section."
+        },
+        {
+          "title": "Class of Service",
+          "slug": "class-of-service",
+          "summary": "Class-of-Service (CoS) in Ze maps the 3-bit IEEE 802.1p Priority Code Point (PCP) in 802.1Q VLAN headers to internal priorities and back."
+        },
+        {
+          "title": "L2TP/PPP",
+          "slug": "l2tp",
+          "summary": "Ze includes a native L2TPv2 (RFC 2661) LNS/LAC implementation for use as a BNG (Broadband Network Gateway) component."
+        },
+        {
+          "title": "PPPoE",
+          "slug": "pppoe",
+          "summary": "Ze implements an RFC 2516 PPPoE access concentrator for direct-attach subscriber access."
+        },
+        {
+          "title": "VPP Data Plane",
+          "slug": "vpp",
+          "summary": "Ze optionally integrates with VPP (the FD.io Vector Packet Processor) to forward packets at DPDK speed."
+        },
+        {
+          "title": "RPKI",
+          "slug": "rpki",
+          "summary": "Ze validates received BGP routes against RPKI ROA data."
+        },
+        {
+          "title": "IPsec VPN",
+          "slug": "ipsec",
+          "summary": "Ze implements native IKEv2 in Go for route-based IPsec VPN tunnels."
+        },
+        {
+          "title": "TACACS+ AAA",
+          "slug": "tacacs",
+          "summary": "Ze authenticates SSH logins against TACACS+ servers (RFC 8907) when the system.authentication.tacacs block is present."
+        },
+        {
+          "title": "RADIUS AAA",
+          "slug": "radius",
+          "summary": "Ze authenticates operator logins (SSH, web, MCP) against RADIUS servers (RFC 2865) when the system.authentication.radius block is present."
+        },
+        {
+          "title": "AS112 DNS",
+          "slug": "as112",
+          "summary": "Ze's as112 plugin runs an AS112 anycast DNS node: an authoritative sink for misdirected reverse-DNS queries about RFC 1918 and link-local address space (RFC 7534), plus the EMPTY.AS112.ARPA..."
+        },
+        {
+          "title": "DNS",
+          "slug": "dns",
+          "summary": "Ze is on both sides of DNS."
+        },
+        {
+          "title": "Authorization",
+          "slug": "authorization",
+          "summary": "Ze supports profile-based command authorization."
+        },
+        {
+          "title": "Fleet",
+          "slug": "fleet",
+          "summary": "Fleet mode is Ze's answer to \"I have 20 boxes and I want to manage their config from one place\"."
+        },
+        {
+          "title": "BGP",
+          "slug": "configuration-bgp",
+          "summary": "The BGP subtree of the config."
+        },
+        {
+          "title": "Peers",
+          "slug": "peers",
+          "summary": "A BGP peer in Ze is a named entry under bgp { peer \u003cname\u003e { } }."
+        },
+        {
+          "title": "Policies",
+          "slug": "policies",
+          "summary": "Ze does not have a built-in filter language in the style of BIRD's filter DSL or FRR's route-map."
+        },
+        {
+          "title": "Address Families",
+          "slug": "address-families",
+          "summary": "Address families in Ze fall into two groups."
+        },
+        {
+          "title": "ADD-PATH",
+          "slug": "add-path",
+          "summary": "ADD-PATH (RFC 7911) lets BGP advertise more than one path per prefix by prefixing each NLRI with a 4-byte Path Identifier."
+        },
+        {
+          "title": "Graceful Restart",
+          "slug": "graceful-restart",
+          "summary": "Graceful Restart (RFC 4724) and Long-Lived Graceful Restart (RFC 9494) let a BGP session preserve forwarding state across a restart of one side, instead of dropping every route and waiting for..."
+        },
+        {
+          "title": "BGP Role",
+          "slug": "configuration-bgp-role",
+          "summary": "BGP Role (RFC 9234) prevents route leaks by declaring the business relationship between peers."
+        },
+        {
+          "title": "Route Reflection",
+          "slug": "route-reflection",
+          "summary": "Ze operates as both a route server (RFC 7947) and an iBGP route reflector (RFC 4456)."
+        },
+        {
+          "title": "Route Injection",
+          "slug": "route-injection",
+          "summary": "Route injection is one of the two things Ze was built for."
+        },
+        {
+          "title": "Route Filters",
+          "slug": "redistribution",
+          "summary": "Route filters let plugins act on BGP UPDATEs as they move through the daemon."
+        }
+      ]
+    },
+    {
+      "title": "Operation",
+      "pages": [
+        {
+          "title": "Operation",
+          "slug": "operation",
+          "summary": "This section is for the day-2 operator."
+        },
+        {
+          "title": "Starting and Stopping",
+          "slug": "starting-and-stopping",
+          "summary": "Running Ze is the same as running any other Unix daemon with one small twist: SSH credentials must exist before the daemon can expose its CLI."
+        },
+        {
+          "title": "Show Commands",
+          "slug": "show-commands",
+          "summary": "This is the day-2 operator's quick reference for the ze show family."
+        },
+        {
+          "title": "Monitoring",
+          "slug": "monitoring",
+          "summary": "Ze gives you three different ways to watch a running daemon: an auto-refreshing peer dashboard for the operator at the keyboard, a live event stream for the engineer chasing a bug, and a Prometheus..."
+        },
+        {
+          "title": "Flow Export",
+          "slug": "flow-export",
+          "summary": "Ze exports interface counters and per-flow records to external collectors over UDP."
+        },
+        {
+          "title": "DDoS Mitigation",
+          "slug": "ddos",
+          "summary": "Ze can automatically detect volumetric DDoS attacks on its interfaces, mitigate them on the host or upstream, and report incidents to the Flowtriq cloud."
+        },
+        {
+          "title": "Anomaly Detection",
+          "slug": "anomaly",
+          "summary": "Ze has a behavioral anomaly detector: a report-only subsystem that builds a per-source behavioral baseline, scores how far each source deviates from its own history and from its peers, and correlates..."
+        },
+        {
+          "title": "Health Checks",
+          "slug": "health-checks",
+          "summary": "Ze provides two complementary systems for monitoring operational health: offline doctor checks (pre-start readiness) and runtime health monitoring (continuous anomaly detection during operation)."
+        },
+        {
+          "title": "Audit Trail",
+          "slug": "audit",
+          "summary": "Ze keeps a local structured audit log for operator actions that change state or fail authentication."
+        },
+        {
+          "title": "Production Diagnostics",
+          "slug": "production-diagnostics",
+          "summary": "Symptom-based troubleshooting using Ze's built-in diagnostic commands."
+        },
+        {
+          "title": "Logging",
+          "slug": "logging",
+          "summary": "Ze uses hierarchical, structured logging with runtime-configurable levels per subsystem."
+        },
+        {
+          "title": "Operational Reports",
+          "slug": "operational-reports",
+          "summary": "Ze has a single bus for operator-visible issues, backed by two CLI commands: ze show warnings and ze show errors."
+        },
+        {
+          "title": "Healthcheck",
+          "slug": "healthcheck",
+          "summary": "The Ze healthcheck monitors a service by running a shell command on a timer and controls BGP route announcement or withdrawal through a watchdog group."
+        },
+        {
+          "title": "Self-Update",
+          "slug": "self-update",
+          "summary": "Ze can automatically download, verify, and install firmware updates on non-gokrazy deployments."
+        },
+        {
+          "title": "Zero-Touch Provisioning",
+          "slug": "ze-install",
+          "summary": "ze install remote is a one-command, zero-touch provisioning (ZTP) server that PXE-boots target machines with a gokrazy appliance image containing Ze."
+        },
+        {
+          "title": "MRT Analysis",
+          "slug": "mrt-analysis",
+          "summary": "Ze provides both daemon-side MRT recording and a standalone analysis tool."
+        },
+        {
+          "title": "Upgrade and Restart",
+          "slug": "upgrade-and-restart",
+          "summary": "The point of this page is one thing: how to replace the binary, reload the config, or restart the daemon without dropping your BGP sessions or black-holing traffic."
+        }
+      ]
+    },
+    {
+      "title": "Interfaces",
+      "pages": [
+        {
+          "title": "Interfaces",
+          "slug": "interfaces",
+          "summary": "Ze exposes the same engine through five different surfaces."
+        },
+        {
+          "title": "CLI",
+          "slug": "cli",
+          "summary": "The CLI is a network OS shell, not a Unix wrapper."
+        },
+        {
+          "title": "Web UI",
+          "slug": "web-ui",
+          "summary": "The web UI is the same engine as the CLI with a different surface."
+        },
+        {
+          "title": "Looking Glass",
+          "slug": "looking-glass",
+          "summary": "The Looking Glass is the public, read-only side of Ze."
+        },
+        {
+          "title": "MCP",
+          "slug": "mcp",
+          "summary": "The MCP server is the surface you use when an AI assistant should drive Ze."
+        },
+        {
+          "title": "REST API",
+          "slug": "rest-api",
+          "summary": "The REST API is Ze's programmatic HTTP surface for running commands and editing configuration from anywhere that can speak JSON."
+        },
+        {
+          "title": "gRPC API",
+          "slug": "grpc-api",
+          "summary": "The gRPC API is the typed-RPC counterpart to the REST API."
+        },
+        {
+          "title": "gNMI",
+          "slug": "gnmi",
+          "summary": "Ze includes a gNMI (gRPC Network Management Interface) server that exposes the YANG-modeled configuration over the industry-standard gNMI protocol."
+        },
+        {
+          "title": "Introspection",
+          "slug": "introspection",
+          "summary": "Ze is self-documenting."
+        }
+      ]
+    },
+    {
+      "title": "Plugins",
+      "pages": [
+        {
+          "title": "Plugins",
+          "slug": "plugins",
+          "summary": "A plugin in Ze is a unit of behaviour that registers itself with the engine and reacts to events on the bus."
+        },
+        {
+          "title": "bgp-rib",
+          "slug": "bgp-rib",
+          "summary": "The main BGP RIB store and best-path selection engine."
+        },
+        {
+          "title": "bgp-adj-rib-in",
+          "slug": "bgp-adj-rib-in",
+          "summary": "Per-peer Adj-RIB-In store with raw hex replay for forensic analysis and route server convergence."
+        },
+        {
+          "title": "bgp-persist",
+          "slug": "bgp-persist",
+          "summary": "In-memory sent-route cache with replay on peer reconnect."
+        },
+        {
+          "title": "bgp-rs",
+          "slug": "bgp-rs",
+          "summary": "RFC 7947 route server: forwards every received route to every other peer, with zero-copy wire forwarding when peers share an encoding context."
+        },
+        {
+          "title": "bgp-rr",
+          "slug": "bgp-rr",
+          "summary": "RFC 4456 iBGP route reflector."
+        },
+        {
+          "title": "bgp-filter-community",
+          "slug": "bgp-filter-community",
+          "summary": "Community filter plugin for tagging, stripping, and matching communities (standard, large, extended) on ingress and egress."
+        },
+        {
+          "title": "bgp-filter-prefix",
+          "slug": "bgp-filter-prefix",
+          "summary": "Named prefix-list filter (CIDR + ge/le + accept/reject)."
+        },
+        {
+          "title": "bgp-filter-aspath",
+          "slug": "bgp-filter-aspath",
+          "summary": "Named AS-path regex filter (ordered entries, first match wins, accept/reject)."
+        },
+        {
+          "title": "bgp-route-modify",
+          "slug": "bgp-route-modify",
+          "summary": "Named route attribute modifier."
+        },
+        {
+          "title": "bgp-filter-irr",
+          "slug": "bgp-filter-irr",
+          "summary": "The bgp-filter-irr plugin filters incoming BGP routes against prefix lists derived from Internet Routing Registry (IRR) data."
+        },
+        {
+          "title": "bgp-redistribute",
+          "slug": "bgp-redistribute",
+          "summary": "Cross-protocol route redistribution."
+        },
+        {
+          "title": "bgp-role",
+          "slug": "bgp-role",
+          "summary": "RFC 9234 BGP Role enforcement."
+        },
+        {
+          "title": "bgp",
+          "slug": "bgp",
+          "summary": "The core BGP plugin implementing RFC 4271."
+        },
+        {
+          "title": "bgp-healthcheck",
+          "slug": "bgp-healthcheck",
+          "summary": "Service healthcheck plugin with watchdog route control."
+        },
+        {
+          "title": "interface",
+          "slug": "interface",
+          "summary": "OS network interface monitoring and management."
+        },
+        {
+          "title": "loop",
+          "slug": "loop",
+          "summary": "Route loop detection ingress filter per RFC 4271 Section 9 and RFC 4456 Section 8."
+        },
+        {
+          "title": "bgp-gr",
+          "slug": "bgp-gr",
+          "summary": "Graceful Restart (RFC 4724) and Long-Lived Graceful Restart (RFC 9494) state machine."
+        },
+        {
+          "title": "bgp-watchdog",
+          "slug": "bgp-watchdog",
+          "summary": "Deferred route announcement controlled by named watchdog groups."
+        },
+        {
+          "title": "bgp-route-refresh",
+          "slug": "bgp-route-refresh",
+          "summary": "Route Refresh (RFC 2918) and Enhanced Route Refresh (RFC 7313)."
+        },
+        {
+          "title": "bgp-rpki",
+          "slug": "bgp-rpki",
+          "summary": "RPKI origin validation via the RTR protocol (RFC 6811, RFC 8210) and ASPA path verification with policy enforcement (RTR v2, RFC 9582, draft-ietf-sidrops-aspa-verification)."
+        },
+        {
+          "title": "bgp-rpki-decorator",
+          "slug": "bgp-rpki-decorator",
+          "summary": "Correlates UPDATE events and RPKI validation events into merged update-rpki events for consumer plugins that want both in one envelope."
+        },
+        {
+          "title": "bgp-aigp",
+          "slug": "bgp-aigp",
+          "summary": "Accumulated IGP metric (RFC 7311)."
+        },
+        {
+          "title": "bgp-hostname",
+          "slug": "bgp-hostname",
+          "summary": "FQDN capability. Advertises the local hostname and fully-qualified domain name to peers in the OPEN message."
+        },
+        {
+          "title": "bgp-llnh",
+          "slug": "bgp-llnh",
+          "summary": "Link-Local Next Hop for IPv6 (RFC 2545)."
+        },
+        {
+          "title": "bgp-softver",
+          "slug": "bgp-softver",
+          "summary": "Software version capability."
+        },
+        {
+          "title": "bgp-nlri-vpn",
+          "slug": "bgp-nlri-vpn",
+          "summary": "MPLS-VPN address families: IPv4 VPN (AFI 1 / SAFI 128) and IPv6 VPN (AFI 2 / SAFI 128), per RFC 4364."
+        },
+        {
+          "title": "bgp-nlri-evpn",
+          "slug": "bgp-nlri-evpn",
+          "summary": "L2VPN EVPN (AFI 25 / SAFI 70), per RFC 7432."
+        },
+        {
+          "title": "bgp-nlri-flowspec",
+          "slug": "bgp-nlri-flowspec",
+          "summary": "BGP FlowSpec (RFC 8955, RFC 8956) for IPv4 and IPv6, plus the VPN variants."
+        },
+        {
+          "title": "bgp-nlri-ls",
+          "slug": "bgp-nlri-ls",
+          "summary": "BGP Link-State (RFC 7752) and its VPN variant."
+        },
+        {
+          "title": "bgp-nlri-labeled",
+          "slug": "bgp-nlri-labeled",
+          "summary": "MPLS labelled unicast for IPv4 (AFI 1 / SAFI 4) and IPv6 (AFI 2 / SAFI 4)."
+        },
+        {
+          "title": "bgp-nlri-vpls",
+          "slug": "bgp-nlri-vpls",
+          "summary": "L2VPN VPLS (AFI 25 / SAFI 65), RFC 4761 / RFC 4762."
+        },
+        {
+          "title": "bgp-nlri-mvpn",
+          "slug": "bgp-nlri-mvpn",
+          "summary": "Multicast VPN (RFC 6513, RFC 6514) for IPv4 (AFI 1 / SAFI 5) and IPv6 (AFI 2 / SAFI 5)."
+        },
+        {
+          "title": "bgp-nlri-rtc",
+          "slug": "bgp-nlri-rtc",
+          "summary": "Route Target Constrain (RFC 4684)."
+        },
+        {
+          "title": "bgp-nlri-mup",
+          "slug": "bgp-nlri-mup",
+          "summary": "Mobile User Plane SAFI for IPv4 (AFI 1 / SAFI 85) and IPv6 (AFI 2 / SAFI 85)."
+        },
+        {
+          "title": "bgp-nlri-srpolicy",
+          "slug": "bgp-nlri-srpolicy",
+          "summary": "SR-Policy NLRI (SAFI 73, RFC 9830) carries Segment Routing policy information over BGP."
+        },
+        {
+          "title": "bgp-bmp",
+          "slug": "bmp",
+          "summary": "Ze implements RFC 7854 BMP in both directions: as a receiver (accepting feeds from routers) and as a sender (streaming state to collectors)."
+        },
+        {
+          "title": "ntp",
+          "slug": "ntp",
+          "summary": "Ze includes an NTP client plugin for system clock synchronization."
+        },
+        {
+          "title": "sysctl",
+          "slug": "sysctl",
+          "summary": "Ze includes a sysctl plugin that manages kernel parameters with named profiles."
+        },
+        {
+          "title": "dhcp-server",
+          "slug": "dhcp-server",
+          "summary": "DHCP server plugin serving leases to LAN clients per RFC 2131/2132."
+        },
+        {
+          "title": "fib-kernel",
+          "slug": "fib-kernel",
+          "summary": "Programs the Linux kernel forwarding table via netlink."
+        },
+        {
+          "title": "fib-p4",
+          "slug": "fib-p4",
+          "summary": "Experimental P4 dataplane backend."
+        },
+        {
+          "title": "iface-dhcp",
+          "slug": "iface-dhcp",
+          "summary": "DHCP client for managed interfaces."
+        },
+        {
+          "title": "iface-netlink",
+          "slug": "iface-netlink",
+          "summary": "Netlink backend for the iface component."
+        },
+        {
+          "title": "sysrib",
+          "slug": "sysrib",
+          "summary": "Cross-protocol RIB selector."
+        },
+        {
+          "title": "host",
+          "slug": "host-inventory",
+          "summary": "The host inventory plugin provides hardware detection, SMART health monitoring, and a hardware tuning engine."
+        }
+      ]
+    },
+    {
+      "title": "Plugin Development",
+      "pages": [
+        {
+          "title": "Plugin Development",
+          "slug": "plugin-development",
+          "summary": "This is the plugin author's section."
+        },
+        {
+          "title": "Go Plugins",
+          "slug": "go-plugins",
+          "summary": "This page is the five-minute version of writing a Go plugin against the Ze SDK."
+        },
+        {
+          "title": "External Plugins",
+          "slug": "external-plugins",
+          "summary": "An external plugin is a separate process."
+        },
+        {
+          "title": "YANG Schema",
+          "slug": "yang-schema",
+          "summary": "Every plugin that has its own configuration ships a YANG schema."
+        },
+        {
+          "title": "Handlers",
+          "slug": "handlers",
+          "summary": "Handlers are the callbacks a plugin registers with the SDK to react to engine-initiated events."
+        },
+        {
+          "title": "Commands",
+          "slug": "commands",
+          "summary": "A plugin exposes commands by declaring them in its Registration at startup and handling them with OnExecuteCommand at runtime."
+        },
+        {
+          "title": "Testing",
+          "slug": "plugin-testing",
+          "summary": "The Ze plugin SDK is designed to be testable."
+        }
+      ]
+    },
+    {
+      "title": "Chaos Testing",
+      "pages": [
+        {
+          "title": "Chaos Testing",
+          "slug": "chaos-testing",
+          "summary": "Chaos testing is built into Ze."
+        },
+        {
+          "title": "Scenarios",
+          "slug": "scenarios",
+          "summary": "A chaos scenario in Ze is a configuration of ze-chaos: the number of mock peers, the address families they negotiate, the duration, the chaos seed and rate, and any explicit fault triggers."
+        },
+        {
+          "title": "Dashboard",
+          "slug": "dashboard",
+          "summary": "The chaos dashboard is a live web UI for ze-chaos."
+        },
+        {
+          "title": "Property Verification",
+          "slug": "property-verification",
+          "summary": "Property verification is the part of ze-chaos that turns \"did the run finish without crashing\" into something useful."
+        }
+      ]
+    },
+    {
+      "title": "Blueprints",
+      "pages": [
+        {
+          "title": "Blueprints",
+          "slug": "blueprints",
+          "summary": "Blueprints are end-to-end worked examples."
+        },
+        {
+          "title": "Route Server at an IXP",
+          "slug": "route-server-at-an-ixp",
+          "summary": "Running Ze as an IXP route server."
+        },
+        {
+          "title": "Transit Edge with RPKI",
+          "slug": "transit-edge-with-rpki",
+          "summary": "A transit customer edge router."
+        },
+        {
+          "title": "Public Looking Glass",
+          "slug": "public-looking-glass",
+          "summary": "Stand up a public Looking Glass for your AS."
+        },
+        {
+          "title": "ExaBGP Migration Walkthrough",
+          "slug": "exabgp-migration-walkthrough",
+          "summary": "A complete worked migration of a non-trivial ExaBGP setup to Ze."
+        },
+        {
+          "title": "FlowSpec Injection",
+          "slug": "flowspec-injection",
+          "summary": "Inject BGP FlowSpec rules from a script for DDoS mitigation."
+        },
+        {
+          "title": "Chaos-Tested Peering",
+          "slug": "chaos-tested-peering",
+          "summary": "Set up a peering session and verify that it survives a battery of chaos scenarios."
+        },
+        {
+          "title": "AS Path Topology",
+          "slug": "as-path-topology",
+          "summary": "Use the Looking Glass topology graph to visualise a real network's AS paths."
+        }
+      ]
+    },
+    {
+      "title": "Development",
+      "pages": [
+        {
+          "title": "Development",
+          "slug": "development",
+          "summary": "This is the developer's section."
+        },
+        {
+          "title": "Building",
+          "slug": "building",
+          "summary": "Building Ze from source is a single command if you have Go 1.26 and a working toolchain on the path."
+        },
+        {
+          "title": "Repo Layout",
+          "slug": "repo-layout",
+          "summary": "The Ze repo is organised around three top-level Go directories (cmd/, internal/, pkg/) and a set of supporting directories for docs, tests, schemas, and tooling."
+        },
+        {
+          "title": "Coding Standards",
+          "slug": "coding-standards",
+          "summary": "Ze has a set of coding rules that apply to every contribution, whether you write the code by hand or with AI assistance."
+        },
+        {
+          "title": "Testing",
+          "slug": "testing",
+          "summary": "Ze has five test suites: unit, functional, fuzz, chaos, and mutation."
+        },
+        {
+          "title": "Debugging",
+          "slug": "debugging",
+          "summary": "Debugging Ze is mostly a matter of knowing which tool to reach for."
+        },
+        {
+          "title": "CI",
+          "slug": "ci",
+          "summary": "Ze's CI runs the same Make targets that you run locally, so that \"works locally\" and \"passes CI\" are the same statement."
+        },
+        {
+          "title": "RFC Compliance",
+          "slug": "rfc-implementation",
+          "summary": "Ze implements a lot of standards documents."
+        },
+        {
+          "title": "Contributing",
+          "slug": "contributing",
+          "summary": "Contributions to Ze are welcome."
+        },
+        {
+          "title": "Claude Code",
+          "slug": "claude-code",
+          "summary": "Ze is developed with Claude Code, and the repo ships a set of project-specific slash commands under .claude/skills/."
+        },
+        {
+          "title": "Performance",
+          "slug": "performance",
+          "summary": "ze-perf is a BGP propagation latency benchmark tool."
+        },
+        {
+          "title": "Mock Servers",
+          "slug": "mock-servers",
+          "summary": "ze-test is the test harness for Ze."
+        }
+      ]
+    },
+    {
+      "title": "Reference",
+      "pages": [
+        {
+          "title": "Reference",
+          "slug": "reference",
+          "summary": "The reference section is where you look when you need an exact answer."
+        },
+        {
+          "title": "Command Reference",
+          "slug": "command-reference",
+          "summary": "Ze commands fall into two categories."
+        },
+        {
+          "title": "Feature Inventory",
+          "slug": "feature-inventory",
+          "summary": "The full inventory of what Ze does."
+        },
+        {
+          "title": "Comparison",
+          "slug": "comparison",
+          "summary": "This page summarises how Ze lines up against the other open-source BGP daemons."
+        },
+        {
+          "title": "Configuration Reference",
+          "slug": "configuration-reference",
+          "summary": "The exact shape of every configuration field in Ze lives in the YANG schemas themselves, not in a separately-maintained reference."
+        },
+        {
+          "title": "Deprecated Options",
+          "slug": "deprecated-options",
+          "summary": "Configuration syntax that used to work and no longer does, with the migration path for each."
+        },
+        {
+          "title": "Glossary",
+          "slug": "glossary",
+          "summary": "Terms and acronyms that appear throughout the Ze documentation."
+        }
+      ]
+    }
+  ],
+  "unlisted": [
+    {
+      "slug": "CLAUDE",
+      "why": "agent instructions, not reader content"
+    },
+    {
+      "slug": "command-catalog",
+      "why": "a generated command dump; the site publishes its own command reference"
+    },
+    {
+      "slug": "community-filters",
+      "why": "reader content the wiki sidebar omits; add it to _Sidebar.md and this row goes"
+    },
+    {
+      "slug": "telemetry",
+      "why": "reader content the wiki sidebar omits; add it to _Sidebar.md and this row goes"
+    }
+  ]
+}

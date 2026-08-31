@@ -1,21 +1,30 @@
 # `show isis route`
 
+Show IS-IS-computed routes.
+
 ## Ze command
 
-- Syntax: `show isis route`
 - Registry path: `show isis route`
+- Usage: `show isis route`
 - Mode: Read-only
 - Wire method: `ze-show:isis-route`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `ipv6`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show IS-IS-computed routes. Lists each prefix the SPF installed with its metric, level, up/down bit, and next-hops (address and outgoing interface).
+Lists each prefix the SPF installed with its metric, level, up/down bit, and next-hops (address and outgoing interface).
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

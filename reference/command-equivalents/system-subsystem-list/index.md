@@ -1,25 +1,33 @@
 # `system subsystem list`
 
+List the subsystems registered in the daemon.
+
 ## Ze command
 
-- Syntax: `system subsystem list`
 - Registry path: `system subsystem list`
+- Usage: `system subsystem list`
 - Mode: Read-only
 - Wire method: `ze-system:subsystem-list`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-List available subsystems
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

@@ -58,25 +58,23 @@
 <li><a href="#release-evidence">Release evidence</a></li>
 </ol></nav>
 <!-- source: ../main/ai/rules/qemu-testing.md -- QEMU testing rule -->
-<!-- source: ../main/mk/test-integration.mk -- QEMU and interop targets -->
-<!-- source: ../main/mk/test-release.mk -- release evidence targets -->
-<!-- source: ../main/scripts/evidence/qemu-run.py -- QEMU runner -->
-<!-- source: ../main/scripts/evidence/qemu-all-tests.sh -- full QEMU suite -->
-<!-- source: ../main/test/interop/run.py -- Docker BGP interop runner -->
-
-<p><code>make ze-precommit-verify</code> stays local on purpose. It should be fast enough to run often and safe enough for a normal developer machine. QEMU and interop jobs are the next layer when a local run would skip the real contract.</p>
+<!-- source: ../main/internal/le/qemu/actions.go -- native QEMU actions -->
+<!-- source: ../main/internal/le/qemu/run.go -- host QEMU runner -->
+<!-- source: ../main/internal/le/qemu/alltests.go -- complete guest suite -->
+<!-- source: ../main/internal/le/integration/gates.go -- interop and live actions -->
+<!-- source: ../main/internal/le/evidence/actions.go -- release evidence action -->
+<p><code>./le verify current mode full</code> stays local on purpose. It should be fast enough to run often and safe enough for a normal developer machine. QEMU and interop jobs are the next layer when a local run would skip the real contract.</p>
 <h2 id="when-qemu-is-required">When QEMU is required</h2>
 <p>QEMU is required for code that depends on Linux behavior rather than Go behavior. That includes netlink, nftables, network namespaces, veth pairs, PPP, L2TP, eBPF, kernel route state, raw sockets, Linux-only build tags, and tests marked <code>option=needs-linux</code>.</p>
 <table>
 <thead><tr><th>Need</th><th>Command</th></tr></thead>
 <tbody>
-<tr><td>Run Linux-only functional files</td><td><code>make ze-qemu-needs-linux-test</code></td></tr>
-<tr><td>Run the full QEMU suite</td><td><code>make ze-qemu-test-all</code></td></tr>
-<tr><td>Rerun one failing command inside the VM</td><td><code>make ze-qemu-debug RUN='...'</code></td></tr>
-<tr><td>Keep a VM alive for manual inspection</td><td><code>make ze-qemu-shell</code></td></tr>
+<tr><td>Run curated Linux-only functional files</td><td><code>./le qemu netns-test</code></td></tr>
+<tr><td>Run the full suite inside a prepared guest</td><td><code>./le qemu run command '&lt;guest-le&gt; le qemu all-tests'</code></td></tr>
+<tr><td>Rerun one failing command inside the VM</td><td><code>./le qemu run command '...'</code></td></tr>
+<tr><td>Keep a VM alive for manual inspection</td><td><code>./le qemu run command '...' keep-alive</code></td></tr>
 </tbody>
 </table>
-
 <p>The runner boots Alpine from an ISO, mounts the repository over 9p, installs the needed packages, and runs the requested command inside the VM. The VM has Linux capabilities that Docker Desktop on macOS cannot provide reliably. A debug run is the right place to inspect <code>ip</code>, <code>nft</code>, <code>dmesg</code>, temporary files, process state, and generated logs.</p>
 <h2 id="linux-only-ci-files">Linux-only <code>.ci</code> files</h2>
 <p>A functional file that needs Linux says so explicitly:</p>
@@ -93,25 +91,25 @@
 <table>
 <thead><tr><th>Evidence</th><th>Command</th><th>What it proves</th></tr></thead>
 <tbody>
-<tr><td>BGP interop</td><td><code>make ze-interop-test</code></td><td>Ze exchanges real protocol messages with third-party BGP daemons.</td></tr>
-<tr><td>IPsec interop</td><td><code>make ze-interop-ipsec-test</code></td><td>strongSwan and Ze agree on the deployed behavior.</td></tr>
-<tr><td>L2TP and PPPoE</td><td><code>make ze-deployment-docker-l2tp-ppp-test</code>, <code>make ze-deployment-docker-pppoe-accel-test</code></td><td>Access protocol behavior works against real peers.</td></tr>
-<tr><td>Deployment evidence</td><td><code>make ze-deployment-l2tp-test</code>, <code>make ze-deployment-vpp-test</code></td><td>Deployment paths are not just unit-tested scripts.</td></tr>
+<tr><td>BGP interop</td><td><code>./le integration interop</code></td><td>Ze exchanges real protocol messages with third-party BGP daemons.</td></tr>
+<tr><td>IPsec interop</td><td><code>./le integration interop-ipsec</code></td><td>strongSwan and Ze agree on the deployed behavior.</td></tr>
+<tr><td>L2TP and PPPoE</td><td><code>./le deployment docker-l2tp-ppp-test</code>, <code>./le deployment docker-pppoe-accel-test</code></td><td>Access protocol behavior works against real peers.</td></tr>
+<tr><td>Deployment evidence</td><td><code>./le deployment l2tp-test</code>, <code>./le deployment vpp-test</code></td><td>Deployment paths are not just unit-tested scripts.</td></tr>
 </tbody>
 </table>
-
 <p>Interop tests are not a replacement for functional transcripts. A <code>.ci</code> test explains a Ze behavior precisely and cheaply. Interop proves that the behavior still works when another implementation interprets the protocol.</p>
 <h2 id="performance-and-live-evidence">Performance and live evidence</h2>
 <p>Performance gates are used when a change can regress throughput, convergence, or data-plane behavior. Live evidence is used when the contract includes external data, such as RPKI cache behavior. These checks are not default verify steps because they depend on time, host capacity, Docker, root privileges, or the internet.</p>
-<pre><code class="language-bash">make ze-evidence-perf-record
-make ze-live-test
+<pre><code class="language-bash">./le perf-bench record
+./le integration live-rpki
 </code></pre>
 <h2 id="release-evidence">Release evidence</h2>
-<p>Release evidence composes the slow categories and writes a report. The preflight target checks whether the host has the required tooling before spending time on the matrix.</p>
-<pre><code class="language-bash">make ze-evidence-release-preflight
-make ze-evidence-release-verify
+<p>Release evidence runs verification over a clean checkout in a container. The
+native action checks its prerequisites before it starts the matrix.</p>
+<pre><code class="language-bash">./le evidence release-candidate
 </code></pre>
 <p>Use release evidence when claiming broad coverage, not when debugging a single change. For a single failure, start from the narrow target that reproduces it and move outward only when the contract requires a wider environment.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Debugging</p>
@@ -141,7 +139,7 @@ make ze-evidence-release-verify
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
                 </div>
             </div>
         </footer>

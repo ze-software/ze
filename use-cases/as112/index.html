@@ -122,9 +122,9 @@
 <pre><code class="language-text">service {
     as112 {
         enabled true
-        hostname &quot;as112-ldn1.example.net&quot;
-        facility &quot;Example London&quot;
-        location &quot;London, GB&quot;
+        hostname "as112-ldn1.example.net"
+        facility "Example London"
+        location "London, GB"
         asn 112
         community [ no-export ]
         watchdog true
@@ -483,11 +483,12 @@ request as112 healthcheck target 2001:4:112::1
 </tbody>
 </table>
 <p>Run the lab from the main Ze checkout:</p>
-<pre><code class="language-text">python3 test/interop/run.py as112-redistribute-lab
-python3 test/interop/run.py as112-redistribute-origin-frr
-python3 test/interop/run.py as112-redistribute-community-frr
+<pre><code class="language-text">INTEROP_SCENARIO=as112-redistribute-lab ./le integration interop
+INTEROP_SCENARIO=as112-redistribute-origin-frr ./le integration interop
+INTEROP_SCENARIO=as112-redistribute-community-frr ./le integration interop
 </code></pre>
 <p>The AS112 feature reference remains at <a href="../../guides/as112/">docs/guide/as112</a> for every configuration leaf, CLI command, and RFC compliance note.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -521,7 +522,7 @@ python3 test/interop/run.py as112-redistribute-community-frr
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

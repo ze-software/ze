@@ -4,23 +4,17 @@ Ze commands fall into two categories: **shell commands** that run locally
 and **runtime commands** sent to the running daemon via SSH.
 <!-- source: cmd/ze/main.go -- main dispatch -->
 
-This page explains the command model. For a live, searchable list of every
-command with its description, run `ze help command` (or `ze help command --json`
-for machine-readable output). The wiki's auto-generated
-[command-catalog](https://github.com/ze-software/ze/wiki/command-catalog)
-is produced from this JSON.
+This page explains the command model. For a live list of every command, run
+`ze help command`. `./le wiki-catalog update file <destination>` writes the
+Markdown catalog from the same live registries.
 
 For the generated cross-vendor migration view (Junos MX, Cisco IOS XR,
 Nokia SR OS, and VyOS), use the website's
 [Command Equivalents](https://ze-software.net/reference/command-equivalents/) page.
-It joins `ze help command --json` with the curated vendor mapping in
-`website/data/command-equivalents.json`, so Ze command additions appear as
-unmapped rows until a vendor equivalent is added. For code-tree readers, the
-maintained data and generator are in `website/`:
-[`data/command-equivalents.json`](https://github.com/ze-software/ze/blob/main/website/data/command-equivalents.json)
-and
-[`tools/render-command-equivalents.py`](https://github.com/ze-software/ze/blob/main/website/tools/render-command-equivalents.py).
-<!-- source: website/tools/render-command-equivalents.py -- load_inputs, build_rows -->
+The native renderer joins the live command registry with the curated vendor
+mapping in `website/data/command-equivalents.json`, so a new Ze command appears
+as unmapped until its vendor equivalents are added.
+<!-- source: internal/le/site/equivalents.go -- renderCommandEquivalents -->
 <!-- source: website/data/command-equivalents.json -- vendor mapping -->
 
 ## Conventions
@@ -75,9 +69,9 @@ from stdin (`ze -`) is unaffected.
 
 Use type-ahead filtering and drill-down navigation in Ze's interactive command launcher.
 
-[Download the asciicast recording](../../assets/demos/launcher.cast?v=c49373f1b2) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
+[Download the asciicast recording](../../assets/demos/launcher.cast?v=12a2019323) · [Plain-text transcript](../../assets/demos/launcher.txt?v=0399dbc59f)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 57 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 57 seconds.
 
 ```console
 $ ze
@@ -94,7 +88,6 @@ Press Escape to move back through the menu and return to the shell.
 | `-d`, `--debug` | Enable debug logging |
 | `-f <file>` | Use filesystem directly, bypass blob store |
 | `--plugin <name>` | Load plugin before starting a YANG/native config (repeatable). Hub/orchestrator configs reject this; use `plugin { internal ... }` or `plugin { external ... }` in the config instead. |
-| `--plugins` | List available internal plugins |
 | `--pprof <addr:port>` | Start pprof HTTP server |
 | `-V`, `--version` | Show version (also available as `ze show version`) |
 | `--chaos-seed <N>` | Enable chaos self-test mode |
@@ -103,8 +96,7 @@ Press Escape to move back through the menu and return to the shell.
 | `--name <name>` | Override client name for managed mode |
 | `--token <token>` | Override auth token for managed mode |
 | `--color` | Force colored output (even when not a TTY) |
-| `--no-color` | Disable colored output (also: `NO_COLOR` env var, `TERM=dumb`) |
-<!-- source: cmd/ze/main.go -- global flag parsing -->
+| `--no-color` | Disable colored output (also: `NO_COLOR` env var, `TERM=dumb`) <!-- source: cmd/ze/main.go -- global flag parsing --> |
 
 ### ze config validate
 
@@ -113,14 +105,13 @@ Validate a configuration file without starting the daemon.
 ```
 ze config validate <config-file>
 ze config validate -q <config-file>     # Quiet: exit code only
-ze config validate --json <config-file> # JSON output
+ze cli -c "validate config <config-file> | json"   # the same verdict as JSON
 ```
 
 | Flag | Purpose |
 |------|---------|
 | `-v` | Verbose output |
 | `-q` | Quiet mode (exit code only) |
-| `--json` | JSON output |
 
 Exit codes: 0 = valid, 1 = invalid, 2 = file not found.
 
@@ -156,7 +147,7 @@ skipped at apply time. See `docs/guide/config-deactivate.md`.
 ze config import <file>...       # Import files into the database
 ze config import --name <n> <file>  # Import under a different name
 ze config rename <old> <new>     # Rename a config in the database
-ze config ls [prefix]            # List files in database
+ze config list [prefix]          # List files in database
 ze config cat <key>              # Print database entry
 ```
 
@@ -164,7 +155,7 @@ ze config cat <key>              # Print database entry
 
 ```
 ze config validate <file>        # Validate configuration file
-ze config show <file> [path...]  # Show the config tree at a path (one-shot; --json)
+ze config show <file> [path...]  # Show the config tree at a path (one-shot)
 ze config dump <file>            # Dump parsed configuration
 ze config diff <f1> <f2>         # Compare two configs
 ze config diff <N> <file>        # Compare with rollback revision
@@ -187,7 +178,9 @@ ze completion families               # Address families (completes --family <TAB
 
 The generated bash/zsh/fish scripts (`ze completion <shell>`) complete
 subcommand flag names from the registry inventory and `--family` values from the
-address-family registry.
+address-family registry. Each record is the candidate, a tab, the summary, a
+newline. A summary carrying a tab or a newline is folded to single spaces, so
+one candidate never reads as two.
 <!-- source: internal/component/command/registry/flags.go -- RegisterCommandFlags, CommandFlags -->
 <!-- source: internal/plugins/completion/flags.go -- writeFlags, writeFamilies -->
 
@@ -290,8 +283,7 @@ ze show bgp encode <route-command>
 | `-i` | Enable ADD-PATH (include path-id) |
 | `-n` | Output only NLRI bytes |
 | `--no-header` | Exclude BGP header |
-| `--asn4` | 4-byte ASN (default: true) |
-<!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode -->
+| `--asn4` | 4-byte ASN (default: true) <!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode --> |
 
 ### ze show warnings / ze show errors
 
@@ -410,6 +402,54 @@ as context, `show host *` when you want hardware-first.
 
 <!-- source: internal/component/cmd/show/system.go -- handleShowSystemMemory/CPU/Date -->
 
+### show plugins
+
+The plugins compiled into this binary, and what each one's own `init()`
+recorded when it set itself up. Answered in the operator's own process from the
+plugin registry, so it needs no daemon and no configuration. A plugin that this
+build compiles out is absent from the answer.
+
+```
+ze show plugins                          # every plugin, one row each
+ze show plugins | ze pipe match rpki     # narrow the list from a shell
+ze show plugins | ze pipe match memlock  # one plugin and its setup outcome
+```
+
+In the interactive CLI and through `ze cli -c`, the whole operator language
+applies to the answer: `show plugins | json`, `| yaml`, `| table`, `| count`,
+`| match <text>`, `| first <n>`. The rows carry these keys:
+
+| Key | Value |
+|-----|-------|
+| `name` | The plugin name, as `plugin { internal ... }` spells it |
+| `description` | What the plugin does |
+| `outcome` | `succeeded`, `soft-failure`, `hard-failure`, or `unknown` |
+| `families` | The address families it handles, when it declares any |
+| `rfcs` | The RFCs it implements, when it declares any |
+| `capabilities` | The BGP capability codes it owns, when it declares any |
+| `reason` | What the plugin said about a failure. Absent when it gave none |
+
+`unknown` means the plugin registered and recorded nothing. It is not an error,
+and it is not a success: it is the plugin owing a record.
+
+A `soft-failure` names a feature the daemon runs correctly without, so the
+daemon starts. A `hard-failure` stops the daemon at its first statement, with
+the plugin name and the reason on stderr and in the log. A CLI verb never
+reaches that gate, so this command still answers on a host where the daemon
+refuses to boot. A plugin that recorded an outcome and then failed to register
+keeps its row, and its `description` says so.
+
+The outcome is not `show health`. `show health` runs a probe NOW and reports
+what the daemon is doing at this moment. The outcome replays a past event: a
+record written once, before `main()`, which is why it can answer for a plugin
+that failed before it had anything to probe.
+
+`| resolve` and `| origin` are refused by name: no field of this answer holds an
+IP address.
+
+<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows, show plugins registration -->
+<!-- source: internal/component/plugin/registry/setup.go -- SetupResults, the outcome each row carries -->
+
 ### show host
 
 Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
@@ -434,9 +474,9 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 
 Use Ze's offline command fallback to read the complete kernel, CPU, and memory inventory in human-readable structured output.
 
-[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=ede5ff9591) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
+[Download the asciicast recording](../../assets/demos/host-inventory.cast?v=130e81dfc9) · [Plain-text transcript](../../assets/demos/host-inventory.txt?v=5b221c4c0f)
 
-Recorded with Ze 26.08.25 in a Linux namespace lab using Ze recorder. Duration: 36 seconds.
+Recorded with Ze 26.08.31 in a Linux namespace lab using Ze recorder. Duration: 37 seconds.
 
 ```console
 An operator needs to inspect an unfamiliar Linux host before starting Ze.
@@ -562,7 +602,7 @@ ze interface unit add <name> <id> [vlan-id <vid>]  # Add a logical unit
 ze interface unit del <name> <id>  # Delete a logical unit
 ze interface addr add <name> unit <id> <cidr>      # Add IP address
 ze interface addr del <name> unit <id> <cidr>      # Remove IP address
-ze interface migrate ...           # Make-before-break migration (requires daemon)
+ze interface migrate from .. to .. address ..  # Make-before-break migration (requires daemon)
 ```
 
 **`show interface name <name> detail`** (and the standalone
@@ -913,33 +953,33 @@ PKI certificate store introspection. Shows certificates loaded from
 the `pki {}` config section.
 
 ```
-ze show pki certificates                           # List all loaded certs (CA + device)
-ze show pki certificate <name>                     # Full details for a named certificate
-ze show pki certificate <name> pem                 # PEM-encoded certificate (+ intermediate)
-ze show pki certificate <name> bundle pem          # Certificate + private key in one PEM
-ze show pki certificate <name> fingerprint         # SHA-256 fingerprint (colon-separated hex)
-ze show pki certificate <name> fingerprint sha512  # SHA-512 fingerprint
+ze show pki certificates                                # List all loaded certs (CA + device)
+ze show pki certificate name <name>                     # Full details for a named certificate
+ze show pki certificate name <name> pem                 # PEM-encoded certificate (+ intermediate)
+ze show pki certificate name <name> bundle pem          # Certificate + private key in one PEM
+ze show pki certificate name <name> fingerprint         # SHA-256 fingerprint (colon-separated hex)
+ze show pki certificate name <name> fingerprint sha512  # SHA-512 fingerprint
 ```
 
 **`show pki certificates`** returns a sorted list of all loaded
 certificates with name, type (ca/device), subject CN, issuer CN,
 expiry date, key algorithm, and validity status.
 
-**`show pki certificate <name>`** returns full details: subject,
+**`show pki certificate name <name>`** returns full details: subject,
 issuer, serial, validity period, key algorithm, key size, SANs,
 key usage, private key presence, and chain validation status.
 
-**`show pki certificate <name> pem`** returns the certificate in PEM
+**`show pki certificate name <name> pem`** returns the certificate in PEM
 format. Includes the intermediate certificate if one is stored.
 
-**`show pki certificate <name> bundle pem`** returns the certificate
+**`show pki certificate name <name> bundle pem`** returns the certificate
 and its private key concatenated in PEM format (device certificates
 only). Useful for clients that need a single PEM file (e.g. OpenConnect).
 
-**`show pki certificate <name> fingerprint [sha256|sha384|sha512]`**
+**`show pki certificate name <name> fingerprint [sha256|sha384|sha512]`**
 returns the DER fingerprint as colon-separated hex. Defaults to SHA-256.
 
-<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate -->
+<!-- source: internal/component/pki/show.go -- handleShowPKICertificates, handleShowPKICertificate, handleShowPKICertificatePEM, handleShowPKICertificateBundlePEM, handleShowPKICertificateFingerprint -->
 
 ### show firewall
 
@@ -1352,9 +1392,11 @@ of them declares.
 That bare command answers the seven validation counters and one row for each
 cache server, as siblings. That shape is what leaves `| summary` a half to
 select. The RPKI plugin declares the alias over the plugin Stage 1 channel
-rather than in Go. So `ze help command --json` and `make ze-command-list` do not
+rather than in Go. So `ze help command --json` and `./le command list` do not
 list it: both read the compiled tree in their own process and start no plugin.
-The full RPKI command list is in `docs/guide/rpki.md`.
+Each row they DO list carries the command's summary under `description` and its
+long explanation under `long-help`. The full RPKI command list is in
+`docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 
@@ -1456,15 +1498,24 @@ without underflow.
 <!-- source: internal/component/iface/counters.go -- baselineStore, applyBaseline (wrap rebases) -->
 <!-- source: internal/component/iface/dispatch.go -- ResetCounters, GetStats/ListInterfaces/GetInterface apply baseline -->
 
-**migrate flags (dispatched to running daemon via SSH):**
+**migrate grammar (dispatched to the running daemon over SSH as
+`request interface migrate`):**
 
-| Flag | Purpose |
-|------|---------|
-| `--from <iface>.<unit>` | Source interface and unit (required) |
-| `--to <iface>.<unit>` | Destination interface and unit (required) |
-| `--address <cidr>` | IP address to migrate (required) |
-| `--create <type>` | Create new interface: dummy, veth, bridge |
-| `--timeout <duration>` | BGP readiness timeout (default: 30s) |
+```
+ze interface migrate [--user <name>] from <iface>.<unit> to <iface>.<unit> address <cidr> [create <type>] [timeout <duration>]
+```
+
+| Keyword | Purpose |
+|---------|---------|
+| `from <iface>.<unit>` | Source interface and unit (required) |
+| `to <iface>.<unit>` | Destination interface and unit (required) |
+| `address <cidr>` | IP address to migrate (required) |
+| `create <type>` | Create the destination interface: dummy, veth, bridge |
+| `timeout <duration>` | BGP readiness wait (default: 30s) |
+
+These five are grammar the daemon reads, not client flags: the daemon refuses a
+flag-shaped token before any handler runs. `--user` is the one flag this command
+interprets itself, and it comes before the first keyword.
 <!-- source: internal/component/iface/cli/main.go -- Run; internal/component/iface/cli/show.go -- cmdShow; internal/component/iface/cli/migrate.go -- cmdMigrate -->
 
 ### ze exabgp
@@ -1512,7 +1563,14 @@ ze schema events [module]        # List notifications
 ze schema protocol               # Show protocol version
 ```
 
-All subcommands accept `--json`.
+No subcommand takes a rendering flag. Each answer is registered, so the pipe
+layer renders it, and `| json`, `| yaml` and `| table` are three renderings of
+one payload:
+
+```
+ze cli -c "show schema list | json"
+ze cli -c "show schema methods | match peer"
+```
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
 
 ### ze yang
@@ -1527,11 +1585,13 @@ ze yang doc [command]            # Command documentation
 
 | Flag | Purpose |
 |------|---------|
-| `--json` | JSON output |
 | `--commands` | Show command tree (tree) |
 | `--config` | Show config tree (tree) |
 | `--min-prefix <N>` | Minimum prefix length (completion, default: 1) |
 | `--list` | List commands (doc) |
+
+The tree and the collision report are registered answers, so the pipe layer
+renders them: `ze cli -c "show yang tree --config | json"`.
 <!-- source: internal/component/config/yang/cli/main.go -- Run -->
 
 ### ze init
@@ -1771,7 +1831,7 @@ Low-level blob store management.
 ```
 ze data import <file>...           # Import files into blob
 ze data rm <key>...                # Remove entries
-ze data ls [prefix]                # List entries
+ze data list [prefix]              # List entries
 ze data cat <key>                  # Print entry content
 ze data registered                 # List all registered key patterns
 ze data registered <pattern>       # Show details for a key pattern
@@ -1779,8 +1839,7 @@ ze data registered <pattern>       # Show details for a key pattern
 
 | Flag | Purpose |
 |------|---------|
-| `--path <store>` | Blob store path |
-<!-- source: internal/component/config/storage/cli/main.go -- Run, subcommandHandlers -->
+| `--path <store>` | Blob store path <!-- source: internal/component/config/storage/cli/main.go -- Run, subcommandHandlers --> |
 
 ### ze plugin
 
@@ -1855,8 +1914,7 @@ ze resolve irr prefix AS-CLOUDFLARE                    # Lookup announced prefix
 |------|------------|---------|
 | `--server <host>` | dns, irr | Override DNS/whois server |
 | `--dns-server <host>` | cymru | Override DNS server for TXT queries |
-| `--url <url>` | peeringdb | Override PeeringDB API base URL |
-<!-- source: internal/component/resolve/cli/main.go -- Run -->
+| `--url <url>` | peeringdb | Override PeeringDB API base URL <!-- source: internal/component/resolve/cli/main.go -- Run --> |
 
 ### ze-perf
 
@@ -2021,8 +2079,7 @@ Many commands take a `peer <selector>` argument:
 | ASN | `peer as65001` | By remote ASN, case-insensitive (matches all peers with that ASN) |
 | Glob | `peer 192.168.*.*` | Pattern match |
 | Exclusion | `peer !10.0.0.1` | All except this peer |
-| ASN exclusion | `peer !as65001` | All except peers with this ASN |
-<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel; internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handler -->
+| ASN exclusion | `peer !as65001` | All except peers with this ASN <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel; internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handler --> |
 
 ### Peer Commands
 
@@ -2038,8 +2095,7 @@ Many commands take a `peer <selector>` argument:
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
-| `request peer <sel> flush` | write | Block until all queued updates for peer are on the wire |
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -->
+| `request peer <sel> flush` | write | Block until all queued updates for peer are on the wire <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang --> |
 
 `show bgp peer <sel> capabilities` and `show bgp peer <sel> statistics` answer
 one row for each matched peer, under a `peers` key, whatever the number of
@@ -2117,14 +2173,12 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `delete bgp peer <sel>` | write | Remove peer |
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- del peer handler -->
+| `delete bgp peer <sel>` | write | Remove peer <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- del peer handler --> |
 
 ### Update Commands
 
 | Command | Access | Purpose |
-|---------|--------|---------|
-<!-- source: internal/component/cmd/update/update.go -- update verb RPC registration; internal/component/cmd/update/yang/ze-cli-update-cmd.yang -->
+|---------|--------|--------- <!-- source: internal/component/cmd/update/update.go -- update verb RPC registration; internal/component/cmd/update/yang/ze-cli-update-cmd.yang --> |
 
 ### Route Injection
 
@@ -2167,8 +2221,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `clear bgp rib out <selector> [family]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers, optional family filter) |
 | `request bgp rib inject <peer> <family> <prefix> [attrs...]` | write | Insert route into Adj-RIB-In as if received from peer |
 | `request bgp rib withdraw <peer> <family> <prefix>` | write | Remove route from Adj-RIB-In |
-| `show bgp rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families |
-<!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin -->
+| `show bgp rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin --> |
 
 ### IRR Filter Commands
 
@@ -2179,10 +2232,8 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `show bgp irr check <peer> <prefix>` | read-only | Test whether a prefix would be accepted by the IRR filter |
 | `update bgp irr all` | write | Refresh all IRR prefix-lists immediately |
 | `update bgp irr asn <asn>` | write | Refresh IRR prefix-list for a specific ASN |
-| `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET |
-<!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet -->
-| `update bgp peer <sel> prefix` | write | Refresh max-prefix limits from PeeringDB (saves to draft; run `config commit` to apply) |
-<!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate -->
+| `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet --> |
+| `update bgp peer <sel> prefix` | write | Refresh max-prefix limits from PeeringDB (saves to draft; run `config commit` to apply) <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate --> |
 
 ### Healthcheck Commands
 
@@ -2190,8 +2241,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 |---------|--------|---------|
 | `show bgp healthcheck` | read-only | One row for each probe: its name, its group and its state |
 | `show bgp healthcheck <name>` | read-only | One row, with the ten fields of that probe |
-| `clear bgp healthcheck <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. |
-<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow -->
+| `clear bgp healthcheck <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow --> |
 
 Both spellings answer a row set, so `| count`, `| first` and `| match` act on
 either. The two answers carry different field sets on purpose. Each row
@@ -2206,8 +2256,7 @@ declares `map` rather than `tab`. `| fill` is refused by name.
 | `show bmp sessions` | read-only | Show active BMP receiver sessions (router address, sysName, uptime) |
 | `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status) |
 | `show bmp collectors` | read-only | Show BMP sender collector connection status |
-| `show bmp rib` | read-only | Show BMP-monitored routes |
-<!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy -->
+| `show bmp rib` | read-only | Show BMP-monitored routes <!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy --> |
 
 ### Commit (Atomic Updates)
 
@@ -2409,8 +2458,7 @@ Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
 |---------|--------|---------|
 | `show metrics values` | read-only | Prometheus text format metrics |
 | `show metrics list` | read-only | List metric names |
-| `show metrics pool` | read-only | Per-attribute-pool occupancy, dedup rates, and aggregate totals (13 BGP pools) |
-<!-- source: internal/component/cmd/metrics/ -- show metrics values/list/pool RPCs -->
+| `show metrics pool` | read-only | Per-attribute-pool occupancy, dedup rates, and aggregate totals (13 BGP pools) <!-- source: internal/component/cmd/metrics/ -- show metrics values/list/pool RPCs --> |
 
 ### Logging
 
@@ -2440,8 +2488,7 @@ active after enabling debug or applying a profile.
 |---------|--------|---------|
 | `bgp plugin encoding <json\|text>` | write | Set event encoding |
 | `bgp plugin format <hex\|base64\|parsed\|full>` | write | Set wire format display |
-| `bgp plugin ack <sync\|async>` | write | Set ACK timing |
-<!-- source: internal/component/cmd/subscribe/ -- subscribe/unsubscribe RPCs -->
+| `bgp plugin ack <sync\|async>` | write | Set ACK timing <!-- source: internal/component/cmd/subscribe/ -- subscribe/unsubscribe RPCs --> |
 
 ### Discovery
 
@@ -2450,10 +2497,8 @@ active after enabling debug or applying a profile.
 | `help` | read-only | List available subcommands |
 | `show command list` | read-only | List all commands with descriptions |
 | `show command help <name>` | read-only | Detailed help for a command |
-| `show event list` | read-only | List available event types |
-<!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd -->
-| `show event delivery` | read-only | Show which peers feed which attached processes |
-<!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery -->
+| `show event list` | read-only | List available event types <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd --> |
+| `show event delivery` | read-only | Show which peers feed which attached processes <!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery --> |
 
 ---
 
@@ -2483,10 +2528,7 @@ Inside `ze cli`:
 | Pipe: named alias | `show bgp \| summary`, `show bgp \| peers` |
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |
-| Tab completion | Contextual command/argument completion |
-<!-- source: internal/component/cli/client/main.go -- pipe operators, interactive model -->
-<!-- source: internal/component/command/pipe.go -- pipe operator definitions -->
-<!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat -->
+| Tab completion | Contextual command/argument completion <!-- source: internal/component/cli/client/main.go -- pipe operators, interactive model --> <!-- source: internal/component/command/pipe.go -- pipe operator definitions --> <!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat --> |
 
 `ze cli` with no command argument runs the interactive model in the CLIENT
 process and expands the pipe chain there. Only the aliases compiled into Ze
@@ -2508,8 +2550,7 @@ The daemon handles these Unix signals directly:
 |--------|--------|
 | `SIGHUP` | Reload configuration |
 | `SIGTERM` / `SIGINT` | Graceful shutdown |
-| `SIGUSR1` | Dump status to stderr |
-<!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGTERM/SIGINT/SIGHUP/SIGUSR1 -->
+| `SIGUSR1` | Dump status to stderr <!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGTERM/SIGINT/SIGHUP/SIGUSR1 --> |
 
 ## ze-chaos
 

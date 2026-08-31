@@ -1,25 +1,35 @@
 # `debug ospf inject enable`
 
+Enable OSPF debug LSA injection (shared across both address families).
+
 ## Ze command
 
-- Syntax: `debug ospf inject enable`
 - Registry path: `debug ospf inject enable`
+- Usage: `debug ospf inject enable`
 - Mode: Daemon
 - Wire method: `ze-debug:ospf-inject-enable`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Enable OSPF debug LSA injection (shared across both address families). Off by default. Usage: debug ospf inject enable.
+Off by default.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

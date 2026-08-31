@@ -67,27 +67,25 @@ via the existing <code>ConfigureMetrics</code> callback in the <code>Registratio
 <li><a href="#reference-implementation">Reference Implementation</a></li>
 </ol></nav>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.ConfigureMetrics -->
-
 <h2 id="implementation-pattern">Implementation Pattern</h2>
 <p>Each plugin follows the same three-step pattern used by bgp-rib and bgp-gr:</p>
 <ol>
 <li>
 <p><strong>Registration:</strong> Set <code>ConfigureMetrics</code> in the <code>Registration</code> struct inside
-   <code>init()</code>. The callback receives a typed <code>metrics.Registry</code>; no assertion is
-   needed.</p>
+<code>init()</code>. The callback receives a typed <code>metrics.Registry</code>; no assertion is
+needed.</p>
 </li>
 <li>
 <p><strong>Storage:</strong> Declare a package-level <code>atomic.Pointer</code> holding a metrics struct.
-   The struct contains the counters and gauges created from the registry.</p>
+The struct contains the counters and gauges created from the registry.</p>
 </li>
 <li>
 <p><strong>Usage:</strong> At metric update points, load the pointer. If nil (metrics disabled),
-   skip. Otherwise update the metric.</p>
+skip. Otherwise update the metric.</p>
 </li>
 </ol>
 <!-- source: internal/component/bgp/plugins/rib/register.go -- ConfigureMetrics callback -->
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- ribMetrics struct, metricsPtr, SetMetricsRegistry -->
-
 <h2 id="naming-policy">Naming Policy</h2>
 <p>Every metric name is built from four parts in fixed order:</p>
 <pre><code>ze_{scope}_{subject}_{detail}
@@ -127,7 +125,6 @@ via the existing <code>ConfigureMetrics</code> callback in the <code>Registratio
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- ze_gr_* metric names -->
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- ze_peer_* metric names -->
 <!-- source: internal/component/bgp/filterapi/metrics.go -- ze_bgp_attr_mod_* metric names -->
-
 <h3 id="type-specific-rules">Type-Specific Rules</h3>
 <table>
 <thead>
@@ -976,7 +973,6 @@ transition never arrived at all.</p>
 <!-- source: internal/component/plugin/server/managed_serve.go -- NewManagedServer metric registration -->
 <!-- source: internal/component/plugin/server/server.go -- NewServer write-watchdog hook -->
 <!-- source: pkg/plugin/rpc/conn.go -- fireWatchdog, SetWriteWatchdogHook -->
-
 <p>The two <code>iface-ra</code> counters carry one <code>interface</code> label each.
 <code>ze_iface_ra_sent_total</code> counts every Router Advertisement put on the wire.
 <code>ze_iface_ra_solicited_total</code> counts the subset that answered a Router
@@ -985,7 +981,6 @@ the total. A rise in the solicited counter with a flat send rate means that
 hosts join the link.</p>
 <!-- source: internal/plugins/iface/ra/ifacera.go -- incSent, incSolicited -->
 <!-- source: internal/plugins/iface/ra/sender_linux.go -- send call sites -->
-
 <p><code>ze_plugin_write_watchdog_total</code> increments when a plugin RPC write on a
 transport that does not support <code>SetWriteDeadline</code> (SSH channels, <code>io.Pipe</code>)
 stalls past the write-watchdog window (default 30s); the connection is then
@@ -993,10 +988,8 @@ closed (fail-fast). Deadline-capable transports (<code>net.Conn</code>) use writ
 deadlines instead and never contribute to this counter. The <code>transport</code> label
 is a low-cardinality bucket (<code>stream</code>, <code>pipe</code>, <code>file</code>).</p>
 <!-- source: internal/plugins/trafficusage/metrics.go -- BindMetrics -->
-
 <!-- source: internal/plugins/ospf/spf/computer.go -- SetMetrics -->
 <!-- source: internal/plugins/ospf/spf/install.go -- SetMetrics and publishCounts -->
-
 <p><code>ze_ospf_packets_dropped_total</code> counts transport drops before packet dispatch or
 after a failed send. The Linux receive path currently emits reason
 <code>malformed-ipv4</code> when a raw datagram is too short for an IPv4 header or its IHL
@@ -1004,7 +997,6 @@ overruns the received bytes; <code>SendPacket</code> emits reason <code>send-err
 backend transmit call fails.</p>
 <!-- source: internal/plugins/ospf/transport/backend_linux.go -- deliverDatagram -->
 <!-- source: internal/plugins/ospf/transport/transport.go -- SendPacket -->
-
 <p>The two <code>ospf (iface)</code> series track the OSPFv2 Interface State Machine:
 <code>ze_ospf_interface_up{area,interface}</code> is 1 for active point-to-point or
 broadcast interfaces and 0 for Down, passive, or loopback records;
@@ -1026,7 +1018,6 @@ self-LSA lifecycle events, <code>ze_ospf_lsupdates_sent_total{interface}</code> 
 <!-- source: internal/plugins/ospf/instance.go -- setMetrics -->
 <!-- source: internal/plugins/ospf/iface/iface.go -- setUpLocked, runElectionLocked -->
 <!-- source: internal/plugins/ospf/neighbor/table.go -- setStateLocked, recordEventLocked -->
-
 <p>The five <code>ospf (spf)</code> series track route computation and install state:
 <code>ze_ospf_spf_runs_total{area}</code> and <code>ze_ospf_spf_duration_seconds{area}</code> report
 SPF scheduling and runtime, <code>ze_ospf_routes_installed{type,af}</code> reports the current
@@ -1036,7 +1027,6 @@ router has an active backbone attachment and at least one other active area, and
 area.</p>
 <!-- source: internal/plugins/ospf/spf/computer.go -- SetMetrics and Run -->
 <!-- source: internal/plugins/ospf/spf/install.go -- SetMetrics and publishCounts -->
-
 <p>The two <code>isis (dis)</code> series are the Designated IS / pseudo-node metrics (broadcast
 LANs): <code>ze_isis_dis_elections_total</code> counts DIS elections that changed the elected
 DIS per level, and <code>ze_isis_pseudonode_lsps</code> gauges the pseudo-node LSPs this node
@@ -1093,13 +1083,12 @@ exists; whichever of the two happens second performs the injection, exactly once
 per plugin.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- InjectPluginMetrics, SetMetricsRegistry -->
 <!-- source: internal/component/plugin/server/startup.go -- runPluginPhase spawns before the tier handshake -->
-
 <p>Two consequences for a plugin author:</p>
 <ul>
 <li>Do not read your metrics struct during <code>init()</code> or at the top of <code>RunEngine</code>;
-  load the atomic pointer at each metric update point, as step 3 above says.</li>
+load the atomic pointer at each metric update point, as step 3 above says.</li>
 <li>Declaring a <code>Dependency</code> on <code>bgp</code> does not order the injection. Dependencies
-  order the 5-stage handshake, not the spawn the hook used to be bound to.</li>
+order the 5-stage handshake, not the spawn the hook used to be bound to.</li>
 </ul>
 <h2 id="nopregistry-fallback">NopRegistry Fallback</h2>
 <p>When telemetry is disabled in config, plugins receive a <code>NopRegistry</code> that returns
@@ -1107,7 +1096,6 @@ no-op metric implementations. The nil-check on the atomic pointer handles the ca
 where <code>ConfigureMetrics</code> is never called at all (plugin loaded without a metrics
 registry).</p>
 <!-- source: internal/core/metrics/nop.go -- NopRegistry -->
-
 <h2 id="which-plugins-need-metrics">Which Plugins Need Metrics</h2>
 <p>Not every plugin needs metrics. NLRI codec plugins (flowspec, evpn, labeled, etc.)
 are stateless encoders/decoders with no runtime state to observe. Only plugins
@@ -1144,11 +1132,11 @@ as capability-only, but it filters every UPDATE on ingress and egress, so each
 of its refusal paths carries a reason-labeled counter.</p>
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
 <!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
-
 <h2 id="reference-implementation">Reference Implementation</h2>
 <p>The bgp-rib plugin (<code>internal/component/bgp/plugins/rib/</code>) is the reference
 implementation. It demonstrates all aspects: registration callback, metrics struct,
 atomic pointer, periodic update loop, and per-peer label cleanup.</p>
+
             </section>
         </main>
 
@@ -1158,7 +1146,7 @@ atomic pointer, periodic update loop, and per-peer label cleanup.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

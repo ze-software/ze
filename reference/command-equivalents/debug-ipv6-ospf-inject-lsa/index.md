@@ -1,25 +1,35 @@
-# `debug ipv6 ospf inject lsa scope <link|area|as> type <ls-type>`
+# `debug ipv6 ospf inject lsa`
+
+Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).
 
 ## Ze command
 
-- Syntax: `debug ipv6 ospf inject lsa scope <link\|area\|as> type <ls-type>`
 - Registry path: `debug ipv6 ospf inject lsa`
+- Usage: `debug ipv6 ospf inject lsa type <ls-type> id <link-state-id> [scope <link\|area\|as>] [hex <body> ...] [withdraw]`
 - Mode: Daemon
 - Wire method: `ze-debug:ospfv3-inject`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `hex`, `id`, `scope`, `type`, `withdraw`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340). Usage: debug ipv6 ospf inject lsa scope <link|area|as> type <ls-type> id <link-state-id> [hex <body>] [withdraw]. The flooding scope is derived from the LS Type S2/S1 bits (a reserved scope is rejected). Requires `debug ospf inject enable`.
+The flooding scope is derived from the LS Type S2/S1 bits (a reserved scope is rejected). Requires `debug ospf inject enable`.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

@@ -1,25 +1,34 @@
 # `skills`
 
+List the agent skills this binary carries, or fetch one by name.
+
 ## Ze command
 
-- Syntax: `skills`
 - Registry path: `skills`
 - Mode: Offline
 - Wire method: `not listed`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-List or retrieve agent skill definitions matching this Ze version. Use 'get <name>' to fetch a specific skill.
+Each skill is a Markdown document bundled with the binary, so it always matches the running version. One skill is fetched by name, in its short form or in full.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

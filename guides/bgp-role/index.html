@@ -72,7 +72,6 @@
 <li><a href="#without-role">Without Role</a></li>
 </ol></nav>
 <!-- source: internal/component/bgp/plugins/role/register.go -- role registration, RFC 9234, OTC attribute -->
-
 <h2 id="configuration">Configuration</h2>
 <pre><code>bgp {
     peer upstream {
@@ -122,7 +121,6 @@
 </table>
 <p>Role can be set at the group level and overridden per peer.</p>
 <!-- source: internal/component/bgp/plugins/role/yang/ -- ze-role YANG schema -->
-
 <h2 id="role-values">Role Values</h2>
 <table>
 <thead>
@@ -196,7 +194,6 @@
 <h2 id="otc-filtering">OTC Filtering</h2>
 <p>The OTC (Only To Customer) attribute (type 35) prevents route leaks:</p>
 <!-- source: internal/component/bgp/plugins/role/register.go -- OTCIngressFilter, OTCEgressFilter, otcAttrCode -->
-
 <h3 id="what-role-the-procedures-use">What role the procedures use</h3>
 <p>The Section 5 procedures act on what the PEER is to ze, not on what ze is to the peer. Ze resolves that value in one place, for the source peer on ingress and for the destination peer on egress.</p>
 <table>
@@ -220,7 +217,6 @@
 <p>RFC 9234 Section 4.2 settles the second row: "The locally configured BGP Role is used for the procedures described in Section 5." Section 8 names the non-compliant remote as the case the local AS must still stamp for. The complement is the pair table read the other way: <code>customer</code> means the peer IS a Provider, <code>provider</code> means the peer IS a Customer, <code>rs-client</code> means the peer IS an RS, <code>rs</code> means the peer IS an RS-Client, and <code>peer</code> means the peer IS a Peer.</p>
 <p>The complement feeds the RFC MUST gates only. The <code>export</code> set below still reads the capability, because <code>unknown</code> there is an operator-selected target and not a missing answer.</p>
 <!-- source: internal/component/bgp/plugins/role/otc.go -- resolvePeerRole, peerRoleComplement -->
-
 <h3 id="on-receipt">On Receipt</h3>
 <table>
 <thead>
@@ -304,7 +300,6 @@
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/role/otc.go -- isPayloadUnicast, payloadAdvertisesNLRI -->
-
 <p>Suppression is not bounded by the second rule: a route that already carries OTC
 is withheld from a Provider, Peer, or RS whether or not this particular UPDATE
 advertises it.</p>
@@ -391,7 +386,6 @@ advertises it.</p>
 </table>
 <p>The label set is bounded at six series per metric. Peer identity is in the log line, never in a label.</p>
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop, dropReasonLabels -->
-
 <p><code>role-unrecorded</code> and <code>export-set</code> both mean the destination was outside the export set. They are counted apart because they call for opposite actions: <code>export-set</code> points at the policy, and <code>role-unrecorded</code> points at validate-open.</p>
 <h2 id="strict-mode">Strict Mode</h2>
 <p>When <code>strict true</code> is set, ze requires the peer to advertise the Role capability in its OPEN message. If the peer does not, ze sends a Role Mismatch NOTIFICATION and rejects the session.</p>
@@ -399,6 +393,7 @@ advertises it.</p>
 <h2 id="without-role">Without Role</h2>
 <p>When role is not configured for a peer, no OTC processing occurs. Routes are forwarded without role-based filtering.</p>
 <!-- source: internal/component/bgp/plugins/role/ -- role plugin implementation -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -440,7 +435,7 @@ advertises it.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

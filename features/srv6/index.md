@@ -23,20 +23,23 @@ Operates as an ingress PE: consumes received SRv6 SIDs but does not originate th
 | Path ineligibility | Route with SRv6 TLVs but no valid SID excluded from best-path selection |
 | SID resolvability | SRv6 SID must have a covering route in Loc-RIB before FIB installation |
 | EBGP filtering | PrefixSID from EBGP peers discarded unless `accept-srv6-prefix-sid` is set |
+| EBGP propagation | PrefixSID removed from every UPDATE sent to an EBGP peer unless `propagate-srv6-prefix-sid` is set |
 | Validation | Malformed SRv6 Service TLVs trigger treat-as-withdraw (RFC 9252 Section 3.4) |
-| Propagation | PrefixSID preserved on zero-copy forward; stripped when next-hop changes |
+| Propagation | PrefixSID preserved on zero-copy forward; stripped when the next-hop changes, and stripped at the SR domain boundary |
 | Linux FIB | SEG6 lwtunnel encap via netlink |
 | VPP FIB | SR steering policy via GoVPP `sr_steering_add_del` |
 
 ## Configuration
 
-EBGP peers require explicit opt-in. IBGP peers accept PrefixSID by default.
+EBGP peers require explicit opt-in, in each direction. IBGP peers accept and
+advertise PrefixSID by default.
 
 ```
 bgp {
     peer pe1 {
         session {
             accept-srv6-prefix-sid true
+            propagate-srv6-prefix-sid true
         }
     }
 }
@@ -45,6 +48,15 @@ bgp {
 | Option | Location | Default | Description |
 |--------|----------|---------|-------------|
 | `accept-srv6-prefix-sid` | `bgp/peer/session` | `false` | Accept PrefixSID attribute from this EBGP peer (RFC 8669 Section 4) |
+| `propagate-srv6-prefix-sid` | `bgp/peer/session` | `false` | Advertise PrefixSID attribute to this EBGP peer (RFC 8669 Section 8) |
+
+Both leaves say the same thing about one neighbor: it is inside ze's SR domain.
+RFC 8669 Section 8 puts the boundary at "a single SR/administrative domain that
+may include one or more ASes", so the boundary is not the AS boundary and ze
+cannot derive it from the ASN pair. Set both leaves on an EBGP neighbor that is
+part of the same SR domain, and leave both unset on every other EBGP neighbor.
+Set neither on an IBGP peer: the section governs propagation to other ASes, so
+it does not reach a peer in this one.
 
 No additional configuration is needed for IBGP sessions or for FIB programming.
 When an SRv6 SID is present on a best-path route and the SID is resolvable,
@@ -80,6 +92,20 @@ sysrib: stores srv6SID on protocolRoute, tracks SID for resolution
 FIB backend:
   Linux: netlink.SEG6Encap{Mode: encap, Segments: [SID]}
   VPP:   sr.SrSteeringAddDel{BsidAddr: SID, TrafficType: IPv4/IPv6}
+```
+
+The egress side is a separate decision, taken once per destination peer:
+
+```
+Route selected for a destination peer
+  |
+  v
+prefixSIDAllowedTo(isIBGP, propagate-srv6-prefix-sid)
+  |  true  -> attr 40 goes out unchanged
+  |  false -> attr 40 is removed for this peer alone
+  v
+Forward rails:     applyFactsPrefixSID records an attribute suppression
+Origination rails: the configured PrefixSID and any raw attribute 40 are dropped
 ```
 
 ## Transposition (VPN/EVPN)
@@ -131,6 +157,7 @@ the VPP dispatch logic.
 | TLV format: 1B type + 2B length | 3 | Implemented |
 | Unknown TLVs preserved on propagation | 3 | Implemented (opaque forwarding) |
 | EBGP: discard unless configured to accept | 4 | Implemented (`accept-srv6-prefix-sid`) |
+| Propagation to other ASes explicitly configured | 8 | Implemented (`propagate-srv6-prefix-sid`) |
 | Malformed attribute: attribute-discard | 6 | Implemented (RFC 7606 validator) |
 
 ### RFC 9252 (SRv6 Overlay Services)

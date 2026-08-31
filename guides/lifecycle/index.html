@@ -123,21 +123,21 @@ ze start ze.conf
 <p>Ze stores configuration revisions in the configured storage backend. The archive guide covers revision pointers, named archive destinations, schema evolution, and recovery.</p>
 <p>Useful commands include:</p>
 <p>Copy the snapshot key returned by <code>show config history</code> before running <code>cat</code>:</p>
-<pre><code class="language-console">ze cli -c &quot;show config history&quot;
-ze cli -c &quot;show config diff&quot;
-ze cli -c &quot;show config cat &lt;snapshot-key&gt;&quot;
-ze cli -c &quot;request config archive&quot;
+<pre><code class="language-console">ze cli -c "show config history"
+ze cli -c "show config diff"
+ze cli -c "show config cat &lt;snapshot-key&gt;"
+ze cli -c "request config archive"
 </code></pre>
 <p>See <a href="../config-archive/">Configuration archive</a> for the current archive and rollback workflow. Review the selected revision before moving the active pointer. A syntactically valid historical revision can still be unsuitable after a schema or topology change.</p>
 <h2 id="logging-and-reports">Logging and reports</h2>
 <p>Start with bounded operational views:</p>
-<pre><code class="language-console">ze cli -c &quot;show warnings&quot;
-ze cli -c &quot;show errors&quot;
-ze cli -c &quot;show event recent&quot;
-ze cli -c &quot;show health&quot;
+<pre><code class="language-console">ze cli -c "show warnings"
+ze cli -c "show errors"
+ze cli -c "show event recent"
+ze cli -c "show health"
 </code></pre>
 <p>Raise a subsystem's log level only while investigating:</p>
-<pre><code class="language-console">ze cli -c &quot;request log level bgp.fsm debug&quot;
+<pre><code class="language-console">ze cli -c "request log level bgp.fsm debug"
 </code></pre>
 <p>Persistent log configuration and destinations are described in <a href="../logging/">Logging</a>. Use structured command output for automation rather than scraping human log messages.</p>
 <h2 id="software-updates">Software updates</h2>
@@ -178,6 +178,7 @@ ze cli -c &quot;show health&quot;
 <li><a href="../bgp-resilience/">BGP resilience</a></li>
 <li><a href="../production-diagnostics/">Production diagnostics</a></li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -219,7 +220,7 @@ ze cli -c &quot;show health&quot;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

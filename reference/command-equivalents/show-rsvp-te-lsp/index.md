@@ -1,21 +1,30 @@
 # `show rsvp-te lsp`
 
+Show RSVP-TE label-switched paths.
+
 ## Ze command
 
-- Syntax: `show rsvp-te lsp`
 - Registry path: `show rsvp-te lsp`
+- Usage: `show rsvp-te lsp`
 - Mode: Read-only
 - Wire method: `ze-show:rsvp-te-lsp`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show RSVP-TE label-switched paths. Returns state, role (ingress/transit/egress), reserved bandwidth, and in/out labels for each LSP.
+Returns state, role (ingress/transit/egress), reserved bandwidth, and in/out labels for each LSP.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

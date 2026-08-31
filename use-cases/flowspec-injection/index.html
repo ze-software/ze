@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>FlowSpec Injection - Ze</title>
-        <meta name="description" content="Inject and withdraw FlowSpec rules through an authorised workflow with visible state and logs." />
+        <meta name="description" content="Inject and withdraw FlowSpec rules through an authorized workflow with visible state and logs." />
         <meta property="og:title" content="FlowSpec Injection - Ze" />
-        <meta property="og:description" content="Inject and withdraw FlowSpec rules through an authorised workflow with visible state and logs." />
+        <meta property="og:description" content="Inject and withdraw FlowSpec rules through an authorized workflow with visible state and logs." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="FlowSpec Injection - Ze" />
-        <meta name="twitter:description" content="Inject and withdraw FlowSpec rules through an authorised workflow with visible state and logs." />
+        <meta name="twitter:description" content="Inject and withdraw FlowSpec rules through an authorized workflow with visible state and logs." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
@@ -93,22 +93,22 @@ bgp {
 <p>Validate and start the sender, then confirm family negotiation:</p>
 <pre><code class="language-console">ze config validate flowspec-sender.conf
 ze start flowspec-sender.conf
-ze cli -c &quot;show bgp peer flowspec-client capabilities&quot;
+ze cli -c "show bgp peer flowspec-client capabilities"
 </code></pre>
 <p>In a lab, inject a discard rule for TCP destination port 443:</p>
-<pre><code class="language-console">ze cli -c &quot;peer flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination 203.0.113.0/24 protocol tcp destination-port =443&quot;
+<pre><code class="language-console">ze cli -c "peer flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
 </code></pre>
 <p>The command uses the same registered dispatcher through CLI, REST, gRPC, and
 MCP. Confirm the remote router installed the rule, then withdraw the exact NLRI:</p>
-<pre><code class="language-console">ze cli -c &quot;peer flowspec-client update text nlri ipv4/flow del destination 203.0.113.0/24 protocol tcp destination-port =443&quot;
+<pre><code class="language-console">ze cli -c "peer flowspec-client update text nlri ipv4/flow del destination 203.0.113.0/24 protocol tcp destination-port =443"
 </code></pre>
 <h2 id="use-an-atomic-window">Use an atomic window</h2>
 <p>When several rules form one mitigation, stage and inspect them before release:</p>
-<pre><code class="language-console">ze cli -c &quot;request commit start mitigation-42&quot;
-ze cli -c &quot;peer flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination 203.0.113.0/24 protocol tcp destination-port =443&quot;
-ze cli -c &quot;peer flowspec-client update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination 203.0.113.0/24 protocol udp destination-port =53&quot;
-ze cli -c &quot;request commit show mitigation-42&quot;
-ze cli -c &quot;request commit end mitigation-42&quot;
+<pre><code class="language-console">ze cli -c "request commit start mitigation-42"
+ze cli -c "peer flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
+ze cli -c "peer flowspec-client update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.0/24 protocol udp destination-port =53"
+ze cli -c "request commit show mitigation-42"
+ze cli -c "request commit end mitigation-42"
 </code></pre>
 <p>Use <code>request commit rollback mitigation-42</code> instead of <code>end</code> if validation or
 review fails. This prevents clients from observing a partial mitigation policy.</p>
@@ -125,10 +125,10 @@ review fails. This prevents clients from observing a partial mitigation policy.<
 <p>A controller must be able to withdraw every rule it installs. Do not rely on process exit as cleanup.</p>
 <h2 id="verification">Verification</h2>
 <p>After injection:</p>
-<pre><code class="language-console">ze cli -c &quot;show bgp peer flowspec-client capabilities&quot;
-ze cli -c &quot;show bgp rib status&quot;
-ze cli -c &quot;show warnings&quot;
-ze cli -c &quot;show errors&quot;
+<pre><code class="language-console">ze cli -c "show bgp peer flowspec-client capabilities"
+ze cli -c "show bgp rib status"
+ze cli -c "show warnings"
+ze cli -c "show errors"
 </code></pre>
 <p>Then verify the destination appropriate to the deployment:</p>
 <ul>
@@ -148,6 +148,7 @@ ze cli -c &quot;show errors&quot;
 <li>The BGP withdrawal succeeded but local firewall cleanup failed.</li>
 </ul>
 <p>Monitor both BGP state and the enforcement backend. One without the other is incomplete evidence.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -181,7 +182,7 @@ ze cli -c &quot;show errors&quot;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:20 UTC</span>
                 </div>
             </div>
         </footer>

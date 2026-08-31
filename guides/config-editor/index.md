@@ -36,6 +36,13 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `exit` | Exit editor |
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
 
+The `|` after an editor command belongs to the editor's own filter language.
+It is separate from the operational command operators published by
+`ze help command --json`, so names such as `blame`, `compare`, and `history`
+apply here without becoming operational pipe operators.
+<!-- source: internal/component/cli/model_load.go -- dispatchWithPipe, ClassifyShowPipes -->
+<!-- source: internal/component/cli/completer.go -- showPipeFilters, completePipeFilter -->
+
 ### Structural operations appear in the diff
 
 `show | changes` and `show | compare` include the draft's structural operations,
@@ -164,9 +171,9 @@ The seconds parameter accepts values from 1 to 3600 (one hour).
 
 Commit a hostname change in the interactive editor, leave the confirmation window unanswered, and verify Ze restores the previous configuration.
 
-[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=3be3651dab) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
+[Download the asciicast recording](../../assets/demos/commit-confirmed.cast?v=77e5c4efab) · [Plain-text transcript](../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 1 minute 8 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 1 minute 7 seconds.
 
 ```console
 $ ze config edit -f ze.conf

@@ -1,21 +1,28 @@
 # `show system ntp`
 
+NTP clock synchronization status.
+
 ## Ze command
 
-- Syntax: `show system ntp`
 - Registry path: `show system ntp`
+- Usage: `show system ntp`
 - Mode: Read-only
 - Wire method: `ze-show:system-ntp`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: `peers`
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-NTP clock synchronization status
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

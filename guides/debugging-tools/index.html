@@ -106,7 +106,7 @@
 <tr>
 <td><code>ze config dump</code></td>
 <td>Inspect parsed config</td>
-<td><code>ze config dump [--json] config.conf</code></td>
+<td><code>ze config dump config.conf</code>, or <code>ze cli -c "show config dump config.conf | json"</code></td>
 </tr>
 <tr>
 <td><code>ze-peer --decode</code></td>
@@ -130,18 +130,17 @@
 </tr>
 </tbody>
 </table>
-<hr />
+<hr>
 <h2 id="1-config-dump-command">1. Config Dump Command</h2>
 <p><strong>Location:</strong> <code>internal/component/config/cli/cmd_dump.go</code></p>
 <!-- source: internal/component/config/cli/cmd_dump.go -- config dump command -->
-
 <p>Parses a config file and displays the interpreted values. Useful for verifying that config parsing works correctly.</p>
 <h3 id="usage">Usage</h3>
 <pre><code class="language-bash"># Human-readable output
 ze config dump config.conf
 
 # JSON output (for scripting)
-ze config dump --json config.conf
+ze cli -c "show config dump config.conf | json"
 </code></pre>
 <h3 id="example-output">Example Output</h3>
 <pre><code>Warnings:
@@ -165,11 +164,10 @@ peer 10.0.0.1:
 <li>Verifying attribute values after parsing</li>
 <li>Checking for parser warnings about data loss</li>
 </ul>
-<hr />
+<hr>
 <h2 id="2-bgp-message-decoder">2. BGP Message Decoder</h2>
 <!-- source: internal/test/runner/decode.go -- BGP message decoding -->
 <!-- source: internal/test/runner/decoding.go -- decoding helpers -->
-
 <p>Decodes raw BGP messages (hex) into human-readable format. Used automatically by functional tests and available via <code>--decode</code> flag.</p>
 <h3 id="usage_1">Usage</h3>
 <pre><code class="language-bash"># In ze-peer, show decoded messages
@@ -230,11 +228,10 @@ ze-peer --decode --sink --port 1790
 </tr>
 </tbody>
 </table>
-<hr />
+<hr>
 <h2 id="3-test-failure-diff">3. Test Failure Diff</h2>
 <!-- source: internal/test/peer/peer.go -- test peer with message validation -->
 <!-- source: internal/test/runner/diff.go -- test failure diff -->
-
 <p>When a functional test fails with "message mismatch", the output now includes a decoded diff showing exactly what differed.</p>
 <h3 id="example-output_2">Example Output</h3>
 <pre><code>failed: message mismatch
@@ -261,10 +258,9 @@ Differences:
 <li><code>+</code> Unexpected attribute (received but not expected)</li>
 <li><code>~</code> Different value (both present but values differ)</li>
 </ul>
-<hr />
+<hr>
 <h2 id="4-per-subsystem-logging-zelog">4. Per-Subsystem Logging (ze.log.*)</h2>
 <!-- source: internal/core/slogutil/slogutil.go -- Logger() function and hierarchical subsystem logging -->
-
 <p>Environment variables that enable structured logging at key points in the pipeline.</p>
 <h3 id="usage_2">Usage</h3>
 <pre><code class="language-bash"># Enable all subsystems at debug level
@@ -319,34 +315,36 @@ ze.log.bgp.config=debug ze.log.bgp.routes=debug ze bgp server config.conf
 </table>
 <p>Levels: <code>disabled</code>, <code>debug</code>, <code>info</code>, <code>warn</code>, <code>err</code> (case-insensitive)</p>
 <h3 id="example-output_3">Example Output</h3>
-<pre><code>time=2024-01-15T13:53:41.182Z level=DEBUG msg=&quot;config parsed&quot; subsystem=bgp.config warnings=0
-time=2024-01-15T13:53:41.183Z level=DEBUG msg=&quot;config loaded&quot; subsystem=bgp.config peers=1
-time=2024-01-15T13:53:41.183Z level=DEBUG msg=&quot;peer routes configured&quot; subsystem=bgp.config peer=127.0.0.1 routes=2
-time=2024-01-15T13:53:41.184Z level=DEBUG msg=&quot;FSM transition&quot; subsystem=bgp.reactor.peer peer=127.0.0.1 from=OPENSENT to=OPENCONFIRM
-time=2024-01-15T13:53:41.184Z level=INFO msg=&quot;session established&quot; subsystem=bgp.reactor.peer peer=127.0.0.1 localAS=1 peerAS=1
-time=2024-01-15T13:53:41.184Z level=DEBUG msg=&quot;route sent&quot; subsystem=bgp.routes peer=127.0.0.1 prefix=193.0.2.1/32 nextHop=10.0.0.1
+<pre><code>time=2024-01-15T13:53:41.182Z level=DEBUG msg="config parsed" subsystem=bgp.config warnings=0
+time=2024-01-15T13:53:41.183Z level=DEBUG msg="config loaded" subsystem=bgp.config peers=1
+time=2024-01-15T13:53:41.183Z level=DEBUG msg="peer routes configured" subsystem=bgp.config peer=127.0.0.1 routes=2
+time=2024-01-15T13:53:41.184Z level=DEBUG msg="FSM transition" subsystem=bgp.reactor.peer peer=127.0.0.1 from=OPENSENT to=OPENCONFIRM
+time=2024-01-15T13:53:41.184Z level=INFO msg="session established" subsystem=bgp.reactor.peer peer=127.0.0.1 localAS=1 peerAS=1
+time=2024-01-15T13:53:41.184Z level=DEBUG msg="route sent" subsystem=bgp.routes peer=127.0.0.1 prefix=193.0.2.1/32 nextHop=10.0.0.1
 </code></pre>
 <h3 id="hierarchical-priority">Hierarchical Priority</h3>
-<p>Most specific wins:
-1. <code>ze.log.bgp.reactor.peer=warn</code> - Peer logging at WARN
-2. <code>ze.log.bgp.reactor=debug</code> - All reactor.<em> at DEBUG
-3. <code>ze.log.bgp=info</code> - All bgp.</em> at INFO
-4. <code>ze.log=debug</code> - All subsystems at DEBUG</p>
+<p>Most specific wins:</p>
+<ol>
+<li><code>ze.log.bgp.reactor.peer=warn</code> - Peer logging at WARN</li>
+<li><code>ze.log.bgp.reactor=debug</code> - All reactor.* at DEBUG</li>
+<li><code>ze.log.bgp=info</code> - All bgp.* at INFO</li>
+<li><code>ze.log=debug</code> - All subsystems at DEBUG</li>
+</ol>
 <p>Shell-compatible: <code>ze_log_bgp_routes=debug</code> also works (dot→underscore)</p>
 <h3 id="logging-locations">Logging Locations</h3>
-<p>Currently instrumented:
-- <code>internal/component/config/loader.go</code>: Config parsing, peer routes (configLogger)
-- <code>internal/component/bgp/reactor/peer.go</code>: FSM, session, route operations (peerLogger, routesLogger)
-- <code>internal/component/bgp/reactor/session.go</code>: RFC 7606 handling (sessionLogger)
-- <code>internal/component/bgp/reactor/reactor.go</code>: Reload, route operations (reactorLogger, routesLogger)</p>
+<p>Currently instrumented:</p>
+<ul>
+<li><code>internal/component/config/loader.go</code>: Config parsing, peer routes (configLogger)</li>
+<li><code>internal/component/bgp/reactor/peer.go</code>: FSM, session, route operations (peerLogger, routesLogger)</li>
+<li><code>internal/component/bgp/reactor/session.go</code>: RFC 7606 handling (sessionLogger)</li>
+<li><code>internal/component/bgp/reactor/reactor.go</code>: Reload, route operations (reactorLogger, routesLogger)</li>
+</ul>
 <!-- source: internal/component/bgp/reactor/peer.go -- peerLogger, routesLogger -->
 <!-- source: internal/component/bgp/reactor/session.go -- sessionLogger -->
 <!-- source: internal/component/bgp/reactor/reactor.go -- reactorLogger -->
-
-<hr />
+<hr>
 <h2 id="5-parser-warnings">5. Parser Warnings</h2>
 <!-- source: internal/component/config/parser.go -- Parser.Warnings() -->
-
 <p>The parser now collects warnings for potentially problematic patterns, accessible via <code>Parser.Warnings()</code>.</p>
 <h3 id="warning-types">Warning Types</h3>
 <table>
@@ -373,7 +371,7 @@ ze config dump config.conf
 # Also visible with debug logging
 ze.log.config=debug ze bgp server config.conf
 </code></pre>
-<hr />
+<hr>
 <h2 id="5-granular-debug-runtime">5. Granular Debug (runtime)</h2>
 <p>Set debug per-module with filters and named profiles (verb-first, VyOS-style):</p>
 <pre><code class="language-bash">ze set debug module bgp.reactor                        # Enable debug
@@ -389,8 +387,7 @@ ze set debug active name deep-trace                    # Apply a saved profile a
 queries the running daemon's actual slogutil state (requires daemon).</p>
 <!-- source: internal/plugins/debug/debug.go -- runSetModule, runDeleteModule -->
 <!-- source: internal/plugins/debug/cmd/handlers.go -- show debug live state RPC -->
-
-<hr />
+<hr>
 <h2 id="debugging-workflow">Debugging Workflow</h2>
 <h3 id="1-config-issues">1. Config Issues</h3>
 <pre><code class="language-bash"># Step 1: Check parsed config
@@ -400,15 +397,15 @@ ze config dump config.conf
 ze config dump config.conf 2&gt;&amp;1 | grep -i warning
 
 # Step 3: Check JSON for exact values
-ze config dump --json config.conf | jq '.Neighbors[0].StaticRoutes'
+ze cli -c "show config dump config.conf | json" | jq '.Neighbors[0].StaticRoutes'
 </code></pre>
 <h3 id="2-route-not-being-sent">2. Route Not Being Sent</h3>
 <pre><code class="language-bash"># Step 1: Enable route logging
 ze.log.bgp.routes=debug ze.log.bgp.config=debug ze bgp server config.conf
 
 # Expected output when working:
-# level=DEBUG msg=&quot;peer routes configured&quot; subsystem=bgp.config peer=X routes=2
-# level=DEBUG msg=&quot;route sent&quot; subsystem=bgp.routes peer=X prefix=10.0.0.0/24 nextHop=192.168.0.1
+# level=DEBUG msg="peer routes configured" subsystem=bgp.config peer=X routes=2
+# level=DEBUG msg="route sent" subsystem=bgp.routes peer=X prefix=10.0.0.0/24 nextHop=192.168.0.1
 </code></pre>
 <h3 id="3-session-issues">3. Session Issues</h3>
 <pre><code class="language-bash"># Step 1: Enable session + peer logging
@@ -421,7 +418,7 @@ ze.log.bgp.reactor.peer=debug ze.log.bgp.reactor.session=debug ze bgp server con
 ze-test bgp encode 1
 
 # Output now includes decoded diff automatically
-# Look at &quot;Differences:&quot; section to see what's wrong
+# Look at "Differences:" section to see what's wrong
 </code></pre>
 <h3 id="5-interactive-functional-test-debugging">5. Interactive Functional Test Debugging</h3>
 <p>Run server and client separately to see live output:</p>
@@ -431,31 +428,32 @@ ze-test bgp encode --server 1
 # Terminal 2: Start test client (zebgp)
 ze-test bgp encode --client 1
 </code></pre>
-<p><strong>Behavior:</strong>
-- Server waits for client, prints messages received, exits when test completes
-- Client connects, sends configured messages, exits when server disconnects</p>
+<p><strong>Behavior:</strong></p>
+<ul>
+<li>Server waits for client, prints messages received, exits when test completes</li>
+<li>Client connects, sends configured messages, exits when server disconnects</li>
+</ul>
 <p>Press Ctrl+C in the client terminal once the server has finished validating: the runner sends SIGTERM to ze for a graceful shutdown.</p>
 <!-- source: internal/test/cli/cmd_bgp.go -- zeTestRunClientOnly, clientCmd.Cancel -->
-
 <p><strong>Use <code>--port</code> to avoid conflicts:</strong></p>
 <pre><code class="language-bash">ze-test bgp encode --server 1 --port 11790
 ze-test bgp encode --client 1 --port 11790
 </code></pre>
-<hr />
+<hr>
 <h2 id="adding-new-logging">Adding New Logging</h2>
 <p>To add logging to new code:</p>
-<pre><code class="language-go">import &quot;github.com/ze-software/ze/internal/core/slogutil&quot;
+<pre><code class="language-go">import "github.com/ze-software/ze/internal/core/slogutil"
 
 // Create a subsystem logger (once per package)
-var myLogger = slogutil.Logger(&quot;my.subsystem&quot;)
+var myLogger = slogutil.Logger("my.subsystem")
 
 // Log with structured key-value pairs
-myLogger.Debug(&quot;operation completed&quot;, &quot;peer&quot;, addr, &quot;count&quot;, n)
-myLogger.Info(&quot;session established&quot;, &quot;peer&quot;, addr, &quot;localAS&quot;, localAS)
-myLogger.Warn(&quot;unexpected state&quot;, &quot;state&quot;, state, &quot;expected&quot;, expected)
+myLogger.Debug("operation completed", "peer", addr, "count", n)
+myLogger.Info("session established", "peer", addr, "localAS", localAS)
+myLogger.Warn("unexpected state", "state", state, "expected", expected)
 </code></pre>
 <p>Subsystem naming convention: <code>ze.log.</code> + simplified package path (e.g., <code>bgp.reactor.peer</code>).</p>
-<hr />
+<hr>
 <h2 id="file-locations">File Locations</h2>
 <table>
 <thead>
@@ -512,6 +510,7 @@ myLogger.Warn(&quot;unexpected state&quot;, &quot;state&quot;, state, &quot;expe
 <!-- source: internal/test/runner/decode.go -- BGP message decoder -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- config-dump command -->
 <!-- source: internal/test/cli/cmd_peer.go -- ze-test peer subcommand -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -553,7 +552,7 @@ myLogger.Warn(&quot;unexpected state&quot;, &quot;state&quot;, state, &quot;expe
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 02:01 UTC</span>
                 </div>
             </div>
         </footer>

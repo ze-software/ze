@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/features/formatting/" />
         <meta property="og:url" content="https://ze-software.net/features/formatting/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -60,7 +60,7 @@ offline to already-captured output.</p>
 <li><a href="#scripting-against-the-daemon-raw">Scripting against the daemon: | raw</a></li>
 <li><a href="#the-offline-way-ze-pipe">The offline way: ze pipe</a></li>
 <li><a href="#asking-the-product-ze-pipe-help-json">Asking the product: ze pipe help --json</a></li>
-<li><a href="#saving-an-answer-save-path">Saving an answer: | save &amp;lt;path&amp;gt;</a></li>
+<li><a href="#saving-an-answer-save-path">Saving an answer: | save &lt;path&gt;</a></li>
 <li><a href="#configuration-presentation">Configuration presentation</a></li>
 <li><a href="#column-order">Column order</a></li>
 <li><a href="#choosing-the-columns-display-and-fill">Choosing the columns: | display and | fill</a></li>
@@ -107,7 +107,6 @@ set cli format          # shows the current default
 also be set permanently through YANG config.</p>
 <!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat, validCLIFormats -->
 <!-- source: internal/component/command/pipe.go -- ze.cli.format env registration, configuredDefault -->
-
 <h3 id="piping-inline">Piping inline</h3>
 <p>Append <code>| &lt;operator&gt;</code> to any command, shell-like:</p>
 <pre><code>show bgp peer list | table
@@ -119,7 +118,7 @@ show bgp peer list | first 5
 or <code>raw</code>. Two together are rejected. Filter and display operators chain freely.</p>
 <p>The complete, current set is generated from the operator catalog:
 <a href="https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md" target="_blank" rel="noopener"><code>pipe-operators.generated.md</code></a>. It is the list to
-build a tool against, and <code>ze-doc-verify</code> fails when it and the product
+build a tool against, and <code>./le doc check verify</code> fails when it and the product
 disagree. The table below describes what each operator does for a reader.</p>
 <table>
 <thead>
@@ -208,11 +207,16 @@ disagree. The table below describes what each operator does for a reader.</p>
 </tbody>
 </table>
 <!-- source: internal/component/command/pipe.go -- knownPipeOps, ApplyPipes, ValidatePipes -->
-
+<p>A display operator changes how an answer is shown. A data operator changes what
+the answer holds. The two are independent, so a display mode never suppresses a
+data transform: <code>monitor traceroute | log</code> and <code>monitor ping | log</code> render
+directly from hop and ping statistics rather than through <code>ApplyPipes</code>, and they
+still apply <code>resolve</code> and <code>origin</code> to their legend addresses through the shared
+<code>enrichAddr</code> helper.</p>
+<!-- source: internal/component/cli/model_enrich.go -- enrichAddr -->
 <h3 id="scripting-against-the-daemon-raw">Scripting against the daemon: <code>| raw</code></h3>
 <p>The SSH exec channel is two surfaces at once. An operator running
-<code>ssh &lt;host&gt; 'show bgp peer list'</code> gets the format <code>environment cli format
-default</code> names. A program that parses the answer wants the data behind that
+<code>ssh &lt;host&gt; 'show bgp peer list'</code> gets the format <code>environment cli format default</code> names. A program that parses the answer wants the data behind that
 rendering, and it must not change the day an operator changes the default.</p>
 <p><code>| raw</code> is how the second caller asks. It answers the command dispatcher's JSON
 byte for byte, so it is the stable contract for a script:</p>
@@ -224,7 +228,6 @@ array, so <code>{"commands": [...]}</code> reaches the caller as a bare <code>[.
 and the live dashboard each parse an exec-channel answer. Each asks for it
 through one helper, rather than composing the pipe itself.</p>
 <!-- source: internal/core/ssh/client/client.go -- RawCommand, ExecCommandRaw -->
-
 <h3 id="the-offline-way-ze-pipe">The offline way: <code>ze pipe</code></h3>
 <p>Scripts and pipelines outside an interactive session apply the same
 operators to any captured JSON via <code>ze pipe</code>:</p>
@@ -240,7 +243,6 @@ above, minus the display-only operators that only make sense inside a live
 session (<code>log</code>, <code>no-more</code>).</p>
 <p><code>ze pipe help</code> lists every operator, split into the two classes below.</p>
 <!-- source: cmd/ze/ze_core_pipe.go -- runPipe, pipeUsage -->
-
 <h3 id="asking-the-product-ze-pipe-help-json">Asking the product: <code>ze pipe help --json</code></h3>
 <p>Do not hand-copy the operator list into a tool. <code>ze pipe help --json</code> answers
 the whole language, and it is generated from the same table the parser reads,
@@ -275,7 +277,6 @@ for rows that describe themselves, <code>tab</code> for rows read against declar
 names.</p>
 <!-- source: cmd/ze/ze_core_pipe.go -- printPipeCatalogJSON -->
 <!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
-
 <h3 id="saving-an-answer-save-path">Saving an answer: <code>| save &lt;path&gt;</code></h3>
 <p><code>| save</code> writes the answer to a file and passes it through, so the terminal
 still shows it:</p>
@@ -297,26 +298,24 @@ The daemon expands the chain on those surfaces, so the file would be written on
 the daemon's filesystem, with the daemon's privileges, at a path the caller
 chose. Redirect the output from your shell there; that already works.</p>
 <!-- source: internal/component/command/pipe_save.go -->
-
 <h3 id="configuration-presentation">Configuration presentation</h3>
 <p>Configuration uses the same separation between data and presentation. Operators
 can inspect compact hierarchical blocks, while automation can consume one complete
 <code>set</code> path per line:</p>
 <pre><code class="language-bash">ze config show router.conf bgp peer transit-a
-ze config migrate --format set router.conf
+ze config migrate format set router.conf
 </code></pre>
-<p><code>ze config migrate --format hierarchical</code> converts set syntax back to blocks.
+<p><code>ze config migrate format hierarchical</code> converts set syntax back to blocks.
 Rendering both forms back to canonical set syntax provides a presentation-neutral
 comparison.</p>
 <!-- source: internal/component/config/cli/cmd_show.go -- path-scoped hierarchical view -->
 <!-- source: internal/component/config/cli/cmd_migrate.go -- set and hierarchical rendering -->
-
 <figure class="terminal-demo" data-terminal-demo="config-views">
   <div class="terminal-demo__intro">
     <div>
       <span class="terminal-demo__eyebrow">Replayable Ze terminal lab</span>
       <h3>Render one configuration for humans and automation</h3>
-      <p>Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze&#x27;s plugin registry.</p>
+      <p>Show one BGP peer as hierarchical blocks and set commands, round-trip between both with identical canonical output, then compose match and count over Ze&#39;s plugin registry.</p>
     </div>
     <span class="terminal-demo__status"><i aria-hidden="true"></i> Reproducible</span>
   </div>
@@ -329,7 +328,7 @@ comparison.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/config-views.cast?v=46af3dc00a"
+      data-cast-src="../../assets/demos/config-views.cast?v=3698ec29e0"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -337,13 +336,13 @@ comparison.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/config-views.cast?v=46af3dc00a">Download the asciicast</a> or
-      <a href="../../assets/demos/config-views.txt?v=35a1a90923">read the transcript</a>.</p>
+      page's own player. <a href="../../assets/demos/config-views.cast?v=3698ec29e0">Download the asciicast</a> or
+      <a href="../../assets/demos/config-views.txt?v=f4f89fbe3c">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>1 minute 19 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
-    <a href="../../assets/demos/config-views.txt?v=35a1a90923">Plain-text transcript</a>
+    <span>Ze 26.08.31</span><span>1 minute 21 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <a href="../../assets/demos/config-views.txt?v=f4f89fbe3c">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
     <summary>Read the demonstration transcript</summary>
@@ -356,25 +355,24 @@ session {
     asn { local 65000; remote 65001; }
     family ipv4/unicast { prefix maximum 1000000; }
 }
-$ ze config migrate --format set router.conf 2&gt;/dev/null | ze pipe match &#x27;bgp peer transit-a&#x27;
+$ ze config migrate format set router.conf 2&gt;/dev/null | ze pipe match &#39;bgp peer transit-a&#39;
 set bgp peer transit-a connection local ip 192.0.2.1
 set bgp peer transit-a connection remote ip 192.0.2.2
 set bgp peer transit-a session asn local 65000
 set bgp peer transit-a session asn remote 65001
 ...
-$ cmp -s router.set roundtrip.set &amp;&amp; echo &#x27;canonical output: identical&#x27;
+$ cmp -s router.set roundtrip.set &amp;&amp; echo &#39;canonical output: identical&#39;
 canonical output: identical
-$ ze --plugins | ze pipe match flowspec
+$ ze show plugins | ze pipe match flowspec
 bgp-nlri-flowspec
 flowspec-firewall
 ...
-$ ze --plugins | ze pipe match flowspec | ze pipe count
-{&quot;count&quot;:3,&quot;pipe&quot;:{&quot;count&quot;:true}}
+$ ze show plugins | ze pipe match flowspec | ze pipe count
+{&#34;count&#34;:3,&#34;pipe&#34;:{&#34;count&#34;:true}}
 
 Hierarchical and set syntax are alternate presentations of the same parsed configuration. Converting to set syntax and back produces identical canonical set commands. The standalone formatter composes the same match and count operators for shell pipelines.</code></pre>
   </details>
 </figure>
-
 <h3 id="column-order">Column order</h3>
 <p><code>| table</code> and <code>| text</code> put a command's columns in the order the command
 declares, and every column it does not name after those, alphabetically. A
@@ -406,7 +404,6 @@ answers what one command declares.</p>
 <!-- source: internal/component/command/column_order.go -- RegisterColumns, ColumnsForCommand -->
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, bestColumnOrder -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerColumns -->
-
 <h3 id="choosing-the-columns-display-and-fill">Choosing the columns: <code>| display</code> and <code>| fill</code></h3>
 <p>A nineteen-column table answers many questions at once. <code>| display</code> cuts it to
 the question you asked:</p>
@@ -464,7 +461,6 @@ program, so it stays alphabetical.</p>
 </code></pre>
 <!-- source: internal/component/command/pipe_columns.go -- parseDisplay, parseFill, applyDisplaySelect -->
 <!-- source: internal/component/command/pipe_table.go -- tableStyle.orderKeys, fillKeys -->
-
 <h3 id="a-name-for-a-chain-pipe-aliases">A name for a chain: pipe aliases</h3>
 <p>Some selections are worth a name. <code>show bgp</code> answers its aggregate
 fields and its peer rows side by side, and an operator usually wants one half:</p>
@@ -479,7 +475,7 @@ after the pipe character and both are offered beside the operators.</p>
 <li>It takes no argument. <code>| peers established</code> is refused by name.</li>
 <li>It never stands for another alias, so what you see is one substitution.</li>
 <li>It is expanded before the command runs, so <code>| json</code>, <code>| text</code> and every other
-  format carry it.</li>
+format carry it.</li>
 </ul>
 <p>A plugin names an alias for its own commands too. The BGP RPKI plugin declares
 <code>summary</code> on <code>show bgp rpki</code>, so the counters come back without the cache server
@@ -500,11 +496,9 @@ client reaches. The aliases built into Ze itself, <code>| summary</code> and <co
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- registerAliases -->
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
 <!-- source: internal/component/cli/model_mode.go -- executeOperationalCommand -->
-
 <h3 id="command-specific-filters">Command-specific filters</h3>
 <p>Some commands extend the generic set with their own filter vocabulary,
-folded into the command itself rather than applying to its answer. <code>show bgp
-rib</code>, for example, adds:</p>
+folded into the command itself rather than applying to its answer. <code>show bgp rib</code>, for example, adds:</p>
 <table>
 <thead>
 <tr>
@@ -571,6 +565,7 @@ answer. Both kinds run in the daemon. A generic pipe filters what the command
 already produced. A command filter stops it being produced.</p>
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- PipeFilter registrations -->
 <!-- source: internal/component/command/pipe.go -- foldFilters, lookupFilter, validateFilter -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -604,7 +599,7 @@ already produced. A command filter stops it being produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

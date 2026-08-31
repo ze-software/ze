@@ -53,7 +53,6 @@
 <!-- source: internal/component/bgp/reactor/session_validation.go -- EBGP PrefixSID filtering -->
 <!-- rfc: rfc/short/rfc8669.md -- BGP Prefix-SID attribute (code 40) -->
 <!-- rfc: rfc/short/rfc9252.md -- SRv6 overlay services -->
-
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="srv6-segment-routing-over-ipv6">SRv6 (Segment Routing over IPv6)</h1>
@@ -114,12 +113,16 @@ Operates as an ingress PE: consumes received SRv6 SIDs but does not originate th
 <td>PrefixSID from EBGP peers discarded unless <code>accept-srv6-prefix-sid</code> is set</td>
 </tr>
 <tr>
+<td>EBGP propagation</td>
+<td>PrefixSID removed from every UPDATE sent to an EBGP peer unless <code>propagate-srv6-prefix-sid</code> is set</td>
+</tr>
+<tr>
 <td>Validation</td>
 <td>Malformed SRv6 Service TLVs trigger treat-as-withdraw (RFC 9252 Section 3.4)</td>
 </tr>
 <tr>
 <td>Propagation</td>
-<td>PrefixSID preserved on zero-copy forward; stripped when next-hop changes</td>
+<td>PrefixSID preserved on zero-copy forward; stripped when the next-hop changes, and stripped at the SR domain boundary</td>
 </tr>
 <tr>
 <td>Linux FIB</td>
@@ -132,11 +135,13 @@ Operates as an ingress PE: consumes received SRv6 SIDs but does not originate th
 </tbody>
 </table>
 <h2 id="configuration">Configuration</h2>
-<p>EBGP peers require explicit opt-in. IBGP peers accept PrefixSID by default.</p>
+<p>EBGP peers require explicit opt-in, in each direction. IBGP peers accept and
+advertise PrefixSID by default.</p>
 <pre><code>bgp {
     peer pe1 {
         session {
             accept-srv6-prefix-sid true
+            propagate-srv6-prefix-sid true
         }
     }
 }
@@ -157,8 +162,21 @@ Operates as an ingress PE: consumes received SRv6 SIDs but does not originate th
 <td><code>false</code></td>
 <td>Accept PrefixSID attribute from this EBGP peer (RFC 8669 Section 4)</td>
 </tr>
+<tr>
+<td><code>propagate-srv6-prefix-sid</code></td>
+<td><code>bgp/peer/session</code></td>
+<td><code>false</code></td>
+<td>Advertise PrefixSID attribute to this EBGP peer (RFC 8669 Section 8)</td>
+</tr>
 </tbody>
 </table>
+<p>Both leaves say the same thing about one neighbor: it is inside ze's SR domain.
+RFC 8669 Section 8 puts the boundary at "a single SR/administrative domain that
+may include one or more ASes", so the boundary is not the AS boundary and ze
+cannot derive it from the ASN pair. Set both leaves on an EBGP neighbor that is
+part of the same SR domain, and leave both unset on every other EBGP neighbor.
+Set neither on an IBGP peer: the section governs propagation to other ASes, so
+it does not reach a peer in this one.</p>
 <p>No additional configuration is needed for IBGP sessions or for FIB programming.
 When an SRv6 SID is present on a best-path route and the SID is resolvable,
 the FIB backend programs the encapsulation automatically.</p>
@@ -190,6 +208,17 @@ sysrib: stores srv6SID on protocolRoute, tracks SID for resolution
 FIB backend:
   Linux: netlink.SEG6Encap{Mode: encap, Segments: [SID]}
   VPP:   sr.SrSteeringAddDel{BsidAddr: SID, TrafficType: IPv4/IPv6}
+</code></pre>
+<p>The egress side is a separate decision, taken once per destination peer:</p>
+<pre><code>Route selected for a destination peer
+  |
+  v
+prefixSIDAllowedTo(isIBGP, propagate-srv6-prefix-sid)
+  |  true  -&gt; attr 40 goes out unchanged
+  |  false -&gt; attr 40 is removed for this peer alone
+  v
+Forward rails:     applyFactsPrefixSID records an attribute suppression
+Origination rails: the configured PrefixSID and any raw attribute 40 are dropped
 </code></pre>
 <h2 id="transposition-vpnevpn">Transposition (VPN/EVPN)</h2>
 <p>For SAFI 128 (VPN) and SAFI 70 (EVPN), RFC 9252 Section 3.2.1 specifies that
@@ -247,6 +276,11 @@ the VPP dispatch logic.</p>
 <td>EBGP: discard unless configured to accept</td>
 <td>4</td>
 <td>Implemented (<code>accept-srv6-prefix-sid</code>)</td>
+</tr>
+<tr>
+<td>Propagation to other ASes explicitly configured</td>
+<td>8</td>
+<td>Implemented (<code>propagate-srv6-prefix-sid</code>)</td>
 </tr>
 <tr>
 <td>Malformed attribute: attribute-discard</td>
@@ -330,15 +364,16 @@ the VPP dispatch logic.</p>
 <h2 id="limitations">Limitations</h2>
 <ul>
 <li><strong>Ingress PE only.</strong> Ze consumes SRv6 SIDs from received routes. It does not
-  allocate or advertise local SRv6 SIDs. When re-advertising with a changed
-  next-hop, PrefixSID is stripped.</li>
+allocate or advertise local SRv6 SIDs. When re-advertising with a changed
+next-hop, PrefixSID is stripped.</li>
 <li><strong>No SRv6 capability negotiation.</strong> PrefixSID is optional-transitive, so it
-  propagates without negotiation. Ze does not signal SRv6 support via capabilities.</li>
+propagates without negotiation. Ze does not signal SRv6 support via capabilities.</li>
 <li><strong>MPLS precedence.</strong> If a route carries both MPLS labels and an SRv6 SID,
-  MPLS encap is used (kernel backend). VPP dispatches SRv6 first.</li>
+MPLS encap is used (kernel backend). VPP dispatches SRv6 first.</li>
 <li><strong>No SRv6 policy.</strong> Ze programs single-SID encapsulation. SRv6 segment lists
-  (multi-hop SR paths) are not supported.</li>
+(multi-hop SR paths) are not supported.</li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -372,7 +407,7 @@ the VPP dispatch logic.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

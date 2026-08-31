@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/guides/config-editor/" />
         <meta property="og:url" content="https://ze-software.net/guides/config-editor/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -68,7 +68,6 @@
 <li><a href="#example-workflow">Example Workflow</a></li>
 </ol></nav>
 <!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage; internal/component/cli/ -- editor model -->
-
 <h2 id="usage">Usage</h2>
 <pre><code class="language-bash">ze config edit                      # Edit default config
 ze config edit myconfig.conf        # Edit specific file
@@ -100,23 +99,23 @@ ze config edit myconfig.conf        # Edit specific file
 <td>Display a specific section</td>
 </tr>
 <tr>
-<td><code>show \| blame</code></td>
+<td><code>show | blame</code></td>
 <td>Annotate with authorship</td>
 </tr>
 <tr>
-<td><code>show \| changes [all]</code></td>
+<td><code>show | changes [all]</code></td>
 <td>Pending changes (session or all)</td>
 </tr>
 <tr>
-<td><code>show \| compare</code></td>
+<td><code>show | compare</code></td>
 <td>Diff against committed config; shows only the parts that differ</td>
 </tr>
 <tr>
-<td><code>show \| errors</code></td>
+<td><code>show | errors</code></td>
 <td>Validation issues</td>
 </tr>
 <tr>
-<td><code>show \| history</code></td>
+<td><code>show | history</code></td>
 <td>List rollback revisions</td>
 </tr>
 <tr>
@@ -158,7 +157,12 @@ ze config edit myconfig.conf        # Edit specific file
 </tbody>
 </table>
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
-
+<p>The <code>|</code> after an editor command belongs to the editor's own filter language.
+It is separate from the operational command operators published by
+<code>ze help command --json</code>, so names such as <code>blame</code>, <code>compare</code>, and <code>history</code>
+apply here without becoming operational pipe operators.</p>
+<!-- source: internal/component/cli/model_load.go -- dispatchWithPipe, ClassifyShowPipes -->
+<!-- source: internal/component/cli/completer.go -- showPipeFilters, completePipeFilter -->
 <h3 id="structural-operations-appear-in-the-diff">Structural operations appear in the diff</h3>
 <p><code>show | changes</code> and <code>show | compare</code> include the draft's structural operations,
 not only its leaf values. A deleted list entry, a deleted container, a deleted
@@ -171,7 +175,6 @@ holds it.</p>
 <!-- source: internal/component/config/storage/blob.go -- resolveDirKey, blobStorage.List -->
 <!-- source: internal/component/cli/editor.go -- listChangeFiles, readChangeFileContent -->
 <!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
-
 <h3 id="secrets-are-masked-on-every-display-path">Secrets are masked on every display path</h3>
 <p>One predicate answers whether a leaf holds a secret, and every display path reads
 it. A leaf the schema marks <code>ze:sensitive</code> or <code>ze:bcrypt</code> is masked in the tree
@@ -181,14 +184,12 @@ so a rotated credential still reports as changed and neither value is shown. The
 text output and the JSON output agree.</p>
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, SecretKeys -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- maskDiffSecrets -->
-
 <h3 id="commands-run-one-at-a-time-in-order">Commands run one at a time, in order</h3>
 <p>The config commands of one session run serially, in the order the operator
 entered them. Pasting a block of <code>set</code> lines followed by <code>commit</code> over SSH lands
 every <code>set</code> before the <code>commit</code> reads the draft. Nothing is dropped and no
 command is refused for arriving while another is in flight.</p>
 <!-- source: internal/component/cli/model_commands.go -- dispatchQueue -->
-
 <h2 id="other-config-subcommands">Other Config Subcommands</h2>
 <table>
 <thead>
@@ -245,7 +246,6 @@ command is refused for arriving while another is in flight.</p>
 </tbody>
 </table>
 <!-- source: internal/component/config/cli/main.go -- subcommandHandlers, storageHandlers -->
-
 <p>Every <code>&lt;file&gt;</code> above accepts <code>-</code> for <strong>stdin</strong>. The read-modify commands
 <code>ze config set</code>, <code>ze config deactivate</code>, and <code>ze config activate</code> become
 pipeline stages when given <code>-</code>: they read the config from stdin, apply the
@@ -256,18 +256,15 @@ rejected with a clear error: an interactive editor needs a TTY, and rollback/his
 need on-disk revision history that a piped config does not have.</p>
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
 <!-- source: internal/component/cli/editor.go -- NewEditorFromContent, SetStdoutSink -->
-
 <h2 id="editing-modes">Editing Modes</h2>
 <p>The editor operates in one of two modes depending on the storage backend.</p>
 <!-- source: internal/component/config/cli/cmd_edit.go -- runEditor, storage.IsBlobStorage -->
-
 <p><strong>File mode</strong> (<code>ze config edit -f</code> or when no zefs database exists): the editor works directly on a config file. <code>commit</code> writes the full configuration tree to disk. All operations (set, delete, load) modify the in-memory tree and the commit serializes the result. This is the simplest path: no change tracking, no conflict detection, no draft files.</p>
 <p><strong>Session mode</strong> (zefs blob store): each editing session gets an identity (<code>user@origin%timestamp</code>) and a per-user change file that records every edit with metadata (who, when, previous value). <code>commit</code> applies only the current session's tracked changes to the committed config, enabling concurrent multi-user editing with conflict detection, blame, and crash recovery. See the <a href="https://github.com/ze-software/ze/blob/main/docs/research/comparison/freertr/23-concurrent-editing.md" target="_blank" rel="noopener">concurrent editing</a> reference for the full protocol.</p>
 <p>Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:</p>
 <!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode, errCopyNotSupportedInSessionMode, errDeactivateNotSupportedInSessionMode, errActivateNotSupportedInSessionMode -->
 <!-- source: internal/component/cli/model_commands.go -- errCommitConfirmedNotYetSupportedIn -->
 <!-- source: internal/component/cli/model_commands_commit.go -- errCommitForceNotYetSupportedIn -->
-
 <table>
 <thead>
 <tr>
@@ -307,7 +304,6 @@ need on-disk revision history that a piped config does not have.</p>
 leaf-list member rather than a leaf or a path.</p>
 <!-- source: internal/component/cli/editor_commands.go -- InsertLeafListValue, DeactivateLeafListValue, ActivateLeafListValue -->
 <!-- source: internal/component/cli/editor_leaflist.go -- writeThroughMemberOp -->
-
 <p>Use file mode (<code>ze config edit -f</code>) for these operations.</p>
 <table>
 <thead>
@@ -351,14 +347,15 @@ leaf-list member rather than a leaf or a path.</p>
 </tbody>
 </table>
 <h2 id="yang-completion">YANG Completion</h2>
-<p>Tab completion is driven by registered YANG schemas. The editor suggests:
-- Valid config keys at the current level
-- Enum values for leaf nodes
-- Address family names from registered plugins</p>
+<p>Tab completion is driven by registered YANG schemas. The editor suggests:</p>
+<ul>
+<li>Valid config keys at the current level</li>
+<li>Enum values for leaf nodes</li>
+<li>Address family names from registered plugins</li>
+</ul>
 <h2 id="commit-confirmed">Commit Confirmed</h2>
 <p><code>commit confirmed &lt;seconds&gt;</code> writes the configuration and notifies the daemon, but starts a countdown timer. If <code>confirm</code> is not issued before the timer expires, the configuration automatically reverts to the previous version. This prevents lockouts when making changes remotely -- if a bad config breaks connectivity, the auto-revert restores access.</p>
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed, handleConfirmCountdown, rollbackConfirmed -->
-
 <table>
 <thead>
 <tr>
@@ -408,7 +405,7 @@ leaf-list member rather than a leaf or a path.</p>
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/commit-confirmed.cast?v=3be3651dab"
+      data-cast-src="../../assets/demos/commit-confirmed.cast?v=77e5c4efab"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -416,12 +413,12 @@ leaf-list member rather than a leaf or a path.</p>
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=3be3651dab">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/commit-confirmed.cast?v=77e5c4efab">Download the asciicast</a> or
       <a href="../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>1 minute 8 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.08.31</span><span>1 minute 7 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/commit-confirmed.txt?v=7dcd8dbbc1">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -432,7 +429,7 @@ host edge-original
 ze# set system host edge-trial
 ze# show | compare
 ze# commit confirmed 8
-Committed. Confirm within 8s or auto-revert. Use &#x27;confirm&#x27; or &#x27;confirm abort&#x27;.
+Committed. Confirm within 8s or auto-revert. Use &#39;confirm&#39; or &#39;confirm abort&#39;.
 ze# show system host
 host edge-trial
 Timeout: configuration automatically rolled back.
@@ -441,7 +438,7 @@ host edge-original
 
 ze# set system host edge-confirmed
 ze# commit confirmed 8
-Committed. Confirm within 8s or auto-revert. Use &#x27;confirm&#x27; or &#x27;confirm abort&#x27;.
+Committed. Confirm within 8s or auto-revert. Use &#39;confirm&#39; or &#39;confirm abort&#39;.
 ze# confirm
 Configuration confirmed and saved permanently.
 ze# show system host
@@ -450,7 +447,6 @@ host edge-confirmed
 The first change is left unconfirmed and rolls back. The second receives `confirm`; after waiting beyond the same deadline, the editor still reports edge-confirmed.</code></pre>
   </details>
 </figure>
-
 <h2 id="rollback">Rollback</h2>
 <p>The editor automatically saves a rollback revision before each commit. Inside the editor, use <code>show | history</code> to list revisions and <code>rollback &lt;N&gt;</code> to restore. From the shell: <code>ze config history &lt;file&gt;</code> and <code>ze config rollback &lt;N&gt; &lt;file&gt;</code>.</p>
 <h2 id="exit-codes">Exit Codes</h2>
@@ -477,7 +473,6 @@ The first change is left unconfirmed and rolls back. The second receives `confir
 </tbody>
 </table>
 <!-- source: internal/component/config/cli/main.go -- exitOK, exitError -->
-
 <h2 id="example-workflow">Example Workflow</h2>
 <pre><code class="language-bash">ze config validate config.conf      # Pre-flight validation
 ze config edit config.conf          # Interactive editing
@@ -485,6 +480,7 @@ ze config diff 3 config.conf       # Compare with revision 3
 ze config rollback 3 config.conf   # Restore revision 3
 ze config archive prod config.conf # Archive to named destination
 </code></pre>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -526,7 +522,7 @@ ze config archive prod config.conf # Archive to named destination
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 14:09 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

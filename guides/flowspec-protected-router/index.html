@@ -68,7 +68,6 @@
 <!-- source: internal/plugins/copp/yang/ze-copp-conf.yang -- control-plane-protection bgp -->
 <!-- source: internal/plugins/ddos/flowspec/yang/ze-ddos-flowspec-conf.yang -- ddos flowspec config -->
 <!-- source: docs/guide/firewall.md -- nft firewall backend -->
-
 <h2 id="1-start-from-an-installed-ze-node">1. Start from an installed Ze node</h2>
 <p>Follow <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a> through the systemd step. This page assumes <code>/usr/local/bin/ze</code>, <code>/etc/ze</code>, and active config name <code>edge-01.conf</code>.</p>
 <p>Example topology:</p>
@@ -107,13 +106,13 @@
 <pre><code class="language-bash">set -euo pipefail
 
 umask 077
-CONFIG_SET=&quot;$(mktemp)&quot;
-CONFIG_IMPORT=&quot;$(mktemp)&quot;
-trap 'rm -f &quot;$CONFIG_SET&quot; &quot;$CONFIG_IMPORT&quot;' EXIT
+CONFIG_SET="$(mktemp)"
+CONFIG_IMPORT="$(mktemp)"
+trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
 
-sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o &quot;$CONFIG_SET&quot; -
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
 
-cat &gt;&gt;&quot;$CONFIG_SET&quot; &lt;&lt;'EOF'
+cat &gt;&gt;"$CONFIG_SET" &lt;&lt;'EOF'
 set plugin internal flowspec-firewall use flowspec-firewall
 
 set firewall backend nft
@@ -140,7 +139,7 @@ set ddos flowspec allowlist [ 192.0.2.0/24 2001:db8::/32 ]
 set bgp router-id 192.0.2.10
 set bgp session asn local 65010
 
-set bgp peer flowspec-rr description &quot;FlowSpec route reflector&quot;
+set bgp peer flowspec-rr description "FlowSpec route reflector"
 set bgp peer flowspec-rr connection remote ip 203.0.113.1
 set bgp peer flowspec-rr connection local ip 192.0.2.10
 set bgp peer flowspec-rr connection md5 password change-this-md5-secret
@@ -152,9 +151,9 @@ set bgp peer flowspec-rr session family ipv4/flow prefix maximum 1000
 set bgp peer flowspec-rr attach process flowspec-firewall receive [ update-received state ]
 EOF
 
-/usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
-/usr/local/bin/ze config validate &quot;$CONFIG_IMPORT&quot;
-sudo /usr/local/bin/ze config import --name edge-01.conf &quot;$CONFIG_IMPORT&quot;
+/usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
+/usr/local/bin/ze config validate "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
 </code></pre>
 <p>Expected validation output:</p>
@@ -202,7 +201,7 @@ sudo systemctl reload ze.service
 <p><code>over-limit-policy drop</code> is intentionally strict. During first turn-up you can use <code>accept</code> to observe without dropping, then switch to <code>drop</code> after counters and logs look correct.</p>
 <h2 id="3-check-the-firewall-backend">3. Check the firewall backend</h2>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
-/usr/local/bin/ze cli -c &quot;show bgp peer list&quot;
+/usr/local/bin/ze cli -c "show bgp peer list"
 /usr/local/bin/ze show warnings
 sudo nft list ruleset | sed -n '/table inet ze_flowspec/,+80p'
 </code></pre>
@@ -241,18 +240,17 @@ more traffic than the peer asked it to drop.</p>
 <p>A refused route stops at the bridge and goes no further. Routes ze CAN enforce,
 and the rulesets of every other firewall owner, continue to reach the kernel.</p>
 <!-- source: internal/plugins/flowspec-firewall/translate.go -- protocolMatches -->
-
 <h2 id="4-test-with-a-safe-flowspec-rule">4. Test with a safe FlowSpec rule</h2>
 <p>The bridge only programs nftables from FlowSpec that <code>edge-01</code> <em>receives</em>, so the rule must be announced from a peer toward <code>edge-01</code>, not injected on <code>edge-01</code> itself. Use a lab prefix first. The example below drops TCP traffic to <code>10.0.0.0/8</code> port 80.</p>
 <p>If the source (<code>flowspec-rr</code>, <code>203.0.113.1</code>) is a Ze node, announce toward <code>edge-01</code> (<code>192.0.2.10</code>) with the required <code>peer &lt;selector&gt;</code> prefix:</p>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
-/usr/local/bin/ze cli -c &quot;peer 192.0.2.10 update text extended-community discard nlri ipv4/flow add destination 10.0.0.0/8 protocol tcp destination-port =80&quot;
+/usr/local/bin/ze cli -c "peer 192.0.2.10 update text extended-community discard nlri ipv4/flow add destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
 </code></pre>
 <p>On a non-Ze source, use that router's FlowSpec origination syntax instead. Then, on <code>edge-01</code>, check that nftables received a rule:</p>
 <pre><code class="language-bash">sudo nft list table inet ze_flowspec
 </code></pre>
 <p>Withdraw the test rule from the same source:</p>
-<pre><code class="language-bash">/usr/local/bin/ze cli -c &quot;peer 192.0.2.10 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80&quot;
+<pre><code class="language-bash">/usr/local/bin/ze cli -c "peer 192.0.2.10 update text nlri ipv4/flow del destination 10.0.0.0/8 protocol tcp destination-port =80"
 </code></pre>
 <p>The rule leaves the kernel with the route. When the withdrawn route was the last
 one the peer gave <code>edge-01</code>, <code>nft list ruleset</code> shows no <code>ze_flowspec</code> table at
@@ -336,6 +334,7 @@ sudo /usr/local/bin/ze config rollback 1 edge-01.conf
 sudo systemctl reload ze.service
 </code></pre>
 <p>Use the revision number from <code>ze config history</code>. To stop enforcing received FlowSpec while keeping the BGP session, remove the <code>attach process flowspec-firewall</code> binding and the <code>plugin internal flowspec-firewall</code> line with the same zefs update pattern, validate, import, and reload.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -377,7 +376,7 @@ sudo systemctl reload ze.service
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

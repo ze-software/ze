@@ -36,11 +36,11 @@ The table is useful because the same pattern repeats across enough of the projec
 
 | Public reference | Source that owns the fact | Scale covered | Why generation helps |
 |---|---|---:|---|
-| CLI reference | Live command registry | 402 commands<br>across 48 groups | The page cannot miss a command the binary exposes. |
+| CLI reference | Live command registry | 409 commands<br>across 48 groups | The page cannot miss a command the binary exposes. |
 | Configuration reference | YANG schema from<br>`ze yang tree` | 36 top-level sections<br>27 from plugins | The page follows the schema when a plugin adds a leaf. |
 | Plugin catalogue | Plugin registry and metadata | 90 runtime plugins<br>6 fixtures | Names, purposes, config roots and source paths come from registration. |
-| Dependencies | `go.mod`<br>plus written reasons | 42<br>direct dependencies | Versions come from Go, while the reason stays human-written. |
-| RFC status | RFC requirement ledger | 4,744 requirements<br>across 178 summaries | Public support claims stay tied to tests, gaps and annotations. |
+| Dependencies | `go.mod`<br>plus written reasons | 48<br>direct dependencies | Versions come from Go, while the reason stays human-written. |
+| RFC status | RFC requirement ledger | 4,818 requirements<br>across 179 summaries | Public support claims stay tied to tests, gaps and annotations. |
 
 The page can still be readable. It can group commands, add search, explain why a dependency exists, or warn that an RFC is partial. The fact itself still comes from the place that changes when the product changes.
 
@@ -109,7 +109,7 @@ RFC sentence
   -> public support row
 ```
 
-`make ze-rfc-index-update` performs the joins. It combines the summary, extraction result, test tags and gap annotations. It writes one ledger per RFC under `rfc/requirements/` and the global index at `ai/RFC-REQUIREMENTS.md`.
+`./le rfc index-update` performs the joins. It combines the summary, extraction result, test tags and gap annotations. It writes one ledger per RFC under `rfc/requirements/` and the global index at `ai/RFC-REQUIREMENTS.md`.
 
 | Layer | File or page | Job | Failure it catches |
 |---|---|---|---|

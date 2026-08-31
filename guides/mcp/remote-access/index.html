@@ -46,7 +46,6 @@
             <section class="md-content reveal cat-secure">
 <!-- source: internal/component/mcp/yang/ze-mcp-conf.yang -- bind-remote, auth-mode, oauth, tls -->
 <!-- source: internal/component/config/loader_extract.go -- MCPListenConfig.Validate -->
-
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="mcp-remote-access">MCP Remote Access</h1>
@@ -79,10 +78,10 @@ it reachable from other machines:</p>
 </ol></nav>
 <ol>
 <li><strong>Tunnel-based</strong> (recommended for dev): keep MCP on loopback, use SSH or
-   WireGuard as the encrypted transport. Operator does not have to manage
-   TLS certs.</li>
+WireGuard as the encrypted transport. Operator does not have to manage
+TLS certs.</li>
 <li><strong>Native remote</strong>: bind MCP to a non-loopback address with authentication
-   and TLS. Operator-managed certificate; client-side discovery via RFC 9728.</li>
+and TLS. Operator-managed certificate; client-side discovery via RFC 9728.</li>
 </ol>
 <h2 id="option-1-tunnel-based-loopback-binding">Option 1: Tunnel-based (loopback binding)</h2>
 <p>This is the Phase 1 posture. MCP binds <code>127.0.0.1</code>, you tunnel from your
@@ -106,7 +105,7 @@ ssh -L 8080:127.0.0.1:8080 user@router.example.com
 through the SSH tunnel and arrive at <code>127.0.0.1:8080</code> on the router.</p>
 <pre><code class="language-bash"># Test from your laptop:
 curl -s http://localhost:8080/ -X POST \
-  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 </code></pre>
 <h3 id="let-a-remote-machine-reach-your-local-mcp">Let a Remote Machine Reach Your Local MCP</h3>
 <p>You have Ze running locally with <code>--mcp 8080</code>. You want a remote machine to
@@ -198,11 +197,11 @@ PersistentKeepalive = 25
 </code></pre>
 <p>If using socat on the router:</p>
 <pre><code class="language-bash">curl -s http://10.0.0.1:8080/ -X POST \
-  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 </code></pre>
 <p>If using SSH over WireGuard:</p>
 <pre><code class="language-bash">curl -s http://localhost:8080/ -X POST \
-  -d '{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;tools/list&quot;}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 </code></pre>
 <h3 id="generating-wireguard-keys">Generating WireGuard Keys</h3>
 <pre><code class="language-bash">wg genkey | tee privatekey | wg pubkey &gt; publickey
@@ -335,22 +334,23 @@ remote endpoint fails the verifier, never silently accepts.</p>
 <h2 id="security-notes">Security Notes</h2>
 <ul>
 <li>With <code>bind-remote false</code> (default), every server entry is force-rewritten
-  to <code>127.0.0.1</code> at config extraction time, preserving the Phase 1 loopback
-  clamp even if the operator mistakenly types <code>0.0.0.0</code>.</li>
+to <code>127.0.0.1</code> at config extraction time, preserving the Phase 1 loopback
+clamp even if the operator mistakenly types <code>0.0.0.0</code>.</li>
 <li>For tunnel-based deployments, use key-based SSH authentication for
-  unattended tunnels. Disable password authentication on routers exposed
-  to the internet.</li>
+unattended tunnels. Disable password authentication on routers exposed
+to the internet.</li>
 <li>With WireGuard + socat, only peers in <code>AllowedIPs</code> can reach the socat
-  listener. This is your access control boundary.</li>
+listener. This is your access control boundary.</li>
 <li>Rotate WireGuard keys periodically. Revoke a peer by removing its <code>[Peer]</code>
-  block and reloading (<code>wg syncconf wg0 &lt;(wg-quick strip wg0)</code>).</li>
+block and reloading (<code>wg syncconf wg0 &lt;(wg-quick strip wg0)</code>).</li>
 <li>For native remote deployments, rotate the TLS cert before it expires.
-  Hot-reload is not yet supported; restart the daemon after cert rotation.</li>
+Hot-reload is not yet supported; restart the daemon after cert rotation.</li>
 <li>OAuth access tokens are never logged. <code>Authorization</code> headers are scrubbed
-  from debug logs. Token audience is validated on every request (RFC 8707).</li>
+from debug logs. Token audience is validated on every request (RFC 8707).</li>
 <li>JWKS refresh is rate-limited to 30 s minimum interval; an unknown-kid
-  spray cannot trigger a JWKS-fetch flood against the AS.</li>
+spray cannot trigger a JWKS-fetch flood against the AS.</li>
 </ul>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -392,7 +392,7 @@ remote endpoint fails the verifier, never silently accepts.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

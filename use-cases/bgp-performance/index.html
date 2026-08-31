@@ -66,8 +66,7 @@
 <p>This page shows Ze in the tester role. The device under test can be FRR, BIRD, GoBGP, OpenBGPD, a route-server appliance, or Ze itself.</p>
 <!-- source: ../main/internal/perf/cli/cmd_run.go -- ze-perf sender, receiver, repeat, JSON, and output flags -->
 <!-- source: ../main/internal/perf/result.go -- result fields -->
-<!-- source: ../main/test/perf/run.py -- Docker DUT benchmark runner -->
-
+<!-- source: ../main/internal/test/perfrunner/run.go -- Runner.RunCLI -->
 <h2 id="what-a-good-test-answers">What a good test answers</h2>
 <p>A performance test has to answer these questions and publish the evidence for each.</p>
 <table>
@@ -142,9 +141,10 @@ AS 65001             AS 65000             AS 65002
 </table>
 <p><code>ze-perf</code> matches the prefixes the sender injected against the ones the receiver saw, so it can report convergence, throughput, latency percentiles, withdrawal time, and lost routes. In bgperf terms, the sender is the tester, the DUT is the target, and the receiver is the monitor.</p>
 <h2 id="fastest-working-test">Fastest working test</h2>
-<p>Use the existing Docker runner from the main Ze checkout when you want the whole setup built for you.</p>
-<pre><code class="language-text">python3 test/perf/run.py --build --test frr
-ze-perf report test/perf/results/*.json
+<p>Use the native Docker runner from the main Ze checkout when you want the whole setup built for you.</p>
+<pre><code class="language-text">go build -o bin/ze-perf ./cmd/ze-perf
+go run ./cmd/ze-perf-run --build --test frr
+bin/ze-perf report test/perf/results/*.json
 </code></pre>
 <p>Run a smaller wiring test first when you are adding a new DUT target.</p>
 <pre><code class="language-text">ze-perf run \
@@ -382,8 +382,8 @@ birdc show route count
 <td>JSON results include convergence, throughput, latency percentiles, withdrawal time, lost routes, seed, family, and repeat metadata</td>
 </tr>
 <tr>
-<td><span class="ev-src"><span class="ev-ref"><code>test/perf/run.py</code></span></span></td>
-<td>The Docker runner benchmarks Ze, FRR, BIRD, GoBGP, rustbgpd, RustyBGP, freeRtr, and OpenBGPD</td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/test/perfrunner/run.go</code></span></span></td>
+<td>The native Docker runner benchmarks Ze, FRR, BIRD, GoBGP, rustbgpd, RustyBGP, freeRtr, and OpenBGPD</td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>test/perf/configs/</code></span></span></td>
@@ -392,10 +392,11 @@ birdc show route count
 </tbody>
 </table>
 <p>Run the Ze performance suite from the main checkout:</p>
-<pre><code class="language-text">python3 test/perf/run.py --build --test frr bird gobgp
-ze-perf report test/perf/results/*.json
+<pre><code class="language-text">go run ./cmd/ze-perf-run --build --test frr bird gobgp
+bin/ze-perf report test/perf/results/*.json
 </code></pre>
 <p>The full benchmarking guide is at <a href="../../guides/benchmarking/">docs/guide/benchmarking</a>.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Use case</p>
@@ -423,7 +424,7 @@ ze-perf report test/perf/results/*.json
                     </a>
                     <a class="page-sidebar-link" href="https://github.com/job/bgp-performance" target="_blank" rel="noopener">
                         <span class="page-sidebar-link-label">bgp-performance</span>
-                        <small>Job Snijders&#x27; bgperf2-based BGP performance analysis suite.</small>
+                        <small>Job Snijders&#39; bgperf2-based BGP performance analysis suite.</small>
                     </a>
                 </section>
                 </nav>
@@ -436,7 +437,7 @@ ze-perf report test/perf/results/*.json
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:15 UTC</span>
                 </div>
             </div>
         </footer>

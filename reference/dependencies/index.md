@@ -1,6 +1,6 @@
 # Dependencies
 
-Ze is Go, and Go code leans on packages. 42 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
+Ze is Go, and Go code leans on packages. 48 direct dependencies, read straight from `go.mod` so the list and versions can't drift -- each one with a plain-English reason it's there, grounded in where it's actually imported, not its own pitch.
 
 ## Terminal, Web & SSH Interfaces (9)
 
@@ -27,7 +27,7 @@ Ze is Go, and Go code leans on packages. 42 direct dependencies, read straight f
 | `github.com/mdlayher/packet` | `v1.1.2` | Raw AF_PACKET sockets behind the `diag capture` CLI command. |
 | `github.com/packetcap/go-pcap` | `v0.0.0-20251215121130-f2cf9f991e7c` | Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead. |
 
-## Linux Kernel Interfaces (6)
+## Linux Kernel Interfaces (7)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
@@ -37,6 +37,7 @@ Ze is Go, and Go code leans on packages. 42 direct dependencies, read straight f
 | `github.com/mdlayher/netlink` | `v1.11.2` | Low-level generic netlink sockets, used to flush conntrack flow entries for flow export. |
 | `github.com/mdlayher/genetlink` | `v1.4.0` | Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export. |
 | `github.com/cilium/ebpf` | `v0.22.0` | Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin. |
+| `filippo.io/mlockexe` | `v1.0.0` | Locks the running ze executable's own file-backed pages in memory with mlock2(2) and MLOCK_ONFAULT, so the kernel cannot evict the daemon's text under memory pressure. A router short of memory reclaims page cache, and the running daemon IS page cache: without the lock it waits on the disk holding its own binary at the moment it must keep sessions alive. |
 
 ## Routing & Dataplane (2)
 
@@ -61,9 +62,9 @@ Ze is Go, and Go code leans on packages. 42 direct dependencies, read straight f
 | --- | --- | --- |
 | `github.com/prometheus/client_golang` | `v1.24.1` | Ze's internal metrics backend: counters, gauges, and histograms against a private registry. |
 | `github.com/prometheus/procfs` | `v0.21.1` | Parses Linux /proc for the telemetry collector: CPU, memory, network device and socket stats, conntrack, softnet. |
-| `github.com/sirupsen/logrus` | `v1.10.0` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
+| `github.com/sirupsen/logrus` | `v1.10.1` | Only to satisfy GoVPP's logging interface, bridged into Ze's own slog logger via a hook. Not used as Ze's own logger. |
 
-## Standard Library Extensions (golang.org/x) (6)
+## Standard Library Extensions (golang.org/x) (7)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
@@ -73,13 +74,18 @@ Ze is Go, and Go code leans on packages. 42 direct dependencies, read straight f
 | `golang.org/x/sys` | `v0.47.0` | Low-level Linux syscalls: disk sync and reboot in the installer, used throughout the Linux-specific components. |
 | `golang.org/x/term` | `v0.45.0` | Reads passwords without echo and detects an interactive terminal during CLI login. |
 | `golang.org/x/tools` | `v0.49.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
+| `golang.org/x/vuln` | `v1.6.0` | Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors. |
 
-## Testing & Build Tooling (5)
+## Testing & Build Tooling (9)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
 | `github.com/stretchr/testify` | `v1.12.1` | Assertion and require helpers used across the Go unit test suite. |
 | `github.com/gokrazy/tools` | `v0.0.0-20260703063348-3fe400c13246` | Drives gokrazy appliance image builds from Ze's appliance build tooling. |
 | `github.com/gokrazy/updater` | `v0.0.0-20260620140544-0a84d8ab3878` | Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production. |
-| `github.com/sivchari/gomu` | `v0.2.1` | Mutation-testing tool, run via the Makefile to advisory-score how well the test suite actually exercises the code. Not a build or CI gate. |
+| `github.com/sivchari/gomu` | `v0.2.1` | Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate. |
 | `gopkg.in/yaml.v3` | `v3.0.1` | Parses GitHub Actions workflow YAML in verification tests so aliases, duplicate keys, and malformed trigger structures fail closed. |
+| `github.com/golangci/golangci-lint/v2` | `v2.13.1` | The linter behind `./le verify lint run`, pinned through the tools.go tracking file so every machine and every CI job lints with one version. |
+| `honnef.co/go/tools` | `v0.8.1` | Staticcheck, run beside golangci-lint from the same tools.go pin, for the analyses golangci-lint does not carry. |
+| `github.com/yuin/goldmark` | `v1.8.5` | Renders the Markdown of `docs/` and the website into the published HTML pages, in the Go site build that replaced the retired Python renderers. |
+| `github.com/anmitsu/go-shlex` | `v0.0.0-20200514113438-38f4b401e2be` | Splits an operator-typed command line into words for the stress-reproduction runner, so a quoted argument survives. |

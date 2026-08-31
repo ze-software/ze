@@ -53,7 +53,15 @@ missing`, and an optional string can no longer starve a required argument of its
 value. One spare token becomes the peer selector when the command declares that
 it requires one, no selector arrived out of band, and exactly one token is spare,
 which is what makes `delete bgp peer 127.0.0.1` work.
-<!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens -->
+
+A value that sits BETWEEN two keywords reaches the leaf the model anchored to
+the first of them. A leaf declared on a grouping container carries that
+container's name. That name is the word the operator types the value after, so
+`peer <selector> announce unicast <prefix>` binds the selector and leaves the
+prefix to the handler. The shape-based fallback stays for a command that
+anchors nothing, and both refuse ambiguity: two candidates name none.
+<!-- source: internal/component/plugin/server/command.go -- positionalDef, matchCommandTokens, anchoredDef, implicitSelectorDef -->
+<!-- source: internal/component/config/yang/command.go -- appendAnchored -->
 
 ### A command declares what its answer holds
 
@@ -175,9 +183,9 @@ ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 
 Connect to Ze over SSH, open the live BGP dashboard, sort peers, and inspect one session.
 
-[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=c3364cbe6a) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
+[Download the asciicast recording](../../assets/demos/cli-dashboard.cast?v=3dda17bc16) · [Plain-text transcript](../../assets/demos/cli-dashboard.txt?v=86542601eb)
 
-Recorded with Ze 26.08.25 on macOS and Linux using Ze recorder. Duration: 44 seconds.
+Recorded with Ze 26.08.31 on macOS and Linux using Ze recorder. Duration: 44 seconds.
 
 ```console
 $ ssh ze-demo
@@ -208,7 +216,7 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 | `ze exabgp plugin` | Run ExaBGP plugin with ze bridge |
 | `ze exabgp migrate` | Convert ExaBGP config to ze |
 | `ze completion bash/zsh/fish/nushell` | Generate shell completion scripts |
-| `ze --plugins` | List available internal plugins |
+| `ze show plugins` | List the plugins compiled into this binary |
 
 <!-- source: internal/plugins/completion/main.go -- completion subcommand -->
 <!-- source: internal/component/plugin/cli/main.go -- plugin subcommand -->

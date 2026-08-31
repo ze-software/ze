@@ -22,9 +22,9 @@
         <link rel="canonical" href="https://ze-software.net/guides/operator-access-rbac/" />
         <meta property="og:url" content="https://ze-software.net/guides/operator-access-rbac/" />
         <link rel="stylesheet" href="../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
         <link rel="stylesheet" href="../../assets/vendor/asciinema-player.css" />
         <script src="../../assets/vendor/asciinema-player.min.js" defer></script>
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
@@ -75,7 +75,6 @@ RADIUS all map back to Ze authorization profiles, audit, and accounting.</p>
 <!-- source: internal/component/authz/authz.go -- built-in profile behavior and fail-closed assignments -->
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing, at commit and at config load -->
 <!-- source: docs/guide/tacacs.md -- TACACS+ fallback and profile mapping -->
-
 <h2 id="1-start-from-the-ubuntu-install-page">1. Start from the Ubuntu install page</h2>
 <p>Follow <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a> through <code>database.zefs</code> creation. The commands below assume:</p>
 <table>
@@ -147,29 +146,29 @@ RADIUS all map back to Ze authorization profiles, audit, and accounting.</p>
 <p>The commands below read the current active config from zefs, convert it to set format, append the SSH and RBAC changes, render the import file, validate the result, then load it back into zefs with one <code>ze config import</code> command. Unrelated existing config sections stay in the candidate because they came from <code>ze config cat</code>.</p>
 <pre><code class="language-bash">set -euo pipefail
 
-ADMIN_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)&quot;
-NOC_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_NOC' | /usr/local/bin/ze passwd)&quot;
-OPERATOR_HASH=&quot;$(printf '%s\n' 'CHANGE_ME_OPERATOR' | /usr/local/bin/ze passwd)&quot;
+ADMIN_HASH="$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)"
+NOC_HASH="$(printf '%s\n' 'CHANGE_ME_NOC' | /usr/local/bin/ze passwd)"
+OPERATOR_HASH="$(printf '%s\n' 'CHANGE_ME_OPERATOR' | /usr/local/bin/ze passwd)"
 
 umask 077
-CONFIG_SET=&quot;$(mktemp)&quot;
-CONFIG_IMPORT=&quot;$(mktemp)&quot;
-trap 'rm -f &quot;$CONFIG_SET&quot; &quot;$CONFIG_IMPORT&quot;' EXIT
+CONFIG_SET="$(mktemp)"
+CONFIG_IMPORT="$(mktemp)"
+trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
 
-sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o &quot;$CONFIG_SET&quot; -
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
 
-cat &gt;&gt;&quot;$CONFIG_SET&quot; &lt;&lt;EOF
+cat &gt;&gt;"$CONFIG_SET" &lt;&lt;EOF
 set environment ssh enabled enable
 set environment ssh server main ip 0.0.0.0
 set environment ssh server main port 2222
 set environment ssh idle-timeout 600
 set environment ssh max-sessions 32
 
-set system authentication user admin password &quot;$ADMIN_HASH&quot;
+set system authentication user admin password "$ADMIN_HASH"
 set system authentication user admin profile admin
-set system authentication user noc password &quot;$NOC_HASH&quot;
+set system authentication user noc password "$NOC_HASH"
 set system authentication user noc profile read-only
-set system authentication user operator password &quot;$OPERATOR_HASH&quot;
+set system authentication user operator password "$OPERATOR_HASH"
 set system authentication user operator profile operator
 
 set system authorization profile admin run default-action allow
@@ -190,9 +189,9 @@ set system authorization profile operator edit entry 20 action allow
 set system authorization profile operator edit entry 20 match commit
 EOF
 
-/usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
-/usr/local/bin/ze config validate &quot;$CONFIG_IMPORT&quot;
-sudo /usr/local/bin/ze config import --name edge-01.conf &quot;$CONFIG_IMPORT&quot;
+/usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
+/usr/local/bin/ze config validate "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
 </code></pre>
 <p>If Ze is not managed by systemd yet, start it after importing:</p>
@@ -202,17 +201,17 @@ sudo systemctl reload ze.service
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
 
 ZE_SSH_PASSWORD='CHANGE_ME_BOOTSTRAP' \
-  /usr/local/bin/ze cli --user admin -c &quot;help&quot;
+  /usr/local/bin/ze cli --user admin -c "help"
 
 ZE_SSH_PASSWORD='CHANGE_ME_NOC' \
-  /usr/local/bin/ze cli --user noc -c &quot;help&quot;
+  /usr/local/bin/ze cli --user noc -c "help"
 
 ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
-  /usr/local/bin/ze cli --user operator -c &quot;help&quot;
+  /usr/local/bin/ze cli --user operator -c "help"
 </code></pre>
 <p>Test that NOC is refused a command its profile denies. The <code>read-only</code> profile above denies the <code>clear</code> prefix:</p>
 <pre><code class="language-bash">ZE_SSH_PASSWORD='CHANGE_ME_NOC' \
-  /usr/local/bin/ze cli --user noc -c &quot;clear interface counters&quot;
+  /usr/local/bin/ze cli --user noc -c "clear interface counters"
 </code></pre>
 <p>Authorization refuses it, and says so:</p>
 <pre><code>error: command restricted by access control
@@ -255,7 +254,7 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
     <div
       class="terminal-demo__player"
       data-terminal-demo-player
-      data-cast-src="../../assets/demos/rbac.cast?v=f2c3d93465"
+      data-cast-src="../../assets/demos/rbac.cast?v=5f85fa730f"
       data-cols="137"
       data-rows="36"
       style="--demo-aspect: 82.2 / 47.52"
@@ -263,12 +262,12 @@ ZE_SSH_PASSWORD='CHANGE_ME_OPERATOR' \
     ></div>
     <noscript>
       <p class="terminal-demo__noscript">This recording is replayed by the
-      page's own player. <a href="../../assets/demos/rbac.cast?v=f2c3d93465">Download the asciicast</a> or
+      page's own player. <a href="../../assets/demos/rbac.cast?v=5f85fa730f">Download the asciicast</a> or
       <a href="../../assets/demos/rbac.txt?v=939addc51a">read the transcript</a>.</p>
     </noscript>
   </div>
   <figcaption>
-    <span>Ze 26.08.25</span><span>1 minute 10 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
+    <span>Ze 26.08.31</span><span>1 minute 11 seconds</span><span>macOS and Linux</span><span>Terminal</span><span>Ze recorder</span>
     <a href="../../assets/demos/rbac.txt?v=939addc51a">Plain-text transcript</a>
   </figcaption>
   <details class="terminal-demo__transcript">
@@ -283,37 +282,36 @@ entry 20 {
 $ ze config show rbac.conf system authentication user noc profile
 profile read-only
 
-$ ze cli --user noc -c &#x27;show version&#x27;
+$ ze cli --user noc -c &#39;show version&#39;
 version: ze 26.07.18
 
-$ ze cli --user noc -c &#x27;clear interface counters&#x27;
+$ ze cli --user noc -c &#39;clear interface counters&#39;
 error: command restricted by access control
 
-The recording displays the command restriction and the NOC user&#x27;s profile binding before exercising both paths. The daemon allows `show version`, then rejects the matching `clear` command before execution.</code></pre>
+The recording displays the command restriction and the NOC user&#39;s profile binding before exercising both paths. The daemon allows `show version`, then rejects the matching `clear` command before execution.</code></pre>
   </details>
 </figure>
-
 <h2 id="5-add-ssh-public-keys">5. Add SSH public keys</h2>
 <p>Each public key has a local name, a key type, and the base64 body of the SSH public key. The key value is the middle field of a line from <code>~/.ssh/id_ed25519.pub</code>.</p>
 <pre><code class="language-bash">set -euo pipefail
 
-ALICE_KEY=&quot;$(cut -d' ' -f2 /home/alice/.ssh/id_ed25519.pub)&quot;
+ALICE_KEY="$(cut -d' ' -f2 /home/alice/.ssh/id_ed25519.pub)"
 
 umask 077
-CONFIG_SET=&quot;$(mktemp)&quot;
-CONFIG_IMPORT=&quot;$(mktemp)&quot;
-trap 'rm -f &quot;$CONFIG_SET&quot; &quot;$CONFIG_IMPORT&quot;' EXIT
+CONFIG_SET="$(mktemp)"
+CONFIG_IMPORT="$(mktemp)"
+trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
 
-sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o &quot;$CONFIG_SET&quot; -
+sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
 
-cat &gt;&gt;&quot;$CONFIG_SET&quot; &lt;&lt;EOF
+cat &gt;&gt;"$CONFIG_SET" &lt;&lt;EOF
 set system authentication user operator public-keys alice-laptop type ssh-ed25519
-set system authentication user operator public-keys alice-laptop key &quot;$ALICE_KEY&quot;
+set system authentication user operator public-keys alice-laptop key "$ALICE_KEY"
 EOF
 
-/usr/local/bin/ze config migrate --format hierarchical -o &quot;$CONFIG_IMPORT&quot; &quot;$CONFIG_SET&quot;
-/usr/local/bin/ze config validate &quot;$CONFIG_IMPORT&quot;
-sudo /usr/local/bin/ze config import --name edge-01.conf &quot;$CONFIG_IMPORT&quot;
+/usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
+/usr/local/bin/ze config validate "$CONFIG_IMPORT"
+sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
 sudo systemctl reload ze.service
 </code></pre>
 <h2 id="6-add-tacacs-later">6. Add TACACS+ later</h2>
@@ -347,6 +345,7 @@ list, which never authenticated it.</p>
 <!-- source: cmd/ze/hub/aaa_lifecycle.go -- liveAcceptedLocalUsers -->
 <!-- source: internal/component/web/auth.go -- SessionStore.validateToken, webSession -->
 <!-- source: internal/component/ssh/pubkey.go -- authenticatePublicKeyResult -->
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Guide</p>
@@ -384,7 +383,7 @@ list, which never authenticated it.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 11:34 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
                 </div>
             </div>
         </footer>

@@ -173,7 +173,6 @@ on the same field.</p>
 </table>
 <!-- source: internal/component/bgp/message/rfc7606.go -- RFC 7606 validation checks -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- family negotiation check (validateUpdateFamilies) -->
-
 <h3 id="rfc-7606-error-escalation">RFC 7606 Error Escalation</h3>
 <p>Validation collects all errors and applies the strongest action:</p>
 <table>
@@ -325,6 +324,13 @@ decides.</p>
 </tr>
 <tr>
 <td>17</td>
+<td><code>lost-cluster-list-length</code></td>
+<td>Shortest CLUSTER_LIST wins</td>
+<td>4456</td>
+<td>Section 9 inserts this between RFC 4271 steps f) and g). Counted in CLUSTER_IDs; an absent attribute counts zero. Unconditional</td>
+</tr>
+<tr>
+<td>18</td>
 <td><code>lost-peer-address</code></td>
 <td>Lowest peer IP address wins (final tiebreak)</td>
 <td>4271</td>
@@ -333,33 +339,34 @@ decides.</p>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/rib/ -- best-path selection implementation -->
-
 <h3 id="candidate-extraction">Candidate Extraction</h3>
 <p>Before comparison, each route's attributes are extracted from pool handles into a
 flat <code>Candidate</code> struct: LocalPref, ASPathLen, FirstAS, Origin, MED, PeerASN,
-LocalASN, OriginatorIP, PeerIP, PeerAddr, StaleLevel. Router ID and peer address
-comparisons use typed <code>netip.Addr</code> fields for zero-allocation numeric ordering.</p>
+LocalASN, OriginatorIP, ClusterListEntries, PeerIP, PeerAddr, StaleLevel. Router ID
+and peer address comparisons use typed <code>netip.Addr</code> fields for zero-allocation
+numeric ordering. <code>ClusterListEntries</code> counts CLUSTER_IDs rather than octets and
+is <code>uint16</code>, because a CLUSTER_LIST can carry 16383 of them.</p>
 <h3 id="enforced-before-selection-not-best-path-reasons">Enforced Before Selection (Not Best-Path Reasons)</h3>
 <p>These checks are implemented, but as ingress filters that reject the UPDATE
 before it reaches best-path selection, so they never appear as a reason in the
 enum above:</p>
 <ul>
 <li><strong>AS loop detection</strong> (own ASN in AS_PATH): rejected on ingress by the reactor
-  loop filter on all sessions (RFC 4271 Section 9).</li>
+loop filter on all sessions (RFC 4271 Section 9).</li>
 <li><strong>Cluster-list loop detection</strong> (RFC 4456, own Router ID in CLUSTER_LIST):
-  rejected on ingress by the same loop filter (iBGP sessions).</li>
+rejected on ingress by the same loop filter (iBGP sessions). A route that
+survives this filter still has its CLUSTER_LIST length compared at step 17.</li>
 <li><strong>Originator-ID loop detection</strong> (RFC 4456, own Router ID as ORIGINATOR_ID):
-  rejected on ingress by the same loop filter (iBGP sessions).</li>
+rejected on ingress by the same loop filter (iBGP sessions).</li>
 <li><strong>OTC mismatch</strong> (RFC 9234, Only-To-Customer attribute validation): enforced
-  by the bgp-role plugin.</li>
+by the bgp-role plugin.</li>
 </ul>
 <!-- source: internal/component/bgp/reactor/filter/loop.go -- ingress AS/cluster-list/originator-id loop filter -->
 <!-- source: internal/component/bgp/plugins/role/otc.go -- RFC 9234 OTC validation -->
-
 <h3 id="not-yet-implemented">Not Yet Implemented</h3>
 <ul>
 <li><strong>IGP cost to next-hop</strong> (step 15): requires IGP integration. This would be an
-  additional best-path reason when implemented.</li>
+additional best-path reason when implemented.</li>
 </ul>
 <h2 id="complete-reason-table">Complete Reason Table</h2>
 <p>All reasons in evaluation order. A route gets exactly one reason: the first check
@@ -478,6 +485,12 @@ it fails.</p>
 </tr>
 <tr>
 <td>17</td>
+<td><code>lost-cluster-list-length</code></td>
+<td>Selection</td>
+<td>4456</td>
+</tr>
+<tr>
+<td>18</td>
 <td><code>lost-peer-address</code></td>
 <td>Selection</td>
 <td>4271</td>
@@ -486,13 +499,13 @@ it fails.</p>
 </table>
 <h2 id="implementation-notes">Implementation Notes</h2>
 <ul>
-<li><strong>Type:</strong> <code>uint8</code> -- 18 values (0-17), extensible up to 255.</li>
+<li><strong>Type:</strong> <code>uint8</code> -- 19 values (0-18), extensible up to 255.</li>
 <li><strong>One field, not two:</strong> Biorouting splits this into <code>HiddenReason</code> (validation) and
-  implicit sort order (selection). Ze uses one field because both give the same
-  reason: why the route is not the best.</li>
+implicit sort order (selection). Ze uses one field because both give the same
+reason: why the route is not the best.</li>
 <li><strong>String conversion:</strong> Only on JSON output. Internal representation is always <code>uint8</code>.</li>
 <li><strong>Cost:</strong> One byte per route entry. Set once during validation or selection, never
-  updated after.</li>
+updated after.</li>
 </ul>
 <h2 id="related-documentation">Related Documentation</h2>
 <ul>
@@ -504,6 +517,7 @@ it fails.</p>
 <li><code>rfc/short/rfc7606.md</code> -- revised error handling for UPDATE messages</li>
 <li><code>rfc/short/rfc6811.md</code> -- RPKI-based origin validation</li>
 </ul>
+
             </section>
         </main>
 
@@ -513,7 +527,7 @@ it fails.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 02:01 UTC</span>
                 </div>
             </div>
         </footer>

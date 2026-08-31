@@ -1,21 +1,28 @@
 # `show dns cache list`
 
+List all non-expired DNS cache entries, sorted by shortest TTL first.
+
 ## Ze command
 
-- Syntax: `show dns cache list`
 - Registry path: `show dns cache list`
+- Usage: `show dns cache list`
 - Mode: Read-only
 - Wire method: `ze-show:dns-cache-list`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: match, count, first, last, display, fill
+- Pipes, when the answer has rows: match, count, first, last, display, fill
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-List all non-expired DNS cache entries, sorted by shortest TTL first.
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

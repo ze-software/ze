@@ -1,13 +1,13 @@
 # Configuration Reference
 
-The complete Ze configuration as one tree: 36 top-level sections (27 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/reference/feature-status/configuration/) for a narrative walkthrough of BGP peer config specifically.
+The complete Ze configuration as one tree: 36 top-level sections (27 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/features/bgp-configuration/) for a narrative walkthrough of BGP peer config specifically.
 
 ## anomaly
 
 Behavioral anomaly detection and response subsystem.
 
 - **detect** `container`
-  *Provided by `anomaly-detect-feature-source` ([ze-anomaly-detect-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang))*
+  *Provided by `anomaly-detect` ([ze-anomaly-detect-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/anomaly/detect/yang/ze-anomaly-detect-conf.yang))*
   Report-only behavioral anomaly detector (emits incidents, takes no action).
   - **baseline-window** `uint32`
     Per-entity baseline horizon in ticks (the EWMA smoothing factor is derived from it).
@@ -37,7 +37,7 @@ Behavioral anomaly detection and response subsystem.
   - **stale-incident-timeout** `uint32`
     Seconds before an open incident that receives no clear event is finalized. The detector stops reporting an entity that goes idle without emitting a clear, so this bounds how long such an incident reads as active.
 - **shape** `container`
-  *Provided by `anomaly-shape-firewall` ([ze-anomaly-shape-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang))*
+  *Provided by `anomaly-shape` ([ze-anomaly-shape-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/anomaly/shape/yang/ze-anomaly-shape-conf.yang))*
   Autonomous responder: shadow (log-only) or armed (live per-source firewall actions).
   - **action** `enumeration`
     Armed action: rate-limit the source (surgical) or drop it (fallback).
@@ -83,13 +83,13 @@ BFD control configuration for Ze.
 - **profile <name>** `list`
   Reusable timer and feature profile. Sessions reference a profile by name and inherit every field below.
   - **auth** `container`
-    RFC 5880 Section 6.7 authentication parameters. Sessions inheriting this profile sign every outgoing Control packet with the configured type and verify incoming packets using the same key. Simple Password (type 1) is rejected at parse time -- it provides no cryptographic protection and RFC 5880 warns against using it.
+    RFC 5880 Section 6.7 authentication parameters. Sessions inheriting this profile sign every outgoing Control packet with the configured type and verify incoming packets using the same key. There is no default type: authentication runs only on the type the operator names here.
     - **key-id** `uint8`
       Auth Key ID (RFC 5880 Section 6.7.1).
     - **secret** `string`
-      Shared secret for the keyed digest. Redacted from `ze config show` output. MD5 variants use the first 16 bytes of the secret, SHA1 variants the first 20.
+      Shared secret. Redacted from `ze config show` output. MD5 variants use the first 16 bytes of the secret, SHA1 variants the first 20, and both pad a shorter secret with zeros. The simple-password type carries the secret itself on the wire, so it must be 1 to 16 bytes and a longer one is refused at parse time (RFC 5880 Section 6.7.2).
     - **type** `enumeration`
-      Authentication type. Simple Password is intentionally absent from the enum.
+      Authentication type. There is no default: the operator names the type, and simple-password is never selected on their behalf.
   - **desired-min-tx-us** `uint32`
     Local target transmit rate in microseconds. The slow-start floor of 1 000 000 us applies while the session is not Up, per RFC 5880 Section 6.8.3.
   - **detect-multiplier** `uint8`
@@ -222,7 +222,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **run** `string`
         Shell command to spawn the external process. Ze pipes BGP events to its stdin and reads commands from its stdout.
       - **send** `string[]`
-        Message types this program may send toward the peer. Valid: update, refresh, enhanced-refresh (BORR/EORR markers, RFC 7313), and '*' for every type. A direction has no meaning here, because every send type is sent. Validated at runtime against known send types.
+        Message types this program may send toward the peer. Valid: update, refresh, raw (a whole BGP message the program builds itself), enhanced-refresh (BORR/EORR markers, RFC 7313), and '*' for every type. A direction has no meaning here, because every send type is sent. Validated at runtime against known send types.
   - **behavior** `container`
     Operational knobs that control how the reactor processes and forwards UPDATE messages for this peer. Most users can leave these at defaults.
     - **auto-flush** `boolean`
@@ -358,7 +358,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
         - **run** `string`
           Shell command to spawn the external process. Ze pipes BGP events to its stdin and reads commands from its stdout.
         - **send** `string[]`
-          Message types this program may send toward the peer. Valid: update, refresh, enhanced-refresh (BORR/EORR markers, RFC 7313), and '*' for every type. A direction has no meaning here, because every send type is sent. Validated at runtime against known send types.
+          Message types this program may send toward the peer. Valid: update, refresh, raw (a whole BGP message the program builds itself), enhanced-refresh (BORR/EORR markers, RFC 7313), and '*' for every type. A direction has no meaning here, because every send type is sent. Validated at runtime against known send types.
     - **behavior** `container`
       Operational knobs that control how the reactor processes and forwards UPDATE messages for this peer. Most users can leave these at defaults.
       - **auto-flush** `boolean`
@@ -521,7 +521,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
         - **local** `asn`
           Local AS (overrides global)
         - **local-options** `enumeration[]`
-          Modifiers for local-as behavior. no-prepend: real ASN not prepended before local-as. replace-as: local-as replaces real ASN entirely. Both together: full replacement with no prepend.
+          Modifiers for local-as behavior. The two options act in different directions, so each one is set on its own. no-prepend: inbound, the local-as is not added to a route received from this peer. replace-as: outbound, this peer sees the local-as alone instead of the local-as followed by the globally configured ASN. With neither option, this peer sees the local-as followed by the globally configured ASN.
         - **remote** `asn`
           Peer Autonomous System Number
       - **capability** `container`
@@ -614,6 +614,8 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
         IPv6 link-local address to advertise AFTER the global next hop in the MP_REACH Next Hop field (RFC 2545 Section 3). The leaf supplies the address. It does not decide that the address is sent: ze appends it only when this speaker shares a locally connected subnet with the peer AND with the entity named by the global next hop, which is the 'if and only if' condition of Section 3. In every other case the field carries the global address alone. Set it on a session that faces a peer on a shared link. It has no effect on any other session.
       - **next-hop** `union`
         Next-hop rewriting policy for forwarded UPDATEs (RFC 4271 Section 5.1.3). auto: rewrite for eBGP peers, preserve for iBGP peers. self: always rewrite to local address. unchanged: never rewrite (preserves original next-hop). IP address: set next-hop to explicit address.
+      - **propagate-srv6-prefix-sid** `boolean`
+        Advertise the BGP Prefix-SID attribute (code 40) to this EBGP peer. RFC 8669 Section 8: the propagation to other ASes MUST be explicitly configured, so the attribute is removed from every UPDATE sent to an EBGP peer that does not set this leaf. Set it on an EBGP neighbor that is inside the same SR domain: an SR domain can span more than one AS, and ze cannot derive that membership from the ASN. Has no effect on IBGP (always advertised).
       - **route-reflector-client** `boolean`
         Mark this peer as a route reflector client (RFC 4456). Routes from clients are forwarded to all clients and non-clients. Routes from non-clients are forwarded to clients only.
       - **router-id** `ipv4-address`
@@ -737,7 +739,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **local** `asn`
         Local AS (overrides global)
       - **local-options** `enumeration[]`
-        Modifiers for local-as behavior. no-prepend: real ASN not prepended before local-as. replace-as: local-as replaces real ASN entirely. Both together: full replacement with no prepend.
+        Modifiers for local-as behavior. The two options act in different directions, so each one is set on its own. no-prepend: inbound, the local-as is not added to a route received from this peer. replace-as: outbound, this peer sees the local-as alone instead of the local-as followed by the globally configured ASN. With neither option, this peer sees the local-as followed by the globally configured ASN.
       - **remote** `asn`
         Peer Autonomous System Number
     - **capability** `container`
@@ -830,6 +832,8 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       IPv6 link-local address to advertise AFTER the global next hop in the MP_REACH Next Hop field (RFC 2545 Section 3). The leaf supplies the address. It does not decide that the address is sent: ze appends it only when this speaker shares a locally connected subnet with the peer AND with the entity named by the global next hop, which is the 'if and only if' condition of Section 3. In every other case the field carries the global address alone. Set it on a session that faces a peer on a shared link. It has no effect on any other session.
     - **next-hop** `union`
       Next-hop rewriting policy for forwarded UPDATEs (RFC 4271 Section 5.1.3). auto: rewrite for eBGP peers, preserve for iBGP peers. self: always rewrite to local address. unchanged: never rewrite (preserves original next-hop). IP address: set next-hop to explicit address.
+    - **propagate-srv6-prefix-sid** `boolean`
+      Advertise the BGP Prefix-SID attribute (code 40) to this EBGP peer. RFC 8669 Section 8: the propagation to other ASes MUST be explicitly configured, so the attribute is removed from every UPDATE sent to an EBGP peer that does not set this leaf. Set it on an EBGP neighbor that is inside the same SR domain: an SR domain can span more than one AS, and ze cannot derive that membership from the ASN. Has no effect on IBGP (always advertised).
     - **route-reflector-client** `boolean`
       Mark this peer as a route reflector client (RFC 4456). Routes from clients are forwarded to all clients and non-clients. Routes from non-clients are forwarded to clients only.
     - **router-id** `ipv4-address`
@@ -978,7 +982,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **run** `string`
         Shell command to spawn the external process. Ze pipes BGP events to its stdin and reads commands from its stdout.
       - **send** `string[]`
-        Message types this program may send toward the peer. Valid: update, refresh, enhanced-refresh (BORR/EORR markers, RFC 7313), and '*' for every type. A direction has no meaning here, because every send type is sent. Validated at runtime against known send types.
+        Message types this program may send toward the peer. Valid: update, refresh, raw (a whole BGP message the program builds itself), enhanced-refresh (BORR/EORR markers, RFC 7313), and '*' for every type. A direction has no meaning here, because every send type is sent. Validated at runtime against known send types.
   - **behavior** `container`
     Operational knobs that control how the reactor processes and forwards UPDATE messages for this peer. Most users can leave these at defaults.
     - **auto-flush** `boolean`
@@ -1141,7 +1145,7 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       - **local** `asn`
         Local AS (overrides global)
       - **local-options** `enumeration[]`
-        Modifiers for local-as behavior. no-prepend: real ASN not prepended before local-as. replace-as: local-as replaces real ASN entirely. Both together: full replacement with no prepend.
+        Modifiers for local-as behavior. The two options act in different directions, so each one is set on its own. no-prepend: inbound, the local-as is not added to a route received from this peer. replace-as: outbound, this peer sees the local-as alone instead of the local-as followed by the globally configured ASN. With neither option, this peer sees the local-as followed by the globally configured ASN.
       - **remote** `asn`
         Peer Autonomous System Number
     - **capability** `container`
@@ -1234,6 +1238,8 @@ Border Gateway Protocol routing configuration. Peers inherit from group defaults
       IPv6 link-local address to advertise AFTER the global next hop in the MP_REACH Next Hop field (RFC 2545 Section 3). The leaf supplies the address. It does not decide that the address is sent: ze appends it only when this speaker shares a locally connected subnet with the peer AND with the entity named by the global next hop, which is the 'if and only if' condition of Section 3. In every other case the field carries the global address alone. Set it on a session that faces a peer on a shared link. It has no effect on any other session.
     - **next-hop** `union`
       Next-hop rewriting policy for forwarded UPDATEs (RFC 4271 Section 5.1.3). auto: rewrite for eBGP peers, preserve for iBGP peers. self: always rewrite to local address. unchanged: never rewrite (preserves original next-hop). IP address: set next-hop to explicit address.
+    - **propagate-srv6-prefix-sid** `boolean`
+      Advertise the BGP Prefix-SID attribute (code 40) to this EBGP peer. RFC 8669 Section 8: the propagation to other ASes MUST be explicitly configured, so the attribute is removed from every UPDATE sent to an EBGP peer that does not set this leaf. Set it on an EBGP neighbor that is inside the same SR domain: an SR domain can span more than one AS, and ze cannot derive that membership from the ASN. Has no effect on IBGP (always advertised).
     - **route-reflector-client** `boolean`
       Mark this peer as a route reflector client (RFC 4456). Routes from clients are forwarded to all clients and non-clients. Routes from non-clients are forwarded to clients only.
     - **router-id** `ipv4-address`
@@ -1555,7 +1561,7 @@ Connected route redistribution. Presence enables the plugin.
 
 ## control-plane-protection
 
-*Provided by `copp-input-chain` ([ze-copp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/copp/yang/ze-copp-conf.yang))*
+*Provided by `copp` ([ze-copp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/copp/yang/ze-copp-conf.yang))*
 
 Control-plane policing configuration.
 
@@ -1577,7 +1583,7 @@ Control-plane policing configuration.
 Distributed denial-of-service detection and mitigation subsystem.
 
 - **detect** `container`
-  *Provided by `ddos-detect-flow-source` ([ze-ddos-detect-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang))*
+  *Provided by `ddos-detect` ([ze-ddos-detect-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ddos/detect/yang/ze-ddos-detect-conf.yang))*
   - **absolute-floor** `uint32`
     Minimum threshold in PPS regardless of baseline.
   - **baseline-window** `uint32`
@@ -1973,7 +1979,7 @@ Forwarding Information Base configuration.
 
 ## firewall
 
-*Provided by `firewall-irr` ([ze-firewall-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang), [ze-firewall-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang)); `firewall` ([ze-firewall-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-cmd.yang), [ze-firewall-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-conf.yang))*
+*Provided by `firewall` ([ze-firewall-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-cmd.yang), [ze-firewall-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/yang/ze-firewall-conf.yang)); `firewall-irr` ([ze-firewall-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang), [ze-firewall-irr.yang](https://github.com/ze-software/ze/blob/main/internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang))*
 
 Ze-managed nftables firewall tables. Table names are bare in config; ze_ prefix added by component.
 
@@ -2162,7 +2168,7 @@ Ze-managed nftables firewall tables. Table names are bare in config; ze_ prefix 
 
 ## flow-export
 
-*Provided by `flow-export-conntrack-tracking` ([ze-flowexport-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/yang/ze-flowexport-conf.yang))*
+*Provided by `flow-export` ([ze-flowexport-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/yang/ze-flowexport-conf.yang))*
 
 Flow export (sFlow, NetFlow v9, IPFIX) configuration
 
@@ -2304,7 +2310,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         - **group <name>** `list`
           One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
           - **accept-mode** `boolean`
-            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Drives FSM/owner semantics only (not dataplane-enforced this pass).
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Enforced on the dataplane: with false on a non-owner, the router still answers ARP and Neighbor Discovery for the virtual addresses and still forwards for the virtual MAC, but does not accept packets addressed to them, so a ping to a virtual address gets no reply. The address owner accepts whatever this leaf says.
           - **advertise-interval-milliseconds** `uint32`
             Advertisement interval in milliseconds. The native range spans both versions; the plugin verifier narrows it per version. v3: multiples of 10 ms within 10..40950 (wire = centiseconds, RFC 9568 erratum 8301). v2: whole seconds within 1000..255000 (wire = seconds).
           - **preempt** `boolean`
@@ -2412,7 +2418,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **vlan-id** `uint16`
       VLAN identifier
     - **vrf** `string`
-      Assign this unit to a VRF (Virtual Routing and Forwarding) instance. The VRF must be defined separately. Traffic on this unit uses the VRF's routing table instead of the main table.
+      Not implemented. A config that sets this leaf is refused. Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so the refusal can say why; it becomes functional when VRF support ships.
 - **dhcp-auto** `boolean`
   Auto-discover first ethernet interface and run DHCP on it. Used when the interface name is not known at config time (e.g., gokrazy appliance). Ignored if any explicit DHCP config exists.
 - **dummy <name>** `list`
@@ -2498,7 +2504,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         - **group <name>** `list`
           One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
           - **accept-mode** `boolean`
-            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Drives FSM/owner semantics only (not dataplane-enforced this pass).
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Enforced on the dataplane: with false on a non-owner, the router still answers ARP and Neighbor Discovery for the virtual addresses and still forwards for the virtual MAC, but does not accept packets addressed to them, so a ping to a virtual address gets no reply. The address owner accepts whatever this leaf says.
           - **advertise-interval-milliseconds** `uint32`
             Advertisement interval in milliseconds. The native range spans both versions; the plugin verifier narrows it per version. v3: multiples of 10 ms within 10..40950 (wire = centiseconds, RFC 9568 erratum 8301). v2: whole seconds within 1000..255000 (wire = seconds).
           - **preempt** `boolean`
@@ -2606,7 +2612,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **vlan-id** `uint16`
       VLAN identifier
     - **vrf** `string`
-      Assign this unit to a VRF (Virtual Routing and Forwarding) instance. The VRF must be defined separately. Traffic on this unit uses the VRF's routing table instead of the main table.
+      Not implemented. A config that sets this leaf is refused. Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so the refusal can say why; it becomes functional when VRF support ships.
 - **ethernet <name>** `list`
   Physical or virtual Ethernet interface. Ze manages the interface's addresses, MTU, offload settings, and units. The interface must already exist in the OS (ze does not create physical interfaces).
   - **class-of-service** `string`
@@ -2690,7 +2696,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         - **group <name>** `list`
           One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
           - **accept-mode** `boolean`
-            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Drives FSM/owner semantics only (not dataplane-enforced this pass).
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Enforced on the dataplane: with false on a non-owner, the router still answers ARP and Neighbor Discovery for the virtual addresses and still forwards for the virtual MAC, but does not accept packets addressed to them, so a ping to a virtual address gets no reply. The address owner accepts whatever this leaf says.
           - **advertise-interval-milliseconds** `uint32`
             Advertisement interval in milliseconds. The native range spans both versions; the plugin verifier narrows it per version. v3: multiples of 10 ms within 10..40950 (wire = centiseconds, RFC 9568 erratum 8301). v2: whole seconds within 1000..255000 (wire = seconds).
           - **preempt** `boolean`
@@ -2798,7 +2804,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **vlan-id** `uint16`
       VLAN identifier
     - **vrf** `string`
-      Assign this unit to a VRF (Virtual Routing and Forwarding) instance. The VRF must be defined separately. Traffic on this unit uses the VRF's routing table instead of the main table.
+      Not implemented. A config that sets this leaf is refused. Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so the refusal can say why; it becomes functional when VRF support ships.
 - **loopback** `container`
   The system loopback interface (lo). Always present; ze manages its addresses and units. Used for hosting router-id addresses accessible from any interface.
   - **unit <name>** `list`
@@ -2908,7 +2914,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **vlan-id** `uint16`
       VLAN identifier
     - **vrf** `string`
-      Assign this unit to a VRF (Virtual Routing and Forwarding) instance. The VRF must be defined separately. Traffic on this unit uses the VRF's routing table instead of the main table.
+      Not implemented. A config that sets this leaf is refused. Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so the refusal can say why; it becomes functional when VRF support ships.
 - **monitor** `container`
   Interface monitoring settings
   - **loopback** `boolean`
@@ -3250,7 +3256,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **vlan-id** `uint16`
       VLAN identifier
     - **vrf** `string`
-      Assign this unit to a VRF (Virtual Routing and Forwarding) instance. The VRF must be defined separately. Traffic on this unit uses the VRF's routing table instead of the main table.
+      Not implemented. A config that sets this leaf is refused. Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so the refusal can say why; it becomes functional when VRF support ships.
 - **veth <name>** `list`
   Virtual ethernet pair interface
   - **class-of-service** `string`
@@ -3336,7 +3342,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
         - **group <name>** `list`
           One virtual router, identified by an operator-assigned name. The name is a config label only and is never sent on the wire; the VRID leaf carries the protocol identity.
           - **accept-mode** `boolean`
-            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Drives FSM/owner semantics only (not dataplane-enforced this pass).
+            Accept_Mode (RFC 9568 Section 6.1/6.4.3): a non-owner Active accepts packets addressed to the virtual addresses. v3 semantics only; combining true with version 2 is rejected by the plugin verifier. Enforced on the dataplane: with false on a non-owner, the router still answers ARP and Neighbor Discovery for the virtual addresses and still forwards for the virtual MAC, but does not accept packets addressed to them, so a ping to a virtual address gets no reply. The address owner accepts whatever this leaf says.
           - **advertise-interval-milliseconds** `uint32`
             Advertisement interval in milliseconds. The native range spans both versions; the plugin verifier narrows it per version. v3: multiples of 10 ms within 10..40950 (wire = centiseconds, RFC 9568 erratum 8301). v2: whole seconds within 1000..255000 (wire = seconds).
           - **preempt** `boolean`
@@ -3444,7 +3450,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **vlan-id** `uint16`
       VLAN identifier
     - **vrf** `string`
-      Assign this unit to a VRF (Virtual Routing and Forwarding) instance. The VRF must be defined separately. Traffic on this unit uses the VRF's routing table instead of the main table.
+      Not implemented. A config that sets this leaf is refused. Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so the refusal can say why; it becomes functional when VRF support ships.
 - **wireguard <name>** `list`
   WireGuard interface. Declarative config: interface-level listen-port, fwmark, private-key, and a nested peer list with public-key, endpoint, allowed-ips, preshared-key, and persistent-keepalive. L3 kind with no MAC address (uses interface-common rather than interface-l2). Reconciliation is in-place per peer via wgctrl ConfigureDevice; adding, removing, or rekeying a peer does not disturb the netdev or any other peer.
   - **description** `string`
@@ -3586,7 +3592,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **vlan-id** `uint16`
       VLAN identifier
     - **vrf** `string`
-      Assign this unit to a VRF (Virtual Routing and Forwarding) instance. The VRF must be defined separately. Traffic on this unit uses the VRF's routing table instead of the main table.
+      Not implemented. A config that sets this leaf is refused. Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so the refusal can say why; it becomes functional when VRF support ships.
 - **xfrm <name>** `list`
   XFRM interface (Linux 4.19+). Route-based IPsec: traffic routed into this interface is encrypted/decrypted by the kernel XFRM subsystem. The if-id binds security associations to the interface. L3 kind with no MAC address.
   - **description** `string`
@@ -3708,7 +3714,7 @@ Interface-level class-of-service bindings and inline QoS maps (container-merge w
     - **vlan-id** `uint16`
       VLAN identifier
     - **vrf** `string`
-      Assign this unit to a VRF (Virtual Routing and Forwarding) instance. The VRF must be defined separately. Traffic on this unit uses the VRF's routing table instead of the main table.
+      Not implemented. A config that sets this leaf is refused. Ze creates no VRF device and enslaves no interface, so a unit cannot use a routing table other than the main table. The leaf stays in the schema so the refusal can say why; it becomes functional when VRF support ships.
 
 ## isis
 
@@ -3814,7 +3820,7 @@ Kernel route redistribution. Presence enables the plugin.
 
 ## l2tp
 
-*Provided by `l2tp-auth-local` ([ze-l2tp-auth-local-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/yang/ze-l2tp-auth-local-conf.yang)); `l2tp-auth-radius-servers` ([ze-l2tp-auth-radius-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang)); `l2tp-pool` ([ze-l2tp-pool-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang)); `l2tp-shaper` ([ze-l2tp-shaper-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang))*
+*Provided by `l2tp-auth-local` ([ze-l2tp-auth-local-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authlocal/yang/ze-l2tp-auth-local-conf.yang)); `l2tp-auth-radius` ([ze-l2tp-auth-radius-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang)); `l2tp-pool` ([ze-l2tp-pool-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang)); `l2tp-shaper` ([ze-l2tp-shaper-conf.yang](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/shaper/yang/ze-l2tp-shaper-conf.yang))*
 
 L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any content implies the subsystem is enabled. Use 'enabled false' to disable explicitly, or 'enabled true' as a filler when no other settings are needed.
 
@@ -3827,13 +3833,15 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
         Shared secret for PAP cleartext and CHAP-MD5/MS-CHAPv2 challenge-response.
   - **radius** `container`
     - **acct-interval** `uint16`
-      Accounting interim-update interval in seconds.
+      Accounting interim-update interval in seconds. RFC 2869 Section 2.1 states that a locally configured value on the NAS MUST override the value found in an Access-Accept. A leaf that is set pins the cadence of every session, and the Acct-Interim-Interval attribute (type 85) of an Access-Accept then changes nothing. This leaf has no default. An unset leaf is the absent case, and it lets each Access-Accept set that session's cadence. A session runs at 300 seconds when neither side states an interval.
     - **coa-port** `uint16`
       UDP port for the RADIUS CoA/Disconnect listener (RFC 5176), commonly 3799. Deliberately has no default: leaving it unset keeps the listener off, so an existing deployment does not start accepting CoA on upgrade. Requests are accepted only from the configured RADIUS server addresses.
     - **nas-identifier** `string`
       NAS-Identifier sent in RADIUS requests.
     - **nas-port-id-format** `string`
       Template for the NAS-Port-Id attribute (RFC 2869 Section 5.17) sent in Access-Request and Accounting-Request packets. The placeholders are {nas-id}, {tunnel-id} and {session-id}; every other character is copied. All three are known before the session has an interface, so one session sends one text in its Access-Request and in all its accounting records, and a billing system can join them. The 253-octet limit is the largest value a RADIUS attribute can carry (RFC 2865 Section 5). An unknown placeholder, and a {nas-id} with no nas-identifier set, are both refused when the config is committed. Unset sends no attribute.
+    - **require-message-authenticator** `boolean`
+      Discard a CoA-Request or a Disconnect-Request that carries no Message-Authenticator attribute. RFC 5176 Section 3.4 makes the attribute optional, so the default is false and a request without one is processed after its Request Authenticator verifies against the shared secret. Set this leaf to true when every Dynamic Authorization Client sends the attribute. The attribute is an HMAC-MD5 keyed with the shared secret, and it is the mitigation for the Blast-RADIUS class of attack (CVE-2024-3596), which forges a RADIUS/UDP packet with a chosen-prefix MD5 collision against the authenticator. A client that sends no attribute gets no answer while this leaf is true.
     - **retries** `uint8`
       Number of retransmit attempts per server.
     - **server <name>** `list`
@@ -3842,7 +3850,7 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
       - **port** `uint16`
         RADIUS server UDP port.
       - **shared-key** `string`
-        RADIUS shared secret.
+        RADIUS shared secret. RFC 2865 Section 3 states the secret MUST NOT be empty (length 0), since an empty secret allows packets to be trivially forged.
     - **source-address** `ipv4-address`
       Source IPv4 address for outbound RADIUS packets.
     - **timeout** `uint8`
@@ -3943,7 +3951,7 @@ L2TPv2 tunnel subsystem settings (RFC 2661). Presence of this block with any con
 
 ## ldp
 
-*Provided by `ldp-port` ([ze-ldp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/yang/ze-ldp-cmd.yang), [ze-ldp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/yang/ze-ldp-conf.yang))*
+*Provided by `ldp` ([ze-ldp-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/yang/ze-ldp-cmd.yang), [ze-ldp-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/yang/ze-ldp-conf.yang))*
 
 Label Distribution Protocol configuration
 
@@ -4783,7 +4791,7 @@ OSPFv2 routing instance configuration.
 
 ## pki
 
-*Provided by `ipsec-xfrm`*
+*Provided by `ike`*
 
 PKI certificate and key store. Presence of this block enables certificate-based authentication for IPsec VPN, TLS, and other subsystems.
 
@@ -4822,6 +4830,8 @@ Plugin configuration
   Plugin transport and auth configuration
   - **client <name>** `list`
     Outbound hub connections (managed client mode)
+    - **certificate-fingerprint** `string`
+      SHA-256 fingerprint of the hub certificate, in hex. The client refuses any other certificate and sends no token to it. Use it when the hub certificate comes from no CA the client trusts. The hub logs this value when its managed listener starts. The ze.managed.tls.certificate-fingerprint environment variable overrides this leaf.
     - **host** `string`
       Remote hub address
     - **port** `uint16`
@@ -4832,6 +4842,8 @@ Plugin configuration
       Source IP address for outbound hub connections.
   - **server <name>** `list`
     Named hub server instances (TLS listeners)
+    - **certificate** `string`
+      Name of a pki certificate the managed-client listener on this block serves. An empty name serves a self-signed certificate that changes on every restart. No CA can vouch for that one, so a client must pin its fingerprint or skip verification.
     - **client <name>** `list`
       Accepted remote managed clients
       - **secret** `string`
@@ -4962,7 +4974,7 @@ Named routing table definitions. Each entry maps a name to a kernel routing tabl
 
 ## rsvp-te
 
-*Provided by `rsvp-te-rawsock` ([ze-rsvp-te-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang), [ze-rsvp-te-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang))*
+*Provided by `rsvp-te` ([ze-rsvp-te-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/yang/ze-rsvp-te-cmd.yang), [ze-rsvp-te-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang))*
 
 RSVP-TE traffic engineering configuration
 
@@ -5349,7 +5361,7 @@ System-level settings
     - **server <address>** `list`
       RADIUS servers, tried in configured order
       - **key** `string`
-        RADIUS shared secret (RFC 2865)
+        RADIUS shared secret (RFC 2865). RFC 2865 Section 3 states the secret MUST NOT be empty (length 0), since an empty secret allows packets to be trivially forged.
       - **port** `uint16`
         UDP authentication port (default 1812)
     - **source-address** `ip-address`
@@ -5711,7 +5723,7 @@ Traffic subsystem: QoS control and byte-usage accounting.
 
 ## vpn
 
-*Provided by `ipsec-xfrm`*
+*Provided by `ike`*
 
 VPN subsystems.
 
@@ -5816,7 +5828,7 @@ VPN subsystems.
         - **pre-shared-secret-encoding** `enumeration`
           How to read the pre-shared-secret value. RFC 7296 Section 2.15 requires the management interface to accept both an ASCII string and a hex encoding of the shared secret. Set this to hex to supply the secret as hexadecimal digit pairs, which is the way to configure a secret holding non-printable octets. The encoding is stated here and is never guessed from the value. A secret such as abcdef0123456789 is both valid ASCII and valid hex, so reading it as hex would silently change an existing secret. A hex value with an odd length or a non-hexadecimal character is refused at commit rather than read as ASCII.
         - **remote-id** `string`
-          Identity the remote endpoint must assert. When it is set, Ze refuses an IKE_AUTH whose ID payload names another identity. Comparable types are ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR, ID_KEY_ID, and ID_DER_ASN1_DN, and an address value accepts the two address types alone. A distinguished name is compared in RFC 4514 string form, and it binds against the certificate subject exactly, octet for octet. When it is empty Ze checks no identity, so every certificate the ca-certificate issued authenticates as this peer. Set it whenever that authority issues to more than one client.
+          Identity the remote endpoint must assert. When it is set, Ze refuses an IKE_AUTH whose ID payload names another identity. Comparable types are ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR, ID_KEY_ID, and ID_DER_ASN1_DN, and an address value accepts the two address types alone. A distinguished name is compared in RFC 4514 string form, and it binds against the certificate subject exactly, octet for octet. A value can name ONE peer or a SET of peers. RFC 4301 Section 4.4.3.1 requires both forms of Peer Authorization Database entry. A set is written with the hierarchy separator in front, and it admits the identities BELOW it and not the value itself: '.example.com' admits vpn.example.com, '@example.com' admits gateway@example.com, and ',ST=MA,C=US' admits every distinguished name whose top relative distinguished names are ST=MA,C=US. An address entry takes the same CIDR prefix the traffic-selector leaves take, so '10.0.0.0/24' admits every address in that block. ID_KEY_ID is always compared exactly, because an opaque octet string has no hierarchy to cut. The certificate binding stays per peer whichever form is used. A peer admitted by a set must still assert an identity its own certificate carries, so a set never widens what one certificate proves. When it is empty Ze checks no identity, so every certificate the ca-certificate issued authenticates as this peer. Set it whenever that authority issues to more than one client.
         - **remote-id-type** `enumeration`
           The one IKE ID type the remote endpoint CAN assert, and when absent any type Ze CAN compare, which is the historical behavior. When it is set Ze refuses every other type, so a peer asserting ID_FQDN with the text of a configured mail address is refused. RFC 7296 Section 4 requires that it be possible to configure Ze to accept a PKIX certificate where the identity passed is ID_KEY_ID. An opaque key id corresponds to no certificate field, so Ze cannot derive that binding and refuses it by default. Setting this leaf to key-id is the operator stating that a chain to ca-certificate plus the exact key id IS the intended binding. It governs what Ze ACCEPTS, and the type Ze sends still follows the shape of local-id.
         - **x509** `container`
@@ -5835,6 +5847,8 @@ VPN subsystems.
         Local endpoint address or interface name.
       - **mode** `enumeration`
         Encapsulation mode for this peer's Child SAs. RFC 7296 Section 1.3.1 states the default itself: 'Except when using this option to negotiate transport mode, all Child SAs will use tunnel mode.' Ze asks for transport mode by sending USE_TRANSPORT_MODE with the Child SA request, and the peer can decline. A declined request establishes a tunnel-mode Child SA unless transport-required is set. Transport mode constrains the traffic selectors. RFC 7296 Section 2.23.1 requires exactly one IP address in TSi and in TSr, so every traffic-selector prefix under this peer must be a single host, and a vti binding is refused because an XFRM interface carries tunnel encapsulation.
+      - **policy-priority** `uint32`
+        Where this peer's Security Policy Database entries sit in the operator's ordering of that database. A LOWER value is searched FIRST, in Ze and in the Linux kernel. RFC 4301 Section 4.4.1: 'The ordering requirement arises because entries often will overlap due to the presence of (non-trivial) ranges as values for selectors. Thus, a user or administrator MUST be able to order the entries to express a desired access control policy.' The same section binds this interface: it 'MUST support (total) ordering of these entries, as seen via this interface'. Two peers whose traffic selectors overlap, 0.0.0.0/0 on both for example, describe the same traffic. Give the one that must win the lower value. Peers that share a value are ordered by whichever established last, which is what every peer did before this leaf existed, so the default 2000 keeps an unordered configuration installing exactly what it installed before. The range starts above 100, which is where the IKE control-plane bypass sits. A peer entry at or above that rank captures the IKE exchange that builds and rekeys the very SA it protects, and the tunnel could then never renegotiate. It ends at 2147483647, the largest rank Ze can carry to a dataplane.
       - **remote-address** `string`
         Remote endpoint address or DNS hostname.
       - **traffic-selector <number>** `list`

@@ -1,21 +1,30 @@
 # `show config dump`
 
+Show the fully resolved configuration tree.
+
 ## Ze command
 
-- Syntax: `show config dump`
 - Registry path: `show config dump`
+- Usage: `show config dump`
 - Mode: Read-only
 - Wire method: `ze-show:config-dump`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: doc
 - Address fields: none
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save
-- Pipes, on rows: none
+- Pipes, on its rows: none
 - Pipes, while streaming: log
 - Pipes, local process only: save
 - Command pipes: none
 - Pipe aliases: none
 
-Show the fully resolved configuration tree. Parses the config and outputs it after includes, defaults, and group inheritance have been applied. What you see here is exactly what the daemon is using.
+Parses the config and outputs it after includes, defaults, and group inheritance have been applied. What you see here is exactly what the daemon is using.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 

@@ -1,25 +1,34 @@
 # `support`
 
+Collect logs, config, state and diagnostics into one archive.
+
 ## Ze command
 
-- Syntax: `support`
 - Registry path: `support`
 - Mode: Offline
 - Wire method: `not listed`
+- Backends: any backend
+- Task support: optional: the MCP call is synchronous, which is the default
+- Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
 - Pipes, always: none
-- Pipes, on rows: none
+- Pipes, when the answer has rows: none
 - Pipes, while streaming: none
 - Pipes, local process only: none
 - Command pipes: none
 - Pipe aliases: none
 
-Bundle logs, config, state, and diagnostics into one archive file. Send the result to support when reporting an issue.
+Send the archive to support when you report an issue. Modules can be selected or excluded, and a time window narrows what the archive holds.
+
+## Arguments
+
+No command-specific arguments listed.
 
 ## Mapping intents
 
 No vendor equivalent has been curated yet for this Ze command.
+
 ## Vendor equivalents
 
 ### Junos MX

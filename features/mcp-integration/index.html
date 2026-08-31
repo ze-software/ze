@@ -46,7 +46,6 @@
             <section class="md-content reveal cat-automate">
 <!-- source: internal/component/mcp/tools.go -- MCP tool dispatch primitives -->
 <!-- source: internal/test/cli/cmd_mcp.go -- MCP test client -->
-
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Feature</span>
     <h1 id="mcp-integration">MCP Integration</h1>
@@ -112,7 +111,6 @@ is the one source both the MCP tool list and the API command list read, so the
 skip covers both surfaces.</p>
 <!-- source: internal/component/mcp/tools.go -- toolName, generateTools -->
 <!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta: the Hidden skip -->
-
 <p>The <code>ze_execute</code> tool is the key to full control: anything you can do in <code>ze cli</code> (interactive or <code>ze cli -c</code> for one-shot commands), an AI can do via MCP. This includes:</p>
 <ul>
 <li><strong>Route management:</strong> <code>peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24</code></li>
@@ -162,31 +160,27 @@ handshake, no session, no <code>Mcp-Session-Id</code>, no GET stream, and no
 server-initiated request.</p>
 <!-- source: internal/component/mcp/streamable.go -- ProtocolVersion, supportedProtocolVersions, handlePOST -->
 <!-- source: internal/component/mcp/meta.go -- parseRequestMeta -->
-
 <p>Two consequences are worth stating plainly:</p>
 <ul>
-<li>
-<p><strong>Authentication runs on every request</strong>, so a revoked token stops working on
-  the very next call rather than at session expiry, and there is no long-lived
-  identifier that acts as a bearer credential in its own right.
-  <!-- source: internal/component/mcp/streamable.go -- authenticate --></p>
+<li><strong>Authentication runs on every request</strong>, so a revoked token stops working on
+the very next call rather than at session expiry, and there is no long-lived
+identifier that acts as a bearer credential in its own right.
+<!-- source: internal/component/mcp/streamable.go -- authenticate -->
 </li>
-<li>
-<p><strong>Elicitation is inverted, not gone.</strong> The revision forbids a server to send
-  an independent JSON-RPC request on any stream, so a server can no longer push
-  a prompt. The server RETURNS the prompt instead: <code>ze_execute</code> called without a
-  <code>command</code> answers <code>resultType: "input_required"</code> with an <code>inputRequests</code> map,
-  and that map carries an <code>elicitation/create</code> request. The client then retries
-  the original call with <code>inputResponses</code>, which carries the value. Ze attaches
-  no <code>requestState</code>, so it holds nothing between the two requests and
-  authenticates each one on its own. A client that did not declare <strong>form-mode</strong>
-  elicitation is never prompted, and it gets the missing-argument error instead.
-  See <a href="../../guides/mcp/elicitation/">MCP Elicitation</a> for the full round trip.
-  <!-- source: internal/component/mcp/mrtr.go -- inputRequiredForMissingCommand, elicitationFormSupported --></p>
+<li><strong>Elicitation is inverted, not gone.</strong> The revision forbids a server to send
+an independent JSON-RPC request on any stream, so a server can no longer push
+a prompt. The server RETURNS the prompt instead: <code>ze_execute</code> called without a
+<code>command</code> answers <code>resultType: "input_required"</code> with an <code>inputRequests</code> map,
+and that map carries an <code>elicitation/create</code> request. The client then retries
+the original call with <code>inputResponses</code>, which carries the value. Ze attaches
+no <code>requestState</code>, so it holds nothing between the two requests and
+authenticates each one on its own. A client that did not declare <strong>form-mode</strong>
+elicitation is never prompted, and it gets the missing-argument error instead.
+See <a href="../../guides/mcp/elicitation/">MCP Elicitation</a> for the full round trip.
+<!-- source: internal/component/mcp/mrtr.go -- inputRequiredForMissingCommand, elicitationFormSupported -->
+<!-- source: internal/component/mcp/tools.go -- ze_execute handler -->
 </li>
 </ul>
-<!-- source: internal/component/mcp/tools.go -- ze_execute handler -->
-
 <p>Capability discovery is a single optional call: <code>server/discover</code> returns the
 supported versions, the server's capabilities, and natural-language
 instructions. Its <code>capabilities.extensions</code> names two extensions, each with an
@@ -195,7 +189,6 @@ empty settings object: <code>io.modelcontextprotocol/ui</code>, the MCP Apps ext
 what makes the <code>task</code> result type interpretable, because a client can reject a
 <code>resultType</code> that no advertised extension defines.</p>
 <!-- source: internal/component/mcp/discover.go -- serverDiscover, serverCapabilities -->
-
 <h3 id="cacheable-results">Cacheable results</h3>
 <p><code>server/discover</code>, <code>tools/list</code>, <code>resources/list</code> and <code>resources/read</code> return <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 <code>ttlMs</code> and <code>cacheScope</code>, so a client can hold a result and does not re-fetch it
@@ -211,7 +204,6 @@ call to that command returns an error. The protocol names such an error as
 grounds for an early re-fetch, so the stale entry usually clears after one
 failed call.</p>
 <!-- source: internal/component/mcp/caching.go -- cacheTTLByMethod, cacheScopePrivate -->
-
 <h3 id="mcp-apps">MCP Apps</h3>
 <p>Tool descriptors for command groups carrying a <code>ze:ui-resource</code> YANG annotation
 include <code>_meta.ui</code>, pointing at a <code>ui://</code> asset the host renders in a sandboxed
@@ -220,7 +212,6 @@ panel. That metadata is emitted only when the request declared the
 bundles Ze serves. A host without MCP Apps support gets the same tool list, the
 same tools and the same behavior, minus the panel metadata. Ze rejects nothing.</p>
 <!-- source: internal/component/mcp/apps.go -- clientSupportsUIApps, gateUIMeta -->
-
 <h3 id="resources">Resources</h3>
 <p><code>resources/list</code> and <code>resources/read</code> serve every conformant caller, with no <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 client-capability gate. <code>resources</code> is a member of <code>ServerCapabilities</code>, not of
@@ -234,7 +225,6 @@ path must equal the given path, and the depth is capped at 8 segments. A URI tha
 fails validation gets <code>invalid uri</code>, and one that resolves to nothing gets
 <code>resource not found</code>.</p>
 <!-- source: internal/component/mcp/resources.go -- resourcesList, resourcesRead, validateResourceURI -->
-
 <h2 id="testing">Testing</h2>
 <p><code>ze-test mcp</code> provides a functional test client with <code>wait-established</code>
 synchronization for CI pipelines. It also provides a <code>probe-*</code> directive family,
@@ -248,9 +238,9 @@ synchronous answer and no taskId), then <code>task-get</code>, <code>task-result
 flag is itself a test, because the server must still serve an undeclaring client
 synchronously.</p>
 <!-- source: internal/test/cli/cmd_mcp.go -- taskDirective -->
-
 <p>See <a href="../../guides/mcp/overview/">MCP Guide</a> for details and
 <a href="../../guides/mcp/remote-access/">MCP Remote Access</a> for tunneling.</p>
+
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
                 <p class="page-sidebar-eyebrow">Feature doc</p>
@@ -284,7 +274,7 @@ synchronously.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 25 August 2026 03:17 UTC</span>
+                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
                 </div>
             </div>
         </footer>

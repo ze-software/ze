@@ -166,7 +166,7 @@ Full-width documentation figure with a clay frame, caption, and horizontal overf
 
 ### .md-content
 
-Wraps markdown rendered by tools/render-doc.py -- headings, tables, blockquotes, code, all styled to match the rest of the site.
+Wraps Markdown rendered by the native `./le site build` pipeline: headings, tables, blockquotes, and code all match the rest of the site.
 
 ## Navigation rules
 
@@ -188,7 +188,7 @@ The right menu ranks what the reader likely wants next before external reference
 
 ### External links
 
-Every external link opens with `target="_blank"` and `rel="noopener"`. Never use a named target. Do not add duplicate links to the same external page; validate with `tools/check-page-links.py`.
+Every external link opens with `target="_blank"` and `rel="noopener"`. Never use a named target. Keep each external destination once in `data/page-links.json` instead of duplicating it in page bodies.
 
 ### Easy scanning
 
@@ -244,4 +244,4 @@ New substantial content gets its own page and a top-nav or right-menu path, not 
 
 ### Markdown-sourced where it can be
 
-Content that changes often (like Compare) lives in a .md file rendered by tools/render-doc.py, so updating it doesn't mean hand-editing HTML tables.
+Content that changes often, such as Compare, lives in a Markdown file rendered by `./le site build`, so updating it does not require hand-editing HTML tables.
