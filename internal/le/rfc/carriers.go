@@ -17,7 +17,6 @@
 package rfc
 
 import (
-	"github.com/ze-software/ze/internal/le/leroot"
 	"os"
 	"path/filepath"
 	"sort"
@@ -25,6 +24,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/functional"
+	"github.com/ze-software/ze/internal/le/leroot"
 )
 
 // The three execution tiers.

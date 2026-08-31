@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/le/leroot"
@@ -508,5 +509,266 @@ func TestATerminatorLessFusedObligationBecomesASite(t *testing.T) {
 	}
 	if !strings.Contains(sites[0].Quote, "MUST support the widget") {
 		t.Errorf("the site quote is %q", sites[0].Quote)
+	}
+}
+
+// calendarDay parses a YYYY-MM-DD test date, so a case below reads as the calendar day it
+// means rather than as a time.Date call the reader has to decode.
+func calendarDay(t *testing.T, day string) time.Time {
+	t.Helper()
+
+	parsed, err := time.Parse("2006-01-02", day)
+	if err != nil {
+		t.Fatalf("test date %q: %v", day, err)
+	}
+	return parsed
+}
+
+// drainBudgetTree writes a checkout carrying nothing but the drain policy, which is the
+// only file parseDrainBudget and checkDrainFloor read.
+func drainBudgetTree(t *testing.T, body string) string {
+	t.Helper()
+
+	return fixtureTree(t, map[string]string{"rfc/drain-budget.txt": body})
+}
+
+// floorCase is one calendar day and the number of WHOLE months that have passed since
+// start on it. Every months field is counted by hand from the calendar and none is taken
+// from what requiredFloor answers: a case copied from the producer asserts only that the
+// code does what it does.
+type floorCase struct {
+	start  string
+	today  string
+	months int
+	why    string
+}
+
+// VALIDATES: AC-2 -- requiredFloor counts a calendar month only once it is COMPLETE, so the
+// day before an anniversary owes what the month before it owed, and a today that precedes
+// start owes nothing rather than a negative number.
+// PREVENTS: an off-by-one that bills the tree a month early. The floor is cumulative, so
+// one month too many is one sign-off too many on every later day, and the first evidence
+// would arrive as a red gate on a session doing unrelated work.
+//
+// By hand from the calendar, with start on 2026-01-15: the anniversaries are 2026-02-15,
+// 2026-03-15 and 2026-04-15. The rate is 1 entry per month and the enrolled cap is 100, so
+// the floor IS the month count and each want below reads as the calendar.
+func TestRequiredFloorExcludesTheIncompleteMonth(t *testing.T) {
+	cases := []floorCase{
+		{"2026-01-15", "2026-01-14", 0, "the day before start: no month has begun, and the count clamps at zero rather than going negative"},
+		{"2026-01-15", "2026-01-15", 0, "the start day itself: the first month has begun and is not whole"},
+		{"2026-01-15", "2026-02-14", 0, "one day before the first anniversary"},
+		{"2026-01-15", "2026-02-15", 1, "the first anniversary: 15 January to 15 February is one whole month"},
+		{"2026-01-15", "2026-04-14", 2, "one day before the third anniversary: February and March are whole, April is not"},
+		{"2026-01-15", "2026-04-15", 3, "the third anniversary"},
+	}
+	for _, c := range cases {
+		floor := requiredFloor(calendarDay(t, c.start), 1, 100, calendarDay(t, c.today))
+		if floor != c.months {
+			t.Errorf("start %s, today %s: the floor is %d, want %d (%s)",
+				c.start, c.today, floor, c.months, c.why)
+		}
+	}
+}
+
+// VALIDATES: AC-3 -- a start on a day the target month does not have clamps to that month's
+// last day, and the month counts as whole on it.
+// PREVENTS: a schedule that skips a month whenever the anniversary falls off the end of the
+// calendar. A start on the 31st has no anniversary in February, April, June, September or
+// November, so without the clamp seven months of a year would each count one day late and
+// the drain clock would drift behind the wall clock for as long as the schedule stands.
+//
+// By hand, from a start on 31 January 2026: February 2026 has 28 days and ends the first
+// whole month on the 28th, March ends the second on the 31st, and April has 30 days and
+// ends the third on the 30th. The two later starts test the same clamp where the last day
+// of the month is derived rather than fixed: February 2024 has 29 days, and a December
+// today is the case where the derivation asks for month 13 of the year.
+func TestRequiredFloorClampsTheAnniversaryToTheShortMonth(t *testing.T) {
+	cases := []floorCase{
+		{"2026-01-31", "2026-02-27", 0, "one day before February ends, so no whole month has passed"},
+		{"2026-01-31", "2026-02-28", 1, "February is whole on its last day, which is as close to the 31st as February goes"},
+		{"2026-01-31", "2026-03-30", 1, "March has a 31st, so the second month is not whole until it arrives"},
+		{"2026-01-31", "2026-03-31", 2, "the second anniversary, unclamped"},
+		{"2026-01-31", "2026-04-29", 2, "one day before April ends"},
+		{"2026-01-31", "2026-04-30", 3, "April has 30 days, so the third month is whole on the 30th"},
+		{"2026-01-31", "2026-05-31", 4, "the fourth anniversary, unclamped"},
+		{"2024-01-31", "2024-02-28", 0, "2024 is a leap year, so February runs one day longer and the month is not whole yet"},
+		{"2024-01-31", "2024-02-29", 1, "the leap day is February's last, so the first month is whole on it"},
+		{"2026-11-30", "2026-12-29", 0, "one day before the anniversary, in the month whose last day is read across the year boundary"},
+		{"2026-11-30", "2026-12-30", 1, "December has a 30th, so no clamp applies and the month is whole on it"},
+	}
+	for _, c := range cases {
+		floor := requiredFloor(calendarDay(t, c.start), 1, 100, calendarDay(t, c.today))
+		if floor != c.months {
+			t.Errorf("start %s, today %s: the floor is %d, want %d (%s)",
+				c.start, c.today, floor, c.months, c.why)
+		}
+	}
+}
+
+// VALIDATES: AC-4 -- the floor caps at the WHOLE enrolled set, and checkDrainFloor is the
+// caller that hands it that number rather than the remaining backlog.
+// PREVENTS: a remainder cap, which counts every sign-off twice. It raises the cumulative
+// total AND lowers the bar that total is measured against, collapsing the comparison to
+// signed >= enrolled / 2 whatever the rate says.
+func TestRequiredFloorCapsAtTheEnrolledSet(t *testing.T) {
+	// By hand: 1 January 2026 to 1 January 2027 is twelve whole calendar months, the
+	// anniversary falling on the first of each month and the twelfth landing on today. At
+	// rate 3 the schedule demands ceil(3 x 12) = 36 sign-offs and 10 RFCs are enrolled, so
+	// the floor is 10.
+	const enrolled = 10
+	today := calendarDay(t, "2027-01-01")
+	if floor := requiredFloor(calendarDay(t, "2026-01-01"), 3, enrolled, today); floor != enrolled {
+		t.Errorf("twelve months at rate 3 over %d enrolled RFC(s) answered a floor of %d, want %d",
+			enrolled, floor, enrolled)
+	}
+
+	// Four of the ten are signed, so the remaining backlog is 6. A backlog cap would demand
+	// 6 and report itself satisfied two walks sooner, so the property is asserted at the
+	// call site that decides which number the cap is.
+	enrolledSet := map[string]bool{}
+	for _, stem := range []string{"rfc1", "rfc2", "rfc3", "rfc4", "rfc5",
+		"rfc6", "rfc7", "rfc8", "rfc9", "rfc10"} {
+		enrolledSet[stem] = true
+	}
+	signed := map[string]Extraction{}
+	for _, stem := range []string{"rfc1", "rfc2", "rfc3", "rfc4"} {
+		signed[stem] = Extraction{Stem: stem, Register: registerRFC2119}
+	}
+
+	errs := checkDrainFloor(drainBudgetTree(t, "start 2026-01-01\nrate 3\n"), enrolledSet, signed, today)
+	if len(errs) != 1 {
+		t.Fatalf("an under-quota corpus answered %d violation(s), want 1: %v", len(errs), errs)
+	}
+	for _, want := range []string{
+		"requires 10 extraction sign-off(s) by now",
+		"capped at the 10 enrolled RFC(s)",
+		"and there are 4 (rfc2119 4, prose 0, manual-walk 0",
+		"leaving 6 unsigned",
+	} {
+		if !strings.Contains(errs[0], want) {
+			t.Errorf("the drain violation does not name %q:\n%s", want, errs[0])
+		}
+	}
+}
+
+// VALIDATES: an absent drain policy is a REFUSAL, and checkDrainFloor turns that refusal
+// into a violation rather than a silent pass.
+// PREVENTS: the zero value read as an answer (ai/rules/principles.md). A drainBudget{}
+// carries rate 0 and a zero start date, which computes a floor of 0 and passes any backlog,
+// so a deleted policy file would read as "nothing owed" and the gate would go green on the
+// day the schedule disappeared.
+func TestParseDrainBudgetRefusesAnAbsentFile(t *testing.T) {
+	root := fixtureTree(t, nil)
+
+	budget, err := parseDrainBudget(root)
+	if err == nil {
+		t.Fatalf("an absent policy parsed into %+v", budget)
+	}
+	for _, want := range []string{
+		"rfc/drain-budget.txt",
+		"cannot read the drain policy",
+		"does NOT mean 'nothing owed'",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not say %q: %v", want, err)
+		}
+	}
+
+	// The refusal has to reach the gate, so the caller is driven too: one enrolled RFC, no
+	// sign-off, and a corpus that a floor of zero would have passed without a word.
+	errs := checkDrainFloor(root, map[string]bool{"rfc1": true}, nil, calendarDay(t, "2026-08-31"))
+	if len(errs) != 1 {
+		t.Fatalf("an absent policy answered %d violation(s), want 1: %v", len(errs), errs)
+	}
+	if !strings.Contains(errs[0], "cannot read the drain policy") {
+		t.Errorf("the gate does not report the unreadable policy:\n%s", errs[0])
+	}
+}
+
+// VALIDATES: the file carries POLICY ONLY, so a row naming an RFC, a count, a stem list or
+// a register is refused at the line that carries it.
+// PREVENTS: the hand-kept registry the 2026-07-29 resolution rejected. Who has been signed
+// off is derived from rfc/extraction/*.json, and a per-stem row here would be a second
+// declaration of that fact with nothing to arbitrate the two.
+func TestParseDrainBudgetRefusesAStemRow(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{"an RFC with a count", "start 2026-07-29\nrate 1\nrfc9999 1\n"},
+		{"a derived total", "start 2026-07-29\nrate 1\nsigned 6\n"},
+		{"a stem list", "start 2026-07-29\nrate 1\nstems rfc1,rfc2\n"},
+		{"a register column on the rate", "start 2026-07-29\nrate 1 rfc2119\n"},
+	}
+	for _, c := range cases {
+		budget, err := parseDrainBudget(drainBudgetTree(t, c.body))
+		if err == nil {
+			t.Errorf("%s parsed into %+v", c.name, budget)
+			continue
+		}
+		for _, want := range []string{
+			"POLICY ONLY",
+			"may never name an RFC, hold a count, or list stems",
+		} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%s: the refusal does not say %q: %v", c.name, want, err)
+			}
+		}
+	}
+}
+
+// VALIDATES: the rate boundary below the schedule -- -0.001 is refused as negative, and 0
+// stays accepted.
+// PREVENTS: a backlog that un-drains. A negative rate lowers the floor as the months pass,
+// so a tree that ever met the schedule could never fail it again.
+func TestParseDrainBudgetRefusesANegativeRate(t *testing.T) {
+	budget, err := parseDrainBudget(drainBudgetTree(t, "start 2026-07-29\nrate -0.001\n"))
+	if err == nil {
+		t.Fatalf("a negative rate parsed into %+v", budget)
+	}
+	for _, want := range []string{"rate -0.001", "is negative; a backlog cannot un-drain"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not say %q: %v", want, err)
+		}
+	}
+
+	// Zero is the last valid value below it, and it has to stay valid: the file ships at
+	// rate 0 (owner decision D5) and every other check test reads that budget.
+	if _, err := parseDrainBudget(drainBudgetTree(t, "start 2026-07-29\nrate 0\n")); err != nil {
+		t.Errorf("the shipped inert budget was refused: %v", err)
+	}
+}
+
+// VALIDATES: the rate boundary above the enrolled count -- a rate the whole corpus cannot
+// supply is refused outright, and a rate equal to the enrolled count is not.
+// PREVENTS: a schedule nobody can meet, which reds the gate on every commit for as long as
+// it stands and ends in the rule being deleted rather than obeyed.
+func TestTheDrainFloorRefusesARateTheEnrolledSetCannotMeet(t *testing.T) {
+	enrolled := map[string]bool{"rfc1": true, "rfc2": true}
+	today := calendarDay(t, "2026-08-31")
+
+	errs := checkDrainFloor(drainBudgetTree(t, "start 2026-07-29\nrate 2.001\n"), enrolled, nil, today)
+	if len(errs) != 1 {
+		t.Fatalf("an unmeetable rate answered %d violation(s), want 1: %v", len(errs), errs)
+	}
+	for _, want := range []string{"rate 2.001 exceeds the whole enrolled set (2)", "no schedule can be met"} {
+		if !strings.Contains(errs[0], want) {
+			t.Errorf("the refusal does not say %q:\n%s", want, errs[0])
+		}
+	}
+
+	// A rate equal to the enrolled count is the last valid one. It demands the whole corpus
+	// after one whole month, which is punishing and arithmetically reachable, so the
+	// diagnostic is the ordinary shortfall rather than the refusal above.
+	errs = checkDrainFloor(drainBudgetTree(t, "start 2026-07-29\nrate 2\n"), enrolled, nil, today)
+	if len(errs) != 1 {
+		t.Fatalf("a rate equal to the enrolled count answered %d violation(s), want 1: %v", len(errs), errs)
+	}
+	if strings.Contains(errs[0], "no schedule can be met") {
+		t.Errorf("a rate equal to the enrolled count was refused as unmeetable:\n%s", errs[0])
+	}
+	if !strings.Contains(errs[0], "requires 2 extraction sign-off(s) by now") {
+		t.Errorf("the shortfall does not name the floor of 2:\n%s", errs[0])
 	}
 }

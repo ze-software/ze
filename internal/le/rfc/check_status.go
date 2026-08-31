@@ -264,3 +264,83 @@ func checkGapCountAgreement(requirements []Requirement, rows map[string]LedgerRo
 	}
 	return errs
 }
+
+// statusPromisesSupport answers whether a public Status cell positively promises
+// that Ze MEETS the RFC.
+//
+// It is deliberately NARROWER than statusIsSupportClaim above, and the two are not
+// interchangeable. They answer different questions about the same cell:
+//
+//   - statusIsSupportClaim asks the DISCLOSURE question -- does this row fail to warn
+//     the reader. Everything except the literals 'Unsupported' and 'Future' fails to
+//     warn, so 'Partial', 'Experimental' and 'Not supported' are all claims by that
+//     measure. checkUnprovenSupport needs it, because a checklist declaring nothing
+//     rests on nothing whatever the row's status says.
+//   - this one asks the PROMISE question -- does this row assert conformance. Only the
+//     bare word, the word with a scope after it ('Supported on Linux'), and the legacy
+//     'Yes' cell do that. checkSupportedSignoff needs it, because only a promise of
+//     conformance owes a checklist somebody bounded against the RFC's own text.
+//
+// A row that discloses a gap is incomplete disclosure when its checklist misses an
+// obligation. A row that promises conformance is a FALSE public claim. Widening this
+// predicate to its neighbor would put 144 of the page's 158 rows under a gate none of
+// them can pass, so the two stay apart.
+func statusPromisesSupport(status string) bool {
+	status = strings.TrimSpace(status)
+	if status == "Supported" || status == "Yes" {
+		return true
+	}
+	return strings.HasPrefix(status, "Supported ")
+}
+
+// checkSupportedSignoff refuses a public promise of conformance that no extraction
+// sign-off bounds.
+//
+// `./le rfc check` proves that every requirement a summary LISTS carries a test. It
+// never asks whether the list is complete, so an obligation nobody extracted is owed no
+// test and the gate is green for it forever. rfc/extraction/<stem>.json is the artifact
+// that closes it: a recorded walk of the RFC's own text where every requirement-stating
+// site is mapped to a requirement id or excluded with a reason from a closed set.
+//
+// The population is read from `rows`, the public page, and NOT from `stems`. That is the
+// whole point: checkUnprovenSupport iterates the summaries and says so in its own error
+// text, so a row naming an RFC with no summary at all is outside it. Ten such rows sit on
+// the page today, each promising support for an RFC no check in this package can see.
+//
+// The membership test is `signed`, the set evaluateExtractions ACCEPTED, and never
+// `credited`. credited() drops a sign-off whose stem is not enrolled, which is right for
+// drain arithmetic and wrong here: a row can promise support for a stem nobody enrolled,
+// and crediting would then exempt exactly the claim least covered by anything else.
+// Reading `signed` also makes a generated skeleton worth nothing, because an artifact
+// with one unclassified site earns no entry in it.
+func checkSupportedSignoff(rows map[string]LedgerRow, stems map[string]bool,
+	signed map[string]Extraction) []string {
+	var errs []string
+	for _, stem := range sortedKeysOf(rows) {
+		row := rows[stem]
+		if !statusPromisesSupport(row.Status) {
+			continue
+		}
+		status := strings.TrimSpace(row.Status)
+		if !stems[stem] {
+			var tb textbuf.Buffer
+			errs = append(errs, tb.Str("docs/features/rfc-status.md claims ").Str(stem).Str(" is '").
+				Str(status).Str("', but there is no rfc/short/").Str(stem).
+				Str(".md at all, so there is no checklist to bound and no other check in this gate can see the claim -- check_unproven_support iterates the summaries and says so in its own text. Write the summary (/ze-rfc ").
+				Str(stem).Str("), put the stem in rfc/enrolled.txt, then walk the source and sign it off at rfc/extraction/").
+				Str(stem).Str(".json (./le rfc extraction-create stem ").Str(stem).
+				Str("). Lowering the row's Status to one that discloses the gap is a conformance decision the owner takes, never a way to clear this violation").String())
+			continue
+		}
+		if _, held := signed[stem]; held {
+			continue
+		}
+		var tb textbuf.Buffer
+		errs = append(errs, tb.Str("docs/features/rfc-status.md claims ").Str(stem).Str(" is '").
+			Str(status).Str("', but rfc/extraction/").Str(stem).
+			Str(".json is not a valid extraction sign-off, so nothing bounds what rfc/short/").
+			Str(stem).Str(".md left out: an obligation nobody extracted is owed no test, and this gate stays green for it forever. Walk the source and classify every site: ./le rfc extraction-create stem ").
+			Str(stem).Str(". A generated skeleton is not a sign-off -- an unclassified site earns no credit here. Only a status that PROMISES conformance is asked for one; 'Partial', 'Experimental', 'Unsupported' and 'Future' disclose the gap instead and are outside this check").String())
+	}
+	return errs
+}

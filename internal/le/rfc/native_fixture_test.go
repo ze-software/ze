@@ -31,12 +31,23 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// check summary names the valid sign-offs its counts leave out. Five files
 	// moved: actions.go, artifact.go, check.go, extraction_create.go and
 	// signoff.go.
+	// Re-sealed 2026-08-31, for phase 1 of spec-rfcgate-6-supported-extraction-signoff.
+	// check_status.go gains statusPromisesSupport and checkSupportedSignoff: a
+	// narrower support predicate and the check that refuses a public promise of
+	// conformance no extraction sign-off bounds. No verdict moved, because
+	// nothing calls the new check. check() does not reach it, and it is armed in
+	// the spec's final phase once the sign-offs land, so that the gate does not
+	// red for every session in this checkout while the data is still arriving.
+	// carriers.go moved one import out of the stdlib group to satisfy goimports,
+	// which is the HEAD red recorded in plan/journal/lint-contract-not-applied.md
+	// whose 2026-08-29 row already names that file by path. gofmt does not check
+	// grouping under the local prefix, which is how it survived.
 	//
 	// Computed over the COMMITTED file set, not the working tree. This digest
 	// covers every non-test file in the package, and a second session has
 	// carriers.go, check_compile.go, inventory.go and render.go modified here,
 	// so the working-tree value describes a tree this commit does not make.
-	const want = "2302ce6d88ec84b932eab3e7f5eb2ce29d5e5f134b51749324d3de08705ed175"
+	const want = "3b16889ad913dbf1d3899c140e76d873f45f49b9c967dc2d2dbd32ae17eb3ae4"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)
