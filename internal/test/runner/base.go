@@ -117,7 +117,7 @@ func (ts *TestSet[T]) List() {
 }
 func writeTestListHeader(title string) {
 	var b textbuf.Buffer
-	_, _ = os.Stdout.Write(b.Reset().Byte('\n').Str(title).Str(":\n\n").Bytes())
+	_ = b.Reset().Byte('\n').Str(title).Str(":\n\n").StdOut()
 }
 
 func writeTestListLine(ordinal, total int, nick, name, suffix string) {
@@ -126,7 +126,7 @@ func writeTestListLine(ordinal, total int, nick, name, suffix string) {
 	if suffix != "" {
 		b.Str(suffix)
 	}
-	_, _ = os.Stdout.Write(b.Byte('\n').Bytes())
+	_ = b.Byte('\n').StdOut()
 }
 
 func writeTestListFooter() {

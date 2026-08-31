@@ -81,7 +81,7 @@ func runExportBMP(args []string) int {
 	if err != nil {
 		b := textbuf.Get()
 		b.Str("export bmp: connect: ").Str(err.Error()).Byte('\n')
-		os.Stderr.WriteString(b.String()) //nolint:errcheck // error
+		b.StdErr() //nolint:errcheck // error
 		b.Release()
 		return 1
 	}
@@ -109,14 +109,14 @@ func runExportBMP(args []string) int {
 	if err := mrt.ReadFile(inputFile, handler); err != nil {
 		b := textbuf.Get()
 		b.Str("export bmp: ").Str(err.Error()).Byte('\n')
-		os.Stderr.WriteString(b.String()) //nolint:errcheck // error
+		b.StdErr() //nolint:errcheck // error
 		b.Release()
 		return 1
 	}
 
 	b := textbuf.Get()
 	b.Str("export bmp: sent ").Uint(count).Str(" messages to ").Str(target).Byte('\n')
-	os.Stderr.WriteString(b.String()) //nolint:errcheck // status
+	b.StdErr() //nolint:errcheck // status
 	b.Release()
 	return 0
 }

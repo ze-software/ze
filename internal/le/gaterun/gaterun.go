@@ -37,7 +37,7 @@ const CannotStart = 127
 // payload on stdout, so progress must not become part of a piped document.
 func Announce(action string) {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("==> ").Str(action).String()) //nolint:errcheck // CLI output
+	tb.Str("==> ").Str(action).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
 // Note writes one progress line for a person watching a run. Same stream and

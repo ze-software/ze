@@ -292,7 +292,7 @@ func startDocker(args ...string) int {
 			return exit.ExitCode()
 		}
 		var tb textbuf.Buffer
-		os.Stderr.WriteString(tb.Str("error: docker run: ").Err(err).Byte('\n').String()) //nolint:errcheck // CLI output
+		tb.Str("error: docker run: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 		return 1
 	}
 	return 0

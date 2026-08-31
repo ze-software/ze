@@ -23,7 +23,6 @@
 package rules
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -302,5 +301,5 @@ const emptyCorpusWarning = "the task corpus is empty, so no blocking rule can be
 // prints it once. The `empty-corpus` payload fact makes it available to `| json`.
 func reportEmptyCorpus() {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("warning: ").Str(emptyCorpusWarning).String()) //nolint:errcheck // CLI output
+	tb.Str("warning: ").Str(emptyCorpusWarning).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }

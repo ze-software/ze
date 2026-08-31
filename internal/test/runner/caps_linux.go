@@ -6,7 +6,6 @@
 package runner
 
 import (
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -69,5 +68,5 @@ func capsWarn(what string, err error) {
 	if err != nil {
 		tb.Str(": ").Err(err)
 	}
-	fmt.Fprintln(os.Stderr, tb.String())
+	tb.Byte('\n').StdErr() //nolint:errcheck // CLI output
 }

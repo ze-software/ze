@@ -16,9 +16,6 @@
 package sitefacts
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
@@ -114,13 +111,13 @@ func warnUncommitted(changes []change) {
 	}
 
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("warning: ").Int(int64(len(changes))).Str(subject).Str(" from the last commit, so these counts describe this tree and not a commit:").String()) //nolint:errcheck // CLI output
+	tb.Str("warning: ").Int(int64(len(changes))).Str(subject).Str(" from the last commit, so these counts describe this tree and not a commit:").Byte('\n').StdErr() //nolint:errcheck // CLI output
 	for _, entry := range changes {
 		tb.Reset()
-		fmt.Fprintln(os.Stderr, tb.Str("  ").Str(entry.Status).Byte(' ').Str(entry.Path).String()) //nolint:errcheck // CLI output
+		tb.Str("  ").Str(entry.Status).Byte(' ').Str(entry.Path).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	}
 	tb.Reset()
-	fmt.Fprintln(os.Stderr, tb.Str("commit them with ").Str(factsFile).Str(", or run this again once they are committed.").String()) //nolint:errcheck // CLI output
+	tb.Str("commit them with ").Str(factsFile).Str(", or run this again once they are committed.").Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
 // runCheck is `le site facts check`.

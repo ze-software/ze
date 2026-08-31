@@ -276,7 +276,7 @@ func (r *Run) assertRuntimeKernel(ctx context.Context, plan *RunPlan) (string, e
 	}
 	if code == 0 {
 		var note textbuf.Buffer
-		fmt.Fprintln(os.Stderr, note.Str("Runtime kernel confirmed in the guest: ").Str(want).String()) //nolint:errcheck // progress output
+		note.Str("Runtime kernel confirmed in the guest: ").Str(want).Byte('\n').StdErr() //nolint:errcheck // progress output
 		return "", nil
 	}
 	b.Reset()

@@ -236,7 +236,7 @@ func valueOrDash(v string) string {
 
 func writeErr(s string) {
 	var tb textbuf.Buffer
-	if _, err := os.Stderr.WriteString(tb.Str(s).Byte('\n').Slice()); err != nil {
+	if err := tb.Str(s).Byte('\n').StdErr(); err != nil {
 		return
 	}
 }

@@ -23,7 +23,12 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// name the go-test keyword constant, and repoint the Design reference at
 	// docs/architecture/core-design.md. None of them changes what the coverage
 	// report decides, which is what the digest exists to pin.
-	const want = "a7af5ef3c8fcfafb36433badd6b1524c1436dbb9db8d85eded9a9dbdf552b030"
+	// Updated 2026-08-31: reportEmptyCorpus prints its warning with
+	// textbuf.Buffer.StdErr() instead of fmt.Fprintln(os.Stderr, tb.String()),
+	// and actions.go no longer imports fmt. The buffer now carries the trailing
+	// newline Fprintln used to add, so the bytes on stderr are unchanged, which
+	// is what the digest exists to pin.
+	const want = "c8d52967c05c1bd81f0cb308e4c956239c48bb8e24e30e1adfd145fac8cf4889"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list rules sources: %v", err)

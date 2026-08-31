@@ -225,7 +225,7 @@ func outputText(ready bool, diags []diagnostic.Diagnostic) int {
 
 	if len(diags) == 0 {
 		b.Str("all checks passed\n")
-		if _, err := os.Stdout.WriteString(b.Slice()); err != nil {
+		if err := b.StdOut(); err != nil {
 			return 1
 		}
 		return 0
@@ -255,7 +255,7 @@ func outputText(ready bool, diags []diagnostic.Diagnostic) int {
 	}
 	b.Str(" (").Str(strconv.Itoa(errCount)).Str(" errors, ").Str(strconv.Itoa(warnCount)).Str(" warnings)\n")
 
-	if _, err := os.Stdout.WriteString(b.Slice()); err != nil {
+	if err := b.StdOut(); err != nil {
 		return 1
 	}
 	if !ready {

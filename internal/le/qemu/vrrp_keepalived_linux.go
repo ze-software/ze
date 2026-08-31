@@ -1060,7 +1060,7 @@ func (l *vrrpLab) diagnostics() {
 		fmt.Fprint(os.Stderr, "capture tail:\n", strings.Join(lastLines(l.captureLines.snapshot(), 60), "")) //nolint:errcheck // evidence diagnostics
 	}
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("artifacts kept in: ").Str(l.work).String()) //nolint:errcheck // evidence diagnostics
+	tb.Str("artifacts kept in: ").Str(l.work).Byte('\n').StdErr() //nolint:errcheck // evidence diagnostics
 }
 func lastLines(lines []string, count int) []string {
 	if len(lines) <= count {

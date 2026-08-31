@@ -259,7 +259,7 @@ func vrrpAcceptWaitProbe(ctx context.Context, want bool) error {
 // vrrpAcceptSay prints one marker line the .ci expectations match on.
 func vrrpAcceptSay(marker, detail string) {
 	var tb textbuf.Buffer
-	fmt.Println(tb.Str(marker).Byte(' ').Str(detail).String())
+	tb.Str(marker).Byte(' ').Str(detail).Byte('\n').StdOut() //nolint:errcheck // CLI output
 }
 
 func vrrpAcceptModeDriver(ctx context.Context, _ []string) error {

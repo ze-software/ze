@@ -139,7 +139,7 @@ func cmdMcp(args []string) int {
 
 	fs.Usage = func() {
 		var usage textbuf.Buffer
-		os.Stderr.WriteString(usage.Str(mcpUsageHead).Str(mcpProtocolVersion).Str(mcpUsageBody).String()) //nolint:errcheck // CLI usage output, nothing to recover
+		usage.Str(mcpUsageHead).Str(mcpProtocolVersion).Str(mcpUsageBody).StdErr() //nolint:errcheck // CLI usage output, nothing to recover
 		fs.PrintDefaults()
 	}
 
@@ -199,17 +199,17 @@ func cmdMcp(args []string) int {
 
 func mcpPrintln(s string) {
 	var b textbuf.Buffer
-	os.Stdout.WriteString(b.Str(s).Byte('\n').String()) //nolint:errcheck // CLI stdout, nothing to recover
+	b.Str(s).Byte('\n').StdOut() //nolint:errcheck // CLI stdout, nothing to recover
 }
 
 func mcpErrln(msg string) {
 	var b textbuf.Buffer
-	os.Stderr.WriteString(b.Str("error: ").Str(msg).Byte('\n').String()) //nolint:errcheck // CLI stderr, nothing to recover
+	b.Str("error: ").Str(msg).Byte('\n').StdErr() //nolint:errcheck // CLI stderr, nothing to recover
 }
 
 func mcpFail(err error) int {
 	var b textbuf.Buffer
-	os.Stderr.WriteString(b.Str("error: ").Err(err).Byte('\n').String()) //nolint:errcheck // CLI stderr, nothing to recover
+	b.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI stderr, nothing to recover
 	return 1
 }
 

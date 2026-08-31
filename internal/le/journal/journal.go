@@ -55,7 +55,7 @@ func reportHere() (any, int) {
 	tree, err := lepath.Root()
 	if err != nil {
 		var tb textbuf.Buffer
-		fmt.Fprintln(os.Stderr, tb.Str("journal: ").Err(err).String()) //nolint:errcheck // CLI output
+		tb.Str("journal: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 		return nil, 2
 	}
 

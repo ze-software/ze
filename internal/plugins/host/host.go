@@ -32,7 +32,7 @@ func RunShow(args []string) int {
 	fs.SetOutput(os.Stderr)
 	fs.Usage = func() {
 		var tb textbuf.Buffer
-		os.Stderr.WriteString(tb.Str("Usage: ze show host [section]\n\nSections: ").Str(sectionList()).Str("\n\nDefault section is 'all'. Output is JSON.\n").String()) //nolint:errcheck // usage output
+		tb.Str("Usage: ze show host [section]\n\nSections: ").Str(sectionList()).Str("\n\nDefault section is 'all'. Output is JSON.\n").StdErr() //nolint:errcheck // usage output
 	}
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -48,10 +48,10 @@ func RunShow(args []string) int {
 	if err != nil {
 		var tb textbuf.Buffer
 		if errors.Is(err, hostinv.ErrUnknownSection) {
-			os.Stderr.WriteString(tb.Str("error: unknown section ").Quoted(section).Str("; valid: ").Str(sectionList()).Str("\n").String()) //nolint:errcheck // CLI error
+			tb.Str("error: unknown section ").Quoted(section).Str("; valid: ").Str(sectionList()).Str("\n").StdErr() //nolint:errcheck // CLI error
 			return 1
 		}
-		os.Stderr.WriteString(tb.Str("error: ").Err(err).Str("\n").String()) //nolint:errcheck // CLI error
+		tb.Str("error: ").Err(err).Str("\n").StdErr() //nolint:errcheck // CLI error
 		return 1
 	}
 
@@ -63,12 +63,12 @@ func renderJSON(data any) int {
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		var tb textbuf.Buffer
-		os.Stderr.WriteString(tb.Str("error: marshal: ").Err(err).Str("\n").String()) //nolint:errcheck // CLI error
+		tb.Str("error: marshal: ").Err(err).Str("\n").StdErr() //nolint:errcheck // CLI error
 		return 1
 	}
 	if _, err := os.Stdout.Write(append(b, '\n')); err != nil {
 		var tb textbuf.Buffer
-		os.Stderr.WriteString(tb.Str("error: write: ").Err(err).Str("\n").String()) //nolint:errcheck // CLI error
+		tb.Str("error: write: ").Err(err).Str("\n").StdErr() //nolint:errcheck // CLI error
 		return 1
 	}
 	return 0

@@ -546,7 +546,7 @@ func setupReporting(cfg *orchestratorConfig, peerCount int) (*reportingResult, e
 			}
 		}()
 		var mcpURLBuf textbuf.Buffer
-		os.Stderr.WriteString(mcpURLBuf.Str("ze-chaos | MCP server: http://").Str(cfg.McpAddr).Str(zemcp.Endpoint).Byte('\n').String()) //nolint:errcheck // CLI status output
+		mcpURLBuf.Str("ze-chaos | MCP server: http://").Str(cfg.McpAddr).Str(zemcp.Endpoint).Byte('\n').StdErr() //nolint:errcheck // CLI status output
 		cleanups = append(cleanups, func() {
 			shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer shutCancel()

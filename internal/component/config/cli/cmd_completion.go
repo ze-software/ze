@@ -159,7 +159,7 @@ func printCompletions(completions []cli.Completion) int {
 		} else {
 			line.PadRight(comp.Text, completionTextWidth).Byte(' ').Str(comp.Description)
 		}
-		fmt.Println(line.String())
+		line.Byte('\n').StdOut() //nolint:errcheck // CLI output
 	}
 	return exitOK
 }

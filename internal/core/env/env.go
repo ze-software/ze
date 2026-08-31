@@ -255,7 +255,7 @@ func GetBool(key string, defaultVal bool) bool {
 	}
 	// Unrecognized value: warn and fall back to default.
 	var tb textbuf.Buffer
-	os.Stderr.WriteString(tb.Str("WARNING: env var ").Str(key).Str(" has unrecognized boolean value ").Str(s).Str(", using default\n").Slice()) //nolint:errcheck // pre-exit diagnostic
+	tb.Str("WARNING: env var ").Str(key).Str(" has unrecognized boolean value ").Str(s).Str(", using default\n").StdErr() //nolint:errcheck // pre-exit diagnostic
 	return defaultVal
 }
 

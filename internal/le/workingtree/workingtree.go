@@ -221,7 +221,7 @@ func usageLine() string {
 // formatted itself.
 func refuse(usage, what, word string) int {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(name).Str(": ").Str(what).Str(word).String()) //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, usage)                                                              //nolint:errcheck // CLI output
+	tb.Str("error: ").Str(name).Str(": ").Str(what).Str(word).Byte('\n').StdErr() //nolint:errcheck // CLI output
+	fmt.Fprintln(os.Stderr, usage)                                                //nolint:errcheck // CLI output
 	return 1
 }

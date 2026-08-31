@@ -15,7 +15,6 @@ package leaction
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -237,7 +236,7 @@ func (a Area) Answer(args []string) (any, int) {
 // name is what a reader of `le` has to type, and leroot already knows it.
 func ReportError(err error) {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Err(err).String()) //nolint:errcheck // CLI output
+	tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
 // refuseVerb reports an action this area does not hold, and answers the code
@@ -245,9 +244,9 @@ func ReportError(err error) {
 // apart from a gate that ran and failed.
 func (a Area) refuseVerb(got string) int {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: no such action in ").Str(a.name).Str(": ").Str(got).String()) //nolint:errcheck // CLI output
+	tb.Str("error: no such action in ").Str(a.name).Str(": ").Str(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	tb.Reset()
-	fmt.Fprintln(os.Stderr, tb.Str("try one of: ").Str(a.Subs()).String()) //nolint:errcheck // CLI output
+	tb.Str("try one of: ").Str(a.Subs()).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	return 2
 }
 
@@ -256,9 +255,9 @@ func (a Area) refuseVerb(got string) int {
 // parameter can introduce a value (ai/rules/cli.md).
 func (a Area) refuseValue(verb, got string) int {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(a.name).Byte(' ').Str(verb).Str(" takes no arguments, got ").Quoted(got).String()) //nolint:errcheck // CLI output
+	tb.Str("error: ").Str(a.name).Byte(' ').Str(verb).Str(" takes no arguments, got ").Quoted(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	tb.Reset()
-	fmt.Fprintln(os.Stderr, tb.Str("usage: le ").Str(a.name).Byte(' ').Str(verb).Str(" [| json | yaml | table]").String()) //nolint:errcheck // CLI output
+	tb.Str("usage: le ").Str(a.name).Byte(' ').Str(verb).Str(" [| json | yaml | table]").Byte('\n').StdErr() //nolint:errcheck // CLI output
 	return 2
 }
 

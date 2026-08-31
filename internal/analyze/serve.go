@@ -102,7 +102,7 @@ func runServe(args []string) int {
 	if err != nil {
 		b := textbuf.Get()
 		b.Str("serve: listen: ").Str(err.Error()).Byte('\n')
-		os.Stderr.WriteString(b.String()) //nolint:errcheck // error
+		b.StdErr() //nolint:errcheck // error
 		b.Release()
 		return 1
 	}
@@ -110,7 +110,7 @@ func runServe(args []string) int {
 
 	b := textbuf.Get()
 	b.Str("serve: listening on ").Str(listen).Str(" (AS ").Uint32(localAS).Str(")\n")
-	os.Stderr.WriteString(b.String()) //nolint:errcheck // info
+	b.StdErr() //nolint:errcheck // info
 	b.Release()
 
 	for {
@@ -118,7 +118,7 @@ func runServe(args []string) int {
 		if err != nil {
 			b := textbuf.Get()
 			b.Str("serve: accept: ").Str(err.Error()).Byte('\n')
-			os.Stderr.WriteString(b.String()) //nolint:errcheck // error
+			b.StdErr() //nolint:errcheck // error
 			b.Release()
 			return 1
 		}
@@ -132,7 +132,7 @@ func handleServeConn(conn net.Conn, files []string, localAS uint32, routerID net
 	remote := conn.RemoteAddr().String()
 	b := textbuf.Get()
 	b.Str("serve: peer connected: ").Str(remote).Byte('\n')
-	os.Stderr.WriteString(b.String()) //nolint:errcheck // info
+	b.StdErr() //nolint:errcheck // info
 	b.Release()
 
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
@@ -141,7 +141,7 @@ func handleServeConn(conn net.Conn, files []string, localAS uint32, routerID net
 	if err != nil {
 		b := textbuf.Get()
 		b.Str("serve: open failed from ").Str(remote).Str(": ").Str(err.Error()).Byte('\n')
-		os.Stderr.WriteString(b.String()) //nolint:errcheck // error
+		b.StdErr() //nolint:errcheck // error
 		b.Release()
 		return
 	}
@@ -150,7 +150,7 @@ func handleServeConn(conn net.Conn, files []string, localAS uint32, routerID net
 
 	b = textbuf.Get()
 	b.Str("serve: session up with ").Str(remote).Str(" (AS ").Uint32(peerAS).Str(")\n")
-	os.Stderr.WriteString(b.String()) //nolint:errcheck // info
+	b.StdErr() //nolint:errcheck // info
 	b.Release()
 
 	var sent uint64
@@ -168,7 +168,7 @@ func handleServeConn(conn net.Conn, files []string, localAS uint32, routerID net
 
 	b = textbuf.Get()
 	b.Str("serve: sent ").Uint(sent).Str(" updates to ").Str(remote).Byte('\n')
-	os.Stderr.WriteString(b.String()) //nolint:errcheck // info
+	b.StdErr() //nolint:errcheck // info
 	b.Release()
 
 	serveKeepaliveLoop(conn)

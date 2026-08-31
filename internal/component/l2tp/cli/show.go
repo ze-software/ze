@@ -57,7 +57,7 @@ func clientFlags(verb, usageLine string, args []string) (rest []string, user str
 	for _, a := range rest {
 		if strings.HasPrefix(a, "-") && a != "-" {
 			tb.Reset()
-			fmt.Fprintln(os.Stderr, tb.Str("error: ").Quoted(a).Str(" must come before the subcommand").String())
+			tb.Str("error: ").Quoted(a).Str(" must come before the subcommand").Byte('\n').StdErr() //nolint:errcheck // CLI output
 			fs.Usage()
 			return nil, "", 1
 		}

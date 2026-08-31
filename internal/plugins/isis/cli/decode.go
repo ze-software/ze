@@ -31,7 +31,7 @@ const maxStdinBytes = 256 * 1024
 // is read and dropped via a named variable (not a blank Write discard).
 func errln(msg string) {
 	var b textbuf.Buffer
-	if _, werr := os.Stderr.WriteString(b.Str(msg).Byte('\n').String()); werr != nil {
+	if werr := b.Str(msg).Byte('\n').StdErr(); werr != nil {
 		return
 	}
 }

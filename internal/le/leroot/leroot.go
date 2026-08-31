@@ -15,7 +15,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
@@ -242,8 +241,8 @@ func splitChain(args []string) (toolArgs []string, pipeStr string) {
 // message must also name the action.
 func RefuseArgument(name, got string) int {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(name).Str(" takes no arguments, got ").Quoted(got).String()) //nolint:errcheck // CLI output
+	tb.Str("error: ").Str(name).Str(" takes no arguments, got ").Quoted(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	tb.Reset()
-	fmt.Fprintln(os.Stderr, tb.Str("usage: le ").Str(name).Str(" [| json | yaml | table]").String()) //nolint:errcheck // CLI output
+	tb.Str("usage: le ").Str(name).Str(" [| json | yaml | table]").Byte('\n').StdErr() //nolint:errcheck // CLI output
 	return 1
 }

@@ -200,7 +200,7 @@ func runSync() (any, int) {
 	// whether or not the run failed: a warning is why a later failure happened.
 	for _, warning := range report.Warnings() {
 		var tb textbuf.Buffer
-		fmt.Fprintln(os.Stderr, tb.Str("warning: ").Str(warning).String()) //nolint:errcheck // CLI output
+		tb.Str("warning: ").Str(warning).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	}
 
 	if err != nil {

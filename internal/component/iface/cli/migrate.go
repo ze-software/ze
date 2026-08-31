@@ -112,7 +112,7 @@ func cmdMigrate(args []string) int {
 // printMigrateError writes one operator-facing error line to stderr.
 func printMigrateError(err error) {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Err(err).String())
+	tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
 // migrateClientFlags parses the flags this CLIENT interprets and answers the
@@ -143,7 +143,7 @@ func migrateClientFlags(args []string) (rest []string, user string, code int) {
 			continue
 		}
 		var tb textbuf.Buffer
-		fmt.Fprintln(os.Stderr, tb.Str("error: flag ").Quoted(arg).Str(" must come before the first keyword").String())
+		tb.Str("error: flag ").Quoted(arg).Str(" must come before the first keyword").Byte('\n').StdErr() //nolint:errcheck // CLI output
 		migrateUsage()
 		return nil, "", 1
 	}

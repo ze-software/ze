@@ -55,7 +55,7 @@ func refuseWrongBuildName() int {
 	tb.Str("' (").Str(os.Args[0]).Str(").\n")
 	tb.Str("    Reach the named build through ./le --name ").Str(want)
 	tb.Str(", never through a hardcoded binary path.\n")
-	os.Stderr.WriteString(tb.String()) //nolint:errcheck // pre-exit diagnostic
+	tb.StdErr() //nolint:errcheck // pre-exit diagnostic
 	return 2
 }
 

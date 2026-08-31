@@ -347,7 +347,7 @@ func discard(root, tree string) {
 
 	if _, err := os.Stat(tree); err == nil {
 		var tb textbuf.Buffer
-		fmt.Fprintln(os.Stderr, tb.Str("warning: ").Str(tree).Str(" survived its removal; run `git worktree prune --expire now` once it is gone").String()) //nolint:errcheck // CLI output
+		tb.Str("warning: ").Str(tree).Str(" survived its removal; run `git worktree prune --expire now` once it is gone").Byte('\n').StdErr() //nolint:errcheck // CLI output
 	}
 }
 

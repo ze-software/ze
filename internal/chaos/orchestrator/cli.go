@@ -641,7 +641,7 @@ Control:
 			mcpHandler, mcpErr := zemcp.NewStreamable(zemcp.StreamableConfig{Provider: mcpProvider})
 			if mcpErr != nil {
 				var tb textbuf.Buffer
-				os.Stderr.WriteString(tb.Str("error: chaos MCP server: ").Err(mcpErr).Byte('\n').String()) //nolint:errcheck // CLI error output
+				tb.Str("error: chaos MCP server: ").Err(mcpErr).Byte('\n').StdErr() //nolint:errcheck // CLI error output
 				return 1
 			}
 			defer mcpHandler.Close()
@@ -654,13 +654,13 @@ Control:
 				}
 			}()
 			var mcpURLBuf textbuf.Buffer
-			os.Stderr.WriteString(mcpURLBuf.Str("ze-chaos | MCP server: http://").Str(*mcpAddr).Str(zemcp.Endpoint).Byte('\n').String()) //nolint:errcheck // CLI status output
+			mcpURLBuf.Str("ze-chaos | MCP server: http://").Str(*mcpAddr).Str(zemcp.Endpoint).Byte('\n').StdErr() //nolint:errcheck // CLI status output
 			defer func() {
 				shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
 				defer shutCancel()
 				if err := mcpSrv.Shutdown(shutCtx); err != nil {
 					var tb textbuf.Buffer
-					os.Stderr.WriteString(tb.Str("error: shutting down MCP server: ").Err(err).Byte('\n').String()) //nolint:errcheck // CLI error output
+					tb.Str("error: shutting down MCP server: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI error output
 				}
 			}()
 

@@ -7,9 +7,7 @@ package deployment
 
 import (
 	"errors"
-	"fmt"
 	"net/netip"
-	"os"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -203,5 +201,5 @@ func reportL2TPDiagnosticError(err error) {
 		return
 	}
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str(runError.prefix).Err(runError.err).String()) //nolint:errcheck // CLI output
+	tb.Str(runError.prefix).Err(runError.err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }

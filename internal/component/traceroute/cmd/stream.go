@@ -13,7 +13,6 @@ import (
 	"encoding/binary"
 	"net"
 	"net/netip"
-	"os"
 	"strconv"
 	"time"
 
@@ -115,7 +114,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 		tb.Str("[probe] round start dest=").Str(dest.String())
 		tb.Str(" pid=0x").Hex(pidBytes)
 		tb.Str(" maxHops=").Int(int64(maxHops)).Byte('\n')
-		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+		tb.StdErr() //nolint:errcheck // trace
 	}
 
 	for ttl := 1; ttl <= maxHops; ttl++ {
@@ -123,7 +122,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 			if trace {
 				var tb textbuf.Buffer
 				tb.Str("[probe] SetTTL(").Int(int64(ttl)).Str(") failed: ").Err(setErr).Byte('\n')
-				os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+				tb.StdErr() //nolint:errcheck // trace
 			}
 			continue
 		}
@@ -134,7 +133,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 			if trace {
 				var tb textbuf.Buffer
 				tb.Str("[probe] send ttl=").Int(int64(ttl)).Str(" failed: ").Err(writeErr).Byte('\n')
-				os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+				tb.StdErr() //nolint:errcheck // trace
 			}
 			continue
 		}
@@ -143,7 +142,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 			tb.Str("[probe] send ttl=").Int(int64(ttl))
 			tb.Str(" seq=").Int(int64(seq))
 			tb.Str(" pid=0x").Hex(pidBytes).Byte('\n')
-			os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+			tb.StdErr() //nolint:errcheck // trace
 		}
 	}
 
@@ -193,7 +192,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 					tb.Str(" from=").Str(addr)
 					tb.Str(" n=").Int(int64(n))
 					tb.Str(" bad-offset hex=").Hex(rb[:min(n, 64)]).Byte('\n')
-					os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+					tb.StdErr() //nolint:errcheck // trace
 				}
 				continue
 			}
@@ -207,7 +206,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 					tb.Str(" embID=0x").Hex(pidHex(embID))
 					tb.Str(" want=0x").Hex(pidBytes)
 					tb.Str(" FILTERED\n")
-					os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+					tb.StdErr() //nolint:errcheck // trace
 				}
 				continue
 			}
@@ -225,7 +224,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 						tb.Str(" OUT-OF-RANGE")
 					}
 					tb.Byte('\n')
-					os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+					tb.StdErr() //nolint:errcheck // trace
 				}
 				continue
 			}
@@ -251,7 +250,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 					tb.Str(" REACHED")
 				}
 				tb.Byte('\n')
-				os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+				tb.StdErr() //nolint:errcheck // trace
 			}
 
 		case icmpEchoReply:
@@ -264,7 +263,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 					tb.Str(" replyID=0x").Hex(pidHex(replyID))
 					tb.Str(" want=0x").Hex(pidBytes)
 					tb.Str(" FILTERED\n")
-					os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+					tb.StdErr() //nolint:errcheck // trace
 				}
 				continue
 			}
@@ -281,7 +280,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 						tb.Str(" OUT-OF-RANGE")
 					}
 					tb.Byte('\n')
-					os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+					tb.StdErr() //nolint:errcheck // trace
 				}
 				continue
 			}
@@ -300,7 +299,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 				tb.Str("[probe] recv echo-reply from=").Str(addr)
 				tb.Str(" ttl=").Int(int64(ttl))
 				tb.Str(" rtt=").Str(strconv.FormatFloat(r.rttMS, 'f', 3, 64)).Str("ms REACHED\n")
-				os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+				tb.StdErr() //nolint:errcheck // trace
 			}
 
 		default:
@@ -310,7 +309,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 				tb.Str(" from=").Str(addr)
 				tb.Str(" n=").Int(int64(n))
 				tb.Str(" hex=").Hex(rb[:min(n, 32)]).Byte('\n')
-				os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+				tb.StdErr() //nolint:errcheck // trace
 			}
 		}
 	}
@@ -328,7 +327,7 @@ func StreamProbeRound(ctx context.Context, dest netip.Addr, maxHops int, deadlin
 		var tb textbuf.Buffer
 		tb.Str("[probe] round done: ").Int(int64(total)).Str("/").Int(int64(maxHops)).Str(" answered")
 		tb.Str(" limit=").Int(int64(limit)).Byte('\n')
-		os.Stderr.WriteString(tb.Slice()) //nolint:errcheck // trace
+		tb.StdErr() //nolint:errcheck // trace
 	}
 
 	for i := range limit {

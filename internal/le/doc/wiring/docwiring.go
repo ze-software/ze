@@ -222,7 +222,7 @@ func normalizeChangedPath(root, path string) string {
 // le tool uses.
 func reportError(err error) {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Err(err).String()) //nolint:errcheck // CLI output
+	tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
 // parseOptions reads the keywords this command takes. Each keyword that carries
@@ -249,15 +249,15 @@ func parseOptions(args []string) (Options, int, bool) {
 
 func refuseKeyword(got string) int {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(name).Str(": no such keyword: ").Quoted(got).String()) //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, usageLine())                                                                 //nolint:errcheck // CLI output
+	tb.Str("error: ").Str(name).Str(": no such keyword: ").Quoted(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
+	fmt.Fprintln(os.Stderr, usageLine())                                                   //nolint:errcheck // CLI output
 	return 1
 }
 
 func refuseMissingValue(keyword string) int {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(name).Byte(' ').Str(keyword).Str(" needs a value").String()) //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, usageLine())                                                                       //nolint:errcheck // CLI output
+	tb.Str("error: ").Str(name).Byte(' ').Str(keyword).Str(" needs a value").Byte('\n').StdErr() //nolint:errcheck // CLI output
+	fmt.Fprintln(os.Stderr, usageLine())                                                         //nolint:errcheck // CLI output
 	return 1
 }
 

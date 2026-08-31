@@ -206,7 +206,7 @@ func Run(ctx context.Context, repo string, options Options) (Report, int, error)
 		}
 		if rmErr := os.RemoveAll(dir); rmErr != nil {
 			var tb textbuf.Buffer
-			fmt.Fprintln(os.Stderr, tb.Str("tracked-build: could not remove ").Str(dir).Str(": ").Err(rmErr).String()) //nolint:errcheck // CLI output
+			tb.Str("tracked-build: could not remove ").Str(dir).Str(": ").Err(rmErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
 		}
 	}()
 
@@ -340,11 +340,11 @@ func extract(ctx context.Context, repo, commit, dest string) error {
 	if err := untar.Start(); err != nil {
 		if killErr := archive.Process.Kill(); killErr != nil {
 			var tb textbuf.Buffer
-			fmt.Fprintln(os.Stderr, tb.Str("tracked-build: kill git archive: ").Err(killErr).String()) //nolint:errcheck // CLI output
+			tb.Str("tracked-build: kill git archive: ").Err(killErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
 		}
 		if waitErr := archive.Wait(); waitErr != nil {
 			var tb textbuf.Buffer
-			fmt.Fprintln(os.Stderr, tb.Str("tracked-build: reap git archive: ").Err(waitErr).String()) //nolint:errcheck // CLI output
+			tb.Str("tracked-build: reap git archive: ").Err(waitErr).Byte('\n').StdErr() //nolint:errcheck // CLI output
 		}
 		return fmt.Errorf("start tar: %w", err)
 	}

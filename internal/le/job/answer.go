@@ -100,15 +100,15 @@ func actions() leaction.List {
 // the error from a job that ran and failed.
 func refuse(what, got string) int {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(what).Str(got).String()) //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, usageLine)                                     //nolint:errcheck // CLI output
+	tb.Str("error: ").Str(what).Str(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
+	fmt.Fprintln(os.Stderr, usageLine)                       //nolint:errcheck // CLI output
 	return 2
 }
 
 // refused reports a missing keyword, in the shape parseRun answers with.
 func refused(keyword, why string) (string, []string, bool) {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(keyword).Str(why).String()) //nolint:errcheck // CLI output
-	fmt.Fprintln(os.Stderr, usageLine)                                        //nolint:errcheck // CLI output
+	tb.Str("error: ").Str(keyword).Str(why).Byte('\n').StdErr() //nolint:errcheck // CLI output
+	fmt.Fprintln(os.Stderr, usageLine)                          //nolint:errcheck // CLI output
 	return "", nil, false
 }

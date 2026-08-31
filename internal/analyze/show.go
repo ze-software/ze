@@ -104,8 +104,8 @@ func runShow(args []string) int {
 				var tb textbuf.Buffer
 				tb.Str(ts.UTC().Format("15:04:05")).Byte(' ').Str(peer).
 					Str(" [unparseable: ").Str(damageTag(parseErr)).Str("] ").Err(parseErr).Byte('\n')
-				os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // output
-				return nil                        //nolint:nilerr // skip unparseable records, continue iteration
+				tb.StdOut() //nolint:errcheck // output
+				return nil  //nolint:nilerr // skip unparseable records, continue iteration
 			}
 			showParsedMessage(ts, peer, m.PeerAS, parsed, mrt.ASPathIsFourByte(h.Type, h.Subtype))
 			return nil
@@ -124,7 +124,7 @@ func runShow(args []string) int {
 
 	if err := mrt.ReadFile(inputFile, handler); err != nil {
 		var tb textbuf.Buffer
-		os.Stderr.WriteString(tb.Str("show: ").Err(err).Byte('\n').Slice()) //nolint:errcheck // error output
+		tb.Str("show: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // error output
 		return 1
 	}
 	return 0
@@ -138,7 +138,7 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 	case 1:
 		o := parsed.Open
 		tb.Reset().Str(prefix).Str("OPEN v").Uint8(o.Version).Str(" AS").Uint32(o.ASN).Str(" hold=").Uint16(o.HoldTime).Byte('\n')
-		os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // output
+		tb.StdOut() //nolint:errcheck // output
 	case 2:
 		u := parsed.Update
 		var lb textbuf.Buffer
@@ -177,14 +177,14 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 			lb.Str(" nh=").Addr(nh)
 		}
 		tb.Reset().Str(prefix).Str("UPDATE ").Str(lb.String()).Byte('\n')
-		os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // output
+		tb.StdOut() //nolint:errcheck // output
 	case 3:
 		n := parsed.Notification
 		tb.Reset().Str(prefix).Str("NOTIFICATION code=").Uint8(n.Code).Byte('/').Uint8(n.Subcode).Byte('\n')
-		os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // output
+		tb.StdOut() //nolint:errcheck // output
 	case 4:
 		tb.Reset().Str(prefix).Str("KEEPALIVE\n")
-		os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // output
+		tb.StdOut() //nolint:errcheck // output
 	}
 }
 

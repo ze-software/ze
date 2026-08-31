@@ -92,7 +92,7 @@ func runRecordBMP(args []string) int {
 	if err != nil {
 		b := textbuf.Get()
 		b.Str("record bmp: listen: ").Str(err.Error()).Byte('\n')
-		os.Stderr.WriteString(b.String()) //nolint:errcheck // error
+		b.StdErr() //nolint:errcheck // error
 		b.Release()
 		return 1
 	}
@@ -100,7 +100,7 @@ func runRecordBMP(args []string) int {
 
 	b := textbuf.Get()
 	b.Str("record bmp: listening on ").Str(listen).Str(", writing to ").Str(outputFile).Byte('\n')
-	os.Stderr.WriteString(b.String()) //nolint:errcheck // info
+	b.StdErr() //nolint:errcheck // info
 	b.Release()
 
 	for {
@@ -108,7 +108,7 @@ func runRecordBMP(args []string) int {
 		if err != nil {
 			b := textbuf.Get()
 			b.Str("record bmp: accept: ").Str(err.Error()).Byte('\n')
-			os.Stderr.WriteString(b.String()) //nolint:errcheck // error
+			b.StdErr() //nolint:errcheck // error
 			b.Release()
 			return 1
 		}
@@ -122,7 +122,7 @@ func handleBMPConn(conn net.Conn, w *syncWriter) {
 	remote := conn.RemoteAddr().String()
 	b := textbuf.Get()
 	b.Str("record bmp: connection from ").Str(remote).Byte('\n')
-	os.Stderr.WriteString(b.String()) //nolint:errcheck // info
+	b.StdErr() //nolint:errcheck // info
 	b.Release()
 
 	var recorded uint64
@@ -133,7 +133,7 @@ func handleBMPConn(conn net.Conn, w *syncWriter) {
 			if !errors.Is(err, io.EOF) {
 				b := textbuf.Get()
 				b.Str("record bmp: read error from ").Str(remote).Str(": ").Str(err.Error()).Byte('\n')
-				os.Stderr.WriteString(b.String()) //nolint:errcheck // error
+				b.StdErr() //nolint:errcheck // error
 				b.Release()
 			}
 			break
@@ -166,7 +166,7 @@ func handleBMPConn(conn net.Conn, w *syncWriter) {
 
 	b = textbuf.Get()
 	b.Str("record bmp: ").Str(remote).Str(" disconnected, recorded ").Uint(recorded).Str(" messages\n")
-	os.Stderr.WriteString(b.String()) //nolint:errcheck // info
+	b.StdErr() //nolint:errcheck // info
 	b.Release()
 }
 

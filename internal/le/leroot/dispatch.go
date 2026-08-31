@@ -188,7 +188,7 @@ func Dispatch(program string, args []string) int {
 	}
 
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("unknown command: ").Str(args[0]).String()) //nolint:errcheck // CLI output
+	tb.Str("unknown command: ").Str(args[0]).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	Usage(program)
 	return 1
 }

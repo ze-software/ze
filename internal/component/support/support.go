@@ -641,5 +641,5 @@ func usage() {
 		"  --json           Output manifest JSON to stdout\n" +
 		"  --list-modules   List available modules and exit\n")
 	var tb2 textbuf.Buffer
-	os.Stderr.WriteString(tb2.Str("\nModules: ").Str(ModuleList()).Byte('\n').Slice()) //nolint:errcheck // CLI help
+	tb2.Str("\nModules: ").Str(ModuleList()).Byte('\n').StdErr() //nolint:errcheck // CLI help
 }

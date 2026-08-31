@@ -4,7 +4,6 @@
 package env
 
 import (
-	"os"
 	"strings"
 	"sync"
 
@@ -51,7 +50,7 @@ func warnDeprecated(key string) {
 	}
 	deprecatedWarned[key] = true
 	var tb textbuf.Buffer
-	os.Stderr.WriteString(tb.Str("WARNING: env var ").Str(key).Str(" is deprecated, use ").Str(e.Deprecated).Str(" instead\n").Slice()) //nolint:errcheck // diagnostic
+	tb.Str("WARNING: env var ").Str(key).Str(" is deprecated, use ").Str(e.Deprecated).Str(" instead\n").StdErr() //nolint:errcheck // diagnostic
 }
 
 // MustRegister adds an env var entry to the registry.
