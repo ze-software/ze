@@ -114,8 +114,8 @@ var fragmentFlagNameToValue = map[string]uint8{
 
 // EncodeFlowSpecComponents parses text components and returns wire bytes.
 // Format: <component>+ where component is one of:
-//   - destination <prefix>
-//   - source <prefix>
+//   - destination-ipv4 <prefix>, destination-ipv6 <prefix>
+//   - source-ipv4 <prefix>, source-ipv6 <prefix>
 //   - protocol <num|name>+
 //   - port <op><num>+
 //   - rd <type:admin:value> (for VPN families)

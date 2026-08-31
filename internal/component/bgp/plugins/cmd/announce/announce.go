@@ -483,8 +483,6 @@ func trailingOptsAt(args []string) int {
 	return len(args)
 }
 
-// flowspecFamilyName picks "ipv4/flow" vs "ipv6/flow" from the destination or
-// source prefix (a v6 prefix always contains ':'), defaulting to ipv4/flow.
 // flowspecFamilyName answers the family the match components name.
 //
 // A prefix keyword states its own family, so the answer is read from the
