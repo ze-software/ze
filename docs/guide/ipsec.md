@@ -779,7 +779,7 @@ carries no encrypted traffic` when this happens.
 
 The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
 image. The infrastructure in `test/interop-ipsec/` drives strongSwan containers as remote
-IKE peers. Sixteen scenarios run today:
+IKE peers. Twenty-four scenarios run today:
 
 | Area | Scenarios |
 |---|---|
@@ -788,11 +788,13 @@ IKE peers. Sixteen scenarios run today:
 | Rekey and teardown | Child SA rekey with make-before-break, `clear vpn ipsec sa` and re-establishment, and a Delete sent while the one request window is held |
 | Negotiation | The INVALID_KE_PAYLOAD retry and the COOKIE challenge |
 | Dataplane | A live Child SA whose peer changes ESP form mid-session, and BGP routes exchanged with FRR over the tunnel |
+| NAT traversal | Transport mode and tunnel mode with ESP in UDP 4500, each measuring what Ze's stack does with the inner TCP and UDP checksum after decapsulation (RFC 3948 Section 3.1.2) |
+| Traffic selectors | Child SA rekey narrowing, an answer that narrows the initiator's proposal, ESN offered both ways, and a peer reload that narrows |
 
 There is no certificate-only (`mode x509`) scenario. The certificate paths are proven by
 unit tests and by the EAP-TLS scenarios, which authenticate both ends with certificates.
 
-<!-- source: test/interop-ipsec/scenarios -- the sixteen strongSwan scenarios -->
+<!-- source: test/interop-ipsec/scenarios -- the strongSwan scenario directories -->
 
 Ze holds every gated MUST-level requirement extracted from RFC 7296 in
 `rfc/short/rfc7296.md`. That is 222 of the summary's 227 rows, each proven in both

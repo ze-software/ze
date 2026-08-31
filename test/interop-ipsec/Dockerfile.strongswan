@@ -1,8 +1,14 @@
 # strongSwan/charon peer for IPsec interop lab.
 # Runs charon directly in foreground (no systemd, no ipsec starter).
+#
+# nmap-nping crafts one IPv4 datagram at a time through a raw IP socket, so the
+# packet leaves this container through the kernel routing and XFRM path and is
+# protected by the negotiated Child SA. Its --badsum flag writes a deliberately
+# wrong TCP/UDP checksum, which is what a NAT produces on a transport-mode flow
+# and what RFC 3948 Section 3.1.2 tells the decapsulator to deal with.
 
 FROM alpine:3.21
 
-RUN apk add --no-cache strongswan iproute2 iptables tini
+RUN apk add --no-cache strongswan iproute2 iptables tini nmap-nping
 
 ENTRYPOINT ["tini", "--", "/usr/lib/strongswan/charon"]

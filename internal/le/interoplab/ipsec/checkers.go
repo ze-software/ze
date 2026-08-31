@@ -33,6 +33,8 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"initiator-rekey-answer-narrows": checkInitiatorRekeyAnswerNarrows,
 	"invalid-ke-retry":               checkInvalidKERetry,
 	"ipsec-bgp-redistribute-frr":     checkIPsecBGPRedistributeFRR,
+	"natt-transport-inner-checksum":  checkNATTTransportInnerChecksum,
+	"natt-tunnel-inner-checksum":     checkNATTTunnelInnerChecksum,
 	"peer-reload-narrowing":          checkPeerReloadNarrowing,
 	"psk-site-to-site":               checkPSKSiteToSite,
 	"responder-accepts-reinit":       checkResponderAcceptsReinit,
@@ -960,4 +962,236 @@ func waitDuration(ctx context.Context, duration time.Duration) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+// nattMarker is the payload the natt-* scenarios carry over the Child SA. It is compared
+// byte for byte, so a decapsulated packet that arrives truncated or altered fails the
+// scenario rather than passing on its length alone.
+const nattMarker = "ZE-NATT-FLOW"
+
+// innerChecksumProbe names one crafted datagram and the two counters that answer what a
+// receiving stack did with it.
+//
+// accepted moves when the packet reached the transport layer: a UDP datagram for a closed
+// port is counted in Udp.NoPorts, and a TCP SYN for a closed port is answered with a reset
+// counted in Tcp.OutRsts. refused moves when the stack dropped the packet for its
+// checksum. Exactly one of the two moves for each probe, so neither verdict is read from
+// an absence (ai/rules/evidence.md).
+//
+// Both ports are closed on purpose. A closed port is answered by the stack itself, so no
+// listener has to survive between probes for the counters to mean what they say.
+type innerChecksumProbe struct {
+	protocol string
+	port     int
+	accepted string
+	refused  string
+}
+
+var innerChecksumProbes = [...]innerChecksumProbe{
+	{protocol: "udp", port: 5555, accepted: "Udp.NoPorts", refused: "Udp.InCsumErrors"},
+	{protocol: "tcp", port: 5556, accepted: "Tcp.OutRsts", refused: "Tcp.InCsumErrors"},
+}
+
+// checkNATTTransportInnerChecksum proves the UDP-encapsulated TRANSPORT-mode receive path
+// that RFC 3948 Section 3.1.2 governs.
+//
+// RFC 3948 Section 3.1.2 (rfc/full/rfc3948.txt): "When a transport mode has been used to
+// transmit packets, contained TCP or UDP headers will have incorrect checksums due to the
+// change of parts of the IP header during transit. ... Depending on local policy, one of
+// the following MUST be done". Its third alternative reads: "If the protocol header after
+// the ESP header is a UDP header, set the checksum field to zero in the UDP header. If
+// the protocol after the ESP header is a TCP header, and if there is an option to flag to
+// the stack that the TCP checksum does not need to be computed, then that flag MAY be
+// used. This SHOULD only be done for transport mode, and if the packet is integrity
+// protected."
+//
+// Ze installs the Child SA and delegates ESP-in-UDP decapsulation to Linux XFRM
+// (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go). Three things are
+// therefore asserted, and the last is what makes the first two evidence:
+//
+//  1. Ze's own state carries transport mode AND the ESP-in-UDP template. Those two
+//     together are the whole of what puts the kernel on Section 3.1.2's path, and
+//     createFirstChildSA (internal/component/ike/engine/child.go) decides both.
+//  2. A TCP flow and a UDP flow cross the SA with their payload intact.
+//  3. A datagram carrying a DELIBERATELY WRONG inner checksum is still delivered to Ze's
+//     stack. A wrong inner checksum is what a NAT leaves behind on a transport-mode flow,
+//     so its acceptance here is the observable form of the third alternative.
+//     natt-tunnel-inner-checksum is the control: the same sender, tool and flag against a
+//     Child SA that differs in its MODE alone is REFUSED there.
+//
+// The lab has no address-translating middlebox, so strongSwan's encap = yes supplies the
+// NAT-T machinery (a faked NAT_DETECTION_SOURCE_IP hash) and nping --badsum supplies the
+// wrong checksum the translation would have caused.
+//
+// natt-tunnel-inner-checksum is the opposite half of the same measurement, and the two
+// scenarios must not be changed apart.
+//
+// RFC requirement: RFC3948-3.1.2-1 positive -- a datagram whose inner checksum a NAT would
+// have invalidated is delivered by Ze's stack after transport-mode ESP-in-UDP
+// decapsulation, which is the third alternative of Section 3.1.2 in observable form.
+// RFC requirement: RFC3948-3.1.2-2 negative -- the "Tunnel mode TCP checksums MUST be
+// verified" sentence is scoped to tunnel mode, and this run measures that a TRANSPORT-mode
+// SA does not verify. natt-tunnel-inner-checksum carries the positive.
+func checkNATTTransportInnerChecksum(ctx context.Context, lab *scenarioLab) error {
+	state, err := establishNATT(ctx, lab, "mode transport")
+	if err != nil {
+		return err
+	}
+	if err := requireContains(state, "mode transport",
+		"ze's INBOUND state is not transport mode, so RFC 3948 Section 3.1.2 never applies: "+state); err != nil {
+		return err
+	}
+	if err := lab.deliverMarker(ctx, "tcp", 5001); err != nil {
+		return err
+	}
+	if err := lab.deliverMarker(ctx, "udp", 5002); err != nil {
+		return err
+	}
+	return lab.checkInnerChecksums(ctx, true)
+}
+
+// checkNATTTunnelInnerChecksum proves the other half of RFC 3948 Section 3.1.2.
+//
+// RFC 3948 Section 3.1.2, inside the third alternative: "Tunnel mode TCP checksums MUST be
+// verified." The skip the transport-mode scenario observes is therefore bounded, and this
+// scenario is where the bound is measured: the same crafted datagram, over a Child SA that
+// differs from the other scenario in its MODE alone, has to be REFUSED.
+//
+// Ze decides that mode in createFirstChildSA (internal/component/ike/engine/child.go) and
+// maps it to XFRM_MODE_TUNNEL in kernelXFRMMode (internal/component/ike/dataplane/
+// dataplane.go). Installing tunnel mode as transport would make Linux skip the check this
+// requirement demands, and this scenario is what would see it.
+//
+// RFC requirement: RFC3948-3.1.2-2 positive -- a TCP segment and a UDP datagram whose inner
+// checksum is wrong are REFUSED after tunnel-mode ESP-in-UDP decapsulation, so the checksum
+// was verified.
+// RFC requirement: RFC3948-3.1.2-1 negative -- the transport-mode skip of Section 3.1.2 is
+// not applied here: over a tunnel-mode SA that differs in its mode alone, the same crafted
+// datagram is dropped.
+func checkNATTTunnelInnerChecksum(ctx context.Context, lab *scenarioLab) error {
+	state, err := establishNATT(ctx, lab, "mode tunnel")
+	if err != nil {
+		return err
+	}
+	if err := requireContains(state, "mode tunnel",
+		"ze's INBOUND state is not tunnel mode, so this scenario measures the wrong mode: "+state); err != nil {
+		return err
+	}
+	if err := lab.deliverMarker(ctx, "tcp", 5001); err != nil {
+		return err
+	}
+	if err := lab.deliverMarker(ctx, "udp", 5002); err != nil {
+		return err
+	}
+	return lab.checkInnerChecksums(ctx, false)
+}
+
+// establishNATT brings both peers up and returns Ze's XFRM state once it carries the
+// ESP-in-UDP template RFC 3948 Section 2.1 defines. The mode is named by the caller and
+// appears in the failure text, because a scenario that measured the other mode would
+// otherwise report a passing SA and a meaningless verdict.
+func establishNATT(ctx context.Context, lab *scenarioLab, mode string) (string, error) {
+	if err := establish(ctx, lab); err != nil {
+		return "", err
+	}
+	if _, err := lab.waitXFRM(ctx, swanPeer); err != nil {
+		return "", err
+	}
+	if _, err := lab.waitXFRM(ctx, zePeer); err != nil {
+		return "", err
+	}
+	state, err := lab.inboundXFRMState(ctx, zePeer, swanIP, zeIP)
+	if err != nil {
+		return "", err
+	}
+	if err := requireContains(state, "encap type espinudp sport 4500 dport 4500",
+		"ze's INBOUND state carries no ESP-in-UDP template beside "+mode+", so the kernel never reaches RFC 3948 Section 3.1.2: "+state); err != nil {
+		return "", err
+	}
+	return state, nil
+}
+
+// checkInnerChecksums sends each crafted probe over the Child SA twice, once with a correct
+// inner checksum and once with a corrupt one, and reads Ze's stack counters for the verdict.
+//
+// decapsulatorSkips states what RFC 3948 Section 3.1.2 asks of the mode under test: true
+// for transport mode, where the corrupt datagram is accepted, and false for tunnel mode,
+// where it MUST be refused.
+//
+// THE CONTROL IS THE OTHER SCENARIO, and it has to be, because "the corrupt datagram was
+// accepted" would also be the reading if nping had never corrupted anything. The tunnel
+// scenario runs the same sender, the same tool and the same flag against the same receiver,
+// and differs from the transport scenario in the Child SA's MODE alone. Its REJECTION is
+// what proves the corruption is real, so a --badsum that silently did nothing turns that
+// scenario red rather than turning this one falsely green.
+//
+// A control inside one scenario was tried first and removed: sending the same crafted
+// datagram from strongSwan to its own address measures the kernel's local delivery path,
+// whose checksum handling is not the decapsulation path under test, and it did not answer
+// the same way inside the lab as it did on its own.
+func (l *scenarioLab) checkInnerChecksums(ctx context.Context, decapsulatorSkips bool) error {
+	for _, probe := range innerChecksumProbes {
+		if err := l.assertProbeVerdict(ctx, probe, zePeer, zeIP, false, probe.accepted, probe.refused); err != nil {
+			return err
+		}
+		expected, forbidden := probe.refused, probe.accepted
+		if decapsulatorSkips {
+			expected, forbidden = probe.accepted, probe.refused
+		}
+		if err := l.assertProbeVerdict(ctx, probe, zePeer, zeIP, true, expected, forbidden); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// assertProbeVerdict sends one crafted datagram, waits for expected to move, and refuses
+// the run when forbidden moved as well. A counter absent from either snapshot is an error,
+// so a misspelled name cannot read as "it did not move".
+func (l *scenarioLab) assertProbeVerdict(ctx context.Context, probe innerChecksumProbe, observed, target string, badChecksum bool, expected, forbidden string) error {
+	before, err := l.snmpCounters(ctx, observed)
+	if err != nil {
+		return err
+	}
+	if _, err := l.craftedProbe(ctx, probe.protocol, probe.port, target, badChecksum); err != nil {
+		return err
+	}
+
+	checksum := "a correct inner checksum"
+	if badChecksum {
+		checksum = "a corrupt inner checksum"
+	}
+	var tb textbuf.Buffer
+	description := tb.Str(observed).Str(" counter ").Str(expected).Str(" to move for one ").
+		Str(probe.protocol).Str(" datagram with ").Str(checksum).String()
+	text, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: probeWaitTimeout, Interval: time.Second, Description: description,
+	}, func(poll context.Context) (string, error) {
+		return l.exec(poll, observed, "cat", "/proc/net/snmp")
+	}, func(text string) bool {
+		after, parseErr := parseSNMPCounters(text)
+		if parseErr != nil {
+			return false
+		}
+		moved, ok := counterDelta(before, after, expected)
+		return ok && moved > 0
+	})
+	if err != nil {
+		return err
+	}
+
+	after, err := parseSNMPCounters(text)
+	if err != nil {
+		return fmt.Errorf("%s /proc/net/snmp after the %s probe: %w", observed, probe.protocol, err)
+	}
+	moved, ok := counterDelta(before, after, forbidden)
+	if !ok {
+		return fmt.Errorf("%s /proc/net/snmp carries no %s counter, so the %s probe proves nothing",
+			observed, forbidden, probe.protocol)
+	}
+	if moved != 0 {
+		return fmt.Errorf("%s answered the %s datagram with %s on both counters: %s advanced by %d as well",
+			observed, probe.protocol, checksum, forbidden, moved)
+	}
+	return nil
 }

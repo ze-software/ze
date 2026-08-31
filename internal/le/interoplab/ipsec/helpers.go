@@ -32,6 +32,8 @@ const (
 	childWaitTimeout    = 30 * time.Second
 	selectorWaitTimeout = 90 * time.Second
 	xfrmWaitTimeout     = 30 * time.Second
+	flowWaitTimeout     = 60 * time.Second
+	probeWaitTimeout    = 20 * time.Second
 
 	swanConnection = "ze"
 )
@@ -172,6 +174,23 @@ func (l *scenarioLab) waitOutput(ctx context.Context, peer string, command []str
 
 func (l *scenarioLab) xfrmState(ctx context.Context, peer string) (string, error) {
 	return l.exec(ctx, peer, "ip", "xfrm", "state")
+}
+
+// inboundXFRMState answers the ONE state that decapsulates what source sends to target.
+//
+// The filter matters. `ip xfrm state` prints both directions of a Child SA, so a template
+// present on the OUTBOUND state alone satisfies an assertion made over the whole dump
+// while the receive path carries nothing. Reception is what RFC 3948 Section 3.1.2
+// governs, so the assertions that cite it read this state and no other.
+func (l *scenarioLab) inboundXFRMState(ctx context.Context, peer, source, target string) (string, error) {
+	output, err := l.exec(ctx, peer, "ip", "xfrm", "state", "list", "src", source, "dst", target)
+	if err != nil {
+		return "", err
+	}
+	if !strings.Contains(output, "proto esp") {
+		return "", fmt.Errorf("%s carries no inbound ESP state for src %s dst %s: %s", peer, source, target, output)
+	}
+	return output, nil
 }
 
 func (l *scenarioLab) xfrmPolicy(ctx context.Context, peer string) (string, error) {
@@ -496,6 +515,138 @@ func (l *scenarioLab) waitFRRRoute(ctx context.Context, prefix string, present b
 		return result.Stdout, nil
 	}, func(output string) bool {
 		return frrHasRoute(output) == present
+	})
+	return err
+}
+
+// snmpCounters reads one peer's per-namespace IP stack counters from /proc/net/snmp.
+//
+// The file states each protocol twice: a header line naming the fields, then a value
+// line in the same order. The map is keyed "Protocol.Field", so "Udp.InCsumErrors" and
+// "Tcp.OutRsts" name themselves at the call site.
+//
+// A read that produces no pair is an ERROR rather than an empty map. Every delta taken
+// from an empty map is zero, and zero is what the negative assertions below expect
+// (ai/rules/evidence.md).
+func (l *scenarioLab) snmpCounters(ctx context.Context, peer string) (map[string]uint64, error) {
+	output, err := l.exec(ctx, peer, "cat", "/proc/net/snmp")
+	if err != nil {
+		return nil, err
+	}
+	counters, err := parseSNMPCounters(output)
+	if err != nil {
+		return nil, fmt.Errorf("%s /proc/net/snmp: %w", peer, err)
+	}
+	return counters, nil
+}
+
+// parseSNMPCounters turns the header-and-value line pairs of /proc/net/snmp into one
+// "Protocol.Field" map. The loop is bounded by the file the kernel writes.
+func parseSNMPCounters(output string) (map[string]uint64, error) {
+	counters := make(map[string]uint64)
+	headers := make(map[string][]string)
+	var tb textbuf.Buffer
+	for line := range strings.SplitSeq(output, "\n") {
+		protocol, rest, ok := strings.Cut(line, ": ")
+		if !ok {
+			continue
+		}
+		fields := strings.Fields(rest)
+		header, seen := headers[protocol]
+		if !seen {
+			headers[protocol] = fields
+			continue
+		}
+		for i, field := range fields {
+			if i >= len(header) {
+				break
+			}
+			value, err := strconv.ParseUint(field, 10, 64)
+			if err != nil {
+				continue
+			}
+			counters[tb.Reset().Str(protocol).Byte('.').Str(header[i]).String()] = value
+		}
+		delete(headers, protocol)
+	}
+	if len(counters) == 0 {
+		return nil, errors.New("no header and value pair was read")
+	}
+	return counters, nil
+}
+
+// counterDelta reports how far one counter moved between two snapshots. The second
+// result is false when either snapshot lacks the name, so a misspelled counter cannot
+// read as "it did not move".
+func counterDelta(before, after map[string]uint64, name string) (uint64, bool) {
+	earlier, okEarlier := before[name]
+	later, okLater := after[name]
+	if !okEarlier || !okLater {
+		return 0, false
+	}
+	if later < earlier {
+		return 0, true
+	}
+	return later - earlier, true
+}
+
+// craftedProbe sends exactly one crafted IPv4 datagram from strongSwan through a raw IP
+// socket, so the packet takes the kernel routing and XFRM path. A target of zeIP is
+// protected by the Child SA; a target of swanIP is the unprotected control that never
+// meets an XFRM policy.
+//
+// --send-ip is written out at the call site because nping otherwise prefers the Ethernet
+// layer, and a packet sent there bypasses IPsec and makes every assertion vacuous.
+//
+// badChecksum asks nping for a deliberately wrong TCP/UDP checksum, which is what a NAT
+// leaves behind on a transport-mode flow and what RFC 3948 Section 3.1.2 governs.
+func (l *scenarioLab) craftedProbe(ctx context.Context, protocol string, port int, target string, badChecksum bool) (string, error) {
+	command := []string{
+		"nping", "--send-ip", "--no-capture", "--count", "1", "--rate", "1",
+		"--" + protocol, "--dest-port", strconv.Itoa(port),
+	}
+	if protocol == "tcp" {
+		command = append(command, "--flags", "syn")
+	}
+	if badChecksum {
+		command = append(command, "--badsum")
+	}
+	command = append(command, target)
+	output, err := l.exec(ctx, swanPeer, command...)
+	if err != nil {
+		return output, fmt.Errorf("nping %s to %s badsum=%v on strongSwan: %w: %s", protocol, target, badChecksum, err, output)
+	}
+	return output, nil
+}
+
+// deliverMarker carries nattMarker from strongSwan to Ze over the Child SA and reports
+// whether Ze received it byte for byte.
+//
+// The listener is DETACHED because it outlives the exec that starts it, and the send is
+// retried inside the bounded wait so the first datagram cannot race the bind.
+func (l *scenarioLab) deliverMarker(ctx context.Context, protocol string, port int) error {
+	options := ""
+	if protocol == "udp" {
+		options = "-u "
+	}
+	number := strconv.Itoa(port)
+	file := "/run/ze-flow-" + protocol + ".txt"
+	listen := "rm -f " + file + "; nc " + options + "-l -p " + number + " > " + file + " 2>&1 < /dev/null"
+	send := "printf '%s\\n' " + shellQuote(nattMarker) + " | nc " + options + "-w 3 " + zeIP + " " + number
+	read := []string{"sh", "-c", "cat " + file + " 2>/dev/null; echo"}
+
+	if err := l.check.Lab.ExecDetached(ctx, zePeer, []string{"sh", "-c", listen}, nil); err != nil {
+		return fmt.Errorf("start the %s listener on ze: %w", protocol, err)
+	}
+	var tb textbuf.Buffer
+	description := tb.Str("ze receives the ").Str(protocol).Str(" marker over the Child SA").String()
+	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: flowWaitTimeout, Interval: 3 * time.Second, Description: description,
+	}, func(probe context.Context) (string, error) {
+		l.execQuiet(probe, swanPeer, "sh", "-c", send)
+		return l.exec(probe, zePeer, read...)
+	}, func(received string) bool {
+		return strings.Contains(received, nattMarker)
 	})
 	return err
 }
