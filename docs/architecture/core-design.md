@@ -62,6 +62,17 @@ Registration also states which of five groups the area belongs to, and help
 prints one section for each group in that order. The group is a parameter of
 `leroot.Register`, so a new area cannot compile without one.
 
+**`help`, `-h` and `--help` are accepted at every depth, and they answer from
+the registry rather than from the command.** `le` alone prints the grouped page;
+`le <command> --help` and `le help <command>` print that node's page, which
+carries the registered description, the actions its `Meta.Subs` line declares,
+and the commands registered under it; `le <command> <action> --help` prints that
+action's closed keyword grammar, which only `leaction.Area` holds. A help word
+never reaches the handler, because a single-action area answers a bare
+invocation by RUNNING its gate, so rendering help through the handler would scan
+the tree or start a build. Only a trailing help word asks the question: a help
+word further up the line can be the value a keyword before it introduced.
+
 Several commands answer to more than one group, so the choice is a ladder.
 Read from the top and stop at the first row that matches.
 
@@ -83,10 +94,22 @@ generator can rewrite what it checks. A report writes nothing. An area a
 pre-commit stage invokes is a gate, a generator, or a suite, never workflow or
 report.
 
+**A gate reads recorded evidence. A separate verb produces it.** `./le rfc
+check` re-reads a stored proof and compares its fingerprints against the tree;
+`./le rfc discriminate-record` is the verb that applies a break, runs the tagged
+test, and records the red it observed. The split bounds what a verification
+stage costs. `rfc check` is the third stage of `./le verify current mode full`,
+so a ratchet that started a mutation run or an interop scenario would put that
+cost on every session in the checkout. A gate area MAY therefore carry a verb
+that executes, and the ratchet it feeds MUST NOT.
+
 The retired auxiliary tooling tree has no current role. Data fixtures live
 under the `testdata/` directory of the Go package that owns them.
 
-<!-- source: internal/le/leroot/dispatch.go -- Commands, Dispatch, usageSections -->
+<!-- source: internal/le/rfc/check.go -- Check -->
+<!-- source: internal/le/rfc/discriminate_action.go -- recordDiscrimination -->
+<!-- source: internal/le/leroot/dispatch.go -- Commands, Dispatch, usageSections, helpNode -->
+<!-- source: internal/le/leaction/leaction.go -- IsHelpArg, actionUsage -->
 <!-- source: internal/le/leroot/leroot.go -- Register -->
 <!-- source: internal/le/leroot/group.go -- Group, GroupTitle -->
 <!-- source: cmd/ze/ze_le_register.go -->
