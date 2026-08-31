@@ -104,19 +104,23 @@ func appendFlowSpecJSON(buf []byte, fs *FlowSpec, family string, rd *RouteDistin
 }
 
 // flowSpecKey returns the JSON key for a FlowSpec component type.
-// IPv6 families use different keys for destination/source/protocol per RFC 8956.
+//
+// A prefix component names its family: RFC 8955 Type 1 and RFC 8956 Type 1 share
+// a type code and carry different encodings, so `destination-ipv4` and
+// `destination-ipv6` are two names rather than one name and a qualifier. These
+// are the keys ExaBGP emits, which is what lets a reader move between the two.
 func flowSpecKey(ct FlowComponentType, isIPv6 bool) string {
 	switch ct {
 	case FlowDestPrefix:
 		if isIPv6 {
 			return kwDestinationIPv6
 		}
-		return kwDestination
+		return kwDestinationIPv4
 	case FlowSourcePrefix:
 		if isIPv6 {
 			return kwSourceIPv6
 		}
-		return kwSource
+		return kwSourceIPv4
 	case FlowIPProtocol:
 		if isIPv6 {
 			return kwNextHeader

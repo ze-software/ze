@@ -698,7 +698,7 @@ func p05DDoSFlowspecAnnounce(ctx context.Context, args []string) error {
 	return p05RunActivePlugin(ctx, "ddos-flowspec-announce", sdk.Registration{}, func(ctx context.Context, plugin *sdk.Plugin) error {
 		commands := []string{
 			cmdAnnounceFirstPrefix,
-			"update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination 192.0.2.0/24 protocol =6 destination-port =80",
+			"update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination-ipv4 192.0.2.0/24 protocol =6 destination-port =80",
 		}
 		for _, command := range commands {
 			if _, _, err := plugin.UpdateRoute(ctx, "*", command); err != nil {

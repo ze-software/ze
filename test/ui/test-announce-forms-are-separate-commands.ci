@@ -35,7 +35,7 @@ expect=stderr:contains=ze announce blackhole <prefix> [tag <key> <value>] [for <
 
 cmd=foreground:seq=4:exec=ze announce flowspec help
 expect=exit:code=0
-expect=stderr:contains=ze announce flowspec [destination <prefix> ...]
+expect=stderr:contains=ze announce flowspec [destination-ipv4 <prefix> ...]
 expect=stderr:contains=[tcp-flags <value> ...] [community <value>] [rate-limit <bytes-per-second>] [discard] [tag <key> <value>] [for <duration>]
 reject=stderr:pattern=announce flowspec <args>
 
@@ -49,5 +49,5 @@ expect=stderr:contains=ze peer <selector> announce blackhole <prefix> [tag <key>
 
 cmd=foreground:seq=7:exec=ze peer announce flowspec help
 expect=exit:code=0
-expect=stderr:contains=ze peer <selector> announce flowspec [destination <prefix> ...]
+expect=stderr:contains=ze peer <selector> announce flowspec [destination-ipv4 <prefix> ...]
 expect=stderr:contains=[tcp-flags <value> ...] [community <value>] [rate-limit <bytes-per-second>] [discard] [tag <key> <value>] [for <duration>]

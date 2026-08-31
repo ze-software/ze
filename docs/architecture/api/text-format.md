@@ -110,7 +110,7 @@ Each NLRI type plugin implements `String()` which produces the text representati
 | EVPN Type4 | `ethernet-segment rd set X esi set Y ip set Z` | — | `bgp-nlri-evpn/types.go` |
 | EVPN Type5 | `ip-prefix rd set X prefix set Y` | esi, etag, gateway, label | `bgp-nlri-evpn/types.go` |
 | EVPN unknown | `evpn-type<N>` | — | `bgp-nlri-evpn/types.go` |
-| FlowSpec | `flow destination 10.0.0.0/24 port ==80` | varies by components | `bgp-nlri-flowspec/types.go` |
+| FlowSpec | `flow destination-ipv4 10.0.0.0/24 port ==80` | varies by components | `bgp-nlri-flowspec/types.go` |
 | VPLS | `rd set X ve-id set Y label set Z` | — | `bgp-nlri-vpls/types.go` |
 | MVPN | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mvpn/types.go` |
 | RTC | `origin-as set X rt set Y` or `default` | default case has no sub-keys | `bgp-nlri-rtc/types.go` |

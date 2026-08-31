@@ -142,7 +142,7 @@ func TestZebgpToExabgpJSON_FlowSpecExtendedCommunityNormalize(t *testing.T) {
 				},
 				"nlri": map[string]any{
 					"ipv4/flow": []any{
-						map[string]any{"action": "add", "nlri": []any{"source 10.0.1.0/24"}},
+						map[string]any{"action": "add", "nlri": []any{"source-ipv4 10.0.1.0/24"}},
 					},
 				},
 			},
@@ -450,28 +450,46 @@ func TestExabgpToZebgpCommand_FlowSpecRateLimitPackets(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp destination-port =3128 extended-community [rate-limit:1000:packets]"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source 10.0.1.0/24 protocol tcp destination-port =3128", result)
+	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp destination-port =3128", result)
 }
 
 func TestExabgpToZebgpCommand_FlowSpecRateLimitPacketsLegacyAlias(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp destination-port =3128 extended-community [rate-limit-packets:1000]"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source 10.0.1.0/24 protocol tcp destination-port =3128", result)
+	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:1000:packets] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp destination-port =3128", result)
 }
 
 func TestExabgpToZebgpCommand_FlowSpecRateLimitBytesExplicit(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp extended-community [rate-limit:9600:bytes]"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv4/flow add source 10.0.1.0/24 protocol tcp", result)
+	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp", result)
 }
 
 func TestExabgpToZebgpCommand_FlowSpecVPNFamily(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce ipv4 flow source-ipv4 10.0.0.1/32 rd 65535:65536 extended-community [rate-limit:0]"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:0] nlri ipv4/flow-vpn add rd 65535:65536 source 10.0.0.1/32", result)
+	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:0] nlri ipv4/flow-vpn add rd 65535:65536 source-ipv4 10.0.0.1/32", result)
+}
+
+// TestExabgpToZebgpCommand_FlowSpecBarePrefixKeyword drives the two bare prefix
+// keywords ExaBGP accepts on input through the bridge.
+//
+// VALIDATES: normalizeFlowSpecComponentToken rewrites `source` and `destination`
+// into the family-qualified keyword ze speaks, and the route's family decides
+// which of the two spellings it means.
+// PREVENTS: a hand-written ExaBGP config using the alias reaching ze as a
+// keyword ze no longer has. isFlowSpecComponentKeyword refuses the bare word.
+// The token is then read as an argument of the component before it, and the
+// prefix leaves the announcement with no diagnostic.
+func TestExabgpToZebgpCommand_FlowSpecBarePrefixKeyword(t *testing.T) {
+	v4 := ExabgpToZebgpCommand("neighbor 10.0.0.1 announce ipv4 flow source 10.0.1.0/24 protocol =tcp extended-community [rate-limit:9600]")
+	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv4/flow add source-ipv4 10.0.1.0/24 protocol tcp", v4)
+
+	v6 := ExabgpToZebgpCommand("neighbor 10.0.0.1 announce ipv6 flow destination 2001:db8::/32 next-header =tcp extended-community [rate-limit:9600]")
+	assert.Equal(t, "peer 10.0.0.1 update text extended-community [rate-limit:9600] nlri ipv6/flow add destination-ipv6 2001:db8::/32 next-header tcp", v6)
 }
 
 // TestExabgpToZebgpCommand_NonNeighbor verifies pass-through for non-neighbor commands.

@@ -25,6 +25,17 @@ test that carries an `RFC requirement:` tag is a different file,
 safe above the table. Do not write a second such header anywhere in the file: the
 parser refuses two tables rather than guess which one the gate should read.
 
+**A test in a NEW file needs no row in either ledger, and the two gates disagree
+about that.** The commit gate reads the file at HEAD (`committedText` in
+`internal/le/commit/rfcchange.go`) and skips a path with no HEAD version, so it
+computes no change for a new file and REFUSES a row naming a test in one. The
+write hook reads the file on disk instead (`Proposed` in
+`internal/le/testweakened/proposed.go`, where `taggedCarrier` tests the current
+`oldText`), so it DEMANDS a row before it lets you edit a new file that already
+carries `RFC requirement:` tags. An author who obeys the hook is then refused by
+the gate. Until one of them changes, write the tags in the same edit that creates
+the file, and carry no row for it.
+
 | Test | Reason |
 |------|--------|
-| show-plugins | SPLIT, not weakened: the five expectations that left this file are in `test/parse/show-plugins-memlock.ci`, added by the same commit, and every one of them is verbatim. They are the `contains=memlock` assertions and the whole `match memlock` pipe block. They moved because memlock is a linux-only plugin -- `register.go` and `memlock_linux.go` both carry `//go:build linux`, and the platform-neutral `memlock.go` declares no `init()` -- so on darwin the plugin never registers, `show plugins` has no memlock row, and this test FAILED rather than skipping. The new file carries `option=skip-os:value=darwin`, the idiom seventeen other files in this suite use. The cheaper repair was rejected: putting the skip on this file needs no row here, and costs darwin the json, yaml and table pipe renderings, which are platform-neutral product behaviour with nothing to do with memlock. Suite coverage went UP, not down: `show-plugins` keeps three pipe renderings on every platform, and `show-plugins-memlock` adds a second command block plus a `not:contains=invalid` the original did not have. Both PASS in `./le functional parse` at 319 tests, 268 and 267. |
+| augmentedContainerNames | RENAMED to `componentContainerNames`, and repaired in the same edit. It is a test helper, not a test, and no assertion left the suite. It collected container names only after an `augment ` line. Commit `2fbf62081` moved the seventeen FlowSpec containers into `grouping flowspec-components` and left each augment a bare `uses`, so the helper read zero names and `TestModelDeclaresEveryComponentKeyword` died on its own `t.Fatal` from that commit onward. It opens at the `grouping ` line now, which is where the containers are, and the name follows the subject. The test is live again: injecting a `mutant-keyword` container reddens it with `the model declares "mutant-keyword" and the encoder does not accept it`. Recorded as a row in `plan/journal/test-against-broken-path.md` as well. |

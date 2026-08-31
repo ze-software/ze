@@ -206,7 +206,7 @@ func widePortComponent(t *testing.T, value uint32) flowspec.FlowComponent {
 func TestTCPFlagsListSurvivesTheJSONParser(t *testing.T) {
 	fam := flowFamily()
 
-	fs, err := parseNLRIJSON(fam, []byte(`{"destination":[["10.1.0.0/24"]],"tcp-flags":[["=2","=16"]]}`))
+	fs, err := parseNLRIJSON(fam, []byte(`{"destination-ipv4":[["10.1.0.0/24"]],"tcp-flags":[["=2","=16"]]}`))
 	require.NoError(t, err)
 
 	comp, ok := findComponent(fs, flowspec.FlowTCPFlags)
@@ -253,7 +253,7 @@ func TestRouteWithNoActionIsCountedAndLogged(t *testing.T) {
 	var logged bytes.Buffer
 	b := newBridge(slog.New(slog.NewTextHandler(&logged, nil)))
 
-	event := daemonAddJSON("10.0.0.1", "target:65000:100", `{"destination": [["10.1.0.0/24"]]}`)
+	event := daemonAddJSON("10.0.0.1", "target:65000:100", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
 	require.NoError(t, b.handleEvent(event))
 
 	assert.Nil(t, b.rules.buildTable(), "a route with no action installs nothing")
@@ -281,7 +281,7 @@ func TestUnknownProtocolRouteIsCountedAndNamed(t *testing.T) {
 	b := newBridge(slog.New(slog.NewTextHandler(&logged, nil)))
 
 	event := daemonAddJSON("10.0.0.1", "rate-limit:0",
-		`{"destination": [["10.2.0.0/24"]], "protocol": [["=253"]]}`)
+		`{"destination-ipv4": [["10.2.0.0/24"]], "protocol": [["=253"]]}`)
 	require.NoError(t, b.handleEvent(event))
 
 	assert.Nil(t, b.rules.buildTable(), "a refused route installs nothing")

@@ -747,7 +747,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 				mustAddComponent(f, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
 				return f
 			}(),
-			expected: "flow destination 10.0.0.0/24",
+			expected: "flow destination-ipv4 10.0.0.0/24",
 		},
 		{
 			name: "source prefix only",
@@ -756,7 +756,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 				mustAddComponent(f, NewFlowSourcePrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
 				return f
 			}(),
-			expected: "flow source 192.168.0.0/16",
+			expected: "flow source-ipv4 192.168.0.0/16",
 		},
 		{
 			name: "destination port with multiple values",
@@ -785,7 +785,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 				mustAddComponent(f, NewFlowIPProtocolComponent(6))
 				return f
 			}(),
-			expected: "flow destination 10.0.0.0/24 destination-port =80 =443 protocol 6",
+			expected: "flow destination-ipv4 10.0.0.0/24 destination-port =80 =443 protocol 6",
 		},
 	}
 
@@ -831,7 +831,7 @@ func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
 				mustAddComponent(f, NewFlowDestPortComponent(443))
 				return f
 			}(),
-			expected: "flow-vpn rd 1:10.0.0.1:200 destination 192.168.1.0/24 destination-port =443",
+			expected: "flow-vpn rd 1:10.0.0.1:200 destination-ipv4 192.168.1.0/24 destination-port =443",
 		},
 	}
 
@@ -846,7 +846,8 @@ func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
 // TestPrefixComponentString verifies prefix component string format.
 //
 // VALIDATES: prefixComponent.String() outputs command-style format.
-// destination <prefix> for Type 1, source <prefix> for Type 2.
+// destination-ipv4 or destination-ipv6 for Type 1, source-ipv4 or source-ipv6 for
+// Type 2. The keyword names the family of the address the component holds.
 //
 // PREVENTS: Wrong component name, missing space between name and prefix.
 func TestPrefixComponentString(t *testing.T) {
@@ -859,17 +860,17 @@ func TestPrefixComponentString(t *testing.T) {
 		{
 			name:     "destination prefix",
 			comp:     NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")),
-			expected: "destination 10.0.0.0/24",
+			expected: "destination-ipv4 10.0.0.0/24",
 		},
 		{
 			name:     "source prefix",
 			comp:     NewFlowSourcePrefixComponent(netip.MustParsePrefix("192.168.0.0/16")),
-			expected: "source 192.168.0.0/16",
+			expected: "source-ipv4 192.168.0.0/16",
 		},
 		{
 			name:     "destination prefix IPv6",
 			comp:     NewFlowDestPrefixComponent(netip.MustParsePrefix("2001:db8::/32")),
-			expected: "destination 2001:db8::/32",
+			expected: "destination-ipv6 2001:db8::/32",
 		},
 	}
 
@@ -1045,8 +1046,8 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 				mustAddComponent(f, NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
 				return f
 			}(),
-			// Parser expects: nlri ipv4/flow add destination 10.0.0.0/24
-			expected: "flow destination 10.0.0.0/24",
+			// Parser expects: nlri ipv4/flow add destination-ipv4 10.0.0.0/24
+			expected: "flow destination-ipv4 10.0.0.0/24",
 		},
 		{
 			name: "port range",
@@ -1080,8 +1081,8 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 				mustAddComponent(f, NewFlowDestPortComponent(80, 443))
 				return f
 			}(),
-			// Parser expects: destination 10.0.0.0/24 protocol =6 destination-port =80 =443
-			expected: "flow destination 10.0.0.0/24 protocol 6 destination-port =80 =443",
+			// Parser expects: destination-ipv4 10.0.0.0/24 protocol =6 destination-port =80 =443
+			expected: "flow destination-ipv4 10.0.0.0/24 protocol 6 destination-port =80 =443",
 		},
 	}
 
@@ -1390,7 +1391,7 @@ func TestAddComponentRefusesASecondPrefix(t *testing.T) {
 	// The refusal leaves the FlowSpec as it was: the first prefix is neither replaced
 	// nor joined by a second one.
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, "flow destination 10.0.0.0/24", fs.String())
+	assert.Equal(t, "flow destination-ipv4 10.0.0.0/24", fs.String())
 }
 
 // TestFlowSpecNumericOperatorReservedBitZero verifies the numeric operator byte

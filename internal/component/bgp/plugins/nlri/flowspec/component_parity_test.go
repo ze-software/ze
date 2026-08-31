@@ -31,7 +31,7 @@ const (
 // against the function that decides what its encoder accepts.
 //
 // VALIDATES: the component set `ze-flowspec-cmd.yang` augments onto
-// `announce flowspec` is exactly the set `isComponentKeyword` recognises.
+// `announce flowspec` is exactly the set `isComponentKeyword` recognizes.
 // PREVENTS: the second copy drifting from its producer. The keyword set has one
 // producer, `isComponentKeyword` over the `kw*` constants, and declaring it in
 // YANG makes a copy. A copy with no check is a future disagreement with nothing
@@ -40,7 +40,7 @@ const (
 // discover, and one in the model alone is a component the usage line offers and
 // the encoder refuses.
 func TestModelDeclaresEveryComponentKeyword(t *testing.T) {
-	declared := augmentedContainerNames(t, flowspecyang.ZeFlowspecCmdYANG)
+	declared := componentContainerNames(t, flowspecyang.ZeFlowspecCmdYANG)
 	if len(declared) == 0 {
 		t.Fatal("no container names parsed out of the module, so this test could not discriminate")
 	}
@@ -117,24 +117,26 @@ func declaresComponent(sorted []string, want string) bool {
 	return index < len(sorted) && sorted[index] == want
 }
 
-// augmentedContainerNames answers the container names the module's augment
-// block declares, sorted.
+// componentContainerNames answers the container names the module's component
+// grouping declares, sorted.
 //
 // It reads the module text rather than the built command tree because the tree
-// needs the whole loader and this test's subject is what THIS module states. A
-// component container sits at the augment block's own indent; anything deeper
-// belongs to one of them.
-func augmentedContainerNames(t *testing.T, module string) []string {
+// needs the whole loader and this test's subject is what THIS module states. The
+// components live in one grouping, and each augment instantiates that grouping
+// with `uses`, so the grouping is where the vocabulary is written. A component
+// container sits at the grouping's own indent; anything deeper belongs to one of
+// them.
+func componentContainerNames(t *testing.T, module string) []string {
 	t.Helper()
 	const componentIndent = "        container "
 	names := make([]string, 0, componentCountHint)
-	inAugment := false
+	inGrouping := false
 	for line := range strings.SplitSeq(module, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "augment ") {
-			inAugment = true
+		if strings.HasPrefix(strings.TrimSpace(line), "grouping ") {
+			inGrouping = true
 			continue
 		}
-		if !inAugment || !strings.HasPrefix(line, componentIndent) {
+		if !inGrouping || !strings.HasPrefix(line, componentIndent) {
 			continue
 		}
 		name := strings.TrimSuffix(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "container ")), " {")

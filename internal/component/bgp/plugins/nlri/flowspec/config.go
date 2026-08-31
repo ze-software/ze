@@ -122,7 +122,7 @@ func flowSpecCriteriaFromContent(content []string) (string, map[string][]string,
 			continue
 		}
 
-		key := normalizeFlowSpecKey(tok)
+		key := tok
 		// Bracketed list: criterion [ v1 v2 ... ]
 		if i+1 < len(content) && content[i+1] == "[" {
 			j := i + 2
@@ -150,18 +150,6 @@ func flowSpecCriteriaFromContent(content []string) (string, map[string][]string,
 	}
 
 	return rd, criteria, nil
-}
-
-// normalizeFlowSpecKey maps the IPv4/IPv6 source/destination variants to the
-// family-agnostic keys buildFlowSpecComponents uses.
-func normalizeFlowSpecKey(k string) string {
-	switch k {
-	case "source-ipv4", kwSourceIPv6:
-		return kwSource
-	case "destination-ipv4", kwDestinationIPv6:
-		return kwDestination
-	}
-	return k
 }
 
 // wrapFlowSpecVPN wraps FlowSpec component bytes with the RFC 8955 Section 8 VPN

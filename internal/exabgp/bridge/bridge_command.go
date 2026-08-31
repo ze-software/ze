@@ -405,9 +405,13 @@ func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string
 	return fam, attrs, rd, textbuf.Join(nlri, " ")
 }
 
+// isFlowSpecComponentKeyword answers whether a token names a match component.
+//
+// Its one caller tests the token AFTER normalizeFlowSpecComponentToken has run,
+// so the bare aliases never reach it and the qualified spellings always do.
 func isFlowSpecComponentKeyword(token string) bool {
 	switch strings.ToLower(token) {
-	case "destination", "destination-ipv6", "source", "source-ipv6",
+	case "destination-ipv4", "destination-ipv6", "source-ipv4", "source-ipv6",
 		"protocol", "next-header", "port", "destination-port", "source-port",
 		"icmp-type", "icmp-code", "tcp-flags", "packet-length", "dscp",
 		"fragment", "traffic-class", "flow-label":
@@ -481,16 +485,28 @@ func normalizeFlowSpecExtCommunityToken(value string) string {
 	return value
 }
 
+// normalizeFlowSpecComponentToken rewrites ExaBGP's bare prefix keywords into
+// the family-qualified ones ze speaks.
+//
+// ExaBGP accepts `source` and `destination` as aliases of the qualified
+// spellings on input, and emits only the qualified ones
+// (src/exabgp/configuration/announce/flow.py and
+// src/exabgp/bgp/message/update/nlri/flow.py, both on 5.0 and main). An operator
+// config written by hand may still use the alias, so the bare word arrives here
+// and the route's family says which spelling it meant.
 func normalizeFlowSpecComponentToken(family, token string) string {
+	v6 := strings.HasPrefix(family, "ipv6/")
 	switch strings.ToLower(token) {
-	case "source-ipv4":
-		if strings.HasPrefix(family, "ipv4/") {
-			return "source"
+	case "source":
+		if v6 {
+			return "source-ipv6"
 		}
-	case "destination-ipv4":
-		if strings.HasPrefix(family, "ipv4/") {
-			return "destination"
+		return "source-ipv4"
+	case "destination":
+		if v6 {
+			return "destination-ipv6"
 		}
+		return "destination-ipv4"
 	}
 	return token
 }

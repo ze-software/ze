@@ -306,7 +306,7 @@ func TestResponderAnnounceEmitsUpdateText(t *testing.T) {
 	if len(disp.cmds) != 1 {
 		t.Fatalf("expected 1 dispatched command, got %d: %v", len(disp.cmds), disp.cmds)
 	}
-	want := "update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination 192.0.2.0/24 protocol =6 destination-port =80"
+	want := "update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination-ipv4 192.0.2.0/24 protocol =6 destination-port =80"
 	if disp.cmds[0] != want {
 		t.Errorf("announce command mismatch:\n got %q\nwant %q", disp.cmds[0], want)
 	}
@@ -330,7 +330,7 @@ func TestResponderWithdrawEmitsDel(t *testing.T) {
 		t.Fatal("should be withdrawn after probe clears")
 	}
 	last := disp.cmds[len(disp.cmds)-1]
-	want := "update text nlri ipv4/flow del destination 192.0.2.0/24 protocol =6 destination-port =80"
+	want := "update text nlri ipv4/flow del destination-ipv4 192.0.2.0/24 protocol =6 destination-port =80"
 	if last != want {
 		t.Errorf("withdraw command mismatch:\n got %q\nwant %q", last, want)
 	}
@@ -349,23 +349,23 @@ func TestBuildFlowspecUpdateText(t *testing.T) {
 	}{
 		{
 			"rate-limit v4 full", flowspecMatch{DstPrefix: netip.MustParsePrefix("192.0.2.0/24"), Proto: 6, DstPort: 80, SrcPort: 1024, TCPFlags: 0x12}, "rate-limit", 9600, "add",
-			"update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination 192.0.2.0/24 protocol =6 destination-port =80 source-port =1024 tcp-flags syn&ack",
+			"update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination-ipv4 192.0.2.0/24 protocol =6 destination-port =80 source-port =1024 tcp-flags syn&ack",
 		},
 		{
 			"discard v4 dst-only", flowspecMatch{DstPrefix: netip.MustParsePrefix("203.0.113.5/32")}, "discard", 0, "add",
-			"update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination 203.0.113.5/32",
+			"update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.5/32",
 		},
 		{
 			"rate-limit 0 equals discard", flowspecMatch{DstPrefix: netip.MustParsePrefix("203.0.113.5/32")}, "rate-limit", 0, "add",
-			"update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination 203.0.113.5/32",
+			"update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.5/32",
 		},
 		{
 			"v6 with protocol", flowspecMatch{DstPrefix: netip.MustParsePrefix("2001:db8::/32"), Proto: 17}, "rate-limit", 1000, "add",
-			"update text extended-community [rate-limit:1000] nhop self nlri ipv6/flow add destination 2001:db8::/32 protocol =17",
+			"update text extended-community [rate-limit:1000] nhop self nlri ipv6/flow add destination-ipv6 2001:db8::/32 protocol =17",
 		},
 		{
 			"del omits ext-community", flowspecMatch{DstPrefix: netip.MustParsePrefix("192.0.2.0/24"), Proto: 6, DstPort: 80}, "", 0, "del",
-			"update text nlri ipv4/flow del destination 192.0.2.0/24 protocol =6 destination-port =80",
+			"update text nlri ipv4/flow del destination-ipv4 192.0.2.0/24 protocol =6 destination-port =80",
 		},
 	}
 	for _, tc := range tests {

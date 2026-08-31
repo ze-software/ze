@@ -111,8 +111,8 @@ func TestParseNLRIJSONRefusesAnUnreadableValue(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 
 	for _, nlri := range []string{
-		`{"destination":[["not-a-prefix"]]}`,
-		`{"destination":[["10.1.0.0/24/8"]]}`,
+		`{"destination-ipv4":[["not-a-prefix"]]}`,
+		`{"destination-ipv4":[["10.1.0.0/24/8"]]}`,
 		`{"protocol":[["=nonsense"]]}`,
 		`{"destination-port":[["=eighty"]]}`,
 		`{"icmp-type":[["=echo"]]}`,

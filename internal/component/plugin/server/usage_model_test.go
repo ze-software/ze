@@ -607,7 +607,7 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 // help` prints, which is the line that replaced the last authored `Usage:`
 // sentence in the tree.
 //
-// VALIDATES: the whole grammar comes from the model. The nineteen components
+// VALIDATES: the whole grammar comes from the model. The seventeen components
 // are declared by ze-flowspec-cmd.yang and arrive through an augment, the
 // action and the two options are declared by ze-cli-announce-cmd.yang, and one
 // line carries both modules' words.
@@ -624,11 +624,11 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 func TestAnnounceFlowspecUsageStatesTheComponents(t *testing.T) {
 	const path = "announce flowspec"
 	const want = "announce flowspec " +
-		"[destination <prefix> ...] [destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] " +
+		"[destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] " +
 		"[destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] " +
 		"[fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] " +
 		"[next-header <value> ...] [packet-length <value> ...] [port <value> ...] " +
-		"[protocol <value> ...] [rd <value>] [source <prefix> ...] [source-ipv4 <prefix> ...] " +
+		"[protocol <value> ...] [rd <value>] [source-ipv4 <prefix> ...] " +
 		"[source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] " +
 		"[community <value>] [rate-limit <bytes-per-second>] [discard] " +
 		"[tag <key> <value>] [for <duration>]"

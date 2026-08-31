@@ -15,7 +15,7 @@ func TestHandleUpdate(t *testing.T) {
 	b := testBridge()
 
 	event := daemonAddJSON("10.0.0.1", "rate-limit:0", `{
-		"destination": [["10.1.0.0/24"]],
+		"destination-ipv4": [["10.1.0.0/24"]],
 		"protocol": [["=6"]],
 		"destination-port": [["=80"]]
 	}`)
@@ -39,12 +39,12 @@ func TestHandleUpdate(t *testing.T) {
 func TestHandleUpdateWithdraw(t *testing.T) {
 	b := testBridge()
 
-	add := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination": [["10.1.0.0/24"]]}`)
+	add := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
 	require.NoError(t, b.handleEvent(add))
 	require.NotNil(t, b.rules.buildTable())
 
 	withdraw := daemonUpdateJSON("10.0.0.1", nil,
-		daemonOp{action: "del", nlri: []string{`{"destination": [["10.1.0.0/24"]]}`}})
+		daemonOp{action: "del", nlri: []string{`{"destination-ipv4": [["10.1.0.0/24"]]}`}})
 	require.NoError(t, b.handleEvent(withdraw))
 	assert.Nil(t, b.rules.buildTable())
 }
@@ -52,7 +52,7 @@ func TestHandleUpdateWithdraw(t *testing.T) {
 func TestHandlePeerDown(t *testing.T) {
 	b := testBridge()
 
-	event := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination": [["10.1.0.0/24"]]}`)
+	event := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
 	require.NoError(t, b.handleEvent(event))
 	require.NotNil(t, b.rules.buildTable())
 
@@ -98,9 +98,9 @@ func TestStateEventDropsRulesOnlyWhenThePeerIsNotUp(t *testing.T) {
 	b := testBridge()
 
 	require.NoError(t, b.handleEvent(
-		daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination": [["10.1.0.0/24"]]}`)))
+		daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination-ipv4": [["10.1.0.0/24"]]}`)))
 	require.NoError(t, b.handleEvent(
-		daemonAddJSON("10.0.0.2", "rate-limit:0", `{"destination": [["10.2.0.0/24"]]}`)))
+		daemonAddJSON("10.0.0.2", "rate-limit:0", `{"destination-ipv4": [["10.2.0.0/24"]]}`)))
 	require.Len(t, b.rules.buildTable()[0].Chains[0].Terms, 2)
 
 	require.NoError(t, b.handleEvent(daemonStateJSON("10.0.0.1", "up")))
@@ -123,7 +123,7 @@ func TestHandleUpdateLocalDest(t *testing.T) {
 	b := testBridge()
 	b.addrs.add(netip.MustParseAddr("10.1.0.5"))
 
-	event := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination": [["10.1.0.0/24"]]}`)
+	event := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
 	require.NoError(t, b.handleEvent(event))
 
 	tables := b.rules.buildTable()
@@ -136,7 +136,7 @@ func TestHandleUpdateLocalDest(t *testing.T) {
 func TestHandleUpdateNoAction(t *testing.T) {
 	b := testBridge()
 
-	event := daemonAddJSON("10.0.0.1", "target:65000:100", `{"destination": [["10.1.0.0/24"]]}`)
+	event := daemonAddJSON("10.0.0.1", "target:65000:100", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
 	require.NoError(t, b.handleEvent(event))
 
 	assert.Nil(t, b.rules.buildTable())
@@ -145,8 +145,8 @@ func TestHandleUpdateNoAction(t *testing.T) {
 func TestHandleUpdateMultiplePeers(t *testing.T) {
 	b := testBridge()
 
-	event1 := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination": [["10.1.0.0/24"]]}`)
-	event2 := daemonAddJSON("10.0.0.2", "rate-limit:0", `{"destination": [["10.2.0.0/24"]]}`)
+	event1 := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
+	event2 := daemonAddJSON("10.0.0.2", "rate-limit:0", `{"destination-ipv4": [["10.2.0.0/24"]]}`)
 	require.NoError(t, b.handleEvent(event1))
 	require.NoError(t, b.handleEvent(event2))
 
@@ -164,7 +164,7 @@ func TestHandleUpdateMultiplePeers(t *testing.T) {
 func TestHandleUpdateRateLimit(t *testing.T) {
 	b := testBridge()
 
-	event := daemonAddJSON("10.0.0.1", "rate-limit:8000", `{"destination": [["10.1.0.0/24"]]}`)
+	event := daemonAddJSON("10.0.0.1", "rate-limit:8000", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
 	require.NoError(t, b.handleEvent(event))
 
 	tables := b.rules.buildTable()
@@ -180,7 +180,7 @@ func TestHandleUpdateRateLimit(t *testing.T) {
 func TestHandleUpdateDSCPMark(t *testing.T) {
 	b := testBridge()
 
-	event := daemonAddJSON("10.0.0.1", "mark:46", `{"destination": [["10.1.0.0/24"]]}`)
+	event := daemonAddJSON("10.0.0.1", "mark:46", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
 	require.NoError(t, b.handleEvent(event))
 
 	tables := b.rules.buildTable()
@@ -198,8 +198,8 @@ func TestHandleUpdateMaxRules(t *testing.T) {
 		log:   slogutil.DiscardLogger(),
 	}
 
-	event1 := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination": [["10.1.0.0/24"]]}`)
-	event2 := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination": [["10.2.0.0/24"]]}`)
+	event1 := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
+	event2 := daemonAddJSON("10.0.0.1", "rate-limit:0", `{"destination-ipv4": [["10.2.0.0/24"]]}`)
 	require.NoError(t, b.handleEvent(event1))
 	require.NoError(t, b.handleEvent(event2))
 
@@ -212,7 +212,7 @@ func TestHandleUpdateUnsupportedComponent(t *testing.T) {
 	b := testBridge()
 
 	event := daemonAddJSON("10.0.0.1", "rate-limit:0",
-		`{"destination": [["10.1.0.0/24"]], "packet-length": [["=128"]]}`)
+		`{"destination-ipv4": [["10.1.0.0/24"]], "packet-length": [["=128"]]}`)
 	require.NoError(t, b.handleEvent(event))
 
 	assert.Nil(t, b.rules.buildTable(), "rule with unsupported component should not be installed")
@@ -221,7 +221,7 @@ func TestHandleUpdateUnsupportedComponent(t *testing.T) {
 func TestHandleUpdateEmptyPeer(t *testing.T) {
 	b := testBridge()
 
-	event := daemonAddJSON("", "rate-limit:0", `{"destination": [["10.1.0.0/24"]]}`)
+	event := daemonAddJSON("", "rate-limit:0", `{"destination-ipv4": [["10.1.0.0/24"]]}`)
 	err := b.handleEvent(event)
 	assert.NoError(t, err)
 	assert.Nil(t, b.rules.buildTable(), "events without peer address should be ignored")
@@ -242,7 +242,7 @@ func TestRFC8955NextHopIgnoredForFlowSpec(t *testing.T) {
 	// envelope no writer in the tree produces, so this MUST was proven against bytes
 	// the daemon never sends. The named form "rate-limit:0" is what the event
 	// carries.
-	nlri := `{"destination": [["10.1.0.0/24"]],"protocol": [["=6"]],"destination-port": [["=80"]]}`
+	nlri := `{"destination-ipv4": [["10.1.0.0/24"]],"protocol": [["=6"]],"destination-port": [["=80"]]}`
 	withoutNextHop := daemonUpdateJSON("10.0.0.1", []string{"rate-limit:0"},
 		daemonOp{action: "add", nlri: []string{nlri}})
 	// Same UPDATE carrying a next-hop, which RFC 8955 Section 4 says MUST be ignored.

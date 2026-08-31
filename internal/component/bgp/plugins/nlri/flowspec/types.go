@@ -91,10 +91,13 @@ const (
 // These names match the API input syntax for round-trip compatibility.
 func (t FlowComponentType) String() string {
 	switch t {
+	// A prefix component names its own family, so prefixComponent.String()
+	// answers for these two and this method never has to guess. The type code
+	// alone cannot tell an RFC 8955 prefix from an RFC 8956 one.
 	case FlowDestPrefix:
-		return kwDestination
+		return kwDestinationIPv4
 	case FlowSourcePrefix:
-		return kwSource
+		return kwSourceIPv4
 	case FlowIPProtocol:
 		return kwProtocol
 	case FlowPort:

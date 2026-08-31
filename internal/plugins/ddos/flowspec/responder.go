@@ -72,12 +72,16 @@ func renderFlowspecCommand(m flowspecMatch, action string, rateBytes uint64, mod
 		// next-hop. Withdraw (MP_UNREACH) needs none.
 		b.Str(" nhop self")
 	}
+	// The family and the component keyword answer the same question, so they are
+	// decided together: a prefix component names its family in ze's vocabulary.
 	fam := "ipv4/flow"
+	destKeyword := "destination-ipv4"
 	if m.DstPrefix.Addr().Is6() {
 		fam = "ipv6/flow"
+		destKeyword = "destination-ipv6"
 	}
 	b.Str(" nlri ").Str(fam).Byte(' ').Str(mode)
-	b.Str(" destination ").Str(m.DstPrefix.String())
+	b.Byte(' ').Str(destKeyword).Byte(' ').Str(m.DstPrefix.String())
 	if m.Proto != 0 {
 		b.Str(" protocol =").Uint(uint64(m.Proto))
 	}

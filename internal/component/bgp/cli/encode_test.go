@@ -761,7 +761,7 @@ func TestCmdEncode_FlowSpec_Discard(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 then discard",
+		"match destination-ipv4 10.0.0.0/24 then discard",
 	}
 	exitCode := cmdEncode(args)
 
@@ -791,7 +791,7 @@ func TestCmdEncode_FlowSpec_Discard(t *testing.T) {
 	// - Prefix bytes 10.0.0 (0x0A, 0x00, 0x00)
 	destPrefixPattern := []byte{0x01, 0x18, 0x0A, 0x00, 0x00}
 	if !bytes.Contains(decoded, destPrefixPattern) {
-		t.Errorf("NLRI should contain destination 10.0.0.0/24 component (01 18 0A 00 00)")
+		t.Errorf("NLRI should contain destination-ipv4 10.0.0.0/24 component (01 18 0A 00 00)")
 	}
 }
 
@@ -807,7 +807,7 @@ func TestCmdEncode_FlowSpec_DestPort(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 destination-port 80 then discard",
+		"match destination-ipv4 10.0.0.0/24 destination-port 80 then discard",
 	}
 	exitCode := cmdEncode(args)
 
@@ -844,7 +844,7 @@ func TestCmdEncode_FlowSpec_IPv6(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv6/flow",
-		"match destination 2001:db8::/32 then discard",
+		"match destination-ipv6 2001:db8::/32 then discard",
 	}
 	exitCode := cmdEncode(args)
 
@@ -1191,7 +1191,7 @@ func TestCmdEncode_FlowSpec_Redirect_2ByteASN(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 then redirect 65000:100",
+		"match destination-ipv4 10.0.0.0/24 then redirect 65000:100",
 	}
 	exitCode := cmdEncode(args)
 
@@ -1226,7 +1226,7 @@ func TestCmdEncode_FlowSpec_Redirect_4ByteASN(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 then redirect 4200000000:100",
+		"match destination-ipv4 10.0.0.0/24 then redirect 4200000000:100",
 	}
 	exitCode := cmdEncode(args)
 
@@ -1261,7 +1261,7 @@ func TestCmdEncode_FlowSpec_Redirect_Boundary_65535(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 then redirect 65535:100",
+		"match destination-ipv4 10.0.0.0/24 then redirect 65535:100",
 	}
 	exitCode := cmdEncode(args)
 
@@ -1295,7 +1295,7 @@ func TestCmdEncode_FlowSpec_Redirect_Boundary_65536(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 then redirect 65536:100",
+		"match destination-ipv4 10.0.0.0/24 then redirect 65536:100",
 	}
 	exitCode := cmdEncode(args)
 
@@ -1337,7 +1337,7 @@ func TestCmdEncode_FlowSpec_Redirect_4ByteASN_LargeTarget(t *testing.T) {
 	// RFC 7674 limits local admin to 16 bits for 4-byte ASN format
 	args := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 then redirect 4200000000:70000",
+		"match destination-ipv4 10.0.0.0/24 then redirect 4200000000:70000",
 	}
 	exitCode := cmdEncode(args)
 
@@ -1370,7 +1370,7 @@ func TestCmdEncode_FlowSpec_Redirect_MalformedNoColon(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 then redirect 65000",
+		"match destination-ipv4 10.0.0.0/24 then redirect 65000",
 	}
 	exitCode := cmdEncode(args)
 
@@ -1402,7 +1402,7 @@ func TestCmdEncode_FlowSpec_Redirect_NegativeASN(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 then redirect -1:100",
+		"match destination-ipv4 10.0.0.0/24 then redirect -1:100",
 	}
 	exitCode := cmdEncode(args)
 
@@ -1434,7 +1434,7 @@ func TestCmdEncode_FlowSpec_Redirect_ASNOverflow(t *testing.T) {
 
 	args := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 then redirect 5000000000:100",
+		"match destination-ipv4 10.0.0.0/24 then redirect 5000000000:100",
 	}
 	exitCode := cmdEncode(args)
 

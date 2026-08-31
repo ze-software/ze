@@ -52,7 +52,7 @@ ze cli -c "show bgp peer flowspec-client capabilities"
 In a lab, inject a discard rule for TCP destination port 443:
 
 ```console
-ze cli -c "peer flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination 203.0.113.0/24 protocol tcp destination-port =443"
+ze cli -c "peer flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
 ```
 
 The command uses the same registered dispatcher through CLI, REST, gRPC, and
@@ -68,8 +68,8 @@ When several rules form one mitigation, stage and inspect them before release:
 
 ```console
 ze cli -c "request commit start mitigation-42"
-ze cli -c "peer flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination 203.0.113.0/24 protocol tcp destination-port =443"
-ze cli -c "peer flowspec-client update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination 203.0.113.0/24 protocol udp destination-port =53"
+ze cli -c "peer flowspec-client update text extended-community [rate-limit:0] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.0/24 protocol tcp destination-port =443"
+ze cli -c "peer flowspec-client update text extended-community [rate-limit:9600] nhop self nlri ipv4/flow add destination-ipv4 203.0.113.0/24 protocol udp destination-port =53"
 ze cli -c "request commit show mitigation-42"
 ze cli -c "request commit end mitigation-42"
 ```

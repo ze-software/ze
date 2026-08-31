@@ -192,13 +192,13 @@ func TestParseExtendedCommunities(t *testing.T) {
 func TestParseNLRIJSON(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 
-	nlri := []byte(`{"destination":[["10.0.0.0/24"]],"protocol":[["=6"]],"destination-port":[["=80"]]}`)
+	nlri := []byte(`{"destination-ipv4":[["10.0.0.0/24"]],"protocol":[["=6"]],"destination-port":[["=80"]]}`)
 	fs, err := parseNLRIJSON(fam, nlri)
 	require.NoError(t, err)
 	require.Len(t, fs.Components(), 3)
 
 	// Unsupported component rejects the rule
-	nlriBad := []byte(`{"destination":[["10.0.0.0/24"]],"packet-length":[["=128"]]}`)
+	nlriBad := []byte(`{"destination-ipv4":[["10.0.0.0/24"]],"packet-length":[["=128"]]}`)
 	_, err = parseNLRIJSON(fam, nlriBad)
 	assert.ErrorIs(t, err, errUnsupportedComponent)
 
@@ -264,7 +264,7 @@ func TestRangeOperatorRejected(t *testing.T) {
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIFlowSpec}
 
 	// Range operator in destination-port
-	nlri := []byte(`{"destination":[["10.0.0.0/24"]],"destination-port":[[">=1024"]]}`)
+	nlri := []byte(`{"destination-ipv4":[["10.0.0.0/24"]],"destination-port":[[">=1024"]]}`)
 	_, err := parseNLRIJSON(fam, nlri)
 	assert.ErrorIs(t, err, errUnsupportedOperator)
 

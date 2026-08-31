@@ -144,7 +144,7 @@ If the source (`flowspec-rr`, `203.0.113.1`) is a Ze node, announce toward `edge
 
 ```bash
 export XDG_RUNTIME_DIR=/run/ze
-/usr/local/bin/ze cli -c "peer 192.0.2.10 update text extended-community discard nlri ipv4/flow add destination 10.0.0.0/8 protocol tcp destination-port =80"
+/usr/local/bin/ze cli -c "peer 192.0.2.10 update text extended-community discard nlri ipv4/flow add destination-ipv4 10.0.0.0/8 protocol tcp destination-port =80"
 ```
 
 On a non-Ze source, use that router's FlowSpec origination syntax instead. Then, on `edge-01`, check that nftables received a rule:

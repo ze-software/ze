@@ -30,12 +30,10 @@ var (
 
 // FlowSpec component keywords.
 const (
-	kwDestination     = "destination"      // Type 1 (IPv4)
-	kwDestinationIPv4 = "destination-ipv4" // Type 1 (IPv4 alias of "destination")
-	kwDestinationIPv6 = "destination-ipv6" // Type 1 (IPv6)
-	kwSource          = "source"           // Type 2 (IPv4)
-	kwSourceIPv4      = "source-ipv4"      // Type 2 (IPv4 alias of "source")
-	kwSourceIPv6      = "source-ipv6"      // Type 2 (IPv6)
+	kwDestinationIPv4 = "destination-ipv4" // Type 1 (IPv4)
+	kwDestinationIPv6 = "destination-ipv6" // Type 1 (IPv6, RFC 8956 Section 3.1)
+	kwSourceIPv4      = "source-ipv4"      // Type 2 (IPv4)
+	kwSourceIPv6      = "source-ipv6"      // Type 2 (IPv6, RFC 8956 Section 3.2)
 	kwProtocol        = "protocol"         // Type 3 (IPv4)
 	kwNextHeader      = "next-header"      // Type 3 (IPv6)
 	kwPort            = "port"             // Type 4
@@ -209,9 +207,9 @@ func parseComponentText(args []string, fam Family) (FlowComponent, int, error) {
 	keyword := strings.ToLower(args[0])
 
 	switch keyword {
-	case kwDestination, kwDestinationIPv4, kwDestinationIPv6:
+	case kwDestinationIPv4, kwDestinationIPv6:
 		return parsePrefixComponentText(args, FlowDestPrefix, fam)
-	case kwSource, kwSourceIPv4, kwSourceIPv6:
+	case kwSourceIPv4, kwSourceIPv6:
 		return parsePrefixComponentText(args, FlowSourcePrefix, fam)
 	case kwProtocol, kwNextHeader:
 		return parseProtocolComponentText(args[1:])
@@ -426,7 +424,7 @@ func parseFragmentComponentText(args []string) (FlowComponent, int, error) {
 // isComponentKeyword checks if token is a component keyword.
 func isComponentKeyword(token string) bool {
 	switch token {
-	case kwDestination, kwDestinationIPv4, kwDestinationIPv6, kwSource, kwSourceIPv4, kwSourceIPv6,
+	case kwDestinationIPv4, kwDestinationIPv6, kwSourceIPv4, kwSourceIPv6,
 		kwProtocol, kwNextHeader, kwPort, kwDestPort, kwSourcePort,
 		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP,
 		kwFragment, kwFlowLabel, kwRD:

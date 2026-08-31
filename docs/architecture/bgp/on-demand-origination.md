@@ -113,7 +113,7 @@ states one grammar and the three forms take three, so the generated usage line
 named a first token no operator types and spelled the rest as `<args>`.
 
 **The vocabulary a command borrows is declared by the plugin that owns it.**
-`announce flowspec` takes nineteen match components, and they belong to the
+`announce flowspec` takes seventeen match components, and they belong to the
 FlowSpec codec: `isComponentKeyword`
 (`internal/component/bgp/plugins/nlri/flowspec/plugin_encode_text.go`) is their
 single producer, and `handleAnnounceFlowspec` never reads them. So the flowspec

@@ -136,26 +136,26 @@ func TestParseExtendedCommunitiesTrafficRateRefusesNonFinite(t *testing.T) {
 func TestParseFlowSpecArgsRecordsZeroValuedActions(t *testing.T) {
 	t.Parallel()
 
-	r, err := ParseFlowSpecArgs([]string{"match", "destination", "10.0.0.0/8", "then", "rate-limit", "0"})
+	r, err := ParseFlowSpecArgs([]string{"match", "destination-ipv4", "10.0.0.0/8", "then", "rate-limit", "0"})
 	require.NoError(t, err)
 	assert.True(t, r.Actions.RateLimitSet, "a zero byte rate must be recorded as requested")
 	assert.Zero(t, r.Actions.RateLimit)
 
-	r, err = ParseFlowSpecArgs([]string{"match", "destination", "10.0.0.0/8", "then", "rate-limit", "0", "packets"})
+	r, err = ParseFlowSpecArgs([]string{"match", "destination-ipv4", "10.0.0.0/8", "then", "rate-limit", "0", "packets"})
 	require.NoError(t, err)
 	assert.True(t, r.Actions.RateLimitPacketsSet, "a zero packet rate must be recorded as requested")
 	assert.False(t, r.Actions.RateLimitSet, "the packets unit must not also set the bytes action")
 
-	r, err = ParseFlowSpecArgs([]string{"match", "destination", "10.0.0.0/8", "then", "mark", "0"})
+	r, err = ParseFlowSpecArgs([]string{"match", "destination-ipv4", "10.0.0.0/8", "then", "mark", "0"})
 	require.NoError(t, err)
 	assert.True(t, r.Actions.MarkDSCPSet, "DSCP 0 is CS0, a value rather than an absence")
 	assert.Zero(t, r.Actions.MarkDSCP)
 
-	r, err = ParseFlowSpecArgs([]string{"match", "destination", "10.0.0.0/8", "then", "discard"})
+	r, err = ParseFlowSpecArgs([]string{"match", "destination-ipv4", "10.0.0.0/8", "then", "discard"})
 	require.NoError(t, err)
 	assert.False(t, r.Actions.RateLimitSet, "no rate limit was asked for")
 	assert.False(t, r.Actions.MarkDSCPSet, "no marking was asked for")
 
-	_, err = ParseFlowSpecArgs([]string{"match", "destination", "10.0.0.0/8", "then", "mark", "64"})
+	_, err = ParseFlowSpecArgs([]string{"match", "destination-ipv4", "10.0.0.0/8", "then", "mark", "64"})
 	require.Error(t, err, "a DSCP above the six-bit field must be refused at parse time")
 }

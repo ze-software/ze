@@ -45,7 +45,7 @@ const (
 	// testCapNameUnknown is the expected capability name for unknown capabilities.
 	testCapNameUnknown = "unknown"
 
-	// testFlowSpecNLRI is FlowSpec NLRI: destination 10.0.0.0/24.
+	// testFlowSpecNLRI is FlowSpec NLRI: destination-ipv4 10.0.0.0/24.
 	testFlowSpecNLRI = "0501180a0000"
 
 	// testFlowSpecFamily is the FlowSpec family for IPv4.
@@ -851,7 +851,7 @@ func TestDecodeNLRIFlag(t *testing.T) {
 func TestDecodeNLRIFlagWithPlugin(t *testing.T) {
 	// FlowSpec NLRI - plugin not available in test, should fall back to built-in
 	// This tests the infrastructure path even without actual plugin
-	hexInput := "0701180a0000" // Simple FlowSpec: destination 10.0.0.0/24
+	hexInput := "0701180a0000" // Simple FlowSpec: destination-ipv4 10.0.0.0/24
 
 	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flow", true)
 	require.NoError(t, err, "decode failed")

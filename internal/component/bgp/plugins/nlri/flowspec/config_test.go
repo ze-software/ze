@@ -58,12 +58,12 @@ func TestParseConfigRoute_FlowSpec(t *testing.T) {
 // a single bad criterion produced a zero-component all-match rule (found in /ze-review).
 func TestParseConfigRoute_FlowSpecRejectsBadCriteria(t *testing.T) {
 	cases := map[string]string{
-		"bad destination":   "add destination 999.999.999/24",
-		"bad port":          "add destination 10.0.0.0/24 port =garbage",
-		"only bad prefix":   "add source not-a-prefix",
+		"bad destination":   "add destination-ipv4 999.999.999/24",
+		"bad port":          "add destination-ipv4 10.0.0.0/24 port =garbage",
+		"only bad prefix":   "add source-ipv4 not-a-prefix",
 		"bad protocol":      "add protocol =notaproto",
-		"unknown criterion": "add destnation 10.0.0.0/24",               // typo: would yield all-match
-		"valid plus typo":   "add destination 10.0.0.0/24 prtocol =tcp", // typo alongside valid: would over-match
+		"unknown criterion": "add destnation 10.0.0.0/24",                    // typo: would yield all-match
+		"valid plus typo":   "add destination-ipv4 10.0.0.0/24 prtocol =tcp", // typo alongside valid: would over-match
 	}
 	for name, content := range cases {
 		_, err := parseConfigRoute(registry.ConfigRouteRequest{Content: strings.Fields(content)})
@@ -90,7 +90,7 @@ func TestParseConfigRoute_FlowSpecRejectsUnterminatedBracket(t *testing.T) {
 // rejecting legitimate routes: a fully valid multi-criteria route must still parse.
 func TestParseConfigRoute_FlowSpecValidStillBuilds(t *testing.T) {
 	pr, err := parseConfigRoute(registry.ConfigRouteRequest{
-		Content: strings.Fields("add destination 10.0.0.0/24 protocol [ =tcp =udp ] port =80"),
+		Content: strings.Fields("add destination-ipv4 10.0.0.0/24 protocol [ =tcp =udp ] port =80"),
 	})
 	if err != nil {
 		t.Fatalf("valid route rejected: %v", err)

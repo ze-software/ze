@@ -30,13 +30,13 @@ func TestRunFlowSpecDecode(t *testing.T) {
 			name:     "destination_prefix_ipv4",
 			input:    "decode nlri ipv4/flow 0501180a0000\n",
 			wantJSON: true,
-			contains: []string{"destination", "10.0.0.0/24"},
+			contains: []string{"destination-ipv4", "10.0.0.0/24"},
 		},
 		{
 			name:     "destination_with_protocol",
 			input:    "decode nlri ipv4/flow 0801180a0000038106\n",
 			wantJSON: true,
-			contains: []string{"destination", "10.0.0.0/24", "protocol", "=tcp"},
+			contains: []string{"destination-ipv4", "10.0.0.0/24", "protocol", "=tcp"},
 		},
 		{
 			name:     "invalid_family",
@@ -228,21 +228,21 @@ func TestFlowSpecVPNDecode(t *testing.T) {
 		contains []string
 	}{
 		{
-			// IPv4 FlowSpec VPN: RD type 0 (100:100) + destination 10.0.0.0/24
+			// IPv4 FlowSpec VPN: RD type 0 (100:100) + destination-ipv4 10.0.0.0/24
 			// Wire: len=13, RD(8 bytes: 0000 0064 00000064), type=01, preflen=24, prefix=0a0000
 			name:     "ipv4_flowspec_vpn_basic",
 			input:    "decode nlri ipv4/flow-vpn 0d0000006400000064" + "01180a0000\n",
 			wantJSON: true,
-			contains: []string{"destination", "10.0.0.0/24", "rd", "0:100:100"},
+			contains: []string{"destination-ipv4", "10.0.0.0/24", "rd", "0:100:100"},
 		},
 		{
-			// IPv6 FlowSpec VPN: RD type 1 (10.0.0.1:200) + destination 2001:db8::/32
+			// IPv6 FlowSpec VPN: RD type 1 (10.0.0.1:200) + destination-ipv6 2001:db8::/32
 			// Wire format (RFC 8955 Section 8): len + RD(8) + components
 			// len=0f (15 = 8 RD + 7 component), RD=0001 0a000001 00c8, type=01, preflen=20(32), offset=00, prefix=20010db8
 			name:     "ipv6_flowspec_vpn_basic",
 			input:    "decode nlri ipv6/flow-vpn 0f00010a00000100c8" + "012000" + "20010db8\n",
 			wantJSON: true,
-			contains: []string{"destination", "2001:db8::/32", "rd", "1:10.0.0.1:200"},
+			contains: []string{"destination-ipv6", "2001:db8::/32", "rd", "1:10.0.0.1:200"},
 		},
 		{
 			// FlowSpec VPN with multiple components: RD + dest + protocol
@@ -250,7 +250,7 @@ func TestFlowSpecVPNDecode(t *testing.T) {
 			name:     "ipv4_flowspec_vpn_multi_component",
 			input:    "decode nlri ipv4/flow-vpn 100000006400000064" + "01180a0000" + "038106\n",
 			wantJSON: true,
-			contains: []string{"destination", "protocol", "10.0.0.0/24", "rd"},
+			contains: []string{"destination-ipv4", "protocol", "10.0.0.0/24", "rd"},
 		},
 	}
 
@@ -293,20 +293,20 @@ func TestEncodeDecodeViaRunFlowSpecDecode(t *testing.T) {
 	}{
 		{
 			name:         "encode_destination",
-			input:        "encode nlri ipv4/flow destination 10.0.0.0/24\n",
+			input:        "encode nlri ipv4/flow destination-ipv4 10.0.0.0/24\n",
 			wantPrefix:   "encoded hex ",
 			wantContains: "0A0000",
 		},
 		{
-			// destination-ipv4 is an accepted alias of destination (config form).
-			name:         "encode_destination_ipv4_alias",
+			// The whole type 1 component: type byte, prefix length, prefix bytes.
+			name:         "encode_destination_ipv4_component",
 			input:        "encode nlri ipv4/flow destination-ipv4 10.0.0.0/24\n",
 			wantPrefix:   "encoded hex ",
 			wantContains: "01180A0000",
 		},
 		{
-			// source-ipv4 is an accepted alias of source.
-			name:         "encode_source_ipv4_alias",
+			// The whole type 2 component: type byte, prefix length, prefix bytes.
+			name:         "encode_source_ipv4_component",
 			input:        "encode nlri ipv4/flow source-ipv4 10.0.0.0/24\n",
 			wantPrefix:   "encoded hex ",
 			wantContains: "02180A0000",
@@ -319,7 +319,7 @@ func TestEncodeDecodeViaRunFlowSpecDecode(t *testing.T) {
 		},
 		{
 			name:         "encode_invalid_family",
-			input:        "encode nlri ipv4/unicast destination 10.0.0.0/24\n",
+			input:        "encode nlri ipv4/unicast destination-ipv4 10.0.0.0/24\n",
 			wantPrefix:   "encoded error ",
 			wantContains: "invalid family",
 		},
@@ -367,22 +367,22 @@ func TestRunFlowSpecDecodeTextFormat(t *testing.T) {
 		{
 			name:         "text_destination_prefix",
 			input:        "decode text nlri ipv4/flow 0501180a0000\n",
-			wantContains: []string{"decoded text", "destination", "10.0.0.0/24"},
+			wantContains: []string{"decoded text", "destination-ipv4", "10.0.0.0/24"},
 		},
 		{
 			name:         "text_destination_with_protocol",
 			input:        "decode text nlri ipv4/flow 0801180a0000038106\n",
-			wantContains: []string{"decoded text", "destination", "10.0.0.0/24", "protocol", "tcp"},
+			wantContains: []string{"decoded text", "destination-ipv4", "10.0.0.0/24", "protocol", "tcp"},
 		},
 		{
 			name:         "json_explicit_format",
 			input:        "decode json nlri ipv4/flow 0501180a0000\n",
-			wantContains: []string{"decoded json", "destination", "10.0.0.0/24"},
+			wantContains: []string{"decoded json", "destination-ipv4", "10.0.0.0/24"},
 		},
 		{
 			name:         "default_json_format",
 			input:        "decode nlri ipv4/flow 0501180a0000\n",
-			wantContains: []string{"decoded json", "destination", "10.0.0.0/24"},
+			wantContains: []string{"decoded json", "destination-ipv4", "10.0.0.0/24"},
 		},
 		{
 			name:        "text_invalid_family",
@@ -423,11 +423,11 @@ func TestRunFlowSpecDecodeTextFormat(t *testing.T) {
 // is accepted and is a no-op for the equality-only protocol component.
 func TestEncodeFlowSpecProtocolOperatorEquivalence(t *testing.T) {
 	t.Parallel()
-	bare, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"destination", "10.0.0.0/24", "protocol", "6"})
+	bare, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"destination-ipv4", "10.0.0.0/24", "protocol", "6"})
 	require.NoError(t, err)
 
 	for _, form := range []string{"=6", "=tcp", "tcp"} {
-		got, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"destination", "10.0.0.0/24", "protocol", form})
+		got, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{"destination-ipv4", "10.0.0.0/24", "protocol", form})
 		require.NoError(t, err, "protocol %s", form)
 		assert.Equal(t, bare, got, "protocol %s must encode identically to bare 6", form)
 	}
@@ -475,17 +475,17 @@ func TestEncodeFlowSpecRepeatedKeywordIsOneComponent(t *testing.T) {
 func TestEncodeFlowSpecVPNRDAnywhereInTheArguments(t *testing.T) {
 	t.Parallel()
 
-	leading, err := EncodeFlowSpecComponents(IPv4FlowSpecVPN, []string{"rd", "100:1", "destination", "10.0.0.0/24"})
+	leading, err := EncodeFlowSpecComponents(IPv4FlowSpecVPN, []string{"rd", "100:1", "destination-ipv4", "10.0.0.0/24"})
 	require.NoError(t, err)
 
-	trailing, err := EncodeFlowSpecComponents(IPv4FlowSpecVPN, []string{"destination", "10.0.0.0/24", "rd", "100:1"})
+	trailing, err := EncodeFlowSpecComponents(IPv4FlowSpecVPN, []string{"destination-ipv4", "10.0.0.0/24", "rd", "100:1"})
 	require.NoError(t, err)
 
 	assert.Equal(t, leading, trailing, "rd position must not change the NLRI")
 
 	// An rd on a family that carries no Route Distinguisher is refused rather than
 	// ignored.
-	_, err = EncodeFlowSpecComponents(IPv4FlowSpec, []string{"rd", "100:1", "destination", "10.0.0.0/24"})
+	_, err = EncodeFlowSpecComponents(IPv4FlowSpec, []string{"rd", "100:1", "destination-ipv4", "10.0.0.0/24"})
 	require.ErrorIs(t, err, errRdOnlyForVpnFamily)
 }
 
@@ -500,22 +500,22 @@ func TestEncodeJSONFormat(t *testing.T) {
 	}{
 		{
 			name:    "json_destination_prefix",
-			input:   `encode json nlri ipv4/flow {"destination":[["10.0.0.0/24/0"]]}` + "\n",
+			input:   `encode json nlri ipv4/flow {"destination-ipv4":[["10.0.0.0/24/0"]]}` + "\n",
 			wantHex: "0A0000", // 10.0.0.0 in hex
 		},
 		{
 			name:    "json_destination_with_protocol",
-			input:   `encode json nlri ipv4/flow {"destination":[["10.0.0.0/24/0"]],"protocol":[["=tcp"]]}` + "\n",
+			input:   `encode json nlri ipv4/flow {"destination-ipv4":[["10.0.0.0/24/0"]],"protocol":[["=tcp"]]}` + "\n",
 			wantHex: "0A0000", // Contains destination
 		},
 		{
 			name:    "text_explicit_format",
-			input:   "encode text nlri ipv4/flow destination 10.0.0.0/24\n",
+			input:   "encode text nlri ipv4/flow destination-ipv4 10.0.0.0/24\n",
 			wantHex: "0A0000",
 		},
 		{
 			name:    "default_text_format",
-			input:   "encode nlri ipv4/flow destination 10.0.0.0/24\n",
+			input:   "encode nlri ipv4/flow destination-ipv4 10.0.0.0/24\n",
 			wantHex: "0A0000",
 		},
 		{
@@ -571,17 +571,17 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 		{
 			name:   "destination_only",
 			family: "ipv4/flow",
-			text:   "destination 10.0.0.0/24",
+			text:   "destination-ipv4 10.0.0.0/24",
 		},
 		{
 			name:   "destination_with_protocol",
 			family: "ipv4/flow",
-			text:   "destination 192.168.1.0/24 protocol 6",
+			text:   "destination-ipv4 192.168.1.0/24 protocol 6",
 		},
 		{
 			name:   "source_with_port",
 			family: "ipv4/flow",
-			text:   "source 10.0.0.0/8 destination-port =80",
+			text:   "source-ipv4 10.0.0.0/8 destination-port =80",
 		},
 		{
 			name:   "multiple_protocols_or",
@@ -596,7 +596,7 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 		{
 			name:   "ipv6_destination",
 			family: "ipv6/flow",
-			text:   "destination 2001:db8::/32",
+			text:   "destination-ipv6 2001:db8::/32",
 		},
 		// Complex OR-of-AND groups
 		{
@@ -608,12 +608,12 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 		{
 			name:   "vpn_ipv4_destination",
 			family: "ipv4/flow-vpn",
-			text:   "rd 100:1 destination 10.0.0.0/24",
+			text:   "rd 100:1 destination-ipv4 10.0.0.0/24",
 		},
 		{
 			name:   "vpn_ipv6_destination",
 			family: "ipv6/flow-vpn",
-			text:   "rd 100:1 destination 2001:db8::/32",
+			text:   "rd 100:1 destination-ipv6 2001:db8::/32",
 		},
 		// TCP flags
 		{
@@ -705,7 +705,7 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 // PREVENTS: CLI mode regression.
 func TestRunCLIDecode(t *testing.T) {
 	t.Parallel()
-	// Valid FlowSpec NLRI: destination 10.0.0.0/24
+	// Valid FlowSpec NLRI: destination-ipv4 10.0.0.0/24
 	validHex := "0501180A0000"
 
 	tests := []struct {
@@ -723,7 +723,7 @@ func TestRunCLIDecode(t *testing.T) {
 			family:     "ipv4/flow",
 			textOutput: false,
 			wantCode:   0,
-			wantOut:    "destination",
+			wantOut:    "destination-ipv4",
 		},
 		{
 			name:       "valid_text",
@@ -731,7 +731,7 @@ func TestRunCLIDecode(t *testing.T) {
 			family:     "ipv4/flow",
 			textOutput: true,
 			wantCode:   0,
-			wantOut:    "destination",
+			wantOut:    "destination-ipv4",
 		},
 		{
 			name:       "invalid_hex",

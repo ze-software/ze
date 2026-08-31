@@ -28,7 +28,7 @@ bgp {
 				ipv4/unicast add 9.9.9.9/32
 				ipv6/unicast add 2001:db8::/32
 				ipv4/mpls-vpn add rd 65000:100 label 100 10.99.0.0/24
-				ipv4/flow add destination 10.0.0.0/24
+				ipv4/flow add destination-ipv4 10.0.0.0/24
 				ipv4/mpls-label add label 100 10.10.0.0/24
 				l2vpn/evpn eor
 			}

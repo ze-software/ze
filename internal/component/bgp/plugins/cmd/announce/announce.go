@@ -54,7 +54,7 @@ var (
 	errCommunityRequiresAction   = errors.New("community requires an action, such as traffic-rate <asn> <rate> or redirect <asn> <target>")
 	errFlowspecActionExtraTokens = errors.New("flowspec action does not use every token given to it")
 	errRateLimitRequiresBytes    = errors.New("rate-limit requires a bytes-per-second value")
-	errMissingFlowspecComponents = errors.New("flowspec announce requires at least one match component (e.g. destination <prefix>)")
+	errMissingFlowspecComponents = errors.New("flowspec announce requires at least one match component (e.g. destination-ipv4 <prefix>)")
 )
 
 var (
@@ -485,13 +485,18 @@ func trailingOptsAt(args []string) int {
 
 // flowspecFamilyName picks "ipv4/flow" vs "ipv6/flow" from the destination or
 // source prefix (a v6 prefix always contains ':'), defaulting to ipv4/flow.
+// flowspecFamilyName answers the family the match components name.
+//
+// A prefix keyword states its own family, so the answer is read from the
+// operator's words rather than guessed from the shape of a value. It used to
+// look for a colon in the token after `destination` or `source`, which could not
+// see `destination-ipv6` at all: that spelling fell through to the IPv4 default
+// and the encoder then refused the address.
 func flowspecFamilyName(components []string) string {
-	for i := 0; i+1 < len(components); i++ {
-		switch strings.ToLower(components[i]) {
-		case "destination", "source":
-			if strings.Contains(components[i+1], ":") {
-				return "ipv6/flow"
-			}
+	for _, token := range components {
+		switch strings.ToLower(token) {
+		case "destination-ipv6", "source-ipv6", "next-header", "flow-label":
+			return "ipv6/flow"
 		}
 	}
 	return "ipv4/flow"

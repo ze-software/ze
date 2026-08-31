@@ -51,23 +51,23 @@ func TestEncodeRouteEmitsZeroValuedActions(t *testing.T) {
 	// RFC 8955 Section 7.5: the DSCP is the 6 least significant bits of the value
 	// and the "reserved (r): MUST be set to 0 on encoding".
 	// RFC requirement: RFC8955-7.5-1 positive -- an encoded traffic-marking action carries zero in every reserved octet and in both reserved bits (§7.5)
-	got := encodeFlowSpecActions(t, "match destination 10.0.0.0/8 then mark 0")
+	got := encodeFlowSpecActions(t, "match destination-ipv4 10.0.0.0/8 then mark 0")
 	require.Len(t, got, 8, "a marking action must reach the wire, DSCP 0 included")
 	assert.Equal(t, []byte{0x80, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, got)
 
 	// RFC 8955 Section 7.1: "A traffic-rate of 0 should result on all traffic for
 	// the particular flow to be discarded."
-	got = encodeFlowSpecActions(t, "match destination 10.0.0.0/8 then rate-limit 0")
+	got = encodeFlowSpecActions(t, "match destination-ipv4 10.0.0.0/8 then rate-limit 0")
 	require.Len(t, got, 8, "a zero byte rate is a discard, not an absent action")
 	assert.Equal(t, []byte{0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, got)
 
-	got = encodeFlowSpecActions(t, "match destination 10.0.0.0/8 then rate-limit 0 packets")
+	got = encodeFlowSpecActions(t, "match destination-ipv4 10.0.0.0/8 then rate-limit 0 packets")
 	require.Len(t, got, 8, "a zero packet rate is a discard, not an absent action")
 	assert.Equal(t, []byte{0x80, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, got)
 
 	// A route that asks for no action still carries none, so the flags above add
 	// an action rather than inventing one.
-	got = encodeFlowSpecActions(t, "match destination 10.0.0.0/8 then accept")
+	got = encodeFlowSpecActions(t, "match destination-ipv4 10.0.0.0/8 then accept")
 	assert.Empty(t, got, "accept asks for no traffic filtering action")
 }
 
@@ -84,13 +84,13 @@ func TestEncodeRouteMarkKeepsReservedBitsZero(t *testing.T) {
 	t.Parallel()
 
 	// RFC requirement: RFC8955-7.5-1 positive -- the largest valid DSCP encodes with both reserved bits clear (§7.5)
-	got := encodeFlowSpecActions(t, "match destination 10.0.0.0/8 then mark 63")
+	got := encodeFlowSpecActions(t, "match destination-ipv4 10.0.0.0/8 then mark 63")
 	require.Len(t, got, 8)
 	assert.Equal(t, []byte{0x80, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3f}, got)
 	assert.Zero(t, got[7]&0xC0, "the two reserved bits must be 0")
 
 	// RFC requirement: RFC8955-7.5-1 negative -- a DSCP that would set the reserved bits is refused rather than encoded (§7.5)
-	_, _, err := EncodeRoute("match destination 10.0.0.0/8 then mark 64", "ipv4/flow", 65000, false, true, false)
+	_, _, err := EncodeRoute("match destination-ipv4 10.0.0.0/8 then mark 64", "ipv4/flow", 65000, false, true, false)
 	require.Error(t, err, "a DSCP above 63 must be refused")
 }
 
@@ -113,11 +113,11 @@ func TestEncodeRouteRedirectEncodings(t *testing.T) {
 		{"192.0.2.1:100", []byte{0x81, 0x08, 0xc0, 0x00, 0x02, 0x01, 0x00, 0x64}},
 		{"4200000000:100", []byte{0x82, 0x08, 0xfa, 0x56, 0xea, 0x00, 0x00, 0x64}},
 	} {
-		got := encodeFlowSpecActions(t, "match destination 10.0.0.0/8 then redirect "+tc.target)
+		got := encodeFlowSpecActions(t, "match destination-ipv4 10.0.0.0/8 then redirect "+tc.target)
 		assert.Equal(t, tc.want, got, "redirect %s", tc.target)
 	}
 
-	_, _, err := EncodeRoute("match destination 10.0.0.0/8 then redirect 192.0.2.1:65536",
+	_, _, err := EncodeRoute("match destination-ipv4 10.0.0.0/8 then redirect 192.0.2.1:65536",
 		"ipv4/flow", 65000, false, true, false)
 	require.Error(t, err, "the IPv4 form holds a 2-octet value, so 65536 must be refused")
 }

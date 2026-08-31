@@ -494,9 +494,9 @@ func extractNumericValues(comp flowspec.FlowComponent) []uint64 {
 // nlriJSON is the JSON representation of a FlowSpec NLRI from the BGP event.
 // Keys match the flowspec plugin's JSON output (json.go flowSpecKey).
 type nlriJSON struct {
-	Destination   [][]string `json:"destination"`
+	Destination   [][]string `json:"destination-ipv4"`
 	DestinationV6 [][]string `json:"destination-ipv6"`
-	Source        [][]string `json:"source"`
+	Source        [][]string `json:"source-ipv4"`
 	SourceV6      [][]string `json:"source-ipv6"`
 	Protocol      [][]string `json:"protocol"`
 	NextHeader    [][]string `json:"next-header"`

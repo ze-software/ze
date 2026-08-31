@@ -99,7 +99,7 @@ func componentToJSON(comp FlowComponent, isIPv6 bool) (string, [][]string) {
 
 	switch compType {
 	case FlowDestPrefix:
-		key := kwDestination
+		key := kwDestinationIPv4
 		if isIPv6 {
 			key = kwDestinationIPv6
 		}
@@ -107,7 +107,7 @@ func componentToJSON(comp FlowComponent, isIPv6 bool) (string, [][]string) {
 		return key, [][]string{{prefix}}
 
 	case FlowSourcePrefix:
-		key := kwSource
+		key := kwSourceIPv4
 		if isIPv6 {
 			key = kwSourceIPv6
 		}
@@ -350,7 +350,7 @@ func formatFlowSpecText(result map[string]any) string {
 
 	// Order components logically: destination, source, protocol, ports, etc.
 	componentOrder := []string{
-		kwDestination, kwSource, kwProtocol,
+		kwDestinationIPv4, kwDestinationIPv6, kwSourceIPv4, kwSourceIPv6, kwProtocol,
 		kwPort, kwDestPort, kwSourcePort,
 		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP,
 		kwFragment, kwFlowLabel, kwRD,
@@ -454,7 +454,7 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 	// RD must come first for VPN families (parsed before components)
 	componentOrder := []string{
 		kwRD, // Route Distinguisher - must be first for VPN families
-		kwDestination, kwDestinationIPv6, kwSource, kwSourceIPv6,
+		kwDestinationIPv4, kwDestinationIPv6, kwSourceIPv4, kwSourceIPv6,
 		kwProtocol, kwNextHeader, kwPort, kwDestPort, kwSourcePort,
 		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP,
 		kwFragment, kwFlowLabel,
@@ -548,8 +548,10 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 // E.g., "10.0.0.0/24/0" -> "10.0.0.0/24" (strip offset for prefixes).
 // E.g., "=tcp" -> "tcp" (strip operator for protocol/next-header).
 func normalizeJSONValue(key, val string) string {
-	// Strip /0 offset suffix from prefixes (destination, source)
-	if strings.HasPrefix(key, kwDestination) || strings.HasPrefix(key, kwSource) {
+	// Strip the /0 offset suffix a prefix component carries. The four prefix
+	// keywords are named rather than matched on a shared first word, so
+	// destination-port never reaches a branch written for an address.
+	if isPrefixComponentKey(key) {
 		if strings.HasSuffix(val, "/0") {
 			// "10.0.0.0/24/0" -> "10.0.0.0/24"
 			parts := strings.Split(val, "/")
@@ -571,4 +573,15 @@ func normalizeJSONValue(key, val string) string {
 	}
 
 	return val
+}
+
+// isPrefixComponentKey answers whether a JSON key names one of the four prefix
+// components, which are the only ones whose value carries the RFC 8956 offset
+// suffix.
+func isPrefixComponentKey(key string) bool {
+	switch key {
+	case kwDestinationIPv4, kwDestinationIPv6, kwSourceIPv4, kwSourceIPv6:
+		return true
+	}
+	return false
 }

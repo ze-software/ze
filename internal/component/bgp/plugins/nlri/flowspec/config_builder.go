@@ -40,27 +40,29 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 		}
 	}
 
-	// Add destination prefix (first value only - prefix is singular)
-	if vals, ok := matchCriteria[kwDestination]; ok {
-		seen[kwDestination] = true
+	// Add destination prefix (first value only - prefix is singular). Both
+	// spellings are looked up and the operator's own word is what a refusal
+	// names, so the message quotes the config rather than an internal key.
+	if key, vals, ok := prefixCriterion(matchCriteria, kwDestinationIPv4, kwDestinationIPv6); ok {
+		seen[key] = true
 		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
-			dropped = append(dropped, kwDestination)
+			dropped = append(dropped, key)
 		} else if prefix.Addr().Is6() && offset > 0 {
-			add(kwDestination, newFlowDestPrefixComponentWithOffset(prefix, offset))
+			add(key, newFlowDestPrefixComponentWithOffset(prefix, offset))
 		} else {
-			add(kwDestination, NewFlowDestPrefixComponent(prefix))
+			add(key, NewFlowDestPrefixComponent(prefix))
 		}
 	}
 
 	// Add source prefix (first value only - prefix is singular)
-	if vals, ok := matchCriteria[kwSource]; ok {
-		seen[kwSource] = true
+	if key, vals, ok := prefixCriterion(matchCriteria, kwSourceIPv4, kwSourceIPv6); ok {
+		seen[key] = true
 		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
-			dropped = append(dropped, kwSource)
+			dropped = append(dropped, key)
 		} else if prefix.Addr().Is6() && offset > 0 {
-			add(kwSource, newFlowSourcePrefixComponentWithOffset(prefix, offset))
+			add(key, newFlowSourcePrefixComponentWithOffset(prefix, offset))
 		} else {
-			add(kwSource, NewFlowSourcePrefixComponent(prefix))
+			add(key, NewFlowSourcePrefixComponent(prefix))
 		}
 	}
 
@@ -526,4 +528,21 @@ func parseFlowICMPCodesSlice(vals []string) []uint8 {
 		result = append(result, parseFlowICMPCodes(v)...)
 	}
 	return result
+}
+
+// prefixCriterion answers the criterion an operator wrote for one prefix
+// component, whichever of the two family spellings they used.
+//
+// A prefix component is singular, so the two spellings name one slot rather than
+// two: a config carrying both is answering the same question twice and the
+// second answer is dropped as an unknown criterion by the caller's `seen` sweep.
+// The KEY comes back with the value so every refusal quotes the operator.
+func prefixCriterion(criteria map[string][]string, v4, v6 string) (key string, values []string, ok bool) {
+	if vals, found := criteria[v4]; found {
+		return v4, vals, true
+	}
+	if vals, found := criteria[v6]; found {
+		return v6, vals, true
+	}
+	return "", nil, false
 }

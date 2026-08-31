@@ -1945,7 +1945,7 @@ The `N:json:` lines use ZeBGP plugin format (not ExaBGP envelope format):
 
 **FlowSpec:**
 ```json
-{"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","ipv4/flowspec":[{"action":"add","nlri":{"next-hop":"1.2.3.4","destination":["192.168.0.1/32"],"string":"flow destination 192.168.0.1/32"}}]}
+{"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","ipv4/flowspec":[{"action":"add","nlri":{"next-hop":"1.2.3.4","destination-ipv4":["192.168.0.1/32"],"string":"flow destination-ipv4 192.168.0.1/32"}}]}
 ```
 
 **Supported families:** `ipv4/unicast`, `ipv6/unicast`, `ipv4/flowspec`, `ipv6/flowspec`

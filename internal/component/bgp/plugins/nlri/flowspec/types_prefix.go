@@ -82,10 +82,29 @@ func (c *prefixComponent) Bytes() []byte {
 	return data
 }
 
-// String returns command-style format: "<type> <prefix>".
-// Example: "destination 10.0.0.0/24" or "source 192.168.0.0/16".
+// String returns command-style format: "<keyword> <prefix>".
+// Example: "destination-ipv4 10.0.0.0/24" or "source-ipv6 2001:db8::/32".
+//
+// The keyword names the family, and this component holds the address that
+// decides it. FlowComponentType.String() answers from the type code alone,
+// which RFC 8955 and RFC 8956 share for these two, so it cannot.
 func (c *prefixComponent) String() string {
-	return c.compType.String() + " " + c.prefix.String()
+	return c.keyword() + " " + c.prefix.String()
+}
+
+// keyword answers the component keyword for this prefix, by family.
+func (c *prefixComponent) keyword() string {
+	v6 := c.prefix.Addr().Is6()
+	if c.compType == FlowSourcePrefix {
+		if v6 {
+			return kwSourceIPv6
+		}
+		return kwSourceIPv4
+	}
+	if v6 {
+		return kwDestinationIPv6
+	}
+	return kwDestinationIPv4
 }
 
 // Len returns the wire-format length in bytes.

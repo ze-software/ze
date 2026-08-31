@@ -149,16 +149,16 @@ func TestSplitFlowspecArgs(t *testing.T) {
 	}{
 		{
 			"rate-limit with tag",
-			[]string{"destination", "10.0.0.0/24", "protocol", "=6", "rate-limit", "100000", "tag", "ddos", "udp"},
-			[]string{"destination", "10.0.0.0/24", "protocol", "=6"},
+			[]string{"destination-ipv4", "10.0.0.0/24", "protocol", "=6", "rate-limit", "100000", "tag", "ddos", "udp"},
+			[]string{"destination-ipv4", "10.0.0.0/24", "protocol", "=6"},
 			[]string{"traffic-rate", "0", "100000", "bytes"},
 			[]string{"tag", "ddos", "udp"},
 			false,
 		},
 		{
 			"discard",
-			[]string{"destination", "10.0.0.0/24", "discard"},
-			[]string{"destination", "10.0.0.0/24"},
+			[]string{"destination-ipv4", "10.0.0.0/24", "discard"},
+			[]string{"destination-ipv4", "10.0.0.0/24"},
 			[]string{"discard"},
 			[]string{},
 			false,
@@ -170,8 +170,8 @@ func TestSplitFlowspecArgs(t *testing.T) {
 			// defines and the two keywords do not, such as redirect, is now
 			// reachable rather than refused before it is ever parsed.
 			"community carries the action verbatim",
-			[]string{"destination", "10.0.0.0/24", "community", "traffic-rate", "65001", "9600", "bytes", "for", "300s"},
-			[]string{"destination", "10.0.0.0/24"},
+			[]string{"destination-ipv4", "10.0.0.0/24", "community", "traffic-rate", "65001", "9600", "bytes", "for", "300s"},
+			[]string{"destination-ipv4", "10.0.0.0/24"},
 			[]string{"traffic-rate", "65001", "9600", "bytes"},
 			[]string{"for", "300s"},
 			false,
@@ -180,17 +180,17 @@ func TestSplitFlowspecArgs(t *testing.T) {
 			// An action's token count varies, so only the option keywords say
 			// where it ends. With none present it runs to the end.
 			"community with no trailing options",
-			[]string{"destination", "10.0.0.0/24", "community", "redirect", "65001", "100"},
-			[]string{"destination", "10.0.0.0/24"},
+			[]string{"destination-ipv4", "10.0.0.0/24", "community", "redirect", "65001", "100"},
+			[]string{"destination-ipv4", "10.0.0.0/24"},
 			[]string{"redirect", "65001", "100"},
 			[]string{},
 			false,
 		},
-		{"rate-limit missing value", []string{"destination", "10.0.0.0/24", "rate-limit"}, nil, nil, nil, true},
-		{"community missing action", []string{"destination", "10.0.0.0/24", "community"}, nil, nil, nil, true},
-		{"community missing action before options", []string{"destination", "10.0.0.0/24", "community", "for", "300s"}, nil, nil, nil, true},
-		{"no action", []string{"destination", "10.0.0.0/24"}, nil, nil, nil, true},
-		{"opts before action", []string{"destination", "10.0.0.0/24", "tag", "x", "y"}, nil, nil, nil, true},
+		{"rate-limit missing value", []string{"destination-ipv4", "10.0.0.0/24", "rate-limit"}, nil, nil, nil, true},
+		{"community missing action", []string{"destination-ipv4", "10.0.0.0/24", "community"}, nil, nil, nil, true},
+		{"community missing action before options", []string{"destination-ipv4", "10.0.0.0/24", "community", "for", "300s"}, nil, nil, nil, true},
+		{"no action", []string{"destination-ipv4", "10.0.0.0/24"}, nil, nil, nil, true},
+		{"opts before action", []string{"destination-ipv4", "10.0.0.0/24", "tag", "x", "y"}, nil, nil, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -213,9 +213,9 @@ func TestFlowspecFamilyName(t *testing.T) {
 		components []string
 		want       string
 	}{
-		{"v4 destination", []string{"destination", "10.0.0.0/24", "protocol", "=6"}, "ipv4/flow"},
-		{"v6 destination", []string{"destination", "2001:db8::/32"}, "ipv6/flow"},
-		{"v6 source", []string{"source", "2001:db8::/48", "destination", "2001:db8:1::/48"}, "ipv6/flow"},
+		{"v4 destination", []string{"destination-ipv4", "10.0.0.0/24", "protocol", "=6"}, "ipv4/flow"},
+		{"v6 destination", []string{"destination-ipv6", "2001:db8::/32"}, "ipv6/flow"},
+		{"v6 source", []string{"source-ipv6", "2001:db8::/48", "destination-ipv6", "2001:db8:1::/48"}, "ipv6/flow"},
 		{"no prefix defaults v4", []string{"protocol", "=17", "destination-port", "=53"}, "ipv4/flow"},
 	}
 	for _, tt := range tests {
@@ -234,8 +234,8 @@ func TestEncodeFlowspecNLRIBuildsWireRoute(t *testing.T) {
 		components []string
 		wantFamily string
 	}{
-		{"v4", []string{"destination", "192.0.2.0/24", "protocol", "=6", "destination-port", "=80"}, "ipv4/flow"},
-		{"v6", []string{"destination", "2001:db8::/32", "protocol", "=17"}, "ipv6/flow"},
+		{"v4", []string{"destination-ipv4", "192.0.2.0/24", "protocol", "=6", "destination-port", "=80"}, "ipv4/flow"},
+		{"v6", []string{"destination-ipv6", "2001:db8::/32", "protocol", "=17"}, "ipv6/flow"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -261,9 +261,9 @@ func TestHandleAnnounceFlowspec(t *testing.T) {
 		args       []string
 		wantFamily string
 	}{
-		{"rate-limit v4", []string{"destination", "192.0.2.0/24", "protocol", "=6", "destination-port", "=80", "rate-limit", "9600"}, "ipv4/flow"},
-		{"discard v4", []string{"destination", "203.0.113.5/32", "discard"}, "ipv4/flow"},
-		{"rate-limit v6", []string{"destination", "2001:db8::/32", "rate-limit", "1000"}, "ipv6/flow"},
+		{"rate-limit v4", []string{"destination-ipv4", "192.0.2.0/24", "protocol", "=6", "destination-port", "=80", "rate-limit", "9600"}, "ipv4/flow"},
+		{"discard v4", []string{"destination-ipv4", "203.0.113.5/32", "discard"}, "ipv4/flow"},
+		{"rate-limit v6", []string{"destination-ipv6", "2001:db8::/32", "rate-limit", "1000"}, "ipv6/flow"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -280,7 +280,7 @@ func TestHandleAnnounceFlowspec(t *testing.T) {
 
 	// An action is mandatory: components with no rate-limit/discard is an error.
 	rctr := &captureReactor{}
-	_, err := handleAnnounceFlowspec(ctx, rctr, reg, []string{"destination", "192.0.2.0/24"})
+	_, err := handleAnnounceFlowspec(ctx, rctr, reg, []string{"destination-ipv4", "192.0.2.0/24"})
 	require.Error(t, err, "missing action must error")
 	assert.Equal(t, 0, rctr.calls, "nothing dispatched on error")
 }
@@ -317,29 +317,29 @@ func TestFlowspecActionAcceptsACommunity(t *testing.T) {
 
 	// A rate of 9600 through the sugar and through the community are the same
 	// announcement, so the attribute sections are byte-identical.
-	sugar := announce(t, []string{"destination", prefix, "rate-limit", "9600"})
-	spelled := announce(t, []string{"destination", prefix, "community", "traffic-rate", "0", "9600", "bytes"})
+	sugar := announce(t, []string{"destination-ipv4", prefix, "rate-limit", "9600"})
+	spelled := announce(t, []string{"destination-ipv4", prefix, "community", "traffic-rate", "0", "9600", "bytes"})
 	assert.Equal(t, sugar, spelled, "rate-limit is a spelling of a traffic-rate community")
 
-	discard := announce(t, []string{"destination", prefix, "discard"})
-	zeroRate := announce(t, []string{"destination", prefix, "community", "traffic-rate", "0", "0", "bytes"})
+	discard := announce(t, []string{"destination-ipv4", prefix, "discard"})
+	zeroRate := announce(t, []string{"destination-ipv4", prefix, "community", "traffic-rate", "0", "0", "bytes"})
 	assert.Equal(t, discard, zeroRate, "discard is a spelling of a traffic-rate of zero")
 
 	// redirect is an action the two keywords cannot spell, and reaching it is
 	// the point of the community form.
-	redirect := announce(t, []string{"destination", prefix, "community", "redirect", "65001", "100"})
+	redirect := announce(t, []string{"destination-ipv4", prefix, "community", "redirect", "65001", "100"})
 	assert.NotEqual(t, discard, redirect, "redirect encodes an action of its own")
 
 	// The trailing options still cut the action short.
-	withOpts := announce(t, []string{"destination", prefix, "community", "redirect", "65001", "100", "for", "300s"})
+	withOpts := announce(t, []string{"destination-ipv4", prefix, "community", "redirect", "65001", "100", "for", "300s"})
 	assert.Equal(t, redirect, withOpts, "the trailing options are not action tokens")
 
 	for _, tc := range []struct {
 		name string
 		args []string
 	}{
-		{"a word after a complete action", []string{"destination", prefix, "community", "redirect", "65001", "100", "junk"}},
-		{"a word after the sugar's own form", []string{"destination", prefix, "community", "traffic-rate", "0", "9600", "bytes", "junk"}},
+		{"a word after a complete action", []string{"destination-ipv4", prefix, "community", "redirect", "65001", "100", "junk"}},
+		{"a word after the sugar's own form", []string{"destination-ipv4", prefix, "community", "traffic-rate", "0", "9600", "bytes", "junk"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rctr := &captureReactor{}

@@ -75,7 +75,7 @@ func otherOwnerTable() firewall.Table {
 
 func flowSpecAddEvent(peer, protocol string) string {
 	return daemonAddJSON(peer, "rate-limit:0", `{
-		"destination": [["10.1.0.0/24"]],
+		"destination-ipv4": [["10.1.0.0/24"]],
 		"protocol": [["=`+protocol+`"]]
 	}`)
 }

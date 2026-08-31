@@ -17,16 +17,20 @@ import (
 
 // FlowSpec keywords, as an API flow command spells them.
 //
-// flowspecMatchSource is the source PREFIX of a match block, which is a
-// different thing from keywordSource (route_keywords.go), the source ADDRESS of
-// a MUP route. The two share a spelling and nothing else.
+// flowspecMatchSourceIPv4 and flowspecMatchSourceIPv6 are the source PREFIX of a
+// match block. Each names its family, because RFC 8955 Type 2 and RFC 8956 Type 2
+// share a type code and carry different encodings. They are a different thing
+// from keywordSource (route_keywords.go), the source ADDRESS of a MUP route.
 //
 // Each action name is also how the extended community carrying that action is
 // spelled, both in function syntax (`discard()`) and as a type prefix
 // (`rate-limit:...`), so route_community.go parses them from these same
 // constants.
 const (
-	flowspecMatchSource            = "source"
+	flowspecMatchDestIPv4          = "destination-ipv4"
+	flowspecMatchDestIPv6          = "destination-ipv6"
+	flowspecMatchSourceIPv4        = "source-ipv4"
+	flowspecMatchSourceIPv6        = "source-ipv6"
 	flowspecActionDiscard          = "discard"
 	flowspecActionRateLimit        = "rate-limit"
 	flowspecActionRateLimitPackets = "rate-limit-packets"
@@ -71,7 +75,7 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 			value := args[i+1]
 
 			switch arg {
-			case "destination":
+			case flowspecMatchDestIPv4, flowspecMatchDestIPv6:
 				prefix, err := netip.ParsePrefix(value)
 				if err != nil {
 					return route, fmt.Errorf("%w: %s", ErrInvalidPrefix, value)
@@ -82,7 +86,7 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 				}
 				i++
 
-			case flowspecMatchSource:
+			case flowspecMatchSourceIPv4, flowspecMatchSourceIPv6:
 				prefix, err := netip.ParsePrefix(value)
 				if err != nil {
 					return route, fmt.Errorf("%w: %s", ErrInvalidPrefix, value)
@@ -208,7 +212,8 @@ func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 		default: // reject keywords outside match/then blocks
 			// Provide helpful error: is it a misplaced match/then keyword or unknown?
 			switch arg {
-			case "destination", flowspecMatchSource, "protocol", "port", "destination-port", "source-port":
+			case flowspecMatchDestIPv4, flowspecMatchDestIPv6, flowspecMatchSourceIPv4, flowspecMatchSourceIPv6,
+				"protocol", "port", "destination-port", "source-port":
 				return route, fmt.Errorf("match keyword %q must appear after 'match'", arg)
 			case "accept", flowspecActionDiscard, flowspecActionRateLimit, flowspecActionRateLimitPackets, flowspecActionRedirect, "mark":
 				return route, fmt.Errorf("then keyword %q must appear after 'then'", arg)

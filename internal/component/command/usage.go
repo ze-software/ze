@@ -267,7 +267,7 @@ func appendGroupTokens(tokens []UsageToken, node *Node) []UsageToken {
 // PARENT's own container statements, so every container an augment contributes
 // carries order 0: the whole augmented set sorts by name, ahead of the groups
 // the parent's module declares. `announce flowspec` is the case that reads
-// this way, and its nineteen match components come from ze-flowspec-cmd.yang.
+// this way, and its seventeen match components come from ze-flowspec-cmd.yang.
 //
 // Nothing is hoisted for being required. A module that declares its groups in
 // the order an operator types them already answers the question, and a

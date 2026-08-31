@@ -18,6 +18,7 @@ Each container states `config false` itself. mergeYANGEntry skips a child whose
 own Config is not false, and goyang sets Config from the node's own statement
 with no propagation from the parent, so an augmented container that omits it is
 dropped from the command tree without a word.";
+    revision 2026-08-31 { description "The bare destination and source keywords are removed. A prefix component names its family: RFC 8955 type 1 and RFC 8956 type 1 share a type code and carry different encodings, so destination-ipv4 and destination-ipv6 are two names rather than one name and a qualifier. These are the keywords ExaBGP emits. The bare words were its input aliases, and the ExaBGP bridge converts them now."; }
     revision 2026-08-31 { description "announce flowspec is reachable at two paths, bare and under peer <selector>, so the components are a grouping and each augment instantiates it. An augment names one target, and a second target repeating the vocabulary would be a second declaration of it."; }
     revision 2026-08-30 { description "Initial revision: state the match components announce flowspec takes, so the model rather than a description states the grammar."; }
 
@@ -26,46 +27,31 @@ dropped from the command tree without a word.";
 reachable at two paths -- bare, and under peer <selector> -- and each augment
 below instantiates this one grouping rather than restating the vocabulary.";
 
-
-        container destination {
-            config false;
-            ze:modifier "repeat";
-            description "Destination prefix to match (RFC 8955 type 1).";
-            leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix in CIDR form"; }
-        }
-
         container destination-ipv4 {
             config false;
             ze:modifier "repeat";
-            description "Destination prefix to match, spelled for IPv4 (RFC 8955 type 1).";
+            description "Destination prefix to match (RFC 8955 type 1).";
             leaf prefix { type string { length "1..49"; } mandatory true; description "IPv4 prefix in CIDR form"; }
         }
 
         container destination-ipv6 {
             config false;
             ze:modifier "repeat";
-            description "Destination prefix to match, for IPv6 (RFC 8956 type 1).";
+            description "Destination prefix to match (RFC 8956 type 1).";
             leaf prefix { type string { length "1..49"; } mandatory true; description "IPv6 prefix in CIDR form"; }
-        }
-
-        container source {
-            config false;
-            ze:modifier "repeat";
-            description "Source prefix to match (RFC 8955 type 2).";
-            leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix in CIDR form"; }
         }
 
         container source-ipv4 {
             config false;
             ze:modifier "repeat";
-            description "Source prefix to match, spelled for IPv4 (RFC 8955 type 2).";
+            description "Source prefix to match (RFC 8955 type 2).";
             leaf prefix { type string { length "1..49"; } mandatory true; description "IPv4 prefix in CIDR form"; }
         }
 
         container source-ipv6 {
             config false;
             ze:modifier "repeat";
-            description "Source prefix to match, for IPv6 (RFC 8956 type 2).";
+            description "Source prefix to match (RFC 8956 type 2).";
             leaf prefix { type string { length "1..49"; } mandatory true; description "IPv6 prefix in CIDR form"; }
         }
 

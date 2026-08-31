@@ -1512,56 +1512,56 @@ func TestParseFlowSpecArgs_InvalidKeywords(t *testing.T) {
 		// Valid keywords should work
 		{
 			name:    "valid match keywords",
-			args:    strings.Fields("match destination 10.0.0.0/24 then discard"),
+			args:    strings.Fields("match destination-ipv4 10.0.0.0/24 then discard"),
 			wantErr: false,
 		},
 		{
 			name:    "valid match source",
-			args:    strings.Fields("match source 192.168.1.0/24 then accept"),
+			args:    strings.Fields("match source-ipv4 192.168.1.0/24 then accept"),
 			wantErr: false,
 		},
 		{
 			name:    "valid match protocol",
-			args:    strings.Fields("match destination 10.0.0.0/24 protocol tcp then discard"),
+			args:    strings.Fields("match destination-ipv4 10.0.0.0/24 protocol tcp then discard"),
 			wantErr: false,
 		},
 		{
 			name:    "valid then rate-limit",
-			args:    strings.Fields("match destination 10.0.0.0/24 then rate-limit 1000000"),
+			args:    strings.Fields("match destination-ipv4 10.0.0.0/24 then rate-limit 1000000"),
 			wantErr: false,
 		},
 		{
 			name:    "valid then rate-limit packets unit",
-			args:    strings.Fields("match destination 10.0.0.0/24 then rate-limit 1000 packets"),
+			args:    strings.Fields("match destination-ipv4 10.0.0.0/24 then rate-limit 1000 packets"),
 			wantErr: false,
 		},
 		{
 			name:    "valid then rate-limit bytes unit",
-			args:    strings.Fields("match destination 10.0.0.0/24 then rate-limit 1000 bytes"),
+			args:    strings.Fields("match destination-ipv4 10.0.0.0/24 then rate-limit 1000 bytes"),
 			wantErr: false,
 		},
 		{
 			name:    "valid then rate-limit-packets legacy alias",
-			args:    strings.Fields("match destination 10.0.0.0/24 then rate-limit-packets 1000"),
+			args:    strings.Fields("match destination-ipv4 10.0.0.0/24 then rate-limit-packets 1000"),
 			wantErr: false,
 		},
 
 		// Invalid: keyword before match/then section
 		{
 			name:    "invalid: unknown keyword before match",
-			args:    strings.Fields("bogus match destination 10.0.0.0/24 then discard"),
+			args:    strings.Fields("bogus match destination-ipv4 10.0.0.0/24 then discard"),
 			wantErr: true,
 			errMsg:  "unknown keyword",
 		},
 		{
 			name:    "invalid: match keyword before match",
-			args:    strings.Fields("destination 10.0.0.0/24 match then discard"),
+			args:    strings.Fields("destination-ipv4 10.0.0.0/24 match then discard"),
 			wantErr: true,
 			errMsg:  "match keyword",
 		},
 		{
 			name:    "invalid: then keyword before then",
-			args:    strings.Fields("discard match destination 10.0.0.0/24 then"),
+			args:    strings.Fields("discard match destination-ipv4 10.0.0.0/24 then"),
 			wantErr: true,
 			errMsg:  "then keyword",
 		},
@@ -1583,7 +1583,7 @@ func TestParseFlowSpecArgs_InvalidKeywords(t *testing.T) {
 		// Invalid then keywords should error
 		{
 			name:    "invalid: unknown then keyword",
-			args:    strings.Fields("match destination 10.0.0.0/24 then unknown-action"),
+			args:    strings.Fields("match destination-ipv4 10.0.0.0/24 then unknown-action"),
 			wantErr: true,
 			errMsg:  "unknown-action",
 		},

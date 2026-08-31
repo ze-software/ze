@@ -194,8 +194,8 @@ func announcementPlan(scenario string) (processPlan, error) {
 		add("update text origin igp path 65001 nhop 172.30.0.2 nlri ipv4/unicast add 10.100.0.0/24")
 	case scenarioFlowspecFRR:
 		plan.updates = []announcement{
-			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination 10.99.0.0/24", quiesce: true},
-			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 nlri ipv4/flow add destination 10.99.1.0/24 source 10.0.0.0/8 protocol tcp", quiesce: true},
+			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination-ipv4 10.99.0.0/24", quiesce: true},
+			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 nlri ipv4/flow add destination-ipv4 10.99.1.0/24 source-ipv4 10.0.0.0/8 protocol tcp", quiesce: true},
 		}
 	case scenarioFlowspecGoBGP:
 		// The third rule is an OR of two AND groups on one component type. RFC 8955
@@ -204,9 +204,9 @@ func announcementPlan(scenario string) (processPlan, error) {
 		// flowspecOrOfAndRule; two Type 4 components render as two [port: ...] terms
 		// and do not match.
 		plan.updates = []announcement{
-			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination 10.99.0.0/24"},
-			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 nlri ipv4/flow add destination 10.99.1.0/24 source 10.0.0.0/8 protocol tcp", delay: 100 * time.Millisecond, quiesce: true},
-			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination 10.99.2.0/24 port >80 <100 port >443 <500", delay: 100 * time.Millisecond, quiesce: true},
+			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination-ipv4 10.99.0.0/24"},
+			{selector: "*", command: "update text extended-community [rate-limit:9600] nhop 172.30.0.2 nlri ipv4/flow add destination-ipv4 10.99.1.0/24 source-ipv4 10.0.0.0/8 protocol tcp", delay: 100 * time.Millisecond, quiesce: true},
+			{selector: "*", command: "update text extended-community [rate-limit:0] nhop 172.30.0.2 nlri ipv4/flow add destination-ipv4 10.99.2.0/24 port >80 <100 port >443 <500", delay: 100 * time.Millisecond, quiesce: true},
 		}
 	case scenarioEVPNFRR, scenarioEVPNGoBGP:
 		plan.updates = []announcement{

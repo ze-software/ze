@@ -328,6 +328,48 @@ the daemon's alias table to the client, and it is not built.
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
 <!-- source: internal/component/command/alias.go -- RegisterPluginAliases, UnregisterPluginAliases -->
 
+**Help Text Declaration (Stage 1):**
+
+Each entry of the `commands` list carries the command's two help texts. They are
+two declarations, and neither is derived from the other.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `commands[].description` | string | The one-line SUMMARY. Every surface that shows the command on one line reads it: a completion candidate, a list row, a table cell. Maximum 256 bytes, no control character |
+| `commands[].long-help` | string | The LONG explanation the command's own help page prints, under the summary. Maximum 4096 bytes, newlines kept, every other control character refused |
+
+The key is `long-help` and NOT `help`, because `help` already names the summary
+in a `Completion` row on this same boundary. One spelling, one meaning.
+
+An absent `long-help` is what every plugin written before the key existed
+sends. It renders as summary-present and explanation-absent, and it MUST NOT
+render as a blank summary. The engine carries the two texts in two maps
+(`PluginRegistration.CommandDescriptions`, `PluginRegistration.CommandLongHelp`)
+and writes them into `RegisteredCommand.Description` and
+`RegisteredCommand.LongHelp`. `VisibleCommandEntries` then hands both to
+`command.MergeCommandPaths`, which fills each field of the command tree on its
+own: this package spells them Description and LongHelp, and the command package
+spells them Description and Help.
+
+`validateHelpDecls` reads both texts where `validateShapeDecls` reads the
+shapes, before any conversion. The summary is written into the tab-separated
+shell-completion format and into the one-line terminal candidate, so a newline,
+a tab or an ESC in it breaks the format for every row that follows and writes an
+ANSI sequence to the operator's terminal. The explanation is a paragraph only
+the command's own help page prints, so it keeps its newlines. The alias
+`description` above is held to the same one-line rule.
+
+`command help "<name>"` answers with both, under `description` and `long-help`,
+for a builtin and for a plugin command alike. A builtin's two texts come from
+its YANG node: `PathToDescription` and `PathToHelp` build the two maps
+`loadBuiltinsWithAliases` registers them from.
+
+<!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
+<!-- source: internal/component/plugin/server/startup.go -- validateHelpDecls, validateDeclaredText, registrationFromRPC -->
+<!-- source: internal/component/plugin/server/command_registry.go -- RegisteredCommand, VisibleCommandEntries -->
+<!-- source: internal/component/config/yang/command.go -- PathToDescription, PathToHelp -->
+<!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, commandHelpText -->
+
 **Answer Shape Declaration (Stage 1):**
 
 Each entry of the `commands` list carries three optional fields that say what
@@ -1098,14 +1140,14 @@ identical values is a no-op; conflicting AFI or SAFI names abort plugin startup.
 | RPC | Input | Output |
 |-----|-------|--------|
 | `ze-plugin-callback:encode-nlri` | `{"family":"ipv4/flow","args":["destination","10.0.0.0/24"]}` | `{"hex":"0701180A0000"}` |
-| `ze-plugin-callback:decode-nlri` | `{"family":"ipv4/flow","hex":"0701180A0000"}` | `{"json":{"destination":...}}` |
+| `ze-plugin-callback:decode-nlri` | `{"family":"ipv4/flow","hex":"0701180A0000"}` | `{"json":{"destination-ipv4":...}}` |
 
 **Plugin to Engine (via registry):**
 
 | RPC | Input | Output |
 |-----|-------|--------|
 | `ze-plugin-engine:encode-nlri` | `{"family":"ipv4/flow","args":["destination","10.0.0.0/24"]}` | `{"hex":"0701180A0000"}` |
-| `ze-plugin-engine:decode-nlri` | `{"family":"ipv4/flow","hex":"0701180A0000"}` | `{"json":{"destination":...}}` |
+| `ze-plugin-engine:decode-nlri` | `{"family":"ipv4/flow","hex":"0701180A0000"}` | `{"json":{"destination-ipv4":...}}` |
 
 ### Additional Decode RPCs (Plugin to Engine)
 

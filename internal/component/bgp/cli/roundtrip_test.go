@@ -471,7 +471,7 @@ func TestRoundTrip_FlowSpec(t *testing.T) {
 
 	encodeArgs := []string{
 		"-f", "ipv4/flow",
-		"match destination 10.0.0.0/24 then discard",
+		"match destination-ipv4 10.0.0.0/24 then discard",
 	}
 	if code := cmdEncode(encodeArgs); code != 0 {
 		t.Fatalf("encode failed with code %d", code)
@@ -502,7 +502,7 @@ func TestRoundTrip_FlowSpec(t *testing.T) {
 
 	// Verify destination prefix preserved
 	if !strings.Contains(decodeOutput, "10.0.0.0/24") {
-		t.Errorf("expected destination 10.0.0.0/24 in decoded output")
+		t.Errorf("expected destination-ipv4 10.0.0.0/24 in decoded output")
 	}
 
 	// Verify discard action (traffic-rate 0) is present in extended communities
@@ -746,7 +746,7 @@ func TestRoundTrip_FlowSpec_IPv6(t *testing.T) {
 	t.Skip("FlowSpec IPv6 decoding requires plugin subprocess -- covered by test/decode/bgp-flow-*.ci")
 
 	testRoundTripIPv6Family(t,
-		[]string{"-f", "ipv6/flow", "match destination 2001:db8::/32 then discard"},
+		[]string{"-f", "ipv6/flow", "match destination-ipv6 2001:db8::/32 then discard"},
 		"ipv6/flow",
 		"2001:db8::",
 	)
