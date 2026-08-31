@@ -43,10 +43,25 @@ func (b *lockedBuffer) String() string {
 	return b.b.String()
 }
 
+// fixtureProcess is one child process a fixture started, and the channel its
+// exit status arrives on.
+//
+// done is buffered with one slot and every reader PUTS THE STATUS BACK, so the
+// exit can be read any number of times. Without that, a driver that waits for
+// the process and then stops it blocks forever on the second read: the wait
+// drained the only value, and the stop is left receiving from a channel nothing
+// will ever send to again.
 type fixtureProcess struct {
 	command *exec.Cmd
 	done    chan error
 	output  *lockedBuffer
+}
+
+// exit answers the status the process ended with and leaves it readable for the
+// next caller. It MUST only be called once a receive on done has succeeded.
+func (p *fixtureProcess) exit(status error) error {
+	p.done <- status
+	return status
 }
 
 func startFixtureProcess(ctx context.Context, env []string, stdin, name string, args ...string) (*fixtureProcess, error) {
@@ -73,10 +88,11 @@ func stopFixtureProcess(process *fixtureProcess, grace time.Duration) {
 	}
 	_ = syscall.Kill(-process.command.Process.Pid, syscall.SIGTERM)
 	select {
-	case <-process.done:
+	case status := <-process.done:
+		_ = process.exit(status)
 	case <-time.After(grace):
 		_ = syscall.Kill(-process.command.Process.Pid, syscall.SIGKILL)
-		<-process.done
+		_ = process.exit(<-process.done)
 	}
 }
 
@@ -84,8 +100,8 @@ func waitFixtureProcess(ctx context.Context, process *fixtureProcess, timeout ti
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	select {
-	case err := <-process.done:
-		return err
+	case status := <-process.done:
+		return process.exit(status)
 	case <-timer.C:
 		return errors.New("process timeout")
 	case <-ctx.Done():
