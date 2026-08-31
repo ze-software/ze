@@ -500,6 +500,18 @@ func (n *Negotiated) CheckRequiredCodes(required []Code) []Code {
 	return missing
 }
 
+// PeerAdvertised reports whether the peer's OPEN carried this capability code.
+//
+// This is a different question from the negotiated fields, and an RFC that scopes
+// a rule to "a BGP speaker that has received the capability from a peer" asks this
+// one. RFC 7313 Sections 4 and 5 are both written that way. A negotiated field
+// answers "both sides advertised it", which is a narrower set.
+//
+// Safe for concurrent use: the map is written only while Negotiate builds it.
+func (n *Negotiated) PeerAdvertised(code Code) bool {
+	return n.peerCodes[code]
+}
+
 // CheckRefusedCodes returns capability codes that were refused but present in peer's OPEN.
 // Unlike CheckRequiredCodes, this checks against the peer's raw advertised capabilities,
 // not the negotiated intersection — because if we refuse and don't advertise, the

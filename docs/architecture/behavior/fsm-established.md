@@ -125,8 +125,10 @@ grants no reprieve to a CPU-congested daemon.
   <!-- source: internal/component/bgp/reactor/session_read.go — processMessage -->
 - **On receive KEEPALIVE:** hold timer reset, FSM no-op. No wire output.
 - **On receive ROUTE-REFRESH:** handled in `handleRouteRefresh`, gated
-  by capability negotiation per RFC 2918 / RFC 7313. No FSM event is
-  fired.
+  by capability negotiation per RFC 2918 / RFC 7313. The Message Subtype
+  octet is read only when Enhanced Route Refresh (RFC 7313, capability
+  70) was negotiated. Without it the octet is RFC 2918's Reserved field,
+  and the receiver ignores it. No FSM event is fired.
   <!-- source: internal/component/bgp/reactor/session_handlers.go — handleRouteRefresh -->
 - **On receive NOTIFICATION:** `handleNotification` stops all timers,
   fires `EventNotifMsg`, closes the connection. No response

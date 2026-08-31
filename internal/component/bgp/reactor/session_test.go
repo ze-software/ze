@@ -2335,25 +2335,30 @@ func setupEstablishedSession(t *testing.T) (*Session, net.Conn, func()) {
 	return session, client, cleanup
 }
 
-// TestRouteRefreshInvalidLengthNotDelivered verifies malformed ROUTE-REFRESH
-// bodies are rejected before receive callbacks observe them.
+// TestRouteRefreshInvalidLengthNotDelivered verifies a BoRR or an EoRR whose body
+// length is wrong is rejected before receive callbacks observe it.
 //
 // VALIDATES: AC-4 invalid ROUTE-REFRESH body length sends NOTIFICATION and closes.
 //
 // PREVENTS: Malformed peer input reaching plugin/API receive callbacks before RFC 7313 validation.
 //
-// RFC requirement: RFC7313-5-1 positive -- a ROUTE-REFRESH body whose length is not 4
-// (too short or too long) triggers a NOTIFICATION carrying Error Code 7
-// (NotifyRouteRefresh) and subcode 1 (NotifyRouteRefreshInvalidLength).
+// RFC requirement: RFC7313-5-1 positive -- a ROUTE-REFRESH with Message Subtype 1 or 2
+// whose body length is not 4 (too short or too long) triggers a NOTIFICATION carrying
+// Error Code 7 (NotifyRouteRefresh) and subcode 1 (NotifyRouteRefreshInvalidLength).
 // RFC requirement: RFC7313-5-2 positive -- that NOTIFICATION's Data field
 // (notif[HeaderLen+2:]) contains the complete received ROUTE-REFRESH message (== rrMsg).
 func TestRouteRefreshInvalidLengthNotDelivered(t *testing.T) {
+	// RFC 7313 Section 5 scopes its length MUST to "Message Subtype 1 and 2", so the
+	// third body octet carries 1 (BoRR) and 2 (EoRR). Message Subtype 0 is the RFC 2918
+	// request, which draws RFC 4271 Section 6.1 Bad Message Length instead;
+	// TestRouteRefreshBadLengthByMessageSubtype (rfc7313_error_scope_test.go) asserts
+	// that answer in both polarities.
 	tests := []struct {
 		name string
 		body []byte
 	}{
-		{"too_short", []byte{0x00, 0x01, 0x00}},
-		{"too_long", []byte{0x00, 0x01, 0x00, 0x01, 0xFF}},
+		{"borr_too_short", []byte{0x00, 0x01, 0x01}},
+		{"eorr_too_long", []byte{0x00, 0x01, 0x02, 0x01, 0xFF}},
 	}
 
 	for _, tt := range tests {

@@ -266,7 +266,29 @@ RFC 2918
 | 1 | ROUTE_REFRESH_BEGIN | Beginning of Route Refresh (BoRR) |
 | 2 | ROUTE_REFRESH_END | End of Route Refresh (EoRR) |
 
+The redefinition is scoped to the capability. RFC 7313 Sections 4 and 5 apply
+only when the speaker has received the Enhanced Route Refresh Capability
+(code 70) from the peer. Without it the octet is RFC 2918's Reserved field.
+Section 3 says the receiver ignores that field, so `handleRouteRefresh` returns
+before it reads the octet.
+
+### A Body That Is Not 4 Octets
+
+Two NOTIFICATIONs are possible, and the same scoping picks between them. RFC
+7313 Section 5 gives its ROUTE-REFRESH Message Error to a peer that sent
+capability 70, and only for Message Subtype 1 and 2. Every other malformed
+ROUTE-REFRESH gets RFC 4271 Section 6.1, because RFC 2918 defines no error
+handling of its own.
+
+| Peer sent capability 70 | Message Subtype | Error Code | Error Subcode | Data field |
+|-------------------------|-----------------|------------|---------------|------------|
+| No | any, and unread | 1 (Message Header Error) | 2 (Bad Message Length) | The erroneous Length field |
+| Yes | 1 (BoRR) or 2 (EoRR) | 7 (ROUTE-REFRESH Message Error) | 1 (Invalid Message Length) | The complete ROUTE-REFRESH message |
+| Yes | 0 (request), or absent because the body is under 3 octets | 1 (Message Header Error) | 2 (Bad Message Length) | The erroneous Length field |
+| Yes | other than 0, 1 or 2 | None. RFC 7313 Section 5 obliges the speaker to ignore the message, whatever its length | | |
+
 <!-- source: internal/component/bgp/message/routerefresh.go -- RouteRefresh struct, RouteRefreshSubtype -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- handleRouteRefresh, validateRouteRefreshLength -->
 
 ---
 

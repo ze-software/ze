@@ -1,10 +1,14 @@
 // Design: docs/architecture/core-design.md — BGP message type handlers
+// RFC: rfc/short/rfc4271.md — message header errors, OPEN and UPDATE handling
+// RFC: rfc/short/rfc2918.md — the ROUTE-REFRESH message
+// RFC: rfc/short/rfc7313.md — Enhanced Route Refresh, BoRR and EoRR
 // Overview: session.go — BGP session struct, constructor, accessors, run loop
 // Related: session_prefix.go — prefix limit enforcement (RFC 4486)
 
 package reactor
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -324,29 +328,124 @@ func (s *Session) handleNotification(body []byte) error {
 	return fmt.Errorf("%w: %s", ErrNotificationRecv, notif.String())
 }
 
-func (s *Session) validateRouteRefreshLength(body, notificationData []byte) error {
-	// RFC 7313 Section 5: "If the length... is not 4, then the BGP speaker
-	// MUST send a NOTIFICATION message with Error Code 'ROUTE-REFRESH Message
-	// Error' and subcode 'Invalid Message Length'."
-	if len(body) == 4 {
-		return nil
+// The geometry of a ROUTE-REFRESH body, from the two RFCs that define it.
+const (
+	// RFC 2918 Section 3: AFI (2) + Reserved (1) + SAFI (1).
+	routeRefreshBodyLen = 4
+	// RFC 2918 Section 3 puts the Reserved octet third, and RFC 7313 Section 3.2
+	// redefines that same octet as the Message Subtype.
+	routeRefreshSubtypeOffset = 2
+)
+
+// validateRouteRefreshLength decides what the receive path owes a ROUTE-REFRESH
+// whose body is not the routeRefreshBodyLen octets RFC 2918 Section 3 defines.
+//
+// It reports ignore when RFC 7313 obliges ze to drop the message and keep the
+// session. It returns an error after it has sent the NOTIFICATION the governing
+// RFC names and closed the connection. A body of the defined length is not this
+// function's business: it returns (false, nil) and the caller carries on.
+//
+// Which rule applies depends on the Message Subtype, and that subtype is an octet
+// INSIDE the very body whose length is wrong. Two guards resolve the ordering.
+// The capability is read first, from the peer's OPEN rather than from this
+// message, because it decides whether the third octet is a subtype at all. The
+// octet is read second, and only once the body is known to be long enough to hold
+// it, so no branch here indexes past the end. A body of 0, 1 or 2 octets carries
+// no Message Subtype field at all, RFC 7313's subtype-scoped rules therefore
+// cannot reach it, and RFC 4271 Section 6.1 answers instead.
+func (s *Session) validateRouteRefreshLength(body []byte) (bool, error) {
+	if len(body) == routeRefreshBodyLen {
+		return false, nil
 	}
 
+	// RFC 7313 Section 5: "The error handling specified in this section is
+	// applicable only when a BGP speaker has received the 'Enhanced Route Refresh
+	// Capability' from a peer." The test is what the PEER advertised, which is what
+	// that sentence names, and a message that arrives before the peer's OPEN was
+	// processed was preceded by no capability at all. RFC 2918 defines no error
+	// handling of its own for a malformed ROUTE-REFRESH (Sections 3 and 4), so RFC
+	// 4271 Section 6.1 governs such a peer.
+	peerSentEnhanced := s.negotiated != nil &&
+		s.negotiated.PeerAdvertised(capability.CodeEnhancedRouteRefresh)
+	if !peerSentEnhanced {
+		return false, s.refuseRouteRefreshBadLength(body)
+	}
+
+	if len(body) <= routeRefreshSubtypeOffset {
+		return false, s.refuseRouteRefreshBadLength(body)
+	}
+
+	switch message.RouteRefreshSubtype(body[routeRefreshSubtypeOffset]) {
+	case message.RouteRefreshBoRR, message.RouteRefreshEoRR:
+		// RFC 7313 Section 5: "If the length, excluding the fixed-size message
+		// header, of the received ROUTE-REFRESH message with Message Subtype 1 and 2
+		// is not 4, then the BGP speaker MUST send a NOTIFICATION message with the
+		// Error Code of 'ROUTE-REFRESH Message Error' and the subcode of 'Invalid
+		// Message Length'."
+		return false, s.refuseRouteRefreshInvalidLength(body)
+	case message.RouteRefreshNormal:
+		// The MUST above names Message Subtype 1 and 2. Subtype 0 is the RFC 2918
+		// request, which RFC 7313 left where it found it, so RFC 4271 Section 6.1
+		// answers for a malformed one even here.
+		return false, s.refuseRouteRefreshBadLength(body)
+	default:
+		// RFC 7313 Section 5: "When the BGP speaker receives a ROUTE-REFRESH message
+		// with a 'Message Subtype' field other than 0, 1, or 2, it MUST ignore the
+		// received ROUTE-REFRESH message. It SHOULD log an error for further
+		// analysis." That MUST carries no length condition, so it outranks a length
+		// rule scoped to Subtype 1 and 2: an unknown subtype earns no NOTIFICATION,
+		// whatever its body measures.
+		sessionLogger().Error("ignoring route-refresh with unknown subtype",
+			"peer", s.settings.Address,
+			"subtype", body[routeRefreshSubtypeOffset],
+			"body-octets", len(body),
+		)
+		return true, nil
+	}
+}
+
+// refuseRouteRefreshBadLength answers a malformed ROUTE-REFRESH under RFC 4271,
+// which governs every one RFC 7313 Section 5 does not reach.
+func (s *Session) refuseRouteRefreshBadLength(body []byte) error {
+	// RFC 4271 Section 6.1: "All errors detected while processing the Message
+	// Header MUST be indicated by sending the NOTIFICATION message with the Error
+	// Code Message Header Error."
+	// RFC 4271 Section 6.1: "then the Error Subcode MUST be set to Bad Message
+	// Length. The Data field MUST contain the erroneous Length field."
+	return s.refuseRouteRefresh(message.NotifyMessageHeader, message.NotifyHeaderBadLength,
+		routeRefreshLengthFieldData(body), len(body))
+}
+
+// refuseRouteRefreshInvalidLength answers a malformed BoRR or EoRR with the error
+// code RFC 7313 Section 5 invented for it.
+func (s *Session) refuseRouteRefreshInvalidLength(body []byte) error {
+	// RFC 7313 Section 5: "The Data field of the NOTIFICATION message MUST contain
+	// the complete ROUTE-REFRESH message."
+	return s.refuseRouteRefresh(message.NotifyRouteRefresh, message.NotifyRouteRefreshInvalidLength,
+		routeRefreshNotificationData(body), len(body))
+}
+
+// refuseRouteRefresh sends one NOTIFICATION, closes the connection, and returns
+// the error the read path reports. The caller picks the code, the subcode and the
+// Data field, because the RFC that governs the message picks them.
+func (s *Session) refuseRouteRefresh(code message.NotifyErrorCode, subcode uint8, data []byte, bodyLen int) error {
 	s.mu.RLock()
 	conn := s.conn
 	s.mu.RUnlock()
 
-	if notificationData == nil {
-		notificationData = routeRefreshNotificationData(body)
-	}
-	s.logNotifyErr(conn,
-		message.NotifyRouteRefresh,
-		message.NotifyRouteRefreshInvalidLength,
-		notificationData,
-	)
+	s.logNotifyErr(conn, code, subcode, data)
 	s.logFSMEvent(fsm.EventBGPHeaderErr)
 	s.closeConn()
-	return fmt.Errorf("%w: ROUTE-REFRESH invalid length %d", ErrInvalidMessage, len(body))
+	return fmt.Errorf("%w: ROUTE-REFRESH invalid length %d", ErrInvalidMessage, bodyLen)
+}
+
+// routeRefreshLengthFieldData renders the two octets RFC 4271 Section 6.1 asks
+// for: "The Data field MUST contain the erroneous Length field." That field
+// counts the fixed-size header, so the body is measured together with it.
+func routeRefreshLengthFieldData(body []byte) []byte {
+	data := make([]byte, 2)
+	binary.BigEndian.PutUint16(data, uint16(message.HeaderLen+len(body))) //nolint:gosec // received BGP message length is uint16-bounded.
+	return data
 }
 
 func routeRefreshNotificationData(body []byte) []byte {
@@ -358,15 +457,16 @@ func routeRefreshNotificationData(body []byte) []byte {
 }
 
 // handleRouteRefresh processes a received ROUTE-REFRESH message.
-// RFC 2918 Section 3: "A BGP speaker that is willing to receive the
-// ROUTE-REFRESH message from its peer SHOULD advertise the Route Refresh
-// Capability to the peer using BGP Capabilities advertisement."
-// RFC 2918 Section 4: The receiver SHOULD ignore ROUTE-REFRESH for AFI/SAFI
-// that were not advertised in the OPEN message.
-// RFC 7313: Enhanced Route Refresh with BoRR/EoRR markers.
+// RFC 2918 Section 4 obliges the speaker to "ignore such a message" when the
+// <AFI, SAFI> is one it did not advertise at session establishment.
+// RFC 7313 adds the Enhanced Route Refresh BoRR and EoRR markers.
 func (s *Session) handleRouteRefresh(body []byte) error {
-	if err := s.validateRouteRefreshLength(body, nil); err != nil {
+	ignore, err := s.validateRouteRefreshLength(body)
+	if err != nil {
 		return err
+	}
+	if ignore {
+		return nil
 	}
 	if s.onRefreshRecv != nil {
 		s.onRefreshRecv()
@@ -384,7 +484,9 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 		return nil
 	}
 
-	// RFC 2918 Section 3: Only process ROUTE-REFRESH if the capability was negotiated.
+	// RFC 2918 Section 2: the capability "conveys to the peer that the speaker is
+	// capable of receiving and properly handling the ROUTE-REFRESH message".
+	// Without it negotiated there is nothing to handle the message with.
 	if !s.negotiated.RouteRefresh {
 		sessionLogger().Debug("ignoring route-refresh from peer without capability",
 			"peer", s.settings.Address)
@@ -396,6 +498,20 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 	if !s.negotiated.SupportsFamily(fam) {
 		sessionLogger().Debug("ignoring route-refresh for non-negotiated family",
 			"peer", s.settings.Address, "afi", rr.AFI, "safi", rr.SAFI)
+		return nil
+	}
+
+	// RFC 2918 Section 3 calls the third octet "Reserved (8 bit) field", and
+	// ends the sentence "ignored by the receiver".
+	//
+	// RFC 7313 Section 3.2 redefines that octet as the Message Subtype. RFC 7313
+	// Section 5 then scopes every rule that reads it: "The error handling
+	// specified in this section is applicable only when a BGP speaker has
+	// received the 'Enhanced Route Refresh Capability' from a peer." Section 4
+	// scopes the operation half the same way. A peer that did not send
+	// capability 70 is still speaking RFC 2918. The octet is still Reserved, and
+	// its value changes nothing about how this message is handled.
+	if !s.negotiated.EnhancedRouteRefresh {
 		return nil
 	}
 

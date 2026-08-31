@@ -275,12 +275,19 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		}
 	}
 
-	// Validate rejectable ROUTE-REFRESH wire shape before callback delivery.
-	// RFC 7313 Section 5 requires invalid body lengths to produce a
-	// ROUTE-REFRESH Message Error; malformed peer input must not reach plugins.
+	// Validate rejectable ROUTE-REFRESH wire shape before callback delivery, so
+	// malformed peer input never reaches a plugin. Which NOTIFICATION a bad body
+	// length earns is RFC-scoped, and validateRouteRefreshLength
+	// (session_handlers.go) owns that decision for both of its call sites. A body
+	// RFC 7313 Section 5 obliges ze to ignore stops here too, without a
+	// NOTIFICATION and without ending the session.
 	if hdr.Type == msgtype.TypeROUTEREFRESH {
-		if err := s.validateRouteRefreshLength(body, routeRefreshNotificationData(body)); err != nil {
-			return err, false
+		ignore, refreshErr := s.validateRouteRefreshLength(body)
+		if refreshErr != nil {
+			return refreshErr, false
+		}
+		if ignore {
+			return nil, false
 		}
 	}
 

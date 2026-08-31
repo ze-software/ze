@@ -96,8 +96,8 @@ func ParseHeader(data []byte) (Header, error) {
 //   - UPDATE: >= 23 octets (RFC 4271 Section 4.3)
 //   - NOTIFICATION: >= 21 octets (RFC 4271 Section 4.5)
 //   - KEEPALIVE: == 19 octets exactly (RFC 4271 Section 4.4)
-//   - ROUTE-REFRESH: >= 19 octets here; RFC 7313 body length validation
-//     returns ROUTE-REFRESH Message Error / Invalid Message Length.
+//   - ROUTE-REFRESH: >= 19 octets here; the receive path checks the exact body
+//     length and picks the error code the governing RFC scopes to the message.
 //
 // Note: For upper bound validation, use ValidateLengthWithMax after capability negotiation.
 func (h Header) ValidateLength() error {
@@ -115,10 +115,12 @@ func (h Header) ValidateLength() error {
 		minLen = KeepaliveLen
 		exactLen = true // KEEPALIVE must be exactly 19 octets
 	case msgtype.TypeROUTEREFRESH:
-		// RFC 7313 Section 5 assigns malformed ROUTE-REFRESH body length to
-		// ROUTE-REFRESH Message Error / Invalid Message Length, not Message
-		// Header Error. Keep header validation to the common BGP header floor;
-		// session receive validation checks the exact 4-octet body before delivery.
+		// The exact body length is not decided here, because deciding it needs the
+		// peer's capabilities and the Message Subtype, which this header does not
+		// carry. Keep header validation to the common BGP header floor;
+		// validateRouteRefreshLength (internal/component/bgp/reactor) checks the
+		// 4-octet body before delivery and picks the code RFC 7313 Section 5 or RFC
+		// 4271 Section 6.1 assigns to that message.
 		minLen = HeaderLen
 	default:
 		// Unknown message type - only basic length check (>= 19)
