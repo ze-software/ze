@@ -3,6 +3,7 @@
 package site
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"html"
@@ -12,8 +13,10 @@ import (
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer"
 	goldmarkhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
 // markdownEngine converts a page source into the body HTML a page shell wraps.
@@ -37,8 +40,259 @@ import (
 var markdownEngine = goldmark.New(
 	goldmark.WithExtensions(extension.Table),
 	goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-	goldmark.WithRendererOptions(goldmarkhtml.WithUnsafe()),
+	goldmark.WithRendererOptions(
+		goldmarkhtml.WithUnsafe(),
+		goldmarkhtml.WithWriter(textWriter{Writer: goldmarkhtml.NewWriter()}),
+		renderer.WithNodeRenderers(util.Prioritized(textNodes{writer: goldmarkhtml.NewWriter()}, 100)),
+	),
 )
+
+// textWriter writes HTML text content, escaping only what text content owes.
+//
+// goldmark's own writer escapes a quotation mark to &quot; wherever text is
+// written, a code span and a fenced code block included. A browser renders the
+// reference as a quotation mark, so the page LOOKS right, but the published
+// HTML then carries &quot; where the page source carried ", and every reader of
+// the file rather than of the rendering meets the reference instead of the
+// character. The retired python-markdown renderer left the character alone, so
+// the move to goldmark is what introduced this.
+//
+// RawWrite is the only method overridden, and the choice is load-bearing.
+// goldmark writes a link title through Write (renderLink), and that lands
+// inside a double-quoted title attribute, where the reference IS owed. The four
+// RawWrite call sites are a code block, a code span, a text node and a code
+// string node, none of which is inside an attribute.
+type textWriter struct {
+	goldmarkhtml.Writer
+}
+
+// textNodes renders the two nodes that carry prose, so a quotation mark in
+// prose is published as itself.
+//
+// The reason this is a node renderer and not another Writer method: goldmark
+// routes prose and an attribute value through ONE method, Writer.Write. It
+// writes a link title and a code fence language through it too, and both land
+// inside a double-quoted attribute where the escape is owed. A Write that
+// unescaped for prose broke those attributes, which is what
+// TestCodeKeepsAQuotationMarkAndStillEscapesMarkup measured
+// (title="a "quoted" title"). Overriding the two prose NODES instead leaves
+// Write untouched for every attribute, so the two cases stop sharing an answer.
+//
+// Priority 100 puts these ahead of goldmark's own renderer, registered at 1000.
+type textNodes struct {
+	writer goldmarkhtml.Writer
+}
+
+// RegisterFuncs claims the text and string nodes. Every other node keeps
+// goldmark's own rendering.
+func (t textNodes) RegisterFuncs(registerer renderer.NodeRendererFuncRegisterer) {
+	registerer.Register(ast.KindText, t.renderText)
+	registerer.Register(ast.KindString, t.renderString)
+}
+
+// renderText writes one text node.
+//
+// The line-break arms mirror goldmark's own, minus the options this engine
+// does not set: HardWraps, XHTML and EastAsianLineBreaks are each left at their
+// default, so a soft break is one newline.
+func (t textNodes) renderText(writer util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if !entering {
+		return ast.WalkContinue, nil
+	}
+	text, isText := node.(*ast.Text)
+	if !isText {
+		return ast.WalkContinue, nil
+	}
+	value := text.Segment.Value(source)
+	if text.IsRaw() {
+		textWriter{Writer: t.writer}.RawWrite(writer, value)
+		return ast.WalkContinue, nil
+	}
+	t.writeProse(writer, value)
+	if text.HardLineBreak() {
+		_, _ = writer.WriteString("<br>\n")
+		return ast.WalkContinue, nil
+	}
+	if text.SoftLineBreak() {
+		_ = writer.WriteByte('\n')
+	}
+	return ast.WalkContinue, nil
+}
+
+// renderString writes one string node, which carries a value the parser built
+// rather than a span of the source.
+func (t textNodes) renderString(writer util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if !entering {
+		return ast.WalkContinue, nil
+	}
+	value, isString := node.(*ast.String)
+	if !isString {
+		return ast.WalkContinue, nil
+	}
+	if value.IsCode() {
+		_, _ = writer.Write(value.Value)
+		return ast.WalkContinue, nil
+	}
+	if value.IsRaw() {
+		textWriter{Writer: t.writer}.RawWrite(writer, value.Value)
+		return ast.WalkContinue, nil
+	}
+	t.writeProse(writer, value.Value)
+	return ast.WalkContinue, nil
+}
+
+// writeProse writes prose, resolving what goldmark resolves and then undoing
+// the one escape prose does not owe.
+//
+// The embedded writer does the resolving, because Write is where a character
+// reference and a backslash escape are read, and forking that is how a renderer
+// drifts from the parser beside it. Its answer is then read back and &quot; is
+// returned to the character it stands for. Prose is never an attribute value,
+// so nothing here can break one.
+func (t textNodes) writeProse(writer util.BufWriter, value []byte) {
+	var resolved bytes.Buffer
+	buffered := bufio.NewWriter(&resolved)
+	t.writer.Write(buffered, value)
+	_ = buffered.Flush()
+	_, _ = writer.Write(bytes.ReplaceAll(resolved.Bytes(), escapedQuote, plainQuote))
+}
+
+// The reference goldmark spells a quotation mark as, and the character it
+// stands for.
+var (
+	escapedQuote = []byte("&quot;")
+	plainQuote   = []byte(`"`)
+)
+
+// RawWrite writes source as HTML text content.
+//
+// The loop is bounded by the length of source, which the caller has already
+// read from the page.
+func (textWriter) RawWrite(writer util.BufWriter, source []byte) {
+	written := 0
+	for index := range len(source) {
+		replacement := textContentEscape(source[index])
+		if replacement == nil {
+			continue
+		}
+		_, _ = writer.Write(source[written:index])
+		_, _ = writer.Write(replacement)
+		written = index + 1
+	}
+	_, _ = writer.Write(source[written:])
+}
+
+// Text content owes an escape for three characters: an ampersand opens a
+// character reference, and the two angle brackets open a tag. A NUL byte is not
+// an escape but a replacement, which is what the HTML syntax requires.
+var (
+	escapedAmpersand     = []byte("&amp;")
+	escapedLess          = []byte("&lt;")
+	escapedGreater       = []byte("&gt;")
+	replacementCharacter = []byte("\ufffd")
+)
+
+// textContentEscape answers the bytes one byte is written as inside HTML text
+// content, or nil when the byte stands for itself.
+//
+// A quotation mark stands for itself here. It is escaped only inside an
+// attribute value, which this method never writes.
+func textContentEscape(character byte) []byte {
+	switch character {
+	case 0x00:
+		return replacementCharacter
+	case '&':
+		return escapedAmpersand
+	case '<':
+		return escapedLess
+	case '>':
+		return escapedGreater
+	}
+	return nil
+}
+
+// headingSlugs answers the id of one heading, and remembers what it has given
+// so a page cannot carry the same id twice.
+//
+// goldmark's own generator drops a character it does not recognize but still
+// writes a separator for the space beside it, and it neither collapses a run of
+// separators nor trims one from an end. A heading that opens with punctuation
+// therefore gets an id that opens with a hyphen, and "`| display` and `| fill`"
+// became "-display-and--fill". The retired python-markdown generator collapsed
+// and trimmed, so every such anchor changed spelling in the move to goldmark.
+// Collapsing and trimming here restores the published spelling as well as
+// reading better.
+//
+// NOT safe for concurrent use, and it does not need to be: one instance serves
+// one page, built beside the parse that uses it.
+type headingSlugs struct {
+	taken map[string]bool
+}
+
+// Generate answers the id for one heading.
+//
+// The loop is bounded by the length of value, which is the heading text this
+// repository's own Markdown carries.
+func (h *headingSlugs) Generate(value []byte, kind ast.NodeKind) []byte {
+	slug := make([]byte, 0, len(value))
+	for _, character := range string(value) {
+		switch {
+		case character >= 'a' && character <= 'z', character >= '0' && character <= '9':
+			slug = append(slug, byte(character))
+		case character >= 'A' && character <= 'Z':
+			slug = append(slug, byte(character)+('a'-'A'))
+		case character == ' ' || character == '\t' || character == '\n' || character == '-' || character == '_':
+			slug = appendSeparator(slug)
+		}
+	}
+	slug = bytes.TrimRight(slug, "-")
+	if len(slug) == 0 {
+		slug = []byte("id")
+		if kind == ast.KindHeading {
+			slug = []byte("heading")
+		}
+	}
+	return h.claim(slug)
+}
+
+// appendSeparator writes one hyphen, unless the slug is empty or already ends
+// in one. A leading separator is what put a hyphen at the front of an id, and a
+// repeated one is what doubled it in the middle.
+func appendSeparator(slug []byte) []byte {
+	if len(slug) == 0 {
+		return slug
+	}
+	if slug[len(slug)-1] == '-' {
+		return slug
+	}
+	return append(slug, '-')
+}
+
+// claim answers slug when this page has not used it, and otherwise the first
+// numbered variant that is free.
+//
+// The counter is bounded by the number of headings on the page, because each
+// turn of the loop is answered by a heading that already took a spelling.
+func (h *headingSlugs) claim(slug []byte) []byte {
+	if !h.taken[string(slug)] {
+		h.taken[string(slug)] = true
+		return slug
+	}
+	for suffix := 1; ; suffix++ {
+		numbered := fmt.Sprintf("%s-%d", slug, suffix)
+		if h.taken[numbered] {
+			continue
+		}
+		h.taken[numbered] = true
+		return []byte(numbered)
+	}
+}
+
+// Put records an id goldmark generated elsewhere, so Generate cannot hand out
+// the same spelling later.
+func (h *headingSlugs) Put(value []byte) {
+	h.taken[string(value)] = true
+}
 
 // docHeading is one entry of a page's table of contents.
 type docHeading struct {
@@ -53,7 +307,8 @@ type docHeading struct {
 // The source is parsed once and rendered from the same tree, so the heading ids
 // in the answer are the ids the body carries.
 func renderMarkdown(source []byte) (string, []docHeading, error) {
-	document := markdownEngine.Parser().Parse(text.NewReader(source))
+	context := parser.NewContext(parser.WithIDs(&headingSlugs{taken: map[string]bool{}}))
+	document := markdownEngine.Parser().Parse(text.NewReader(source), parser.WithContext(context))
 	headings := documentHeadings(document, source)
 	var body bytes.Buffer
 	if err := markdownEngine.Renderer().Render(&body, source, document); err != nil {

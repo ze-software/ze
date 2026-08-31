@@ -261,3 +261,92 @@ func TestTheContentsListKeepsAHeadingShallowerThanTheFirst(t *testing.T) {
 		t.Errorf("a deeper heading must nest under the one above it:\n%s", nested)
 	}
 }
+
+// VALIDATES: a code span and a fenced code block publish a quotation mark as
+// itself, while an angle bracket and an ampersand still become references and a
+// link title keeps the escape its attribute owes.
+//
+// The method is one render of a source carrying all four cases. goldmark's own
+// writer escapes a quotation mark everywhere, which put &quot; in the published
+// HTML where the page source had ". Reverting textWriter.RawWrite to the
+// embedded writer reddens the first two cases.
+func TestCodeKeepsAQuotationMarkAndStillEscapesMarkup(t *testing.T) {
+	const source = "`{\"warnings\": [Issue, ...]}`\n\n```\nrun --flag \"value\" a<b & c\n```\n\n" +
+		"[link](https://example.test \"a \\\"quoted\\\" title\")\n"
+	body, _, err := renderMarkdown([]byte(source))
+	if err != nil {
+		t.Fatalf("render markdown: %v", err)
+	}
+	for _, want := range []string{
+		`<code>{"warnings": [Issue, ...]}</code>`,
+		`run --flag "value" a&lt;b &amp; c`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("body does not carry %q\nbody: %s", want, body)
+		}
+	}
+	if strings.Contains(body, "&quot;warnings&quot;") {
+		t.Errorf("a code span still escapes a quotation mark\nbody: %s", body)
+	}
+	if !strings.Contains(body, `title="a &quot;quoted&quot; title"`) {
+		t.Errorf("a link title lost the escape its attribute owes\nbody: %s", body)
+	}
+}
+
+// VALIDATES: a heading whose text opens with punctuation gets an id that opens
+// with a letter, and a dropped character does not double the separator beside
+// it.
+//
+// The method renders the real shape from docs/architecture/api/commands.md.
+// goldmark's own generator answers "-display-and--fill-the-operators-own-answer"
+// here, which is what the published anchor carried after the move to goldmark.
+func TestAHeadingIDOpensWithALetterAndCollapsesSeparators(t *testing.T) {
+	for _, testCase := range []struct{ source, want string }{
+		{"### `| display` and `| fill`: the operator's own answer\n", "display-and-fill-the-operators-own-answer"},
+		{"## | leading pipe\n", "leading-pipe"},
+		{"## trailing punctuation !\n", "trailing-punctuation"},
+		{"## a -- b\n", "a-b"},
+		{"## ???\n", "heading"},
+	} {
+		_, headings, err := renderMarkdown([]byte(testCase.source))
+		if err != nil {
+			t.Fatalf("render %q: %v", testCase.source, err)
+		}
+		if len(headings) != 1 {
+			t.Fatalf("source %q gave %d headings", testCase.source, len(headings))
+		}
+		if headings[0].ID != testCase.want {
+			t.Errorf("source %q gave id %q, want %q", testCase.source, headings[0].ID, testCase.want)
+		}
+	}
+}
+
+// VALIDATES: two headings that reduce to one spelling still get distinct ids.
+func TestTwoHeadingsWithOneSpellingGetDistinctIDs(t *testing.T) {
+	_, headings, err := renderMarkdown([]byte("## the answer\n\n## | the answer |\n"))
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if len(headings) != 2 {
+		t.Fatalf("got %d headings", len(headings))
+	}
+	if headings[0].ID != "the-answer" || headings[1].ID != "the-answer-1" {
+		t.Errorf("ids are %q and %q, want \"the-answer\" and \"the-answer-1\"", headings[0].ID, headings[1].ID)
+	}
+}
+
+// VALIDATES: prose outside a code element publishes a quotation mark as itself,
+// which is the second half of the escaping correction (the first half, inside a
+// code element, is TestCodeKeepsAQuotationMarkAndStillEscapesMarkup).
+func TestProseKeepsAQuotationMark(t *testing.T) {
+	body, _, err := renderMarkdown([]byte("`ai/rules/cli.md` \"Migrating a Built-in Commands Path\".\n"))
+	if err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	if !strings.Contains(body, `<code>ai/rules/cli.md</code> "Migrating a Built-in Commands Path".`) {
+		t.Errorf("prose did not keep its quotation marks\nbody: %s", body)
+	}
+	if strings.Contains(body, "&quot;") {
+		t.Errorf("prose still carries the escape\nbody: %s", body)
+	}
+}
