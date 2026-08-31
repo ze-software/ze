@@ -18,6 +18,7 @@ names in snake_case. The Go names below are the current ones.
 | `rfc/enrolled.txt`, `rfc/not-enrolled.txt` | Which summaries are gated, and the recorded reason for each that is not |
 | `rfc/extraction/<stem>.json` | The extraction sign-off: the walk of the RFC text, recorded so a machine can re-check it |
 | `rfc/audit/<stem>.json` | A recorded `/ze-rfc-audit` verdict, and the fingerprints that keep it fresh |
+| `rfc/discrimination/<stem>.json` | The recorded breaks under which a tagged unit goes red: one record per requirement, polarity and tagged unit |
 | `rfc/drain-budget.txt` | The extraction drain schedule: a start date and a rate, and nothing else |
 | `docs/features/rfc-status.md` | The PUBLIC support claim, one row per enrolled RFC |
 | `ai/RFC-REQUIREMENTS.md` | The generated backlog, including the extraction sign-off counts |
@@ -58,11 +59,27 @@ ratchet, and it ships INERT at rate 0. Only the owner arms it.
 The rate is unset by RULING, not for want of a number. Four RFCs were walked end
 to end on 2026-08-30 to measure what a sign-off costs, and the table is in
 `rfc/drain-budget.txt` and in that spec. Thomas ruled on 2026-08-31 that the
-schedule waits until the RFC surface is under control, because a quota over
-incomplete code buys a signature rather than conformance. Read the file's own
-comment before you propose a rate: it carries the measurement and the trigger,
-and it says to reset `start` to the arming date, because the floor is CUMULATIVE
-and an old date bills the tree for every month the quota was inert.
+schedule waits, because a quota over incomplete code buys a signature rather
+than conformance.
+
+**The trigger is the first RFC at 100% coverage**, in his words: "we need our
+first 100% coverage before locking the gate for the RFC verification". Arming
+waits on one enrolled RFC being taken all the way, not on a date and not on a
+backlog count.
+
+The reason the trigger is coverage rather than sign-offs is that the two measure
+different things. A sign-off bounds what a summary MISSED: it is the walk of the
+RFC's own text, recorded so a machine can re-check it, and that is what the four
+walks costed. Coverage is every gated requirement actually PROVEN, in both
+polarities, with no `{gap}` and no `{not-applicable}` standing. A corpus can be
+fully signed off and prove nothing. Until one document has been carried to the
+second state, nobody knows what a whole RFC costs, and a drain rate is a claim
+about exactly that.
+
+Read `rfc/drain-budget.txt`'s own comment before you propose a rate: it carries
+the measurement and the trigger, and it says to reset `start` to the arming
+date, because the floor is CUMULATIVE and an old date bills the tree for every
+month the quota was inert.
 
 The arithmetic is proven rather than assumed. `requiredFloor`, `parseDrainBudget`
 and `checkDrainFloor` carry unit tests over the month count, the anniversary
@@ -194,6 +211,76 @@ licenses a justification that never engages it: RFC 4271 §5.1.6 binds a speaker
 THAT RECEIVES a route with ATOMIC_AGGREGATE, and recording it as an aggregator
 rule let the readvertisement path be cited as evidence of non-applicability when
 it is the bound path.
+
+## The discrimination record
+
+A tag is `RFC requirement: <ID> <polarity>` followed by prose that states what
+the test demonstrates. `parseTagRest` (`internal/le/rfc/tags.go`) reads the
+structured half. No gate reads the prose, because it is a sentence. A tag can
+therefore advertise an assertion its body never makes.
+
+`rfc/discrimination/<stem>.json` is what replaces reading that prose. One
+record says that a named tagged unit was OBSERVED to fail under a named break
+of the code the claim rests on. "The prose is true" is unfalsifiable by a
+machine. "This break makes this unit red" is decidable and replayable.
+
+| Field | Holds |
+|-------|-------|
+| `rid` | the requirement the record proves |
+| `polarity` | `positive` or `negative`, the direction it proves |
+| `unit` | the tagged unit key, `<path>::<FuncName>` for a Go function and a bare `<path>` when the whole file is the unit, which is the scope `UnitAt` (`internal/le/rfc/goscope.go`) answers for a `.ci`. `fingerprintKey` parses it, so the retired `<path>:<line>` form is refused |
+| `unit-sha` | that unit's behavior hash when the red was observed |
+| `route` | `mutant` for a generated break, `revert` for a producer disabled by hand, `no-break` for the escape |
+| `producer` | the function the break was applied to, in the same key form. Required for a proof route, refused for the escape |
+| `producer-sha` | that function's behavior hash when the break was applied |
+| `break` | what was done to the producer. No gate parses it; a reviewer reads it |
+
+The full artifact contract is `rfc/discrimination/README.md`.
+
+`LoadDiscrimination` (`internal/le/rfc/discriminate.go`) reads the tree,
+`verifyDiscrimination` re-checks each record's fingerprints against the working
+tree, and `checkDiscriminationRatchet` (`internal/le/rfc/check_ratchets.go`)
+judges what both answered. Six refusals exist today.
+
+| Refuses | Why |
+|---------|-----|
+| A file that cannot be parsed, an unknown JSON key, or a filename that disagrees with its own `rfc` field | A corrupt record must never read as a corpus with nothing proven |
+| A polarity, a route, a key or a fingerprint outside its closed form | A half-read record is the shape a false proof takes |
+| A record naming a requirement no summary declares | A proof of an obligation nobody wrote down proves nothing |
+| Two records claiming one requirement, polarity and carrier file | The proven count is published, and a duplicate inflates it |
+| A record whose `unit` or `producer` no longer resolves in the tree | The record died with what it named |
+| A record whose `unit-sha` or `producer-sha` no longer matches | Nothing observed the red over the code that is there now, so a hand-written record is refused by the same rule that catches a real drift |
+
+The two fingerprints are minted by `sealDiscrimination`, the one place a hash is
+computed, and they hash `behaviorBytes` rather than the raw text. A reworded
+comment, a reflow, an inserted header and a blank line each leave a record
+verified; a changed assertion or a rewritten producer voids it. That is the same
+predicate `ChangedTags` uses, so a record goes stale exactly when the obligation
+says its unit moved, and the re-stamp burden `rfc/audit/rfc7606.json` records
+does not repeat here.
+
+An ABSENT record is not refused. Most tags have never been proven, and that is
+a backlog the summary line publishes:
+
+    discrimination: 0 proven, 0 owed, 0 escaped
+
+`proven` counts the records taking a proof route and `escaped` counts the
+`no-break` records, which are debt rather than evidence. `owed` is
+change-scoped: a tag present in the tree and absent at HEAD owes its record in
+the change that adds it, and a tag older than HEAD is grandfathered, exactly as
+the extraction backlog is. Where git cannot answer, `owed` is 0, because a
+baseline that cannot be read accuses nobody.
+
+`./le rfc discriminate stem <stem>` and `./le rfc discriminate id <ID>` answer
+what one RFC or one requirement has proven, which of its records no longer
+verify, and which of its tags carry no record. The gate itself runs no test, no
+mutant and no scenario: it reads the recorded proof and compares its
+fingerprints, which is what `checkAuditFreshness` already does for a verdict.
+
+So a verified record says the red WAS observed, and that the code it was
+observed over has not moved since. It does not say the red would happen again on
+a machine that never ran it. Re-observing is `./le rfc discriminate`, which an
+author runs deliberately.
 
 ## What the ratchets cannot see
 

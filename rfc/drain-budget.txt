@@ -36,9 +36,23 @@
 # OWNER RULING, 2026-08-31: the rate STAYS AT 0 for now. Thomas was given the measured
 # rate of 2 and ruled that a schedule is premature while the RFC surface is itself
 # incomplete: a quota that forces sign-offs over code known to be buggy buys a signature
-# rather than conformance. The condition he named for arming is "when we have the RFC
-# under control". So this is no longer an unmeasured quota. It is a measured one, held
-# by a stated trigger. Whoever arms it does NOT need to re-measure -- read the table,
+# rather than conformance.
+#
+# THE TRIGGER, in his words: "we need our first 100% coverage before locking the gate
+# for the RFC verification". So arming waits on ONE enrolled RFC reaching full coverage,
+# not on a date and not on a backlog count. Until one document has been taken all the
+# way, nobody knows what "done" costs for a whole RFC, and a rate is a claim about that
+# cost. The four walks measured what a SIGN-OFF costs, which is a different and smaller
+# thing: a sign-off bounds what a summary missed, and coverage is every gated
+# requirement actually proven.
+#
+# What the trigger measures is not recorded here, because this file carries policy only
+# and a definition would go stale against the checks that own it. Read
+# docs/contributing/rfc-conformance-gates.md and ai/RFC-REQUIREMENTS.md, which are
+# derived and cannot drift.
+#
+# So this is no longer an unmeasured quota. It is a measured one, held by a stated
+# trigger. Whoever arms it does NOT need to re-measure the walk cost -- read the table,
 # pick the rate, and reset `start` to the arming date, because the floor is CUMULATIVE
 # from `start` and an old date bills the tree for every month the quota was inert.
 #

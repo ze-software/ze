@@ -398,8 +398,19 @@ month.
 Thomas received the proposal below, the floor table, and the one-line diff. He
 ruled that arming is premature while the RFC surface is itself incomplete: a
 quota that forces sign-offs over code known to be buggy buys a signature rather
-than conformance. The condition he named for arming is "when we have the RFC
-under control".
+than conformance.
+
+**The trigger is the first RFC at 100% coverage**, verbatim: "we need our first
+100% coverage before locking the gate for the RFC verification".
+
+That trigger measures something this spec did NOT measure, and the difference
+decides whether the rate above is usable. The four walks costed a SIGN-OFF: the
+walk of an RFC's own text, recorded so a machine can re-check what the summary
+missed. Coverage is every gated requirement PROVEN, in both polarities, with no
+`{gap}` and no `{not-applicable}` standing. A corpus can be fully signed off and
+prove nothing, so sign-off cost does not bound coverage cost and the rate below
+cannot be carried across to it unexamined. Whoever arms the quota measures the
+second thing on the first RFC that reaches it.
 
 This is NOT the failure D5 was written to prevent, and the difference matters to
 whoever reads this next. D5's risk was a quota that ships inert because nobody
