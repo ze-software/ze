@@ -199,10 +199,18 @@ func (a Area) Subs() string {
 	return tb.String()
 }
 
+// IsHelpArg reports whether a word asks for usage rather than naming an action
+// or a value. `ai/rules/cli.md` allows the two flag spellings beside the word,
+// and leroot dispatches on the same three, so the vocabulary is declared here
+// and read there.
+func IsHelpArg(word string) bool {
+	return word == "help" || word == "-h" || word == "--help"
+}
+
 // Answer is the area's command. The action and each parameter are closed
 // keywords. A free-form value is consumed only after its parameter names it.
 func (a Area) Answer(args []string) (any, int) {
-	if len(args) == 0 {
+	if len(args) == 0 || IsHelpArg(args[0]) {
 		return a.Actions(), 0
 	}
 
@@ -210,6 +218,13 @@ func (a Area) Answer(args []string) (any, int) {
 		verb := a.verbOf(act)
 		if verb != args[0] {
 			continue
+		}
+		// An action's keyword grammar is declared here and nowhere else, so this
+		// is the only surface that can answer `le <area> <verb> --help`. Only a
+		// TRAILING help word asks: a help word further up the line can be the
+		// value a keyword before it introduced.
+		if len(args) > 1 && IsHelpArg(args[len(args)-1]) {
+			return nil, a.actionUsage(act)
 		}
 		if act.AnswerArgs != nil {
 			parsed, err := parseArguments(act.Parameters, args[1:])
@@ -259,6 +274,25 @@ func (a Area) refuseValue(verb, got string) int {
 	tb.Reset()
 	tb.Str("usage: le ").Str(a.name).Byte(' ').Str(verb).Str(" [| json | yaml | table]").Byte('\n').StdErr() //nolint:errcheck // CLI output
 	return 2
+}
+
+// actionUsage prints one action's whole grammar: its purpose, then the closed
+// keywords in declaration order. A reader who typed the help word asked a
+// question rather than making a mistake, so this answers 0.
+func (a Area) actionUsage(act Action) int {
+	var tb textbuf.Buffer
+	tb.Str("usage: le ").Str(a.name).Byte(' ').Str(a.verbOf(act))
+	for _, parameter := range act.Parameters {
+		tb.Str(" [").Str(parameter.Keyword)
+		if parameter.Value != "" {
+			tb.Str(" <").Str(parameter.Value).Byte('>')
+		}
+		tb.Byte(']')
+	}
+	tb.Str(" [| json | yaml | table]").Byte('\n').StdErr() //nolint:errcheck // CLI output
+	tb.Reset()
+	tb.Str("  ").Str(act.Why).Byte('\n').StdErr() //nolint:errcheck // CLI output
+	return 0
 }
 
 // parseArguments validates one action's closed keyword grammar. It consumes a

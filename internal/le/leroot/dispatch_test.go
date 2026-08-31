@@ -144,3 +144,51 @@ func TestDispatchRefusesUnknownAndHandlesHelp(t *testing.T) {
 		t.Errorf("help answered %d, want 0", code)
 	}
 }
+
+func TestHelpRendersTheNodeWithoutRunningIt(t *testing.T) {
+	const name = "help-page-local-data-probe"
+	ran := 0
+	Register(name, GroupReport, func([]string) (any, int) {
+		ran++
+		return map[string]string{"probe": "ran"}, 0
+	}, registry.Meta{
+		Description: "a probe that must not run for a help word",
+		Mode:        "offline", Section: registry.SectionTest,
+		Subs: "alpha | beta (writes)",
+	})
+	RegisterShape(name, command.ShapeDoc)
+
+	for _, args := range [][]string{{name, "--help"}, {name, "-h"}, {name, "help"}, {"help", name}} {
+		code := 0
+		page := captureStderr(t, func() { code = Dispatch("le", args) })
+		if code != 0 {
+			t.Errorf("%v answered %d, want 0", args, code)
+		}
+		for _, want := range []string{"le " + name, "must not run", "alpha", "beta (writes)"} {
+			if !strings.Contains(page, want) {
+				t.Errorf("%v page missing %q: %s", args, want, page)
+			}
+		}
+	}
+	if ran != 0 {
+		t.Errorf("a help word ran the command %d time(s)", ran)
+	}
+}
+
+func TestHelpNamesWhatANamespaceHolds(t *testing.T) {
+	const member = "help-namespace-probe member"
+	Register(member, GroupReport, func([]string) (any, int) { return nil, 0 },
+		registry.Meta{Description: "the member's own summary", Mode: "offline", Section: registry.SectionTest})
+	RegisterShape(member, command.ShapeDoc)
+
+	code := 0
+	page := captureStderr(t, func() { code = Dispatch("le", []string{"help-namespace-probe", "--help"}) })
+	if code != 0 {
+		t.Errorf("namespace help answered %d, want 0", code)
+	}
+	for _, want := range []string{"member", "the member's own summary"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("namespace page missing %q: %s", want, page)
+		}
+	}
+}

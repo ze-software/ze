@@ -373,3 +373,34 @@ func TestSweepRefusesAnArgumentAwareAction(t *testing.T) {
 		t.Error("the sweep ran an action before it refused the selection")
 	}
 }
+
+// VALIDATES: a help word answers usage instead of running or refusing.
+// PREVENTS: `le <area> <verb> --help` reading the help word as a bad keyword.
+func TestAHelpWordAnswersUsageAndRunsNothing(t *testing.T) {
+	ran := 0
+	area := New("probe",
+		Action{
+			Verb:       "run",
+			Why:        "run the probe over a scope",
+			Parameters: []Parameter{{Keyword: "scope", Value: "packages"}},
+			AnswerArgs: func(Arguments) (any, int) { ran++; return nil, 0 },
+		},
+	)
+
+	for _, args := range [][]string{{"run", "--help"}, {"run", "-h"}, {"run", "help"},
+		{"run", "scope", "./internal", "--help"}} {
+		answer, code := area.Answer(args)
+		if code != 0 || answer != nil {
+			t.Errorf("%v answered %v, %d; want nil, 0", args, answer, code)
+		}
+	}
+	if ran != 0 {
+		t.Errorf("a help word ran the action %d time(s)", ran)
+	}
+
+	answer, code := area.Answer([]string{"--help"})
+	list, ok := answer.(List)
+	if code != 0 || !ok || len(list.Actions) != 1 || list.Actions[0].Verb != "run" {
+		t.Errorf("the area's own help answered %v, %d", answer, code)
+	}
+}

@@ -19,13 +19,13 @@ import (
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/leaction"
 )
 
-// isHelpArg reports whether the word asks for the command list rather than
-// naming a command.
-func isHelpArg(s string) bool {
-	return s == "help" || s == "-h" || s == "--help"
-}
+// isHelpArg reports whether the word asks for usage rather than naming a
+// command. The three spellings are declared once, by the package that also
+// reads them after a verb (leaction.IsHelpArg).
+func isHelpArg(word string) bool { return leaction.IsHelpArg(word) }
 
 // Commands answers le's commands with the metadata from the shared local
 // registry. ListLocal sorts by full path, so the stripped names remain sorted.
@@ -167,12 +167,21 @@ func Dispatch(program string, args []string) int {
 		return 1
 	}
 	if isHelpArg(args[0]) {
-		Usage(program)
-		return 0
+		if len(args) == 1 {
+			Usage(program)
+			return 0
+		}
+		return helpAsked(program, args[1:])
 	}
 
 	name, handler, toolArgs := resolve(args)
 	if handler != nil {
+		// One help word and nothing else asks about the command itself. A help
+		// word after an action belongs to that action's grammar, which only the
+		// area holds, so it travels on to the handler.
+		if len(toolArgs) == 1 && isHelpArg(toolArgs[0]) {
+			return helpNode(program, name)
+		}
 		return Run(name, Answer(handler), toolArgs, os.Stdout, os.Stderr)
 	}
 
@@ -180,6 +189,9 @@ func Dispatch(program string, args []string) int {
 	// Naming the members it holds is the difference between a typo and a
 	// command the reader has half typed.
 	if held := members(args[0]); len(held) != 0 {
+		if len(args) == 2 && isHelpArg(args[1]) {
+			return helpNode(program, args[0])
+		}
 		var tb textbuf.Buffer
 		message := tb.Str("error: ").Str(args[0]).
 			Str(" is a namespace; it needs one of: ").Join(held, " | ").String()
@@ -191,4 +203,86 @@ func Dispatch(program string, args []string) int {
 	tb.Str("unknown command: ").Str(args[0]).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	Usage(program)
 	return 1
+}
+
+// helpAsked answers `le help <command>...`: it resolves the words the reader
+// typed after the help word and renders that node, rather than the whole tree
+// the bare help word answers.
+func helpAsked(program string, words []string) int {
+	name, handler, _ := resolve(words)
+	if handler == nil {
+		// A namespace holds commands without being one, so it has no handler to
+		// resolve and its page is still worth printing.
+		if len(members(words[0])) == 0 {
+			var tb textbuf.Buffer
+			tb.Str("unknown command: ").Str(words[0]).Byte('\n').StdErr() //nolint:errcheck // CLI output
+			Usage(program)
+			return 1
+		}
+		name = words[0]
+	}
+	return helpNode(program, name)
+}
+
+// helpNode renders what the registry knows about one command: its summary, the
+// actions it declares, and the commands registered under it.
+//
+// It never calls the command's own handler. A single-action area answers a bare
+// invocation by RUNNING its gate, so re-entering the handler to print a page
+// would scan the tree, write a file, or start a build on `--help`.
+func helpNode(program, name string) int {
+	var meta registry.Meta
+	for _, command := range Commands() {
+		if command.Name == name {
+			meta = command.Meta
+			break
+		}
+	}
+
+	var tb textbuf.Buffer
+	command := tb.Str(program).Byte(' ').Str(name).String()
+	tb.Reset()
+
+	sections := make([]helpfmt.HelpSection, 0, 2)
+	actions := meta.ResolveSubs()
+	if actions != "" {
+		entries := make([]helpfmt.HelpEntry, 0, 4)
+		for action := range strings.SplitSeq(actions, " | ") {
+			entries = append(entries, helpfmt.HelpEntry{Name: action})
+		}
+		sections = append(sections, helpfmt.HelpSection{Title: "Actions", Entries: entries})
+	}
+	if held := childEntries(name); len(held) != 0 {
+		sections = append(sections, helpfmt.HelpSection{Title: "Commands", Entries: held})
+	}
+
+	pattern := tb.Str(command).Str(" [| json | yaml | table]").String()
+	if actions != "" {
+		tb.Reset()
+		pattern = tb.Str(command).Str(" <action> [| json | yaml | table]").String()
+	}
+	page := helpfmt.Page{
+		Command:  command,
+		Summary:  meta.Description,
+		Help:     meta.LongHelp,
+		Usage:    []string{pattern},
+		Sections: sections,
+	}
+	page.WriteErr()
+	return 0
+}
+
+// childEntries answers the commands registered under a name, each with the
+// summary it registered, so a namespace page and a refusal name the same set.
+func childEntries(name string) []helpfmt.HelpEntry {
+	var tb textbuf.Buffer
+	prefix := tb.Str(name).Byte(' ').String()
+
+	entries := make([]helpfmt.HelpEntry, 0, 4)
+	for _, command := range Commands() {
+		if child, ok := strings.CutPrefix(command.Name, prefix); ok {
+			entries = append(entries, helpfmt.HelpEntry{Name: child, Desc: command.Meta.Description})
+		}
+	}
+	return entries
 }
