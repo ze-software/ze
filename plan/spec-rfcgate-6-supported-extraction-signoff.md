@@ -737,6 +737,44 @@ Rows 1, 2, 4, 5, 6, 7 and 8 are ordinary conformance fixes and are dispatched as
 once `internal/component/radius/client.go` and `packet.go` are released by the two agents
 holding them. Row 3 is the only one that waits on Thomas.
 
+### Later walks, 2026-08-31: what the signed stems found
+
+Fourteen stems signed. Twelve found nothing unmapped, which is the result Tier 4's
+density predicted. Three found obligations Ze meets that no checklist held, and those
+are now extracted with tagged tests in both polarities, each forced RED by mutation
+first: `RFC4303-1-1`, `-2-1`, `-2.1-2`, `-3.2-1`, and `RFC3948-1-1`, `-2.3-2`, `-4-3`.
+
+Three found something the gate could not have seen, and each is recorded where it
+belongs rather than here.
+
+| Stem | Finding | Disposition |
+|---|---|---|
+| `rfc6811` | RFC 6811 Section 2 requires the origin AS to be `NONE` when the final AS_PATH segment is an AS_SET, and the local AS for a confederation segment. `rpkiOriginASFromASPath` (`internal/component/bgp/plugins/rpki/rpki.go`) implements all three arms and is reached only from `handleStructuredUpdate`, the in-process rail. The out-of-process JSON rail derives the origin with `originASFromParsed` over `Event.ASPath`, a field `appendASPathJSON` (`internal/core/bgp/attribute/json.go`) builds by flattening every segment's ASNs into one array and dropping `seg.Type`. So on that rail a route carrying an authorized origin inside an AS_SET is marked Valid where the RFC marks it Invalid. Both handlers register unconditionally. Verified at both producers by the main thread | Journal row in `plan/journal/guard-added-to-one-half-of-a-pair.md`. NO requirement id was added, correctly: Ze does not meet the obligation on every registered path, so an id would publish coverage it does not have. The fix changes the published plugin-event contract (a typed AS_PATH plus the local AS), so it wants a spec |
+| `rfc4456` | RFC 4456 Section 9: "a BGP Speaker SHOULD prefer a route with the shorter CLUSTER_LIST length." `comparePair` (`internal/component/bgp/plugins/rib/bestpath.go`) goes from lowest router-id straight to lowest peer address, and `Candidate` carries no CLUSTER_LIST field. Not declared in the summary at all | Advisory level. IMPLEMENTED 2026-08-31 by owner ruling, unconditional and with no configuration option. `Candidate.ClusterListEntries` (a `uint16`, because a wire-legal CLUSTER_LIST reaches 16383 entries and a `uint8` would wrap a long list into a short one, winning the step it must lose), filled beside `OriginatorIP`, compared BETWEEN the Router ID and peer address steps in both `comparePair` and `comparePairWithReason`. The spec previously said "before step 7", which is wrong against RFC 4271 Section 9.1.2.2: the RFC says between f) and g), and Router ID is f). BIRD places it in exactly that slot with no config gate while its neighbouring steps each test one; GoBGP omits the comparison entirely |
+| `rfc8092` | Nine `RFC 8092 Section N` citations named the wrong section across four packages, one of them the operator-visible `Description` string `validateLargeCommunityAttr` puts in its treat-as-withdraw result | FIXED and committed, `fix(rfc): nine RFC 8092 citations naming the wrong section`. Journal row in `plan/journal/reference-checked-claim-unchecked.md` |
+
+### The interop evidence this spec's stems rest on is partly switched off
+
+Found by session `pending-sync-closure` and verified here in part. 131 `check.py` files
+existed under `test/interop/scenarios/` before the le-personality migration; 116 were
+ported into `scenarioOperations` and 15 were not. Thirteen of the fifteen are now a
+three-line body delegating to `checkScenario`, which looks the name up in a table that
+`bgp_test.go` FORBIDS a bespoke checker from appearing in, so the call always returns
+`scenario %s has no typed assertions`.
+
+Two of the fifteen carry full bespoke implementations behind that same guard, so their
+assertions have never executed once. `checkRFC2545NextHops` is one of them, and RFC 2545
+is one of the four stems that already carried a sign-off before this spec began.
+`docs/features/rfc-status.md` cites `no-family-peer-eor-frr` and
+`bgp-rfc7999-blackhole-frr` as interop evidence for RFC 4724 and RFC 7999.
+
+This spec does NOT soften those citations. A missing checker means the assertion is
+absent, not that the scenario fails, and lowering a published conformance claim on the
+strength of a gate defect would make the defect invisible and the page permanently
+weaker. Restoring the assertions makes the citations true with no prose change. The
+two-line un-gating was attempted and REFUSED by the RFC-tagged-test hook, which requires
+an owner row in `test/rfc-changed.md`; that row is with Thomas.
+
 ### What the two walks establish about this spec's shape
 
 The spec's premise was that a walk finds obligations no checklist held. It does, and the

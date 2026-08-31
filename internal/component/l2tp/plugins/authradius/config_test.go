@@ -82,8 +82,13 @@ func TestParseConfigDefaults(t *testing.T) {
 	if cfg.Retries != 3 {
 		t.Errorf("default retries: got %d, want 3", cfg.Retries)
 	}
-	if cfg.AcctInterval != 300*time.Second {
-		t.Errorf("default acct-interval: got %v, want 300s", cfg.AcctInterval)
+	// acct-interval is the one leaf here with no default. RFC 2869 Section 2.1
+	// gives a locally configured value precedence over the Access-Accept. An
+	// absent leaf must stay absent through the parse: a default reads as an
+	// operator's choice. The 300 second fallback lives in acctIntervalDefault
+	// (acct.go), which TestAcctIntervalPrecedence asserts.
+	if cfg.AcctInterval != 0 {
+		t.Errorf("absent acct-interval: got %v, want 0 (unset)", cfg.AcctInterval)
 	}
 	if cfg.Servers[0].Address != "10.0.0.1:1812" {
 		t.Errorf("default port: got %q", cfg.Servers[0].Address)

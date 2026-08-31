@@ -2,6 +2,7 @@ package l2tpauthradius
 
 import (
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/l2tp/plugins/authradius/yang"
@@ -131,6 +132,58 @@ func TestParseConfigCoAPortAbsentDisablesListener(t *testing.T) {
 	}
 	if parsed.CoAPort != 0 {
 		t.Errorf("coa-port absent: got %d, want 0 (listener disabled)", parsed.CoAPort)
+	}
+}
+
+// TestParseConfigAcctIntervalThroughTheRealPipeline drives both cases of the
+// acct-interval leaf through the real File -> Tree -> ToPluginMap pipeline.
+//
+// VALIDATES: an operator who writes `acct-interval 120` reaches
+// Config.AcctInterval, and an operator who writes nothing reaches zero over the
+// same path a running daemon takes.
+// PREVENTS: a default returning anywhere on that path. RFC 2869 Section 2.1
+// gives a locally configured value precedence over the Access-Accept, so any
+// default silences the Acct-Interim-Interval attribute of every RADIUS server.
+// The default this case is written against was a Go literal in
+// parseConfigFromTree, not the YANG leaf. Measured on 2026-08-31: restore
+// `default 300` to the leaf and the absent case still reads zero here.
+// ParseTreeWithYANG and ToPluginMap do not materialize a leaf nobody wrote.
+func TestParseConfigAcctIntervalThroughTheRealPipeline(t *testing.T) {
+	tests := []struct {
+		name string
+		leaf string
+		want time.Duration
+	}{
+		{"set by the operator", "            acct-interval 120\n", 120 * time.Second},
+		{"absent", "", 0},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := `l2tp {
+    enabled true
+    auth {
+        radius {
+            server radius1 {
+                address 127.0.0.1
+                shared-key testing123
+            }
+` + tc.leaf + `        }
+    }
+}`
+			tree, err := config.ParseTreeWithYANG(cfg, map[string]string{
+				"l2tp-auth-radius": yang.ZeL2TPAuthRadiusConfYANG,
+			})
+			if err != nil {
+				t.Fatalf("parse tree: %v", err)
+			}
+			parsed, err := parseConfigFromTree(tree.ToPluginMap())
+			if err != nil {
+				t.Fatalf("parseConfigFromTree: %v", err)
+			}
+			if parsed.AcctInterval != tc.want {
+				t.Errorf("acct-interval: got %v, want %v", parsed.AcctInterval, tc.want)
+			}
+		})
 	}
 }
 

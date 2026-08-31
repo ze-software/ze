@@ -42,8 +42,13 @@ sends no attribute.";
                 }
                 leaf acct-interval {
                     type uint16 { range "60..3600"; }
-                    default 300;
-                    description "Accounting interim-update interval in seconds.";
+                    description "Accounting interim-update interval in seconds.
+RFC 2869 Section 2.1 states that a locally configured value on the NAS MUST
+override the value found in an Access-Accept. A leaf that is set pins the cadence
+of every session, and the Acct-Interim-Interval attribute (type 85) of an
+Access-Accept then changes nothing. This leaf has no default. An unset leaf
+is the absent case, and it lets each Access-Accept set that session's cadence.
+A session runs at 300 seconds when neither side states an interval.";
                 }
                 leaf coa-port {
                     type uint16 { range "1..65535"; }

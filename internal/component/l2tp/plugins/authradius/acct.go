@@ -1,7 +1,8 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS accounting
 // RFC: rfc/short/rfc2866.md -- Accounting-Request contents (Sections 4.1, 5)
 // RFC: rfc/short/rfc2865.md -- Framed-IP-Address (Section 5.8)
-// RFC: rfc/short/rfc2869.md -- NAS-Port-Id (Section 5.17), Gigawords (Section 5.1)
+// RFC: rfc/short/rfc2869.md -- NAS-Port-Id (Section 5.17), Gigawords (Section 5.1),
+// interim interval precedence (Section 2.1)
 // Related: handler.go -- RADIUS auth handler shares the client
 // Related: nasportid.go -- NAS-Port-Id template resolution
 
@@ -68,6 +69,10 @@ func splitGigawords(bytes uint64) (octets, gigawords uint32) {
 }
 
 // radiusAcct manages RADIUS accounting lifecycle.
+//
+// interval is the acct-interval config leaf, zero when the operator set none.
+// It is not a cadence on its own: acctInterval turns it and the Access-Accept
+// into the cadence one session runs at.
 type radiusAcct struct {
 	mu              sync.Mutex
 	sessions        map[sessionKey]*acctSession
@@ -88,7 +93,6 @@ type sessionKey struct {
 func newRADIUSAcct() *radiusAcct {
 	return &radiusAcct{
 		sessions: make(map[sessionKey]*acctSession),
-		interval: 300 * time.Second,
 	}
 }
 
@@ -96,6 +100,11 @@ func newRADIUSAcct() *radiusAcct {
 // The NAS-Port-Id format is one of those: applying it separately would leave a
 // window where a session authenticates under the new format and accounts under
 // the old one, and a billing system joins those two records by that text.
+//
+// interval is stored as it arrives, zero included. A reload that removes the
+// acct-interval leaf gives the Access-Accept the cadence back, for every session
+// that starts after it. An "install only a positive value" guard would refuse
+// that reload and keep the removed value forever.
 func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Duration, serverAddr string, sourceAddr net.IP, nasPortIDFormat string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -104,9 +113,7 @@ func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Dur
 	a.sourceAddress = sourceAddr
 	a.serverAddr = serverAddr
 	a.nasPortIDFormat = nasPortIDFormat
-	if interval > 0 {
-		a.interval = interval
-	}
+	a.interval = interval
 }
 
 func (a *radiusAcct) genSessionID(tunnelID, sessionID uint16) string {
@@ -138,7 +145,7 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 	client := a.client
 	nasID := a.nasID
 	srcAddr := a.sourceAddress
-	interval := a.interval
+	configured := a.interval
 	portIDFormat := a.nasPortIDFormat
 	a.mu.Unlock()
 
@@ -146,10 +153,14 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 		return
 	}
 
-	// RFC 2869 Section 5.16: per-session Acct-Interim-Interval override.
-	if meta := l2tp.LoadSessionMetadata(payload.TunnelID, payload.SessionID); meta != nil && meta.AcctInterimInterval > 0 {
-		interval = time.Duration(clampAcctInterval(meta.AcctInterimInterval)) * time.Second
+	// An Access-Accept can carry Acct-Interim-Interval (type 85), which RFC 2869
+	// Section 5.16 defines. Section 2.1 decides which of the two values wins,
+	// and acctInterval enforces it.
+	var fromAccept uint32
+	if meta := l2tp.LoadSessionMetadata(payload.TunnelID, payload.SessionID); meta != nil {
+		fromAccept = meta.AcctInterimInterval
 	}
+	interval := acctInterval(configured, fromAccept)
 
 	key := sessionKey{payload.TunnelID, payload.SessionID}
 	acctSessID := a.genSessionID(payload.TunnelID, payload.SessionID)
@@ -236,23 +247,27 @@ func (a *radiusAcct) sendAcctInterimUpdate(client *radius.Client, sess *acctSess
 // the IPCP-negotiated peer address the reactor put on pppN, delivered by the
 // (l2tp, session-ip-assigned) event.
 func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr net.IP, statusType uint8, sessionTime uint32) *radius.Packet {
-	attrs := []radius.Attr{
-		{Type: radius.AttrUserName, Value: radius.AttrString(sess.username)},
-		{Type: radius.AttrAcctStatusType, Value: radius.AttrUint32(uint32(statusType))},
-		{Type: radius.AttrAcctSessionID, Value: radius.AttrString(sess.acctSessID)},
-		{Type: radius.AttrServiceType, Value: radius.AttrUint32(radius.ServiceTypeFramed)},
-		{Type: radius.AttrFramedProtocol, Value: radius.AttrUint32(radius.FramedProtocolPPP)},
-		{Type: radius.AttrNASPortType, Value: radius.AttrUint32(radius.NASPortTypeVirtual)},
-		{Type: radius.AttrNASPort, Value: radius.AttrUint32(uint32(sess.sessionID))},
-	}
+	// RFC 2866 Section 5: "Text of length zero (0) MUST NOT be sent; omit the
+	// entire attribute instead." A session the LNS never authenticated carries
+	// no username (L2TPSession.username is empty until an ICCN proxy-auth name
+	// or an auth plugin response populates it), so User-Name is text whose
+	// length the peer picks.
+	var attrs []radius.Attr
+	attrs = radius.AppendTextAttr(attrs, radius.AttrUserName, sess.username)
 
-	if v4 := sourceAddr.To4(); v4 != nil {
-		attrs = append(attrs, radius.Attr{Type: radius.AttrNASIPAddress, Value: v4})
-	}
+	attrs = append(attrs,
+		radius.Attr{Type: radius.AttrAcctStatusType, Value: radius.AttrUint32(uint32(statusType))},
+		radius.Attr{Type: radius.AttrAcctSessionID, Value: radius.AttrString(sess.acctSessID)},
+		radius.Attr{Type: radius.AttrServiceType, Value: radius.AttrUint32(radius.ServiceTypeFramed)},
+		radius.Attr{Type: radius.AttrFramedProtocol, Value: radius.AttrUint32(radius.FramedProtocolPPP)},
+		radius.Attr{Type: radius.AttrNASPortType, Value: radius.AttrUint32(radius.NASPortTypeVirtual)},
+		radius.Attr{Type: radius.AttrNASPort, Value: radius.AttrUint32(uint32(sess.sessionID))},
+	)
 
-	if nasID != "" {
-		attrs = append(attrs, radius.Attr{Type: radius.AttrNASIdentifier, Value: radius.AttrString(nasID)})
-	}
+	// RFC 2866 Section 4.1: "Either NAS-IP-Address or NAS-Identifier MUST be
+	// present in a RADIUS Accounting-Request." Section 5.13 Note 1 states it
+	// again over the Table of Attributes.
+	attrs = appendNASIdentity(attrs, nasID, sourceAddr)
 
 	// RFC 2869 Section 5.17: the text resolved when this session started
 	// accounting, repeated in every record of the session.
@@ -321,6 +336,9 @@ func (a *radiusAcct) sendAcctPacket(client *radius.Client, pkt *radius.Packet, p
 	}
 }
 
+// interimLoop sends one interim Accounting-Request per interval until the
+// session's context ends. interval is what acctInterval answered for this
+// session, and the caller MUST keep it above zero.
 func (a *radiusAcct) interimLoop(ctx context.Context, _ *radius.Client, sess *acctSession, _ string, _ net.IP, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -368,7 +386,33 @@ func (a *radiusAcct) Stop() {
 const (
 	acctIntervalMin uint32 = 60
 	acctIntervalMax uint32 = 3600
+
+	// acctIntervalDefault is the cadence of a session that neither the operator
+	// nor the RADIUS server gave one. The acct-interval leaf carries no YANG
+	// default, so the 300 seconds live here, and an absent leaf never reads as
+	// an interval of zero.
+	acctIntervalDefault = 300 * time.Second
 )
+
+// acctInterval answers the interim-update cadence of one session.
+//
+// configured is the acct-interval leaf and is zero when the operator set none.
+// fromAccept is the Acct-Interim-Interval attribute (RFC 2869 Section 5.16) of
+// this session's Access-Accept, and is zero when the server sent none. The
+// answer is always above zero, so an absence on both sides leaves interim
+// accounting running rather than stopping it.
+func acctInterval(configured time.Duration, fromAccept uint32) time.Duration {
+	// RFC 2869 Section 2.1: "It is also possible to statically configure an
+	// interim value on the NAS itself. Note that a locally configured value on
+	// the NAS MUST override the value found in an Access-Accept."
+	if configured > 0 {
+		return configured
+	}
+	if fromAccept > 0 {
+		return time.Duration(clampAcctInterval(fromAccept)) * time.Second
+	}
+	return acctIntervalDefault
+}
 
 // clampAcctInterval restricts a RADIUS Acct-Interim-Interval to
 // [60, 3600] seconds. Values below the floor are clamped up; values

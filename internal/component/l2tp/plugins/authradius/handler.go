@@ -235,11 +235,9 @@ func buildAuthAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP) (
 	// CHAP peer an empty Name, so User-Name is text whose length the peer picks.
 	attrs = radius.AppendTextAttr(attrs, radius.AttrUserName, req.Username)
 
-	if v4 := sourceAddr.To4(); v4 != nil {
-		attrs = append(attrs, radius.Attr{Type: radius.AttrNASIPAddress, Value: v4})
-	}
-
-	attrs = radius.AppendTextAttr(attrs, radius.AttrNASIdentifier, nasID)
+	// RFC 2865 Section 4.1: "Either NAS-IP-Address or NAS-Identifier MUST be
+	// present in an Access-Request."
+	attrs = appendNASIdentity(attrs, nasID, sourceAddr)
 
 	// RFC 2865 Section 4.1: "An Access-Request MUST contain either a
 	// User-Password or a CHAP-Password or a State." Ze holds no State for a

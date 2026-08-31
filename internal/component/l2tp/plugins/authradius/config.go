@@ -20,11 +20,17 @@ import (
 
 // radiusConfig holds parsed RADIUS server configuration.
 type radiusConfig struct {
-	Servers         []radius.Server
-	Timeout         time.Duration
-	Retries         int
-	AcctInterval    time.Duration
-	NASIdentifier   string
+	Servers       []radius.Server
+	Timeout       time.Duration
+	Retries       int
+	NASIdentifier string
+
+	// AcctInterval is the acct-interval leaf. Zero means the operator set
+	// nothing. Neither the leaf nor this parser writes a default, so the absent
+	// case reaches acctInterval (acct.go) intact. RFC 2869 Section 2.1 needs
+	// that: it tells an absent leaf apart from a value an operator chose.
+	AcctInterval time.Duration
+
 	SourceAddress   net.IP // bind outbound RADIUS socket to this IP; nil = any
 	CoAPort         int    // RFC 5176 CoA/DM listener port; 0 = disabled
 	NASPortIDFormat string // RFC 2869 Section 5.17 template; "" = no attribute
@@ -52,10 +58,13 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 		return nil, errNoRADIUSConfig
 	}
 
+	// AcctInterval stays at zero here. A default written in makes every
+	// deployment look locally configured, and RFC 2869 Section 2.1 then silences
+	// the Access-Accept of every session. The leaf declares no default either,
+	// so the schema and this parser say the same thing to an operator.
 	cfg := &radiusConfig{
-		Timeout:      3 * time.Second,
-		Retries:      3,
-		AcctInterval: 300 * time.Second,
+		Timeout: 3 * time.Second,
+		Retries: 3,
 	}
 
 	if nasID, ok := radiusBlock["nas-identifier"].(string); ok {

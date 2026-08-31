@@ -1,0 +1,378 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2866",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc2866.txt",
+  "source-sha": "928686054877a829",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc2866",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, copyright notice, Abstract, the Implementation Note on UDP port 1646 against 1813, and the table of contents. The Implementation Note records deployment history and binds no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Names the problem RADIUS Accounting answers, and lists the key features: the client/server model, the shared secret that is never sent over the network, and the variable-length Attribute-Length-Value 3-tuples. No obligation."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Specification of Requirements. The RFC 2119 key-words paragraph, plus one sentence of its own: 'These key words mean the same thing whether capitalized or not.' That sentence is why this walk reads a lowercase modal as normative wherever it binds a speaker, and it is why site 2.1:1 counts although the source writes 'MUST not'."
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Terminology. Defines service, session and 'silently discard'. The 'silently discard' entry carries two SHOULD clauses, on logging the error and on counting the event; neither is gated and neither is declared in rfc/short/rfc2866.md."
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Operation. Describes the Start and Stop exchange, recommends that the client retry with some form of backoff and can fall back to an alternate server, and states that retry and fallback algorithms are not specified in detail in this document. One capitalised site, binding the accounting server. RFC2866-3-1 is declared unsourced here: RFC 2866 nowhere states that an accounting failure must not tear a session down. The summary read it from this section's model, in which accounting is an exchange beside the session rather than a step of it, and ze meets it (sendAcctPacket logs a failed record and returns; onSessionDown is driven by the session-down event alone).",
+      "unsourced-ids": [
+        "RFC2866-3-1"
+      ]
+    },
+    {
+      "id": "2.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Proxy. Walks the four steps of a forwarding server and a remote server, and states one obligation binding the forwarding server. The rest is advice to whoever implements a proxy that takes responsibility for retransmissions."
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Packet Format. States the encapsulation, UDP port 1813, the field layout, and both authenticator computations in RFC 2866's own voice; it does not defer to RFC 2865. The two capitalised sites are the Length rules. The Request Authenticator formula is stated in indicative prose ('contains a one-way MD5 hash calculated over a stream of octets consisting of the Code + Identifier + Length + 16 zero octets + request attributes + shared secret'), so the site scan sees no keyword there and RFC2866-3-2 is declared unsourced. The Response Authenticator paragraph is indicative in the same way; RFC2866-4.2-1 is instead read from the capitalised sentence in Section 4.2. The section closes with one SHOULD on preserving the order of attributes of the same type.",
+      "unsourced-ids": [
+        "RFC2866-3-2"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Packet Types. One sentence: the Code field in the first octet decides the packet type."
+    },
+    {
+      "id": "4.1",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "Accounting-Request. The description, the packet diagram, and the field notes for Code, Identifier, Request Authenticator and Attributes. Seven capitalised sites: one binds the accounting server, and six bind the client that builds the record, which is the role ze plays."
+    },
+    {
+      "id": "4.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Accounting-Response. Two capitalised sites: the server transmits the response when it recorded the request, and the Response Authenticator holds the correct response for the pending Accounting-Request, which the client checks on reception."
+    },
+    {
+      "id": "5",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Attributes. The attribute format, the type list for 40 to 51, the Length rule, and the five data types. RFC 2866 states this section in its own voice: unlike RFC 2869 Section 5, it carries no sentence saying the format is included from RFC 2865 for ease of reference, so its four capitalised sites are read as RFC 2866's own obligations rather than as citations."
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Status-Type. Defines type 40 and its values: Start, Stop, Interim-Update, Accounting-On, Accounting-Off, the tunnel range and Failed. One MAY, on marking the start and the end of accounting with Accounting-On and Accounting-Off; ze sends neither, and the option is the owner's to take (ai/rules/rfc-compliance.md). No capitalised MUST-level keyword."
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Delay-Time. Defines type 41, and notes that changing it changes the Attributes field and so requires a new Identifier and Request Authenticator. ze sends no Acct-Delay-Time."
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Input-Octets. Defines type 42 and says it can only be present where Acct-Status-Type is Stop. Indicative prose, no capitalised keyword."
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Output-Octets. Defines type 43 in the wording of Section 5.3 with the direction reversed. Indicative prose, no capitalised keyword."
+    },
+    {
+      "id": "5.5",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Acct-Session-Id. Defines type 44, states three capitalised obligations, and adds two SHOULDs on UTF-8 encoding. RFC2866-5.5-1 is declared unsourced here: 'unique across all active sessions on the NAS' is the summary's rendering of the indicative opening sentence, 'This attribute is a unique Accounting ID to make it easy to match start and stop records in a log file', which carries no keyword for the site scan to see. genSessionID (authradius/acct.go) is its producer.",
+      "unsourced-ids": [
+        "RFC2866-5.5-1"
+      ]
+    },
+    {
+      "id": "5.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Authentic. Defines type 45, how the user was authenticated. Carries one MAY on including it and one SHOULD NOT: 'Users who are delivered service without being authenticated SHOULD NOT generate Accounting records.' Neither is gated and ze sends no Acct-Authentic. The SHOULD NOT is the RFC's own acknowledgement that an unauthenticated session reaches accounting, which is the session whose empty User-Name site 5:3 governs."
+    },
+    {
+      "id": "5.7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Session-Time. Defines type 46. Indicative prose, no capitalised keyword."
+    },
+    {
+      "id": "5.8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Input-Packets. Defines type 47. Indicative prose, no capitalised keyword."
+    },
+    {
+      "id": "5.9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Output-Packets. Defines type 48. Indicative prose, no capitalised keyword."
+    },
+    {
+      "id": "5.10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Terminate-Cause. Defines type 49 and its eighteen values, each with a one-line meaning. ze sends no Acct-Terminate-Cause. No obligation."
+    },
+    {
+      "id": "5.11",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Multi-Session-Id. Defines type 50 for linking the sessions of one multilink bundle. 'It is strongly recommended that' the value is UTF-8, which is advice and not a keyword. ze sends no Acct-Multi-Session-Id."
+    },
+    {
+      "id": "5.12",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Link-Count. Defines type 51, carries one MAY on including it in an Accounting-Request that might have multiple links, and works an eight-record example. ze runs no multilink bundle and sends no Acct-Link-Count."
+    },
+    {
+      "id": "5.13",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Table of Attributes. The table itself, Note 1, and the legend that defines the 0, 0+, 0-1 and 1 symbols. The two capitalised sites are Note 1 and the legend."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Registers the packet type codes, attribute types and attribute values from the RADIUS name spaces of RFC 2865, under BCP 26. Binds IANA, not a speaker."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. One sentence: the security issues are discussed in the sections about the authenticator and the shared secret. No obligation of its own."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Change Log. Section 1 calls it an appendix: it lists what changed against RFC 2139, in the past tense. Its 'must' in 'it must be used in the accounting-request for that session' is a report of the change site 5.5:3 carries, not a second obligation."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References: RFC 2139, RFC 2865, RFC 2119, RFC 768, RFC 1321, RFC 1700, RFC 2279 and RFC 2434."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements. Credits Livingston Enterprises for the original RADIUS Accounting work."
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Chair's Address. A postal, phone and mail address block, skipped the way rfc/extraction/rfc2869.json skips the same section."
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Author's Address. An address block only."
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Full Copyright Statement. The ISOC boilerplate, its disclaimer, and the RFC Editor funding acknowledgement."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "If the RADIUS accounting server is unable to successfully record the accounting packet it MUST NOT send an Accounting-Response acknowledgment to the client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS accounting server, the party that records the packet. ze runs no accounting server: radius/client.go opens a UDP socket to send requests and match the replies to them, and the one listener ze does run (authradius/coa.go) accepts a CoA-Request and a Disconnect-Request under RFC 5176, never an Accounting-Request."
+    },
+    {
+      "id": "2.1:1",
+      "quote": "A forwarding server MUST not modify existing Proxy-State or Class attributes present in the packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a forwarding server: the party that, in the four steps above the sentence, logs an accounting-request, adds its own Proxy-State after any other, updates the Request Authenticator and forwards the request to a remote server. ze proxies no RADIUS. buildAcctPacket (authradius/acct.go) builds the records of ze's own subscriber sessions and adds neither Proxy-State nor Class, and SendToServers (radius/client.go) sends them to the servers the operator configured."
+    },
+    {
+      "id": "3:1",
+      "quote": "Octets outside the range of the Length field MUST be treated as padding and ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-3-4",
+      "reason": "Binds the receiver of a RADIUS Accounting packet, which ze is for every Accounting-Response. Captured as RFC2866-3-4 at [MUST]. Decode (radius/packet.go) walks attributes to the Length field rather than to the end of the datagram, and readLoop (radius/client.go) hands on buf[:pktLen], so an octet after the Length is padding on both paths."
+    },
+    {
+      "id": "3:2",
+      "quote": "If the packet is shorter than the Length field indicates, it MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-3-5",
+      "reason": "Binds the same receiver. Captured as RFC2866-3-5 at [MUST]. Decode (radius/packet.go) refuses a packet whose Length field runs past the data it was given, and readLoop (radius/client.go) drops such a datagram before dispatchResponse ever sees it, so a truncated Accounting-Response cannot retire a pending record."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "Upon receipt of an Accounting-Request, the server MUST transmit an Accounting-Response reply if it successfully records the accounting packet, and MUST NOT transmit any reply if it fails to record the accounting packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS accounting server, the party that records the packet. ze runs no accounting server: radius/client.go opens a UDP socket to send requests and match the replies to them, and the one listener ze does run (authradius/coa.go) accepts a CoA-Request and a Disconnect-Request under RFC 5176, never an Accounting-Request."
+    },
+    {
+      "id": "4.1:2",
+      "quote": "Any attribute valid in a RADIUS Access-Request or Access-Accept packet is valid in a RADIUS Accounting-Request packet, except that the following attributes MUST NOT be present in an Accounting- Request: User-Password, CHAP-Password, Reply-Message, State.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-4.1-2",
+      "reason": "Binds the client that builds the Accounting-Request, which is the role ze plays. Captured as RFC2866-4.1-2 at [MUST NOT]. buildAcctPacket (authradius/acct.go) emits User-Name, Acct-Status-Type, Acct-Session-Id, Service-Type, Framed-Protocol, NAS-Port-Type, NAS-Port, the NAS identity, NAS-Port-Id, Framed-IP-Address and the counter attributes, and none of the four this sentence forbids."
+    },
+    {
+      "id": "4.1:3",
+      "quote": "Either NAS-IP-Address or NAS-Identifier MUST be present in a RADIUS Accounting-Request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-4.1-3",
+      "reason": "Binds the client. Captured as RFC2866-4.1-3 at [MUST]. appendNASIdentity (authradius/nasidentity.go) is the producer: NAS-IP-Address when the operator set source-address, NAS-Identifier when the operator set nas-identifier, and the host name as NAS-Identifier when neither leaf is set. Both leaves are optional and carry no default (yang/ze-l2tp-auth-radius-conf.yang), so before this walk a configuration that set neither sent an Accounting-Request naming no NAS at all. The walk drove that red through buildAcctPacket first, then wrote the producer."
+    },
+    {
+      "id": "4.1:4",
+      "quote": "If the Accounting-Request packet includes a Framed-IP-Address, that attribute MUST contain the IP address of the user.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-4.1-1",
+      "reason": "Binds the client. Captured as RFC2866-4.1-1 at [MUST], whose row carries both halves of the Framed-IP-Address rule. buildAcctPacket (authradius/acct.go) reads sess.peerAddr, which subscriberIPv4 turns into the four octets of the address the reactor put on the ppp interface, and sends no attribute at all when the session has no IPv4 address."
+    },
+    {
+      "id": "4.1:5",
+      "quote": "If the Access-Accept used the special values for Framed-IP-Address telling the NAS to assign or negotiate an IP address for the user, the Framed-IP-Address (if any) in the Accounting-Request MUST contain the actual IP address assigned or negotiated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-4.1-1",
+      "reason": "The second half of the same requirement row: the value reported is the address actually assigned or negotiated, never the special value that asked for one. ze cannot report a special value, because the only address it has is the one IPCP negotiated, delivered by the (l2tp, session-ip-assigned) event and stored as sess.peerAddr."
+    },
+    {
+      "id": "4.1:6",
+      "quote": "The Identifier field MUST be changed whenever the content of the Attributes field changes, and whenever a valid reply has been received for a previous request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-4.1-4",
+      "reason": "Binds the client. Captured as RFC2866-4.1-4 at [MUST]. SendToServers (radius/client.go) assigns pkt.Identifier = c.NextID() before every send, so a record built after a valid reply, and a record whose attributes differ from the last one, each take a fresh Identifier. buildAcctPacket builds one packet per record, so no record is ever re-sent with changed attributes under its old Identifier."
+    },
+    {
+      "id": "4.1:7",
+      "quote": "For retransmissions where the contents are identical, the Identifier MUST remain unchanged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-3-3",
+      "reason": "The retransmission half of the Identifier rule, which rfc/short/rfc2866.md already declared as RFC2866-3-3 and attributed to Section 3. Exchange (radius/client.go) re-sends the same encoded buffer inside its retry loop, so a retransmission of identical content carries the Identifier of the original."
+    },
+    {
+      "id": "4.2:1",
+      "quote": "If the Accounting- Request was recorded successfully then the RADIUS accounting server MUST transmit a packet with the Code field set to 5 (Accounting-Response).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS accounting server, the party that records the packet. ze runs no accounting server: radius/client.go opens a UDP socket to send requests and match the replies to them, and the one listener ze does run (authradius/coa.go) accepts a CoA-Request and a Disconnect-Request under RFC 5176, never an Accounting-Request."
+    },
+    {
+      "id": "4.2:2",
+      "quote": "The Response Authenticator field MUST contain the correct response for the pending Accounting-Request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-4.2-1",
+      "reason": "The sentence sits in the paragraph that describes reception by the client: the Identifier is matched with a pending Accounting-Request, the Response Authenticator is the correct response for it, and an invalid packet is silently discarded. ze is that client. Captured as RFC2866-4.2-1 at [MUST]. dispatchResponse (radius/client.go) calls VerifyResponseAuth (radius/packet.go) with the pending request's authenticator and its server's secret, and drops the datagram when the comparison fails."
+    },
+    {
+      "id": "5:1",
+      "quote": "If an attribute is received in an Accounting-Request with an invalid Length, the entire request MUST be silently discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The sentence scopes itself to an attribute 'received in an Accounting-Request', and only the accounting server receives one. Binds the RADIUS accounting server, the party that records the packet. ze runs no accounting server: radius/client.go opens a UDP socket to send requests and match the replies to them, and the one listener ze does run (authradius/coa.go) accepts a CoA-Request and a Disconnect-Request under RFC 5176, never an Accounting-Request. Decode (radius/packet.go) does refuse an attribute whose Length is below 2 or runs past the packet, for every code it parses, so the rule holds wherever ze could reach it."
+    },
+    {
+      "id": "5:2",
+      "quote": "Servers and servers and clients MUST be able to deal with embedded nulls.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-5-2",
+      "reason": "Binds servers and clients, and ze is the client. Captured as RFC2866-5-2 at [MUST]. Decode (radius/packet.go) copies attrLen-2 octets by length and never looks for a terminator, and AttrString (radius/attr.go) converts a Go string, which carries none. RADIUS text is therefore data on both directions of ze's socket."
+    },
+    {
+      "id": "5:3",
+      "quote": "Text of length zero (0) MUST NOT be sent; omit the entire attribute instead.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-5-3",
+      "reason": "Binds the sender, which ze is for every Accounting-Request. Captured as RFC2866-5-3 at [MUST NOT]. buildAcctPacket (authradius/acct.go) appends User-Name through AppendTextAttr (radius/attr.go), which appends nothing for an empty value. Before this walk User-Name was appended unconditionally, and L2TPSession.username is empty until an ICCN proxy-auth name or an auth plugin response populates it, so an unauthenticated session put text of length zero on the wire. Section 5.6 shows the RFC expects that session to exist. The other text ze sends is never empty: Acct-Session-Id comes from genSessionID, NAS-Port-Id is appended only when the template resolved to text, and appendNASIdentity never leaves the NAS-Identifier empty."
+    },
+    {
+      "id": "5:4",
+      "quote": "Strings of length zero (0) MUST NOT be sent; omit the entire attribute instead.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2866-5-3",
+      "excluded-kind": "duplicate-of",
+      "reason": "The same obligation for the string data type that the sentence before it states for text; the two differ only in the type they name, and site 5:3 maps it. The producer is the same and no attribute ze builds is a zero-length string: an Accounting-Request from ze carries string-typed values only in NAS-Port-Id, appended only when the template resolved to text, and in the NAS identity, which appendNASIdentity never leaves empty."
+    },
+    {
+      "id": "5.5:1",
+      "quote": "The start and stop records for a given session MUST have the same Acct-Session-Id.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-5.5-2",
+      "reason": "Binds the NAS, which is the role ze plays. Captured as RFC2866-5.5-2 at [MUST]. The id is generated once, when the session gets its address (onSessionIPAssigned calls genSessionID and stores the answer on the acctSession), and buildAcctPacket reads that one field for the Start, the Interim-Update and the Stop record of the session (authradius/acct.go)."
+    },
+    {
+      "id": "5.5:2",
+      "quote": "An Accounting-Request packet MUST have an Acct-Session-Id.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-5.5-3",
+      "reason": "Binds the NAS. Captured as RFC2866-5.5-3 at [MUST]. buildAcctPacket (authradius/acct.go) appends Acct-Session-Id to every packet it builds, whatever the Acct-Status-Type, and genSessionID never answers an empty id."
+    },
+    {
+      "id": "5.5:3",
+      "quote": "An Access-Request packet MAY have an Acct-Session-Id; if it does, then the NAS MUST use the same Acct-Session-Id in the Accounting- Request packets for that session.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "The enclosing construction is 'An Access-Request packet MAY have an Acct-Session-Id; if it does, then the NAS MUST use the same Acct-Session-Id in the Accounting-Request packets for that session.' The MUST is conditioned on the MAY, and ze declines the option: buildAuthAttrs (authradius/handler.go) puts no Acct-Session-Id in an Access-Request, and the id does not exist yet at that point, because onSessionIPAssigned generates it when IPCP assigns the address (authradius/acct.go). Whether ze should take the option is a MAY for the owner to answer (ai/rules/rfc-compliance.md), not a requirement this walk can close."
+    },
+    {
+      "id": "5.13:1",
+      "quote": "[Note 1] An Accounting-Request MUST contain either a NAS-IP-Address or a NAS-Identifier (or both).",
+      "disposition": "excluded",
+      "mapped-to": "RFC2866-4.1-3",
+      "excluded-kind": "duplicate-of",
+      "reason": "Note 1 restates over the Table of Attributes the NAS identity rule Section 4.1 already states; site 4.1:3 maps it, and appendNASIdentity (authradius/nasidentity.go) is the one producer both sentences describe."
+    },
+    {
+      "id": "5.13:2",
+      "quote": "0 This attribute MUST NOT be present 0+ Zero or more instances of this attribute MAY be present. 0-1 Zero or one instance of this attribute MAY be present. 1 Exactly one instance of this attribute MUST be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2866-5-1",
+      "reason": "The legend that defines the Table of Attributes notation. Its '1' symbol is what makes Acct-Status-Type mandatory in an Accounting-Request, which is the row RFC2866-5-1 declares and which the section number in that row already points at; the table's other '1' row is Acct-Session-Id, carried by RFC2866-5.5-3 from Section 5.5. Its '0' symbol forbids User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge: the first four are RFC2866-4.1-2, and TestRFC2866AcctForbiddenAttributesAbsent asserts the absence of all five, so the table adds no untested obligation."
+    }
+  ]
+}
