@@ -350,6 +350,104 @@ func TestFlowspecActionAcceptsACommunity(t *testing.T) {
 	}
 }
 
+// TestAnnounceRefusesAWordAfterTheOptions drives the reported defect through
+// each announce verb's own handler, which is where an operator's tokens arrive
+// from the dispatcher.
+//
+// VALIDATES: a word the options region does not claim stops the command with an
+// error naming that word, and nothing is dispatched to the reactor.
+// PREVENTS: the reported failure and its two siblings. `announce flowspec
+// destination-ipv4 1.1.1.1/32 discard rate-limit 500` put a plain discard on the
+// wire and threw `rate-limit 500` away in silence, so the operator asked for a
+// rate limit, got a blackhole, and was told the command was done.
+func TestAnnounceRefusesAWordAfterTheOptions(t *testing.T) {
+	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
+	ctx := &pluginserver.CommandContext{}
+
+	for _, tc := range []struct {
+		name  string
+		args  []string
+		token string
+		run   func(rctr *captureReactor, args []string) (*plugin.Response, error)
+	}{
+		{
+			name:  "flowspec rate-limit after discard",
+			args:  []string{"destination-ipv4", "1.1.1.1/32", "discard", "rate-limit", "500"},
+			token: "rate-limit",
+			run: func(rctr *captureReactor, args []string) (*plugin.Response, error) {
+				return handleAnnounceFlowspec(ctx, rctr, reg, args)
+			},
+		},
+		{
+			name:  "flowspec word after the tag",
+			args:  []string{"destination-ipv4", "1.1.1.1/32", "discard", "tag", "m", "d", "junk"},
+			token: "junk",
+			run: func(rctr *captureReactor, args []string) (*plugin.Response, error) {
+				return handleAnnounceFlowspec(ctx, rctr, reg, args)
+			},
+		},
+		{
+			name:  "unicast word after the duration",
+			args:  []string{"198.51.100.0/24", "for", "300s", "junk"},
+			token: "junk",
+			run: func(rctr *captureReactor, args []string) (*plugin.Response, error) {
+				return handleAnnounceUnicast(ctx, rctr, reg, args)
+			},
+		},
+		{
+			name:  "blackhole word after the tag",
+			args:  []string{"198.51.100.0/24", "tag", "m", "d", "junk"},
+			token: "junk",
+			run: func(rctr *captureReactor, args []string) (*plugin.Response, error) {
+				return handleAnnounceBlackhole(ctx, rctr, reg, args)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rctr := &captureReactor{}
+			_, err := tc.run(rctr, tc.args)
+			require.ErrorIs(t, err, errTrailingOptUnclaimed)
+			assert.Contains(t, err.Error(), tc.token, "the error names the token the operator typed")
+			assert.Equal(t, 0, rctr.calls, "nothing is announced when a token is left over")
+		})
+	}
+}
+
+// TestAnnounceReadsEveryTrailingOption is the positive half of the pair above:
+// the options an announce form does claim still reach the announcement.
+//
+// VALIDATES: `tag <key> <value>`, `for <duration>`, both together, and neither,
+// each over the flowspec handler an operator's tokens arrive at.
+// PREVENTS: a refusal wide enough to reject the grammar it is guarding.
+func TestAnnounceReadsEveryTrailingOption(t *testing.T) {
+	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
+	ctx := &pluginserver.CommandContext{}
+	const prefix = "1.1.1.1/32"
+
+	for _, tc := range []struct {
+		name    string
+		args    []string
+		wantTag string
+	}{
+		{"no options", []string{"destination-ipv4", prefix, "discard"}, ""},
+		{"tag only", []string{"destination-ipv4", prefix, "discard", "tag", "mitigation", "ddos-udp"}, "mitigation=ddos-udp"},
+		{"duration only", []string{"destination-ipv4", prefix, "discard", "for", "300s"}, ""},
+		{"tag and duration", []string{"destination-ipv4", prefix, "rate-limit", "500", "tag", "m", "d", "for", "300s"}, "m=d"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rctr := &captureReactor{}
+			resp, err := handleAnnounceFlowspec(ctx, rctr, reg, tc.args)
+			require.NoError(t, err)
+			require.Equal(t, 1, rctr.calls, "the announcement is dispatched")
+			if tc.wantTag == "" {
+				assert.NotContains(t, respData(t, resp), "tag")
+				return
+			}
+			assert.Equal(t, tc.wantTag, respData(t, resp)["tag"])
+		})
+	}
+}
+
 func TestParseTrailingOptsTag(t *testing.T) {
 	opts, err := parseTrailingOpts([]string{"tag", "mitigation", "ddos-udp"})
 	require.NoError(t, err)
@@ -380,10 +478,20 @@ func TestParseTrailingOptsEmpty(t *testing.T) {
 	assert.Equal(t, time.Duration(0), opts.duration)
 }
 
-func TestParseTrailingOptsUnknownTokenStops(t *testing.T) {
-	opts, err := parseTrailingOpts([]string{"bogus", "tag", "a", "b"})
-	require.NoError(t, err)
-	assert.Equal(t, "", opts.tagKey)
+// TestParseTrailingOptsUnknownTokenErrors pins the opposite of what this test
+// asserted until 2026-08-31, when it said an unknown token ends the parse and
+// the words after it are discarded without an error.
+//
+// VALIDATES: a word no option keyword claims is refused, and the message names
+// that word so the operator can see which one it was.
+// PREVENTS: the loss of every token after the unknown one. The fixture is the
+// shape that hid the defect: `tag a b` follows the unknown word and would have
+// been read had the parse continued, so a silent stop answers with an
+// announcement carrying neither the tag nor the word the operator typed.
+func TestParseTrailingOptsUnknownTokenErrors(t *testing.T) {
+	_, err := parseTrailingOpts([]string{"bogus", "tag", "a", "b"})
+	require.ErrorIs(t, err, errTrailingOptUnclaimed)
+	assert.Contains(t, err.Error(), "bogus", "the error names the token the operator typed")
 }
 
 func TestParseTrailingOptsTagMissingValue(t *testing.T) {

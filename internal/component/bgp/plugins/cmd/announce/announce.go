@@ -50,6 +50,16 @@ var (
 	errMissingPrefix = errors.New("missing prefix")
 	errTagTooLong    = errors.New("tag key or value exceeds 128 characters")
 
+	// errTrailingOptUnclaimed names a word the operator typed in the options
+	// region that no option keyword claims. Every caller hands parseTrailingOpts
+	// a slice that starts at `tag`, starts at `for`, or is empty, so such a word
+	// is always a mistake and never the next part of the command.
+	//
+	// This used to end the parse and return what had been read, which announced
+	// a route the operator did not describe: `discard rate-limit 500` left the
+	// rate limit on the floor and put a plain discard on the wire, with no error.
+	errTrailingOptUnclaimed = errors.New("expected tag <key> <value> or for <duration>")
+
 	errFlowspecRequiresAction    = errors.New("flowspec announce requires an action: rate-limit <bytes-per-sec>, discard, or community <action>")
 	errCommunityRequiresAction   = errors.New("community requires an action, such as traffic-rate <asn> <rate> or redirect <asn> <target>")
 	errFlowspecActionExtraTokens = errors.New("flowspec action does not use every token given to it")
@@ -143,6 +153,14 @@ type announceOpts struct {
 	duration time.Duration
 }
 
+// parseTrailingOpts reads the `tag <key> <value>` and `for <duration>` options
+// every announce form ends with.
+//
+// The caller MUST pass only the options region: the slice starts at `tag`,
+// starts at `for`, or is empty. Each caller finds that boundary itself, because
+// each one has its own head grammar. handleAnnounceUnicast and
+// handleAnnounceBlackhole stop their own keyword loop at the first option
+// keyword, and splitFlowspecArgs cuts the region after the action.
 func parseTrailingOpts(args []string) (announceOpts, error) {
 	var opts announceOpts
 	i := 0
@@ -172,7 +190,7 @@ func parseTrailingOpts(args []string) (announceOpts, error) {
 			opts.duration = d
 			i += 2
 		default:
-			return opts, nil
+			return opts, fmt.Errorf("unexpected token %s: %w", args[i], errTrailingOptUnclaimed)
 		}
 	}
 	return opts, nil

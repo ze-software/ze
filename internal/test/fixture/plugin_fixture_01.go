@@ -34,6 +34,7 @@ func init() {
 		"plugin/anomaly-show":                       {"anomaly-show-test", plugin01AnomalyShow},
 		"plugin/answer-many-records":                {"answer-records", plugin01AnswerManyRecords},
 		"plugin/answer-unconditional-second":        {"answer-second", plugin01AnswerUnconditionalSecond},
+		"plugin/api-announce-flowspec-extra-token":  {"announce-flowspec-test", plugin01APIAnnounceFlowspecExtraToken},
 		"plugin/api-announce-unicast":               {"announce-unicast-test", plugin01APIAnnounceUnicast},
 		"plugin/api-bgp-summary":                    {"summary-test", plugin01APIBGPSummary},
 		"plugin/api-cache-forward":                  {"cache-forward-test", plugin01APICacheForward},

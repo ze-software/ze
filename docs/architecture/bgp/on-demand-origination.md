@@ -146,7 +146,17 @@ where any single member satisfies the rule. The operator reads the obligation
 from the error rather than from the line, and closing that gap needs a modifier
 that states "one of these", which no command declares today.
 
+**A word no keyword claims stops the command.** `parseTrailingOpts` reads the
+`tag <key> <value>` and `for <duration>` options every form ends with, and each
+caller hands it only that region: the slice starts at `tag`, starts at `for`, or
+is empty. So a word neither keyword claims is always a mistake, and the handler
+answers `errTrailingOptUnclaimed` naming that word. Until 2026-08-31 it ended
+the parse and announced what it had read, which is why `announce flowspec
+destination-ipv4 1.1.1.1/32 discard rate-limit 500` put a plain discard on the
+wire and said nothing about the rate limit the operator asked for.
+
 <!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- splitFlowspecArgs -->
+<!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- parseTrailingOpts -->
 <!-- source: internal/component/command/usage.go -- modifierChildren -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/yang/ze-flowspec-cmd.yang -- augment -->
 <!-- source: internal/component/config/yang/command.go -- declaredContainerOrder -->

@@ -445,6 +445,34 @@ func plugin01APIAnnounceUnicast(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
+// plugin01APIAnnounceFlowspecExtraToken drives the reported defect of 2026-08-31
+// over the daemon's own dispatcher: `announce flowspec destination-ipv4
+// 1.1.1.1/32 discard rate-limit 500` announced a plain discard and threw
+// `rate-limit 500` away without a word.
+//
+// The command must answer an error naming the token, because the operator asked
+// for a rate limit and a silent stop gives them a blackhole instead. The peer
+// block asserts the other half: nothing reaches the wire.
+func plugin01APIAnnounceFlowspecExtraToken(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
+		return err
+	}
+	const command = "announce flowspec destination-ipv4 1.1.1.1/32 discard rate-limit 500"
+	data, status, err := plugin01DispatchMap(ctx, plugin, command)
+	if err != nil {
+		return err
+	}
+	if status != rpc.StatusError {
+		return fmt.Errorf("%s: status=%s data=%v, want an error naming rate-limit", command, status, data)
+	}
+	message, _ := data[fieldError].(string)
+	if !strings.Contains(message, "rate-limit") {
+		return fmt.Errorf("%s: error %q does not name the token the operator typed", command, message)
+	}
+	fmt.Fprintln(os.Stderr, "OK: announce flowspec refused the word after the action")
+	return nil
+}
+
 func plugin01APIRIBInShow(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
 		return err

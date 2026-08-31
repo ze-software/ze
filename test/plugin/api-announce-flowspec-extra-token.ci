@@ -1,0 +1,72 @@
+# Test: `announce flowspec` refuses a word the options region does not claim
+# VALIDATES: the daemon answers an error naming the token when the operator
+#            types `discard rate-limit 500`, and originates nothing
+# PREVENTS: the reported defect of 2026-08-31 -- the command announced a plain
+#           discard, threw `rate-limit 500` away, and reported success, so the
+#           operator asked for a rate limit and got a blackhole
+#
+# The peer receives the End-of-RIB and nothing else. That is the second half of
+# the assertion: a refusal that still puts the rule on the wire is the same
+# failure with an error message on top.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Native test plugin: dispatches the reported command once the session is quiet
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external announce-flowspec-test {
+		run "ze-test fixture plugin/api-announce-flowspec-extra-token"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		# The same permission the sibling announce test grants. The command is
+		# refused before it reaches the reactor, so this rail carries nothing:
+		# it is here because a missing permission would hide the refusal behind
+		# a different error.
+		attach process announce-flowspec-test {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
