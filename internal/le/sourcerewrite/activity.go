@@ -30,6 +30,15 @@ const (
 	defaultActivityServe  = "127.0.0.1:8000"
 )
 
+// ActivityDaysDefault is the window every activity surface opens on: a year
+// ending on the day it is measured. It is exported because a caller that wants
+// that window states it rather than repeating the number.
+const ActivityDaysDefault = 365
+
+// dayLayout formats a calendar day. Every bound this file gives git is a day
+// with a fixed time appended, so the time never enters the layout.
+const dayLayout = "2006-01-02"
+
 var activityCodeExtensions = map[string]bool{
 	".awk": true, ".bash": true, ".c": true, ".cc": true, ".cfg": true,
 	".ci": true, ".conf": true, ".cpp": true, ".css": true, ".et": true,
@@ -106,7 +115,7 @@ func defaultActivityOptions(root string) ActivityOptions {
 		extensions[extension] = true
 	}
 	return ActivityOptions{
-		Repo: root, Days: 365, Output: defaultActivityOutput, Ref: defaultActivityRef,
+		Repo: root, Days: ActivityDaysDefault, Output: defaultActivityOutput, Ref: defaultActivityRef,
 		Extensions: extensions, Excludes: append([]string(nil), defaultActivityExcludes...),
 	}
 }
@@ -281,7 +290,18 @@ func runGit(repo string, check bool, arguments ...string) (string, error) {
 func collectActivity(options ActivityOptions, today time.Time) (activityTotals, error) {
 	today = dateOnly(today)
 	start := today.AddDate(0, 0, -(options.Days - 1))
-	arguments := []string{"log", "--date=short", "--pretty=format:@@@%ad", "--numstat", "--since=" + start.Format("2006-01-02T00:00:00Z")}
+	// today closes the window as well as opening it. Bounded by --since alone,
+	// a measurement pinned to a past day still read every commit made after it:
+	// those commits fall outside the drawn grid, but they set the heat scale
+	// every cell inside it is colored against, so one large drop made after a
+	// frozen talk date flattened the year that deck was showing.
+	//
+	// The clock of each bound is appended rather than formatted, because a Go
+	// layout spells 23:59:59 as 15:04:05: a literal "23:59:59" in the layout
+	// reads as a day and a 12-hour clock, and git answers nothing for it.
+	arguments := []string{"log", "--date=short", "--pretty=format:@@@%ad", "--numstat",
+		"--since=" + start.Format(dayLayout) + "T00:00:00Z",
+		"--until=" + today.Format(dayLayout) + "T23:59:59Z"}
 	if options.Author != "" {
 		arguments = append(arguments, "--author="+options.Author)
 	}

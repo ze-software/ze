@@ -29,7 +29,7 @@ func resolvePaths(repository, output string) (Paths, error) {
 	if err != nil {
 		return Paths{}, err
 	}
-	source := filepath.Join(root, "website")
+	source := sourceRoot(root)
 	if output == source || pathWithin(source, output) {
 		return Paths{}, fmt.Errorf("site output must be outside the website source tree: %s", output)
 	}
@@ -40,6 +40,13 @@ func resolvePaths(repository, output string) (Paths, error) {
 		return Paths{}, fmt.Errorf("website source %s: %w", source, statErr)
 	}
 	return Paths{Repository: root, Source: source, Output: filepath.Clean(output)}, nil
+}
+
+// sourceRoot answers the website sources of one checkout. Every site action
+// derives them from the repository root rather than taking them as a second
+// path, so a caller that holds the checkout holds the sources too.
+func sourceRoot(repository string) string {
+	return filepath.Join(repository, "website")
 }
 
 func pathWithin(parent, child string) bool {

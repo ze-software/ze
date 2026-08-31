@@ -60,19 +60,24 @@ type ActivityWindow struct {
 	Go ActivityGo
 }
 
-// MeasureActivity answers the year of history that ends on today, measured over
-// the repository at root with the dashboard's own defaults: every source
-// extension, every author, the checked-out ref.
+// MeasureActivity answers the days of history that end on today, measured over
+// the repository at root with the dashboard's own file defaults: every source
+// extension and every author. An empty ref takes the checked-out one.
 //
 // today decides the window, so a caller that must publish the same bytes twice
 // MUST pass the same day twice. The measurement reads git and the working tree,
 // and writes nothing.
-func MeasureActivity(root string, today time.Time) (ActivityWindow, error) {
-	options, err := resolveActivityOptions(defaultActivityOptions(root))
+func MeasureActivity(root string, days int, ref string, today time.Time) (ActivityWindow, error) {
+	options := defaultActivityOptions(root)
+	options.Days = days
+	if ref != "" {
+		options.Ref = ref
+	}
+	resolved, err := resolveActivityOptions(options)
 	if err != nil {
 		return ActivityWindow{}, err
 	}
-	return measureActivity(options, today)
+	return measureActivity(resolved, today)
 }
 
 // measureActivity reads the history and the checkout that one dashboard draws.
@@ -104,9 +109,9 @@ func measureActivity(options ActivityOptions, generated time.Time) (ActivityWind
 // measureSeries counts one series over the window it was collected for.
 //
 // The counts read only the days inside the window, and the thresholds read
-// every day the collection answered. The two populations differ because the
-// collection is bounded by --since alone, so a commit dated after today is
-// counted by neither the total nor the peak while it still colors its own cell.
+// every day the collection answered. Both bounds of the collection are today
+// and the day the window opened, so the two populations agree: no day outside
+// the window reaches either the counts or the heat scale.
 func measureSeries(values map[time.Time]int, start, today time.Time) ActivitySeries {
 	series := ActivitySeries{PeakDay: today, Thresholds: activityThresholds(values), daily: values}
 	for day, value := range values {

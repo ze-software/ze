@@ -309,6 +309,15 @@ only the standalone bundle should change. The lower-level
 `./le site bundle input <deck.html>` and `./le site activity output <file> days
 <count>` actions remain available for one-off artifacts.
 
+The activity page is one standalone document that carries its own stylesheet
+inside it, because a deck embeds it as an iframe where no link to the site's
+assets resolves. It draws the same measurement as `/project/activity/` and
+presents it differently: the published page is light, full size, and opens on a
+hero, while the deck embed is dark and sized in viewport units so the whole
+widget fits one slide. The two stylesheets are separate files, and neither
+rendering reads the other's rules. `today <date>` pins the window, so a
+published deck keeps the year it was presented with.
+
 ## Adding a new presentation
 
 1. Create a new directory under `talks/`.

@@ -1,5 +1,6 @@
 // Design: website/AI.md -- the commit calendar, measured once and drawn here
-// Detail: activitystyle.go and activityscript.go hold the page's own assets.
+// Detail: activitystyle.go dresses the published page, activityslidestyle.go
+// the deck embed, and activityscript.go drives both.
 // Related: internal/le/sourcerewrite/activitymeasure.go measures the history.
 package site
 
@@ -22,8 +23,8 @@ func init() {
 //
 // The producer is named for the page rather than for its directory, because
 // this package already renders a second activity surface: renderActivity in
-// presentations.go writes the table a talk deck embeds, under the deck's own
-// directory and behind no route.
+// presentations.go draws the same widget as a standalone document a talk deck
+// embeds, under the deck's own directory and behind no route.
 const (
 	activityProducer  = "activity"
 	activityDirectory = "project/activity"
@@ -55,7 +56,7 @@ type activityMetric struct {
 // clock is the seam the footer stamp already reads, so the two cannot disagree
 // about the date, and a test fixes both at once.
 func renderActivityPage(paths Paths) ([]string, error) {
-	window, err := sourcerewrite.MeasureActivity(paths.Repository, buildClock())
+	window, err := sourcerewrite.MeasureActivity(paths.Repository, sourcerewrite.ActivityDaysDefault, "", buildClock())
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +74,7 @@ func renderActivityPage(paths Paths) ([]string, error) {
 		ExtraHead: activityStyle,
 		Sidebar:   pageSidebar(activityRoot, activityDest, links),
 	}
-	page := shell.render(activityBody(&window))
+	page := shell.render(activityBody(&window, activitySurfacePage))
 	body, err := extractMain(page)
 	if err != nil {
 		return nil, err
@@ -93,33 +94,75 @@ func renderActivityPage(paths Paths) ([]string, error) {
 	return []string{activityRoute}, nil
 }
 
-// activityBody renders the page under <main>: the hero, then the widget that
-// holds the summary cards, the calendar, the Go inventory and the tooltip.
-func activityBody(window *sourcerewrite.ActivityWindow) string {
-	lines := activityLineMetric(window)
-	commits := activityCommitMetric(window)
+// activitySurface names which of the two renderings of one measurement a body
+// is drawn for. The measurement, the grid and the numbers are the same on both;
+// the shell around them, and the stylesheet that dresses them, are not.
+//
+// Zero is unspecified, so a caller that names no surface is caught rather than
+// given the page by accident.
+type activitySurface int
 
+const (
+	activitySurfaceUnspecified activitySurface = iota
+	// activitySurfacePage is /project/activity/: the site shell, the hero, and
+	// the light site stylesheet the rest of the website is drawn in.
+	activitySurfacePage
+	// activitySurfaceSlide is talks/<slug>/activity.html: one standalone dark
+	// document sized to the iframe a deck shows it in, with no hero to spend
+	// the slide's height on.
+	activitySurfaceSlide
+)
+
+// activityBody renders the widget that holds the summary cards, the calendar,
+// the Go inventory and the tooltip, inside the shell its surface asks for.
+func activityBody(window *sourcerewrite.ActivityWindow, surface activitySurface) string {
 	var body strings.Builder
-	body.WriteString(`            <section class="activity-page" aria-labelledby="activity-title">` + "\n")
-	body.WriteString(`                <div class="activity-hero journey-hero reveal">` + "\n")
-	body.WriteString(`                    <span class="activity-eyebrow journey-eyebrow">Git telemetry</span>` + "\n")
-	body.WriteString(`                    <h1 id="activity-title">Development activity</h1>` + "\n")
-	body.WriteString(`                    <p>A year of commits, added lines, and Go composition ` +
-		`regenerated from the repository.</p>` + "\n")
-	body.WriteString("                </div>\n")
-	body.WriteString(`                <div class="activity-widget reveal" aria-label="Activity heatmap">` + "\n")
-	body.WriteString(activitySummaryHTML(lines, activityRangeText(window), activityDaysShown(window)))
-	body.WriteString(`                    <div class="dashboard-grid">` + "\n")
-	body.WriteString(`                        <div class="left-stack">` + "\n")
-	body.WriteString(activityChartHTML(window))
-	body.WriteString(activityGoPanelHTML(window.Go))
-	body.WriteString("                        </div>\n")
-	body.WriteString("                    </div>\n")
-	body.WriteString(activityTooltipHTML)
-	body.WriteString("                </div>\n")
-	body.WriteString("            </section>\n")
-	body.WriteString(activityScriptHTML(lines, commits))
+	switch surface {
+	case activitySurfacePage:
+		body.WriteString(`            <section class="activity-page" aria-labelledby="activity-title">` + "\n")
+		body.WriteString(`                <div class="activity-hero journey-hero reveal">` + "\n")
+		body.WriteString(`                    <span class="activity-eyebrow journey-eyebrow">Git telemetry</span>` + "\n")
+		body.WriteString(`                    <h1 id="activity-title">Development activity</h1>` + "\n")
+		body.WriteString(`                    <p>A year of commits, added lines, and Go composition ` +
+			`regenerated from the repository.</p>` + "\n")
+		body.WriteString("                </div>\n")
+		body.WriteString(activityWidgetHTML(window, surface))
+		body.WriteString("            </section>\n")
+	case activitySurfaceSlide:
+		body.WriteString(`        <main class="activity-slide">` + "\n")
+		body.WriteString(activityWidgetHTML(window, surface))
+		body.WriteString("        </main>\n")
+	case activitySurfaceUnspecified:
+		panic("BUG: site.activityBody: the caller named no activity surface")
+	}
+	body.WriteString(activityScriptHTML(activityLineMetric(window), activityCommitMetric(window)))
 	return body.String()
+}
+
+// activityWidgetHTML renders the widget both surfaces share: the summary cards,
+// the calendar, the Go inventory and the tooltip.
+//
+// The page asks the site script to fade the widget in as the reader scrolls to
+// it, which is what the reveal class marks. The slide carries neither that
+// script nor a scroll, so it does not claim the class.
+func activityWidgetHTML(window *sourcerewrite.ActivityWindow, surface activitySurface) string {
+	class := "activity-widget"
+	if surface == activitySurfacePage {
+		class = "activity-widget reveal"
+	}
+
+	var out strings.Builder
+	out.WriteString(`                <div class="` + class + `" aria-label="Activity heatmap">` + "\n")
+	out.WriteString(activitySummaryHTML(activityLineMetric(window), activityRangeText(window), activityDaysShown(window)))
+	out.WriteString(`                    <div class="dashboard-grid">` + "\n")
+	out.WriteString(`                        <div class="left-stack">` + "\n")
+	out.WriteString(activityChartHTML(window))
+	out.WriteString(activityGoPanelHTML(window.Go))
+	out.WriteString("                        </div>\n")
+	out.WriteString("                    </div>\n")
+	out.WriteString(activityTooltipHTML)
+	out.WriteString("                </div>\n")
+	return out.String()
 }
 
 // activityLineMetric labels the added-line series, which the page opens on.

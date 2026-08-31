@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
+	"github.com/ze-software/ze/internal/le/sourcerewrite"
 )
 
 const area = "site"
@@ -21,7 +22,7 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "bundle", Why: "turn one presentation deck into a self-contained HTML file", Writes: true,
 		Parameters: []leaction.Parameter{{Keyword: keywordInput, Value: "html-file"}}, AnswerArgs: runBundle},
 	leaction.Action{Verb: "activity", Why: "render repository line and commit activity as a presentation-ready HTML page", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: "html-file"}, {Keyword: "days", Value: "count"}, {Keyword: "ref", Value: "revision"}, {Keyword: "today", Value: "date"}, {Keyword: "compact"}}, AnswerArgs: runActivity},
+		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: "html-file"}, {Keyword: "days", Value: "count"}, {Keyword: "ref", Value: "revision"}, {Keyword: "today", Value: "date"}}, AnswerArgs: runActivity},
 	leaction.Action{Verb: "update-talk", Why: "refresh one talk's live statistics, activity page, and standalone deck", Writes: true,
 		Parameters: []leaction.Parameter{{Keyword: "talk", Value: "slug"}, {Keyword: "bundle-only"}}, AnswerArgs: runUpdateTalk},
 	leaction.Action{Verb: "config-tree", Why: "extract the live YANG configuration tree for the public configuration reference", Writes: true,
@@ -135,7 +136,7 @@ func runActivity(arguments leaction.Arguments) (any, int) {
 		leaction.ReportError(err)
 		return nil, 1
 	}
-	days := 365
+	days := sourcerewrite.ActivityDaysDefault
 	if raw := arguments["days"]; raw != "" {
 		days, err = strconv.Atoi(raw)
 		if err != nil {
@@ -155,7 +156,7 @@ func runActivity(arguments leaction.Arguments) (any, int) {
 	if output == "" {
 		output = filepath.Join(root, "tmp", "code-activity.html")
 	}
-	err = renderActivity(ActivityOptions{Repository: root, Ref: arguments["ref"], Output: output, Days: days, Today: today, Compact: arguments.Has("compact")})
+	err = renderActivity(ActivityOptions{Repository: root, Ref: arguments["ref"], Output: output, Days: days, Today: today})
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 1

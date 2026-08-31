@@ -2,19 +2,16 @@
 package site
 
 import (
-	"bytes"
-	"context"
 	"encoding/base64"
 	"fmt"
-	"html"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/le/sourcerewrite"
 )
 
 var presentationMIME = map[string]string{
@@ -207,63 +204,49 @@ func markStandalonePresentation(content, input, output string) string {
 	return content
 }
 
-// ActivityOptions controls the deterministic repository-activity page.
+// ActivityOptions controls the deterministic repository-activity page a talk
+// deck embeds.
 type ActivityOptions struct {
 	Repository, Ref, Output string
 	Days                    int
 	Today                   time.Time
-	Compact                 bool
 }
 
-// renderActivity collects daily additions and commits from git and writes HTML.
+// renderActivity writes the calendar heatmap one talk deck embeds in an iframe.
+//
+// The deck inlines this file as an iframe srcdoc, where no link to the site's
+// assets resolves, so the document carries its own stylesheet inside its head.
+// That stylesheet is the deck's, not the website's: dark, and sized in
+// viewport units so the whole widget lands inside one slide. The published
+// /project/activity/ page draws the same measurement light and full size, and
+// neither rendering reads the other's rules.
+//
+// Today closes the window as well as opening it, so a deck frozen at the day it
+// was presented shows that day's year and not the months since.
 func renderActivity(options ActivityOptions) error {
 	if options.Days <= 0 {
 		return fmt.Errorf("days must be positive")
 	}
-	if options.Ref == "" {
-		options.Ref = "HEAD"
-	}
 	if options.Today.IsZero() {
 		options.Today = time.Now().UTC()
 	}
-	start := options.Today.AddDate(0, 0, 1-options.Days).Format("2006-01-02")
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	command := exec.CommandContext(ctx, "git", "-c", "core.quotePath=false", "-C", options.Repository, "log", options.Ref, "--since="+start, "--date=short", "--format=@@%ad", "--numstat") //nolint:gosec // fixed git verbs over the repository and ref this build was pointed at
-	raw, err := command.Output()
+	window, err := sourcerewrite.MeasureActivity(options.Repository, options.Days, options.Ref, options.Today)
 	if err != nil {
-		return fmt.Errorf("collect activity: %w", err)
+		return fmt.Errorf("measure activity: %w", err)
 	}
-	additions, commits := map[string]int{}, map[string]int{}
-	day := ""
-	for line := range strings.SplitSeq(string(raw), "\n") {
-		if rest, ok := strings.CutPrefix(line, "@@"); ok {
-			day = rest
-			commits[day]++
-			continue
-		}
-		fields := strings.Fields(line)
-		if day == "" || len(fields) < 3 {
-			continue
-		}
-		value, parseErr := strconv.Atoi(fields[0])
-		if parseErr == nil {
-			additions[day] += value
-		}
-	}
-	var days []string
-	for value := range commits {
-		days = append(days, value)
-	}
-	sort.Strings(days)
-	var out bytes.Buffer
-	out.WriteString("<!doctype html><html><head><meta charset=\"utf-8\"><title>Code activity</title></head><body><main><h1>Code activity</h1><table><thead><tr><th>Date</th><th>Commits</th><th>Lines added</th></tr></thead><tbody>")
-	for _, value := range days {
-		fmt.Fprintf(&out, "<tr><td>%s</td><td>%d</td><td>%d</td></tr>", html.EscapeString(value), commits[value], additions[value])
-	}
-	out.WriteString("</tbody></table></main></body></html>\n")
+
+	var page strings.Builder
+	page.WriteString("<!doctype html>\n<html lang=\"en\">\n    <head>\n")
+	page.WriteString("        <meta charset=\"utf-8\" />\n")
+	page.WriteString("        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n")
+	page.WriteString("        <title>Development activity</title>\n")
+	page.WriteString(activitySlideStyle)
+	page.WriteString("    </head>\n    <body>\n")
+	page.WriteString(activityBody(&window, activitySurfaceSlide))
+	page.WriteString("    </body>\n</html>\n")
+
 	if err := os.MkdirAll(filepath.Dir(options.Output), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return err
 	}
-	return os.WriteFile(options.Output, out.Bytes(), 0o644) //nolint:gosec // published web content: a web server, often another account, serves these bytes
+	return os.WriteFile(options.Output, []byte(page.String()), 0o644) //nolint:gosec // published web content: a web server, often another account, serves these bytes
 }

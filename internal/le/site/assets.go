@@ -16,14 +16,27 @@ var cssSpace = regexp.MustCompile(`\s+`)
 var cssPunctuationSpace = regexp.MustCompile(`\s*([{},;])\s*`)
 var cssColonSpace = regexp.MustCompile(`:\s*`)
 
-// renderCSS expands local imports once and writes the deployable stylesheet.
-func renderCSS(source, output string) error {
+// siteStylesheet answers the deployable stylesheet: every local import of
+// site.css expanded once, minified.
+//
+// Two surfaces read it. renderCSS publishes it as assets/site.css, and
+// renderActivity inlines it into the talk embed, which is served as an iframe
+// srcdoc and can resolve no link to that file.
+func siteStylesheet(source string) ([]byte, error) {
 	entry := filepath.Join(source, "assets", "css", "site.css")
 	content, err := expandCSS(entry, make(map[string]bool))
 	if err != nil {
+		return nil, err
+	}
+	return minifyCSS(content), nil
+}
+
+// renderCSS writes the deployable stylesheet into the artifact.
+func renderCSS(source, output string) error {
+	content, err := siteStylesheet(source)
+	if err != nil {
 		return err
 	}
-	content = minifyCSS(content)
 	path := filepath.Join(output, "assets", "site.css")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // published web content: a web server, often another account, serves these bytes
 		return err
