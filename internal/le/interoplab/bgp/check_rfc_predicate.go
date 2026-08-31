@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -598,6 +599,244 @@ func requireRouteWithheld(tableJSON, withheld, control string) error {
 	}
 	if _, ok := document.Routes[withheld]; ok {
 		return fmt.Errorf("FRR learned %s, which ze must withhold from this peer", withheld)
+	}
+	return nil
+}
+
+// GoBGP's own decode of one route, as `gobgp global rib -a ipv4 <prefix>` prints
+// it. Every path attribute that has no column of its own is rendered into the
+// Attrs field as `{Name: value}`, so an attribute is PRESENT exactly when its
+// brace item is, and the value beside the name is what GoBGP read off the wire.
+// The text form is read rather than the JSON because it prints the RECEIVED
+// attribute list verbatim, which is the question these scenarios ask, and because
+// the deleted Python checkers measured this rendering against this daemon.
+//
+// The name is anchored on its opening brace and its colon, so an attribute whose
+// value carries another attribute's name can never answer for it.
+var gobgpAttributeItem = regexp.MustCompile(`\{([A-Za-z][A-Za-z0-9_]*): ?([^{}]*)\}`)
+
+// The two attribute names the egress-attribute scenarios read. GoBGP spells
+// MULTI_EXIT_DISC `Med` and LOCAL_PREF `LocalPref`.
+const (
+	gobgpMEDAttribute       = "Med"
+	gobgpLocalPrefAttribute = "LocalPref"
+)
+
+// gobgpRoute is the one route line GoBGP printed for a prefix: its whole fields,
+// which carry the columns GoBGP gives an attribute of its own, and the attribute
+// items it rendered into the Attrs field.
+type gobgpRoute struct {
+	fields     []string
+	attributes map[string]string
+}
+
+// gobgpRouteFor returns the single route GoBGP holds for prefix. Three conditions
+// carry the lookup. A line naming prefix as a whole FIELD is required, so
+// 110.54.0.0/24 can never answer for 10.54.0.0/24 and an unanswered query can
+// never answer at all. Exactly one such line is required, because two paths for
+// one prefix leave an attribute assertion picking one of them, which is a guess.
+// The line must then carry at least one attribute item: ORIGIN is well-known
+// mandatory and GoBGP renders it there for every route, so a line with none is a
+// message that named the prefix rather than a decode of it.
+func gobgpRouteFor(table, prefix string) (gobgpRoute, error) {
+	var route gobgpRoute
+	lines := 0
+	for line := range strings.SplitSeq(table, "\n") {
+		fields := strings.Fields(line)
+		if !slices.Contains(fields, prefix) {
+			continue
+		}
+		lines++
+		if lines > 1 {
+			continue
+		}
+		items := gobgpAttributeItem.FindAllStringSubmatch(line, -1)
+		route.fields = fields
+		route.attributes = make(map[string]string, len(items))
+		for _, item := range items {
+			route.attributes[item[1]] = item[2]
+		}
+	}
+	if lines == 0 {
+		return gobgpRoute{}, fmt.Errorf("GoBGP's answer names no route for %s", prefix)
+	}
+	if lines != 1 {
+		return gobgpRoute{}, fmt.Errorf("GoBGP holds %d route lines for %s, want 1", lines, prefix)
+	}
+	if len(route.attributes) == 0 {
+		return gobgpRoute{}, fmt.Errorf("GoBGP's line for %s decodes no path attribute, so it is not a route", prefix)
+	}
+	return route, nil
+}
+
+// requireGoBGPSourceBlock reports whether the route GoBGP holds for prefix is the
+// one the source put on the wire. The AS and the next hop are matched as whole
+// FIELDS of that route's line, so an AS that is a text prefix of another and a
+// longer address carrying the wanted one both fail. Every attribute assertion is
+// read against this: a ze that forwarded nothing, or that rebuilt the route from
+// something other than the received block, would satisfy "GoBGP carries no
+// LOCAL_PREF" for a reason that has nothing to do with the requirement.
+func requireGoBGPSourceBlock(table, prefix, sourceAS, nextHop string) error {
+	route, err := gobgpRouteFor(table, prefix)
+	if err != nil {
+		return err
+	}
+	if !slices.Contains(route.fields, sourceAS) {
+		return fmt.Errorf("GoBGP route %s carries no AS %s: %s", prefix, sourceAS, strings.Join(route.fields, " "))
+	}
+	if !slices.Contains(route.fields, nextHop) {
+		return fmt.Errorf("GoBGP route %s carries no next hop %s: %s", prefix, nextHop, strings.Join(route.fields, " "))
+	}
+	return nil
+}
+
+// requireGoBGPAttributeAbsent reports whether GoBGP decoded no attribute named
+// name on the route it holds for prefix. An attribute carrying zero is PRESENT and
+// GoBGP renders it as `{name: 0}`, so this separates a stripped attribute from one
+// set to zero. The two are different outcomes, and every scenario that calls this
+// turns on exactly that difference.
+func requireGoBGPAttributeAbsent(table, prefix, name string) error {
+	route, err := gobgpRouteFor(table, prefix)
+	if err != nil {
+		return err
+	}
+	value, carried := route.attributes[name]
+	if carried {
+		return fmt.Errorf("GoBGP route %s still carries %s %s", prefix, name, value)
+	}
+	return nil
+}
+
+// requireGoBGPAttributeValue reports whether GoBGP decoded name as exactly want on
+// the route it holds for prefix. The value is compared whole, so 1000 never
+// satisfies an assertion about 100, and an ABSENT attribute fails rather than
+// reading as any value at all.
+func requireGoBGPAttributeValue(table, prefix, name, want string) error {
+	route, err := gobgpRouteFor(table, prefix)
+	if err != nil {
+		return err
+	}
+	value, carried := route.attributes[name]
+	if !carried {
+		return fmt.Errorf("GoBGP route %s carries no %s at all, want %s", prefix, name, want)
+	}
+	if value != want {
+		return fmt.Errorf("GoBGP decoded %s %s for %s, want %s", name, value, prefix, want)
+	}
+	return nil
+}
+
+// The native speaker's end-of-run report (runSpeakerHelper, speaker.go). Two
+// shapes carry it: `<key>: <value>` at the top level for the verdict and the
+// oracle, and `note: <key>: <value>` for each measurement. A field is therefore
+// the WHOLE first token of its line, or the whole second token behind `note:`,
+// which is what separates `established:` from a line naming `not-established:`.
+const (
+	speakerFieldResult       = "result"
+	speakerFieldPlugin       = "plugin"
+	speakerFieldRouteUpdates = "route-bearing-updates"
+	speakerFieldEVPNNLRI     = "evpn-nlri"
+	speakerNoteMarker        = "note:"
+	speakerFailMarker        = "fail:"
+	speakerResultPass        = "PASS"
+)
+
+// speakerReportField returns the value the speaker printed for key, and reports
+// whether it printed the key at all. An absent key is an absent answer rather than
+// an empty value: the caller decides what a missing measurement means.
+func speakerReportField(report, key string) (string, bool) {
+	token := key + ":"
+	for line := range strings.SplitSeq(report, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == token {
+			return strings.Join(fields[1:], " "), true
+		}
+		if len(fields) > 1 && fields[0] == speakerNoteMarker && fields[1] == token {
+			return strings.Join(fields[2:], " "), true
+		}
+	}
+	return "", false
+}
+
+// speakerReportPrinted reports whether the speaker has finished its run and
+// printed its verdict line. A body waits on this and never on what the verdict
+// says, so a wrong verdict reads as a wrong verdict rather than as a timeout.
+func speakerReportPrinted(report string) bool {
+	_, printed := speakerReportField(report, speakerFieldResult)
+	return printed
+}
+
+// speakerReportFailures returns every finding the speaker's oracle recorded, so a
+// FAIL verdict is reported with the reason the speaker gave for it.
+func speakerReportFailures(report string) []string {
+	var failures []string
+	for line := range strings.SplitSeq(report, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == speakerFailMarker {
+			failures = append(failures, strings.Join(fields[1:], " "))
+		}
+	}
+	return failures
+}
+
+// speakerReportCount returns the count the speaker printed for key. A key it never
+// printed, and a value that is not a count, are both errors: a measurement that
+// was never taken must not read as zero, because zero is a meaningful answer here.
+func speakerReportCount(report, key string) (int, error) {
+	value, printed := speakerReportField(report, key)
+	if !printed {
+		return 0, fmt.Errorf("the speaker printed no %s note", key)
+	}
+	count, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("the speaker %s note %q is not a count: %w", key, value, err)
+	}
+	return count, nil
+}
+
+// requireSpeakerEVPNDiscard reports whether the independent speaker's own verdict
+// says the assigned EVPN route type reached it and the unassigned one did not.
+// Five facts carry the decision, and the first four are what stop the fifth from
+// being vacuous. The verdict line is required, because an unfinished run says
+// nothing. The oracle name is required, because a report from another scenario's
+// speaker would otherwise answer here. Established is required, because a session
+// that never came up relayed nothing. One route-bearing UPDATE and one decoded
+// EVPN NLRI are required, because the behavior under test REMOVES a route: a
+// verdict that only reported no unassigned type would read the same on a relay
+// that was broken outright. PASS is then the discard itself, because
+// applySpeakerOracle fails the run for every EVPN route type outside 1 to 5.
+func requireSpeakerEVPNDiscard(report string) error {
+	result, printed := speakerReportField(report, speakerFieldResult)
+	if !printed {
+		return errors.New("the speaker printed no verdict line, so nothing was read")
+	}
+	plugin, printed := speakerReportField(report, speakerFieldPlugin)
+	if !printed {
+		return errors.New("the speaker named no oracle, so the verdict belongs to no requirement")
+	}
+	if plugin != speakerOracleNoUnrecognizedEVPNType {
+		return fmt.Errorf("the speaker ran oracle %q, want %q", plugin, speakerOracleNoUnrecognizedEVPNType)
+	}
+	established, printed := speakerReportField(report, fieldEstablished)
+	if !printed || established != logValueYes {
+		return fmt.Errorf("the speaker reports established %q, want %q", established, logValueYes)
+	}
+	updates, err := speakerReportCount(report, speakerFieldRouteUpdates)
+	if err != nil {
+		return err
+	}
+	if updates < 1 {
+		return errors.New("the speaker received no route-bearing UPDATE, so ze relayed nothing and the discard is unproven")
+	}
+	routes, err := speakerReportCount(report, speakerFieldEVPNNLRI)
+	if err != nil {
+		return err
+	}
+	if routes < 1 {
+		return errors.New("the speaker decoded no EVPN NLRI, so the assigned route type never arrived and the discard is unproven")
+	}
+	if result != speakerResultPass {
+		return fmt.Errorf("the speaker verdict is %s: %s", result, strings.Join(speakerReportFailures(report), "; "))
 	}
 	return nil
 }

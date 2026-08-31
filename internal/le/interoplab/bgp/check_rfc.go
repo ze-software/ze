@@ -98,7 +98,99 @@ func checkAddPathReadvertiseCollision(ctx context.Context, check *interoplab.Che
 // case of BGP Confederations [RFC3065]." Ze has no confederation configuration
 // surface, so the exception cannot apply to either session here.
 func checkLocalPrefStrip(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "bgp-local-pref-strip-gobgp")
+	const (
+		name = "bgp-local-pref-strip-gobgp"
+		// inject.msg announces these three, each carrying one attribute block:
+		// ORIGIN, AS_PATH [65004], NEXT_HOP 172.30.0.9 and LOCAL_PREF 200. The
+		// first two travel the initial burst and the third follows the End-of-RIB,
+		// so at least one of them reaches both destinations after the End-of-RIB,
+		// on the live forward rail this scenario exists to measure.
+		relayedFirst  = "10.54.0.0/24"
+		relayedSecond = "10.54.1.0/24"
+		relayedThird  = "10.54.2.0/24"
+		// The injected AS_PATH, read back at GoBGP as proof that the route it holds
+		// is the relayed one rather than something ze rebuilt.
+		sourceAS = "65004"
+		// The injector, and the NEXT_HOP its UPDATEs carry. Every peer sits on one
+		// subnet, so a third-party next hop is what RFC 4271 Section 5.1.3 case 2
+		// permits and what ze relays unchanged.
+		injectorAddress = baseIPv4Prefix + "9"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+
+	// Assertion 1. The injected NEXT_HOP is raw hex in inject.msg (AC1E0009), and
+	// renderScenario rewrites text rather than hex, so those octets name the
+	// injector on the base network alone. On any other selected network the relayed
+	// routes carry a next hop belonging to nobody, both destinations refuse them,
+	// and every assertion below would read a renumbered lab as an egress defect.
+	// Say which it is. The zero Network is not the base network either, so this one
+	// guard also covers it, and every address below is a constant BECAUSE it holds.
+	baseNetwork := netip.MustParseAddr(baseIPv4Prefix + "0")
+	if check.Network.IPv4.Addr() != baseNetwork {
+		return fail(1, fmt.Errorf("scenario runs on network %s, and the injected NEXT_HOP octets name a peer only on %s", check.Network.IPv4, baseNetwork))
+	}
+
+	// Assertions 2 and 3. Both destination sessions, read from the two daemons
+	// themselves. GoBGP carries every attribute assertion below, and FRR carries the
+	// other half of the job: a conforming peer ACCEPTS the stripped UPDATE, sends no
+	// NOTIFICATION, and installs the route.
+	sessions := []operation{
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opGoBGPSession, argument: zeLabAddress},
+	}
+	for index := range sessions {
+		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
+			return fail(index+2, err)
+		}
+	}
+
+	// Assertions 4 to 9. Every prefix at both destinations. This is what stops the
+	// absence assertions from being vacuous: "GoBGP carries no LOCAL_PREF" is
+	// satisfied just as well by "GoBGP carries nothing at all".
+	relayed := []string{relayedFirst, relayedSecond, relayedThird}
+	arrivals := make([]operation, 0, 2*len(relayed))
+	for _, prefix := range relayed {
+		arrivals = append(arrivals,
+			operation{kind: opFRRRoute, argument: prefix, timeout: 120 * time.Second},
+			operation{kind: opGoBGPRoute, argument: prefix, timeout: 120 * time.Second},
+		)
+	}
+	for index := range arrivals {
+		if err := runOperation(ctx, check.Network, check.Lab, &arrivals[index]); err != nil {
+			return fail(index+4, err)
+		}
+	}
+
+	// Assertions 10 to 12. GoBGP's own decode, one answer per prefix. GoBGP is the
+	// witness and FRR cannot be: Section 5.1.5 also says a LOCAL_PREF received from
+	// an external peer MUST be ignored, and FRR implements that by skipping the
+	// attribute during parse, so a leaked value is invisible in its RIB either way.
+	// GoBGP keeps the RECEIVED attribute list on the path and prints it, so it
+	// reports what ARRIVED rather than what it decided to keep.
+	for index, prefix := range relayed {
+		route, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, prefix}, nil)
+		if err != nil {
+			return fail(index+10, err)
+		}
+		if err := requireGoBGPSourceBlock(route, prefix, sourceAS, injectorAddress); err != nil {
+			return fail(index+10, err)
+		}
+		if err := requireGoBGPAttributeAbsent(route, prefix, gobgpLocalPrefAttribute); err != nil {
+			return fail(index+10, err)
+		}
+	}
+
+	// Assertions 13 and 14. Both sessions survived. Withholding an attribute is a
+	// decision about egress, and a peer that answered the relay with a NOTIFICATION
+	// would hold no route to read an attribute off.
+	for index := range sessions {
+		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
+			return fail(index+13, err)
+		}
+	}
+	return nil
 }
 
 // RFC requirement: RFC4271-5.1.4-1 positive -- "The MULTI_EXIT_DISC attribute
@@ -109,7 +201,118 @@ func checkLocalPrefStrip(ctx context.Context, check *interoplab.CheckContext) er
 // value and nothing else. Ze's own metric of 42 arrives at AS 65003 intact,
 // judged by that daemon's RIB.
 func checkMEDAcrossAS(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "bgp-med-across-as-gobgp")
+	const (
+		name = "bgp-med-across-as-gobgp"
+		// inject.msg announces these three from AS 65004, each carrying ORIGIN,
+		// AS_PATH [65004], NEXT_HOP 172.30.0.9 and MULTI_EXIT_DISC 100. Their metric
+		// is the one Section 5.1.4 stops at ze.
+		relayedFirst  = "10.60.0.0/24"
+		relayedSecond = "10.60.1.0/24"
+		relayedThird  = "10.60.2.0/24"
+		// The route ze ORIGINATES itself, through the announce rail rather than the
+		// forward transform (announcementPlan, helper.go). Its metric is ze's own,
+		// so Section 5.1.4 says nothing about it and it must arrive intact.
+		originated = "10.60.9.0/24"
+		// The metric ze sets on that route. 42 rather than 0 or 100: GoBGP's own
+		// rendering shows an absent metric by omitting the item, and the injected
+		// value is 100, so 42 can have come from nowhere but ze's own announce.
+		originatedMetric = "42"
+		// The injected AS_PATH, and ze's own AS, each read back at GoBGP as proof
+		// that the route it holds came from the source this assertion names.
+		sourceAS = "65004"
+		zeAS     = "65001"
+		// The injector, and the NEXT_HOP its UPDATEs carry.
+		injectorAddress = baseIPv4Prefix + "9"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+
+	// Assertion 1. The injected NEXT_HOP is raw hex in inject.msg (AC1E0009) and
+	// renderScenario rewrites text rather than hex, so those octets name the
+	// injector on the base network alone. The announce rail's next hop is a
+	// constant too (announcementPlan, helper.go). On any other selected network
+	// both peers refuse the relayed routes as unreachable, and every assertion
+	// below would read a renumbered lab as an egress defect. Say which it is. The
+	// zero Network is not the base network either, so this one guard also covers
+	// it, and every address below is a constant BECAUSE it holds.
+	baseNetwork := netip.MustParseAddr(baseIPv4Prefix + "0")
+	if check.Network.IPv4.Addr() != baseNetwork {
+		return fail(1, fmt.Errorf("scenario runs on network %s, and the injected NEXT_HOP octets name a peer only on %s", check.Network.IPv4, baseNetwork))
+	}
+
+	// Assertions 2 and 3. Both destination sessions. GoBGP carries every attribute
+	// assertion below, and FRR carries the other half of the job: a conforming peer
+	// accepts both UPDATEs, sends no NOTIFICATION, and installs the routes.
+	sessions := []operation{
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opGoBGPSession, argument: zeLabAddress},
+	}
+	for index := range sessions {
+		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
+			return fail(index+2, err)
+		}
+	}
+
+	// Assertions 4 to 11. Every prefix at both destinations, the originated route
+	// included. This is what stops the absence assertions from being vacuous:
+	// "GoBGP carries no MED" is satisfied just as well by "GoBGP carries nothing".
+	relayed := []string{relayedFirst, relayedSecond, relayedThird}
+	arrivals := make([]operation, 0, 2*(len(relayed)+1))
+	for _, prefix := range append(append([]string(nil), relayed...), originated) {
+		arrivals = append(arrivals,
+			operation{kind: opFRRRoute, argument: prefix, timeout: 120 * time.Second},
+			operation{kind: opGoBGPRoute, argument: prefix, timeout: 120 * time.Second},
+		)
+	}
+	for index := range arrivals {
+		if err := runOperation(ctx, check.Network, check.Lab, &arrivals[index]); err != nil {
+			return fail(index+4, err)
+		}
+	}
+
+	// Assertions 12 to 14. The prohibition, read from the daemon that keeps the
+	// RECEIVED attribute list on the path and prints it. AS 65004's metric reaches
+	// neither AS 65002 nor AS 65003, and the injected AS and next hop on the same
+	// line say the route GoBGP holds is the relayed one.
+	for index, prefix := range relayed {
+		route, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, prefix}, nil)
+		if err != nil {
+			return fail(index+12, err)
+		}
+		if err := requireGoBGPSourceBlock(route, prefix, sourceAS, injectorAddress); err != nil {
+			return fail(index+12, err)
+		}
+		if err := requireGoBGPAttributeAbsent(route, prefix, gobgpMEDAttribute); err != nil {
+			return fail(index+12, err)
+		}
+	}
+
+	// Assertion 15. The permission, and the half a blanket strip of attribute 4
+	// fails. The MUST NOT covers a RECEIVED value and nothing else, so ze's own
+	// metric of 42 arrives at AS 65003 intact. Without this polarity a daemon that
+	// deleted attribute 4 from every external session would satisfy every assertion
+	// above and break MULTI_EXIT_DISC as a feature.
+	route, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, originated}, nil)
+	if err != nil {
+		return fail(15, err)
+	}
+	if err := requireGoBGPSourceBlock(route, originated, zeAS, zeLabAddress); err != nil {
+		return fail(15, err)
+	}
+	if err := requireGoBGPAttributeValue(route, originated, gobgpMEDAttribute, originatedMetric); err != nil {
+		return fail(15, err)
+	}
+
+	// Assertions 16 and 17. Both sessions survived. Withholding an attribute is a
+	// decision about egress, and a peer that answered the relay with a NOTIFICATION
+	// would hold no route to read an attribute off.
+	for index := range sessions {
+		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
+			return fail(index+16, err)
+		}
+	}
+	return nil
 }
 
 // RFC requirement: RFC4271-5.1.4-4 positive -- "A BGP speaker MUST implement a
@@ -120,7 +323,109 @@ func checkMEDAcrossAS(ctx context.Context, check *interoplab.CheckContext) error
 // selects, not an unconditional strip. The control prefix from the same peer,
 // outside the configured match, reaches GoBGP with MED 100 intact.
 func checkMEDRemovalConfiguration(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "bgp-med-remove-configured-gobgp")
+	const (
+		name = "bgp-med-remove-configured-gobgp"
+		// frr.conf redistributes two static routes, both with `set metric 100`.
+		// MED_ROUTES also puts community 65005:1 on the first one, which is the
+		// condition the DROP-MED import policy matches, so only that route loses
+		// its metric.
+		removedPrefix = "10.61.0.0/24"
+		// The in-run positive control. Same session, same route-server rail, same
+		// policy chain, outside the match container, so it keeps what FRR set.
+		controlPrefix = "10.61.1.0/24"
+		// What FRR puts on the wire for both. 100 rather than 0: GoBGP renders an
+		// absent metric by omitting the item, so a check for 0 could not tell a
+		// removed attribute from one carrying the value zero.
+		sourceMetric = "100"
+		// FRR's AS, read back at GoBGP as proof that the route it holds is the
+		// relayed one. ze is a route server here, so it leaves the path alone.
+		sourceAS = "65005"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+
+	// Assertion 1. networkHostAddress reads the selected network's octets, and it
+	// panics on the zero Addr rather than answering.
+	//
+	// No base-network guard is owed here, unlike the two scenarios above. FRR is the
+	// source, its address and ze's are both derived from the selected network, and
+	// the prefixes are announced ones rather than lab addresses. The scenario
+	// directory does carry an inject.msg with a raw-hex NEXT_HOP, but ze.conf
+	// declares no peer at 172.30.0.9, so nothing ze relays comes from it.
+	if !check.Network.IPv4.IsValid() {
+		return fail(1, errors.New("configured MED removal scenario has no selected IPv4 network"))
+	}
+	zeAddress := networkHostAddress(check.Network, 2)
+	sourceAddress := networkHostAddress(check.Network, 3)
+
+	// Assertions 2 and 3. Both sessions, read from the two daemons themselves. The
+	// source session must be up for the routes to exist at all, and the destination
+	// session is what every assertion below reads.
+	sessions := []operation{
+		{kind: opFRRSession, argument: zeAddress},
+		{kind: opGoBGPSession, argument: zeAddress},
+	}
+	for index := range sessions {
+		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
+			return fail(index+2, err)
+		}
+	}
+
+	// Assertions 4 and 5. Both prefixes at the destination, which is what stops the
+	// removal assertion from being vacuous: "GoBGP carries no MED" is satisfied just
+	// as well by "GoBGP carries nothing at all".
+	arrivals := []operation{
+		{kind: opGoBGPRoute, argument: removedPrefix, timeout: 120 * time.Second},
+		{kind: opGoBGPRoute, argument: controlPrefix, timeout: 120 * time.Second},
+	}
+	for index := range arrivals {
+		if err := runOperation(ctx, check.Network, check.Lab, &arrivals[index]); err != nil {
+			return fail(index+4, err)
+		}
+	}
+
+	// Assertion 6. The mechanism ran on the route the operator's policy named. The
+	// destination is INTERNAL to ze, and ze's automatic Section 5.1.4 strip fires
+	// toward a different neighboring AS alone (medPropagationAllowedTo,
+	// reactor/forward_med.go), so nothing removes attribute 4 on this session
+	// unless an operator asked for it. That is what makes the absence mean the
+	// configured mechanism rather than the automatic rule.
+	removed, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, removedPrefix}, nil)
+	if err != nil {
+		return fail(6, err)
+	}
+	if err := requireGoBGPSourceBlock(removed, removedPrefix, sourceAS, sourceAddress); err != nil {
+		return fail(6, err)
+	}
+	if err := requireGoBGPAttributeAbsent(removed, removedPrefix, gobgpMEDAttribute); err != nil {
+		return fail(6, err)
+	}
+
+	// Assertion 7. The mechanism is what an operator selects and never a default.
+	// This route travels the same session, the same rail and the same policy chain,
+	// and it keeps the metric FRR set. Without this polarity an unconditional strip
+	// would satisfy assertion 6 and pass as the configured removal.
+	control, err := check.Lab.Query(ctx, peerGoBGP, []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4, controlPrefix}, nil)
+	if err != nil {
+		return fail(7, err)
+	}
+	if err := requireGoBGPSourceBlock(control, controlPrefix, sourceAS, sourceAddress); err != nil {
+		return fail(7, err)
+	}
+	if err := requireGoBGPAttributeValue(control, controlPrefix, gobgpMEDAttribute, sourceMetric); err != nil {
+		return fail(7, err)
+	}
+
+	// Assertions 8 and 9. Both sessions survived. Removing an attribute is a
+	// decision on the import chain, and a peer that answered the relay with a
+	// NOTIFICATION would hold no route to read an attribute off.
+	for index := range sessions {
+		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
+			return fail(index+8, err)
+		}
+	}
+	return nil
 }
 
 // RFC requirement: RFC4271-5.1.2-3 positive -- an independent conforming receiver (FRR 10.3.1) reports AS_PATH "65001 65004" on a route ze relays to it as an ordinary external peer, so the local AS is prepended when a route IS advertised.
@@ -405,7 +710,53 @@ func checkRFC7606MixedUpdate(ctx context.Context, check *interoplab.CheckContext
 
 // RFC requirement: RFC7606-5.4-1 positive -- an independent peer receives the assigned EVPN route type and never the unassigned one ze was sent in the same attribute.
 func checkRFC7606TypedNLRIDiscard(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "bgp-rfc7606-typed-nlri-discard")
+	const name = "bgp-rfc7606-typed-nlri-discard"
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+
+	// Assertion 1. The speaker's own end-of-run report, polled out of its container
+	// log. The speaker runs for the duration speaker-args names and prints the
+	// report when that run ends, so the wait is for the report to EXIST and asserts
+	// nothing about what it says: a wrong verdict must read as a wrong verdict
+	// rather than as a timeout.
+	//
+	// The speaker is the observer here and neither FRR nor GoBGP could be: a
+	// conforming daemon discards the unassigned route type itself, so its route
+	// table cannot separate "ze discarded it" from "the peer discarded it". The
+	// speaker decodes the MP_REACH bytes ze put on the wire.
+	//
+	// No address is read, so no network guard is owed. The injected NEXT_HOP inside
+	// the MP_REACH is raw hex that renderScenario does not rewrite, but ze relays
+	// the EVPN NLRI verbatim as a route server and the speaker's oracle reads route
+	// types, so a renumbered lab changes nothing this body asserts.
+	report, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout:     150 * time.Second,
+		Interval:    3 * time.Second,
+		Description: "speaker EVPN verdict",
+	}, func(probeCtx context.Context) (string, error) {
+		logs, logErr := check.Lab.Logs(probeCtx, peerSpeaker, 200)
+		if logErr != nil {
+			return "", logErr
+		}
+		if !logs.Available {
+			return "", errors.New("the speaker's logs were not read")
+		}
+		return logs.Text, nil
+	}, speakerReportPrinted)
+	if err != nil {
+		return fail(1, err)
+	}
+
+	// Assertion 2. The verdict itself. requireSpeakerEVPNDiscard requires the
+	// oracle's name, an Established session, one route-bearing UPDATE and one
+	// decoded EVPN NLRI before it reads the PASS, because the behavior under test
+	// REMOVES a route: a verdict reporting only the absence of the unassigned type
+	// would read the same on a relay that was broken outright.
+	if err := requireSpeakerEVPNDiscard(report); err != nil {
+		return fail(2, err)
+	}
+	return nil
 }
 
 // RFC requirement: RFC7999-3.3-1 positive -- "The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise" (RFC 7999 Section 3.3, first condition). FRR 10.3.1 announces 10.100.0.1/32 carrying 65535:666, inside the 10.100.0.0/24 that peer is authorized for, and the Linux FIB in the ze container holds `blackhole 10.100.0.1`. The condition holds and the announcement is honored, asserted on kernel state rather than on a Ze table.

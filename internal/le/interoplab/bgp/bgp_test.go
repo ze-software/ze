@@ -647,6 +647,10 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		if requireRouteInstalledVia("", announced, injector) == nil {
 			t.Fatal("an unanswered route query passed as an installed route")
 		}
+		renumbered := checkerGuardFailure(t, checkRFC7606MixedUpdate, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+		}
 	})
 
 	t.Run("bgp-self-nexthop-withheld-frr", func(t *testing.T) {
@@ -697,6 +701,10 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 		if requireSoleNextHop([]nextHop{{IP: "not-an-address"}}, third) == nil {
 			t.Fatal("an unparsable next hop passed")
+		}
+		renumbered := checkerGuardFailure(t, checkSelfNextHopWithheld, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
 		}
 	})
 
@@ -841,6 +849,254 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 		if requireRouteWithheld("", withheld, control) == nil {
 			t.Fatal("an unanswered table query passed as a withheld route")
+		}
+		renumbered := checkerGuardFailure(t, checkNoExportBoundary, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+		}
+	})
+
+	t.Run("bgp-local-pref-strip-gobgp", func(t *testing.T) {
+		const (
+			prefix   = "10.54.0.0/24"
+			sourceAS = "65004"
+			nextHop  = "172.30.0.9"
+			path     = "65001 " + sourceAS
+		)
+		stripped := gobgpTable(gobgpRouteLine(prefix, nextHop, path, "[{Origin: i}]"))
+		if err := requireGoBGPSourceBlock(stripped, prefix, sourceAS, nextHop); err != nil {
+			t.Fatalf("the relayed route was not read as the injected one: %v", err)
+		}
+		if err := requireGoBGPAttributeAbsent(stripped, prefix, gobgpLocalPrefAttribute); err != nil {
+			t.Fatalf("a stripped LOCAL_PREF was rejected: %v", err)
+		}
+		leaked := gobgpTable(gobgpRouteLine(prefix, nextHop, path, "[{Origin: i} {LocalPref: 200}]"))
+		if requireGoBGPAttributeAbsent(leaked, prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a LOCAL_PREF that crossed to an external peer passed as a stripped attribute")
+		}
+		zeroed := gobgpTable(gobgpRouteLine(prefix, nextHop, path, "[{Origin: i} {LocalPref: 0}]"))
+		if requireGoBGPAttributeAbsent(zeroed, prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a LOCAL_PREF carrying zero read as an absent attribute")
+		}
+		neighbor := gobgpTable(
+			gobgpRouteLine(prefix, nextHop, path, "[{Origin: i}]"),
+			gobgpRouteLine("10.54.1.0/24", nextHop, path, "[{Origin: i} {LocalPref: 200}]"),
+		)
+		if err := requireGoBGPAttributeAbsent(neighbor, prefix, gobgpLocalPrefAttribute); err != nil {
+			t.Fatalf("another route's LOCAL_PREF was read as this route's: %v", err)
+		}
+		if requireGoBGPAttributeAbsent(neighbor, "10.54.1.0/24", gobgpLocalPrefAttribute) == nil {
+			t.Fatal("the predicate read a fixed prefix rather than the one it was given")
+		}
+		longer := gobgpTable(gobgpRouteLine("110.54.0.0/24", nextHop, path, "[{Origin: i}]"))
+		if requireGoBGPAttributeAbsent(longer, prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a longer prefix carrying the wanted one answered as the wanted route")
+		}
+		covering := gobgpTable(gobgpRouteLine("10.54.0.0/16", nextHop, path, "[{Origin: i}]"))
+		if requireGoBGPAttributeAbsent(covering, prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a covering route answered for the announced prefix")
+		}
+		if requireGoBGPAttributeAbsent(stripped+gobgpRouteLine(prefix, nextHop, path, "[{Origin: i}]"), prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("two paths for one prefix passed the exact-one branch")
+		}
+		message := "Network " + prefix + " is not in table\n"
+		if requireGoBGPAttributeAbsent(message, prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("a not-in-table message naming the prefix passed as a decode of it")
+		}
+		if requireGoBGPAttributeAbsent("", prefix, gobgpLocalPrefAttribute) == nil {
+			t.Fatal("an unanswered RIB query passed as a stripped attribute")
+		}
+		rebuilt := gobgpTable(gobgpRouteLine(prefix, "172.30.0.2", path, "[{Origin: i}]"))
+		if requireGoBGPSourceBlock(rebuilt, prefix, sourceAS, nextHop) == nil {
+			t.Fatal("a route carrying ze's own next hop passed as the relayed source block")
+		}
+		reoriginated := gobgpTable(gobgpRouteLine(prefix, nextHop, "65001", "[{Origin: i}]"))
+		if requireGoBGPSourceBlock(reoriginated, prefix, sourceAS, nextHop) == nil {
+			t.Fatal("a path without the injected AS passed as the relayed source block")
+		}
+		renumbered := checkerGuardFailure(t, checkLocalPrefStrip, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+		}
+	})
+
+	t.Run("bgp-med-across-as-gobgp", func(t *testing.T) {
+		const (
+			relayed    = "10.60.0.0/24"
+			originated = "10.60.9.0/24"
+			sourceAS   = "65004"
+			zeAS       = "65001"
+			injector   = "172.30.0.9"
+			zeAddress  = "172.30.0.2"
+			metric     = "42"
+		)
+		table := gobgpTable(
+			gobgpRouteLine(relayed, injector, zeAS+" "+sourceAS, "[{Origin: i}]"),
+			gobgpRouteLine(originated, zeAddress, zeAS, "[{Origin: i} {Med: "+metric+"}]"),
+		)
+		if err := requireGoBGPSourceBlock(table, relayed, sourceAS, injector); err != nil {
+			t.Fatalf("the relayed route was not read as the injected one: %v", err)
+		}
+		if err := requireGoBGPAttributeAbsent(table, relayed, gobgpMEDAttribute); err != nil {
+			t.Fatalf("a metric that stopped at ze was rejected: %v", err)
+		}
+		if err := requireGoBGPSourceBlock(table, originated, zeAS, zeAddress); err != nil {
+			t.Fatalf("the originated route was not read as ze's own: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, originated, gobgpMEDAttribute, metric); err != nil {
+			t.Fatalf("ze's own metric was rejected: %v", err)
+		}
+		propagated := gobgpTable(gobgpRouteLine(relayed, injector, zeAS+" "+sourceAS, "[{Origin: i} {Med: 100}]"))
+		if requireGoBGPAttributeAbsent(propagated, relayed, gobgpMEDAttribute) == nil {
+			t.Fatal("a received metric that crossed to another neighboring AS passed as stopped")
+		}
+		zeroed := gobgpTable(gobgpRouteLine(relayed, injector, zeAS+" "+sourceAS, "[{Origin: i} {Med: 0}]"))
+		if requireGoBGPAttributeAbsent(zeroed, relayed, gobgpMEDAttribute) == nil {
+			t.Fatal("a metric carrying zero read as an absent attribute")
+		}
+		blanket := gobgpTable(gobgpRouteLine(originated, zeAddress, zeAS, "[{Origin: i}]"))
+		if requireGoBGPAttributeValue(blanket, originated, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("a blanket strip of attribute 4 passed as the propagation rule")
+		}
+		injected := gobgpTable(gobgpRouteLine(originated, zeAddress, zeAS, "[{Origin: i} {Med: 100}]"))
+		if requireGoBGPAttributeValue(injected, originated, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("the injected metric passed as the one ze set itself")
+		}
+		longerValue := gobgpTable(gobgpRouteLine(originated, zeAddress, zeAS, "[{Origin: i} {Med: 420}]"))
+		if requireGoBGPAttributeValue(longerValue, originated, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("a metric carrying the wanted one as a text prefix passed as the wanted value")
+		}
+		if requireGoBGPAttributeValue(table, originated, gobgpLocalPrefAttribute, metric) == nil {
+			t.Fatal("the predicate read a fixed attribute name rather than the one it was given")
+		}
+		if requireGoBGPAttributeValue("", originated, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("an unanswered RIB query passed as ze's own metric")
+		}
+		renumbered := checkerGuardFailure(t, checkMEDAcrossAS, renumberedNetwork())
+		if !strings.Contains(renumbered, renumberedNetworkNeedle) {
+			t.Fatalf("a renumbered lab was not named before the first query: %s", renumbered)
+		}
+	})
+
+	t.Run("bgp-med-remove-configured-gobgp", func(t *testing.T) {
+		const (
+			removed  = "10.61.0.0/24"
+			control  = "10.61.1.0/24"
+			sourceAS = "65005"
+			source   = "172.30.0.3"
+			metric   = "100"
+		)
+		table := gobgpTable(
+			gobgpRouteLine(removed, source, sourceAS, "[{Origin: i} [65005:1]]"),
+			gobgpRouteLine(control, source, sourceAS, "[{Origin: i} {Med: "+metric+"}]"),
+		)
+		if err := requireGoBGPSourceBlock(table, removed, sourceAS, source); err != nil {
+			t.Fatalf("the matched route was not read as the source one: %v", err)
+		}
+		if err := requireGoBGPAttributeAbsent(table, removed, gobgpMEDAttribute); err != nil {
+			t.Fatalf("the configured removal was rejected: %v", err)
+		}
+		if err := requireGoBGPAttributeValue(table, control, gobgpMEDAttribute, metric); err != nil {
+			t.Fatalf("the control route's kept metric was rejected: %v", err)
+		}
+		if requireGoBGPAttributeAbsent(table, control, gobgpMEDAttribute) == nil {
+			t.Fatal("the predicate read a fixed prefix rather than the one it was given")
+		}
+		kept := gobgpTable(gobgpRouteLine(removed, source, sourceAS, "[{Origin: i} {Med: "+metric+"}]"))
+		if requireGoBGPAttributeAbsent(kept, removed, gobgpMEDAttribute) == nil {
+			t.Fatal("a route the policy named that kept its metric passed as removed")
+		}
+		unconditional := gobgpTable(gobgpRouteLine(control, source, sourceAS, "[{Origin: i}]"))
+		if requireGoBGPAttributeValue(unconditional, control, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("an unconditional strip passed as a mechanism the operator selected")
+		}
+		rewritten := gobgpTable(gobgpRouteLine(control, source, sourceAS, "[{Origin: i} {Med: 1000}]"))
+		if requireGoBGPAttributeValue(rewritten, control, gobgpMEDAttribute, metric) == nil {
+			t.Fatal("a metric carrying the wanted one as a text prefix passed as the wanted value")
+		}
+		foreign := gobgpTable(gobgpRouteLine(removed, source, "65004", "[{Origin: i}]"))
+		if requireGoBGPSourceBlock(foreign, removed, sourceAS, source) == nil {
+			t.Fatal("a route from another AS passed as the source one")
+		}
+		// This body derives every address from the selected network, so it owes the
+		// selected-network guard rather than the base-network one: networkHostAddress
+		// panics on the zero Addr instead of answering.
+		unselected := checkerGuardFailure(t, checkMEDRemovalConfiguration, interoplab.Network{})
+		if !strings.Contains(unselected, "no selected IPv4 network") {
+			t.Fatalf("a lab with no selected network was not named before the first query: %s", unselected)
+		}
+	})
+
+	t.Run("bgp-rfc7606-typed-nlri-discard", func(t *testing.T) {
+		report := func(lines ...string) string {
+			return strings.Join(lines, "\n") + "\n"
+		}
+		const (
+			pass        = "result: PASS"
+			oracle      = "plugin: no-unrecognized-evpn-type"
+			established = "note: established: yes"
+			updates     = "note: route-bearing-updates: 1"
+			evpn        = "note: evpn-nlri: 1"
+		)
+		relayed := report(pass, oracle, updates, established, evpn)
+		if !speakerReportPrinted(relayed) {
+			t.Fatal("a finished verdict was read as an unfinished run")
+		}
+		if speakerReportPrinted(report("waiting for the relayed EVPN routes")) {
+			t.Fatal("a log without a verdict line was read as a finished run")
+		}
+		if err := requireSpeakerEVPNDiscard(relayed); err != nil {
+			t.Fatalf("a verdict naming only the assigned EVPN route type was rejected: %v", err)
+		}
+		unassigned := report(
+			"result: FAIL",
+			oracle,
+			"fail: RFC 7606 Section 5.4: received EVPN route type 99, which is not assigned; it must have been discarded, not relayed",
+			updates, established, evpn,
+		)
+		if requireSpeakerEVPNDiscard(unassigned) == nil {
+			t.Fatal("an unassigned EVPN route type that reached the speaker passed")
+		}
+		if requireSpeakerEVPNDiscard(report(pass, oracle, updates, "note: established: no", evpn)) == nil {
+			t.Fatal("a session that never came up passed as proof of a discard")
+		}
+		if requireSpeakerEVPNDiscard(report(pass, oracle, updates, "note: not-established: yes", evpn)) == nil {
+			t.Fatal("a note naming not-established answered for established")
+		}
+		if requireSpeakerEVPNDiscard(report(pass, oracle, updates, established, "note: evpn-nlri: 0")) == nil {
+			t.Fatal("a relay that delivered no EVPN NLRI passed as a discard")
+		}
+		if requireSpeakerEVPNDiscard(report(pass, oracle, "note: route-bearing-updates: 0", established, evpn)) == nil {
+			t.Fatal("a session that carried no route-bearing UPDATE passed as a discard")
+		}
+		unmeasured := requireSpeakerEVPNDiscard(report(pass, oracle, updates, established))
+		measuredZero := requireSpeakerEVPNDiscard(report(pass, oracle, updates, established, "note: evpn-nlri: 0"))
+		if unmeasured == nil || measuredZero == nil {
+			t.Fatalf("an unmeasured EVPN count passed: unmeasured=%v zero=%v", unmeasured, measuredZero)
+		}
+		if unmeasured.Error() == measuredZero.Error() {
+			t.Fatalf("a count the speaker never took reported the same failure as a measured zero: %v", unmeasured)
+		}
+		if requireSpeakerEVPNDiscard(report(pass, oracle, updates, established, "note: evpn-nlri: many")) == nil {
+			t.Fatal("an EVPN count that is not a number passed as a count")
+		}
+		if requireSpeakerEVPNDiscard(report(pass, "plugin: no-duplicate-attribute", updates, established, evpn)) == nil {
+			t.Fatal("another oracle's verdict answered for this requirement")
+		}
+		if requireSpeakerEVPNDiscard(report(oracle, updates, established, evpn)) == nil {
+			t.Fatal("notes with no verdict line passed as a PASS")
+		}
+		if requireSpeakerEVPNDiscard("") == nil {
+			t.Fatal("an unread speaker log passed as a discard")
+		}
+		// The body itself, driven with a lab that answers the speaker's log and
+		// nothing else. It reaches the verdict with no container, so both polarities
+		// of the whole checker run here rather than only the predicate's.
+		if err := checkRFC7606TypedNLRIDiscard(t.Context(), &interoplab.CheckContext{Lab: &recordingLab{logs: relayed}}); err != nil {
+			t.Fatalf("the checker rejected a verdict naming only the assigned EVPN route type: %v", err)
+		}
+		if err := checkRFC7606TypedNLRIDiscard(t.Context(), &interoplab.CheckContext{Lab: &recordingLab{logs: unassigned}}); err == nil {
+			t.Fatal("the checker passed a verdict reporting an unassigned EVPN route type")
 		}
 	})
 
@@ -1002,6 +1258,56 @@ func TestBespokeCheckerBranches(t *testing.T) {
 			t.Fatalf("redistribution mutations = %d, want 2", recorder.reads)
 		}
 	})
+}
+
+// The sentence a body prints when the lab is renumbered away from the network its
+// raw-hex injections name. A scenario whose inject.msg carries a hex NEXT_HOP can
+// only run on the base network, and saying so is what stops a renumbered lab from
+// reading as an egress defect.
+const renumberedNetworkNeedle = "the injected NEXT_HOP octets name a peer only on"
+
+// renumberedNetwork is a selected network other than the base one, which is what
+// interoplab.Discover hands a checker when the base subnet is already taken.
+func renumberedNetwork() interoplab.Network {
+	return interoplab.Network{
+		IPv4: netip.MustParsePrefix("172.30.44.0/24"),
+		IPv6: netip.MustParsePrefix("fd00:1e:2c::/64"),
+	}
+}
+
+// checkerGuardFailure runs one checker over a lab that answers an Established BGP
+// session and nothing else, then returns what the checker said. A body whose
+// network guard sits behind a session assertion still reaches that guard, and the
+// context is already canceled, so the first operation the answer does NOT satisfy
+// ends the run at once. The caller asserts the guard's own sentence, which no
+// other failure of these bodies carries.
+func checkerGuardFailure(t *testing.T, checker interoplab.Checker, network interoplab.Network) string {
+	t.Helper()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	err := checker(ctx, &interoplab.CheckContext{
+		Network: network,
+		Lab:     &recordingLab{output: "BGP state = Established"},
+	})
+	if err == nil {
+		t.Fatal("a checker passed with a lab that answered nothing but a session state")
+	}
+	return err.Error()
+}
+
+// gobgpRouteLine renders one route the way `gobgp global rib` prints it: the
+// best-path flag, then the columns GoBGP gives an attribute of its own, then the
+// Age, then the Attrs field carrying every remaining attribute as {Name: value}.
+// The padding is what separates the columns into whole fields.
+func gobgpRouteLine(prefix, nextHop, path, attributes string) string {
+	return fmt.Sprintf("*> %-20s %-20s %-20s %-10s %s\n", prefix, nextHop, path, "00:00:12", attributes)
+}
+
+// gobgpTable puts GoBGP's column heading above route lines, so a predicate meets
+// the same answer the lab reads out of the container.
+func gobgpTable(routes ...string) string {
+	const heading = "   Network              Next Hop             AS_PATH              Age        Attrs\n"
+	return heading + strings.Join(routes, "")
 }
 
 type recordingLab struct {
