@@ -176,6 +176,13 @@ func validateTag(requested string) error {
 	if requested == "" {
 		return nil
 	}
+	// The length is reported on its own. tagPattern carries a {0,31} bound as
+	// well as a character class, and a message naming only the class sends the
+	// author looking for a bad character in a tag that has none.
+	if len(requested) > tagMaxLength {
+		return fmt.Errorf("tag is %d characters, %d over the %d limit: %s",
+			len(requested), len(requested)-tagMaxLength, tagMaxLength, requested)
+	}
 	if !tagPattern.MatchString(requested) {
 		return errors.New("tag must start with an alphanumeric character and contain only alnum, dot, underscore, or dash")
 	}

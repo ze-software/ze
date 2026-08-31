@@ -10,13 +10,22 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
 
 const messageWidth = 72
 
-var tagPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$`)
+// tagMaxLength bounds a commit tag, which becomes one path component of the
+// message file and of the commit script. The pattern below is BUILT from it so
+// the bound is declared once: a second copy inside the regexp literal is a
+// disagreement with nothing to arbitrate it, and validateTag reports the two
+// halves separately.
+const tagMaxLength = 32
+
+var tagPattern = regexp.MustCompile(
+	`^[A-Za-z0-9][A-Za-z0-9._-]{0,` + strconv.Itoa(tagMaxLength-1) + `}$`)
 
 var forbiddenGeneratedPaths = map[string]bool{
 	"AGENTS.md": true,

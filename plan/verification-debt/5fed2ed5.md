@@ -45,3 +45,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-08-31 | 5fed2ed5 | fix(radius): name a NAS in every request, and let the server set cadence | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | 5fed2ed5 | fix(radius): name a NAS in every request, and let the server set cadence | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-08-31 | 5fed2ed5 | docs(rfc): record the RFC 5176 Message-Authenticator MAY ze implements | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-31 | 5fed2ed5 | fix(le): report an over-long commit tag as too long, not as ill-formed | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-31 | 5fed2ed5 | fix(le): report an over-long commit tag as too long, not as ill-formed | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

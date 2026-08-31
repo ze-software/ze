@@ -562,3 +562,34 @@ func TestCreateRefusesBadTagBeforeRecordingDebt(t *testing.T) {
 		t.Fatalf("refused create left %d debt shard(s) behind, first is %s:\n%s", len(shards), shards[0], body)
 	}
 }
+
+// TestValidateTagReportsLengthSeparatelyFromCharacters asserts the two halves of
+// tagPattern are reported apart. An over-long tag made of legal characters used
+// to be refused with "must start with an alphanumeric character and contain only
+// alnum, dot, underscore, or dash", which sends the author hunting a bad
+// character that is not there.
+//
+// The boundary is asserted from tagMaxLength rather than from a literal, so the
+// case follows the constant the pattern is built from.
+func TestValidateTagReportsLengthSeparatelyFromCharacters(t *testing.T) {
+	atLimit := strings.Repeat("a", tagMaxLength)
+	if err := validateTag(atLimit); err != nil {
+		t.Fatalf("validateTag(%d chars) = %v, want nil: the limit itself is accepted", tagMaxLength, err)
+	}
+
+	overLimit := strings.Repeat("a", tagMaxLength+1)
+	err := validateTag(overLimit)
+	if err == nil {
+		t.Fatalf("validateTag(%d chars) = nil, want a refusal", tagMaxLength+1)
+	}
+	if !strings.Contains(err.Error(), "over the") {
+		t.Fatalf("validateTag(%d chars) = %v, want the length named; a character-class message hides the real cause", tagMaxLength+1, err)
+	}
+	if strings.Contains(err.Error(), "alphanumeric") {
+		t.Fatalf("validateTag(%d chars) = %v: every character is legal, so the class must not be blamed", tagMaxLength+1, err)
+	}
+
+	if err := validateTag("fix(bgp)"); err == nil || !strings.Contains(err.Error(), "alphanumeric") {
+		t.Fatalf("validateTag(%q) = %v, want the character-class refusal", "fix(bgp)", err)
+	}
+}
