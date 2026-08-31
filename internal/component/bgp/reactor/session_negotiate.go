@@ -79,7 +79,21 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 }
 
 // sendOpen sends an OPEN message.
+//
+// RFC 7607 Section 2: "A router MUST NOT initiate a connection claiming to be AS 0."
+// The refusal sits here rather than in buildOpen because this is the one place an OPEN
+// reaches a socket, and buildOpen is also called by the reload swap decision to compare
+// two OPENs that are never sent (peer_settings_negotiation.go).
+//
+// The YANG type already refuses AS 0 at config load (zt:asn is range "1..4294967295" in
+// internal/component/config/yang/modules/ze-types.yang), so an operator cannot reach this
+// through configuration. It is the second half of the pair: a peering whose LocalAS
+// arrived from anywhere else still cannot put AS 0 on the wire.
 func (s *Session) sendOpen(conn net.Conn) error {
+	if s.settings.LocalAS == 0 {
+		return ErrLocalASZero
+	}
+
 	open := s.buildOpen(s.settings, s.configCapabilities())
 
 	s.mu.Lock()

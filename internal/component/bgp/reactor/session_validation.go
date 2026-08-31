@@ -557,9 +557,19 @@ func (s *Session) mpFamilyDispatchable(afi uint16, safi uint8) bool {
 }
 
 // validateUpdateFamilies checks that AFI/SAFI in MP_REACH/MP_UNREACH were negotiated.
-// RFC 4760 Section 6: "If a BGP speaker receives an UPDATE with MP_REACH_NLRI or
-// MP_UNREACH_NLRI where the AFI/SAFI do not match those negotiated in OPEN,
-// the speaker MAY treat this as an error.".
+//
+// RFC 4760 Section 6: "An implementation MAY support all, some, or none of the
+// Subsequent Address Family Identifier values defined in this document." So an UPDATE
+// can name an <AFI, SAFI> this session never negotiated, and Section 7 says what the
+// receiver owes for an attribute carrying one: "if the speaker determines that the
+// attribute is incorrect, the speaker MUST delete all the BGP routes received from that
+// neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI
+// or MP_UNREACH_NLRI attribute."
+//
+// Strict mode returns the error that drives that refusal. IgnoreFamilyMismatch and
+// IgnoreFamilies make the speaker skip the NLRI instead, which is the lenient reading of
+// "determines that the attribute is incorrect": the family is unsupported rather than the
+// encoding malformed.
 func (s *Session) validateUpdateFamilies(body []byte) error {
 	// Need at least 4 bytes: withdrawn len (2) + attrs len (2)
 	if len(body) < 4 {

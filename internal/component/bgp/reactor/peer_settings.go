@@ -330,7 +330,9 @@ type PeerSettings struct {
 	RSFastPath bool
 
 	// IgnoreFamilyMismatch ignores NLRI for non-negotiated AFI/SAFI instead of error.
-	// RFC 4760 Section 6: speaker MAY treat non-negotiated AFI/SAFI as error.
+	// RFC 4760 Section 7 makes an MP attribute the speaker "determines is incorrect" a
+	// refusal; an <AFI, SAFI> this session never negotiated is one such determination,
+	// which validateUpdateFamilies states in full.
 	// Default false = error (RFC-correct), true = log warning and skip.
 	IgnoreFamilyMismatch bool
 

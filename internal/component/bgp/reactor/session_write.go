@@ -119,6 +119,17 @@ func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadlin
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
+	// The conn check above is half of a pair. connectionEstablished assigns s.conn,
+	// s.bufReader and s.bufWriter together (session_connection.go), so a session that
+	// has no bufWriter is a session that is not connected, and it owes the caller the
+	// same answer. Without this the write below dereferences a nil *bufio.Writer and
+	// takes the process down with an unlabelled segfault, which is the one thing a
+	// method that already knows how to say ErrNotConnected must not do. Read under
+	// writeMu because that is the lock the field is assigned under.
+	if s.bufWriter == nil {
+		return ErrNotConnected
+	}
+
 	// Set write deadline to prevent indefinite blocking on stuck TCP.
 	// Without this, a stuck connection holds writeMu forever, preventing
 	// the forward worker from detecting the failure and triggering teardown.

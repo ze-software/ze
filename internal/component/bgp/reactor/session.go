@@ -172,6 +172,7 @@ var (
 	ErrUnsupportedVersion   = errors.New("unsupported BGP version")
 	ErrBadBGPIdentifier     = errors.New("bad BGP identifier (RFC 6286 Section 2.2)")
 	ErrBadPeerAS            = errors.New("peer AS is zero (RFC 7607 Section 2)")
+	ErrLocalASZero          = errors.New("local AS is zero (RFC 7607 Section 2)")
 	ErrFamilyNotNegotiated  = errors.New("address family not negotiated")
 	ErrSessionTearingDown   = errors.New("session is tearing down")
 	ErrPrefixLimitExceeded  = errors.New("prefix limit exceeded")
