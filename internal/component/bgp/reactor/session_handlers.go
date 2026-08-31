@@ -143,6 +143,13 @@ func (s *Session) handleOpen(body []byte) error {
 		return fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
 	}
 
+	// RFC 7607 Section 2: abort the connection when the peer presents AS 0, with OPEN
+	// Message Error / Bad Peer AS. It runs before the identifier check because the AS is
+	// what scopes identifier uniqueness (RFC 6286 Section 2.1).
+	if err := s.validateOpenPeerAS(open); err != nil {
+		return err
+	}
+
 	// RFC 6286 Section 2.2: reject a zero BGP Identifier, or this speaker's own identifier
 	// from an internal peer, with OPEN Message Error / Bad BGP Identifier.
 	if err := s.validateOpenIdentifier(open); err != nil {

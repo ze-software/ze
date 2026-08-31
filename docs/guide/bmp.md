@@ -93,7 +93,7 @@ bgp {
 | `route-monitoring-policy` | all | `pre-policy` (Adj-RIB-In), `post-policy` (Adj-RIB-Out, RFC 8671), or `all` |
 | `route-mirroring` | false | Stream verbatim copies of every BGP message as Route Mirroring (RFC 7854 Section 4.7) |
 | `loc-rib` | false | Stream local RIB best-path changes as Loc-RIB Route Monitoring (RFC 9069, Peer Type 3) |
-| `statistics-timeout` | 0 | Seconds between statistics reports (0 = disabled) |
+| `statistics-timeout` | 0 | Seconds between statistics reports. Read by nothing today: the sender has no statistics timer |
 
 The sender reconnects automatically with exponential backoff (30s to 720s)
 per RFC 7854 recommendations.
@@ -119,7 +119,7 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 | Peer Up (3) | Tracks monitored peer | Sends on BGP Established |
 | Peer Down (2) | Marks peer down | Sends on BGP session close |
 | Route Monitoring (0) | Decodes inner BGP UPDATE | Wraps received UPDATEs |
-| Statistics Report (1) | Stores per-peer counters | Periodic (if configured) |
+| Statistics Report (1) | Stores per-peer counters | Encoder only, with the O flag cleared (RFC 8671 Section 6.2); no timer sends one yet |
 | Route Mirroring (6) | Logs raw BGP PDUs | Wraps every BGP PDU when `route-mirroring` is on |
 
 ### Receiver Behavior
@@ -140,6 +140,8 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 - With `route-mirroring true`, wraps every BGP message (OPEN, UPDATE, NOTIFICATION,
   KEEPALIVE, ROUTE-REFRESH, both directions) as Route Mirroring (RFC 7854 Section 4.7).
   The O flag follows the direction, as it does for Route Monitoring
+- Clears the O flag on a Statistics Report, which RFC 8671 Section 6.2 requires
+  because the report belongs to neither RIB
 - Route-monitoring-policy controls which direction(s) are streamed
 - With `loc-rib true`, streams local RIB best-path changes as Loc-RIB Route
   Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance with

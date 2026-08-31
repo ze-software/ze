@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	bgpserver "github.com/ze-software/ze/internal/component/bgp/server"
 )
 
 // validateOpenIdentifier enforces RFC 6286 Section 2.2 on a received OPEN.
@@ -100,6 +101,18 @@ func (s *Session) runOpenValidator(open *message.Open) error {
 	s.mu.RLock()
 	valConn := s.conn
 	s.mu.RUnlock()
+
+	// A validator that could not answer is not a validator that accepted, and the two
+	// need opposite operator actions. The peer's role pair may be perfectly legal here:
+	// what failed is the plugin holding the policy, so the log names it rather than
+	// leaving the operator to look at the peer's configuration.
+	if unavailable, ok := errors.AsType[*bgpserver.OpenValidationUnavailableError](err); ok {
+		sessionLogger().Warn("RFC 9234 Section 4.2: OPEN refused because per-peer validation could not run",
+			"peer", peerID,
+			"plugins", unavailable.Plugins,
+			"effect", "the session is refused with NOTIFICATION 2/11 rather than established with the role check absent",
+			"fix", "repair or restart the named plugin, or remove this peer's role configuration")
+	}
 
 	// Check for OpenValidationError with specific NOTIFICATION codes.
 	var valErr interface{ NotifyCodes() (uint8, uint8) }

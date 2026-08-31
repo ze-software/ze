@@ -944,12 +944,34 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 		return nil
 	}
 
-	// Peer name first, then IP address (plugins may key by either), then the group
-	// a dynamic peer was built from. The whole list goes in one call: every answer
-	// carries the plugin-declared GLOBAL capabilities, so probing one selector at a
-	// time and stopping at the first non-empty result stops at the globals and
-	// never reaches the address or the group. One plugin declaring one global
-	// capability was enough to cost every peer its own declarations.
+	injected := r.api.GetPluginCapabilitiesForSelectors(capabilitySelectors(settings)...)
+	if len(injected) == 0 {
+		return nil
+	}
+
+	// RFC 4724 Section 4.1: Set R=1 on GR capabilities while within restart window.
+	// After the deadline, new connections get R=0 (cold start behavior).
+	if !r.config.RestartUntil.IsZero() && p.clock.Now().Before(r.config.RestartUntil) {
+		injected = grmarker.SetRBit(injected)
+	}
+
+	caps := make([]capability.Capability, len(injected))
+	for i, ic := range injected {
+		caps[i] = capability.NewPlugin(ic.Code, ic.Value)
+	}
+	return caps
+}
+
+// capabilitySelectors returns the names under which a plugin can have declared a
+// capability for this peer: its name first, then its IP address (plugins may key by
+// either), then the group a dynamic peer was built from.
+//
+// The whole list goes to the injector in one call. Every answer carries the
+// plugin-declared GLOBAL capabilities, so probing one selector at a time and stopping at
+// the first non-empty result stops at the globals and never reaches the address or the
+// group. One plugin declaring one global capability was enough to cost every peer its
+// own declarations.
+func capabilitySelectors(settings *PeerSettings) []string {
 	selectors := make([]string, 0, 3)
 	if settings.Name != "" {
 		selectors = append(selectors, settings.Name)
@@ -970,23 +992,27 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 		// string space rpc.CapabilityDecl.Peers gives both.
 		selectors = append(selectors, configjson.CapabilityGroupKey(settings.GroupName))
 	}
+	return selectors
+}
 
-	injected := r.api.GetPluginCapabilitiesForSelectors(selectors...)
-	if len(injected) == 0 {
+// openPolicyPlugins names the plugins that hold OPEN-validation policy for THIS peer
+// alone, sorted, and returns nothing for a peer that no plugin singled out.
+//
+// broadcastValidateOpen (internal/component/bgp/server/validate.go) requires an answer
+// from every name in this list, and refuses the OPEN when one does not answer. The list
+// is therefore what separates a peer whose RFC 9234 role pair was checked from one whose
+// check silently did not run.
+func (p *Peer) openPolicyPlugins() []string {
+	p.mu.RLock()
+	r := p.reactor
+	settings := p.settings
+	p.mu.RUnlock()
+
+	if r == nil || r.api == nil {
 		return nil
 	}
 
-	// RFC 4724 Section 4.1: Set R=1 on GR capabilities while within restart window.
-	// After the deadline, new connections get R=0 (cold start behavior).
-	if !r.config.RestartUntil.IsZero() && p.clock.Now().Before(r.config.RestartUntil) {
-		injected = grmarker.SetRBit(injected)
-	}
-
-	caps := make([]capability.Capability, len(injected))
-	for i, ic := range injected {
-		caps[i] = capability.NewPlugin(ic.Code, ic.Value)
-	}
-	return caps
+	return r.api.PluginsWithPerPeerOpenPolicy(capabilitySelectors(settings)...)
 }
 
 // getPluginFamilies returns families from plugins that declared decode capability.
@@ -1069,7 +1095,7 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 	// identity it shares with that document, and buildDynamicPeerSettings put it
 	// here. A plugin without the group resolves no config for such a peer. For
 	// bgp-role that skipped every RFC 9234 Section 4.2 OPEN check.
-	return r.eventDispatcher.BroadcastValidateOpen(peerAddr, settings.GroupName, local, remote)
+	return r.eventDispatcher.BroadcastValidateOpen(peerAddr, settings.GroupName, p.openPolicyPlugins(), local, remote)
 }
 
 // claimPeerAS returns the AS that scopes this peer's BGP Identifier claim.

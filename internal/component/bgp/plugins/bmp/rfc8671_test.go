@@ -109,39 +109,55 @@ func TestRFC8671ReservedPeerFlagsTransmittedAsZero(t *testing.T) {
 // are all set is not rejected and does not change the meaning of the four defined flags.
 // A receiver that read a reserved bit, or refused a header carrying one, would fail here.
 func TestRFC8671ReservedPeerFlagsIgnoredOnReceipt(t *testing.T) {
-	clear := testPeerHeader()
-	clear.Flags = PeerFlagV | PeerFlagL | PeerFlagA | PeerFlagO
-
-	set := clear
-	set.Flags = clear.Flags | peerFlagsReserved
-
-	buf := make([]byte, PeerHeaderSize)
-	writePeerHeader(buf, 0, set)
-	decoded, n, err := decodePeerHeader(buf, 0)
-	if err != nil {
-		t.Fatalf("a header with every reserved bit set must decode: %v", err)
-	}
-	if n != PeerHeaderSize {
-		t.Fatalf("consumed %d bytes, want %d", n, PeerHeaderSize)
-	}
-	if decoded.IsIPv6() != clear.IsIPv6() {
-		t.Error("reserved bits changed the V flag reading")
-	}
-	if decoded.isPostPolicy() != clear.isPostPolicy() {
-		t.Error("reserved bits changed the L flag reading")
-	}
-	if decoded.is2ByteAS() != clear.is2ByteAS() {
-		t.Error("reserved bits changed the A flag reading")
-	}
-	if decoded.isAdjRIBOut() != clear.isAdjRIBOut() {
-		t.Error("reserved bits changed the O flag reading")
+	// Two base headers, because ignoring a reserved bit fails in two directions. A
+	// decoder that masked a defined flag away loses it from the all-set base; a decoder
+	// that let a reserved bit reach a defined flag INVENTS one on the V|O base, where L
+	// and A start clear. Either base alone passes against half of that.
+	bases := []struct {
+		name  string
+		flags uint8
+	}{
+		{"every defined flag set", PeerFlagV | PeerFlagL | PeerFlagA | PeerFlagO},
+		{"only V and O set", PeerFlagV | PeerFlagO},
 	}
 
-	// The same header inside a whole message: DecodeMsg must not refuse it either.
-	msgBuf := make([]byte, 1024)
-	rmLen := writeRouteMonitoring(msgBuf, 0, &RouteMonitoring{Peer: set, BGPUpdate: makeBGPOpen(65001, 0x01020304)})
-	if _, err := DecodeMsg(msgBuf[:rmLen]); err != nil {
-		t.Fatalf("a Route Monitoring message with reserved bits set must decode: %v", err)
+	for _, base := range bases {
+		t.Run(base.name, func(t *testing.T) {
+			clear := testPeerHeader()
+			clear.Flags = base.flags
+
+			set := clear
+			set.Flags = clear.Flags | peerFlagsReserved
+
+			buf := make([]byte, PeerHeaderSize)
+			writePeerHeader(buf, 0, set)
+			decoded, n, err := decodePeerHeader(buf, 0)
+			if err != nil {
+				t.Fatalf("a header with every reserved bit set must decode: %v", err)
+			}
+			if n != PeerHeaderSize {
+				t.Fatalf("consumed %d bytes, want %d", n, PeerHeaderSize)
+			}
+			if decoded.IsIPv6() != clear.IsIPv6() {
+				t.Error("reserved bits changed the V flag reading")
+			}
+			if decoded.isPostPolicy() != clear.isPostPolicy() {
+				t.Error("reserved bits changed the L flag reading")
+			}
+			if decoded.is2ByteAS() != clear.is2ByteAS() {
+				t.Error("reserved bits changed the A flag reading")
+			}
+			if decoded.isAdjRIBOut() != clear.isAdjRIBOut() {
+				t.Error("reserved bits changed the O flag reading")
+			}
+
+			// The same header inside a whole message: DecodeMsg must not refuse it either.
+			msgBuf := make([]byte, 1024)
+			rmLen := writeRouteMonitoring(msgBuf, 0, &RouteMonitoring{Peer: set, BGPUpdate: makeBGPOpen(65001, 0x01020304)})
+			if _, err := DecodeMsg(msgBuf[:rmLen]); err != nil {
+				t.Fatalf("a Route Monitoring message with reserved bits set must decode: %v", err)
+			}
+		})
 	}
 }
 
@@ -207,6 +223,45 @@ func TestRFC8671PostPolicyConveysUnknownAttributeUnchanged(t *testing.T) {
 	conveyed := rm.BGPUpdate[message.HeaderLen:]
 	if !bytes.Equal(conveyed, body) {
 		t.Errorf("conveyed % x, transmitted % x", conveyed, body)
+	}
+}
+
+// RFC requirement: RFC8671-5.1-1 negative -- "what is actually transmitted" bounds the
+// message set from ABOVE as well. An Adj-RIB-Out event carrying no transmitted PDU
+// produces no Route Monitoring message at all: ze conveys what went to the peer and never
+// synthesizes a route that did not.
+func TestRFC8671AdjRIBOutConveysNoUntransmittedUpdate(t *testing.T) {
+	server, client := net.Pipe()
+	defer closeLog(server, "server")
+	defer closeLog(client, "client")
+
+	bp := newPipeSender(client, false)
+
+	// No RawMessage: nothing was transmitted, so nothing may be conveyed.
+	bp.handleStructuredEvent(&rpc.StructuredEvent{
+		PeerAddress: "10.0.0.1",
+		PeerAS:      65001,
+		EventType:   rpc.EventKindUpdate,
+		Direction:   rpc.DirectionSent,
+	})
+
+	// A real transmission follows. It is the FIRST message on the wire when the event
+	// above produced none, which is what this test asserts: net.Pipe is unbuffered, so
+	// an extra message would be read here instead.
+	body := []byte{0x00, 0x00, 0x00, 0x04, 0x40, 0x01, 0x01, 0x00, 0x18, 0x0A, 0x00, 0x02}
+	result := asyncRead(server)
+	bp.handleStructuredEvent(updateEvent(rpc.DirectionSent, body))
+	got := <-result
+	if got.err != nil {
+		t.Fatalf("read: %v", got.err)
+	}
+	rm, ok := got.msg.(*RouteMonitoring)
+	if !ok {
+		t.Fatalf("expected *RouteMonitoring, got %T", got.msg)
+	}
+	conveyed := rm.BGPUpdate[message.HeaderLen:]
+	if !bytes.Equal(conveyed, body) {
+		t.Errorf("first message body % x, want the transmitted update % x", conveyed, body)
 	}
 }
 
@@ -286,6 +341,75 @@ func TestRFC8671OFlagClearOnAdjRIBInMessages(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC8671-6.2-1 positive -- a Statistics Report goes out with the O flag
+// clear even when the per-peer header it was built from is the Adj-RIB-Out one, because
+// the report counts neither RIB.
+//
+// VALIDATES: RFC 8671 Section 6.2 -- "Statistics report messages are not specific to
+// Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero."
+// PREVENTS: a receiver reading a per-peer counter as an Adj-RIB-Out-only figure because
+// the header it arrived under was built for a sent UPDATE.
+func TestRFC8671StatisticsReportClearsTheOFlag(t *testing.T) {
+	server, client := net.Pipe()
+	defer closeLog(server, "server")
+	defer closeLog(client, "client")
+
+	ss := &senderSession{name: "test", conn: client, stopCh: make(chan struct{})}
+	peer := testPeerHeader()
+	peer.Flags |= PeerFlagO | PeerFlagL
+
+	result := asyncRead(server)
+	if err := ss.writeStatisticsReport(peer, []StatEntry{makeStatGauge(StatPrefixesRejected, 42)}); err != nil {
+		t.Fatalf("writeStatisticsReport: %v", err)
+	}
+	got := <-result
+	if got.err != nil {
+		t.Fatalf("read: %v", got.err)
+	}
+	sr, ok := got.msg.(*statisticsReport)
+	if !ok {
+		t.Fatalf("expected *statisticsReport, got %T", got.msg)
+	}
+	if sr.Peer.Flags&PeerFlagO != 0 {
+		t.Errorf("statistics report flags = %#x, the O flag must be zero", sr.Peer.Flags)
+	}
+}
+
+// RFC requirement: RFC8671-6.2-1 negative -- the O flag is cleared for the Statistics
+// Report ONLY. The same Adj-RIB-Out header on a Route Monitoring message keeps the flag,
+// so the clearing is not a sender-wide loss of the direction.
+//
+// VALIDATES: RFC 8671 Section 6.2 read against Section 6.1 -- the O flag is zero on a
+// Statistics Report and set on an Adj-RIB-Out Route Monitoring.
+// PREVENTS: a fix for Section 6.2 that clears the flag for every message and silently
+// turns Adj-RIB-Out monitoring back into Adj-RIB-In.
+func TestRFC8671RouteMonitoringKeepsTheOFlag(t *testing.T) {
+	server, client := net.Pipe()
+	defer closeLog(server, "server")
+	defer closeLog(client, "client")
+
+	ss := &senderSession{name: "test", conn: client, stopCh: make(chan struct{})}
+	peer := testPeerHeader()
+	peer.Flags |= PeerFlagO | PeerFlagL
+
+	body := []byte{0x00, 0x00, 0x00, 0x04, 0x40, 0x01, 0x01, 0x00, 0x18, 0x0A, 0x00, 0x05}
+	result := asyncRead(server)
+	if err := ss.writeRouteMonitoring(peer, msgtype.TypeUPDATE, body); err != nil {
+		t.Fatalf("writeRouteMonitoring: %v", err)
+	}
+	got := <-result
+	if got.err != nil {
+		t.Fatalf("read: %v", got.err)
+	}
+	rm, ok := got.msg.(*RouteMonitoring)
+	if !ok {
+		t.Fatalf("expected *RouteMonitoring, got %T", got.msg)
+	}
+	if rm.Peer.Flags&PeerFlagO == 0 {
+		t.Errorf("route monitoring flags = %#x, the O flag must survive", rm.Peer.Flags)
+	}
+}
+
 // peerUpWithAdminLabels encodes a Peer Up notification carrying labels as Admin Label
 // TLVs, in the order given, and decodes it through the receiver's entry point.
 func peerUpWithAdminLabels(t *testing.T, labels ...string) *PeerUp {
@@ -332,9 +456,9 @@ func adminLabels(pu *PeerUp) []string {
 // RFC requirement: RFC8671-6.3.1-1 positive -- a Peer Up carrying more than one Admin Label
 // decodes with the labels in the order the wire gave them.
 func TestRFC8671AdminLabelOrderPreserved(t *testing.T) {
-	decoded := peerUpWithAdminLabels(t, "type=wholesale", "region=west")
+	decoded := peerUpWithAdminLabels(t, "type=wholesale", "region=west", "site=lon1")
 
-	want := []string{"type=wholesale", "region=west"}
+	want := []string{"type=wholesale", "region=west", "site=lon1"}
 	got := adminLabels(decoded)
 	if len(got) != len(want) {
 		t.Fatalf("got %d Admin Labels, want %d", len(got), len(want))
@@ -347,13 +471,13 @@ func TestRFC8671AdminLabelOrderPreserved(t *testing.T) {
 }
 
 // RFC requirement: RFC8671-6.3.1-1 negative -- the order comes from the wire and from
-// nowhere else. The same two labels sent in the opposite order decode in that opposite
+// nowhere else. The same three labels sent in the opposite order decode in that opposite
 // order, so a decoder that sorted the labels, or that returned a fixed order, fails here
 // while still passing the positive case.
 func TestRFC8671AdminLabelReversedOrderPreserved(t *testing.T) {
-	decoded := peerUpWithAdminLabels(t, "region=west", "type=wholesale")
+	decoded := peerUpWithAdminLabels(t, "site=lon1", "region=west", "type=wholesale")
 
-	want := []string{"region=west", "type=wholesale"}
+	want := []string{"site=lon1", "region=west", "type=wholesale"}
 	got := adminLabels(decoded)
 	if len(got) != len(want) {
 		t.Fatalf("got %d Admin Labels, want %d", len(got), len(want))

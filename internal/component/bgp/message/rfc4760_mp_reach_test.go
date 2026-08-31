@@ -186,3 +186,97 @@ func TestRFC4760IBGPMPReachCarriesLocalPref(t *testing.T) {
 			"LOCAL_PREF (code 5) is IBGP-only, so an eBGP MP_REACH build must omit it")
 	})
 }
+
+// mpReachBadNextHopAttr returns an MP_REACH_NLRI path attribute for IPv6 unicast whose Length
+// of Next Hop Network Address is 8. attribute.ValidNextHopLens admits only 16 and 32 for
+// AFI 2 / SAFI 1, so the attribute is incorrect within the meaning of RFC 4760 Section 7 and
+// RFC 7606 Section 7.11. The attribute value is 13 octets, past the Section 5.3 minimum of 5,
+// so the refusal comes from the next-hop check rather than from the length floor.
+func mpReachBadNextHopAttr() []byte {
+	value := []byte{
+		0x00, 0x02, // AFI = IPv6
+		0x01,                                           // SAFI = unicast
+		0x08,                                           // Length of Next Hop = 8, valid for no IPv6 unicast encoding
+		0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, // 8 next-hop octets
+		0x00, // Reserved
+	}
+	return append([]byte{attrFlagOptional, attrCodeMPReachNLRI, byte(len(value))}, value...)
+}
+
+// mpUnreachShortAttr returns an MP_UNREACH_NLRI path attribute whose value is 2 octets. RFC 7606
+// Section 5.3 makes an MP_UNREACH_NLRI shorter than 3 incorrect, because the AFI and SAFI do not
+// both fit.
+func mpUnreachShortAttr() []byte {
+	value := []byte{0x00, 0x02} // AFI = IPv6, no room for the SAFI octet
+	return append([]byte{attrFlagOptional, attrCodeMPUnreachNLRI, byte(len(value))}, value...)
+}
+
+// TestRFC4760IncorrectMPAttributeResetsTheSession enforces the RFC 4760 Section 7 response to an
+// incorrect MP_REACH_NLRI or MP_UNREACH_NLRI.
+//
+// VALIDATES: RFC 4760 Section 7 -- "If a BGP speaker receives from a neighbor an UPDATE message
+// that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines
+// that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that
+// neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or
+// MP_UNREACH_NLRI attribute."
+//
+// RFC 7606 updates that handling. Its Section 2 names the RFC 4760 Section 7 behavior "AFI/SAFI
+// disable", and Sections 3(j) and 7.11 require either that approach or "session reset" whenever
+// the NLRI cannot be located: "Since the next hop precedes the NLRI field in the attribute, in
+// this case it will not be possible to reliably locate the NLRI; thus, the 'session reset' or
+// 'AFI/SAFI disable' approach MUST be used." Ze takes the session-reset branch, which is the
+// stronger of the two: the session drops, and RIBManager.handleState
+// (internal/component/bgp/plugins/rib/rib.go) releases the neighbor's whole Adj-RIB-In on
+// peer-down, so every route of the offending AFI/SAFI is deleted along with the rest.
+//
+// This test owns the trigger half of that chain: an incorrect MP attribute must produce
+// RFC7606ActionSessionReset, and a correct one must not. The deletion half is
+// TestHandleState_PeerDown in internal/component/bgp/plugins/rib.
+//
+// PREVENTS: an incorrect MP attribute being downgraded to treat-as-withdraw or accepted, which
+// would leave the neighbor's routes for that AFI/SAFI installed after the speaker has already
+// decided it cannot parse what the neighbor sent.
+//
+// RFC requirement: RFC4760-7-1 positive -- an MP_REACH_NLRI with a next-hop length its AFI/SAFI
+// does not admit, and an MP_UNREACH_NLRI shorter than three octets, each return
+// RFC7606ActionSessionReset, the action that deletes the neighbor's routes for that AFI/SAFI
+// (internal/component/bgp/message/rfc7606.go validateMPReachNextHop, validateMPUnreachAttr).
+// RFC requirement: RFC4760-7-1 negative -- a well-formed MP_REACH_NLRI carrying ORIGIN and
+// AS_PATH returns RFC7606ActionNone, so a correct attribute never triggers the deletion
+// (internal/component/bgp/message/rfc7606.go validateMPReachAttr).
+func TestRFC4760IncorrectMPAttributeResetsTheSession(t *testing.T) {
+	t.Parallel()
+
+	t.Run("incorrect mp_reach next-hop length resets", func(t *testing.T) {
+		t.Parallel()
+		pathAttrs := sJoin(sOrigin, sASPath, mpReachBadNextHopAttr())
+
+		result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
+		require.Equal(t, RFC7606ActionSessionReset, result.Action,
+			"an MP_REACH_NLRI whose next-hop length is invalid for its AFI/SAFI must reset the session: %s",
+			result.Description)
+		require.Equal(t, attrCodeMPReachNLRI, result.AttrCode,
+			"the refusal must name MP_REACH_NLRI (code 14)")
+	})
+
+	t.Run("incorrect mp_unreach length resets", func(t *testing.T) {
+		t.Parallel()
+		pathAttrs := sJoin(mpUnreachShortAttr())
+
+		result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
+		require.Equal(t, RFC7606ActionSessionReset, result.Action,
+			"an MP_UNREACH_NLRI shorter than three octets must reset the session: %s",
+			result.Description)
+		require.Equal(t, attrCodeMPUnreachNLRI, result.AttrCode,
+			"the refusal must name MP_UNREACH_NLRI (code 15)")
+	})
+
+	t.Run("correct mp_reach does not reset", func(t *testing.T) {
+		t.Parallel()
+		pathAttrs := sJoin(sOrigin, sASPath, mpReachIPv6Attr())
+
+		result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
+		require.Equal(t, RFC7606ActionNone, result.Action,
+			"a well-formed MP_REACH_NLRI must not reset the session: %s", result.Description)
+	})
+}

@@ -284,6 +284,20 @@ func TestHandleState_PeerUp(t *testing.T) {
 //
 // VALIDATES: Received routes are cleared when peer goes down.
 // PREVENTS: Stale routes from failed peers.
+//
+// This is also the deletion half of RFC 4760 Section 7: "the speaker MUST delete all the BGP
+// routes received from that neighbor whose AFI/SAFI is the same as the one carried in the
+// incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute." RFC 7606 Section 7.11 lets a speaker
+// answer an incorrect MP attribute with "session reset" instead of the RFC 4760 per-AFI/SAFI
+// disable, and Ze takes that branch. The trigger half, that an incorrect MP attribute produces
+// RFC7606ActionSessionReset, is TestRFC4760IncorrectMPAttributeResetsTheSession in
+// internal/component/bgp/message. What remains to prove is that the resulting peer-down deletes
+// the neighbor's received routes, which is what this test asserts: bgpPeers holds one IPv4
+// unicast route before the down event and the PeerRIB is gone after it.
+//
+// RFC requirement: RFC4760-7-1 positive -- a peer-down state event releases the neighbor's
+// Adj-RIB-In, so the routes received from it, of the offending AFI/SAFI and of every other, are
+// deleted (internal/component/bgp/plugins/rib/rib.go RIBManager.handleState).
 func TestHandleState_PeerDown(t *testing.T) {
 	r := newTestRIBManager(t)
 	peerJSON := mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}})

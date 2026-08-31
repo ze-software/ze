@@ -651,10 +651,16 @@ func validateAtomicAggAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606
 }
 
 // RFC 7606 Section 7.7: AGGREGATOR length depends on 4-octet AS capability (attribute-discard).
-func validateAggregatorAttr(code uint8, length int, _ []byte, _, asn4 bool) *RFC7606ValidationResult {
+//
+// RFC 7607 Section 2 adds a second malformed condition over the same attribute: an AS of
+// zero. Both land on the RFC 7606 Section 7.7 procedure, attribute discard, and the
+// Reason column tells the two apart for an operator reading the discard.
+func validateAggregatorAttr(code uint8, length int, attrData []byte, _, asn4 bool) *RFC7606ValidationResult {
 	expectedLen := 6
+	asOctets := 2
 	if asn4 {
 		expectedLen = 8
+		asOctets = 4
 	}
 	if length != expectedLen {
 		var b textbuf.Buffer
@@ -665,7 +671,28 @@ func validateAggregatorAttr(code uint8, length int, _ []byte, _, asn4 bool) *RFC
 			Description: b.Reset().Str("RFC 7606 Section 7.7: AGGREGATOR length ").Int(int64(length)).Str(", expected ").Int(int64(expectedLen)).Str(" (asn4=").Bool(asn4).Byte(')').String(),
 		}
 	}
-	return nil
+
+	// RFC 7607 Section 2: "An UPDATE message that contains the AS number of zero in the
+	// AS_PATH or AGGREGATOR attribute MUST be considered as malformed and be handled by
+	// the procedures specified in [RFC7606]."
+	//
+	// The AS field leads the attribute, two octets wide without the four-octet AS
+	// capability and four with it (RFC 6793 Section 3). The bound is read off attrData
+	// rather than off length, so a caller whose two arguments disagree cannot make this
+	// read past the slice it was given.
+	if len(attrData) < asOctets {
+		return nil
+	}
+	if !asnIsZero(attrData[:asOctets]) {
+		return nil
+	}
+	var b textbuf.Buffer
+	return &RFC7606ValidationResult{
+		Action:      RFC7606ActionAttributeDiscard,
+		AttrCode:    code,
+		Reason:      DiscardReasonMalformedValue,
+		Description: b.Reset().Str("RFC 7607 Section 2: AS 0 in AGGREGATOR").String(),
+	}
 }
 
 // RFC 7606 Section 7.8: Community must be non-zero multiple of 4.
@@ -942,6 +969,23 @@ func validateASPath(data []byte, asn4 bool) *RFC7606ValidationResult {
 	// RFC 7606 Section 7.2: Check for underrun (trailing partial data)
 	// This is already handled above - if we exit the loop with pos < len(data),
 	// the next iteration would catch it. But if pos == len(data) exactly, we're good.
+
+	// RFC 7607 Section 2: "An UPDATE message that contains the AS number of zero in the
+	// AS_PATH or AGGREGATOR attribute MUST be considered as malformed and be handled by
+	// the procedures specified in [RFC7606]." Section 7.2 above names that procedure for
+	// AS_PATH, so an AS 0 lands on treat-as-withdraw beside the structural faults.
+	//
+	// The scan runs after the structure walk rather than inside it: every segment header
+	// is sound at this point, so the scan reads exactly the AS numbers the sender
+	// declared and never a length field it mistook for one. asPathHoldsASZero is in
+	// rfc7607.go, shared with the AS4_PATH validator so the two cannot disagree.
+	if asPathHoldsASZero(data, asSize) {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    attrCodeASPath,
+			Description: "RFC 7607 Section 2: AS 0 in AS_PATH",
+		}
+	}
 
 	return nil
 }

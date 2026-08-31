@@ -3,12 +3,16 @@ package server
 import (
 	"encoding/hex"
 	"errors"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/component/plugin"
+	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
+	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -187,4 +191,119 @@ func TestBroadcastValidateOpenCapabilityHexEncoding(t *testing.T) {
 	assert.Equal(t, uint8(64), msg.Capabilities[0].Code)
 	// hex.EncodeToString produces lowercase
 	assert.Equal(t, hex.EncodeToString([]byte{0x40, 0x78, 0x00, 0x01, 0x01, 0x00}), msg.Capabilities[0].Hex)
+}
+
+// roleOpen returns an OPEN carrying the RFC 9234 Role capability (code 9) with the
+// given role value, which is the shape a role-configured peer exchanges.
+func roleOpen(role byte) *message.Open {
+	return &message.Open{
+		MyAS:           65000,
+		HoldTime:       180,
+		BGPIdentifier:  0x01020304,
+		OptionalParams: []byte{2, 3, 9, 1, role},
+	}
+}
+
+// newSilentProc returns a process that registered the validate-open callback and whose
+// connection is dead, so every RPC to it fails. It is the plugin that wants to answer
+// and cannot.
+func newSilentProc(t *testing.T, name string) *process.Process {
+	t.Helper()
+
+	engineSide, pluginSide := net.Pipe()
+	require.NoError(t, pluginSide.Close())
+
+	proc := process.NewProcess(plugin.PluginConfig{Name: name})
+	proc.SetRegistration(&plugin.PluginRegistration{WantsValidateOpen: true, Done: true})
+	proc.SetConn(plugipc.NewPluginConn(engineSide, engineSide))
+	t.Cleanup(func() { proc.Stop() })
+	return proc
+}
+
+// RFC requirement: RFC9234-4.2-2 positive -- a peer that carries role configuration is
+// rejected with the Role Mismatch NOTIFICATION code 2 subcode 11 when the plugin holding
+// that policy could not be asked, because ze cannot then say the Roles correspond.
+//
+// VALIDATES: an unanswered per-peer OPEN policy refuses the connection and names the
+// silent plugin.
+// PREVENTS: the session establishing with the RFC 9234 Section 5 route-leak guard
+// silently absent, which is what "no plugin objected" used to mean for an unreachable
+// bgp-role.
+func TestBroadcastValidateOpenRefusesAnUnansweredPerPeerPolicy(t *testing.T) {
+	t.Parallel()
+
+	srv := newTestServer(t)
+
+	err := broadcastValidateOpen(srv, "10.0.0.1", "", []string{"bgp-role"}, roleOpen(3), roleOpen(3))
+	require.Error(t, err)
+
+	var unavailable *OpenValidationUnavailableError
+	require.True(t, errors.As(err, &unavailable))
+	assert.Equal(t, "10.0.0.1", unavailable.Peer)
+	assert.Equal(t, []string{"bgp-role"}, unavailable.Plugins)
+
+	code, sub := unavailable.NotifyCodes()
+	assert.Equal(t, uint8(2), code)
+	assert.Equal(t, message.NotifyOpenRoleMismatch, sub)
+}
+
+// RFC requirement: RFC9234-4.2-2 negative -- a peer that carries NO role configuration is
+// not rejected with the Role Mismatch NOTIFICATION when validation could not run, so the
+// refusal is scoped to peers whose Roles ze was supposed to check.
+//
+// VALIDATES: a peer with no per-peer declaration keeps the behavior it had before the
+// unanswered-policy check existed.
+// PREVENTS: an unreachable plugin tearing down every session in the daemon, role
+// configuration or not.
+func TestBroadcastValidateOpenAcceptsAPeerWithNoPerPeerPolicy(t *testing.T) {
+	t.Parallel()
+
+	srv := newTestServer(t)
+
+	err := broadcastValidateOpen(srv, "10.0.0.2", "", nil, roleOpen(3), roleOpen(0))
+	assert.NoError(t, err)
+}
+
+// RFC requirement: RFC9234-4.2-2 positive -- a plugin that holds the Section 4.2 policy
+// for a peer and cannot answer stays owed, whether it has no connection at all or its
+// validate-open RPC fails, so the caller refuses the connection in both cases.
+//
+// VALIDATES: the two skip paths leave the plugin in the pending set, and a plugin that
+// answers is struck off it.
+// PREVENTS: a dead or unreachable validator reading as consent, which is the shape both
+// skips had while they simply continued the loop.
+func TestAskOpenValidatorsLeavesASilentPluginPending(t *testing.T) {
+	t.Parallel()
+
+	noConn := process.NewProcess(plugin.PluginConfig{Name: "bgp-role"})
+	noConn.SetRegistration(&plugin.PluginRegistration{WantsValidateOpen: true, Done: true})
+
+	tests := []struct {
+		name string
+		proc func(t *testing.T) *process.Process
+	}{
+		{
+			name: "plugin has no connection",
+			proc: func(*testing.T) *process.Process { return noConn },
+		},
+		{
+			name: "validate-open rpc fails",
+			proc: func(t *testing.T) *process.Process { return newSilentProc(t, "bgp-role") },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			pending := map[string]bool{"bgp-role": true}
+			input := &rpc.ValidateOpenInput{Peer: "10.0.0.1"}
+
+			err := askOpenValidators(t.Context(), []*process.Process{tt.proc(t)}, input, pending)
+			require.NoError(t, err)
+			assert.Equal(t, map[string]bool{"bgp-role": true}, pending)
+
+			assert.Error(t, unansweredOpenValidation("10.0.0.1", pending))
+		})
+	}
 }

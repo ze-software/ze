@@ -698,7 +698,16 @@ func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType msgtype.M
 }
 
 // writeStatisticsReport encodes and sends a BMP Statistics Report.
+//
+// RFC 8671 Section 6.2: "Statistics report messages are not specific to
+// Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero."
+// The caller hands in the per-peer header it built for a monitored peer, and
+// that header carries the O flag when the peer is monitored for Adj-RIB-Out.
+// This function is the only producer of a Statistics Report, so the flag is
+// cleared here: every caller is conformant and no caller has to remember.
 func (ss *senderSession) writeStatisticsReport(peer PeerHeader, stats []StatEntry) error {
+	peer.Flags &^= PeerFlagO
+
 	sr := &statisticsReport{
 		Peer:  peer,
 		Stats: stats,

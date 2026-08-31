@@ -179,6 +179,12 @@ func (s *Session) processOpen(open *message.Open) error {
 		return fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
 	}
 
+	// RFC 7607 Section 2: the collision-winner rail refuses AS 0 exactly as the handleOpen
+	// rail does -- a reserved AS is reserved whichever connection survived.
+	if err := s.validateOpenPeerAS(open); err != nil {
+		return err
+	}
+
 	// RFC 6286 Section 2.2: the collision-winner rail validates the identifier exactly as the
 	// handleOpen rail does -- an invalid identifier is invalid whichever connection survived.
 	if err := s.validateOpenIdentifier(open); err != nil {
