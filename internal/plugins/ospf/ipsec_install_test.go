@@ -287,6 +287,57 @@ func TestIPsecDisabledInterfaceBypass(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC4303-2-1 positive -- RFC 4303 Section 2: "The (outer) protocol header
+// (IPv4, IPv6, or Extension) that immediately precedes the ESP header SHALL contain the value
+// 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field". An esp interface builds
+// an SA whose protocol number is 50, which is what makes the kernel write 50 in the header
+// preceding ESP (buildIPsecSA -> ipsecProtoNumber, ipsec_install.go).
+// RFC requirement: RFC4303-2-1 negative -- the number tracks the configured protocol rather
+// than being 50 for everything: an ah interface builds an SA carrying 51, so a blanket-50
+// installer fails this test.
+func TestIPsecSAProtocolNumber(t *testing.T) {
+	esp := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
+		SPI: 256, Protocol: "esp", AuthAlgo: "sha256", AuthKey: hexKey(32),
+	})
+	if esp.Proto != 50 {
+		t.Errorf("esp SA proto = %d, want 50 (RFC 4303 Section 2)", esp.Proto)
+	}
+	ah := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
+		SPI: 256, Protocol: "ah", AuthAlgo: "sha256", AuthKey: hexKey(32),
+	})
+	if ah.Proto != 51 {
+		t.Errorf("ah SA proto = %d, want 51; the ESP value 50 is chosen for ESP only", ah.Proto)
+	}
+}
+
+// RFC requirement: RFC4303-2.1-2 positive -- RFC 4303 Section 2.1: "The indication of whether
+// source and destination address matching is required to map inbound IPsec traffic to SAs
+// MUST be set either as a side effect of manual SA configuration or via negotiation using an
+// SA management protocol". The RFC 4552 manual configuration sets it: buildIPsecSA gives the
+// state an explicit selector, so the indication is a configured value and never a default the
+// kernel supplies.
+// RFC requirement: RFC4303-2.1-2 negative -- the indication that is set is a narrowing one. The
+// selector names OSPF (upper protocol 89), so traffic other than OSPF cannot map to this SA;
+// an installer that left the selector at the wildcard 0 fails this test.
+func TestIPsecSAAddressMatchIndication(t *testing.T) {
+	sa := buildIPsecSA(testIfIndex, ipsecInterfaceConfig{
+		SPI: 256, Protocol: "esp", AuthAlgo: "sha256", AuthKey: hexKey(32),
+	})
+	if sa.Sel == nil {
+		t.Fatal("manual SA carries no state selector; the address-match indication is unset")
+	}
+	if sa.Sel.Src == nil || sa.Sel.Dst == nil {
+		t.Fatalf("state selector src/dst = (%v, %v), want the configured ::/0 prefixes", sa.Sel.Src, sa.Sel.Dst)
+	}
+	if ones, _ := sa.Sel.Src.Mask.Size(); ones != 0 {
+		t.Errorf("selector src prefix = /%d, want /0: RFC 4552 Section 7 keys one SA for every OSPFv3 address", ones)
+	}
+	if sa.Sel.UpperProto != ospfv3transport.Protocol {
+		t.Errorf("selector upper protocol = %d, want %d (OSPF); a wildcard would map non-OSPF traffic to this SA",
+			sa.Sel.UpperProto, ospfv3transport.Protocol)
+	}
+}
+
 func TestIPsecLoadsXFRMBackend(t *testing.T) {
 	// A-8: the default dataplane source loads/gets the xfrm backend even when IKE
 	// has not loaded it (the backend is registered in the dataplane package init).

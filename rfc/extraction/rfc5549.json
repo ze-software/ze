@@ -1,0 +1,161 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5549",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5549.txt",
+  "source-sha": "a4896c55c7192c94",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 5, rfc5549",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates the Introduction: MP-BGP lets the AFI/SAFI decide the network-layer protocol of the Next Hop, the IPv4 AFI/SAFI definitions provide only for an IPv4 Next Hop, and this document adds the IPv6 case. It states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: which AFI/SAFI pairs already let the Next Hop belong to another address family (<25/65> of L2VPN-SIG, <1/132> of RFC 4684), that RFC 4684 already decides the family from the Length of Next Hop Address field, that RFC 4798 and RFC 4659 solve IPv6 NLRI with an IPv4 Next Hop, and that no solution existed for IPv4 NLRI with an IPv6 Next Hop. The last paragraph states what this document adds. No sentence directs a speaker."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Extension of AFI/SAFI Definitions for the IPv4 Address Family. One capitalised MUST-level site, mapped below to RFC5549-3-1. The rest is value assignment written as a bullet list: AFI 1, SAFI 1, 2, 4 or 128, a Length of Next Hop Address of 16 or 32, and a Next Hop Address that is an IPv6 address optionally followed by the link-local IPv6 address. Those bullets carry no RFC 2119 level, and the Wire Formats and Decoding Rules tables of rfc/short/rfc5549.md hold the values. One bullet delegates rather than obliges: 'This field is to be constructed as per Section 3 of [RFC2545]', which is RFC 2545's obligation and carries its own summary. The closing note that RFC 4684 and L2VPN-SIG use the same length method is a comparison. RFC 8950 Section 3 replaces the 16-or-32 length for SAFI 128 with 24 or 48 and a zero Route Distinguisher; that successor obligation belongs to RFC8950-3-2 and is not stated here, so nothing of it is unsourced against this document."
+    },
+    {
+      "id": "4",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Use of BGP Capability Advertisement. Four capitalised MUST-level sites: the RFC 5492 procedures (RFC5549-4-2), the lead-in to the field list (excluded as a duplicate below), Capability Code 5 (RFC5549-4-3), and the precondition that a speaker advertises an IPv6 Next Hop for IPv4 or VPN-IPv4 NLRI only after the Capability Advertisement has shown peer support (RFC5549-4-1). The Capability Value format, its <NLRI AFI, NLRI SAFI, Nexthop AFI> triples and the values this document allows (NLRI AFI 1, NLRI SAFI 1, 2, 4 or 128, Nexthop AFI 2) are value assignment, held by the Wire Formats and Constants tables of rfc/short/rfc5549.md. Three sentences the site scan cannot see are scoping rather than obligations: that this document does not propose the capability for any other combination, that new AFI/SAFIs are not expected to use it, and that the capability says how a Next Hop is encoded while the Multiprotocol Extensions capability of RFC 4760 decides whether the AFI/SAFI is allowed at all. Each is indicative, so section 2 gives it no normative level. Two ids the site scan cannot reach are listed below.",
+      "unsourced-ids": [
+        "RFC5549-4-4",
+        "RFC5549-4-5"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Operations. One capitalised MUST-level site, mapped below to RFC5549-5-1. The two remaining directives are the SHOULD to give the next hop as an IPvx address when the session runs over IPvx and the speaker puts its own address in, and the MAY that policy overrides that default. Both are the unsourced ids below. The closing sentences state a consequence rather than an obligation: an RR client that cannot handle an encoding, as determined by the BGP Capability Advertisement, does not get the NLRI, and sound routing in some designs needs every RR client to handle whatever encodings any of them generate.",
+      "unsourced-ids": [
+        "RFC5549-5-2",
+        "RFC5549-5-3"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Usage Examples. A heading with no text of its own. Sections 6.1 and 6.2 carry the two examples."
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "IPv4 over IPv6 Core. An illustrative encoding for the interconnection of IPv4 islands over an IPv6 backbone as described in MESH-FMWK: AFI 1, SAFI 1, Length of Next Hop Network Address 16 or 32, an IPv6 Next Hop, IPv4 routes as NLRI, and the capability triple <NLRI AFI 1, NLRI SAFI 1, Nexthop AFI 2>. Written as 'may be used' and 'would include', so it directs no speaker; the values repeat sections 3 and 4."
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "IPv4 VPN over IPv6 Core. The same illustrative shape for SAFI 128: Length of Next Hop Network Address 16 or 32, an IPv6 Next Hop, IPv4-VPN routes as NLRI, and the capability triple <NLRI AFI 1, NLRI SAFI 128, Nexthop AFI 2>. No directive. This is the section Erratum ID 5253 reports, because a VPN-IPv4 Next Hop carries an 8-octet Route Distinguisher and the lengths given here leave no room for one; RFC 8950 Section 2 answers the erratum with 24 or 48. The Errata section of rfc/short/rfc5549.md records both readings, and parseVPNNextHops in internal/core/bgp/attribute/mpnlri.go accepts 16 and 32 as the legacy form beside the 24 and 48 of RFC 8950."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records the allocation of Capability Code 5 for the Extended Next Hop Encoding capability from the IETF Review range of RFC 5226. Binds IANA, not a speaker. The value itself is an obligation on a speaker only through RFC5549-4-3, which site 4:3 maps."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that the document raises no security issue beyond BGP-4 and the Multiprotocol Extensions, and that the IPv6 Next Hop Address can be an IPv4-mapped IPv6 address of RFC 4291. The last sentence addresses the network operator who configures next-hop security checks, states no capitalised keyword, and directs no speaker."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments. Thanks Yakov Rekhter, Pranav Mehta and John Scudder. No obligation."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. A heading whose two lists are sections 10.1 and 10.2."
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 2545, RFC 3107, RFC 4291, RFC 4364, RFC 4760 and RFC 5492."
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: DYN-CAP, L2VPN-SIG, MESH-FMWK, RFC 4659, RFC 4684, RFC 4798, RFC 4925 and RFC 5226. The unnumbered Authors' Addresses that closes the document falls into this section, because the derivation opens a section only on a numbered heading at column 0. Neither states an obligation."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "The BGP speaker receiving the advertisement MUST use the Length of Next Hop Address field to determine which network-layer protocol the next hop address belongs to.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5549-3-1",
+      "reason": "The receiver's obligation to read the Length of Next Hop Address field, and not the AFI/SAFI alone, to learn which network-layer protocol the next hop address belongs to. Captured verbatim as RFC5549-3-1 at [MUST]. The next sentence gives the value it decides on: a length of 16 or 32 means the next hop address is of type IPv6. RFC 8950 Section 3 restates the same sentence as RFC8950-3-1, but this document states it in its own text, so the site maps here."
+    },
+    {
+      "id": "4:1",
+      "quote": "A BGP speaker that wishes to advertise to a BGP peer an IPv6 Next Hop for IPv4 NLRI or for VPN-IPv4 NLRI as per this specification MUST use the Capability Advertisement procedures defined in [RFC5492] with the Extended Next Hop Encoding Capability to establish whether its peer supports this for the NLRI AFI/SAFI pair(s) of interest.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5549-4-2",
+      "reason": "The obligation to run the RFC 5492 Capability Advertisement procedures with the Extended Next Hop Encoding capability before using an IPv6 Next Hop for IPv4 or VPN-IPv4 NLRI. Captured verbatim as RFC5549-4-2 at [MUST]."
+    },
+    {
+      "id": "4:2",
+      "quote": "The fields in the Capabilities Optional Parameter MUST be set as follows:",
+      "disposition": "excluded",
+      "mapped-to": "RFC5549-4-3",
+      "excluded-kind": "duplicate-of",
+      "reason": "The lead-in to the field list of the Capabilities Optional Parameter. Of the three bullets it introduces, only the Capability Code bullet carries an RFC 2119 keyword, and site 4:3 maps it to RFC5549-4-3; the Capability Length bullet and the Capability Value format bullet are written indicatively. The sentence therefore restates the obligation site 4:3 already carries and adds no separate one."
+    },
+    {
+      "id": "4:3",
+      "quote": "o The Capability Code field MUST be set to 5 (which indicates the Extended Next Hop Encoding capability).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5549-4-3",
+      "reason": "The obligation that the Capability Code field of the Extended Next Hop Encoding capability be 5. Captured verbatim as RFC5549-4-3 at [MUST]. Section 7 records the same value as the IANA allocation, which binds IANA rather than a speaker."
+    },
+    {
+      "id": "4:4",
+      "quote": "A BGP speaker MUST only advertise to a BGP peer the IPv4 or VPN-IPv4 NLRI with an IPv6 Next Hop if the BGP speaker has first ascertained via BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5549-4-1",
+      "reason": "The sender's precondition: an IPv6 Next Hop for IPv4 or VPN-IPv4 NLRI goes to a peer only after the Capability Advertisement has shown that the peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. Captured verbatim as RFC5549-4-1 at [MUST]. rfc/short/rfc5549.md also declares RFC5549-4-4, the same sentence read as a MUST NOT against a peer that never advertised the capability; a site maps one id, so RFC5549-4-4 is listed in the unsourced-ids of section 4."
+    },
+    {
+      "id": "5:1",
+      "quote": "When a next hop address needs to be passed along unchanged (e.g., as a Route Reflector (RR) would do), its encoding MUST NOT be changed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5549-5-1",
+      "reason": "The obligation on a speaker that passes a next hop address along unchanged, a route reflector among them, to leave its encoding unchanged. Captured verbatim as RFC5549-5-1 at [MUST NOT]."
+    }
+  ],
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3, 4 and 5. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}

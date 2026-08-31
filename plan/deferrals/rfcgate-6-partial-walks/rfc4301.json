@@ -1,0 +1,962 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4301",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4301.txt",
+  "source-sha": "263fd9a78175c888",
+  "signed-off": "",
+  "reviewer": "",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, copyright notice, Abstract and the table of contents."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction heading. One sentence naming what the document specifies."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Summary of Contents of Document. A section-by-section map plus the RFC 2119 key-words paragraph, which binds no speaker."
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Audience. Names the readers the document is written for."
+    },
+    {
+      "id": "1.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Related Documents. Names the AH, ESP, IKEv2 and cryptographic-algorithm documents and says this one is the architecture."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Design Objectives heading."
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Goals/Objectives/Requirements/Problem Description. Design goals in indicative prose ('IPsec is designed to provide...'). No capitalised keyword and no obligation a speaker can be held to."
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Caveats and Assumptions. States what the architecture assumes of the environment (a key management protocol, a routing infrastructure). No obligation."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "System Overview heading."
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "What IPsec Does. One site: the connectivity forms a compliant host and a compliant security gateway must support."
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "How IPsec Works. One site: ESP is mandatory to implement and AH is optional."
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Where IPsec Can Be Implemented. Describes native, BITS and BITW placements and says the document does not distinguish among them unless it says so. Descriptive."
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Security Associations. One site: every AH or ESP implementation must support the SA concept."
+    },
+    {
+      "id": "4.1",
+      "sites": 11,
+      "disposition": "walked",
+      "reason": "Definition and Scope: the SA definition, the multicast SAD lookup algorithm, QoS-parallel SAs, and the transport/tunnel mode rules. Eleven sites.",
+      "unsourced-ids": [
+        "RFC4301-4.1-4",
+        "RFC4301-4.1-7"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "SA Functionality. One site: the NULL-encryption-with-no-integrity refusal."
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Combining SAs. Says nested SAs and RFC 2401 'SA bundles' are NOT required, and puts a management interface for nesting at SHOULD. No gated obligation."
+    },
+    {
+      "id": "4.4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Major IPsec Databases. Names the SPD, SAD and PAD and frames the model. One site, the model-scope clause."
+    },
+    {
+      "id": "4.4.1",
+      "sites": 11,
+      "disposition": "walked",
+      "reason": "The Security Policy Database. Eleven sites covering SPD presence and selection, entry ordering, the SPD-I/O/S split, the management interface, and decorrelation.",
+      "unsourced-ids": [
+        "RFC4301-4.4.1-3"
+      ]
+    },
+    {
+      "id": "4.4.1.1",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Selectors. Five sites: the mandatory selector list, OPAQUE, the fragment-without-ports discard, the ICMP type/code range test, and the Name quasi-selector."
+    },
+    {
+      "id": "4.4.1.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Structure of an SPD Entry. Two sites: the selector-set constraint on users and the Name forms."
+    },
+    {
+      "id": "4.4.1.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "More Regarding Fields Associated with Next Layer Protocols. Explains that a next layer protocol has zero, one or two selectors. Descriptive."
+    },
+    {
+      "id": "4.4.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Security Association Database. Two sites: the cross-reference to the section 4.1 lookup, and the inbound-SAD selector population rule."
+    },
+    {
+      "id": "4.4.2.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Data Items in the SAD. Three sites: the mandatory data-item list, the two lifetime types, and out-of-synch byte counters."
+    },
+    {
+      "id": "4.4.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Relationship between SPD, PFP flag, packet, and SAD. Tables showing the resulting SAD value per selector. Illustrative."
+    },
+    {
+      "id": "4.4.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Peer Authorization Database. Lists what the PAD does; each function is stated normatively in 4.4.3.1 to 4.4.3.3."
+    },
+    {
+      "id": "4.4.3.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "PAD Entry IDs and Matching Rules. Three sites: sub-tree matching, address-range syntax, and Key ID exact match."
+    },
+    {
+      "id": "4.4.3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "IKE Peer Authentication Data. One site: the administrator control binding an asserted IKE ID to a certificate subject or subject alt name."
+    },
+    {
+      "id": "4.4.3.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Child SA Authorization Data. One site: the v4 and v6 address-range provision."
+    },
+    {
+      "id": "4.4.3.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "How the PAD Is Used. Narrates the ID-payload lookup and the child-SA constraint. No capitalised keyword."
+    },
+    {
+      "id": "4.5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "SA and Key Management. One site: manual and automated key management are both mandatory."
+    },
+    {
+      "id": "4.5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Manual Techniques. Describes when manual keying is practical. No obligation."
+    },
+    {
+      "id": "4.5.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Automated SA and Key Management. One site: the encryption-then-integrity split of a single KEYMAT string."
+    },
+    {
+      "id": "4.5.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Locating a Security Gateway. One site: the administrative interface for configuring gateway addresses per destination range."
+    },
+    {
+      "id": "4.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "SAs and Multicast. One SHOULD (a single SA per multicast group with symmetric algorithms) and no gated obligation."
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "IP Traffic Processing. Two sites: SPD consultation for all boundary-crossing traffic, and the no-match discard."
+    },
+    {
+      "id": "5.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Outbound IP Traffic Processing. Three sites: the four processing steps, the SPD-I entry a nested-SA loopback needs, and the PMTU cross-reference to section 8.2."
+    },
+    {
+      "id": "5.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Handling an Outbound Packet That Must Be Discarded. SHOULD-level audit and ICMP-generation guidance. No gated obligation."
+    },
+    {
+      "id": "5.1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Header Construction for Tunnel Mode. Introduces the two per-family tables in 5.1.2.1 and 5.1.2.2."
+    },
+    {
+      "id": "5.1.2.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "IPv4: Header Construction for Tunnel Mode. One site, note (5): the DSCP mapping when the packet enters a domain the outer value does not suit."
+    },
+    {
+      "id": "5.1.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "IPv6: Header Construction for Tunnel Mode. The same table for IPv6; its notes repeat 5.1.2.1's and carry no capitalised keyword of their own."
+    },
+    {
+      "id": "5.2",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Processing Inbound IP Traffic. Four sites: the five processing steps, the explicit IKE BYPASS entry, the selector-mismatch discard, and the SPD-O match for looped-back bypass traffic."
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "ICMP Processing. One site: non-error ICMP disposition accounted for by SPD entries."
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Processing ICMP Error Messages Directed to an IPsec Implementation. Heading only."
+    },
+    {
+      "id": "6.1.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "ICMP Error Messages Received on the Unprotected Side. Two sites: the administrator control over unauthenticated ICMP, and its ICMP-type granularity."
+    },
+    {
+      "id": "6.1.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "ICMP Error Messages Received on the Protected Side. One site: the equivalent controls for the protected side."
+    },
+    {
+      "id": "6.2",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Processing Protected, Transit ICMP Error Messages. Five sites covering payload-header consistency checking, the sender/receiver processing model, the return-traffic SA mapping, the special inbound handling, and the forwarding refusal."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Handling Fragments. The section introduction defines 'non-trivial' and 'non-initial fragment' and names the three approaches; it carries no capitalised keyword. Its opening note restates the section 4.1 rule that transport mode SAs do not carry fragments, which is the summary's RFC4301-7-1.",
+      "unsourced-ids": [
+        "RFC4301-7-1"
+      ]
+    },
+    {
+      "id": "7.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Tunnel Mode SAs that Carry Initial and Non-Initial Fragments. Three sites: the mandatory port-agnostic tunnel SA, and the two ANY-port rules."
+    },
+    {
+      "id": "7.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Separate Tunnel Mode SAs for Non-Initial Fragments. Two sites, both under the section's opening MAY."
+    },
+    {
+      "id": "7.3",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Stateful Fragment Checking. Five sites: the NON_FIRST_FRAGMENTS_ALSO notify, the peer's rejection, the send refusal, and the two receiver discards."
+    },
+    {
+      "id": "7.4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "BYPASS/DISCARD Traffic. Two sites: DISCARD of fragments through normal SPD classification, and stateful fragment checking for BYPASS with a non-trivial port range."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Path MTU/DF Processing. Introduction: applying AH or ESP grows a packet and may exceed the SA's PMTU. No obligation."
+    },
+    {
+      "id": "8.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "DF Bit. Two sites: the DF-copy option and the per-SA configurability of DF treatment."
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Path MTU (PMTU) Discovery. Defines which ICMP messages count as ICMP PMTU for IPv4 and IPv6. No capitalised keyword.",
+      "unsourced-ids": [
+        "RFC4301-7-2"
+      ]
+    },
+    {
+      "id": "8.2.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Propagation of PMTU. One site: the handling of traffic that would exceed an updated PMTU."
+    },
+    {
+      "id": "8.2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "PMTU Aging. One site: the PMTU associated with an SA must be aged."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Auditing. States that auditing is NOT required and that the auditable events named elsewhere carry SHOULD-level content lists. No gated obligation."
+    },
+    {
+      "id": "10",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Conformance Requirements. Two sites, both conformance-scope clauses."
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Discusses header-data bypass constraints, the DSCP/ECN covert channel, and the anti-replay caveats. Every countermeasure it names is stated normatively in sections 4 to 8."
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. States that no IANA action is required for this document beyond the existing IPsec registries."
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Differences from RFC 2401. A change list against the obsoleted document. It describes what moved, not what a speaker owes."
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acknowledgements, and -- because the derived section list recognises no 'Appendix A:' or 'Appendix B:' heading -- the whole of Appendix A (Glossary) and the Appendix B preamble. Definitions and credits; no obligation and no capitalised keyword."
+    },
+    {
+      "id": "B.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Decorrelation Algorithm, and with it Appendix C (ASN.1 for an SPD Entry) and the Appendix D preamble, which the derived section list folds in for the same reason. Appendix B is explicitly optional ('This RFC does not require a compliant implementation to make use of decorrelation', section 4.4.1); the ASN.1 is an example encoding."
+    },
+    {
+      "id": "D.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Transport Mode and Fragments. Rationale for why transport mode SAs do not carry fragments. No capitalised keyword."
+    },
+    {
+      "id": "D.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Tunnel Mode and Fragments. Two sites, both restating the section 7.1 ANY-port rule."
+    },
+    {
+      "id": "D.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The Problem of Non-Initial Fragments. Rationale for the three approaches. No capitalised keyword."
+    },
+    {
+      "id": "D.4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "BYPASS/DISCARD Traffic. Two sites, both restating the section 7.4 obligations."
+    },
+    {
+      "id": "D.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Just say no to ports? Rationale rejecting an alternative design. No obligation."
+    },
+    {
+      "id": "D.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Other Suggested Solutions. Rationale rejecting further alternatives."
+    },
+    {
+      "id": "D.7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Consistency. Rationale on treating BYPASS and PROTECT traffic alike."
+    },
+    {
+      "id": "D.8",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Conclusions, and with it Appendix E (nested SAs via SPD and forwarding entries), the References, the Authors' Addresses and the Full Copyright Statement, which the derived section list folds in. One site, in D.8 proper."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "A compliant host implementation MUST support (a) and (c) and a compliant security gateway must support all three of these forms of connectivity, since under certain circumstances a security gateway acts as a host.",
+      "disposition": null
+    },
+    {
+      "id": "3.2:1",
+      "quote": "IPsec implementations MUST support ESP and MAY support AH.",
+      "disposition": null
+    },
+    {
+      "id": "4:1",
+      "quote": "All implementations of AH or ESP MUST support the concept of an SA as described below.",
+      "disposition": null
+    },
+    {
+      "id": "4.1:1",
+      "quote": "If an IPsec implementation supports multicast, then it MUST support multicast SAs using the algorithm below for mapping inbound IPsec datagrams to SAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.1-6",
+      "reason": "The sentence the summary renders as RFC4301-4.1-6. The three-step SPI/dst/src search it introduces is quoted in 4.1:3; ze runs no inbound SAD lookup of its own, and the row already records that the lookup is kernel-delegated."
+    },
+    {
+      "id": "4.1:2",
+      "quote": "A multicast-capable IPsec implementation MUST correctly de-multiplex inbound traffic even in the context of SPI collisions.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4301-4.1-6",
+      "reason": "Restates the same multicast de-multiplexing obligation as 4.1:1 from the SPI-collision angle: correct de-multiplexing under a collision IS the ordered longest-match search RFC4301-4.1-6 names."
+    },
+    {
+      "id": "4.1:3",
+      "quote": "In practice, an implementation may choose any method (or none at all) to accelerate this search, although its externally visible behavior MUST be functionally equivalent to having searched the SAD in the above order.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4301-4.1-6",
+      "reason": "The equivalence clause of the same algorithm. It permits any acceleration whose external behavior equals the ordered search RFC4301-4.1-6 already requires, so it adds no obligation beyond that row."
+    },
+    {
+      "id": "4.1:4",
+      "quote": "The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547].",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4301-4.1-6",
+      "reason": "The per-entry flag that selects between the three search steps of RFC4301-4.1-6. It is a field of that lookup, not a separate obligation."
+    },
+    {
+      "id": "4.1:5",
+      "quote": "To permit this, the IPsec implementation MUST permit establishment and maintenance of multiple SAs between a given sender and receiver, with the same selectors.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.1-5",
+      "reason": "The sentence the summary renders as RFC4301-4.1-5. ze keys SAs by SPI throughout (dataplane.SAParams.SPI, engine.generateESPSPI), so two SAs with identical selectors coexist."
+    },
+    {
+      "id": "4.1:6",
+      "quote": "The receiver MUST process the packets from the different SAs without prejudice.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4301-4.1-5",
+      "reason": "The receiver half of the same requirement: permitting multiple parallel SAs with one selector set is what 'process the packets from the different SAs without prejudice' asks for, and 4.1:5 maps it."
+    },
+    {
+      "id": "4.1:7",
+      "quote": "In transport mode, the DSCP value might change en route, but this should not cause problems with respect to IPsec processing since the value is not employed for SA selection and MUST NOT be checked as part of SA/packet validation.",
+      "disposition": null
+    },
+    {
+      "id": "4.1:8",
+      "quote": "In IPv6, the security protocol header appears after the base IP header and selected extension headers, but may appear before or after destination options; it MUST appear before next layer protocols (e.g., TCP, UDP, Stream Control Transmission Protocol (SCTP)).",
+      "disposition": null
+    },
+    {
+      "id": "4.1:9",
+      "quote": "Aside from the two exceptions below, whenever either end of a security association is a security gateway, the SA MUST be tunnel mode.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.1-3",
+      "reason": "The sentence the summary renders as RFC4301-4.1-3."
+    },
+    {
+      "id": "4.1:10",
+      "quote": "a) A host implementation of IPsec MUST support both transport and tunnel mode.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.1-1",
+      "reason": "Summary clause (a), the sentence the summary renders as RFC4301-4.1-1. createFirstChildSA (engine/child.go) builds modeTunnel or modeTransport, and plugins/ospf/ipsec_install.go installs transport mode, so both modes exist."
+    },
+    {
+      "id": "4.1:11",
+      "quote": "b) A security gateway MUST support tunnel mode and MAY support transport mode.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.1-2",
+      "reason": "Summary clause (b), the sentence the summary renders as RFC4301-4.1-2. Its trailing MAY is RFC4301-4.1-7, which section 4.1 lists in unsourced-ids because one site takes one id."
+    },
+    {
+      "id": "4.2:1",
+      "quote": "Note: A compliant implementation MUST NOT allow instantiation of an ESP SA that employs both NULL encryption and no integrity algorithm.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.2-1",
+      "reason": "The sentence the summary renders as RFC4301-4.2-1."
+    },
+    {
+      "id": "4.4:1",
+      "quote": "The model described below is nominal; implementations need not match details of this model as presented, but the external behavior of implementations MUST correspond to the externally observable characteristics of this model in order to be compliant.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative use: a scope statement for the database model, not an obligation. It says the three-database model is nominal and that conformance is judged on external behavior rather than on matching the model's internals. Every behavior it rolls up is stated as its own site in sections 4.4.1 to 4.4.3."
+    },
+    {
+      "id": "4.4.1:1",
+      "quote": "An IPsec implementation MUST have at least one SPD, and it MAY support multiple SPDs, if appropriate for the context in which the IPsec implementation operates.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.4.1-1",
+      "reason": "The sentence the summary renders as RFC4301-4.4.1-1. ze holds one SPD model (dataplane.SPParams) projected to one kernel policy database."
+    },
+    {
+      "id": "4.4.1:2",
+      "quote": "However, if an implementation supports multiple SPDs, then it MUST include an explicit SPD selection function that is invoked to select the appropriate SPD for outbound traffic processing.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4301-4.4.1-1",
+      "reason": "The conditional half of the same sentence pair: it binds only an implementation that elects the MAY in 4.4.1:1. ze holds exactly one SPD, so the antecedent is false and the obligation is the one 4.4.1:1 maps."
+    },
+    {
+      "id": "4.4.1:3",
+      "quote": "Thus, a user or administrator MUST be able to order the entries to express a desired access control policy.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.1:4",
+      "quote": "Since the SPD-I is just a part of the SPD, if a packet that is looked up in the SPD-I cannot be matched to an entry there, then the packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4301-5.2-1",
+      "reason": "The SPD-I miss-discard rule, which the summary declares once as RFC4301-5.2-1; site 5:2 maps that id."
+    },
+    {
+      "id": "4.4.1:5",
+      "quote": "The SPD MUST permit a user or administrator to specify policy entries as follows:",
+      "disposition": null
+    },
+    {
+      "id": "4.4.1:6",
+      "quote": "For every IPsec implementation, there MUST be a management interface that allows a user or system administrator to manage the SPD.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.1:7",
+      "quote": "(In a native host IPsec implementation making use of a socket interface, the SPD may not need to be consulted on a per-packet basis, as noted at the end of Section 4.4.1.1 and in Section 5.) The management interface for the SPD MUST allow creation of entries consistent with the selectors defined in Section 4.4.1.1, and MUST support (total) ordering of these entries, as seen via this interface.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.1:8",
+      "quote": "(The means of signaling such requests to the IPsec implementation are outside the scope of this standard.) However, the system administrator MUST be able to specify whether or not a user or application can override (default) system policies.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.1:9",
+      "quote": "However, this document does specify a standard set of SPD elements that all IPsec implementations MUST support.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4301-4.4.1.1-1",
+      "reason": "'a standard set of SPD elements that all IPsec implementations MUST support' is a forward reference to the selector list of section 4.4.1.1, which 4.4.1.1:1 maps as RFC4301-4.4.1.1-1."
+    },
+    {
+      "id": "4.4.1:10",
+      "quote": "Note that when an SPD entry is decorrelated all the resulting entries MUST be linked together, so that all members of the group derived from an individual, SPD entry (prior to decorrelation) can all be placed into caches and into the SAD at the same time.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.1:11",
+      "quote": "If the SPD is not decorrelated, caching is not allowed and an ordered search of SPD MUST be performed to verify that inbound traffic arriving on an SA is consistent with the access control policy expressed in the SPD.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.1.1:1",
+      "quote": "The following selector parameters MUST be supported by all IPsec implementations to facilitate control of SA granularity.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.4.1.1-1",
+      "reason": "The sentence the summary renders as RFC4301-4.4.1.1-1."
+    },
+    {
+      "id": "4.4.1.1:2",
+      "quote": "Note that the Local and Remote ports may not be available in the case of receipt of a fragmented packet or if the port fields have been protected by IPsec (encrypted); thus, a value of OPAQUE also MUST be supported.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4301-4.4.1.1-1",
+      "reason": "OPAQUE is one of the selector values the same list requires; ze models it as ipsec.PortOpaque (ipsec/traffic_selector.go). 4.4.1.1:1 maps the list."
+    },
+    {
+      "id": "4.4.1.1:3",
+      "quote": "If the SA requires a port value other than ANY or OPAQUE, an arriving fragment without ports MUST be discarded.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.1.1:4",
+      "quote": "Given a policy entry with a range of Types (T-start to T-end) and a range of Codes (C-start to C-end), and an ICMP packet with Type t and Code c, an implementation MUST test for a match using",
+      "disposition": null
+    },
+    {
+      "id": "4.4.1.1:5",
+      "quote": "All IPsec implementations MUST support this use of names.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.1.2:1",
+      "quote": "Until IKE provides a facility that conveys the semantics that are expressed in the SPD via selector sets (as described below), users MUST NOT include multiple selector sets in a single SPD entry unless the access control intent aligns with the IKE \"mix and match\" semantics.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Role: the user or administrator who authors SPD entries. The subject is 'users', and the sentence constrains what an operator may write into a single SPD entry until IKE conveys selector-set semantics. The next sentence puts the implementation's part at MAY ('An implementation MAY warn users')."
+    },
+    {
+      "id": "4.4.1.2:2",
+      "quote": "The forms that MUST be supported are described above in Section 4.4.1.1 under \"Name\". o PFP flags -- one per traffic selector.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.2:1",
+      "quote": "(See Section 4.1 for details on the algorithm that MUST be used for mapping inbound IPsec datagrams to SAs.) The following parameters are associated with each entry in the SAD.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4301-4.1-6",
+      "reason": "A parenthetical cross-reference to the section 4.1 mapping algorithm, which 4.1:1 maps. It states no obligation the SAD section owns."
+    },
+    {
+      "id": "4.4.2:2",
+      "quote": "For each of the selectors defined in Section 4.4.1.1, the entry for an inbound SA in the SAD MUST be initially populated with the value or values negotiated at the time the SA was created.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.4.2-1",
+      "reason": "The sentence the summary renders as RFC4301-4.4.2-1. child.go stores the narrowed TSLocal/TSRemote and projects them into the inbound require-policy."
+    },
+    {
+      "id": "4.4.2.1:1",
+      "quote": "The following data items MUST be in the SAD:",
+      "disposition": null
+    },
+    {
+      "id": "4.4.2.1:2",
+      "quote": "A compliant implementation MUST support both types of lifetimes, and MUST support a simultaneous use of both.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.2.1:3",
+      "quote": "Note that implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss or because the implementations at each end of the SA aren't doing things the same way.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.3.1:1",
+      "quote": "But, at a minimum, sub-tree matching of the sort described above MUST be supported.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.3.1:2",
+      "quote": "For IPv4 and IPv6 addresses, the same address range syntax used for SPD entries MUST be supported.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.3.1:3",
+      "quote": "For this name type, only exact-match syntax MUST be supported (since there is no explicit structure for this ID type).",
+      "disposition": null
+    },
+    {
+      "id": "4.4.3.2:1",
+      "quote": "Thus, implementations MUST provide a means for an administrator to require a match between an asserted IKE ID and the subject name or subject alt name in a certificate.",
+      "disposition": null
+    },
+    {
+      "id": "4.4.3.3:1",
+      "quote": "(A peer may be authorized for both address types, so there MUST be provision for both a v4 and a v6 address range.)",
+      "disposition": null
+    },
+    {
+      "id": "4.5:1",
+      "quote": "All IPsec implementations MUST support both manual and automated SA and cryptographic key management.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.5-1",
+      "reason": "The sentence the summary renders as RFC4301-4.5-1."
+    },
+    {
+      "id": "4.5.2:1",
+      "quote": "To ensure that the IPsec implementations at each end of the SA use the same bits for the same keys, and irrespective of which part of the system divides the string of bits into individual keys, the encryption keys MUST be taken from the first (left-most, high-order) bits and the integrity keys MUST be taken from the remaining bits.",
+      "disposition": null
+    },
+    {
+      "id": "4.5.3:1",
+      "quote": "To address these problems, an IPsec-supporting host or security gateway MUST have an administrative interface that allows the user/administrator to configure the address of one or more security gateways for ranges of destination addresses that require its use.",
+      "disposition": null
+    },
+    {
+      "id": "5:1",
+      "quote": "As mentioned in Section 4.4.1, \"The Security Policy Database (SPD)\", the SPD (or associated caches) MUST be consulted during the processing of all traffic that crosses the IPsec protection boundary, including IPsec management traffic.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-4.4.1-2",
+      "reason": "The sentence the summary renders as RFC4301-4.4.1-2."
+    },
+    {
+      "id": "5:2",
+      "quote": "If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-5.2-1",
+      "reason": "The no-match discard rule for both directions; the summary declares it as RFC4301-5.2-1."
+    },
+    {
+      "id": "5.1:1",
+      "quote": "IPsec MUST perform the following steps when processing outbound packets:",
+      "disposition": null
+    },
+    {
+      "id": "5.1:2",
+      "quote": "If so, there MUST be an entry in SPD-I database that permits inbound bypassing of the packet, otherwise the packet will be discarded.",
+      "disposition": null
+    },
+    {
+      "id": "5.1:3",
+      "quote": "Note: With regard to determining and enforcing the PMTU of an SA, the IPsec system MUST follow the steps described in Section 8.2.",
+      "disposition": null
+    },
+    {
+      "id": "5.1.2.1:1",
+      "quote": "(5) If the packet will immediately enter a domain for which the DSCP value in the outer header is not appropriate, that value MUST be mapped to an appropriate value for the domain [NiBlBaBL98].",
+      "disposition": null
+    },
+    {
+      "id": "5.2:1",
+      "quote": "IPsec MUST perform the following steps:",
+      "disposition": null
+    },
+    {
+      "id": "5.2:2",
+      "quote": "(This implies that IKE traffic MUST have an explicit BYPASS entry in the SPD.) If multiple SPDs are employed, the tag assigned to the packet in step 1 is used to select the appropriate SPD-I (and cache) to search.",
+      "disposition": null
+    },
+    {
+      "id": "5.2:3",
+      "quote": "If an IPsec system receives an inbound packet on an SA and the packet's header fields are not consistent with the selectors for the SA, it MUST discard the packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4301-5.2-2",
+      "reason": "Inbound step 5, the sentence the summary renders as RFC4301-5.2-2."
+    },
+    {
+      "id": "5.2:4",
+      "quote": "If so, then as with ALL outbound traffic that is to be bypassed, the packet MUST be matched against an SPD-O entry.",
+      "disposition": null
+    },
+    {
+      "id": "6:1",
+      "quote": "Disposition of non-error, ICMP messages (that are not addressed to the IPsec implementation itself) MUST be explicitly accounted for using SPD entries.",
+      "disposition": null
+    },
+    {
+      "id": "6.1.1:1",
+      "quote": "To accommodate both ends of this spectrum, a compliant IPsec implementation MUST permit a local administrator to configure an IPsec implementation to accept or reject unauthenticated ICMP traffic.",
+      "disposition": null
+    },
+    {
+      "id": "6.1.1:2",
+      "quote": "This control MUST be at the granularity of ICMP type and MAY be at the granularity of ICMP type and code.",
+      "disposition": null
+    },
+    {
+      "id": "6.1.2:1",
+      "quote": "Thus, implementers MUST provide controls to allow local administrators to constrain the processing of ICMP error messages received on the protected side of the boundary, and directed to the IPsec implementation.",
+      "disposition": null
+    },
+    {
+      "id": "6.2:1",
+      "quote": "Thus, an IPsec implementation MUST be configurable to check that this payload header information is consistent with the SA via which it arrives.",
+      "disposition": null
+    },
+    {
+      "id": "6.2:2",
+      "quote": "IPsec senders and receivers MUST support the following processing for ICMP error messages that are sent and received via SAs.",
+      "disposition": null
+    },
+    {
+      "id": "6.2:3",
+      "quote": "If no SA exists that would carry the outbound ICMP message in question, and if no SPD entry would allow carriage of this outbound ICMP error message, then an IPsec implementation MUST map the message to the SA that would carry the return traffic associated with the packet that triggered the ICMP error message.",
+      "disposition": null
+    },
+    {
+      "id": "6.2:4",
+      "quote": "If an IPsec implementation receives an inbound ICMP error message on an SA, and the IP and ICMP headers of the message do not match the traffic selectors for the SA, the receiver MUST process the received message in a special fashion.",
+      "disposition": null
+    },
+    {
+      "id": "6.2:5",
+      "quote": "If the packet fails this check, the IPsec implementation MUST NOT forwarded the ICMP message to the destination.",
+      "disposition": null
+    },
+    {
+      "id": "7.1:1",
+      "quote": "All implementations MUST support tunnel mode SAs that are configured to pass traffic without regard to port field (or ICMP type/code or Mobility Header type) values.",
+      "disposition": null
+    },
+    {
+      "id": "7.1:2",
+      "quote": "If the SA will carry traffic for specified protocols, the selector set for the SA MUST specify the port fields (or ICMP type/code or Mobility Header type) as ANY.",
+      "disposition": null
+    },
+    {
+      "id": "7.1:3",
+      "quote": "If the SA will carry traffic without regard to a specific protocol value (i.e., ANY is specified as the (Next Layer) protocol selector value), then the port field values are undefined and MUST be set to ANY as well.",
+      "disposition": null
+    },
+    {
+      "id": "7.2:1",
+      "quote": "Receivers MUST perform a minimum offset check on IPv4 (non-initial) fragments to protect against overlapping fragment attacks when SAs of this type are employed.",
+      "disposition": null
+    },
+    {
+      "id": "7.2:2",
+      "quote": "These SAs MUST have non-trivial protocol selector values, otherwise approach #1 above MUST be used.",
+      "disposition": null
+    },
+    {
+      "id": "7.3:1",
+      "quote": "Implementations that will transmit non-initial fragments on a tunnel mode SA that makes use of non-trivial port (or ICMP type/code or MH type) selectors MUST notify a peer via the IKE NOTIFY NON_FIRST_FRAGMENTS_ALSO payload.",
+      "disposition": null
+    },
+    {
+      "id": "7.3:2",
+      "quote": "The peer MUST reject this proposal if it will not accept non-initial fragments in this context.",
+      "disposition": null
+    },
+    {
+      "id": "7.3:3",
+      "quote": "If an implementation does not successfully negotiate transmission of non-initial fragments for such an SA, it MUST NOT send such fragments over the SA.",
+      "disposition": null
+    },
+    {
+      "id": "7.3:4",
+      "quote": "However, a receiver MUST discard non-initial fragments that arrive on an SA with non-trivial port (or ICMP type/code or MH type) selector values unless this feature has been negotiated.",
+      "disposition": null
+    },
+    {
+      "id": "7.3:5",
+      "quote": "Also, the receiver MUST discard non-initial fragments that do not comply with the security policy applied to the overall packet.",
+      "disposition": null
+    },
+    {
+      "id": "7.4:1",
+      "quote": "All implementations MUST support DISCARDing of fragments using the normal SPD packet classification mechanisms.",
+      "disposition": null
+    },
+    {
+      "id": "7.4:2",
+      "quote": "All implementations MUST support stateful fragment checking to accommodate BYPASS traffic for which a non-trivial port range is specified.",
+      "disposition": null
+    },
+    {
+      "id": "8.1:1",
+      "quote": "All IPsec implementations MUST support the option of copying the DF bit from an outbound packet to the tunnel mode header that it emits, when traffic is carried via a tunnel mode SA.",
+      "disposition": null
+    },
+    {
+      "id": "8.1:2",
+      "quote": "This means that it MUST be possible to configure the implementation's treatment of the DF bit (set, clear, copy from inner header) for each SA.",
+      "disposition": null
+    },
+    {
+      "id": "8.2.1:1",
+      "quote": "When such traffic arrives, if the traffic would exceed the updated PMTU value the traffic MUST be handled as follows:",
+      "disposition": null
+    },
+    {
+      "id": "8.2.2:1",
+      "quote": "In all IPsec implementations, the PMTU associated with an SA MUST be \"aged\" and some mechanism is required to update the PMTU in a timely manner, especially for discovering if the PMTU is smaller than required by current network conditions.",
+      "disposition": null
+    },
+    {
+      "id": "10:1",
+      "quote": "All IPv4 IPsec implementations MUST comply with all requirements of this document.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative use: the conformance-scope clause. It names WHO the document's requirements bind (IPv4 implementations) and adds no obligation of its own; each requirement it rolls up is a site elsewhere in this walk."
+    },
+    {
+      "id": "10:2",
+      "quote": "All IPv6 implementations MUST comply with all requirements of this document.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative use: the same conformance-scope clause for IPv6 implementations."
+    },
+    {
+      "id": "D.2:1",
+      "quote": "Accordingly, if a specific protocol value is used as a selector, and if that protocol has no port fields, then the port field selectors are to be ignored and ANY MUST be specified as the value for the port fields.",
+      "disposition": null
+    },
+    {
+      "id": "D.2:2",
+      "quote": "(In this context, ICMP TYPE and CODE values are lumped together as a single port field (for IKEv2 negotiation), as is the IPv6 Mobility Header TYPE value.) If the protocol selector is ANY, then this should be treated as equivalent to specifying a protocol for which no port fields are defined, and thus the port selectors should be ignored, and MUST be set to ANY.",
+      "disposition": null
+    },
+    {
+      "id": "D.4:1",
+      "quote": "To that end, this document says that implementations MUST support fragment reassembly for BYPASS/DISCARD traffic when port fields are specified.",
+      "disposition": null
+    },
+    {
+      "id": "D.4:2",
+      "quote": "An implementation also MUST permit a user or administrator to accept such traffic or reject such traffic using the SPD conventions described in Section 4.4.1.",
+      "disposition": null
+    },
+    {
+      "id": "D.8:1",
+      "quote": "Thus, this document offers 3 choices -- one MUST and two MAYs.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative use: the sentence describes the document's own structure ('this document offers 3 choices -- one MUST and two MAYs'), naming the levels of the three fragment approaches stated in sections 7.1 to 7.3. It states no obligation of its own."
+    }
+  ]
+}

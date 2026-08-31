@@ -149,6 +149,13 @@ func TestEsnResponderAnswersOnlyAValueTheOfferCarried(t *testing.T) {
 // sent.
 // RFC requirement: RFC7296-3.3.6-3 positive -- the response that selects the value ze did offer is
 // accepted, so the refusal names the ESN selection rather than the answer as such.
+// RFC requirement: RFC4303-2.2.1-2 positive -- RFC 4303 Section 2.2.1: "Use of an ESN MUST be
+// negotiated by an SA management protocol." Ze's ESP offer carries a Transform Type 5 value,
+// so the sequence number width of every Child SA it keys is a negotiated selection, and the
+// answer that selects the offered value is accepted.
+// RFC requirement: RFC4303-2.2.1-2 negative -- an answer that selects Extended Sequence Numbers
+// ze never offered is refused with errAcceptedOfferESN, so no SA is keyed with an ESN that was
+// not negotiated.
 func TestEsnInitiatorRefusesAnESNValueItNeverOffered(t *testing.T) {
 	espGroup := testESPGroup()
 

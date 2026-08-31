@@ -1,0 +1,170 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7313",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7313.txt",
+  "source-sha": "963962f4ec722372",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 5, rfc7313",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates section 1 and states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: why consistency validation is needed, what the document enhances, and that it updates RFC 2918 by redefining the ROUTE-REFRESH Reserved field. No sentence directs a speaker."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The RFC 2119 key-words paragraph, which also states that the key words bind only when they appear in all upper case. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Protocol Extensions. One sentence naming what sections 3.1 and 3.2 define: the Enhanced Route Refresh Capability and the ROUTE-REFRESH message subtypes. No directive."
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Enhanced Route Refresh Capability. Value assignment: Capability Code 70, Capability Length zero, and what advertising it conveys. Stated indicatively, so under this document's own section 2 it carries no RFC 2119 level. The obligation to advertise it is the SHOULD in section 4 (RFC7313-4-8); the wire values are carried by the Wire Formats and Constants tables of rfc/short/rfc7313.md."
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Subtypes for ROUTE-REFRESH Message. Value assignment for subtypes 0, 1, 2 and 255, with the remaining values reserved for future use. A registry table, not a directive: the obligation to USE and to check each value is in sections 4 and 5."
+    },
+    {
+      "id": "4",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "Operation. The document's main normative section: seven capitalised MUST-level sites, all mapped below to RFC7313-4-1 through RFC7313-4-7. Its remaining directives are the SHOULD to advertise the capability, the SHOULD to log an ignored early BoRR, and three MAYs (log purged routes, ignore an unsolicited EoRR, bound stale-route retention); those are captured as the unsourced ids below. Two sentences the site scan cannot see are scoping, not obligations: \"The following procedures are applicable only if a BGP speaker has received the 'Enhanced Route Refresh Capability' from a peer\" conditions RFC7313-4-1 through RFC7313-4-7 rather than adding a requirement, and the \"entire Adj-RIB-Out\" paragraph defines a term used by RFC7313-4-2. Both are indicative, so section 2 gives them no normative meaning.",
+      "unsourced-ids": [
+        "RFC7313-4-8",
+        "RFC7313-4-9",
+        "RFC7313-4-10",
+        "RFC7313-4-11",
+        "RFC7313-4-12"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Error Handling. Assigns NOTIFICATION Error Code 7 (\"ROUTE-REFRESH Message Error\") and subcode 1 (\"Invalid Message Length\") as value definitions, then states three capitalised MUSTs, mapped below to RFC7313-5-1 through RFC7313-5-3. Its one SHOULD (log an error on an unknown subtype) is the unsourced id below. As in section 4, the applicability sentence conditions the three MUSTs on having received the capability from the peer and is indicative.",
+      "unsourced-ids": [
+        "RFC7313-5-4"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records Capability Code 70, the new \"BGP Route Refresh Subcodes\" registry, the rename of \"BGP Error Codes\", error code 7 and the \"BGP ROUTE-REFRESH Message Error subcodes\" registry. Binds IANA, not a speaker."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that RFC 4272 does not cover Route-Refresh and that this document does not significantly change the underlying security issues. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 2918, RFC 4271, RFC 4272, RFC 4724, RFC 5291, RFC 5492."
+    }
+  ],
+  "sites": [
+    {
+      "id": "4:1",
+      "quote": "Before the speaker starts a route refresh that is either initiated locally, or in response to a \"normal route refresh request\" from the peer, the speaker MUST send a BoRR message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7313-4-1",
+      "reason": "The sender's BoRR obligation, captured verbatim as RFC7313-4-1 at [MUST]. Scoped by the section's applicability sentence to a peer that advertised the capability."
+    },
+    {
+      "id": "4:2",
+      "quote": "After the speaker completes the re-advertisement of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7313-4-2",
+      "reason": "The sender's EoRR obligation, captured verbatim as RFC7313-4-2 at [MUST]."
+    },
+    {
+      "id": "4:3",
+      "quote": "In processing a ROUTE-REFRESH message from a peer, the BGP speaker MUST examine the \"message subtype\" field of the message and take the appropriate actions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7313-4-3",
+      "reason": "The receiver's obligation to examine the Message Subtype field, captured verbatim as RFC7313-4-3 at [MUST]."
+    },
+    {
+      "id": "4:4",
+      "quote": "When a BGP speaker receives a BoRR message from a peer, it MUST mark all the routes with the given Address Family Identifier and Subsequent Address Family Identifier, <AFI, SAFI> [RFC2918], from that peer as stale.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7313-4-4",
+      "reason": "The receiver's stale-marking obligation on a received BoRR, captured verbatim as RFC7313-4-4 at [MUST]."
+    },
+    {
+      "id": "4:5",
+      "quote": "When a BGP speaker receives an EoRR message from a peer, it MUST immediately remove any routes from the peer that are still marked as stale for that <AFI, SAFI>.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7313-4-5",
+      "reason": "The receiver's stale-route removal obligation on a received EoRR, captured verbatim as RFC7313-4-5 at [MUST]."
+    },
+    {
+      "id": "4:6",
+      "quote": "For a BGP speaker that supports the BGP Graceful Restart, it MUST NOT send a BoRR for an <AFI, SAFI> to a neighbor before it sends the EoR for the <AFI, SAFI> to the neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7313-4-6",
+      "reason": "The Graceful Restart ordering constraint on the sender, captured verbatim as RFC7313-4-6 at [MUST NOT]."
+    },
+    {
+      "id": "4:7",
+      "quote": "A BGP speaker that has received the Graceful Restart Capability from its neighbor MUST ignore any BoRRs for an <AFI, SAFI> from the neighbor before the speaker receives the EoR for the given <AFI, SAFI> from the neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7313-4-7",
+      "reason": "The Graceful Restart ordering constraint on the receiver, captured verbatim as RFC7313-4-7 at [MUST]."
+    },
+    {
+      "id": "5:1",
+      "quote": "If the length, excluding the fixed-size message header, of the received ROUTE-REFRESH message with Message Subtype 1 and 2 is not 4, then the BGP speaker MUST send a NOTIFICATION message with the Error Code of \"ROUTE-REFRESH Message Error\" and the subcode of \"Invalid Message Length\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7313-5-1",
+      "reason": "The invalid-length NOTIFICATION obligation with Error Code 7 subcode 1, captured verbatim as RFC7313-5-1 at [MUST]."
+    },
+    {
+      "id": "5:2",
+      "quote": "The Data field of the NOTIFICATION message MUST contain the complete ROUTE-REFRESH message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7313-5-2",
+      "reason": "The obligation that the NOTIFICATION Data field carry the complete ROUTE-REFRESH message, captured verbatim as RFC7313-5-2 at [MUST]."
+    },
+    {
+      "id": "5:3",
+      "quote": "When the BGP speaker receives a ROUTE-REFRESH message with a \"Message Subtype\" field other than 0, 1, or 2, it MUST ignore the received ROUTE-REFRESH message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7313-5-3",
+      "reason": "The obligation to ignore a ROUTE-REFRESH whose Message Subtype is not 0, 1 or 2, captured verbatim as RFC7313-5-3 at [MUST]."
+    }
+  ],
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 4 and 5. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}

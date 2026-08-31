@@ -651,3 +651,93 @@ func TestNattCachedReplayIsBoundedByBothGuards(t *testing.T) {
 			cachedReplayBurst+4)
 	}
 }
+
+// RFC requirement: RFC3948-4-3 positive -- "Reception of NAT-keepalive packets MUST NOT be
+// used to detect whether a connection is live" (rfc/full/rfc3948.txt, Section 4). Two
+// guards drop the one-octet 0xFF datagram, and the test asserts the OUTCOME both produce:
+// UDPTransport.Run refuses any datagram shorter than an IKE header before it reaches
+// Recv (transport/udp.go:150-152), and dispatchNATTInbound discards a keepalive before any
+// SA lookup (register.go:775-777). No SA, no peer session and no DPD state ever observes
+// the arrival, so nothing about the connection can be concluded from it. Removing either
+// guard alone keeps the test green; removing BOTH turns it red, which is how its
+// discrimination was measured.
+// RFC requirement: RFC3948-4-3 negative -- the discard is keepalive-specific rather than a
+// blanket drop. A marked IKE datagram sent behind the keepalive on the SAME socket IS
+// delivered to the owning session, so liveness still travels the authenticated exchange
+// path (engine/dpd.go matchesProbe) and only that path.
+func TestNATKeepaliveReachesNoSA(t *testing.T) {
+	log := slogutil.DiscardLogger()
+
+	tr, err := transport.NewNATTTransport("127.0.0.1:0", log)
+	if err != nil {
+		t.Fatalf("NewNATTTransport: %v", err)
+	}
+	t.Cleanup(func() { _ = tr.Close() })
+	go tr.Run()
+
+	table := NewSATable()
+	sa := testSA()
+	spi, err := GenerateSPI()
+	if err != nil {
+		t.Fatalf("GenerateSPI: %v", err)
+	}
+	sa.InitiatorSPI = spi
+	sa.PeerName = "natt-keepalive"
+	table.Insert(sa)
+
+	ps := &PeerSession{peerName: sa.PeerName, inbound: make(chan transport.Packet, 4)}
+	ps.ownedSA.Store(sa)
+	SetActivePeersForTest(map[string]*PeerSession{sa.PeerName: ps})
+	t.Cleanup(func() { SetActivePeersForTest(nil) })
+
+	go dispatchNATTInbound(tr, table, log)
+
+	local, ok := tr.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatal("transport LocalAddr is not *net.UDPAddr")
+	}
+	sender, err := net.DialUDP("udp4", nil, local)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	t.Cleanup(func() { _ = sender.Close() })
+
+	msg := wire.Message{Header: wire.Header{
+		InitiatorSPI: sa.InitiatorSPI,
+		MajorVersion: 2,
+		ExchangeType: wire.ExchangeInformational,
+		Flags:        wire.FlagInitiator,
+		MessageID:    9,
+	}}
+	buf := make([]byte, 512)
+	n := msg.WriteTo(buf, 0)
+
+	// The keepalive goes FIRST. UDP on loopback keeps order and dispatchNATTInbound is a
+	// single goroutine, so the IKE datagram arriving on ps.inbound proves the keepalive was
+	// dropped rather than merely overtaken.
+	if _, err := sender.Write([]byte{0xFF}); err != nil {
+		t.Fatalf("write the NAT-keepalive: %v", err)
+	}
+	if _, err := sender.Write(transport.AddNonESPMarker(buf[:n])); err != nil {
+		t.Fatalf("write the IKE datagram: %v", err)
+	}
+
+	select {
+	case pkt := <-ps.inbound:
+		if len(pkt.Data) == 1 && pkt.Data[0] == 0xFF {
+			t.Fatal("the NAT-keepalive was delivered to the SA; RFC 3948 Section 4 forbids reading liveness from its reception")
+		}
+		if len(pkt.Data) < wire.HeaderLen {
+			t.Fatalf("the delivered datagram is %d byte(s), want at least an IKE header (%d)", len(pkt.Data), wire.HeaderLen)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the IKE datagram was never delivered, so the keepalive drop cannot be judged")
+	}
+
+	// Nothing else CAN follow: the keepalive was ahead of the IKE datagram in the queue.
+	select {
+	case pkt := <-ps.inbound:
+		t.Errorf("a second datagram reached the SA (%d byte(s)); only the IKE one may pass", len(pkt.Data))
+	default:
+	}
+}

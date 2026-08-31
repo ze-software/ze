@@ -1,0 +1,685 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4303",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4303.txt",
+  "source-sha": "ec4c9d4414570513",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 2, rfc4303",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, copyright notice, Abstract and table of contents. The Abstract summarises the protocol and states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Introduction. It states the service model and the three service combinations, and its two sites carry the integrity-only obligation this walk declares as RFC4303-1-1. The RFC 2119 key-words paragraph sits here too and binds nobody, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Packet format. Site 2:1 is the protocol number 50 obligation and site 2:2 is the backward-compatibility sentence. The field figure and the coverage prose are descriptive."
+    },
+    {
+      "id": "2.1",
+      "sites": 6,
+      "disposition": "walked",
+      "reason": "Security Parameters Index. Six sites: the unicast and multicast lookup obligations, the SAD search equivalence, the address-matching indication, and the SPI zero prohibition."
+    },
+    {
+      "id": "2.2",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Sequence Number. Five sites covering the sender increment, the mandatory presence of the field, the capability to perform the section 3.3.3 and 3.4.3 processing, and the counter reset before the 2^32nd packet."
+    },
+    {
+      "id": "2.2.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Extended (64-bit) Sequence Number. Its one site is the negotiation MUST. The 'ESNs SHOULD be implemented' sentence in the same paragraph is advisory, so the capitalised keyword scan does not see it.",
+      "unsourced-ids": [
+        "RFC4303-2.2.1-1"
+      ]
+    },
+    {
+      "id": "2.3",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Payload Data. Four sites, three of which bind the author of an algorithm-definition RFC and one the packet builder's header alignment."
+    },
+    {
+      "id": "2.4",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Padding for encryption. Four sites: the implementation's obligation to support padding, the default padding contents, and two obligations on the algorithm-definition RFC."
+    },
+    {
+      "id": "2.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Pad Length. A field description with a value range and a mandatory-field statement. No obligation is directed at a speaker or a receiver."
+    },
+    {
+      "id": "2.6",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Next Header. Three sites: the value 59 convention, the transmitter and receiver dummy packet obligations fused in one sentence, and the field-presence rule for dummy packets. RFC4303-2.6-2 is the receiver half of site 2.6:2 and has no site of its own.",
+      "unsourced-ids": [
+        "RFC4303-2.6-2"
+      ]
+    },
+    {
+      "id": "2.7",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Traffic Flow Confidentiality padding. Both sites bind a transmitter that employs TFC padding, which Ze does not implement."
+    },
+    {
+      "id": "2.8",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Integrity Check Value. Its one site binds the integrity algorithm specification."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Processing. A heading with no text of its own."
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "ESP header location. Descriptive prose introducing the two modes."
+    },
+    {
+      "id": "3.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Transport mode processing. Diagrams and placement prose, with no capitalised keyword and no obligation stated in indicative prose either."
+    },
+    {
+      "id": "3.1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Tunnel mode processing. Diagrams and placement prose. The outer and inner header rules it states are RFC 4301's, which the Security Architecture document owns."
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Algorithms. Its one site is the prohibition on both algorithms being NULL, declared by this walk as RFC4303-3.2-1."
+    },
+    {
+      "id": "3.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Encryption algorithms. Descriptive, with lowercase 'must' statements binding the algorithm RFC to specify a padding modulus."
+    },
+    {
+      "id": "3.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Integrity algorithms. Descriptive, with the same lowercase obligation on the algorithm RFC as section 3.2.1."
+    },
+    {
+      "id": "3.2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Combined mode algorithms. Descriptive: it says a combined mode algorithm provides both services and that no payload substructure is defined."
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Outbound packet processing. A heading with an ordering list and no obligation."
+    },
+    {
+      "id": "3.3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Outbound SA lookup. It points at the Security Architecture document for how an SA is found for an outbound packet."
+    },
+    {
+      "id": "3.3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Packet encryption and ICV calculation. A heading introducing 3.3.2.1 and 3.3.2.2."
+    },
+    {
+      "id": "3.3.2.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Separate confidentiality and integrity algorithms, outbound. Three sites, all binding the ICV computation or the integrity algorithm's defining document."
+    },
+    {
+      "id": "3.3.2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Combined confidentiality and integrity algorithms, outbound. Its one site binds the combined mode algorithm's defining RFC."
+    },
+    {
+      "id": "3.3.3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Sequence Number generation. Two sites: the counter cycling prohibition and the manually keyed counter maintenance. RFC4303-3.3.3-1 renders the section's opening sentences, 'The sender's counter is initialized to 0 when an SA is established' and 'the first packet sent using a given SA will contain a sequence number of 1', which state the rule in indicative prose and carry no keyword for the site scan to see.",
+      "unsourced-ids": [
+        "RFC4303-3.3.3-1"
+      ]
+    },
+    {
+      "id": "3.3.4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Fragmentation. Its one site is the PMTU obligation. RFC4303-3.3.4-1 renders 'Thus, transport mode ESP is applied only to whole IP datagrams (not to IP fragments)', which is indicative prose, and RFC4303-3.3.4-3 renders the tunnel mode permission in the same paragraph.",
+      "unsourced-ids": [
+        "RFC4303-3.3.4-1",
+        "RFC4303-3.3.4-3"
+      ]
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Inbound packet processing. A heading."
+    },
+    {
+      "id": "3.4.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Reassembly. Its one site is the fragment discard obligation."
+    },
+    {
+      "id": "3.4.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Inbound SA lookup. Its one site is the discard when no valid SA exists; the lookup rule itself is stated in section 2.1 and mapped from there."
+    },
+    {
+      "id": "3.4.3",
+      "sites": 6,
+      "disposition": "walked",
+      "reason": "Sequence Number verification, the anti-replay section. Six sites: support for the service, the integrity precondition, the receive counter initialisation, the duplicate check, the discard on integrity failure, and the window size floor. RFC4303-3.4.3-3 renders 'The receive window is updated only if the integrity verification succeeds', which is indicative prose with no keyword. Read at the producer before classifying: every ESP SA Ze installs carries integrity (parseESPProposal refuses a non-AEAD proposal with no hash; planStateAlgos gives ESP Crypt+Auth or AEAD), the IKE Child SA path sets a 64-packet window on both directions, and the manually keyed OSPFv3 SA sets no window at all. The window check, the duplicate check and the ICV verification run in the kernel.",
+      "unsourced-ids": [
+        "RFC4303-3.4.3-3"
+      ]
+    },
+    {
+      "id": "3.4.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "ICV verification. A heading introducing 3.4.4.1 and 3.4.4.2."
+    },
+    {
+      "id": "3.4.4.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Separate confidentiality and integrity algorithms, inbound. Two sites: the discard on ICV mismatch and the ordering rule that integrity completes before the decrypted packet goes on."
+    },
+    {
+      "id": "3.4.4.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Combined confidentiality and integrity algorithms, inbound. Its one site is the discard on integrity failure. RFC4303-3.4.4.2-1 renders step 1 of the numbered list, 'Decrypts and integrity checks the ESP Payload Data ... using the key, algorithm, algorithm mode', which is indicative prose.",
+      "unsourced-ids": [
+        "RFC4303-3.4.4.2-1"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Auditing. Its one site binds the ESP implementation that processes packets and the audit subsystem of the system that hosts it."
+    },
+    {
+      "id": "5",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Conformance requirements. Four sites: the conformance umbrella and the cross-reference to RFC 4301, the multicast restatement, the NULL integrity negotiation for a confidentiality-only implementation, and the both-NULL prohibition restated."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Two sentences saying security permeates the specification and pointing at the Security Architecture document. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Differences from RFC 2406. A change log; its one site reports a level change rather than stating an obligation."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Backward compatibility considerations. It explains that ESP has no version number and what an ESP v2 receiver may do with Next Header 59. Every statement is indicative and the normative half is site 2:2 in section 2."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References heading."
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 4301, RFC 4302, RFC 2434 and the ESP algorithm requirements document."
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The derived span carries the Informative References and Appendix A, Extended (64-bit) Sequence Numbers. The appendix describes the receiver's ESN window management and its optional resynchronisation heuristic. It states no MUST-level obligation: no capitalised MUST, SHALL or REQUIRED appears anywhere after the section 10 heading."
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "Typically, this binding is effected through the use of a shared, symmetric key.) Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-1-1",
+      "reason": "The document's service-selection obligation. Ze offers integrity-only ESP as a selectable service and makes it configurable: an OSPFv3 interface with protocol esp, an integrity algorithm and key, and encryption-algorithm null installs an ESP SA with a null cipher (buildIPsecSA, internal/plugins/ospf/ipsec_install.go; validateESPConfidentiality, internal/plugins/ospf/config_ipsec.go). Declared by this walk as RFC4303-1-1."
+    },
+    {
+      "id": "1:2",
+      "quote": "- confidentiality-only (MAY be supported) - integrity only (MUST be supported) - confidentiality and integrity (MUST be supported)",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-1-1",
+      "reason": "The bulleted list states the same two service-combination obligations as the paragraph above it: integrity-only MUST be supported and confidentiality-with-integrity MUST be supported. RFC4303-1-1 carries both, so the list is the same obligation restated in a table rather than a second one."
+    },
+    {
+      "id": "2:1",
+      "quote": "The (outer) protocol header (IPv4, IPv6, or Extension) that immediately precedes the ESP header SHALL contain the value 50 in its Protocol (IPv4) or Next Header (IPv6, Extension) field (see IANA web page at http://www.iana.org/assignments/protocol-numbers).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-2-1",
+      "reason": "The protocol number obligation. Every ESP SA Ze installs carries protocol 50: the IKE Child SA path sets protoESP = 50 (internal/component/ike/engine/child.go) and the OSPFv3 manual path resolves it through ipsecProtoNumber (internal/plugins/ospf/ipsec_install.go). Declared by this walk as RFC4303-2-1."
+    },
+    {
+      "id": "2:2",
+      "quote": "ESP does not contain a version number, therefore if there are concerns about backward compatibility, they MUST be addressed by using a signaling mechanism between the two IPsec peers to ensure compatible versions of ESP (e.g., Internet Key Exchange (IKEv2) [Kau05]) or an out-of-band configuration mechanism.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The obligation binds the deployment that has ESP version-compatibility concerns, and the remedy it names is a deployment choice: a signaling mechanism between the peers or an out-of-band configuration mechanism. Ze implements no ESP version field and no version signaling of its own. It provides both named mechanisms, IKEv2 Child SA negotiation (internal/component/ike/engine/child.go) and manual OSPFv3 configuration (internal/plugins/ospf/ipsec_install.go), so an operator on Ze always has one."
+    },
+    {
+      "id": "2.1:1",
+      "quote": "This mechanism for mapping inbound traffic to unicast SAs MUST be supported by all ESP implementations.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-3.4.2-1",
+      "reason": "The unicast SPI-to-SA mapping mechanism. RFC4303-3.4.2-1 is the row for unicast SA lookup by SPI (or SPI plus protocol), which is the mechanism this sentence obliges an implementation to support."
+    },
+    {
+      "id": "2.1:2",
+      "quote": "If an IPsec implementation supports multicast, then it MUST support multicast SAs using the algorithm below for mapping inbound IPsec datagrams to SAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-3.4.2-2",
+      "reason": "The multicast SAD lookup algorithm this sentence mandates is the one RFC4303-3.4.2-2 declares: for multicast the destination address is used in the lookup as well as the SPI."
+    },
+    {
+      "id": "2.1:3",
+      "quote": "A multicast-capable IPsec implementation MUST correctly de-multiplex inbound traffic even in the context of SPI collisions.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the inbound SAD demultiplexer, which is the ESP receive datapath. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet. SPI collision handling happens inside the kernel lookup."
+    },
+    {
+      "id": "2.1:4",
+      "quote": "In practice, an implementation MAY choose any method to accelerate this search, although its externally visible behavior MUST be functionally equivalent to having searched the SAD in the above order.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the implementation of the SAD search itself, including any acceleration of it. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "2.1:5",
+      "quote": "The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-2.1-2",
+      "reason": "The obligation binds the SA installer, which is Ze. The OSPFv3 manual path sets the match indication as a side effect of manual configuration (SASelector {::/0, ::/0, upper protocol 89} in buildIPsecSA, internal/plugins/ospf/ipsec_install.go), and the IKE path sets it from the negotiated peer addresses (installChildSA, internal/component/ike/engine/child.go). Declared by this walk as RFC4303-2.1-2."
+    },
+    {
+      "id": "2.1:6",
+      "quote": "The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-2.1-1",
+      "reason": "The document's SPI-zero prohibition, captured verbatim as RFC4303-2.1-1 at [MUST NOT]."
+    },
+    {
+      "id": "2.2:1",
+      "quote": "For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-2.2-1",
+      "reason": "The per-packet sequence increment, captured as RFC4303-2.2-1 at [MUST]."
+    },
+    {
+      "id": "2.2:2",
+      "quote": "The field is mandatory and MUST always be present even if the receiver does not elect to enable the anti-replay service for a specific SA.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP transmit datapath that builds the header. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "2.2:3",
+      "quote": "Processing of the Sequence Number field is at the discretion of the receiver, but all ESP implementations MUST be capable of performing the processing described in Sections 3.3.3 and 3.4.3.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4303-3.4.3-1",
+      "reason": "The sentence adds no obligation of its own. It says an ESP implementation must be capable of the processing described in sections 3.3.3 and 3.4.3, whose obligations this walk already accounts for: RFC4303-3.3.3-1, RFC4303-2.2-2 and the RFC4303-3.4.3 rows."
+    },
+    {
+      "id": "2.2:4",
+      "quote": "Thus, the sender MUST always transmit this field, but the receiver need not act upon it (see the discussion of Sequence Number Verification in the \"Inbound Packet Processing\" section (3.4.3) below).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP transmit datapath that builds the header, as site 2.2:2 does. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "2.2:5",
+      "quote": "Thus, the sender's counter and the receiver's counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-2.2-3",
+      "reason": "The 2^32 reset obligation, captured as RFC4303-2.2-3 at [MUST]."
+    },
+    {
+      "id": "2.2.1:1",
+      "quote": "Use of an ESN MUST be negotiated by an SA management protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-2.2.1-2",
+      "reason": "The ESN negotiation obligation, declared as RFC4303-2.2.1-2. This walk corrected that row's level from [SHOULD] to [MUST]: the source sentence is a capitalised MUST, and an advisory row never gates. Ze offers exactly one Transform Type 5 value (espESNNotExtended, internal/component/ike/engine/initiator.go) and refuses a response selecting any other (acceptedESPESNConsistent, errAcceptedOfferESN), so no SA it keys uses an ESN that was not negotiated."
+    },
+    {
+      "id": "2.3:1",
+      "quote": "(See Figure 2.) Any encryption algorithm that requires such explicit, per-packet synchronization data MUST indicate the length, any structure for such data, and the location of this data as part of an RFC specifying how the algorithm is used with ESP.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the author of the RFC that specifies how an encryption algorithm is used with ESP: that document must state the length, structure and location of explicit per-packet synchronization data. Ze writes no algorithm specification."
+    },
+    {
+      "id": "2.3:2",
+      "quote": "See Figure 2.) If such synchronization data is implicit, the algorithm for deriving the data MUST be part of the algorithm definition RFC.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the author of an algorithm-definition RFC, as site 2.3:1 does: implicit synchronization data must be derived by an algorithm the defining RFC states."
+    },
+    {
+      "id": "2.3:3",
+      "quote": "Note that the beginning of the next layer protocol header MUST be aligned relative to the beginning of the ESP header as follows.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP packet builder, which must align the next layer protocol header relative to the ESP header. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "2.3:4",
+      "quote": "In these cases, the algorithm specification MUST address how alignment of the (real) ciphertext is to be achieved.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the author of an algorithm specification, which must say how ciphertext alignment is achieved when the receiver reads the IV separately."
+    },
+    {
+      "id": "2.4:1",
+      "quote": "Inclusion of the Padding field in an ESP packet is optional, subject to the requirements noted above, but all implementations MUST support generation and consumption of padding.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-2.4-1",
+      "reason": "The padding support obligation on an ESP implementation, which RFC4303-2.4-1 declares."
+    },
+    {
+      "id": "2.4:2",
+      "quote": "If Padding bytes are needed but the encryption algorithm does not specify the padding contents, then the following default processing MUST be used.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP transmit datapath, which fills the padding bytes with the default monotonically increasing series when the algorithm states no contents. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "2.4:3",
+      "quote": "If an encryption or combined mode algorithm imposes constraints on the values of the bytes used for padding, they MUST be specified by the RFC defining how the algorithm is employed with ESP.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the author of the RFC that defines how an encryption or combined mode algorithm is employed with ESP, which must specify any constraint on padding byte values."
+    },
+    {
+      "id": "2.4:4",
+      "quote": "If the algorithm requires checking of the values of the bytes used for padding, this too MUST be specified in that RFC.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the same algorithm-definition RFC as site 2.4:3, which must say whether padding values are checked."
+    },
+    {
+      "id": "2.6:1",
+      "quote": "To facilitate the rapid generation and discarding of the padding traffic in support of traffic flow confidentiality (see Section 2.4), the protocol value 59 (which means \"no next header\") MUST be used to designate a \"dummy\" packet.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4303-2.6-1",
+      "reason": "The value convention and the capability are one obligation stated twice in adjacent sentences. RFC4303-2.6-1 names the value 59 and the dummy packet, and site 2.6:2 maps it."
+    },
+    {
+      "id": "2.6:2",
+      "quote": "A transmitter MUST be capable of generating dummy packets marked with this value in the next protocol field, and a receiver MUST be prepared to discard such packets, without indicating an error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-2.6-1",
+      "reason": "The transmitter half of this sentence, declared as RFC4303-2.6-1. The receiver half of the same sentence is RFC4303-2.6-2, which has no site of its own and is listed in the unsourced-ids of section 2.6."
+    },
+    {
+      "id": "2.6:3",
+      "quote": "All other ESP header and trailer fields (SPI, Sequence Number, Padding, Pad Length, Next Header, and ICV) MUST be present in dummy packets, but the plaintext portion of the payload, other than this Next Header field, need not be well-formed, e.g., the rest of the Payload Data may consist of only random bytes.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP transmit datapath that constructs a dummy packet and fills its header and trailer fields. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "2.7:1",
+      "quote": "(ESP trailer fields are located by counting back from the end of the ESP packet.) Accordingly, if TFC padding is added, the field containing the specification of the length of the IP datagram MUST NOT be modified to reflect this padding.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds an ESP transmitter that adds TFC padding. Ze implements none: dataplane.SAParams carries no TFC padding field and xfrmStateFromParams sets none, so no SA Ze installs can add TFC padding or modify a datagram length field."
+    },
+    {
+      "id": "2.7:2",
+      "quote": "However, because receivers may not have been prepared to deal with this padding, the SA management protocol MUST negotiate this service prior to a transmitter employing it, to ensure backward compatibility.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the SA management protocol only once a transmitter employs TFC padding, and Ze implements no such transmitter (site 2.7:1). dataplane.SAParams carries no TFC padding field, so no Ze-installed SA can employ the service that would trigger the negotiation."
+    },
+    {
+      "id": "2.8:1",
+      "quote": "The integrity algorithm specification MUST specify the length of the ICV and the comparison rules and processing steps for validation.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the author of an integrity algorithm specification, which must state the ICV length and the comparison rules. Ze writes no algorithm specification; it projects the negotiated algorithm name and key onto the SA."
+    },
+    {
+      "id": "3.2:1",
+      "quote": "Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-3.2-1",
+      "reason": "The both-NULL prohibition. It binds the SA parameter selection, which is Ze: parseESPProposal refuses a non-AEAD ESP proposal with no hash (internal/component/ike/ipsec/config.go) and validateIPsecInterface refuses an ESP interface with no integrity algorithm and key (internal/plugins/ospf/config_ipsec.go), so no Ze-installed ESP SA can carry NULL encryption and NULL integrity together. Declared by this walk as RFC4303-3.2-1."
+    },
+    {
+      "id": "3.3.2.1:1",
+      "quote": "If the length of ESP packet (as described above) does not match the block size requirements for the algorithm, implicit padding MUST be appended to the end of the ESP packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP transmit datapath that computes the ICV and appends implicit padding to reach the integrity algorithm's block size. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "3.3.2.1:2",
+      "quote": "The document that defines an integrity algorithm MUST be consulted to determine if implicit padding is required as described above.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP implementation that computes the ICV, which must read the integrity algorithm's defining document to learn whether implicit padding applies. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "3.3.2.1:3",
+      "quote": "If the document does not specify an answer to this question, then the default is to assume that implicit padding is required (as needed to match the packet length to the algorithm's block size.) If padding bytes are needed but the algorithm does not specify the padding contents, then the padding octets MUST have a value of zero.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP transmit datapath, which must use zero-valued implicit padding octets when the algorithm states no contents. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "3.3.2.2:1",
+      "quote": "The location of any integrity fields, and the means by which the Sequence Number and SPI are included in the integrity computation, MUST be defined in an RFC that defines the use of the combined mode algorithm with ESP.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the author of the RFC that defines the use of a combined mode algorithm with ESP, which must state where the integrity fields sit and how the SPI and Sequence Number enter the computation."
+    },
+    {
+      "id": "3.3.3:1",
+      "quote": "In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-2.2-2",
+      "reason": "The counter-cycling prohibition. The summary anchors it at section 2.2, whose own sentence states it in lowercase prose; this section 3.3.3 sentence is the capitalised statement of the same obligation."
+    },
+    {
+      "id": "3.3.3:2",
+      "quote": "If a user chooses to employ anti-replay in conjunction with SAs that are manually keyed, the sequence number counter at the sender MUST be correctly maintained across local reboots, etc., until the key is replaced.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP transmit datapath that maintains the per-SA sequence counter across reboots, and only once a user employs anti-replay with a manually keyed SA. Ze enables neither half: buildIPsecSA (internal/plugins/ospf/ipsec_install.go) sets no ReplayWin on the manually keyed OSPFv3 SA, so anti-replay is off there, and the counter itself is kernel state. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "3.3.4:1",
+      "quote": "In any case, an ESP implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-3.3.4-2",
+      "reason": "The PMTU obligation, captured as RFC4303-3.3.4-2 at [MUST]."
+    },
+    {
+      "id": "3.4.1:1",
+      "quote": "If a packet offered to ESP for processing appears to be an IP fragment, i.e., the OFFSET field is non-zero or the MORE FRAGMENTS flag is set, the receiver MUST discard the packet; this is an auditable event.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP receive datapath, which discards a packet that arrives as an IP fragment. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "3.4.2:1",
+      "quote": "If no valid Security Association exists for this packet, the receiver MUST discard the packet; this is an auditable event.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-3.4.2-1",
+      "reason": "The discard-on-no-valid-SA half of RFC4303-3.4.2-1, whose row text carries both the unicast lookup rule and this discard."
+    },
+    {
+      "id": "3.4.3:1",
+      "quote": "All ESP implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4303-3.4.3-1",
+      "reason": "Supporting the anti-replay service and supporting its sliding window are the same obligation at two grains, and RFC4303-3.4.3-1 is proven by the evidence this sentence would need: the production Child SA path installs a 64-packet window on both directions (internal/component/ike/engine/child.go). A second row proven by the same assertion would be one fact declared twice."
+    },
+    {
+      "id": "3.4.3:2",
+      "quote": "This service MUST NOT be enabled unless the ESP integrity service also is enabled for the SA, because otherwise the Sequence Number field has not been integrity protected.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-3.4.3-2",
+      "reason": "The anti-replay-needs-integrity prohibition, captured as RFC4303-3.4.3-2 at [MUST NOT]. Read at the producer: every ESP SA Ze installs carries integrity, because parseESPProposal refuses a non-AEAD proposal with no hash and planStateAlgos gives ESP either Crypt+Auth or a single AEAD transform, and the only replay window Ze sets is on those SAs (replayWindow = 64, internal/component/ike/engine/child.go). The OSPFv3 manual path sets no window at all."
+    },
+    {
+      "id": "3.4.3:3",
+      "quote": "If the receiver has enabled the anti-replay service for this SA, the receive packet counter for the SA MUST be initialized to zero when the SA is established.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the kernel XFRM replay state. Ze sets only the window size on an installed state (state.ReplayWindow from p.ReplayWin, xfrm_linux.go lines 132 to 133) and carries no replay counter into a new state, so a state Ze adds starts with a zero receive counter and Ze has no way to set a non-zero one."
+    },
+    {
+      "id": "3.4.3:4",
+      "quote": "For each received packet, the receiver MUST verify that the packet contains a Sequence Number that does not duplicate the Sequence Number of any other packets received during the life of this SA.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP receive datapath, which checks each arriving packet's Sequence Number against the window. Ze projects the window size that makes the kernel perform this check (replayWindow = 64, internal/component/ike/engine/child.go) and never sees a packet. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "3.4.3:5",
+      "quote": "In either case, if the integrity check fails, the receiver MUST discard the received IP datagram as invalid; this is an auditable event.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP receive datapath, which verifies the ICV and discards the datagram when verification fails. Ze projects the integrity algorithm and key onto the SA (planStateAlgos, internal/component/ike/dataplane/dataplane.go) and verifies no ICV. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "3.4.3:6",
+      "quote": "A minimum window size of 32 packets MUST be supported when 32-bit sequence numbers are employed; a window size of 64 is preferred and SHOULD be employed as the default.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-3.4.3-1",
+      "reason": "The minimum window size, captured as RFC4303-3.4.3-1 at [MUST]; the preferred 64 default in the same sentence is RFC4303-3.4.3-4 at [SHOULD]. Ze projects 64 on both directions of every Child SA (internal/component/ike/engine/child.go)."
+    },
+    {
+      "id": "3.4.4.1:1",
+      "quote": "If the test fails, then the receiver MUST discard the received IP datagram as invalid; this is an auditable event.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP receive datapath, which discards a datagram whose computed and received ICVs differ. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "3.4.4.1:2",
+      "quote": "If integrity checking and encryption are performed in parallel, integrity checking MUST be completed before the decrypted packet is passed on for further processing.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4303-3.4.4.1-1",
+      "reason": "The ordering obligation for separate confidentiality and integrity algorithms, captured as RFC4303-3.4.4.1-1: the integrity check completes before the decrypted packet goes further."
+    },
+    {
+      "id": "3.4.4.2:1",
+      "quote": "If the integrity check performed by the combined mode algorithm fails, the receiver MUST discard the received IP datagram as invalid; this is an auditable event.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP receive datapath, which discards a datagram when the combined mode algorithm reports an integrity failure. Ze projects the AEAD transform name and ICV length as SA parameters (planStateAlgos returns AEAD for a combined mode cipher) and runs no algorithm. Ze installs SA parameters (dataplane.SAParams) into the Linux kernel XFRM state (xfrmStateFromParams, internal/component/ike/dataplane/xfrm_linux.go) and builds, pads, encrypts or parses no ESP packet."
+    },
+    {
+      "id": "4:1",
+      "quote": "However, if ESP is incorporated into a system that supports auditing, then the ESP implementation MUST also support auditing and MUST allow a system administrator to enable or disable auditing for ESP.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the ESP implementation that processes packets, whose auditable events are the five this section lists: no valid SA, an IP fragment offered to ESP, sequence number overflow, an anti-replay failure and an integrity failure. Every one of them occurs in the kernel receive or transmit path, so the kernel audit subsystem is the auditor. Ze samples the kernel's XFRM drop counters for its own metrics (readXfrmDrops, internal/plugins/ospf/ipsec_install.go), which is a report of the kernel's decisions and not the ESP audit trail this sentence requires."
+    },
+    {
+      "id": "5:1",
+      "quote": "Implementations that claim conformance or compliance with this specification MUST implement the ESP syntax and processing described here for unicast traffic, and MUST comply with all additional packet processing requirements levied by the Security Architecture document [Ken-Arch].",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The sentence's own added obligation is compliance with the packet processing requirements of the Security Architecture document [Ken-Arch], which is RFC 4301. That RFC is enrolled and summarised at rfc/short/rfc4301.md and carries its own requirement rows. The first clause is a conformance umbrella over this document's own obligations, each of which this walk maps or excludes on its own site."
+    },
+    {
+      "id": "5:2",
+      "quote": "Additionally, if an implementation claims to support multicast traffic, it MUST comply with the additional requirements specified for support of such traffic.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4303-3.4.2-2",
+      "reason": "The conformance section restates the multicast obligation captured as RFC4303-3.4.2-2, which site 2.1:2 maps."
+    },
+    {
+      "id": "5:3",
+      "quote": "If an implementation offers this service, it MUST also support the negotiation of the \"NULL\" integrity algorithm.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds an implementation that offers the confidentiality-only ESP service, which Ze does not offer. parseESPProposal (internal/component/ike/ipsec/config.go) refuses a non-AEAD ESP proposal that carries no hash, and validateIPsecInterface (internal/plugins/ospf/config_ipsec.go) refuses an ESP interface with no integrity algorithm and key, so no configuration reaches the antecedent of this sentence."
+    },
+    {
+      "id": "5:4",
+      "quote": "NOTE that although integrity and encryption may each be \"NULL\" under the circumstances noted above, they MUST NOT both be \"NULL\".",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4303-3.2-1",
+      "reason": "The conformance section restates the both-NULL prohibition captured as RFC4303-3.2-1, which site 3.2:1 maps."
+    },
+    {
+      "id": "7:1",
+      "quote": "o Confidentiality-only service -- now a MAY, not a MUST. o SPI -- modified to specify a uniform algorithm for SAD lookup for unicast and multicast SAs, covering a wider range of multicast technologies.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 7 is the change log against RFC 2406. The keywords appear inside a description of what this revision changed, 'Confidentiality-only service -- now a MAY, not a MUST', so the sentence reports a level rather than stating one. The obligations it points at are stated normatively in sections 1, 2.1, 2.2.1, 2.6, 2.7 and 3.4.4."
+    }
+  ],
+  "register-reason": "Standards Track with an RFC 2119 key-words paragraph in section 1 and capitalised keywords throughout sections 1 to 5. The derivation grades the source rfc2119 and this sign-off claims exactly that grade."
+}

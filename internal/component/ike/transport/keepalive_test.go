@@ -13,6 +13,10 @@ import (
 // RFC requirement: RFC3948-4-1 positive -- Run emits a 1-byte 0xFF NAT-keepalive on the wire
 // at the configured interval (keepalive.go:43-58), the mechanism that refreshes the NAT UDP
 // binding before it can expire; the server side reads exactly one 0xFF byte.
+// RFC requirement: RFC3948-2.3-2 positive -- "The sender MUST use a one-octet-long payload
+// with the value 0xFF" (rfc/full/rfc3948.txt, Section 2.3). Keepalive.Run writes the single
+// constant octet keepaliveByte = 0xFF (keepalive.go:14,48), and the peer socket reads exactly
+// one byte whose value is 0xFF.
 func TestNATKeepalive(t *testing.T) {
 	// Create a UDP pair for testing.
 	serverAddr, err := net.ResolveUDPAddr("udp4", "127.0.0.1:0")

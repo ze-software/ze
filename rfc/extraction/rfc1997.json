@@ -1,0 +1,62 @@
+{
+  "schema-version": 1,
+  "stem": "rfc1997",
+  "register": "prose",
+  "source-path": "rfc/full/rfc1997.txt",
+  "source-sha": "ea2a9bee2501b9f7",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 5, rfc1997",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "The whole document. RFC 1997 carries no numbered section headings, so the derivation returns one section spanning the title block to the References, and a skip of it would hide every gated id behind a skip kind. Walked heading by heading. Status of This Memo, the Abstract and the Introduction are indicative: BGP controls distribution by prefix or AS_PATH today, and this document proposes grouping destinations so a routing decision can also be made on the identity of a group. Terms and Definitions defines a community as a group of destinations sharing a common property and says each autonomous system administrator may define which communities a destination belongs to, which names the role site front:1 binds. Examples is two operational narratives (NSFNET AUP tagging, and filtering the more-specific components of an aggregate) and directs nobody. The COMMUNITIES attribute heading is the wire-format section, written entirely in the indicative: the attribute is optional transitive of variable length, it has Type Code 8, and 'The attribute consists of a set of four octet values, each of which specify a community.' That last sentence is where RFC1997-Encoding-1 is read from, and it is declared unsourced below because no capitalised or lowercase MUST-level keyword states it. The reserved ranges and the AS-in-the-first-two-octets convention follow under 'the following presumptions may be made', and are carried by the Reserved Ranges and Community Value Structure tables of rfc/short/rfc1997.md. Well-known Communities holds four of the five sites and every gated row this summary declares: sites front:2 to front:5, all mapped below. Operation is three lowercase-'may' sentences the site scan does not see, declared unsourced below as RFC1997-Operation-1 to -3. Aggregation is one lowercase-'should' sentence, declared unsourced below as RFC1997-Aggregation-1. Applicability states the attribute may be used with BGP version 2 and all subsequent versions, which is a compatibility fact rather than a directive. Security Considerations is one sentence saying security issues are not discussed in the memo, so it states no countermeasure. Acknowledgments, Authors' Addresses and the References to RFC 1771 and RFC 1965 bind no speaker.",
+      "unsourced-ids": [
+        "RFC1997-Encoding-1",
+        "RFC1997-Aggregation-1",
+        "RFC1997-Operation-1",
+        "RFC1997-Operation-2",
+        "RFC1997-Operation-3"
+      ]
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "The rest of the community attribute values shall be encoded using an autonomous system number in the first two octets.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the autonomous system administrator who assigns community values, a role the RFC names itself in Terms and Definitions: 'Each autonomous system administrator may define which communities a destination belongs to.' The sentence sits under 'however for administrative assignment, the following presumptions may be made', and it tells that administrator to draw a value from the range keyed by their own AS number in the first two octets, with the final two octets defined by that AS (the RFC's own example is AS 690 using 0x02B20000 through 0x02B2FFFF). It directs no encoding, decoding or propagation behavior a BGP speaker performs: a speaker carries the 32-bit value the operator configured and never derives it from an AS number, and ParseCommunities in internal/core/bgp/attribute reads each 4-octet value opaquely. The value layout it describes is carried by the Community Value Structure table of rfc/short/rfc1997.md. The lowercase 'shall' is why the site scan sees it only under the prose register."
+    },
+    {
+      "id": "front:2",
+      "quote": "The following communities have global significance and their operations shall be implemented in any community-attribute-aware BGP speaker.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1997-Well-4",
+      "reason": "The implementation obligation over the three well-known values, captured verbatim as RFC1997-Well-4 at [SHALL]. Its level matches the row's, SHALL being a gated level. Ze meets it in ScanWellKnown and AllowsEgressTo (internal/component/bgp/wireu/wellknown.go), which recognise all three values with no operator policy required."
+    },
+    {
+      "id": "front:3",
+      "quote": "NO_EXPORT (0xFFFFFF01) All routes received carrying a communities attribute containing this value MUST NOT be advertised outside a BGP confederation boundary (a stand-alone autonomous system that is not part of a confederation should be considered a confederation itself).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1997-Well-1",
+      "reason": "The NO_EXPORT prohibition, captured verbatim as RFC1997-Well-1 at [MUST NOT], including the parenthetical that a stand-alone autonomous system not part of a confederation is considered a confederation itself, which rfc/short/rfc1997.md carries as the NO_EXPORT note. Its level matches the row's."
+    },
+    {
+      "id": "front:4",
+      "quote": "NO_ADVERTISE (0xFFFFFF02) All routes received carrying a communities attribute containing this value MUST NOT be advertised to other BGP peers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1997-Well-2",
+      "reason": "The NO_ADVERTISE prohibition, captured verbatim as RFC1997-Well-2 at [MUST NOT]: no other BGP peer at all, internal ones included. Its level matches the row's."
+    },
+    {
+      "id": "front:5",
+      "quote": "NO_EXPORT_SUBCONFED (0xFFFFFF03) All routes received carrying a communities attribute containing this value MUST NOT be advertised to external BGP peers (this includes peers in other members autonomous systems inside a BGP confederation).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1997-Well-3",
+      "reason": "The NO_EXPORT_SUBCONFED prohibition, captured verbatim as RFC1997-Well-3 at [MUST NOT], including the parenthetical that external peers cover peers in other member autonomous systems inside a BGP confederation. Its level matches the row's."
+    }
+  ],
+  "register-reason": "Standards Track, August 1996, written before RFC 2119 existed and carrying no key-words paragraph. The source states three capitalised MUST-level sites (front:3, front:4, front:5) against five gated rows declared by rfc/short/rfc1997.md, so DeriveRegister grades it 'prose' and the site inventory is the case-insensitive modal scan, which adds the two lowercase 'shall' sentences front:1 and front:2. The sign-off claims exactly the derived grade. The two gated rows with no capitalised site behind them are RFC1997-Well-4, mapped to the lowercase-'shall' site front:2, and RFC1997-Encoding-1, read from the indicative wire-format sentence 'The attribute consists of a set of four octet values' and declared as an unsourced id on the one derived section."
+}

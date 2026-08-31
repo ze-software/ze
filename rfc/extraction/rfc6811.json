@@ -1,0 +1,138 @@
+{
+  "schema-version": 1,
+  "stem": "rfc6811",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc6811.txt",
+  "source-sha": "1d1449c6d19aa61f",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 4, rfc6811",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates the Introduction and states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: the threat the document addresses, the three components of the RPKI architecture, that the cache retrieval protocol is out of scope (RFC 6810), that full AS_PATH attestation is out of scope, and that the global RPKI is only loosely consistent across caches. No sentence directs a speaker."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The RFC 2119 key-words paragraph, which also states that the key words bind only when they appear in all upper case. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Prefix-to-AS Mapping Database. The document's main normative section. It defines VRP, Prefix, Route, VRP Prefix, VRP ASN, Route Prefix, Route Origin ASN, Covered and Matched, then the three validation states NotFound, Valid and Invalid, then states the two capitalised MUST-level sites mapped below to RFC6811-2-1 and RFC6811-2-2. Its remaining directives are three SHOULDs and one MAY, which are the unsourced ids below: perform the lookup for each Route in a received UPDATE, apply it to redistributed routes, initialize an unvalidated route to NotFound, and offer configuration options controlling which routes the lookup applies to. The definitions are indicative, so under section 1.1 they carry no RFC 2119 level. \"A Route Prefix is said to be Covered by a VRP when the VRP prefix length is less than or equal to the Route prefix length\" names a term the lookup uses rather than directing a speaker, and the same holds for Matched and for the three states. Two further indicative sentences are observations that scope the lookup rather than adding to it: a Route whose Origin ASN is \"NONE\" cannot be Matched by any VRP, and a Route can be Covered or Matched by more than one VRP while the state output stays fully determined.",
+      "unsourced-ids": [
+        "RFC6811-2-3",
+        "RFC6811-2-4",
+        "RFC6811-2-5",
+        "RFC6811-2-6"
+      ]
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Pseudo-Code. A C-like listing of the section 2 procedure. The section opens by declaring itself subordinate: \"In case of ambiguity, the procedure above, rather than the pseudo-code, should be taken as authoritative.\" It therefore adds no obligation. Its constant names BGP_PFXV_STATE_NOT_FOUND, BGP_PFXV_STATE_VALID and BGP_PFXV_STATE_INVALID are carried by the Constants table of rfc/short/rfc6811.md."
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Policy Control. Two capitalised MUST-level sites, mapped below to RFC6811-3-1 and RFC6811-3-2. Its two remaining sentences point the reader at section 5 and at [ORIGIN-OPS] for operational policy guidance, and neither directs a speaker."
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Interaction with Local Cache. One capitalised MUST-level site, mapped below to RFC6811-4-1. Its remaining sentences state that a speaker is expected to talk to one or more RPKI caches over the RFC 6810 protocol, and define an \"affected prefix\" as any prefix that was matched by a deleted or updated mapping, or could be matched by an added or updated mapping. That definition scopes RFC6811-4-1 rather than adding a requirement, and it is indicative."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Deployment Considerations. Names policies an operator can implement, filtering Invalid routes and adjusting LOCAL_PREF among them, and observes that propagating the validation state to an IBGP peer through a community can be necessary for routing correctness. Its only modal is the lowercase \"should be done with utmost care\", which section 1.1 gives no special meaning. No sentence directs a speaker."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that the security of the whole rests on the database, that blocking \"invalid\" routes opens a denial-of-service vector when an attacker can inject or remove validation records, that an attacker defeats the mechanism by prepending the authorized origin AS to a forged announcement, and that no path validation is provided. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. The section header only; its entries are in sections 8.1 and 8.2."
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 3779, RFC 4271, RFC 4632, RFC 6482, RFC 6793."
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informational References: [AS0], [ORIGIN-OPS], RFC 6480, RFC 6810."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "The validation state of the Route MUST be set to reflect the result of the lookup.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6811-2-1",
+      "reason": "The obligation to set the Route's validation state from the lookup result, captured verbatim as RFC6811-2-1 at [MUST]. The producer on the in-process path is rpkiOriginASFromASPath feeding ROACache.Validate from handleStructuredUpdate (internal/component/bgp/plugins/rpki/rpki.go, validate.go): Validate returns NotFound when no VRP covers the prefix, Valid when a covering VRP matches on maximum length and a non-zero ASN, and Invalid when VRPs cover but none match. The state then reaches the Adj-RIB-In and is retained there (internal/component/bgp/plugins/adj_rib_in/rib_validation.go). Tagged positive and negative tests are in internal/component/bgp/plugins/rpki/validate_test.go and internal/component/bgp/plugins/adj_rib_in/rib_batch_test.go."
+    },
+    {
+      "id": "2:2",
+      "quote": "An implementation MUST NOT exclude a route from the Adj-RIB-In or from consideration in the decision process as a side effect of its validation state, unless explicitly configured to do so.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6811-2-2",
+      "reason": "The prohibition on excluding a route from the Adj-RIB-In or from the decision process as a side effect of its validation state, captured verbatim as RFC6811-2-2 at [MUST NOT]. The producer is buildDecisions (internal/component/bgp/plugins/rpki/rpki.go), which sets Accept=false only when the per-state action resolves to reject; under accept or log-only the route stays in the Adj-RIB-In and keeps its Invalid state marker. That action is an operator-configurable leaf, global, per group and per peer (internal/component/bgp/plugins/rpki/rpki_config.go, parsePeerActions and resolveLeaf), and its YANG default is reject (internal/component/bgp/plugins/rpki/yang/ze-rpki.yang). Tagged positive and negative tests are TestBuildDecisionsOriginInvalidAction (internal/component/bgp/plugins/rpki/rpki_batch_test.go)."
+    },
+    {
+      "id": "3:1",
+      "quote": "An implementation MUST provide the ability to match and set the validation state of routes as part of its route policy filtering function.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6811-3-1",
+      "reason": "The obligation to match and set the validation state as part of the route policy filtering function, captured verbatim as RFC6811-3-1 at [MUST]. The producer is the per-state action resolution the operator configures (internal/component/bgp/plugins/rpki/rpki_config.go, parsePeerActions and resolveLeaf) applied by buildDecisions (internal/component/bgp/plugins/rpki/rpki.go): the action is keyed on the validation state, so a Valid route is unaffected by the Invalid action. Tagged positive and negative tests are in internal/component/bgp/plugins/rpki/rpki_batch_test.go."
+    },
+    {
+      "id": "3:2",
+      "quote": "An implementation MUST also support four-octet AS numbers [RFC6793].",
+      "disposition": "mapped",
+      "mapped-to": "RFC6811-3-2",
+      "reason": "The obligation to support four-octet AS numbers, captured verbatim as RFC6811-3-2 at [MUST]. The producer is ROACache.Validate (internal/component/bgp/plugins/rpki/validate.go), whose Route Origin ASN and VRP ASN are both uint32 and are compared over the whole 32-bit space; the structured path derives the origin from an ASN4-normalized AS_PATH (internal/component/bgp/plugins/rpki/rpki.go, rpkiOriginASFromASPath). Tagged positive and negative tests are in internal/component/bgp/plugins/rpki/validate_test.go, including a four-octet origin that differs from the VRP ASN only in its high-order bits."
+    },
+    {
+      "id": "4:1",
+      "quote": "When a mapping is added or deleted, the implementation MUST re-validate any affected prefixes and run the BGP decision process if needed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6811-4-1",
+      "reason": "The obligation to re-validate affected prefixes and run the decision process when a mapping is added or deleted, captured verbatim as RFC6811-4-1 at [MUST]. The producer is handleROAChange over originTracker.revalidate (internal/component/bgp/plugins/rpki/rpki.go, origin_tracker.go), which re-validates every tracked route against the changed cache and re-dispatches a decision only for a route whose state changed, which is the \"if needed\" of the sentence. Tagged positive and negative tests are in internal/component/bgp/plugins/rpki/origin_tracker_test.go and internal/component/bgp/plugins/adj_rib_in/rib_validation_test.go."
+    }
+  ],
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 1.1 and capitalised MUST-level keywords in sections 2, 3 and 4. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}

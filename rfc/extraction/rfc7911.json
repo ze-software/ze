@@ -1,0 +1,162 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7911",
+  "register": "prose",
+  "source-path": "rfc/full/rfc7911.txt",
+  "source-sha": "950784683306b771",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 5, rfc7911",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. Walked rather than skipped because the site scan attributes one site here. That site is the IETF Trust Legal Provisions boilerplate and is excluded below. Nothing before section 1 binds a BGP speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. States that RFC 4271 makes no provision for advertising several paths for one prefix, and that this document defines the Path Identifier that lifts the limit. It reports what the extension does and directs nobody."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Specification of Requirements: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker. It is also what puts the lower-case 'must' of the copyright notice outside the normative set."
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "How to Identify a Path. Two capitalised MUSTs, both mapped below: the Path Identifier is assigned so that (Prefix, Path Identifier) identifies a path uniquely toward one neighbor, and a re-advertising speaker generates its own identifier. The section's third normative sentence, 'A BGP speaker that receives a route should not assume that the identifier carries any particular semantics', writes 'should not' in lower case, so section 1.1 puts it outside the RFC 2119 set. It states no gated obligation and the summary records it under Encoding Rules rather than as a checklist row."
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Extended NLRI Encodings. One MUST, mapped below, plus the four-octet Path Identifier diagram. The diagram assigns a field width and states no separate obligation."
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "ADD-PATH Capability. Defines capability code 69 and the AFI/SAFI/Send-Receive tuple, and states one MUST, mapped below. The field descriptions assign values 1, 2 and 3 to receive, send and both; a value assignment is not a directive. The section's one SHOULD, on treating any other Send/Receive value as not understood, is advisory, so the site scan does not see it and it is listed unsourced here.",
+      "unsourced-ids": [
+        "RFC7911-4-2"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Operation. The only section carrying more obligations than sites. Three sites are mapped below, and each of the first two fuses two MUSTs into one sentence, so RFC7911-5-2 (receive the peer's capability with Send/Receive 1 or 3) and RFC7911-5-4 (generate the update on (prefix, Path Identifier) and use the extended encodings) are listed unsourced: 'mapped-to' names one id per site. The section's three SHOULDs are advisory and are listed here for the same reason. Its opening paragraph, that the RFC 4271 advertisement rules are otherwise unchanged and that a new advertisement for the same (prefix, Path Identifier) replaces the previous one, is indicative and states no separate obligation.",
+      "unsourced-ids": [
+        "RFC7911-5-2",
+        "RFC7911-5-4",
+        "RFC7911-5-6",
+        "RFC7911-5-7",
+        "RFC7911-5-8"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Deployment Considerations. States that care is needed in deployment, that the capability exchange is the only explicit indication the extended encoding is in use, and that a packet analyzer without that state cannot decode the UPDATEs. Written in the indicative and in 'could', it directs no speaker."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records that IANA has assigned value 69 for the ADD-PATH Capability in the Capability Codes registry. It binds IANA, and the assignment is already an action taken."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Names the memory-exhaustion exposure of holding several paths per prefix, states it is not a new vulnerability, and encourages a reader to study [ADDPATH]. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References heading."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 4271, RFC 4760, RFC 5492."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: [ADDPATH], [FAST], RFC 3345, RFC 4272, RFC 4724, [STOP-OSC]."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The IETF Trust Legal Provisions boilerplate of the Copyright Notice. Its 'must' is lower case, which section 1.1 puts outside the normative set, and it binds a person who reuses Code Components from the document, never a BGP speaker on the wire."
+    },
+    {
+      "id": "2:1",
+      "quote": "However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7911-2-1",
+      "reason": "Section 2's first MUST. Captured as RFC7911-2-1 [MUST], which carries the scope the sentence states: the identifier is unique for (Prefix, Path Identifier) toward one neighbor, not across the speaker."
+    },
+    {
+      "id": "2:2",
+      "quote": "A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7911-2-2",
+      "reason": "Section 2's second MUST. Captured as RFC7911-2-2 [MUST]: a re-advertising speaker generates its own Path Identifier and does not pass the received one through."
+    },
+    {
+      "id": "3:1",
+      "quote": "In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MUST be extended by prepending the Path Identifier field, which is of four octets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7911-3-1",
+      "reason": "Section 3's only MUST. Captured as RFC7911-3-1 [MUST]: the four-octet Path Identifier is prepended to the NLRI encoding."
+    },
+    {
+      "id": "4:1",
+      "quote": "A BGP speaker that wishes to indicate support for multiple AFI/SAFIs MUST do so by including the information in a single instance of the ADD-PATH Capability.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7911-4-1",
+      "reason": "Section 4's only MUST. Captured as RFC7911-4-1 [MUST]: every AFI/SAFI tuple travels in a single instance of the ADD-PATH Capability."
+    },
+    {
+      "id": "5:1",
+      "quote": "For a BGP speaker to be able to send multiple paths to its peer, that BGP speaker MUST advertise the ADD-PATH Capability with the Send/ Receive field set to either 2 or 3, and MUST receive from its peer the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for the corresponding <AFI, SAFI>.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7911-5-1",
+      "reason": "The negotiation sentence, which carries two MUSTs. Its first, advertise the capability with Send/Receive 2 or 3, is RFC7911-5-1 [MUST] and is mapped here. Its second, receive the peer's capability with Send/Receive 1 or 3 for the same <AFI, SAFI>, is RFC7911-5-2 [MUST]; 'mapped-to' names one id, so that row is listed in section 5's unsourced-ids."
+    },
+    {
+      "id": "5:2",
+      "quote": "A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular <AFI, SAFI> to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the <AFI, SAFI>, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the <AFI, SAFI>, in which case the speaker MUST generate a route update for the <AFI, SAFI> based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7911-5-3",
+      "reason": "The encoding-selection sentence, which carries two MUSTs. Its first, follow the RFC 4271 procedures unless ADD-PATH is negotiated in both directions, is RFC7911-5-3 [MUST] and is mapped here. Its second, generate the update on the (prefix, Path Identifier) combination and use the extended encodings, is RFC7911-5-4 [MUST] and is listed in section 5's unsourced-ids for the same reason."
+    },
+    {
+      "id": "5:3",
+      "quote": "The peer SHALL act accordingly in processing an UPDATE message related to a particular <AFI, SAFI>.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7911-5-5",
+      "reason": "The receiving half of the same paragraph. Captured as RFC7911-5-5 [SHALL]. It reads as if it bound only the peer, so it is mapped rather than excluded binds-another-role: ADD-PATH is symmetric and Ze is the peer whenever it decodes, which is what makes the sentence Ze's obligation to parse the Path Identifier on every <AFI, SAFI> it negotiated to receive."
+    }
+  ],
+  "register-reason": "The source carries capitalised MUST-level keywords outside the section 1.1 key-words paragraph, but the derivation grades a source 'prose' when it derives fewer sites than the summary declares gated rows. rfc/short/rfc7911.md declares nine gated rows and the source derives eight sites. The whole difference is section 5: the sentences at 5:1 and 5:2 each carry two MUSTs in one sentence, so two gated rows have no site of their own and are declared unsourced on section 5. The sign-off claims the derived grade."
+}

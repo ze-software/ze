@@ -1,0 +1,271 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9234",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9234.txt",
+  "source-sha": "34079d5254c6a473",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 3, rfc9234",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates section 1 and directs no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: what a route leak is, why configuration-based prevention is unchecked, and what this document adds. Its one modal, \"An eBGP speaker may require the use of this capability and confirmation of the BGP Role with a neighbor for the BGP OPEN to succeed\", is lowercase, so under this document's own section 2 it carries no RFC 2119 level; it previews the strict mode that section 4.2 states and that rfc/short/rfc9234.md carries as RFC9234-4.2-5."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The BCP 14 key-words paragraph, which states that the key words bind only when they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Terminology. Defines \"local AS\" and \"remote AS\", and imports RFC 4271's meaning for \"route is ineligible\" (\"ineligible to be installed in Loc-RIB and will be excluded from the next phase of route selection\"). Definitions, no directive. That imported meaning is what the ingress leak rejection owes: checkOTCIngress (internal/component/bgp/plugins/role/otc.go) answers otcRejectLeak rather than dropping the session."
+    },
+    {
+      "id": "3.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Peering Relationships. Five role bullets giving the Gao-Rexford propagation rules. Three identical sentences, \"All other routes MUST NOT be propagated.\", close the Customer, the RS-Client and the Peer bullet; rfc/short/rfc9234.md states one row, RFC9234-3.1-1, whose text covers all three roles, so the first site maps it and the two later ones are duplicates of it. The Provider and RS bullets, and every \"MAY propagate\" clause, are permissions rather than obligations. \"A BGP speaker may apply policy to reduce what is announced\", \"Violation of the route propagation rules listed above may result in route leaks\" and the closing pointer to section 5 are lowercase and indicative."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "BGP Role. No capitalised MUST-level site. Its one directive is the SHOULD to configure a Role at the local AS for each eBGP session, with the Complex peering exception, carried as the unsourced id below. The five allowed Role definitions are terminology, and \"BGP Roles are mutually confirmed using the BGP Role Capability\" is a pointer to sections 4.1 and 4.2.",
+      "unsourced-ids": [
+        "RFC9234-4-1"
+      ]
+    },
+    {
+      "id": "4.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "BGP Role Capability. Capability Code 9, Length 1 and Table 1's role values 0 through 4 with 5-255 unassigned are value assignments, stated indicatively, and are carried by the Wire Formats and Constants tables of rfc/short/rfc9234.md rather than by a requirement row. Two capitalised sites, mapped below to RFC9234-4.1-1 and RFC9234-4.1-2. The closing sentence, \"The error handling when multiple BGP Role Capabilities are received is described in Section 4.2\", is a pointer."
+    },
+    {
+      "id": "4.2",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Role Correctness. Three capitalised sites, mapped below to RFC9234-4.2-1 through RFC9234-4.2-3, plus Table 2's allowed pairs, which the sites reference rather than state. Three sentences the site scan cannot see: the backward-compatibility SHOULD to ignore a missing Role Capability and proceed (unsourced id below); the \"strict mode\" paragraph, written indicatively (\"the connection is rejected using the Role Mismatch Notification\") and carried as the MAY row RFC9234-4.2-5, whose local behaviour is the strict leaf defaulting to false in internal/component/bgp/plugins/role/yang/ze-role.yang; and \"If an eBGP speaker receives multiple but identical BGP Role Capabilities with the same value in each, then the speaker considers them to be a single BGP Role Capability and proceeds [RFC5492]\", which states no RFC 2119 level and defers the merge to RFC 5492, so it adds no obligation of this document.",
+      "unsourced-ids": [
+        "RFC9234-4.2-4",
+        "RFC9234-4.2-5"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 12,
+      "disposition": "walked",
+      "reason": "BGP Only to Customer (OTC) Attribute. The document's main normative section: twelve capitalised MUST-level sites, all mapped below. Its remaining sentences are definition (\"an optional transitive Path Attribute of the UPDATE message with Attribute Type Code 35 and a length of 4 octets\", and \"The OTC Attribute is considered malformed if the length value is not 4\", which supplies the condition site 5:6 acts on), rationale (the leak prevention and detection paragraphs, and the early-adopter paragraph observing that the OTC value is the same whether the remote AS or the local AS sets it), and the NOT RECOMMENDED sentence about AS Confederations, which is the unsourced id below. Two lead-ins scope the sites rather than add a requirement: \"The following ingress procedure applies to the processing of the OTC Attribute on route receipt\" and \"The following egress procedure applies to the processing of the OTC Attribute on route advertisement\". Both are indicative, and both are why payloadAdvertisesNLRI (internal/component/bgp/plugins/role/otc.go) gates the two stamping rules on the UPDATE carrying reachable NLRI: an UPDATE that only withdraws, and an End-of-RIB marker, are neither a route received nor a route advertised.",
+      "unsourced-ids": [
+        "RFC9234-5-13"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Additional Considerations. One capitalised site, mapped below to RFC9234-6-1. Its one further directive is the SHOULD to use Roles on each session once a Complex relationship is segregated, the unsourced id below. The rest is commentary: per-prefix policy as an alternative with no in-band check, the effect of an incorrect Role or OTC value, AS migration under RFC 7705 where a router sets OTC to the ASN it currently represents, and a pointer to RFC 7606 section 6 for the negative impacts of treat-as-withdraw.",
+      "unsourced-ids": [
+        "RFC9234-6-2"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records Capability Code 9, the new \"BGP Role Value\" subregistry with Table 3, OPEN Message Error subcode 11 \"Role Mismatch\", the deprecation of subcodes 8-10, and Path Attribute code 35. Binds IANA, not a speaker."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that the RFC 4271 and RFC 4272 considerations apply, describes what a misconfigured Role does to prefix propagation, discourages strict mode as a default in lowercase (\"Implementations with such default behavior are strongly discouraged\"), and describes OTC removal by an on-path attacker and OTC addition by a Customer as threats BGPsec does not cover. No capitalised keyword and no countermeasure directed at a speaker. The discouraged default is met: the strict leaf defaults to false (internal/component/bgp/plugins/role/yang/ze-role.yang)."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. The heading only; its entries are in 9.1 and 9.2."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 4271, RFC 5065, RFC 5492, RFC 7606, RFC 7908, RFC 8126, RFC 8174."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: GAO-REXFORD, RFC 4272, RFC 7705, RFC 7938, RFC 8205. The Acknowledgments, Contributors and Authors' Addresses blocks that close the document fall in this section's body and state no obligation."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "All other routes MUST NOT be propagated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-3.1-1",
+      "reason": "The first of the three identical sentences, closing the Customer bullet: a Customer MAY propagate a route learned from a Customer or locally originated to a Provider, and all other routes MUST NOT be propagated. RFC9234-3.1-1 states the prohibition at [MUST NOT] for the Customer, RS-Client and Peer Roles together, so this site is the one that maps it."
+    },
+    {
+      "id": "3.1:2",
+      "quote": "All other routes MUST NOT be propagated.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC9234-3.1-1",
+      "reason": "The same sentence closing the RS-Client bullet. It restates for the RS-Client Role the prohibition RFC9234-3.1-1 already carries for all three Roles, and site 3.1:1 maps that id."
+    },
+    {
+      "id": "3.1:3",
+      "quote": "All other routes MUST NOT be propagated.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC9234-3.1-1",
+      "reason": "The same sentence closing the Peer bullet. It restates for the Peer Role the prohibition RFC9234-3.1-1 already carries for all three Roles, and site 3.1:1 maps that id."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-4.1-1",
+      "reason": "The obligation to advertise Capability Code 9 once a Role is configured, captured verbatim as RFC9234-4.1-1 at [MUST]."
+    },
+    {
+      "id": "4.1:2",
+      "quote": "An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-4.1-2",
+      "reason": "The prohibition on advertising more than one Role Capability, captured verbatim as RFC9234-4.1-2 at [MUST NOT]."
+    },
+    {
+      "id": "4.2:1",
+      "quote": "If the BGP Role Capability is advertised, and one is also received from the peer, the Roles MUST correspond to the relationships in Table 2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-4.2-1",
+      "reason": "The obligation that a sent-and-received Role pair match Table 2, captured verbatim as RFC9234-4.2-1 at [MUST]."
+    },
+    {
+      "id": "4.2:2",
+      "quote": "If the Roles do not correspond, the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-4.2-2",
+      "reason": "The obligation to reject a mismatched pair with OPEN error code 2 subcode 11, captured verbatim as RFC9234-4.2-2 at [MUST]."
+    },
+    {
+      "id": "4.2:3",
+      "quote": "If multiple BGP Role Capabilities are received and not all of them have the same value, then the BGP speaker MUST reject the connection using the Role Mismatch Notification (code 2, subcode 11).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-4.2-3",
+      "reason": "The obligation to reject when received Role Capabilities disagree, captured verbatim as RFC9234-4.2-3 at [MUST]. Its companion case, multiple identical capabilities merged and accepted, is stated indicatively in the preceding sentence and deferred to RFC 5492."
+    },
+    {
+      "id": "5:1",
+      "quote": "If a route with the OTC Attribute is received from a Customer or an RS-Client, then it is a route leak and MUST be considered ineligible (see Section 3).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-1",
+      "reason": "Ingress rule 1, the leak detection on a Customer or RS-Client, captured verbatim as RFC9234-5-1 at [MUST]. \"Ineligible\" carries the section 3 meaning imported from RFC 4271."
+    },
+    {
+      "id": "5:2",
+      "quote": "If a route with the OTC Attribute is received from a Peer (i.e., remote AS with a Peer Role) and the Attribute has a value that is not equal to the remote (i.e., Peer's) AS number, then it is a route leak and MUST be considered ineligible.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-2",
+      "reason": "Ingress rule 2, the leak detection on a Peer whose OTC value is not the Peer's ASN, captured verbatim as RFC9234-5-2 at [MUST]."
+    },
+    {
+      "id": "5:3",
+      "quote": "If a route is received from a Provider, a Peer, or an RS and the OTC Attribute is not present, then it MUST be added with a value equal to the AS number of the remote AS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-3",
+      "reason": "Ingress rule 3, the ingress stamp with the remote ASN, captured verbatim as RFC9234-5-3 at [MUST]. \"If a route is received\" is the rule's condition, which is why the stamp is gated on the UPDATE advertising reachable NLRI."
+    },
+    {
+      "id": "5:4",
+      "quote": "If a route is to be advertised to a Customer, a Peer, or an RS- Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-4",
+      "reason": "Egress rule 1, the egress stamp with the local ASN, captured verbatim as RFC9234-5-4 at [MUST]. \"If a route is to be advertised\" is the rule's condition, which is why the stamp is gated on the UPDATE advertising reachable NLRI."
+    },
+    {
+      "id": "5:5",
+      "quote": "If a route already contains the OTC Attribute, it MUST NOT be propagated to Providers, Peers, or RSes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-5",
+      "reason": "Egress rule 2, the propagation ban on an already-stamped route, captured verbatim as RFC9234-5-5 at [MUST NOT]."
+    },
+    {
+      "id": "5:6",
+      "quote": "An UPDATE message with a malformed OTC Attribute SHALL be handled using the approach of \"treat-as-withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-12",
+      "reason": "The error handling for an OTC whose length is not 4, captured verbatim as RFC9234-5-12 at [SHALL]. The malformed condition itself is the preceding indicative sentence, \"The OTC Attribute is considered malformed if the length value is not 4\"."
+    },
+    {
+      "id": "5:7",
+      "quote": "If an OTC Attribute is added on egress from the AS Confederation, its value MUST equal the AS Confederation Identifier.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-7",
+      "reason": "The AS Confederation egress value constraint, captured verbatim as RFC9234-5-7 at [MUST]."
+    },
+    {
+      "id": "5:8",
+      "quote": "Also, on egress from the AS Confederation, an UPDATE MUST NOT contain an OTC Attribute with a value corresponding to any Member-AS Number other than the AS Confederation Identifier.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-8",
+      "reason": "The prohibition on a Member-AS OTC value leaving an AS Confederation, captured verbatim as RFC9234-5-8 at [MUST NOT]."
+    },
+    {
+      "id": "5:9",
+      "quote": "On egress from the Internet- facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-9",
+      "reason": "The private-ASN scenario constraint on the value leaving the Internet-facing AS, captured verbatim as RFC9234-5-9 at [MUST NOT]."
+    },
+    {
+      "id": "5:10",
+      "quote": "Once the OTC Attribute has been set, it MUST be preserved unchanged (this also applies to an AS Confederation).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-6",
+      "reason": "The immutability of a set OTC Attribute, captured verbatim as RFC9234-5-6 at [MUST]."
+    },
+    {
+      "id": "5:11",
+      "quote": "The described ingress and egress procedures are applicable only for the address families AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast) in both cases and MUST NOT be applied to other address families by default.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-10",
+      "reason": "The address-family scope of the ingress and egress procedures, captured verbatim as RFC9234-5-10 at [MUST NOT]."
+    },
+    {
+      "id": "5:12",
+      "quote": "The operator MUST NOT have the ability to modify the procedures defined in this section.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-5-11",
+      "reason": "The prohibition on an operator override of the section 5 procedures, captured verbatim as RFC9234-5-11 at [MUST NOT]."
+    },
+    {
+      "id": "6:1",
+      "quote": "Roles MUST NOT be configured on an eBGP session with a Complex peering relationship.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9234-6-1",
+      "reason": "The prohibition on configuring a Role for a Complex peering relationship, captured verbatim as RFC9234-6-1 at [MUST NOT]. \"Complex\" is defined in section 3.1 as the local AS holding more than one peering Role with the remote AS."
+    }
+  ],
+  "register-reason": "Standards Track, with the BCP 14 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3.1, 4.1, 4.2, 5 and 6. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}

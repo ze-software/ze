@@ -104,6 +104,13 @@ func TestIPsecESPRequiresIntegrity(t *testing.T) {
 	// RFC requirement: RFC4552-3-1 negative -- the same rejection proves OSPFv3 authentication cannot
 	// be silently omitted: an interface with no valid integrity algorithm is refused with
 	// ErrIPsecAuthAlgo, so authentication support is mandatory (config_ipsec.go:114-116).
+	// RFC requirement: RFC4303-3.2-1 negative -- RFC 4303 Section 3.2: "although both
+	// confidentiality and integrity are optional, at least one of these services MUST be
+	// selected, hence both algorithms MUST NOT be simultaneously NULL". The refusal is the
+	// guard: a null cipher with no integrity algorithm never reaches an installed SA.
+	// RFC requirement: RFC4303-1-1 negative -- the integrity-only ESP service Ze offers is
+	// integrity BEARING. A configuration that names the null cipher and omits integrity does
+	// not select it; it is refused rather than installed as an unauthenticated ESP SA.
 	cfg, err := parseOSPFConfig(ospfSec(v6IPsecCfg(
 		`"protocol":"esp","spi":256,"encryption-algorithm":"null"`, "")), nil)
 	if err != nil {
@@ -116,6 +123,13 @@ func TestIPsecESPRequiresIntegrity(t *testing.T) {
 	// RFC requirement: RFC4301-4.2-1 positive -- an esp interface with NULL encryption but WITH
 	// a valid integrity algorithm+key IS accepted: NULL encryption is legal precisely because
 	// integrity is present, the boundary the guard enforces (config_ipsec.go:114-166).
+	// RFC requirement: RFC4303-1-1 positive -- RFC 4303 Section 1: "Integrity-only ESP MUST be
+	// offered as a service selection option ... and MUST be configurable via management
+	// interfaces". This configuration IS that selection, made through Ze's management
+	// interface, and it is accepted.
+	// RFC requirement: RFC4303-3.2-1 positive -- the accepted combination has a NULL cipher and
+	// a named integrity algorithm, so exactly one service is selected and the two algorithms
+	// are not simultaneously NULL.
 	cfg, err = parseOSPFConfig(ospfSec(v6IPsecCfg(
 		`"protocol":"esp","spi":256,"algorithm":"sha256","key":"`+hexKey(32)+`","encryption-algorithm":"null"`, "")), nil)
 	if err != nil {

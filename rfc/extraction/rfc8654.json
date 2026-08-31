@@ -1,0 +1,208 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8654",
+  "register": "prose",
+  "source-path": "rfc/full/rfc8654.txt",
+  "source-sha": "b14e6e2fbf6eafd8",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 5, rfc8654",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates section 1. Its one site is the IETF Trust Legal Provisions sentence, excluded below."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: RFC 4271 mandates 4,096 octets, new AFIs, SAFIs and capabilities need more, and this document raises the limit to 65,535 octets for every message except OPEN and KEEPALIVE. No sentence directs a speaker."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The BCP 14 key-words paragraph, which states that the key words bind when, and only when, they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. It is also what makes the lowercase modals in sections 4 and 8 non-normative in this document."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "BGP Extended Message. Definitions only: a message over 4,096 octets is a BGP Extended Message, extended messages have a maximum size of 65,535 octets, and the smallest message is a 19-octet KEEPALIVE. Stated indicatively, so under section 1.1 it carries no RFC 2119 level. The 65,535 and 19 octet bounds are carried normatively by site 6:1, which maps RFC8654-6-1, and by the Wire Formats and Constants tables of rfc/short/rfc8654.md."
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "BGP Extended Message Capability. Its one capitalised site is the RFC 7606 error-handling prerequisite, mapped below to RFC8654-3-1. The rest is value assignment and description: Capability Code 6, Capability Length 0, how a speaker advertises it with RFC 5492, and what advertising conveys. Those are indicative, so the two wire-value obligations the summary declares from them are the unsourced ids below.",
+      "unsourced-ids": [
+        "RFC8654-3-2",
+        "RFC8654-3-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Operation. Two capitalised MUST-level sites, mapped below to RFC8654-4-1 and RFC8654-4-2. Its three remaining sites carry lowercase modals that section 1.1 gives no normative level, and each is excluded below. The section's other directives are the SHOULD to advertise the capability, the SHOULD to try attribute discard when propagating to a peer that did not advertise it, the MAY that permits sending an extended message only to a peer the capability was received from, and the scoping sentence that the capability applies to all messages except OPEN and KEEPALIVE; the summary declares those as the unsourced ids below. The sentence stating that a listener which has not advertised the capability will generate a NOTIFICATION with Bad Message Length is written in the indicative future and cites RFC 4271 Section 6.1 for the subcode, so the site scan cannot see it; rfc/short/rfc8654.md carries it in its Errors list and in the Error Handling table.",
+      "unsourced-ids": [
+        "RFC8654-4-3",
+        "RFC8654-4-4",
+        "RFC8654-4-5",
+        "RFC8654-4-6"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Error Handling. The document's densest normative section: five capitalised MUST-level sites, all mapped below to RFC8654-5-1 through RFC8654-5-5. Its one advisory, the RECOMMENDED that developers and implementers are conservative in their use of extended messages, is the unsourced id below. The sentence stating that UPDATE error handling per RFC 4271 Section 6.3 is unchanged is indicative and adds no obligation.",
+      "unsourced-ids": [
+        "RFC8654-5-6"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Changes to RFC 4271. Its one site quotes the RFC 4271 Length-field MUST and states the change to 65,535, mapped below to RFC8654-6-1. Its second paragraph restates the same change against RFC 4271 Section 6.1 in the indicative and adds no separate obligation."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records the allocation of value 6, \"BGP Extended Message\", in the \"Capability Codes\" registry. Binds IANA, not a speaker; the wire value itself is RFC8654-3-2."
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that the extension does not change BGP's underlying security issues, that buffering 65,535-octet messages increases exposure to resource exhaustion, and lists three consequences of reducing an outgoing message for a peer that does not support extended messages. Its one site is the RFC 7606 eligibility criterion for attribute discard, excluded below. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References heading."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 4271, RFC 5492, RFC 7606, RFC 8174."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 4272, RFC 7752, RFC 8205."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate the extractor did not strip: the IETF Trust Legal Provisions paragraph of the Copyright Notice. It states a licensing condition on code extracted from the document text and directs no protocol behavior at a BGP speaker."
+    },
+    {
+      "id": "3:1",
+      "quote": "Peers that wish to use the BGP Extended Message Capability MUST support error handling for BGP UPDATE messages per [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8654-3-1",
+      "reason": "The RFC 7606 error-handling prerequisite for using the capability, captured verbatim as RFC8654-3-1 at [MUST]. It binds this speaker, not another document: RFC 7606 is named as the standard the required error handling follows, so the sentence is an obligation on the extended-message user rather than a pointer to RFC 7606's own obligations."
+    },
+    {
+      "id": "4:1",
+      "quote": "An implementation that advertises the BGP Extended Message Capability MUST be capable of receiving a message with a length up to and including 65,535 octets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8654-4-1",
+      "reason": "The receive-side 65,535-octet obligation that advertising the capability creates, captured verbatim as RFC8654-4-1 at [MUST]."
+    },
+    {
+      "id": "4:2",
+      "quote": "Applications generating information that might be encapsulated within BGP messages MUST limit the size of their payload to take the maximum message size into account.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8654-4-2",
+      "reason": "The payload-size obligation on whatever generates the information a BGP message carries, captured verbatim as RFC8654-4-2 at [MUST]."
+    },
+    {
+      "id": "4:3",
+      "quote": "If the message is still too big, then it must not be sent to the neighbor ([RFC4271], Section 9.2).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 4271 Section 9.2, which the sentence cites as its authority. RFC 8654 raises the Length ceiling only for a neighbor that advertised the capability, so for a neighbor that did not, RFC 4271's own 4,096-octet limit is what forbids the send. The modal is lowercase, which section 1.1 gives no RFC 2119 level in this document."
+    },
+    {
+      "id": "4:4",
+      "quote": "Additionally, if the NLRI was previously advertised to that peer, it must be withdrawn from service ([RFC4271], Section 9.1.3).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 4271 Section 9.1.3, which the sentence cites: withdrawing a route that can no longer be advertised is the Update-Send Process's own rule, not a new one this document states. The modal is lowercase, which section 1.1 gives no RFC 2119 level in this document."
+    },
+    {
+      "id": "4:5",
+      "quote": "If an Autonomous System (AS) has multiple internal BGP speakers and also has multiple external BGP neighbors, care must be taken to ensure a consistent view within the AS in order to present a consistent external view.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The role is the AS operator, not a BGP speaker. The paragraph's own next sentences name that role: a consistent view is guaranteed only if all the iBGP speakers advertise the capability, and if that is not the case \"the operator should consider whether or not\" to advertise it to external peers. It is a deployment judgement about which speakers are configured to advertise, and no code path in a speaker can carry it."
+    },
+    {
+      "id": "5:1",
+      "quote": "A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8654-5-1",
+      "reason": "The obligation to reject an extended message when the local speaker did not advertise the capability, whatever it is capable of, captured verbatim as RFC8654-5-1 at [MUST NOT]."
+    },
+    {
+      "id": "5:2",
+      "quote": "A speaker MUST NOT implement a more liberal policy accepting BGP Extended Messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8654-5-2",
+      "reason": "The ban on a more liberal acceptance policy, captured verbatim as RFC8654-5-2 at [MUST NOT]. It is a distinct obligation from RFC8654-5-1: 5-1 forbids accepting one message, this forbids the configuration or code that would make accepting it the rule."
+    },
+    {
+      "id": "5:3",
+      "quote": "Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8654-5-4",
+      "reason": "The obligation to use RFC 4271 error handling when an improper extended message is treated as fatal, captured verbatim as RFC8654-5-4 at [MUST]. Not cross-document: the MUST is stated here and binds this speaker; RFC 4271 supplies the procedure it must follow."
+    },
+    {
+      "id": "5:4",
+      "quote": "However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8654-5-3",
+      "reason": "The 4,096-octet cap on a NOTIFICATION sent to a peer that did not advertise the capability, captured verbatim as RFC8654-5-3 at [MUST NOT]."
+    },
+    {
+      "id": "5:5",
+      "quote": "Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8654-5-5",
+      "reason": "The obligation on a future protocol specification to state its behavior toward 4,096-octet-only peers, captured verbatim as RFC8654-5-5 at [MUST]."
+    },
+    {
+      "id": "6:1",
+      "quote": "[RFC4271] states \"The value of the Length field MUST always be at least 19 and no greater than 4096.\" This document changes the latter number to 65,535 for all messages except for OPEN and KEEPALIVE messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8654-6-1",
+      "reason": "The amended Length-field bound, captured as RFC8654-6-1 at [MUST]. The capitalised MUST is quoted from RFC 4271, and this sentence is the amendment that replaces its upper number, so the resulting obligation (at least 19, and no greater than 65,535 when extended or 4,096 otherwise) is this document's. The exception for OPEN and KEEPALIVE is RFC8654-4-3."
+    },
+    {
+      "id": "8:1",
+      "quote": "The attributes eligible under the \"attribute discard\" approach must have no effect on route selection or installation [RFC7606].",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "Eligibility for attribute discard is defined by RFC 7606, which the sentence cites. This sentence restates that criterion inside a security note about the consequence of discarding, and its modal is lowercase, which section 1.1 gives no RFC 2119 level in this document."
+    }
+  ],
+  "register-reason": "Standards Track, with the BCP 14 key-words paragraph at section 1.1 and capitalised MUST-level keywords in sections 3 through 6. The derivation grades the source 'prose' rather than 'rfc2119' because the capitalised keyword sites are fewer than the gated rows rfc/short/rfc8654.md declares, so the site inventory is the case-insensitive modal one and carries the lowercase 'must' sentences of sections 4 and 8 as well. The sign-off claims exactly the derived grade."
+}

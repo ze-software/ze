@@ -1,0 +1,149 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8092",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8092.txt",
+  "source-sha": "e374b17f52bc7261",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 5, rfc8092",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates the Introduction: the attribute is an extension to BGP-4 that signals opaque information within separate namespaces, and it suits all ASNs including four-octet ASNs. The Copyright Notice's lowercase 'Code Components extracted from this document must include Simplified BSD License text' binds whoever reuses the document's code components, not a BGP speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative throughout: network operators attach communities to routes, an RFC 1997 community is a four-octet value whose halves are read as a two-octet ASN and a locally defined value, four-octet ASNs (RFC 6793) no longer fit that encoding, and the six-octet RFC 4360 Extended Community value cannot hold a four-octet ASN in both the Global Administrator and the Local Administrator sub-fields. The closing paragraph states what this document defines: an unordered set of one or more twelve-octet values, each a four-octet Global Administrator and two four-octet operator-defined fields. No sentence directs a speaker."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The RFC 2119 key-words paragraph, which tells a reader how to read the other sections and binds no speaker; the derivation excludes it from the site inventory. It is the RFC 2119 form alone: unlike a post-RFC 8174 document it does not add the 'only when, and in all capitals' sentence, so this walk reads a lowercase modal elsewhere in the document on its own merits rather than as a key word."
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "BGP Large Communities Attribute. Two MUST-level sites, 3:1 and 3:2, the transmit and receive halves of the duplicate rule, both mapped below. The rest of the section is definitional or advisory. Definitional: the attribute is an optional transitive path attribute of variable length, all routes carrying it belong to the communities it specifies, each value is a 12-octet quantity laid out as a four-octet Global Administrator followed by Local Data Part 1 and Local Data Part 2, and 'There is no significance to the order in which twelve-octet Large Community Attribute values are encoded'. Those are indicative statements carried by the Wire Formats and Encoding Rules of rfc/short/rfc8092.md; none is written as an obligation, so none earns a checklist row. Advisory: 'This field SHOULD be an ASN' and 'The use of Reserved ASNs (0 [RFC7607], 65535 and 4294967295 [RFC7300]) is NOT RECOMMENDED'. Both carry capitalised keywords that are not MUST-level, so the rfc2119 site inventory does not count them; they are declared RFC8092-3-3 and RFC8092-3-4 and are listed unsourced here.",
+      "unsourced-ids": [
+        "RFC8092-3-3",
+        "RFC8092-3-4"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Aggregation. One sentence, and its modal is lowercase: 'If a range of routes is aggregated, then the resulting aggregate should have a BGP Large Communities attribute that contains all of the BGP Large Communities attributes from all of the aggregated routes.' Under the rfc2119 register the site scan counts capitalised MUST-level keywords only, so it sees nothing here. The summary declares the sentence as the advisory row RFC8092-4-1, listed unsourced below.",
+      "unsourced-ids": [
+        "RFC8092-4-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Canonical Representation. Defines the three-decimal colon form, in the order Global Administrator, Local Data 1, Local Data 2, and gives 64496:4294967295:2 and 64496:0:0 as examples. Its one MUST-level site is 5:1, mapped below. The closing 'BGP Large Communities SHOULD be represented in the canonical representation' is a capitalised advisory keyword rather than a MUST-level one, so the site scan does not count it; it is declared RFC8092-5-2 and listed unsourced here.",
+      "unsourced-ids": [
+        "RFC8092-5-2"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Error Handling. The densest section of the document and the only one whose every sentence is normative: three bulleted SHALL-level rules and a closing MUST NOT. All four are sites, 6:1 through 6:4, and all four are mapped below to the four rows the summary declares from this section. The section carries no other sentence beyond its one-line lead-in, 'The error handling of BGP Large Communities is as follows'."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. No capitalised keyword and no site. Its one strong modal is lowercase and binds a trust model rather than a speaker: 'an AS relying on the BGP Large Communities attribute carried in BGP must have trust in every other AS in the path, as any intermediate AS in the path may have added, deleted, or altered the BGP Large Communities attribute', and the next sentence puts the mechanism providing that trust beyond the document's scope. The remainder is advice to operators: the attribute does not protect the integrity of a community value, a speaker can alter values in an UPDATE, securing that is the broader BGP security problem, and administrators are pointed at Section 11 of RFC 7454. Nothing here directs encoding, decoding or propagation, so there is nothing for a daemon to implement."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "IANA Considerations. One indicative sentence: 'IANA has assigned the value 32 (LARGE_COMMUNITY) in the \"BGP Path Attributes\" subregistry under the \"Border Gateway Protocol (BGP) Parameters\" registry.' Walked rather than skipped under the iana kind because it records an assignment already made, which Ze depends on to encode and recognise the attribute, rather than an action left for the registry to take. The value is carried by the Constants table of rfc/short/rfc8092.md. No obligation, so no id is read from here."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. The heading alone; its two subsections carry the entries."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 4271, RFC 7606."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 1997, RFC 4360, RFC 6793, RFC 7300, RFC 7454, RFC 7607. The derived section span runs to the end of the document, so it also holds Acknowledgments, Contributors and Authors' Addresses. No sentence in the span states an obligation on a BGP speaker."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "Duplicate BGP Large Community values MUST NOT be transmitted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8092-3-1",
+      "reason": "The transmit half of the duplicate rule, captured verbatim as RFC8092-3-1 at [MUST NOT]. Its level matches the row's, and the receive half of the same paragraph is site 3:2 mapped to a separate row, so this is a distinct obligation rather than a duplicate of it: one binds the sender, the other the receiver, and rfc/short/rfc8092.md calls that asymmetric responsibility."
+    },
+    {
+      "id": "3:2",
+      "quote": "A receiving speaker MUST silently remove redundant BGP Large Community values from a BGP Large Community attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8092-3-2",
+      "reason": "The receive half of the duplicate rule, captured verbatim as RFC8092-3-2 at [MUST]. Its level matches the row's. 'Redundant' here means a repeated 12-octet value, and Section 6 states separately that such repetition does not make the attribute malformed, which is site 6:2."
+    },
+    {
+      "id": "5:1",
+      "quote": "Numbers MUST NOT contain leading zeros; a zero value MUST be represented with a single zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8092-5-1",
+      "reason": "One sentence carrying two MUST-level clauses, no leading zeros and a single zero for the zero value, both about the same canonical rendering. RFC8092-5-1 captures the sentence whole at [MUST NOT], so the pair maps to one row rather than two. The row's level matches the first clause's keyword."
+    },
+    {
+      "id": "6:1",
+      "quote": "o A BGP Large Communities attribute SHALL be considered malformed if the length of the BGP Large Communities Attribute value, expressed in octets, is not a non-zero multiple of 12.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8092-6-2",
+      "reason": "The malformed-length rule, captured verbatim as RFC8092-6-2 at [SHALL]. The row number and the site number differ because the summary's ids are not ordered by site position within the section; the quoted text is the same sentence. The 'non-zero' word is load-bearing: a zero-length attribute is malformed even though zero is a multiple of 12."
+    },
+    {
+      "id": "6:2",
+      "quote": "o A BGP Large Communities attribute SHALL NOT be considered malformed due to presence of duplicate Large Community values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8092-6-3",
+      "reason": "The rule that duplicate values do not make the attribute malformed, captured verbatim as RFC8092-6-3 at [SHALL NOT]. Its level matches the row's. It is the error-handling counterpart of site 3:2 rather than a restatement of it: 3:2 orders the receiver to remove the duplicates, this one forbids treating their presence as an error."
+    },
+    {
+      "id": "6:3",
+      "quote": "o A BGP UPDATE message with a malformed BGP Large Communities attribute SHALL be handled using the approach of \"treat-as- withdraw\" as described in Section 2 of [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8092-6-4",
+      "reason": "The treat-as-withdraw obligation, captured verbatim as RFC8092-6-4 at [SHALL]. Mapped rather than excluded as cross-document: the sentence cites Section 2 of RFC 7606 for the APPROACH, and RFC 7606 owns what treat-as-withdraw does, but the obligation to apply that approach to a malformed BGP Large Communities attribute is this document's own and binds a Ze speaker parsing attribute type 32."
+    },
+    {
+      "id": "6:4",
+      "quote": "The BGP Large Communities Global Administrator field may contain any value, and a BGP Large Communities attribute MUST NOT be considered malformed if the Global Administrator field contains an unallocated, unassigned, or reserved ASN.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8092-6-1",
+      "reason": "The rule that an unallocated, unassigned or reserved ASN in the Global Administrator does not make the attribute malformed, captured verbatim as RFC8092-6-1 at [MUST NOT]. Its level matches the row's. It is the normative counterpart of the Section 3 advisory that the field SHOULD be an ASN and that reserved ASNs are NOT RECOMMENDED: a value the sender is advised against is still one the receiver may not reject."
+    }
+  ],
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 2. The source carries seven capitalised MUST-level sites against seven gated rows declared by rfc/short/rfc8092.md, so DeriveRegister grades it 'rfc2119' and the site inventory is the capitalised keyword scan. The sign-off claims exactly the derived grade. Every gated row is the target of a site, so no gated id is read from indicative prose; the four unsourced ids declared on sections 3, 4 and 5 are all advisory rows the MUST-level scan cannot see."
+}

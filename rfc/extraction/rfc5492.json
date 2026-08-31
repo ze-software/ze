@@ -1,0 +1,195 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5492",
+  "register": "prose",
+  "source-path": "rfc/full/rfc5492.txt",
+  "source-sha": "d97da179f6d6ed92",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 3, rfc5492",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice and Abstract. The Abstract states what the document defines and that it obsoletes RFC 3392. It directs no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Introduction. Two sentences, both indicative, and both excluded below. The first recounts what the base BGP-4 specification requires of a speaker that meets an unrecognized Optional Parameter. The second states what a pair of speakers supporting this document can do. Section 3 says of the same fact that it 'is a consequence of the base BGP-4 specification [RFC4271] and not a new requirement'."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The RFC 2119 key-words paragraph. It tells a reader how to read sections 3 to 5 and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "3",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Overview of Operations. The document's main normative section: three sites, mapped below to RFC5492-3-1, RFC5492-3-2 and RFC5492-3-3. Site 3:3 states two MUST NOT obligations in one sentence, so RFC5492-3-4 is declared unsourced here rather than mapped. Its remaining directives carry no MUST-level keyword, so the site scan cannot see them: the SHOULD to re-establish without the Capabilities Optional Parameter after an Unsupported Optional Parameter NOTIFICATION (RFC5492-3-5), the SHOULD NOT to re-establish a peering terminated for a missing required capability (RFC5492-3-6), and the MAY to send a NOTIFICATION and terminate when the peer does not support a required capability (RFC5492-3-7). The section's opening MAY, that an OPEN message may include the Capabilities Optional Parameter, and its three indicative paragraphs on how a speaker learns a peer's capabilities, state no obligation.",
+      "unsourced-ids": [
+        "RFC5492-3-4",
+        "RFC5492-3-5",
+        "RFC5492-3-6",
+        "RFC5492-3-7"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Capabilities Optional Parameter (Parameter Type 2). Assigns parameter type 2 and defines the <Capability Code, Capability Length, Capability Value> triple, which are value definitions carried by the Wire Formats and Constants tables of rfc/short/rfc5492.md. Three sites, mapped below to RFC5492-4-1, RFC5492-4-3 and RFC5492-4-2. Its three advisory sentences carry no MUST-level keyword and are the unsourced ids below: the SHOULD NOT against duplicate identical instances (RFC5492-4-4), the SHOULD to include the Capabilities Optional Parameter once (RFC5492-4-5), the SHOULD to list every capability as a TLV inside that one parameter (RFC5492-4-6), and the MAY to include several instances of one code with different values (RFC5492-4-7). The closing sentence, that the set of capabilities should be processed the same way whether it arrives in one parameter or several, is the lowercase 'should' the document's own section 2 gives no normative level.",
+      "unsourced-ids": [
+        "RFC5492-4-4",
+        "RFC5492-4-5",
+        "RFC5492-4-6",
+        "RFC5492-4-7"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Extensions to Error Handling. Assigns Error Subcode 7, Unsupported Capability, as a value definition. Three sites: 5:1 and 5:3 are mapped to RFC5492-5-1 and RFC5492-5-2, and 5:2 is a recapitulation of section 3. The sentence 'Each such capability is encoded in the same way as it would be encoded in the OPEN message' carries no MUST-level keyword, so the scan cannot raise it; the summary folds it into RFC5492-5-1, whose row names it."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records the Capability Code registry and its three assignment policies, the reserved code 0, and the 'BGP OPEN Optional Parameter Types' registry with parameter types 1 and 2. Binds IANA, not a speaker."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that this extension does not change the security issues inherent in existing BGP. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. The heading over sections 9.1 and 9.2."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 4271 and RFC 5226."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 4272 and RFC 4760."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix A. Comparison between RFC 2842 and RFC 3392. Two lines of editorial history about a document this one obsoletes. No obligation."
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix B. Comparison between RFC 3392 and This Document. Editorial history, including that this document 'clarifies requirements by changing a number of SHOULDs to MUSTs'. It names no obligation of its own; the changed levels are the MUSTs of sections 3, 4 and 5."
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "The base BGP-4 specification [RFC4271] requires that when a BGP speaker receives an OPEN message with one or more unrecognized Optional Parameters, the speaker must terminate the BGP peering.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 4271, which the sentence cites: a speaker that receives an OPEN with an unrecognized Optional Parameter terminates the peering. This document recounts it as the problem it solves, and section 3 says of the same fact that it 'is a consequence of the base BGP-4 specification [RFC4271] and not a new requirement'. The lowercase 'must' is what the prose-register scan raised."
+    },
+    {
+      "id": "1:2",
+      "quote": "A pair of BGP speakers that supports this specification can establish the peering even when presented with unrecognized capabilities, so long as all capabilities required to support the peering are supported.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Indicative: it states what a pair of speakers supporting this document can do, not what either of them owes. The word the scan raised is 'required' in 'all capabilities required to support the peering', which is descriptive English rather than the RFC 2119 keyword. Section 2 binds the key words only in upper case, and the prose-register scan is case-insensitive."
+    },
+    {
+      "id": "3:1",
+      "quote": "The message MUST contain the capability or capabilities that cause the speaker to send the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5492-3-1",
+      "reason": "The content obligation on an Unsupported Capability NOTIFICATION, captured verbatim as RFC5492-3-1 at [MUST]. It binds only the speaker that has already chosen to send that message under the preceding MAY, which is the required-capability case; site 3:3 forbids the message outright in the unrecognized-capability case. Produced by buildUnsupportedCapabilityDataCodes and buildUnsupportedCapabilityData in internal/component/bgp/reactor, which encode the missing codes and families into the NOTIFICATION data at every call site that sends subcode 7."
+    },
+    {
+      "id": "3:2",
+      "quote": "If a BGP speaker receives from its peer a capability that it does not itself support or recognize, it MUST ignore that capability.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5492-3-2",
+      "reason": "The receiver's obligation to ignore a capability it does not support or recognize, captured verbatim as RFC5492-3-2 at [MUST]. Produced by parseCapability in internal/core/bgp/capability, whose default branch returns an Unknown capability and a nil error, so an unrecognized Capability Code reaches negotiation as data and never as a fault."
+    },
+    {
+      "id": "3:3",
+      "quote": "In particular, the Unsupported Capability NOTIFICATION message MUST NOT be generated and the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5492-3-3",
+      "reason": "One derived sentence stating two distinct MUST NOT obligations. It is mapped to RFC5492-3-3, 'the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker'. Its other conjunct, 'the Unsupported Capability NOTIFICATION message MUST NOT be generated', is RFC5492-3-4, which one mapped-to target cannot also name, so section 3 declares it in unsourced-ids. Both bind the unrecognized-capability case only, and neither touches the required-capability case that site 3:1 and the section's MAY govern. Produced by handleOpen in internal/component/bgp/reactor: an unrecognized code is already an Unknown capability by then, so no path from it reaches rejectOpenCapabilityError, which sends subcode 7 only for capability.ErrInvalidLength, a malformed TLV of a KNOWN capability."
+    },
+    {
+      "id": "4:1",
+      "quote": "Note, however, that processing of multiple instances of such capability does not require special handling, as additional instances do not change the meaning of the announced capability; thus, a BGP speaker MUST be prepared to accept such multiple instances.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5492-4-1",
+      "reason": "The receiver's obligation to accept several instances of one capability with the same Code, Length and Value, captured verbatim as RFC5492-4-1 at [MUST]. Produced by Parse in internal/core/bgp/capability, whose TLV loop appends every parsed capability with no dedup and no reject path."
+    },
+    {
+      "id": "4:2",
+      "quote": "Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5492-4-3",
+      "reason": "The obligation that a document introducing a new capability describe how several instances of its code with different values are processed, captured verbatim as RFC5492-4-3 at [MUST]. The row is annotated {not-applicable} because the obligation binds the author of that future specification rather than a running speaker. It is mapped rather than excluded binds-another-role, because the summary already declares the row and the row is gated, so this sentence is its source site."
+    },
+    {
+      "id": "4:3",
+      "quote": "However, for backward compatibility, a BGP speaker MUST be prepared to receive an OPEN message that contains multiple Capabilities Optional Parameters, each of which contains one or more capabilities TLVs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5492-4-2",
+      "reason": "The receiver's obligation to accept an OPEN carrying several Capabilities Optional Parameters, captured verbatim as RFC5492-4-2 at [MUST]. Produced by ParseFromOptionalParams in internal/core/bgp/capability, whose loop walks every optional parameter and appends the TLVs of each type-2 parameter to one capability list."
+    },
+    {
+      "id": "5:1",
+      "quote": "The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5492-5-1",
+      "reason": "The obligation that the NOTIFICATION Data field list the capabilities that caused the message, captured verbatim as RFC5492-5-1 at [MUST]. The row also carries the following sentence, that each such capability is encoded as it would be in the OPEN message, which carries no MUST-level keyword and is therefore no site of its own. Produced by buildUnsupportedCapabilityData and buildUnsupportedCapabilityDataCodes in internal/component/bgp/reactor, which write the code and length octets of each capability in OPEN encoding."
+    },
+    {
+      "id": "5:2",
+      "quote": "As explained in the \"Overview of Operations\" section, the Unsupported Capability NOTIFICATION is a way for a BGP speaker to complain that its peer does not support a required capability without which the peering cannot proceed.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Indicative: it recapitulates what section 3 already established, that the Unsupported Capability NOTIFICATION is how a speaker complains about a missing capability the peering requires. The word the scan raised is 'required' in 'a required capability', which is descriptive English rather than the RFC 2119 keyword; section 2 binds the key words only in upper case. The obligation of this paragraph is the next sentence, site 5:3."
+    },
+    {
+      "id": "5:3",
+      "quote": "It MUST NOT be used when a BGP speaker receives a capability that it does not understand; such capabilities MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5492-5-2",
+      "reason": "The prohibition on using the Unsupported Capability NOTIFICATION for a capability the speaker does not understand, captured verbatim as RFC5492-5-2 at [MUST NOT]. This is section 5's statement of the same rule section 3 states at site 3:3, written from the message's side rather than the session's, and it is mapped rather than excluded duplicate-of because the summary declares it as its own row."
+    }
+  ],
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3, 4 and 5. The derivation still grades the source 'prose', because it compares capitalised keyword sites against the gated rows the summary declares: eight sites quote a capitalised MUST or MUST NOT (3:1 through 5:3) against nine gated rows, since RFC5492-3-3 and RFC5492-3-4 are two obligations stated in the one sentence at site 3:3. The other three sites (1:1, 1:2 and 5:2) are raised by the case-insensitive modal scan the prose register uses. The sign-off claims the derived grade and nothing stronger."
+}

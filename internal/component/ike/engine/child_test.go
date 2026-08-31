@@ -441,3 +441,76 @@ func TestDeleteNotification(t *testing.T) {
 		t.Error("outbound SPI not removed")
 	}
 }
+
+// RFC requirement: RFC3948-1-1 positive -- "IPsec tunnel mode clients MUST support tunnel
+// mode" (RFC 3948 Section 1). A Child SA that negotiated no transport mode installs in
+// TUNNEL mode on the ChildSA, on both dataplane states and on both policies, and each
+// policy carries the tunnel endpoints the outer IP header needs
+// (child.go:302-304, childPolicyParams).
+func TestTunnelModeIsTheChildSADefault(t *testing.T) {
+	sa := testSA()
+	sa.IsInitiator = true
+	sa.PeerCfg.Mode = dataplane.ModeTunnel
+
+	dp := &mockDP{}
+	child, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 11, dp, slogutil.DiscardLogger())
+	if err != nil {
+		t.Fatalf("createFirstChildSA: %v", err)
+	}
+	defer child.Clear()
+
+	if child.Mode != modeTunnel {
+		t.Fatalf("child mode = %d, want tunnel (%d)", child.Mode, modeTunnel)
+	}
+	if len(dp.sas) != 2 {
+		t.Fatalf("installed SAs = %d, want 2; the sweep below would assert nothing", len(dp.sas))
+	}
+	if len(dp.policies) != 2 {
+		t.Fatalf("installed policies = %d, want 2; the sweep below would assert nothing", len(dp.policies))
+	}
+	for i, s := range dp.sas {
+		if s.Mode != modeTunnel {
+			t.Errorf("SA[%d] mode = %d, want tunnel (%d)", i, s.Mode, modeTunnel)
+		}
+	}
+	for i, p := range dp.policies {
+		if p.Mode != modeTunnel {
+			t.Errorf("policy[%d] mode = %d, want tunnel (%d)", i, p.Mode, modeTunnel)
+		}
+		if len(p.TunnelSrc) == 0 || len(p.TunnelDst) == 0 {
+			t.Errorf("tunnel policy[%d] carries no tunnel endpoints src=%v dst=%v; tunnel mode encapsulates under an outer header and the kernel resolves the policy through those addresses",
+				i, p.TunnelSrc, p.TunnelDst)
+		}
+	}
+
+	// RFC requirement: RFC3948-1-1 negative -- the peer cannot talk Ze out of tunnel mode.
+	// A peer that asks for USE_TRANSPORT_MODE while the operator configured tunnel leaves
+	// UseTransportMode false (transport_mode.go:96-98), so the Child SA still installs in
+	// tunnel mode with its endpoints, and tunnel-mode support is not conditional on what
+	// the peer requested.
+	peerAsks := testSA()
+	peerAsks.IsInitiator = true
+	peerAsks.PeerCfg.Mode = dataplane.ModeTunnel
+	peerAsks.PeerRequestedTransport = true
+	decideResponderTransportMode(peerAsks)
+	if peerAsks.UseTransportMode {
+		t.Fatal("a transport-mode request was accepted against a tunnel-mode configuration; the negative below would assert nothing")
+	}
+
+	declined := &mockDP{}
+	child2, err := createFirstChildSA(peerAsks, testESPGroup(), "10.0.0.1", "10.0.0.2", 12, declined, slogutil.DiscardLogger())
+	if err != nil {
+		t.Fatalf("createFirstChildSA after a declined transport request: %v", err)
+	}
+	defer child2.Clear()
+
+	if child2.Mode != modeTunnel {
+		t.Errorf("child mode after a declined transport-mode request = %d, want tunnel (%d)", child2.Mode, modeTunnel)
+	}
+	for i, p := range declined.policies {
+		if p.Mode != modeTunnel || len(p.TunnelSrc) == 0 || len(p.TunnelDst) == 0 {
+			t.Errorf("policy[%d] after a declined transport-mode request: mode=%d src=%v dst=%v, want tunnel (%d) with both endpoints",
+				i, p.Mode, p.TunnelSrc, p.TunnelDst, modeTunnel)
+		}
+	}
+}

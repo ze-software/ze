@@ -1,0 +1,167 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4360",
+  "register": "prose",
+  "source-path": "rfc/full/rfc4360.txt",
+  "source-sha": "759f302ace542b9f",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 5, rfc4360",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice and Abstract. The Abstract restates section 1: the attribute labels information carried in BGP-4 and the labels can control its distribution. No sentence directs a speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: the two enhancements over RFC 1997 (an extended range and a Type field), and what structure buys a policy writer. No directive."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Specification of Requirements. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. Unlike RFC 7313 section 2 it does not add the 'only when in all upper case' sentence, so this walk reads a lowercase modal on its own merits rather than as a key word."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "BGP Extended Communities Attribute. The document's wire-format section, written entirely in the indicative, so the site scan sees nothing in it and three declared MUST-level rows are read from here. It states the attribute is transitive optional with Type Code 16, that each extended community is an 8-octet quantity, that the Type Field is 1 octet for a Regular type and 2 for an Extended type, that the high-order octet carries the I (IANA authority) and T (transitive) bits with T=0 transitive and T=1 non-transitive across ASes, and that 'Two extended communities are declared equal only when all 8 octets of the community are equal.' The three unsourced ids below are those obligations. The remaining sentences are value definitions carried by the Wire Formats and Type Classification tables of rfc/short/rfc4360.md, and the closing 'The two members in the tuple <Type, Value> should be enumerated to specify any community value' is a lowercase modal describing how a value is written down, not a directive to a speaker.",
+      "unsourced-ids": [
+        "RFC4360-2-1",
+        "RFC4360-x-1",
+        "RFC4360-x-2"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Defined BGP Extended Community Types. One paragraph naming what 3.1 to 3.3 define: templates identified by the high-order octet, with the low-order octet as sub-type. No directive."
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Two-Octet AS Specific Extended Community. Value assignment: high-order octet 0x00 or 0x40, a 2-octet Global Administrator holding an IANA-assigned AS number and a 4-octet Local Administrator. Its one modal, 'The format and meaning of the value encoded in this sub-field should be defined by the sub-type of the community', is lowercase and binds whoever defines a future sub-type, not a speaker encoding one. The layout is carried by the Two-Octet AS Specific table of rfc/short/rfc4360.md."
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "IPv4 Address Specific Extended Community. Value assignment: high-order octet 0x01 or 0x41, a 4-octet Global Administrator holding a registry-assigned IPv4 address and a 2-octet Local Administrator. Its lowercase 'should be defined by the sub-type' sentence binds a future sub-type definition, as in 3.1. The layout is carried by the IPv4 Address Specific table of rfc/short/rfc4360.md."
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Opaque Extended Community. Value assignment: high-order octet 0x03 or 0x43 and a 6-octet opaque Value. States that the sub-type defining the Value Field is to be assigned by IANA, which is an allocation fact rather than a directive to a speaker. The layout is carried by the Opaque Extended Community table of rfc/short/rfc4360.md."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Route Target Community. Value assignment: an extended type whose high-order octet is 0x00, 0x01 or 0x02 and whose low-order octet is 0x02, transitive across the AS boundary, with the Local Administrator drawn from the numbering space of the organization holding the AS number or IP address in the Global Administrator sub-field. Every sentence is indicative, and the use is deferred to RFC 4364. Carried by the Sub-Types table of rfc/short/rfc4360.md."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Route Origin Community. The same shape as section 4 with low-order octet 0x03: an extended type, transitive across the AS boundary, Local Administrator drawn from the holder's numbering space, use deferred to RFC 4364. Indicative throughout. Carried by the Sub-Types table of rfc/short/rfc4360.md."
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Operations. The only section that directs a BGP speaker. Its one MUST-level site is 6:1, mapped below to RFC4360-6-1. Its four remaining directives are the two MAYs (append the attribute to a route that lacks it, modify the attribute per local policy) and the SHOULD and SHOULD NOT that bracket a non-transitive community at an AS boundary against a Confederation boundary; those are the four unsourced ids below, advisory and never gated. Two further sentences the site scan does not see are not obligations: the aggregation paragraph states a lowercase-'should' DEFAULT that the same paragraph says 'could be overridden via local configuration', and the closing paragraph is indicative division of labour, saying a route may carry both attributes and that the RFC 1997 one is handled per RFC 1997.",
+      "unsourced-ids": [
+        "RFC4360-6-2",
+        "RFC4360-6-3",
+        "RFC4360-6-4",
+        "RFC4360-6-5"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "IANA Considerations. Walked rather than skipped because two of its three sites are MUST-level sentences the summary declares as rows (RFC4360-7-1 and RFC4360-7-2), so an `iana` skip would hide two gated ids behind a skip kind. Both are mapped below, and both bind the registry: rfc/short/rfc4360.md records that as their {not-applicable} annotation, which is the summary's judgement and not this walk's. The rest of the section creates the 'BGP Extended Communities Type' registry and the three per-class registries, fixes the Standards Action, Early IANA Allocation, First Come First Served and Experimental ranges, and assigns 0x0002, 0x0003, 0x0102 and 0x0103. Those ranges and values are carried by the Type Classification and IANA Registered Type Values tables of rfc/short/rfc4360.md."
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that the extension has security implications similar to RFC 1997 and changes no underlying security issue, then places one condition on the operator (site 8:1), and puts the mechanism providing that trust relationship out of scope. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 4271, RFC 1997, RFC 2119, RFC 2434, RFC 4020."
+    },
+    {
+      "id": "11",
+      "sites": 1,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 4364. The derived section span runs to the end of the document, so it also holds Authors' Addresses, the Full Copyright Statement, the Intellectual Property boilerplate and the RFC Editor funding note. Site 11:1 is one sentence of that IPR boilerplate and is excluded below; nothing in the span states an obligation on a BGP speaker."
+    }
+  ],
+  "sites": [
+    {
+      "id": "6:1",
+      "quote": "The Extended Community attribute MUST NOT be used to modify the BGP best path selection algorithm in a way that leads to forwarding loops.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4360-6-1",
+      "reason": "The one MUST-level obligation this RFC places on a BGP speaker, captured verbatim as RFC4360-6-1 at [MUST NOT]. Its level matches the row's."
+    },
+    {
+      "id": "7:1",
+      "quote": "The value allocated for a regular Type MUST NOT be reused as the value of the high-order octet when allocating an extended Type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4360-7-1",
+      "reason": "The registry rule forbidding a regular Type value from being reused as the high-order octet of an extended Type, captured verbatim as RFC4360-7-1 at [MUST NOT]. Mapped rather than excluded because the summary already declares it as a gated row, so it is an obligation the checklist bounds; whether Ze plays the bound role is the annotation on that row, not a disposition here."
+    },
+    {
+      "id": "7:2",
+      "quote": "The value of the high-order octet allocated for an extended Type MUST NOT be reused when allocating a regular Type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4360-7-2",
+      "reason": "The converse registry rule, forbidding the high-order octet of an extended Type from being reused as a regular Type, captured verbatim as RFC4360-7-2 at [MUST NOT]. Mapped for the same reason as 7:1."
+    },
+    {
+      "id": "7:3",
+      "quote": "Future requests for assignment of a Type value must specify whether the Type value is intended for a transitive or a non- transitive Extended Community.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the party filing a future Type value assignment request with IANA, and IANA which records the answer: the sentence directs what such a REQUEST must specify, namely whether the value is for a transitive or a non-transitive Extended Community. Ze consumes allocated type codes and files no assignment request, so it never plays the requester role. The lowercase 'must' is why the site scan sees it only under the prose register."
+    },
+    {
+      "id": "8:1",
+      "quote": "Specifically, an operator who is relying on the information carried in BGP must have a transitive trust relationship back to the source of the information.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the network operator: the sentence conditions an operator who RELIES on information carried in BGP on having a transitive trust relationship back to the source, and the next sentence puts the mechanism providing that relationship beyond the scope of the document. It directs no encoding, decoding or propagation behavior a BGP speaker performs, and there is nothing for a daemon to implement."
+    },
+    {
+      "id": "11:1",
+      "quote": "The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative use: this is the IETF's standard Intellectual Property boilerplate, which the derived section span carries into section 11 after the Informative References. The sentence invites interested parties to disclose patent rights to the IETF, and its 'may be required to implement this standard' describes what a patent might cover rather than requiring anything of an implementation."
+    }
+  ],
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 1.1. The source carries three capitalised MUST-level sites (6:1, 7:1, 7:2) against six gated rows declared by rfc/short/rfc4360.md, so DeriveRegister grades it 'prose' and the site inventory is the case-insensitive modal scan. The sign-off claims exactly the derived grade. The three rows with no capitalised site behind them are read from the indicative wire-format prose of section 2 and are declared there as unsourced-ids."
+}
