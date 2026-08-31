@@ -98,7 +98,7 @@ func setupCapturingAuth(t *testing.T, sharedKey []byte, attrs []radius.Attr) (*r
 func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 	key := []byte("testing123")
 
-	// RFC requirement: RFC2865-4.1-2 positive -- a PAP request carries the
+	// RFC requirement: RFC2865-4.1-3 positive -- a PAP request carries the
 	// User-Password attribute, one of the three Section 4.1 admits.
 	a, srv, resp := setupCapturingAuth(t, key, nil)
 	a.handle(ppp.EventAuthRequest{
@@ -111,7 +111,7 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 		t.Fatal("a PAP Access-Request MUST carry a User-Password attribute")
 	}
 
-	// RFC requirement: RFC2865-4.1-2 positive -- a CHAP request carries the
+	// RFC requirement: RFC2865-4.1-3 positive -- a CHAP request carries the
 	// CHAP-Password attribute instead.
 	a, srv, resp = setupCapturingAuth(t, key, nil)
 	a.handle(ppp.EventAuthRequest{
@@ -125,7 +125,7 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 		t.Fatal("a CHAP Access-Request MUST carry a CHAP-Password attribute")
 	}
 
-	// RFC requirement: RFC2865-4.1-2 negative -- a peer that offered no
+	// RFC requirement: RFC2865-4.1-3 negative -- a peer that offered no
 	// credential (AuthMethodNone) yields no User-Password, no CHAP-Password and
 	// no State, so no Access-Request is sent and the session is denied.
 	a, srv, resp = setupCapturingAuth(t, key, nil)
@@ -137,7 +137,7 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 	}
 	assertNoRequest(t, srv, "AuthMethodNone")
 
-	// RFC requirement: RFC2865-4.1-2 negative -- an MS-CHAPv2 response too short
+	// RFC requirement: RFC2865-4.1-3 negative -- an MS-CHAPv2 response too short
 	// to yield a peer challenge and an NT response produces no credential
 	// attribute either, so no Access-Request is sent.
 	a, srv, resp = setupCapturingAuth(t, key, nil)
@@ -156,7 +156,7 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 func TestRFC2865SubscriberZeroLengthUserNameOmitted(t *testing.T) {
 	key := []byte("testing123")
 
-	// RFC requirement: RFC2865-5-4 positive -- a non-empty Peer-ID is text of
+	// RFC requirement: RFC2865-5-8 positive -- a non-empty Peer-ID is text of
 	// non-zero length, so the User-Name attribute is sent and carries it.
 	a, srv, resp := setupCapturingAuth(t, key, nil)
 	a.handle(ppp.EventAuthRequest{
@@ -168,7 +168,7 @@ func TestRFC2865SubscriberZeroLengthUserNameOmitted(t *testing.T) {
 		t.Fatalf("User-Name: got %q, want %q", got, "alice")
 	}
 
-	// RFC requirement: RFC2865-5-4 negative -- a PAP peer may send Peer-ID-Length
+	// RFC requirement: RFC2865-5-8 negative -- a PAP peer may send Peer-ID-Length
 	// 0, and text of length zero MUST NOT be sent, so the User-Name attribute is
 	// omitted entirely rather than sent empty.
 	a, srv, resp = setupCapturingAuth(t, key, nil)
@@ -205,28 +205,28 @@ func TestRFC2865SubscriberServiceTypeAuthorization(t *testing.T) {
 		return resp.waitOne(t).accept
 	}
 
-	// RFC requirement: RFC2865-5.6-1 positive -- an Access-Accept whose
+	// RFC requirement: RFC2865-1.1-2 positive -- an Access-Accept whose
 	// Service-Type is Framed-User names the service the LNS asked for and
 	// provides, so the session comes up.
 	if !accept(t, framed) {
 		t.Fatal("Framed-User is the service the LNS offers and MUST be accepted")
 	}
 
-	// RFC requirement: RFC2865-5.6-1 negative -- an Access-Accept whose
+	// RFC requirement: RFC2865-1.1-2 negative -- an Access-Accept whose
 	// Service-Type is Login-User names a service the LNS does not implement, so
 	// it is treated as an Access-Reject.
 	if accept(t, login) {
 		t.Fatal("an unsupported Service-Type MUST be treated as an Access-Reject")
 	}
 
-	// RFC requirement: RFC2865-1.1-1 positive -- an Access-Accept carrying no
+	// RFC requirement: RFC2865-1.1-2 positive -- an Access-Accept carrying no
 	// Service-Type authorizes the service the Access-Request named, which the LNS
 	// provides, so the session comes up.
 	if !accept(t, nil) {
 		t.Fatal("an Accept with no Service-Type authorizes what was asked")
 	}
 
-	// RFC requirement: RFC2865-1.1-1 negative -- Service-Type 7 (NAS-Prompt-User)
+	// RFC requirement: RFC2865-1.1-2 negative -- Service-Type 7 (NAS-Prompt-User)
 	// authorizes a service this LNS cannot offer at all, so the Access-Accept is
 	// treated as an Access-Reject rather than granting an unavailable service.
 	if accept(t, []radius.Attr{{Type: radius.AttrServiceType, Value: radius.AttrUint32(7)}}) {

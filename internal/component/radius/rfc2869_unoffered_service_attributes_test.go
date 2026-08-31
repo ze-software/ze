@@ -96,6 +96,10 @@ func declaredAttrConstants(t *testing.T) map[string]int {
 //
 // RFC requirement: RFC2869-1.1-1 positive -- the dictionary declares the RADIUS
 // attributes for the services Ze's NAS does offer (dict.go).
+// RFC requirement: RFC2865-1.1-1 positive -- RFC 2865 Section 1.1 carries the
+// same sentence, and dict.go is the one dictionary both documents bind, so the
+// constants this test finds for the services Ze does offer are the control for
+// the RFC 2865 obligation too.
 func TestRFC2869DictionaryCoversTheServicesZeOffers(t *testing.T) {
 	declared := declaredAttrConstants(t)
 	for name, want := range offeredServiceAttrs {
@@ -122,6 +126,10 @@ func TestRFC2869DictionaryCoversTheServicesZeOffers(t *testing.T) {
 // RFC requirement: RFC2869-1.1-1 negative -- no attribute constant names an ARAP
 // attribute or EAP-Message, because internal/component/l2tp/ppp carries pap.go,
 // chap.go and mschapv2.go and no ARAP or EAP module (dict.go).
+// RFC requirement: RFC2865-1.1-1 negative -- RFC 2865 Section 1.1 states it in
+// the same words ("A NAS that does not implement a given service MUST NOT
+// implement the RADIUS attributes for that service"), and dict.go declares no
+// ARAP attribute and no EAP-Message.
 func TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService(t *testing.T) {
 	for name, value := range declaredAttrConstants(t) {
 		if service, forbidden := unofferedServiceAttrs[value]; forbidden {

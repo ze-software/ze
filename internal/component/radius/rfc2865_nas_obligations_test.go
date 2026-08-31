@@ -104,7 +104,7 @@ func TestRFC2865FailoverRegeneratesRequestAuthenticator(t *testing.T) {
 	first := silent.request(t)
 	second := answering.request(t)
 
-	// RFC requirement: RFC2865-4.1-1 positive -- the failover assigns a new
+	// RFC requirement: RFC2865-4.1-6 positive -- the failover assigns a new
 	// Identifier to the second server, and Section 4.1 requires a new Request
 	// Authenticator each time a new Identifier is used, so the two requests carry
 	// different Identifiers AND different Request Authenticators.
@@ -121,14 +121,14 @@ func TestRFC2865FailoverRegeneratesRequestAuthenticator(t *testing.T) {
 	sentCipher := decoded.FindAttr(AttrUserPassword)
 	require.NotNil(t, sentCipher, "the second request MUST carry the User-Password")
 
-	// RFC requirement: RFC2865-4.1-1 positive -- the User-Password keystream is
+	// RFC requirement: RFC2865-4.1-6 positive -- the User-Password keystream is
 	// MD5(secret + Request Authenticator), so the ciphertext the second server
 	// receives is the one derived from the Request Authenticator that request
 	// actually carries.
 	assert.Equal(t, EncodeUserPassword(password, secret2, secondAuth), sentCipher,
 		"User-Password MUST be re-encoded under the request's own authenticator")
 
-	// RFC requirement: RFC2865-4.1-1 negative -- the previous request's
+	// RFC requirement: RFC2865-4.1-6 negative -- the previous request's
 	// authenticator is NOT reused: encoding under it yields a different
 	// ciphertext than the one sent, so no keystream was carried over.
 	assert.NotEqual(t, EncodeUserPassword(password, secret2, firstAuth), sentCipher,
@@ -155,12 +155,12 @@ func TestRFC2865EmptySharedSecretBuildsNoClient(t *testing.T) {
 		return contribution
 	}
 
-	// RFC requirement: RFC2865-3-6 positive -- a server row carrying a non-empty
+	// RFC requirement: RFC2865-3-8 positive -- a server row carrying a non-empty
 	// shared secret builds the RADIUS admin authenticator.
 	assert.NotNil(t, build("secret-one").Authenticator,
 		"a non-empty shared secret MUST build the RADIUS backend")
 
-	// RFC requirement: RFC2865-3-6 negative -- a server row whose key is the
+	// RFC requirement: RFC2865-3-8 negative -- a server row whose key is the
 	// empty string builds no authenticator, so no packet is ever signed with a
 	// zero-length secret (Section 3, "would allow packets to be trivially
 	// forged").
@@ -221,14 +221,14 @@ func TestRFC2865UnsupportedServiceTypeIsRejection(t *testing.T) {
 		return a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "pw"})
 	}
 
-	// RFC requirement: RFC2865-5.6-1 positive -- an Access-Accept whose
+	// RFC requirement: RFC2865-1.1-2 positive -- an Access-Accept whose
 	// Service-Type is the Login-User value the Access-Request asked for names a
 	// service this NAS implements, so the login is accepted.
 	res, err := login(t, []Attr{filterID, {Type: AttrServiceType, Value: AttrUint32(serviceTypeLogin)}})
 	require.NoError(t, err)
 	assert.True(t, res.Authenticated, "Login-User is the service the admin path offers")
 
-	// RFC requirement: RFC2865-5.6-1 negative -- an Access-Accept whose
+	// RFC requirement: RFC2865-1.1-2 negative -- an Access-Accept whose
 	// Service-Type is Framed-User names a service the admin login path does not
 	// implement, so it is treated as an Access-Reject.
 	res, err = login(t, []Attr{filterID, {Type: AttrServiceType, Value: AttrUint32(ServiceTypeFramed)}})
@@ -236,7 +236,7 @@ func TestRFC2865UnsupportedServiceTypeIsRejection(t *testing.T) {
 	require.ErrorIs(t, err, aaa.ErrAuthRejected,
 		"an unsupported Service-Type MUST be treated as an Access-Reject")
 
-	// RFC requirement: RFC2865-1.1-1 negative -- Service-Type 7 (NAS-Prompt-User)
+	// RFC requirement: RFC2865-1.1-2 negative -- Service-Type 7 (NAS-Prompt-User)
 	// authorizes a service this NAS cannot offer at all, so the Access-Accept is
 	// treated as an Access-Reject rather than granting an unavailable service.
 	res, err = login(t, []Attr{filterID, {Type: AttrServiceType, Value: AttrUint32(7)}})
@@ -244,7 +244,7 @@ func TestRFC2865UnsupportedServiceTypeIsRejection(t *testing.T) {
 	require.ErrorIs(t, err, aaa.ErrAuthRejected,
 		"an Access-Accept authorizing an unavailable service MUST be an Access-Reject")
 
-	// RFC requirement: RFC2865-1.1-1 positive -- an Access-Accept carrying no
+	// RFC requirement: RFC2865-1.1-2 positive -- an Access-Accept carrying no
 	// Service-Type authorizes the service the Access-Request named, which this
 	// NAS does offer, so the login is accepted.
 	res, err = login(t, []Attr{filterID})
@@ -261,7 +261,7 @@ func TestRFC2865ZeroLengthTextIsOmitted(t *testing.T) {
 
 	a := testAuthenticator(t, srv.mock.addr, key, ExtractedConfig{ProfileAttr: AttrFilterID})
 
-	// RFC requirement: RFC2865-5-4 positive -- a non-empty User-Name is text of
+	// RFC requirement: RFC2865-5-8 positive -- a non-empty User-Name is text of
 	// non-zero length, so the attribute is sent and carries the name.
 	_, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "pw"})
 	require.NoError(t, err)
@@ -269,7 +269,7 @@ func TestRFC2865ZeroLengthTextIsOmitted(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "alice", string(named.FindAttr(AttrUserName)))
 
-	// RFC requirement: RFC2865-5-4 negative -- an empty User-Name would be text of
+	// RFC requirement: RFC2865-5-8 negative -- an empty User-Name would be text of
 	// length zero, so the entire attribute is omitted rather than sent empty
 	// (Section 5, "omit the entire attribute instead").
 	_, err = a.Authenticate(aaa.AuthRequest{Username: "", Password: "pw"})

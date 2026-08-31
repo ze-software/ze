@@ -114,6 +114,10 @@ func acctExchange(t *testing.T, addr string, secret []byte) bool {
 // padding is ignored, and the reply is accepted. The authenticator the client
 // verifies is computed over the Length, so a decoder that read the padding as
 // data would reject a conformant server.
+// RFC requirement: RFC2865-3-6 positive -- RFC 2865 Section 3 states the same
+// Length rule for every RADIUS packet, and one Decode implements it for all
+// codes, so the padded Accounting-Response this test accepts is that rule
+// holding on the RFC 2865 packet format.
 func TestRFC2866LengthPaddingIgnoredOnReception(t *testing.T) {
 	secret := []byte("acct-secret")
 	padded := func(resp []byte) []byte {
@@ -130,6 +134,10 @@ func TestRFC2866LengthPaddingIgnoredOnReception(t *testing.T) {
 // not the end of the datagram. An attribute that sits inside the Length decodes;
 // the same attribute placed after it does not, so the padding is genuinely
 // ignored rather than the decoder dropping whatever comes last.
+// RFC requirement: RFC2865-3-6 negative -- the same Decode reads every RADIUS
+// packet, so the attribute this test places after the Length field is ignored
+// rather than read: the padding boundary is the Length, not the end of the
+// datagram.
 func TestRFC2866LengthPaddingBoundaryIsTheLengthField(t *testing.T) {
 	inside := []byte{AttrAcctSessionID, 5, 'a', 'b', 'c'}
 	outside := []byte{AttrUserName, 7, 'i', 'n', 'v', 'a', 'd'}
