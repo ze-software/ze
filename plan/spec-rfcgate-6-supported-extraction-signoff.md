@@ -848,6 +848,33 @@ not on walking effort, so Tier 1 throughput cannot be used to estimate the drain
 row D5 of `plan/deferrals/rfcgate-0-umbrella.md` wants measured. Tier 4 is where that
 measurement comes from.
 
+### Four walks of 2026-08-31, none able to sign
+
+The artifacts and their replay scripts are committed at
+`plan/deferrals/rfcgate-6-partial-walks/`. Each carries the id, the whole RFC sentence and
+the producing function for every finding, so this section names what changes a decision and
+does not copy them.
+
+| Stem | Sites | Classified | Why it cannot sign | Owner decision owed |
+|------|-------|------------|--------------------|---------------------|
+| `rfc3748` | 103 in 57 sections | 75 | 28 have no honest disposition; 7 belong to `plan/spec-eap-notification-and-nak.md`, itself blocked on its D-1 and D-2 | Whether a peer that accepts a canned EAP-Success is fixed here or there. The `rfc3748` row of `rfc/enrolled.txt` also publishes a non-conformance as MET |
+| `rfc9069` | 29 in 33 sections | 7 | 22 held sites are obligations `rfc/short/rfc9069.md` declares no row for | Whether the §5.2.1 VRF/Table Name TLV is owed on the default Loc-RIB instance. That one decision resolves 10 of the 22 |
+| `rfc9582` | 14 | 0 | The summary describes a different document | Lower the public row, or re-attribute the work to `draft-ietf-sidrops-8210bis` and enrol it. Both routes hit a gate wall (R-7) |
+| `rfc5176` | 72 in 28 sections | 32 | 40 unclassified, all resolving to `mapped`; projected ratio 0.40 | Whether 20 unmet MUSTs behind `Supported for subscriber access` are implemented or the row is lowered (R-7) |
+
+Three findings are settled and need no decision. The `rfc5176` §6.1 source-filter fail-open
+was a reachable authentication weakening and is fixed in commit `bcd764a5e`, with
+`RFC5176-6.1-1` added in both polarities. `docs/guide/bmp.md` claimed the RFC 9069 Loc-RIB
+Peer Up carries zero-length OPENs, the reverse of §5.2, fixed in `d91bdf5d4`. Two RADIUS
+comments naming the wrong behavior are fixed in `f5ac051e7`.
+
+Two findings are recorded rather than fixed, each with a journal row. Nothing replays the
+Adj-RIB after a BMP Peer Up, so a bounced or newly attached collector holds no routes until
+the peer's next UPDATE (`plan/journal/announced-state-never-replayed.md`). And three RFC 3748
+requirements are proven against `eap.DecodePacket`, which has no non-test caller: production
+parses EAP through `(*PayloadEAP).ReadFrom`, so those proofs would survive `ReadFrom`
+breaking.
+
 ## RFC Documentation (Scope: protocol)
 
 This spec adds no enforcing code, so it adds no `// RFC NNNN Section X.Y:` comment of its
