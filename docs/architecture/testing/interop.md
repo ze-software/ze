@@ -124,8 +124,21 @@ scenarios/bgp-ebgp-ipv4-frr/
 Every directory has one typed checker in `internal/le/interoplab/bgp`. The
 catalogue uses explicit operations for ordinary session, route, adjacency, log,
 and negative assertions, plus bespoke checkers for scenarios whose control flow
-cannot be represented as an ordered operation list. `Audit()` retains the exact
-digest and obligation mapping of the removed checker revision.
+cannot be represented as an ordered operation list.
+
+A bespoke checker is written in two halves. The body in `check_rfc.go` does the
+lab I/O and numbers each assertion, so a failure names the assertion that found
+it. The pure predicate in `check_rfc_predicate.go` takes the text or the decoded
+JSON a peer daemon produced, holds no lab handle, and decides. The split is what
+lets `TestBespokeCheckerBranches` drive both polarities of every predicate in
+seconds with no container.
+<!-- source: internal/le/interoplab/bgp/check_rfc_predicate.go -- pure predicates -->
+<!-- source: internal/le/interoplab/bgp/check_rfc.go -- tagged checker bodies -->
+
+A body MUST NOT call `checkScenario` (`check_engine.go`). That function answers
+`scenario %s has no typed assertions` for every name absent from
+`scenarioOperations`, and a bespoke name is absent from that table by design, so
+the call is an error that always fires and every line under it is unreachable.
 
 ### Optional sidecars
 
@@ -193,8 +206,13 @@ An absent value never proves a negative assertion by itself. The operation must
 also name positive evidence that the query mechanism ran. Failed and empty
 queries remain errors rather than becoming plausible empty protocol state.
 
-Scenarios with non-linear behavior live in `check_special.go`; their audit rows
-name each branch and mutation separately.
+Scenarios with non-linear behavior register a bespoke checker in
+`specialCheckers` (`check_special.go`). Each one owes a named subtest in
+`TestBespokeCheckerBranches` that drives its predicate in BOTH polarities: the
+true case, and a false case written against one stated wrong reading, such as
+two tokens matched across two log lines, a peer-originated event passing as a
+received one, or an absence with no proof that the query ran.
+<!-- source: internal/le/interoplab/bgp/bgp_test.go -- TestBespokeCheckerBranches -->
 
 ### Querying Ze
 
@@ -329,7 +347,9 @@ For more detail:
 3. Add the scenario's ordered assertions to `scenarioOperations` and
    `scenarioExtras`, or register a bespoke checker in `specialCheckers` when the
    control flow is non-linear.
-4. Add the source-contract audit row and focused branch tests.
+4. For a bespoke checker, put each decision in a pure predicate in
+   `check_rfc_predicate.go` and add its both-polarity subtest to
+   `TestBespokeCheckerBranches`.
 5. Run `INTEROP_SCENARIO=<name> ./le integration interop`.
 
 `TestCheckerPopulationMatchesProducer` compares every scenario directory with
@@ -337,6 +357,35 @@ the package-local registry. `TestEveryCheckerFailsClosedWithoutPeerEvidence`
 rejects a checker that can pass without reading a peer. Each negative assertion
 must carry positive proof that its query mechanism ran.
 <!-- source: internal/le/interoplab/bgp/checkers.go -- checkers -->
+
+#### A scenario that reads the RIB attaches the RIB plugin
+
+`plugin { internal rib { use bgp-rib; } }` loads the plugin. It does NOT feed it.
+A peer delivers an event to a process only where both halves agree, and the
+peer's half is its attach block (`Server.PeerScopedProcs`,
+`internal/component/plugin/server/delivery_graph.go`). A peer with no
+`attach process rib` block grants nothing, so the plugin sees no peer at all and
+every RIB question answers empty:
+
+```
+	attach process rib {
+		receive [ update state refresh ];
+	}
+```
+
+The tell is `"peers": 0` from `show bgp rib status` while `show bgp peer list`
+reports both sessions Established. Ze also logs it at startup: *"the plugin
+declared events and no peer attaches it"*.
+
+#### Editing a config means recreating the container, not restarting it
+
+Ze persists its configuration, so `docker restart` on a scenario container runs
+the peers of the FIRST boot and ignores the edited file the mount now carries.
+`docker exec ... cat /etc/ze/bgp.conf` shows the new text while `show bgp peer
+list` shows the old peers, which reads as a config that had no effect. Remove
+the container and start a new one instead. Every restart-based config
+experiment in a hand-built lab is void, and the harness is unaffected because it
+creates each container once.
 
 For Ze's configuration syntax, see [docs/architecture/config/syntax.md](../config/syntax.md).
 Copy an existing scenario's `ze.conf` as a starting point.
