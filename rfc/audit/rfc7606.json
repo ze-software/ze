@@ -38,6 +38,7 @@
     "2026-08-28 targeted re-audit of RFC7606-5.4-1 after test/plugin/rfc7606-54-bgpls-override-propagates.ci changed readiness and linger mechanics. RFC 7606 Section 5.4, RFC 9552 Section 5.2, the generated requirement shard, the complete tagged carrier, routeServerReplay13, the per-family NLRI-type registry, the ingress discard pass, and the relay payload path were re-read. The wire input and exact expect=bgp contains assertion are unchanged. The new option=linger keeps ze-peer alive while the compiled observer waits for two EoRs and the later IPv4 processing fence; that observer does not inspect or substitute for the BGP-LS assertion. BGP-LS deliberately registers no Section 5.4 recognizer, so the ingress pass preserves unknown type 99, and the receiver must observe the contiguous known-plus-unknown NLRI bytes. Dropping, rewriting, or reordering type 99 makes that assertion fail. The verdict remains enforced.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
+    "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
     "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note."
   ],
   "reaudit_note": "Mechanical re-stamp by `./le rfc reseal`. Every verdict re-stamped below was in the SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each tagged test -- were byte-identical to the tree, and only the file around them had moved (a line shift, a sibling test, an import rewrite). Nothing about what any of these tests asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A verdict whose unit, cited producer code, or requirement text moved was REFUSED and left stale for a human. The proof is the code in verdict_freshness(), not this note.",
@@ -51,7 +52,7 @@
         "internal/component/bgp/plugins/rib/rib_structured_test.go::TestRIBTreatAsWithdrawAddPathPreservesPathID": "c0411f60b1cff97c",
         "internal/component/bgp/plugins/rib/rib_structured_test.go::TestRIBTreatAsWithdrawRemovesInstalledRoute": "c0411f60b1cff97c",
         "internal/component/bgp/reactor/rfc7606_session_structural_test.go::TestSessionRFC7606ValidUpdateDispatchesAnnouncement": "a2709905771d74c8",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal": "ec6bf7d7dfa64ef1"
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal": "8e6e2d4d6d4f43d8"
       },
       "units": {
         "internal/component/bgp/message/rfc7606_withdraw_test.go::TestSynthesizeWithdrawConvertsMPReachToMPUnreach": "4bf7425583f3618f",
@@ -69,7 +70,7 @@
       "tests": {
         "internal/component/bgp/message/attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "e631404e10fbee92",
         "internal/component/bgp/message/attr_discard_test.go::TestApplyAttrDiscardMultipleEntries": "e631404e10fbee92",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "ec6bf7d7dfa64ef1"
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "8e6e2d4d6d4f43d8"
       },
       "units": {
         "internal/component/bgp/message/attr_discard_test.go::TestApplyAttrDiscardEmptyEntries": "b75fed7367066278",
@@ -223,7 +224,7 @@
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606MultipleMPReach": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606SystematicLengthCorruption": "41fae6472d6a1c4d",
         "internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go::TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire": "7a0fbc9ab56a1631",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606SessionResetNotification": "ec6bf7d7dfa64ef1",
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606SessionResetNotification": "8e6e2d4d6d4f43d8",
         "internal/component/bgp/reactor/session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk": "25c96de03fee2bc0",
         "internal/component/bgp/reactor/session_validation_dupmp_test.go::TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk": "25c96de03fee2bc0",
         "internal/component/bgp/reactor/session_validation_dupmp_unreach_test.go::TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent": "63addcbc92d19c5a"
@@ -783,7 +784,7 @@
         "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "e631404e10fbee92",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefEBGPDiscard": "41fae6472d6a1c4d",
         "internal/component/bgp/message/rfc7606_test.go::TestRFC7606LocalPrefIBGPValid": "41fae6472d6a1c4d",
-        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "ec6bf7d7dfa64ef1"
+        "internal/component/bgp/reactor/session_test.go::TestSessionRFC7606AttributeDiscardContinues": "8e6e2d4d6d4f43d8"
       },
       "units": {
         "internal/component/bgp/message/attr_discard_test.go::TestRFC7606DiscardEntryReasonCodes": "37b93f552b985f8b",
