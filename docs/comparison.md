@@ -524,7 +524,7 @@ attributes are consumed:
 | Idle-Timeout (28) | RFC 2865 S5.28 | Disconnects after inactivity period (Linux RX byte counters) |
 | Filter-Id (11) | RFC 2865 S5.11 | Multi-valued: "cos:\<name\>" selects a dynamic 802.1p CoS profile for the access VLAN; other values set the initial shaping rate |
 | Vendor-Specific (26) | RFC 2865 S5.26 | Extracts CoS profile names from Cisco-AVPair (`subscriber:sub-qos-policy-{in,out}`), Juniper ERX (Ingress/Egress-Policy-Name), Nokia (Alc-Subscriber-QoS-Override), and Huawei (HW-Subscriber-QoS-Profile) VSAs; extracts shaper rate from MikroTik (Mikrotik-Rate-Limit). Ze "cos:" Filter-Id takes priority over vendor VSAs. Unknown vendor IDs silently ignored. |
-| Acct-Interim-Interval (85) | RFC 2866 S5.18 | Overrides per-session accounting update interval [60,3600]s |
+| Acct-Interim-Interval (85) | RFC 2869 S5.16 | Sets the per-session accounting update interval, clamped to [60,3600]s. RFC 2869 S2.1 gives a configured `acct-interval` precedence over it, so the attribute decides only for a deployment that leaves that leaf unset |
 
 <!-- source: internal/component/l2tp/plugins/authradius/extract.go -- extractAuthMetadata -->
 <!-- source: internal/component/l2tp/plugins/authradius/extract_vsa.go -- vendor VSA CoS/rate extraction -->

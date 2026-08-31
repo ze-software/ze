@@ -33,6 +33,28 @@ The non-Linux build returns 0, so the timer fires unconditionally there.
 **The accounting interval is clamped to 60 to 3600 seconds.** A misconfigured
 RADIUS server would otherwise drive an accounting storm.
 
+**A configured `acct-interval` beats the Access-Accept, and the leaf carries no
+YANG default.** RFC 2869 Section 2.1 puts the NAS in charge: "Note that a locally
+configured value on the NAS MUST override the value found in an Access-Accept."
+That rule needs the absent case to survive the parse. The parser wrote 300
+seconds into every config that named no leaf, so every deployment looked locally
+configured. That default moved into `acctIntervalDefault`, which applies only
+after the Access-Accept is silent too.
+
+The leaf lost its own `default 300` in the same change, because a schema states
+what the code does. Measured on 2026-08-31, the YANG default was inert on this
+path: `ParseTreeWithYANG` and `ToPluginMap` do not materialize a leaf nobody
+wrote.
+
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- acctInterval, acctIntervalDefault -->
+<!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- acct-interval -->
+<!-- source: rfc/short/rfc2869.md -- RFC2869-2.1-2 -->
+
+**A local value is not clamped twice.** The clamp above applies to the
+Access-Accept value alone. The `acct-interval` leaf carries its own YANG range,
+which is the same 60 to 3600 seconds. A configured value arrives inside the
+range, or the commit fails.
+
 **Framed-IP-Netmask is not applied to the PPP interface.** PPP is point to
 point, so the netmask only matters for delegated-prefix routing. That belongs
 with the IPv6 pool work, not here.

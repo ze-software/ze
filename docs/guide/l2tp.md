@@ -331,6 +331,20 @@ placeholder that does not exist, one longer than 253 characters (the largest
 value a RADIUS attribute can carry), and one using `{nas-id}` with no
 `nas-identifier` set. Unset sends no attribute.
 
+`acct-interval` is the interim accounting cadence in seconds, and it has no
+default. RFC 2869 Section 2.1 states that a locally configured value on the NAS
+MUST override the value found in an Access-Accept. A leaf that is set therefore
+pins the cadence of every session, and a RADIUS server cannot move it. An unset
+leaf gives that decision to each session's Access-Accept. The value arrives in
+the Acct-Interim-Interval attribute (type 85), which Ze clamps to 60..3600
+seconds. A session runs at 300 seconds when neither side states an interval.
+
+The choice is which side owns the cadence. An operator who sized the interval
+for the NAS and the network sets the leaf. An operator who leaves it unset lets
+one server retime every session that server accepts.
+
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- acctInterval -->
+
 `coa-port` enables the UDP Change of Authorization and Disconnect-Message
 listener. It has no default: leaving it unset keeps the listener off, so an
 upgrade cannot expose a new RADIUS endpoint unexpectedly. Port 3799 is the
@@ -338,12 +352,20 @@ standard deployment choice. Ze accepts CoA/DM requests only from addresses
 listed under `server`; the authentication and accounting destination port on
 each server is configured separately.
 
-Every CoA-Request and Disconnect-Request Ze accepts MUST carry a
-Message-Authenticator attribute. RFC 5176 Section 3.4 makes the attribute
-optional, and Ze requires it: a request without one is discarded with no reply,
-because the Request Authenticator alone is an unkeyed MD5 an on-path party can
-recompute. Configure the Dynamic Authorization Client to send it. FreeRADIUS
-`radclient` and the `radiusd` CoA originator both do.
+RFC 5176 Section 3.4 makes the Message-Authenticator attribute optional, and Ze
+follows the RFC by default: a CoA-Request or Disconnect-Request that carries none
+is accepted, and one that carries a wrong value is discarded with no reply. The
+request still has to come from a configured Dynamic Authorization Client and
+still has to carry a correct Request Authenticator, both keyed on the shared
+secret, so an absent attribute is not an unauthenticated request.
+
+Set `require-message-authenticator true` to refuse a request that carries none.
+Requiring the attribute is the mitigation for the Blast-RADIUS class of attack on
+the RADIUS/UDP MD5 authenticator, so enable it wherever the Dynamic Authorization
+Client can send one. FreeRADIUS `radclient` and the `radiusd` CoA originator both
+can. The default is permissive because a Dynamic Authorization Client that omits
+the attribute is conformant, and refusing it outright made Ze unable to talk to
+one at all.
 
 Both authenticators are computed in the order RFC 5176 Section 3.4 fixes. The
 Message-Authenticator is the HMAC-MD5 over the packet with the Request
@@ -429,9 +451,11 @@ l2tp {
 
 RADIUS `Filter-Id` can override the default shaping rate when it contains a
 parseable rate, otherwise Ze keeps the configured default rate. `Session-Timeout`
-and `Idle-Timeout` start per-session teardown timers, and
-`Acct-Interim-Interval` overrides the accounting update cadence within the
-supported clamp range. RADIUS CoA rate updates do not tear down the session.
+and `Idle-Timeout` start per-session teardown timers.
+`Acct-Interim-Interval` sets the accounting update cadence, clamped to 60..3600
+seconds. It applies to a session whose deployment left `acct-interval` unset.
+RFC 2869 Section 2.1 gives a configured `acct-interval` precedence over it.
+RADIUS CoA rate updates do not tear down the session.
 
 <!-- source: internal/component/l2tp/plugins/shaper/ -->
 
