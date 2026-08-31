@@ -22,32 +22,91 @@ import (
 // Path Identifier), so two paths sharing one identifier collapse into one route, and
 // nothing in Ze's own view of what it sent would show it.
 func checkAddPathReadvertiseCollision(ctx context.Context, check *interoplab.CheckContext) error {
-	if err := checkScenario(ctx, check, "bgp-addpath-readvertise-collision-frr"); err != nil {
-		return err
+	const name = "bgp-addpath-readvertise-collision-frr"
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+	if !check.Network.IPv4.IsValid() {
+		return fail(1, errors.New("ADD-PATH collision scenario has no selected IPv4 network"))
 	}
 	zeAddress := networkHostAddress(check.Network, 2)
-	before, err := queryFRREstablishedEpoch(ctx, check.Lab, zeAddress)
+	sessions := []operation{
+		{kind: opFRRSession, argument: zeAddress},
+		{kind: opGoBGPSession, argument: zeAddress},
+	}
+	for index := range sessions {
+		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
+			return fail(index+1, err)
+		}
+	}
+
+	// Assertion 3. Without ADD-PATH on the ze to FRR session, FRR keeps one path for
+	// a reason that has nothing to do with the Path Identifier, and every assertion
+	// below reads a table whose shape the capability decided.
+	neighbor, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp neighbor " + zeAddress + " json"}, nil)
 	if err != nil {
-		return err
+		return fail(3, err)
+	}
+	if !addPathReceiveNegotiated(neighbor) {
+		return fail(3, errors.New("FRR did not negotiate ADD-PATH receive with ze"))
+	}
+
+	// Assertion 4. BIRD announces the same prefix when its session comes up, so
+	// injecting GoBGP's path here makes the two paths reach FRR by different rails:
+	// BIRD's through the peer-up replay, GoBGP's through the live forward.
+	if _, err := check.Lab.Exec(ctx, peerGoBGP, []string{
+		cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, peerPrefixFirst, "-a", gobgpFamilyIPv4,
+		gobgpNextHop, networkHostAddress(check.Network, 5),
+	}, nil); err != nil {
+		return fail(4, err)
 	}
 	live, err := waitAddPathState(ctx, check.Lab)
 	if err != nil {
-		return err
+		return fail(5, err)
+	}
+
+	// Assertions 6 to 9. The identifier belongs to the path, not to the delivery, so
+	// the replay after a reset must repeat it. The reset is watched by the epoch FRR
+	// reports rather than by the prefix going away: ze reconnects in about a second,
+	// so polling for the absence loses the race and reports a reset that plainly
+	// happened as one that never did.
+	before, err := queryFRREstablishedEpoch(ctx, check.Lab, zeAddress)
+	if err != nil {
+		return fail(6, err)
 	}
 	if _, err := check.Lab.Exec(ctx, peerFRR, []string{cmdVtysh, "-c", "clear bgp " + zeAddress}, nil); err != nil {
-		return err
+		return fail(7, err)
 	}
 	if err := waitFRRNewEpoch(ctx, check.Lab, zeAddress, before); err != nil {
-		return err
+		return fail(8, err)
 	}
 	replayed, err := waitAddPathState(ctx, check.Lab)
 	if err != nil {
-		return err
+		return fail(9, err)
 	}
 	if !samePathIdentifiers(live, replayed) {
-		return fmt.Errorf("replayed Path Identifiers differ from live identifiers: live=%v replayed=%v", live, replayed)
+		return fail(10, fmt.Errorf("replayed Path Identifiers differ from live identifiers: live=%v replayed=%v", live, replayed))
+	}
+	for index := range sessions {
+		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
+			return fail(index+11, err)
+		}
 	}
 	return nil
+}
+
+// addPathReceiveNegotiated reports whether FRR's own neighbor JSON says the
+// ADD-PATH receive direction was advertised by FRR and received from ze. The needle
+// keeps its opening quote so the send direction, which FRR spells
+// "txAdvertisedAndReceived", can never satisfy it: ze sending Path Identifiers that
+// FRR never agreed to receive is one of the states this predicate exists to reject.
+// FRR pretty-prints the document, so the spaces come out before the match. The
+// rendered token is matched rather than a decoded field because the nesting under
+// neighborCapabilities moves between FRR releases while the token does not, and the
+// deleted Python checker matched this same token against FRR 10.3.1.
+func addPathReceiveNegotiated(neighborJSON string) bool {
+	const negotiated = `"rxAdvertisedAndReceived":true`
+	return strings.Contains(strings.ReplaceAll(neighborJSON, " ", ""), negotiated)
 }
 
 // RFC requirement: RFC4271-5.1.5-2 positive -- "A BGP speaker MUST NOT include
@@ -106,31 +165,96 @@ func checkRelayWithdrawalShape(ctx context.Context, check *interoplab.CheckConte
 // by itself would put fe80::be:ef:2 on this route too, and this assertion is what
 // fails when it does.
 func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) error {
-	if err := checkScenario(ctx, check, "bgp-rfc2545-linklocal-nexthop-frr"); err != nil {
-		return err
+	const (
+		name             = "bgp-rfc2545-linklocal-nexthop-frr"
+		onLinkPrefix     = "2001:db8:5601::/48"
+		offLinkPrefix    = "2001:db8:5602::/48"
+		offLinkNextHop   = "2001:db8:ffff::1"
+		linkLocalNextHop = "fe80::be:ef:2"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
 	}
-	onLink, err := queryFRRNextHops(ctx, check.Lab, "2001:db8:5601::/48")
-	if err != nil {
-		return err
-	}
-	offLink, err := queryFRRNextHops(ctx, check.Lab, "2001:db8:5602::/48")
-	if err != nil {
-		return err
+	if !check.Network.IPv4.IsValid() {
+		return fail(1, errors.New("RFC 2545 scenario has no selected IPv4 network"))
 	}
 	if !check.Network.IPv6.IsValid() {
-		return errors.New("RFC 2545 scenario has no selected IPv6 network")
+		return fail(1, errors.New("RFC 2545 scenario has no selected IPv6 network"))
 	}
-	expectedGlobal := check.Network.IPv6.Addr()
-	for range 2 {
-		expectedGlobal = expectedGlobal.Next()
+	// Every assertion below reads its prefix back out of the operation that waited
+	// for the route, so the wait and the assertion can never name two routes.
+	session := operation{kind: opFRRSession, argument: networkHostAddress(check.Network, 2)}
+	onLinkRoute := operation{kind: opFRRRoute, argument: onLinkPrefix, family: frrFamilyIPv6Unicast, timeout: 60 * time.Second}
+	offLinkRoute := operation{kind: opFRRRoute, argument: offLinkPrefix, family: frrFamilyIPv6Unicast, timeout: 60 * time.Second}
+	for index, step := range []*operation{&session, &onLinkRoute, &offLinkRoute} {
+		if err := runOperation(ctx, check.Network, check.Lab, step); err != nil {
+			return fail(index+1, err)
+		}
 	}
-	if err := requireNextHopShape(onLink, expectedGlobal, netip.MustParseAddr("fe80::be:ef:2")); err != nil {
-		return fmt.Errorf("on-link route: %w", err)
+
+	// Assertion 4. ze.conf names fd00:1e:0::2 as the on-link global next hop, which
+	// the harness rewrites onto the selected IPv6 network: host 2 on that /64.
+	expectedGlobal := check.Network.IPv6.Addr().Next().Next()
+	// One parse, so the shape assertion and the installed-route assertion below can
+	// never name two addresses, and FRR's listing is matched against the canonical
+	// rendering rather than against a second spelling of the same address.
+	linkLocal := netip.MustParseAddr(linkLocalNextHop)
+	onLink, err := queryFRRNextHops(ctx, check.Lab, onLinkRoute.argument)
+	if err != nil {
+		return fail(4, err)
 	}
-	if err := requireNextHopShape(offLink, netip.MustParseAddr("2001:db8:ffff::1"), netip.Addr{}); err != nil {
-		return fmt.Errorf("off-link route: %w", err)
+	if err := requireNextHopShape(onLink, expectedGlobal, linkLocal); err != nil {
+		return fail(4, fmt.Errorf("on-link route: %w", err))
+	}
+
+	// Assertion 5. FRR forwards through the link-local address, so the second next
+	// hop was not merely parsed but used. Without this half the RFC2545-3-3 positive
+	// tag claims an installation that nothing reads.
+	routes, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show ipv6 route bgp"}, nil)
+	if err != nil {
+		return fail(5, err)
+	}
+	if err := requireRouteInstalledVia(routes, onLinkRoute.argument, linkLocal.String()); err != nil {
+		return fail(5, err)
+	}
+
+	// Assertion 6. The same session, the same `link-local` leaf, and a global next
+	// hop on no locally connected prefix: the link-local address is absent.
+	offLink, err := queryFRRNextHops(ctx, check.Lab, offLinkRoute.argument)
+	if err != nil {
+		return fail(6, err)
+	}
+	if err := requireNextHopShape(offLink, netip.MustParseAddr(offLinkNextHop), netip.Addr{}); err != nil {
+		return fail(6, fmt.Errorf("off-link route: %w", err))
+	}
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(7, err)
 	}
 	return nil
+}
+
+// requireRouteInstalledVia reports whether a daemon's route listing installs prefix
+// through nextHop. The prefix and the next hop MUST appear on ONE line: FRR writes
+// each installed route as `B>* <prefix> [20/0] via <next hop>, eth0`, so a next hop
+// found on any other line belongs to a different route, and accepting it would let
+// a route installed through its global next hop alone pass as installed through the
+// link-local one. An empty listing is a failure rather than an absence, because a
+// query that answered nothing is not a table with no route in it.
+func requireRouteInstalledVia(routes, prefix, nextHop string) error {
+	installed := false
+	for line := range strings.SplitSeq(routes, "\n") {
+		if !strings.Contains(line, prefix) {
+			continue
+		}
+		installed = true
+		if strings.Contains(line, nextHop) {
+			return nil
+		}
+	}
+	if !installed {
+		return fmt.Errorf("daemon installed no route for %s", prefix)
+	}
+	return fmt.Errorf("daemon installed %s, but not via next hop %s", prefix, nextHop)
 }
 
 // RFC requirement: RFC7606-5.1-3 positive -- ONE UPDATE mixing Withdrawn Routes with NLRI is

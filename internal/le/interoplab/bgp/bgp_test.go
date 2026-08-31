@@ -403,6 +403,55 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("bgp-addpath-readvertise-collision-frr", func(t *testing.T) {
+		negotiated := `{"172.30.0.2":{"neighborCapabilities":{"addPath":{"ipv4Unicast":{"rxAdvertised": true, "rxAdvertisedAndReceived": true}}}}}`
+		if !addPathReceiveNegotiated(negotiated) {
+			t.Fatal("a negotiated ADD-PATH receive direction was rejected")
+		}
+		if addPathReceiveNegotiated(`{"addPath":{"ipv4Unicast":{"txAdvertisedAndReceived": true}}}`) {
+			t.Fatal("the ADD-PATH send direction passed as the receive direction")
+		}
+		if addPathReceiveNegotiated(`{"addPath":{"ipv4Unicast":{"rxAdvertised": true, "rxAdvertisedAndReceived": false}}}`) {
+			t.Fatal("an advertised but unagreed receive direction passed as negotiated")
+		}
+		if addPathReceiveNegotiated("") {
+			t.Fatal("an empty neighbor answer passed as a negotiated capability")
+		}
+		live := map[string]uint64{"65003": 0, "65004": 1}
+		if !samePathIdentifiers(live, map[string]uint64{"65003": 0, "65004": 1}) {
+			t.Fatal("a replay repeating both Path Identifiers was reported as renumbered")
+		}
+		if samePathIdentifiers(live, map[string]uint64{"65003": 1, "65004": 0}) {
+			t.Fatal("a replay that swapped the two Path Identifiers passed")
+		}
+		if samePathIdentifiers(live, map[string]uint64{"65004": 1}) {
+			t.Fatal("a replay that lost one path passed")
+		}
+	})
+
+	t.Run("bgp-rfc2545-linklocal-nexthop-frr", func(t *testing.T) {
+		const (
+			onLink    = "2001:db8:5601::/48"
+			offLink   = "2001:db8:5602::/48"
+			linkLocal = "fe80::be:ef:2"
+		)
+		installed := "B>* " + onLink + " [20/0] via " + linkLocal + ", eth0, weight 1, 00:00:07\n"
+		if err := requireRouteInstalledVia(installed, onLink, linkLocal); err != nil {
+			t.Fatalf("a route installed via the link-local next hop failed: %v", err)
+		}
+		split := "B>* " + onLink + " [20/0] via 2001:db8:ffff::1, eth0\n" +
+			"B>* " + offLink + " [20/0] via " + linkLocal + ", eth0\n"
+		if err := requireRouteInstalledVia(split, onLink, linkLocal); err == nil {
+			t.Fatal("a next hop taken from another route's line passed")
+		}
+		if err := requireRouteInstalledVia("B>* "+offLink+" [20/0] via "+linkLocal+", eth0\n", onLink, linkLocal); err == nil {
+			t.Fatal("an uninstalled route passed as installed")
+		}
+		if err := requireRouteInstalledVia("", onLink, linkLocal); err == nil {
+			t.Fatal("an empty route listing passed as installed")
+		}
+	})
+
 	t.Run("bgp-addpath-rail-agreement-speaker", func(t *testing.T) {
 		const update = "0000000000000007180a6300"
 		logs := "established: yes\nresult: PASS\nnote: update-hex: " + update + "\n"
