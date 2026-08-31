@@ -451,12 +451,14 @@ The wire methods are crossed in a way nobody would guess:
 `ze-show:system-memory` is bound to `show runtime memory`, and
 `ze-show:system-memory-map` is bound to `show system memory`.
 
-### Enumerate has four spellings
+### Enumerate has three spellings
 
 `show sysctl keys` (bare plural), `show metrics list`, `show event list`,
-`show dns cache list`, `show schema list`, `show env list`, `show data ls`,
-`show config ls`, `show yang tree`. `ls` and `list` coexist in adjacent verbs
-with no distinguishing principle.
+`show dns cache list`, `show schema list`, `show env list`, `show data list`,
+`show config list`, `show yang tree`. `ls` was the fourth spelling, on
+`show data ls` and `show config ls` alone. Both were renamed to `list` on
+2026-08-31, and `ai/rules/cli.md` now fixes the verb for every command that
+enumerates the members of a set.
 
 ### Counters have three spellings
 

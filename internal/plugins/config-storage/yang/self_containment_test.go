@@ -11,7 +11,7 @@ import (
 // See ai/rules/plugins.md.
 func TestStorageCliCmdSchemaOwnsDataCommands(t *testing.T) {
 	for _, want := range []string{
-		`ze:command "ze-show:data-ls"`,
+		`ze:command "ze-show:data-list"`,
 		`ze:command "ze-show:data-cat"`,
 		`ze:command "ze-show:data-registered"`,
 		"container data",

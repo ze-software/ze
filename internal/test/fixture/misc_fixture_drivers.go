@@ -210,9 +210,9 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 	}) {
 		return fmt.Errorf("config history lost draft row: %v: %w", value, err)
 	}
-	value, err = localJSON("show config ls | json compact", "show config ls")
+	value, err = localJSON("show config list | json compact", "show config list")
 	if err != nil || !hasRow(rows(value, "configs"), func(row map[string]any) bool { return row["source"] == "fs" && row["path"] == configPath }) {
-		return fmt.Errorf("config ls lost filesystem row: %v: %w", value, err)
+		return fmt.Errorf("config list lost filesystem row: %v: %w", value, err)
 	}
 	value, err = localJSON("show schema list | json compact", "show schema list")
 	if err != nil || !hasRow(rows(value, "schemas"), func(row map[string]any) bool {
@@ -253,9 +253,9 @@ func pipeLocalCommandDriver(ctx context.Context, args []string) error {
 	if err != nil || asMap(value)["protocol"] != "Hub Architecture" || asMap(value)["version"] != "1.0" {
 		return fmt.Errorf("schema protocol changed: %v: %w", value, err)
 	}
-	value, err = localJSON("show data ls --path "+blobPath+" | json compact", "show data ls")
+	value, err = localJSON("show data list --path "+blobPath+" | json compact", "show data list")
 	if err != nil || !hasRow(rows(value, "keys"), func(row map[string]any) bool { return row["key"] == "meta/instance/name" }) {
-		return fmt.Errorf("data ls lost written key: %v: %w", value, err)
+		return fmt.Errorf("data list lost written key: %v: %w", value, err)
 	}
 	value, err = localJSON("show data registered | json compact", "show data registered")
 	if err != nil || !hasRow(rows(value, "patterns"), func(row map[string]any) bool {

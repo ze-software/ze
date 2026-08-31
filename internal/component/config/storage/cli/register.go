@@ -24,10 +24,10 @@ func init() {
 		Section:     registry.SectionConfiguration,
 		Subs:        "import, rm, ls, cat",
 	})
-	// ls and registered answer with DATA, so their answers reach the pipe
+	// list and registered answer with DATA, so their answers reach the pipe
 	// layer. They printed a table and returned an exit code, while YANG
 	// declared a wire method for each that no daemon handler implements.
-	registry.MustRegisterLocalData("show data ls", dataLs, registry.Meta{
+	registry.MustRegisterLocalData("show data list", dataList, registry.Meta{
 		Description: "The keys the ZeFS blob store holds. Narrow them with a prefix.",
 		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
@@ -45,8 +45,8 @@ func init() {
 		return Run(append([]string{"cat"}, args...))
 	})
 
-	command.RegisterShape([]string{"show data ls", "show data registered"}, command.ShapeTab)
-	command.RegisterColumns([]string{"show data ls"}, command.ColumnOrder{"key"})
+	command.RegisterShape([]string{"show data list", "show data registered"}, command.ShapeTab)
+	command.RegisterColumns([]string{"show data list"}, command.ColumnOrder{"key"})
 	command.RegisterColumns([]string{"show data registered"},
 		command.ColumnOrder{"pattern", "description"})
 }

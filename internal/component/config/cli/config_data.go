@@ -96,13 +96,13 @@ func dataDump(args []string) (any, int) {
 	return res.dumpMap, 0
 }
 
-// dataLs answers `show config ls`: every configuration the daemon can see, from
-// both places it looks.
+// dataList answers `show config list`: every configuration the daemon can see,
+// from both places it looks.
 //
 // The printer wrote `[data] <key>` and `[fs] <path>` lines. The bracket prefix
 // becomes a FIELD, which is what a row operator can select on: `| match data`
 // used to match the prefix by accident of it being in the line.
-func dataLs(_ []string) (any, int) {
+func dataList(_ []string) (any, int) {
 	return withRuntimeStore(func(store storage.Storage) (any, int) {
 		rows := make([]map[string]any, 0)
 

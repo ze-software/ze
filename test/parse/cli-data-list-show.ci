@@ -1,0 +1,41 @@
+# Test: the `show data` verb tree dispatches through YANG to its local handlers
+# VALIDATES: show data list and show data registered each reach their own handler
+# PREVENTS: a show data command answering "unknown command" instead of its handler
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+# The header is lowercase now: `show data registered` answers structured data
+# and the shared renderer names its columns from the answer's own keys, where a
+# hand-written tabwriter printed `PATTERN`. The row itself is what this test is
+# about and it is asserted unchanged (spec-cli-pipe-operator-coverage, AC-10).
+cmd=foreground:seq=1:exec=ze show data registered
+expect=exit:code=0
+expect=stdout:contains=pattern
+expect=stdout:contains=description
+expect=stdout:contains=file/active
+
+# `show data list` is asserted against a store path that does not exist, because
+# the open failure is what proves the dispatch: only the local handler produces
+# `error: open <path>`, and it exits 2. A command that stopped routing answers
+# `unknown command` and exits 1, so the two outcomes cannot be confused.
+cmd=foreground:seq=2:exec=ze show data list --path /nonexistent/cli-data-list-show.zefs
+expect=exit:code=2
+expect=stderr:contains=error: open /nonexistent/cli-data-list-show.zefs

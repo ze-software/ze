@@ -557,7 +557,7 @@ decided which is below, kept because it is the answer rather than a plan.
 |---------|--------------|-------------|
 | `show config dump` | the fully resolved config tree, already JSON | CONVERT. It is one nested document, so it declares `doc`; check that against what it actually emits, the way `show yang tree` had to be |
 | `show config history` | snapshots with timestamps and commit messages | CONVERT, rows. Needs a file argument and an editor handle (`cli.NewEditorWithStorage`), so its data function owns that lifecycle |
-| `show config ls` | `[data] <key>` and `[fs] <path>` lines from two sources | CONVERT, rows of `{source, path}`. The bracket prefix becomes a field |
+| `show config list` | `[data] <key>` and `[fs] <path>` lines from two sources | CONVERT, rows of `{source, path}`. The bracket prefix becomes a field |
 | `show config cat` | the configuration TEXT of one snapshot | LEAVE. The text is the answer, as with `show data cat` |
 | `show config fmt` | the config pretty-printed | LEAVE. The formatting IS the answer; a record of it would be a record of nothing |
 | `show config diff` | a rendered diff | LEAVE for now, and it is the one worth revisiting. A structured diff (per-change records) would genuinely serve a tool, but it is a feature rather than a conversion: nothing in the tree emits one, so it would be designed here rather than lifted, and it deserves its own spec |
@@ -568,7 +568,7 @@ feature request in disguise.
 **How the config family went, since it was the one flagged as riskiest.**
 `show config dump` reuses the map `--json` already emitted: `resolveDump` is
 that path lifted into a function both spellings call, so they cannot disagree.
-`history` and `ls` needed payloads written, and both turned a printed prefix
+`history` and `list` needed payloads written, and both turned a printed prefix
 into a FIELD: `[data] <key>` became `{source, path}`, and the `draft` line
 printed above the revisions became a row like any other, so a row operator can
 reach it.
@@ -585,7 +585,7 @@ catalog true rather than aspirational. An undeclared command is still left to
 its answer, so the refusal stays universal rather than becoming a property of
 the commands somebody annotated.
 
-Converted: env (3), schema (5), storage `ls` and `registered` (2), yang `tree`
+Converted: env (3), schema (5), storage `list` and `registered` (2), yang `tree`
 and `completion` (2). Twelve of twenty.
 
 **The published surface no longer claims what it cannot honor.** A command the

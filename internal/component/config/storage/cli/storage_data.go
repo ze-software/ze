@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — where a command is served
 // Related: docs/architecture/api/commands.md — the operator model this serves
 //
-// storage_data.go answers `show data ls` and `show data registered` with
+// storage_data.go answers `show data list` and `show data registered` with
 // structured data, so they reach the pipe layer. They printed a table and
 // returned an exit code, while YANG declared a wire method for each that no
 // daemon handler implements.
@@ -28,8 +28,8 @@ func writeStorageError(err error) {
 	fmt.Fprintln(os.Stderr, "error:", err)
 }
 
-// dataLs answers `show data ls [prefix]`: the keys the store holds.
-func dataLs(args []string) (any, int) {
+// dataList answers `show data list [prefix]`: the keys the store holds.
+func dataList(args []string) (any, int) {
 	storePath, remaining := extractPathFlag(args)
 	s, err := openStore(storePath)
 	if err != nil {

@@ -105,22 +105,22 @@ func init() {
 		Description: "List config snapshots with timestamps and commit messages.",
 		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
-	registry.MustRegisterLocalData("show config ls", dataLs, registry.Meta{
+	registry.MustRegisterLocalData("show config list", dataList, registry.Meta{
 		Description: "List all config snapshots stored in the blob store.",
 		Mode:        modeOffline,
 	}, command.RenderLocalAnswer)
 
 	// dump, diff and the validation verdict are each ONE document, so the row
-	// operators are refused over them by name. history and ls answer rows.
+	// operators are refused over them by name. history and list answer rows.
 	command.RegisterShape([]string{
 		"show config dump", "show config diff", "validate config",
 	}, command.ShapeDoc)
 	command.RegisterShape([]string{
-		"show config history", "show config ls",
+		"show config history", "show config list",
 	}, command.ShapeTab)
 	command.RegisterColumns([]string{"show config history"},
 		command.ColumnOrder{keyRevision, "timestamp", keyPath, "state"})
-	command.RegisterColumns([]string{"show config ls"}, command.ColumnOrder{keySource, keyPath})
+	command.RegisterColumns([]string{"show config list"}, command.ColumnOrder{keySource, keyPath})
 	registry.MustRegisterLocalMeta("show config cat", storageShortcut("cat"),
 		registry.Meta{Description: "Print the full configuration text for a stored snapshot."})
 }

@@ -114,7 +114,7 @@ Commands with `RequiresSelector: true` reject invocation without an explicit sel
 
 | Class | Pattern | Examples |
 |-------|---------|----------|
-| **Simple query** | `VERB COMPONENT RESOURCE [ARGS]` | `show version`, `show env list`, `show data ls` |
+| **Simple query** | `VERB COMPONENT RESOURCE [ARGS]` | `show version`, `show env list`, `show data list` |
 | **Typed selector** | `VERB COMPONENT RESOURCE SELECTOR-KIND <value> [VIEW] [ARGS]` | `show interface type dummy`, `show interface name eth0 detail`, `show sysctl key net.ipv4.ip_forward` |
 | **Peer-scoped** | `VERB bgp peer <name|address> <view> [ARGS]` | `show bgp peer 192.0.2.1 detail`, `show bgp peer edge1 rib` |
 | **Named-resource** | `RESOURCE ACTION <id> [ARGS]` | `cache forward 123 *`, `commit start tx1`, `commit withdraw tx1 route 10.0.0.0/24` |
@@ -134,9 +134,9 @@ show env list                    show env get <key>           show env registere
 show schema list                 show schema methods          show schema events
 show schema handlers             show schema protocol
 show yang tree [module]          show yang completion          show yang doc
-show data ls                     show data cat <key>          show data registered
+show data list                   show data cat <key>          show data registered
 show config dump                 show config diff             show config history
-show config ls                   show config cat              show config fmt
+show config list                 show config cat              show config fmt
 show interface type <type>       show interface name <name> detail
 show interface name <name> counters
 ```

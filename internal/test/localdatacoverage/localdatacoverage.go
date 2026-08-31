@@ -47,13 +47,13 @@ func Evidence() []Invocation {
 		{Command: "show config diff pipe-local.conf pipe-local-other.conf | json compact", Evidence: "show config diff"},
 		{Command: "validate config pipe-local.conf | json compact", Evidence: "validate config"},
 		{Command: "show config history pipe-local.conf | json compact", Evidence: "show config history"},
-		{Command: "show config ls | json compact", Evidence: "show config ls"},
+		{Command: "show config list | json compact", Evidence: "show config list"},
 		{Command: "show schema list | json compact", Evidence: "show schema list"},
 		{Command: "show schema methods | json compact", Evidence: "show schema methods"},
 		{Command: "show schema events | count | json compact", Evidence: commandShowSchemaEvents},
 		{Command: "show schema handlers | count | json compact", Evidence: commandShowSchemaHandlers},
 		{Command: "show schema protocol | json compact", Evidence: "show schema protocol"},
-		{Command: "show data ls --path %s | json compact", Evidence: "show data ls"},
+		{Command: "show data list --path %s | json compact", Evidence: "show data list"},
 		{Command: "show data registered | json compact", Evidence: "show data registered"},
 		{Command: "show yang tree --commands | json compact", Evidence: "show yang tree"},
 		{Command: "show yang tree --config | json compact", Evidence: "show yang tree"},
@@ -441,7 +441,7 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 
-	payload, err = localJSON("show config ls | json compact", "show config ls", output)
+	payload, err = localJSON("show config list | json compact", "show config list", output)
 	if err != nil {
 		return err
 	}
@@ -451,7 +451,7 @@ func runScenario(output io.Writer, work string) error {
 	}
 	if err := requireAnyRow(values, func(row map[string]any) bool {
 		return row["source"] == "fs" && row["path"] == resolvedConfigPath
-	}, "config ls lost its filesystem row: %#v", values); err != nil {
+	}, "config list lost its filesystem row: %#v", values); err != nil {
 		return err
 	}
 
@@ -515,7 +515,7 @@ func runScenario(output io.Writer, work string) error {
 		return err
 	}
 
-	payload, err = localJSON(fmt.Sprintf("show data ls --path %s | json compact", blobPath), "show data ls", output)
+	payload, err = localJSON(fmt.Sprintf("show data list --path %s | json compact", blobPath), "show data list", output)
 	if err != nil {
 		return err
 	}
@@ -525,7 +525,7 @@ func runScenario(output io.Writer, work string) error {
 	}
 	if err := requireAnyRow(values, func(row map[string]any) bool {
 		return row["key"] == "meta/instance/name"
-	}, "data ls lost the written key: %#v", values); err != nil {
+	}, "data list lost the written key: %#v", values); err != nil {
 		return err
 	}
 	payload, err = localJSON("show data registered | json compact", "show data registered", output)

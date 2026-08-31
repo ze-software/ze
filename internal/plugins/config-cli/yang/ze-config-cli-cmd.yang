@@ -3,6 +3,7 @@ module ze-config-cli-cmd {
     prefix configclicmd;
     import ze-extensions { prefix ze; }
     description "show config command tree. Owned by the config CLI because these handlers inspect, compare, and format configuration files through the config backend. See ai/rules/plugin-self-containment.md.";
+    revision 2026-08-31 { description "Renamed show config ls to show config list, so every command that enumerates a set spells the verb the same way."; }
     revision 2026-08-29 { description "Declare the value the description spelled in prose, so the model states the grammar and the generated usage line reads it."; }
     revision 2026-06-06 { description "Relocated show config out of the central show schema (plugin self-containment)."; }
 
@@ -39,9 +40,9 @@ Shows revisions with timestamps and commit metadata. Pair with
 'show config diff' to review changes before rolling back.";
             }
 
-            container ls {
+            container list {
                 config false;
-                ze:command "ze-show:config-ls";
+                ze:command "ze-show:config-list";
                 description "List all configuration files stored in the database.
 Shows archived snapshots and the active config.";
             }

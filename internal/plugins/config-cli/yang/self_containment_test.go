@@ -14,7 +14,7 @@ func TestConfigCliCmdSchemaOwnsConfigCommands(t *testing.T) {
 		`ze:command "ze-show:config-dump"`,
 		`ze:command "ze-show:config-diff"`,
 		`ze:command "ze-show:config-history"`,
-		`ze:command "ze-show:config-ls"`,
+		`ze:command "ze-show:config-list"`,
 		`ze:command "ze-show:config-cat"`,
 		`ze:command "ze-show:config-fmt"`,
 		"container config",
