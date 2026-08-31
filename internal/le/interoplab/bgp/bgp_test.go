@@ -452,6 +452,108 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("no-family-peer-eor-frr", func(t *testing.T) {
+		const peer = "172.30.0.2"
+		decoded := "2026/08/31 03:18:06 BGP: [T1234-56789] " + peer + " rcvd End-of-RIB for IPv4 Unicast from " + peer + "\n"
+		if !endOfRIBDecoded(decoded, peer) {
+			t.Fatal("FRR's own End-of-RIB decode was rejected")
+		}
+		if !endOfRIBDecoded("BGP: rcvd End-of-RIB for ipv4 unicast from "+peer+"\n", peer) {
+			t.Fatal("a lower-case address family spelling was rejected")
+		}
+		if endOfRIBDecoded("BGP: "+peer+" sending End-of-RIB for IPv4 Unicast to "+peer+"\n", peer) {
+			t.Fatal("the send direction passed as FRR's receive decode")
+		}
+		split := "BGP: rcvd End-of-RIB for IPv4 Unicast from 172.30.0.9\n" +
+			"BGP: " + peer + " went from OpenConfirm to Established\n"
+		if endOfRIBDecoded(split, peer) {
+			t.Fatal("another peer's marker passed by matching ze on a second line")
+		}
+		if endOfRIBDecoded("", peer) {
+			t.Fatal("an empty log passed as a decoded marker")
+		}
+		const capabilities = `{%q:{"neighborCapabilities":{"multiprotocolExtensions":{"ipv4Unicast":{%s}}}}}`
+		advertised := fmt.Sprintf(capabilities, peer, `"advertised":true`)
+		if err := requireMultiprotocolAdvertisedOnly(advertised, peer); err != nil {
+			t.Fatalf("FRR advertising the family alone was rejected: %v", err)
+		}
+		both := fmt.Sprintf(capabilities, peer, `"advertisedAndReceived":true`)
+		if requireMultiprotocolAdvertisedOnly(both, peer) == nil {
+			t.Fatal("a Multiprotocol capability received from ze passed as absent")
+		}
+		received := fmt.Sprintf(capabilities, peer, `"advertised":true,"received":true`)
+		if requireMultiprotocolAdvertisedOnly(received, peer) == nil {
+			t.Fatal("a capability received from ze passed because it was not spelled advertisedAndReceived")
+		}
+		foreign := fmt.Sprintf(capabilities, "172.30.0.3", `"advertised":true`)
+		if requireMultiprotocolAdvertisedOnly(foreign, peer) == nil {
+			t.Fatal("another neighbor's capability block passed as the answer about ze")
+		}
+		if requireMultiprotocolAdvertisedOnly("", peer) == nil {
+			t.Fatal("an empty neighbor answer passed as a measured capability")
+		}
+	})
+
+	t.Run("isis-p2p-frr", func(t *testing.T) {
+		const hostname = "ze-p2p"
+		if !isisAdjacencyUp(" frr-isis-p2p   eth0   2  Up    27   2020.2020.2020\n") {
+			t.Fatal("an Up IS-IS adjacency was reported down")
+		}
+		if isisAdjacencyUp(" frr-isis-p2p   eth0   2  Down  -    2020.2020.2020\n") {
+			t.Fatal("a Down IS-IS adjacency was reported Up")
+		}
+		if isisAdjacencyUp(" ze-Uplink      eth0   2  Init  27\n") {
+			t.Fatal("a neighbor name carrying Up passed as the adjacency state")
+		}
+		if isisAdjacencyUp("") {
+			t.Fatal("an empty neighbor table passed as an Up adjacency")
+		}
+		database := "IS-IS Level-1 link-state database:\n" +
+			"LSP ID          PduLen  SeqNumber   Chksum  Holdtime  ATT/P/OL\n" +
+			hostname + ".00-00        85  0x00000003  0x1234      1123  0/0/0\n"
+		if !isisDatabaseNamesZe(database) {
+			t.Fatal("an LSP rendered by ze's dynamic hostname was rejected")
+		}
+		if isisDatabaseNamesZe("0000.0000.0002.00-00        85  0x00000003\n") {
+			t.Fatal("an LSP rendered by system ID passed as a decoded TLV 137")
+		}
+		if isisDatabaseNamesZe(hostname + "-2.00-00        85  0x00000003\n") {
+			t.Fatal("another router whose name starts with ze's passed as ze's LSP")
+		}
+		if isisDatabaseNamesZe("") {
+			t.Fatal("an empty database passed as a rendered hostname")
+		}
+	})
+
+	t.Run("ospf-stub-nssa-frr", func(t *testing.T) {
+		const (
+			defaultRoute = "0.0.0.0/0"
+			borderRouter = "172.30.0.2"
+		)
+		installed := "O>* " + defaultRoute + " [110/20] via " + borderRouter + ", eth0, weight 1, 00:00:12\n"
+		if err := requireRouteInstalledVia(installed, defaultRoute, borderRouter); err != nil {
+			t.Fatalf("the NSSA default from the border router was rejected: %v", err)
+		}
+		elsewhere := "O>* " + defaultRoute + " [110/20] via 172.30.0.9, eth0\n" +
+			"O>* 10.0.0.0/24 [110/10] via " + borderRouter + ", eth0\n"
+		if requireRouteInstalledVia(elsewhere, defaultRoute, borderRouter) == nil {
+			t.Fatal("a default from another router passed by matching the border router on a second line")
+		}
+		if requireRouteInstalledVia("", defaultRoute, borderRouter) == nil {
+			t.Fatal("an empty route listing passed as an installed default")
+		}
+		clean := "       OSPF Router with ID (172.30.0.3)\n\n                AS External Link States\n\n"
+		if err := requireNoExternalLSA(clean); err != nil {
+			t.Fatalf("an NSSA holding no Type 5 LSA was reported as leaking: %v", err)
+		}
+		if requireNoExternalLSA(clean+"  LS age: 42\n  Link State ID: 10.9.9.0 (External Network Number)\n") == nil {
+			t.Fatal("a Type 5 AS-external LSA in the NSSA passed as absent")
+		}
+		if requireNoExternalLSA("") == nil {
+			t.Fatal("an unanswered database query passed as an absent LSA")
+		}
+	})
+
 	t.Run("bgp-addpath-rail-agreement-speaker", func(t *testing.T) {
 		const update = "0000000000000007180a6300"
 		logs := "established: yes\nresult: PASS\nnote: update-hex: " + update + "\n"

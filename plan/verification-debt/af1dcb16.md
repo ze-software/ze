@@ -10,3 +10,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-08-31 | af1dcb16 | plan: close spec-fixit-peer-pending-sync-settles-too-early | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | af1dcb16 | fix(interop): run the two checkers that never left their guard | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | af1dcb16 | fix(interop): run the two checkers that never left their guard | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-08-31 | af1dcb16 | fix(interop): assert what the three FRR-only checkers claim | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-31 | af1dcb16 | fix(interop): assert what the three FRR-only checkers claim | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

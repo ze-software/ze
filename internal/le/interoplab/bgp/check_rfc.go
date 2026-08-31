@@ -8,8 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
@@ -93,20 +91,6 @@ func checkAddPathReadvertiseCollision(ctx context.Context, check *interoplab.Che
 		}
 	}
 	return nil
-}
-
-// addPathReceiveNegotiated reports whether FRR's own neighbor JSON says the
-// ADD-PATH receive direction was advertised by FRR and received from ze. The needle
-// keeps its opening quote so the send direction, which FRR spells
-// "txAdvertisedAndReceived", can never satisfy it: ze sending Path Identifiers that
-// FRR never agreed to receive is one of the states this predicate exists to reject.
-// FRR pretty-prints the document, so the spaces come out before the match. The
-// rendered token is matched rather than a decoded field because the nesting under
-// neighborCapabilities moves between FRR releases while the token does not, and the
-// deleted Python checker matched this same token against FRR 10.3.1.
-func addPathReceiveNegotiated(neighborJSON string) bool {
-	const negotiated = `"rxAdvertisedAndReceived":true`
-	return strings.Contains(strings.ReplaceAll(neighborJSON, " ", ""), negotiated)
 }
 
 // RFC requirement: RFC4271-5.1.5-2 positive -- "A BGP speaker MUST NOT include
@@ -233,30 +217,6 @@ func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) e
 	return nil
 }
 
-// requireRouteInstalledVia reports whether a daemon's route listing installs prefix
-// through nextHop. The prefix and the next hop MUST appear on ONE line: FRR writes
-// each installed route as `B>* <prefix> [20/0] via <next hop>, eth0`, so a next hop
-// found on any other line belongs to a different route, and accepting it would let
-// a route installed through its global next hop alone pass as installed through the
-// link-local one. An empty listing is a failure rather than an absence, because a
-// query that answered nothing is not a table with no route in it.
-func requireRouteInstalledVia(routes, prefix, nextHop string) error {
-	installed := false
-	for line := range strings.SplitSeq(routes, "\n") {
-		if !strings.Contains(line, prefix) {
-			continue
-		}
-		installed = true
-		if strings.Contains(line, nextHop) {
-			return nil
-		}
-	}
-	if !installed {
-		return fmt.Errorf("daemon installed no route for %s", prefix)
-	}
-	return fmt.Errorf("daemon installed %s, but not via next hop %s", prefix, nextHop)
-}
-
 // RFC requirement: RFC7606-5.1-3 positive -- ONE UPDATE mixing Withdrawn Routes with NLRI is
 // ACCEPTED on receive, relayed, and installed by a real FRR. Section 5.1's second bullet forbids
 // any conforming SENDER to produce that shape, so a raw injector is the only carrier that can
@@ -351,7 +311,57 @@ func checkNoExportBoundary(ctx context.Context, check *interoplab.CheckContext) 
 // bytes" (RFC 5301 Section 3). FRR reads the whole configured name, so the
 // length octet framed the value FRR then rendered.
 func checkISISDynamicHostname(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "isis-p2p-frr")
+	const name = "isis-p2p-frr"
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+	neighbors := func(probeCtx context.Context) (string, error) {
+		return check.Lab.Query(probeCtx, peerFRR, []string{cmdVtysh, "-c", frrShowISISNeighbor}, nil)
+	}
+
+	// Assertion 1. The point-to-point adjacency reaches Up, which takes the RFC 5303
+	// three-way handshake completing on both sides.
+	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout:     90 * time.Second,
+		Interval:    2 * time.Second,
+		Description: "FRR IS-IS adjacency Up",
+	}, neighbors, isisAdjacencyUp); err != nil {
+		return fail(1, err)
+	}
+
+	// Assertion 2. FRR renders ze's LSP by the NAME ze advertises rather than by its
+	// system ID, and it prints a name there only after decoding TLV 137. This is an
+	// independent implementation reading ze's Dynamic Hostname off the wire. The
+	// 7-bit ASCII rule (RFC5301-3-7) is NOT provable here, because a conforming peer
+	// accepts the octets it is given; it is enforced and proven at the config
+	// boundary instead (test/isis/isis-hostname-ascii.ci).
+	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout:     60 * time.Second,
+		Interval:    2 * time.Second,
+		Description: "ze dynamic hostname in the FRR IS-IS database",
+	}, func(probeCtx context.Context) (string, error) {
+		return check.Lab.Query(probeCtx, peerFRR, []string{cmdVtysh, "-c", frrShowISISDatabase}, nil)
+	}, isisDatabaseNamesZe); err != nil {
+		return fail(2, err)
+	}
+
+	// Assertion 3. The adjacency is still Up after a settle, so the name above was
+	// read from a stable adjacency rather than from one that flapped.
+	settle := time.NewTimer(5 * time.Second)
+	defer settle.Stop()
+	select {
+	case <-ctx.Done():
+		return fail(3, ctx.Err())
+	case <-settle.C:
+	}
+	adjacencies, err := neighbors(ctx)
+	if err != nil {
+		return fail(3, err)
+	}
+	if !isisAdjacencyUp(adjacencies) {
+		return fail(3, errors.New("the point-to-point IS-IS adjacency did not stay Up"))
+	}
+	return nil
 }
 
 // RFC requirement: RFC4724-4-1 positive -- an independent conforming receiver
@@ -361,80 +371,121 @@ func checkISISDynamicHostname(ctx context.Context, check *interoplab.CheckContex
 // marker, which is the state this scenario was written against (measured
 // 2026-08-17).
 func checkNoFamilyEndOfRIB(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "no-family-peer-eor-frr")
+	const name = "no-family-peer-eor-frr"
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+	if !check.Network.IPv4.IsValid() {
+		return fail(1, errors.New("no-family End-of-RIB scenario has no selected IPv4 network"))
+	}
+	zeAddress := networkHostAddress(check.Network, 2)
+	session := operation{kind: opFRRSession, argument: zeAddress}
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(1, err)
+	}
+
+	// Assertion 2. IPv4 unicast is exchanged in this state, which RFC 4271 carries
+	// with no capability at all. Without this assertion the End-of-RIB below would
+	// be a barrier over an empty conversation.
+	route := operation{kind: opFRRRoute, argument: injectPrefixFirst, timeout: 60 * time.Second}
+	if err := runOperation(ctx, check.Network, check.Lab, &route); err != nil {
+		return fail(2, err)
+	}
+
+	// Assertion 3. The marker is owed because the family is IMPLICIT, not because ze
+	// named it: FRR reports the IPv4-unicast capability as advertised by itself and
+	// received from nobody. That pins the fix in capability.Negotiate rather than in
+	// the OPEN builder, which is what keeps the wire byte-identical for every peer
+	// configured this way.
+	neighbor, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp neighbor " + zeAddress + " json"}, nil)
+	if err != nil {
+		return fail(3, err)
+	}
+	if err := requireMultiprotocolAdvertisedOnly(neighbor, zeAddress); err != nil {
+		return fail(3, err)
+	}
+
+	// Assertion 4. The marker is the last frame of the initial update, so it can land
+	// after the route: poll FRR's own per-UPDATE decode. Neither a routing table nor
+	// `show bgp neighbor json` answers this question here, because FRR fills
+	// gracefulRestartInfo.endOfRibRecv only for the families a peer named in a
+	// Graceful Restart capability, and this peer advertises neither that capability
+	// nor a Multiprotocol one.
+	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout:     60 * time.Second,
+		Interval:    time.Second,
+		Description: "FRR decode of the End-of-RIB marker",
+	}, func(probeCtx context.Context) (string, error) {
+		return check.Lab.Query(probeCtx, peerFRR, []string{cmdCat, frrLogPath}, nil)
+	}, func(log string) bool {
+		return endOfRIBDecoded(log, zeAddress)
+	}); err != nil {
+		return fail(4, err)
+	}
+
+	// Assertion 5. The session is still established after the exchange, so the marker
+	// above was decoded on a live session rather than on one that was failing.
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(5, err)
+	}
+	return nil
 }
 
 // RFC requirement: RFC3101-2.4-5 positive -- the NSSA border router
 // originates a default into every directly attached NSSA without a config gate.
 func checkNSSADefault(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "ospf-stub-nssa-frr")
-}
+	const (
+		name         = "ospf-stub-nssa-frr"
+		defaultRoute = "0.0.0.0/0"
+		// The two vtysh commands this scenario alone runs. FRR takes one after
+		// each -c flag, as the shared commands in names.go do.
+		showOSPFRoute   = "show ip route ospf"
+		showExternalLSA = "show ip ospf database external"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+	if !check.Network.IPv4.IsValid() {
+		return fail(1, errors.New("NSSA default scenario has no selected IPv4 network"))
+	}
 
-type addPathRoute struct {
-	ASPath struct {
-		String string `json:"string"`
-	} `json:"aspath"`
-	AddPathRxID uint64 `json:"addpathRxId"`
-}
+	// Assertion 1. The adjacency forms only when the two N-bit options agree, so
+	// reaching Full is itself the option-match assertion.
+	if err := waitContains(ctx, check.Lab, peerFRR, []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, 90*time.Second, ospfStateFull); err != nil {
+		return fail(1, err)
+	}
 
-type addPathDocument struct {
-	Routes map[string][]addPathRoute `json:"routes"`
-}
+	// Assertion 2. FRR is NSSA internal, so the default it installs is the Type 7 one
+	// the NSSA border router originates. ze.conf carries no `default-originate` leaf,
+	// so nothing gates that origination on an operator. The border router is required
+	// on the SAME line as the prefix: a default reaching FRR from anywhere else would
+	// otherwise satisfy the assertion.
+	borderRouter := networkHostAddress(check.Network, 2)
+	if _, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout:     60 * time.Second,
+		Interval:    2 * time.Second,
+		Description: "NSSA default route from the border router",
+	}, func(probeCtx context.Context) (string, error) {
+		return check.Lab.Query(probeCtx, peerFRR, []string{cmdVtysh, "-c", showOSPFRoute}, nil)
+	}, func(routes string) bool {
+		return requireRouteInstalledVia(routes, defaultRoute, borderRouter) == nil
+	}); err != nil {
+		return fail(2, err)
+	}
 
-func parseAddPathState(output string) (map[string]uint64, error) {
-	var document addPathDocument
-	if err := json.Unmarshal([]byte(output), &document); err != nil {
-		return nil, fmt.Errorf("decode FRR ADD-PATH JSON: %w", err)
-	}
-	paths := document.Routes[peerPrefixFirst]
-	if len(paths) < 2 {
-		return nil, fmt.Errorf("FRR holds %d paths for %s, want 2", len(paths), peerPrefixFirst)
-	}
-	state := make(map[string]uint64, len(paths))
-	for _, path := range paths {
-		origin := strings.TrimSpace(path.ASPath.String)
-		if origin != "65003" && origin != "65004" {
-			continue
-		}
-		state[origin] = path.AddPathRxID
-	}
-	if len(state) != 2 {
-		return nil, fmt.Errorf("FRR paths have origins %v, want 65003 and 65004", state)
-	}
-	if state["65003"] == state["65004"] {
-		return nil, fmt.Errorf("FRR received both paths under Path Identifier %d", state["65003"])
-	}
-	return state, nil
-}
-
-func parseOTCValue(output string) (uint64, error) {
-	index := strings.Index(strings.ToUpper(output), "OTC")
-	if index < 0 {
-		return 0, errors.New("FRR reported no OTC Attribute")
-	}
-	tail := output[index+len("OTC"):]
-	for tail != "" {
-		switch tail[0] {
-		case ' ', '\t', ':', '=', '"':
-			tail = tail[1:]
-		default:
-			goto digits
-		}
-	}
-digits:
-	end := 0
-	for end < len(tail) && tail[end] >= '0' && tail[end] <= '9' {
-		end++
-	}
-	if end == 0 {
-		return 0, errors.New("FRR OTC Attribute has no numeric value")
-	}
-	value, err := strconv.ParseUint(tail[:end], 10, 32)
+	// Assertion 3. No Type 5 AS-external LSA is flooded into the NSSA. FRR prints the
+	// database heading whether or not the area holds one, so the heading is the
+	// positive proof that the query ran and an `LS age` entry is the leak.
+	database, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", showExternalLSA}, nil)
 	if err != nil {
-		return 0, fmt.Errorf("parse FRR OTC value: %w", err)
+		return fail(3, err)
 	}
-	return value, nil
+	if err := requireNoExternalLSA(database); err != nil {
+		return fail(3, err)
+	}
+	return nil
 }
+
 func waitAddPathState(ctx context.Context, lab interoplab.CheckerLab) (map[string]uint64, error) {
 	state, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 60 * time.Second, Interval: 2 * time.Second, Description: "two re-advertised paths with distinct Path Identifiers"}, func(probeCtx context.Context) (map[string]uint64, error) {
 		output, err := lab.Query(probeCtx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast detail json"}, nil)
@@ -470,70 +521,10 @@ func waitFRRNewEpoch(ctx context.Context, lab interoplab.CheckerLab, neighbor st
 	return err
 }
 
-func samePathIdentifiers(left, right map[string]uint64) bool {
-	return len(left) == len(right) && left["65003"] == right["65003"] && left["65004"] == right["65004"]
-}
-
-type nextHop struct {
-	Scope string `json:"scope"`
-	IP    string `json:"ip"`
-}
-
-type frrPrefixDocument struct {
-	Paths []struct {
-		NextHops []nextHop `json:"nexthops"`
-	} `json:"paths"`
-}
-
-func parseFRRNextHops(output string) ([]nextHop, error) {
-	var document frrPrefixDocument
-	if err := json.Unmarshal([]byte(output), &document); err != nil {
-		return nil, fmt.Errorf("decode FRR route JSON: %w", err)
-	}
-	if len(document.Paths) != 1 {
-		return nil, fmt.Errorf("FRR route has %d paths, want 1", len(document.Paths))
-	}
-	if len(document.Paths[0].NextHops) == 0 {
-		return nil, errors.New("FRR route carries no next-hop entries")
-	}
-	return document.Paths[0].NextHops, nil
-}
-
 func queryFRRNextHops(ctx context.Context, lab interoplab.CheckerLab, prefix string) ([]nextHop, error) {
 	output, err := lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv6 unicast " + prefix + " json"}, nil)
 	if err != nil {
 		return nil, err
 	}
 	return parseFRRNextHops(output)
-}
-
-func requireNextHopShape(entries []nextHop, global, linkLocal netip.Addr) error {
-	want := 1
-	if linkLocal.IsValid() {
-		want = 2
-	}
-	if len(entries) != want {
-		return fmt.Errorf("FRR decoded %d next-hop addresses, want %d", len(entries), want)
-	}
-	seenGlobal := false
-	seenLinkLocal := false
-	for _, entry := range entries {
-		address, err := netip.ParseAddr(entry.IP)
-		if err != nil {
-			return fmt.Errorf("invalid FRR next hop %q: %w", entry.IP, err)
-		}
-		switch entry.Scope {
-		case nextHopScopeGlobal:
-			seenGlobal = address == global
-		case "link-local":
-			seenLinkLocal = linkLocal.IsValid() && address == linkLocal
-		}
-	}
-	if !seenGlobal {
-		return fmt.Errorf("global next hop %s not decoded", global)
-	}
-	if seenLinkLocal != linkLocal.IsValid() {
-		return fmt.Errorf("link-local next-hop presence=%t, want %t", seenLinkLocal, linkLocal.IsValid())
-	}
-	return nil
 }
