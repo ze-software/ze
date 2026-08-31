@@ -422,6 +422,37 @@ module ze-ipsec-conf {
                              It applies only when mode is transport.";
                     }
 
+                    leaf policy-priority {
+                        type uint32 {
+                            range "101..2147483647";
+                        }
+                        default 2000;
+                        description
+                            "Where this peer's Security Policy Database entries sit in the
+                             operator's ordering of that database. A LOWER value is searched
+                             FIRST, in Ze and in the Linux kernel.
+
+                             RFC 4301 Section 4.4.1: 'The ordering requirement arises because
+                             entries often will overlap due to the presence of (non-trivial)
+                             ranges as values for selectors. Thus, a user or administrator MUST
+                             be able to order the entries to express a desired access control
+                             policy.' The same section binds this interface: it 'MUST support
+                             (total) ordering of these entries, as seen via this interface'.
+
+                             Two peers whose traffic selectors overlap, 0.0.0.0/0 on both for
+                             example, describe the same traffic. Give the one that must win the
+                             lower value. Peers that share a value are ordered by whichever
+                             established last, which is what every peer did before this leaf
+                             existed, so the default 2000 keeps an unordered configuration
+                             installing exactly what it installed before.
+
+                             The range starts above 100, which is where the IKE control-plane
+                             bypass sits. A peer entry at or above that rank captures the IKE
+                             exchange that builds and rekeys the very SA it protects, and the
+                             tunnel could then never renegotiate. It ends at 2147483647, the
+                             largest rank Ze can carry to a dataplane.";
+                    }
+
                     list traffic-selector {
                         key "number";
                         description
@@ -568,6 +599,24 @@ module ze-ipsec-conf {
                                 accepts the two address types alone. A distinguished name is
                                 compared in RFC 4514 string form, and it binds against the
                                 certificate subject exactly, octet for octet.
+
+                                A value can name ONE peer or a SET of peers. RFC 4301 Section
+                                4.4.3.1 requires both forms of Peer Authorization Database entry.
+                                A set is written with the hierarchy separator in front, and it
+                                admits the identities BELOW it and not the value itself:
+                                '.example.com' admits vpn.example.com, '@example.com' admits
+                                gateway@example.com, and ',ST=MA,C=US' admits every distinguished
+                                name whose top relative distinguished names are ST=MA,C=US. An
+                                address entry takes the same CIDR prefix the traffic-selector
+                                leaves take, so '10.0.0.0/24' admits every address in that block.
+                                ID_KEY_ID is always compared exactly, because an opaque octet
+                                string has no hierarchy to cut.
+
+                                The certificate binding stays per peer whichever form is used. A
+                                peer admitted by a set must still assert an identity its own
+                                certificate carries, so a set never widens what one certificate
+                                proves.
+
                                 When it is empty Ze checks no identity, so every certificate the
                                 ca-certificate issued authenticates as this peer. Set it whenever
                                 that authority issues to more than one client.";

@@ -528,6 +528,10 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		ESPGroup:    old.ESPGroup,
 		ReqID:       old.ReqID,
 		NATDetected: old.NATDetected,
+		// The SPD entry survives the rekey, so its rank in the operator's ordering does
+		// too (RFC 4301 Section 4.4.1). A replacement that dropped it would move the
+		// entry to the default rank at the first rekey, silently reordering the SPD.
+		PolicyPriority: old.PolicyPriority,
 		// The replacement installs the SAME policy selector as the retired pair, so it
 		// must claim it under the SAME owner. A replacement that dropped this would be
 		// refused by the dataplane as a foreign peer taking the selector over

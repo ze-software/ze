@@ -1,5 +1,7 @@
 // Design: docs/architecture/ike/ipsec-3-data-model.md -- IPsec config parser
 // Related: algorithm_support.go -- which algorithms this build implements
+// RFC: rfc/short/rfc7296.md -- shared-secret encoding (Section 2.15), lifetimes (Section 2.8)
+// RFC: rfc/short/rfc4301.md -- the SPD management interface and its ordering (Section 4.4.1)
 
 package ipsec
 
@@ -448,6 +450,12 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 		Name:           name,
 		ConnectionType: ConnectionInitiate,
 		Mode:           dataplane.ModeTunnel,
+		// An absent leaf resolves to the rank every peer took before the SPD became
+		// orderable (RFC 4301 Section 4.4.1), so an unordered config installs what it
+		// installed before. It is resolved HERE rather than left at zero, because zero
+		// outranks the IKE control-plane bypass and would capture the exchange that
+		// builds the very SA the entry protects (dataplane.PriorityIKEBypass).
+		PolicyPriority: dataplane.PriorityChildSA,
 	}
 
 	if v, ok := t.Get("mode"); ok {
@@ -459,6 +467,16 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 	}
 	if v, ok := t.Get("transport-required"); ok {
 		peer.TransportRequired = v == "true"
+	}
+
+	// RFC 4301 Section 4.4.1: "Thus, a user or administrator MUST be able to order the
+	// entries to express a desired access control policy."
+	if v, ok := t.Get("policy-priority"); ok {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return peer, fmt.Errorf("ipsec peer %q policy-priority: %q is not a number: %w", name, v, err)
+		}
+		peer.PolicyPriority = uint32(n)
 	}
 
 	selectors, err := parseTrafficSelectors(name, t)

@@ -75,6 +75,17 @@ type ChildSA struct {
 	ReqID       uint32
 	NATDetected bool
 
+	// PolicyPriority is where this Child SA's SPD entries sit in the operator's ordering
+	// of the Security Policy Database (ipsec.SiteToSitePeer.PolicyPriority). LOWER VALUE
+	// MEANS HIGHER PRECEDENCE. A rekey inherits it, because a rekey replaces states and
+	// keeps the entry, so the entry's rank must not move under the operator.
+	//
+	// The zero value is not a rank. childPolicyParams resolves it to
+	// dataplane.PriorityChildSA, exactly as it resolves an unset Mode, so a Child SA
+	// built by a test that fills the struct literally installs at the documented default
+	// instead of at rank 0, which would outrank the IKE control-plane bypass.
+	PolicyPriority uint32
+
 	// Owner is the configured peer this Child SA belongs to. It is the identity the
 	// dataplane uses to tell this peer's re-install of a selector from a DIFFERENT
 	// peer's takeover of it, which the kernel cannot tell apart on its own
@@ -313,7 +324,10 @@ func createFirstChildSA(
 		TSLocal:     tsLocal,
 		TSRemote:    tsRemote,
 		Owner:       sa.PeerName,
-		Selectors:   sa.NegotiatedPairs,
+		// RFC 4301 Section 4.4.1: the operator orders the SPD entries, and these are two
+		// of them.
+		PolicyPriority: sa.PeerCfg.PolicyPriority,
+		Selectors:      sa.NegotiatedPairs,
 		// sa.NegotiatedPairs is in the TSi/TSr orientation of the exchange that produced
 		// it, and the first Child SA's selectors come from IKE_AUTH. This node's IKE_AUTH
 		// role IS sa.IsInitiator, so that is the orientation, exactly as it is for the
@@ -574,6 +588,18 @@ func childPolicyParams(child *ChildSA, dir dataplane.SADir) dataplane.SPParams {
 		mode = modeTunnel
 	}
 
+	// RFC 4301 Section 4.4.1: "Thus, a user or administrator MUST be able to order the
+	// entries to express a desired access control policy."
+	//
+	// An unset rank resolves to the default the same way the mode above does, and it
+	// MUST NOT be passed through. Rank 0 outranks the IKE control-plane bypass, so the
+	// entry would capture the exchange that builds and rekeys the SA it protects
+	// (dataplane.PriorityIKEBypass).
+	priority := int(child.PolicyPriority)
+	if priority == 0 {
+		priority = dataplane.PriorityChildSA
+	}
+
 	src, dst := child.TSLocal, child.TSRemote
 	tunnelSrc, tunnelDst := child.LocalAddr, child.RemoteAddr
 	srcPort, dstPort := selectorPort(child, true), selectorPort(child, false)
@@ -605,7 +631,7 @@ func childPolicyParams(child *ChildSA, dir dataplane.SADir) dataplane.SPParams {
 		Mode:       mode,
 		IfID:       child.IfID,
 		ReqID:      child.ReqID,
-		Priority:   dataplane.PriorityChildSA,
+		Priority:   priority,
 		UpperProto: selectorProto(child),
 		SrcPort:    srcPort,
 		DstPort:    dstPort,

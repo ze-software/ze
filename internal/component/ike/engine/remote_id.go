@@ -189,12 +189,53 @@ func configuredClass(want string) identityClass {
 	if _, err := netip.ParseAddr(want); err == nil {
 		return classAddress
 	}
+	// RFC 4301 Section 4.4.3.1: "For IPv4 and IPv6 addresses, the same address range
+	// syntax used for SPD entries MUST be supported." A prefix is an address entry that
+	// admits a set, so it belongs to the address class exactly as a single address does.
+	// Reading it as text was the whole defect: an ID_FQDN spelling "10.0.0.0/24" matched
+	// it, and no address ever did.
+	if ipsec.IsAddressRange(want) {
+		return classAddress
+	}
 	// The DN reading is the validator's own predicate rather than a second one. A value
-	// that commits as a DN is therefore compared as a DN.
-	if ipsec.IsDistinguishedName(want) {
+	// that commits as a DN is therefore compared as a DN, and a DN SUB-TREE with it.
+	if ipsec.IsDistinguishedName(want) || ipsec.IsDistinguishedNameSubtree(want) {
 		return classDN
 	}
 	return classText
+}
+
+// subtreeMatches reports whether an asserted identity falls under a configured sub-tree.
+//
+// RFC 4301 Section 4.4.3.1: "But, at a minimum, sub-tree matching of the sort described
+// above MUST be supported."
+//
+// ONE rule serves all three name types, because a ze sub-tree pattern carries the
+// hierarchy separator as its first character: ".example.com", "@example.com",
+// ",ST=MA,C=US". That separator is what makes a suffix comparison land on a boundary, so
+// the match is a plain case-folded suffix and cannot cut a label, a local part, or an RDN
+// in half. It is why ".example.com" admits "vpn.example.com" and refuses "notexample.com",
+// which is the substring match the same section leaves optional: "(Substring matching
+// within a DN, DNS name, or RFC 822 address MAY be supported, but is not required.)"
+//
+// The asserted value must be STRICTLY longer than the pattern. The sub-tree root is
+// therefore not a member of its own sub-tree: ".example.com" admits no peer asserting the
+// literal text ".example.com", and "@example.com" admits no address with an empty local
+// part. An operator who means the apex writes it exactly, with no leading separator.
+func subtreeMatches(want, asserted string) bool {
+	if len(asserted) <= len(want) {
+		return false
+	}
+	return asciiEqualFold(asserted[len(asserted)-len(want):], want)
+}
+
+// textIdentityMatches compares an asserted ID_FQDN or ID_RFC822_ADDR with the configured
+// remote-id, as a sub-tree when the operator wrote one and exactly otherwise.
+func textIdentityMatches(want, asserted string) bool {
+	if ipsec.IdentitySubtree(want) {
+		return subtreeMatches(want, asserted)
+	}
+	return asciiEqualFold(asserted, want)
 }
 
 // trailingDotOnly reports whether two names agree once a trailing dot is removed. It only
@@ -262,14 +303,14 @@ func remoteIDMatches(want string, p *wire.PayloadID) bool {
 		if !ok {
 			return false
 		}
-		configured, err := netip.ParseAddr(want)
-		if err != nil {
-			return false
-		}
-		return asserted == configured.Unmap()
+		return addressEntryMatches(want, asserted)
 	case wire.IDTypeFQDN, wire.IDTypeRFC822Addr:
-		return asciiEqualFold(string(p.IDData), want)
+		return textIdentityMatches(want, string(p.IDData))
 	case wire.IDTypeKeyID:
+		// RFC 4301 Section 4.4.3.1: "For this name type, only exact-match syntax MUST be
+		// supported (since there is no explicit structure for this ID type)." An opaque
+		// octet string has no hierarchy, so a leading '.' or '@' in it is content and
+		// never a sub-tree marker.
 		return string(p.IDData) == want
 	case wire.IDTypeDERASN1DN:
 		// The asserted DER is rendered to RFC 4514 and compared with the operator's
@@ -277,9 +318,32 @@ func remoteIDMatches(want string, p *wire.PayloadID) bool {
 		// compared as written. Ze does not apply X.500 string-preparation rules,
 		// because RFC 7296 states none.
 		name, ok := assertedDN(p)
-		return ok && asciiEqualFold(name, want)
+		return ok && textIdentityMatches(want, name)
 	}
 	return false
+}
+
+// addressEntryMatches reports whether an asserted address falls in the configured PAD
+// address entry, which is one address or a prefix.
+//
+// RFC 4301 Section 4.4.3.1: "For IPv4 and IPv6 addresses, the same address range syntax
+// used for SPD entries MUST be supported. This allows specification of an individual
+// address (via a trivial range), an address prefix (by choosing a range that adheres to
+// Classless Inter-Domain Routing (CIDR)-style prefixes), or an arbitrary address range."
+// A ze SPD entry writes its addresses as a zt:ip-prefix, so the CIDR prefix IS the range
+// syntax this section binds ze to, and an individual address is the /32 or /128 case.
+//
+// The prefix is masked before the test, so a value an operator wrote with host bits set
+// admits the block the operator named rather than a block that depends on those bits.
+func addressEntryMatches(want string, asserted netip.Addr) bool {
+	if configured, err := netip.ParseAddr(want); err == nil {
+		return asserted == configured.Unmap()
+	}
+	prefix, err := netip.ParsePrefix(want)
+	if err != nil {
+		return false
+	}
+	return prefix.Masked().Contains(asserted)
 }
 
 // refuseIDTerminators refuses a peer whose asserted ID_FQDN or ID_RFC822_ADDR carries a
@@ -366,6 +430,13 @@ func checkRemoteIdentity(sa *SA) error {
 		case trailingDotOnly(asserted, want):
 			hint = " The two differ only by a trailing dot, " +
 				"and RFC 7296 Section 3.5 puts the exact label on the wire."
+		case asserted == want && ipsec.IdentitySubtree(want):
+			// The two texts agree AND the types agree, so classMismatchHint below would
+			// name a cause that is not the cause. remote-id holds a sub-tree, and
+			// RFC 4301 Section 4.4.3.1 puts the peers UNDER a sub-tree in it and not its
+			// root, so the one identity this entry can never admit is its own text.
+			hint = " remote-id names a sub-tree, which admits the identities below it and " +
+				"not the sub-tree itself. Remove the leading separator to name this one identity."
 		case asserted == want:
 			// Equal text that still failed the comparison leaves one cause. The two
 			// identities belong to different classes, and only the type says so.
@@ -455,14 +526,18 @@ func certificateCarriesIdentity(cert *x509.Certificate, p *wire.PayloadID, want 
 		return pinnedType == wire.IDTypeKeyID
 	}
 
-	// checkRemoteIdentity has already proven the asserted value equals want, so binding
-	// on want is binding on the identity, with the class the operator wrote.
+	// The CONFIGURED value picks the certificate FIELD, and the ASSERTED value is what
+	// that field must carry. The two are equal for an exact remote-id, and they part
+	// company for a PAD entry that admits a set (RFC 4301 Section 4.4.3.1): a sub-tree or
+	// an address prefix names no identity a certificate can carry. Binding on the pattern
+	// would deny every legitimate peer under it, and dropping the bind would accept any
+	// certificate the authority issued, which is the hole remote-id exists to close.
+	// checkRemoteIdentity has already proven the asserted value lies inside the entry.
 	if configuredClass(want) == classAddress {
-		configured, err := netip.ParseAddr(want)
-		if err != nil {
+		configured, ok := assertedAddr(p)
+		if !ok {
 			return false
 		}
-		configured = configured.Unmap()
 		for _, ip := range cert.IPAddresses {
 			if named, ok := netip.AddrFromSlice(ip); ok && named.Unmap() == configured {
 				return true

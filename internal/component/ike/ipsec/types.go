@@ -521,6 +521,31 @@ type SiteToSitePeer struct {
 	// and setting it true is the operator stating that a silent downgrade to tunnel mode
 	// is worse than no tunnel at all.
 	TransportRequired bool
+
+	// PolicyPriority is where this peer's SPD entries sit in the operator's ordering of
+	// the Security Policy Database. LOWER VALUE MEANS HIGHER PRECEDENCE, in ze and in
+	// the kernel (dataplane.PriorityChildSA).
+	//
+	// RFC 4301 Section 4.4.1: "The ordering requirement arises because entries often
+	// will overlap due to the presence of (non-trivial) ranges as values for selectors.
+	// Thus, a user or administrator MUST be able to order the entries to express a
+	// desired access control policy." The same section binds the management interface:
+	// it "MUST support (total) ordering of these entries, as seen via this interface".
+	//
+	// Every peer took the one constant dataplane.PriorityChildSA before this member
+	// existed, so two peers whose selectors overlap reached the kernel at equal rank and
+	// the winner was whichever established last. This member is the operator's answer.
+	// parseSiteToSitePeer resolves an absent leaf to that same constant, so a peer that
+	// states no order installs what it installed before.
+	//
+	// ValidatePolicyOrder refuses a rank that outranks the IKE control-plane bypass.
+	//
+	// It sits LAST on purpose. Mode and TransportRequired above are one octet each, so
+	// the struct already carried six octets of tail padding and this member fits inside
+	// it. Moved anywhere else it adds eight octets, the struct reaches 288, and every
+	// function taking a peer by value crosses the gocritic hugeParam threshold
+	// (TestSiteToSitePeerStaysUnderTheHugeParamThreshold holds it).
+	PolicyPriority uint32
 }
 
 // Equal reports whether two site-to-site peer configurations are the same. It is the ONE

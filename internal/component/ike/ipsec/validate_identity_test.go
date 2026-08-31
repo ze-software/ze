@@ -155,3 +155,33 @@ func TestVidComparableIdentitiesAreAccepted(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: a remote-id that names a SET of peers commits, and the same value in local-id
+// is refused with a message that says where it belongs.
+// PREVENTS: the two halves of RFC 4301 Section 4.4.3.1 disagreeing. remote-id is a Peer
+// Authorization Database entry, which the section lets name a sub-tree or an address
+// range, so a pattern there must commit. local-id is the ONE identity ze asserts, and
+// encodeIKEID (engine/auth.go) sends its text verbatim as ID_FQDN, so a pattern there
+// reaches the wire as a literal no peer can verify.
+// RFC requirement: RFC4301-4.4.3.1-1 positive -- a sub-tree PAD entry is configurable.
+// RFC requirement: RFC4301-4.4.3.1-2 positive -- an address-range PAD entry is configurable.
+func TestVidPeerAuthorizationSetsCommitOnlyAsRemoteID(t *testing.T) {
+	sets := []string{".example.com", "@example.com", ",ST=MA,C=US", "10.0.0.0/24", "2001:db8::/32"}
+
+	for _, value := range sets {
+		if err := vidPeer("", value).ValidateIdentities(); err != nil {
+			t.Errorf("remote-id %q was refused, so the RFC 4301 Section 4.4.3.1 entry form "+
+				"cannot be configured: %v", value, err)
+		}
+	}
+
+	for _, value := range sets {
+		err := vidPeer(value, "").ValidateIdentities()
+		if err == nil {
+			t.Fatalf("local-id %q was accepted, and ze asserts exactly one identity", value)
+		}
+		if !strings.Contains(err.Error(), "remote-id") {
+			t.Errorf("the refusal %q does not say where the value belongs", err)
+		}
+	}
+}

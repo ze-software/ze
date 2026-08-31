@@ -176,6 +176,9 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidateIdentities(); err != nil {
 		return err
 	}
+	if err := cfg.ValidatePolicyOrder(); err != nil {
+		return err
+	}
 	// ai/rules/protocol.md: a traffic selector the dataplane cannot program
 	// byte for byte is refused HERE, at ze config verify and ze config commit, never
 	// approximated at negotiation time. The peer's own proposal never reaches this
