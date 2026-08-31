@@ -1,0 +1,8 @@
+---
+kind: directive
+level: MUST
+stage:
+---
+**Conformance MUST be judged on the behavior the whole stack produces, and the identity of the component that enforces a requirement MUST NOT decide the verdict (owner directive, 2026-08-31).** Ze is TCP conformant because Linux is. A requirement Ze meets by configuring the kernel correctly is MET, and delegation to XFRM, to netlink or to any other layer under Ze is an implementation of the obligation rather than an exemption from it. `{not-applicable}` and an `excluded-kind` of `binds-another-role` MUST NOT be written for a requirement whose role Ze fills, and both are wrong wherever the packet is really handled on Ze's behalf.
+**A requirement met through a lower layer MUST still carry a test, and that test MUST assert the thing Ze actually produces: the selector, the state, or the option Ze installs for the layer below.** The stack-level answer is what conformance counts, so the proof runs at the boundary Ze owns, and it MUST NOT claim a rejecting branch Ze does not hold. An integration test that reads the installed kernel state proves more than a unit test over the builder and is preferred where one is reachable (`ai/rules/platform-linux.md`).
+**A requirement that NO layer performs MUST NOT be recorded as met.** A correct encoder with no non-test caller emits nothing, so no behavior reaches the wire and there is no stack answer to count. That is an unwired feature and it is a gap, never `{not-applicable}` and never `mapped`. The reachability question is what the ruling above turns on: whether the packet is handled somewhere, not whether Ze's own code handles it (`ai/rules/principles.md`).
