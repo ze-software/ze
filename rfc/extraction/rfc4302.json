@@ -1,0 +1,469 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4302",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4302.txt",
+  "source-sha": "9966a2ddb94e62b7",
+  "signed-off": "2026-08-31",
+  "reviewer": "claude-opus-5 (ipsecwalk), spec-rfcgate-6-supported-extraction-signoff",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Status of This Memo, Copyright Notice, Abstract and Table of Contents."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4302-3.3.3.1-1"
+      ]
+    },
+    {
+      "id": "3.3.3.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.1.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.1.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.1.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.1.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.1.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.2.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.3",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Security Considerations: it discusses the assurance AH provides and states no obligation the extractor or this reviewer could find."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Differences from RFC 2402: a change log against the document this one obsoletes."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References."
+    },
+    {
+      "id": "9.2",
+      "sites": 2,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "The protocol header (IPv4, IPv6, or IPv6 Extension) immediately preceding the AH header SHALL contain the value 51 in its Protocol (IPv4) or Next Header (IPv6, Extension) fields [DH98].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "AH does not contain a version number, therefore if there are concerns about backward compatibility, they MUST be addressed by using a signaling mechanism between the two IPsec peers to ensure compatible versions of AH, e.g., IKE [IKEv2] or an out-of-band configuration mechanism.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2-2"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "It MUST be set to \"zero\" by the sender, and it SHOULD be ignored by the recipient.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.3-1"
+    },
+    {
+      "id": "2.4:1",
+      "quote": "The SPI field is mandatory, and this mechanism for mapping inbound traffic to unicast SAs described above MUST be supported by all AH implementations.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.4-1"
+    },
+    {
+      "id": "2.4:2",
+      "quote": "If an IPsec implementation supports multicast, then it MUST support multicast SAs using the algorithm below for mapping inbound IPsec datagrams to SAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.4-2"
+    },
+    {
+      "id": "2.4:3",
+      "quote": "A multicast-capable IPsec implementation MUST correctly de-multiplex inbound traffic even in the context of SPI collisions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.4-3"
+    },
+    {
+      "id": "2.4:4",
+      "quote": "In practice, an implementation MAY choose any method to accelerate this search, although its externally visible behavior MUST be functionally equivalent to having searched the SAD in the above order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.4-4"
+    },
+    {
+      "id": "2.4:5",
+      "quote": "The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or Group Domain of Interpretation (GDOI) [RFC3547].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.4-5"
+    },
+    {
+      "id": "2.4:6",
+      "quote": "The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.4-6"
+    },
+    {
+      "id": "2.5:1",
+      "quote": "For a unicast SA or a single-sender multicast SA, the sender MUST increment this field for every transmitted packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.5-1"
+    },
+    {
+      "id": "2.5:2",
+      "quote": "The field is mandatory and MUST always be present even if the receiver does not elect to enable the anti-replay service for a specific SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.5-2"
+    },
+    {
+      "id": "2.5:3",
+      "quote": "Processing of the Sequence Number field is at the discretion of the receiver, but all AH implementations MUST be capable of performing the processing described in Section 3.3.2, \"Sequence Number Generation\", and Section 3.4.3, \"Sequence Number Verification\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.5-3"
+    },
+    {
+      "id": "2.5:4",
+      "quote": "Thus, the sender MUST always transmit this field, but the receiver need not act upon it.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4302-2.5-2",
+      "reason": "Restates the obligation site 2.5:2 already carries: the Sequence Number field is mandatory and the sender always transmits it. The clause after the comma, that the receiver need not act upon it, is a permission rather than an obligation and site 3.4.3:1 carries the receiver's own rule."
+    },
+    {
+      "id": "2.5:5",
+      "quote": "Thus, the sender's counter and the receiver's counter MUST be reset (by establishing a new SA and thus a new key) prior to the transmission of the 2^32nd packet on an SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.5-5"
+    },
+    {
+      "id": "2.5.1:1",
+      "quote": "Use of an Extended Sequence Number (ESN) MUST be negotiated by an SA management protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.5.1-1"
+    },
+    {
+      "id": "2.6:1",
+      "quote": "All implementations MUST support such padding and MUST insert only enough padding to satisfy the IPv4/IPv6 alignment requirements.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-2.6-1"
+    },
+    {
+      "id": "2.6:2",
+      "quote": "The integrity algorithm specification MUST specify the length of the ICV and the comparison rules and processing steps for validation.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The role is the AUTHOR of an integrity-algorithm specification, and the sentence obliges that document to state the ICV length and the validation rules. Ze publishes no integrity-algorithm specification and no producer in this repository could: it CONSUMES them, and ipsecAuthKeyLen (internal/plugins/ospf/config.go) plus xfrmAuthTruncLen (internal/component/ike/dataplane/xfrm_linux.go) hold the key length and the ICV truncation RFC 4868 already specified for HMAC-SHA-256-128, SHA-384-192 and SHA-512-256. The obligation the sentence places on ze as a reader of such a document is site 3.3.3.2.2:3, which is mapped."
+    },
+    {
+      "id": "3.3.2:1",
+      "quote": "In other words, the sender MUST NOT send a packet on an SA if doing so would cause the sequence number to cycle.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.3.2-1"
+    },
+    {
+      "id": "3.3.3.2.2:1",
+      "quote": "If the IP packet length (including AH and the 32 high-order bits of the ESN, if enabled) does not match the blocksize requirements for the algorithm, implicit padding MUST be appended to the end of the packet, prior to ICV computation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.3.3.2.2-1"
+    },
+    {
+      "id": "3.3.3.2.2:2",
+      "quote": "The padding octets MUST have a value of zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.3.3.2.2-2"
+    },
+    {
+      "id": "3.3.3.2.2:3",
+      "quote": "The document that defines an integrity algorithm MUST be consulted to determine if implicit padding is required as described above.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.3.3.2.2-3"
+    },
+    {
+      "id": "3.3.3.2.2:4",
+      "quote": "If the document does not specify an answer to this, then the default is to assume that implicit padding is required (as needed to match the packet length to the algorithm's blocksize.) If padding bytes are needed but the algorithm does not specify the padding contents, then the padding octets MUST have a value of zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.3.3.2.2-4"
+    },
+    {
+      "id": "3.3.4:1",
+      "quote": "In any case, an AH implementation MUST support generation of ICMP PMTU messages (or equivalent internal signaling for native host implementations) to minimize the likelihood of fragmentation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.3.4-1"
+    },
+    {
+      "id": "3.4.1:1",
+      "quote": "If a packet offered to AH for processing appears to be an IP fragment, i.e., the OFFSET field is nonzero or the MORE FRAGMENTS flag is set, the receiver MUST discard the packet; this is an auditable event.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.4.1-1"
+    },
+    {
+      "id": "3.4.2:1",
+      "quote": "If no valid Security Association exists for this packet the receiver MUST discard the packet; this is an auditable event.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.4.2-1"
+    },
+    {
+      "id": "3.4.3:1",
+      "quote": "All AH implementations MUST support the anti-replay service, though its use may be enabled or disabled by the receiver on a per-SA basis.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.4.3-1"
+    },
+    {
+      "id": "3.4.3:2",
+      "quote": "If the receiver has enabled the anti-replay service for this SA, the receive packet counter for the SA MUST be initialized to zero when the SA is established.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.4.3-2"
+    },
+    {
+      "id": "3.4.3:3",
+      "quote": "For each received packet, the receiver MUST verify that the packet contains a Sequence Number that does not duplicate the Sequence Number of any other packets received during the life of this SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.4.3-3"
+    },
+    {
+      "id": "3.4.3:4",
+      "quote": "If the ICV validation fails, the receiver MUST discard the received IP datagram as invalid.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.4.3-4"
+    },
+    {
+      "id": "3.4.3:5",
+      "quote": "A MINIMUM window size of 32 packets MUST be supported, but a window size of 64 is preferred and SHOULD be employed as the default.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-3.4.3-5"
+    },
+    {
+      "id": "3.4.4:1",
+      "quote": "If the test fails, then the receiver MUST discard the received IP datagram as invalid.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4302-3.4.3-4",
+      "reason": "Restates the discard obligation site 3.4.3:4 carries. Both sentences say that a failed ICV comparison discards the datagram as invalid; this one is the Integrity Check Value Verification section repeating the Sequence Number Verification section."
+    },
+    {
+      "id": "4:1",
+      "quote": "However, if AH is incorporated into a system that supports auditing, then the AH implementation MUST also support auditing and MUST allow a system administrator to enable or disable auditing for AH.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-4-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "Implementations that claim conformance or compliance with this specification MUST fully implement the AH syntax and processing described here for unicast traffic, and MUST comply with all requirements of the Security Architecture document [Ken-Arch].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "Additionally, if an implementation claims to support multicast traffic, it MUST comply with the additional requirements specified for support of such traffic.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-5-2"
+    },
+    {
+      "id": "9.2:1",
+      "quote": "If this happens, then when AH receives the packet, before doing ICV processing, AH MUST \"remove\" (or skip over) this header and change the previous header's \"Next Header\" field to be the \"Next Header\" field in the Fragmentation Extension Header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-A2-1"
+    },
+    {
+      "id": "9.2:2",
+      "quote": "If this happens, then before doing ICV processing, AH MUST first \"remove\" (or skip over) this header and change the previous header's \"Next Header\" field to be the \"Next Header\" field in the Fragmentation Extension Header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4302-A2-2"
+    }
+  ]
+}

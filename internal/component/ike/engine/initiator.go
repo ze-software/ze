@@ -160,17 +160,28 @@ func buildWireIKEProposals(ikeGroup ipsec.IKEGroup) []wire.Proposal {
 		integ := lookupIntegrity(p.Hash)
 		dh := uint16(p.DHGroup)
 
-		integID := uint16(integ.ID)
-		if enc.IsAEAD {
-			integID = uint16(crypto.AUTH_NONE)
-		}
-
 		transforms := []wire.Transform{
 			{Type: wire.TransformTypeENCR, ID: uint16(enc.ID), Attrs: encAttrs(enc)},
 			{Type: wire.TransformTypePRF, ID: uint16(prf.ID)},
-			{Type: wire.TransformTypeINTG, ID: integID},
-			{Type: wire.TransformTypeDH, ID: dh},
 		}
+		// RFC 5282 Section 8: "This document further updates [RFC4306] to require
+		// that if all of the encryption algorithms in any proposal are
+		// authenticated encryption algorithms, then the proposal MUST NOT propose
+		// any integrity transforms."
+		//
+		// The transform is OMITTED rather than sent as AUTH_NONE. One proposal
+		// carries one encryption transform here, so "all of the encryption
+		// algorithms" is that one, and an AEAD cipher supplies its own integrity.
+		// A Type 3 transform of any value is still a proposed integrity transform,
+		// which is what the sentence forbids. espProposalToWire, below, has always
+		// omitted it for an AEAD ESP proposal; this path sent AUTH_NONE instead,
+		// so ze disagreed with itself about the same obligation on two rails.
+		if !enc.IsAEAD {
+			transforms = append(transforms, wire.Transform{
+				Type: wire.TransformTypeINTG, ID: uint16(integ.ID),
+			})
+		}
+		transforms = append(transforms, wire.Transform{Type: wire.TransformTypeDH, ID: dh})
 
 		proposals = append(proposals, wire.Proposal{
 			Number:     offerProposalNum(i),
