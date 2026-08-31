@@ -11,9 +11,15 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/discoveryindex"
+	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/testweakened"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
+
+// notCheckoutDetail says why no native verification judges this commit. The
+// tree is not the Ze checkout, so there is no Go in it for a gate to run over
+// and no certificate that could cover it.
+const notCheckoutDetail = "root is not the Ze checkout, so no native gate judges it"
 
 // Options is the callable commit-preparation contract. Paths and removals are
 // explicit and repeatable; no option broadens them to a directory or whole tree.
@@ -92,35 +98,26 @@ func Create(root string, options *Options) (Prepared, error) {
 	}
 	result.NoTest = strings.TrimSpace(options.NoTest)
 
-	prospective, problems := testweakened.ProspectiveCommit(root, paths, removed)
-	if len(problems) != 0 {
-		return result, errors.New(strings.Join(problems, "\n"))
-	}
-	carriesLedger := slices.Contains(paths, testweakened.ContractPath)
-	weakening := testweakened.CheckCommit(testweakened.Request{
-		Root: root, Paths: paths, Removed: removed, RenamePairs: prospective.RenamePairs,
-	}, carriesLedger)
-	result.Weakened = weakening.Findings
-	if len(weakening.Problems) != 0 {
-		return result, errors.New(strings.Join(weakening.Problems, "\n\n"))
-	}
-	rfcChanges, rfcProblems := rfcChangeProblems(
-		root, prospective, slices.Contains(paths, rfcChangedPath),
-	)
-	result.RFCChanges = rfcChanges
-	if len(rfcProblems) != 0 && strings.TrimSpace(options.RFCChangeOK) == "" {
-		return result, errors.New(strings.Join(rfcProblems, "\n\n"))
-	}
-
-	if options.StaleIndexOK == "" {
-		if err := checkDiscoveryIndex(root, paths); err != nil {
-			return result, fmt.Errorf("%w\n  or name stale-index-ok with a truthful reason", err)
+	// Every gate below reads Ze's own sources: the test ledger, the RFC-tagged
+	// tests, the discovery index, the native verification certificate and the
+	// plan/ specs. ZE_REPO_ROOT also names sibling checkouts that PUBLISH Ze
+	// rather than build it, the site and the wiki, and none of those sources
+	// exists there. A gate then refuses the commit for want of a file that tree
+	// never had, or reads a path that means something else in it: gh-pages
+	// publishes plan/ pages, which the closure gate read as a spec closing, and
+	// it wrote a verification-debt row into the published site.
+	//
+	// What still holds in either tree is what protects any tree, and none of it
+	// is skipped: the path validation above, the message contract, the
+	// concurrency guard the generated script carries, and the push
+	// authorisation.
+	native := lepath.IsCheckout(root)
+	if native {
+		if err := checkSourceGates(root, options, &result, paths, removed); err != nil {
+			return result, err
 		}
-	}
-	if problems := testCoverageProblems(root, paths); len(problems) != 0 &&
-		strings.TrimSpace(options.NoTest) == "" {
-		return result, fmt.Errorf("%s\n  or name no-test with a truthful reason",
-			strings.Join(problems, "\n"))
+	} else {
+		result.Verify = VerificationState{State: verifyNotApplicable, Detail: notCheckoutDetail}
 	}
 
 	session, err := SessionID(root, options.Session)
@@ -128,81 +125,16 @@ func Create(root string, options *Options) (Prepared, error) {
 		return result, err
 	}
 	result.Session = session
-	all := append(append([]string{}, paths...), removed...)
-	result.Verify = verificationState(root, all)
-	observed := make(map[string]string)
-	if result.Verify.State != verifyFresh {
-		observed[gateUnverified] = "verify-status is not FRESH-green: " + result.Verify.Detail
-	}
-	if carriesGo(all) && result.Verify.Mode != verifyengine.Mode {
-		observed[gateMissingFullVerifyOK] = "no full native verification covers this commit's Go"
-	}
-	if result.Verify.State != verifyFresh {
-		reds := structuralGateReds(root, all)
-		charged := append([]string(nil), reds.Charged...)
-		if len(charged) == 1 && charged[0] == trackedBuildStage &&
-			strings.TrimSpace(options.BrokenHeadFix) != "" {
-			charged = nil
-		}
-		if len(charged) != 0 && strings.TrimSpace(options.StructuralRedOK) == "" {
-			detail := ""
-			if len(reds.Unattributed) != 0 {
-				detail = "\n  charged for want of path attribution: " +
-					strings.Join(reds.Unattributed, ", ")
-			}
-			return result, fmt.Errorf(
-				"deterministic structural gate(s) are red for this commit: %s%s\n"+
-					"  fix the producer, use broken-head-fix for the sole tracked-build red, "+
-					"or name structural-red-ok with a truthful reason",
-				strings.Join(charged, ", "), detail,
-			)
-		}
-	}
-
-	stem, err := closureStem(root, paths, removed)
-	if err != nil {
-		return result, err
-	}
 	reviewCheck := ""
-	if stem != "" {
-		review := CheckReview(root, stem, paths)
-		result.Review = &review
-		if !review.Clean && strings.TrimSpace(options.ReviewOverride) == "" {
-			return result, errors.New(strings.Join(review.Problems, "\n"))
-		}
-		if review.Clean {
-			reviewCheck = reviewCheckCommand(stem, paths)
-		}
-	}
-
-	overrides := map[string]string{
-		gateUnverified:          options.Unverified,
-		gateStructuralRedOK:     options.StructuralRedOK,
-		gateMissingFullVerifyOK: options.MissingFullVerifyOK,
-		gateStaleIndexOK:        options.StaleIndexOK,
-		gateReviewOverride:      options.ReviewOverride,
-		gateBrokenHeadFix:       options.BrokenHeadFix,
-		gateRFCChangeOK:         options.RFCChangeOK,
-	}
-	owed := owedDebt(session, options.Subject, overrides, observed)
-	if len(owed) != 0 && !options.DryRun {
-		debtFile, err := recordDebt(root, session, options.Subject, owed)
+	if native {
+		paths, reviewCheck, err = checkVerificationGates(root, options, &result, paths, removed)
 		if err != nil {
 			return result, err
 		}
-		if !slices.Contains(paths, debtFile) {
-			paths = append(paths, debtFile)
-			result.Verify = verificationState(root, append(paths, removed...))
-		}
-	}
-	result.Debt = owed
-	if authorisation != "" {
-		open, err := openDebt(root)
-		if err != nil {
-			return result, err
-		}
-		if len(open)+len(owed) != 0 {
-			return result, fmt.Errorf("refusing push: %d open verification-debt row(s); run le commit debt-clear", len(open)+len(owed))
+		if authorisation != "" {
+			if err := refusePushWithDebt(root, result.Debt); err != nil {
+				return result, err
+			}
 		}
 	}
 
@@ -237,7 +169,7 @@ func Create(root string, options *Options) (Prepared, error) {
 			return result, err
 		}
 	}
-	scriptText, err := composeScript(existing, scriptPath, session, block, options.Append, authorisation)
+	scriptText, err := composeScript(root, existing, scriptPath, session, block, options.Append, authorisation)
 	if err != nil {
 		return result, err
 	}
@@ -264,6 +196,135 @@ func Create(root string, options *Options) (Prepared, error) {
 		return result, err
 	}
 	return result, nil
+}
+
+// checkSourceGates judges the sources a prospective commit carries: the test
+// ledger, the RFC-tagged tests, the discovery index and the test-coverage
+// obligation. Each one reads a file only the Ze checkout holds, so Create runs
+// this over that checkout alone.
+func checkSourceGates(root string, options *Options, result *Prepared, paths, removed []string) error {
+	prospective, problems := testweakened.ProspectiveCommit(root, paths, removed)
+	if len(problems) != 0 {
+		return errors.New(strings.Join(problems, "\n"))
+	}
+	carriesLedger := slices.Contains(paths, testweakened.ContractPath)
+	weakening := testweakened.CheckCommit(testweakened.Request{
+		Root: root, Paths: paths, Removed: removed, RenamePairs: prospective.RenamePairs,
+	}, carriesLedger)
+	result.Weakened = weakening.Findings
+	if len(weakening.Problems) != 0 {
+		return errors.New(strings.Join(weakening.Problems, "\n\n"))
+	}
+	rfcChanges, rfcProblems := rfcChangeProblems(
+		root, prospective, slices.Contains(paths, rfcChangedPath),
+	)
+	result.RFCChanges = rfcChanges
+	if len(rfcProblems) != 0 && strings.TrimSpace(options.RFCChangeOK) == "" {
+		return errors.New(strings.Join(rfcProblems, "\n\n"))
+	}
+
+	if options.StaleIndexOK == "" {
+		if err := checkDiscoveryIndex(root, paths); err != nil {
+			return fmt.Errorf("%w\n  or name stale-index-ok with a truthful reason", err)
+		}
+	}
+	if problems := testCoverageProblems(root, paths); len(problems) != 0 &&
+		strings.TrimSpace(options.NoTest) == "" {
+		return fmt.Errorf("%s\n  or name no-test with a truthful reason",
+			strings.Join(problems, "\n"))
+	}
+	return nil
+}
+
+// checkVerificationGates judges the commit against the native verification
+// certificate, the recorded structural reds and the independent-review
+// artifact, then records the debt every override and observed red owes. It
+// answers the path population the commit carries, which grows by the debt row
+// when one is written, and the review re-check line the script runs.
+func checkVerificationGates(root string, options *Options, result *Prepared, paths, removed []string) ([]string, string, error) {
+	all := append(append([]string{}, paths...), removed...)
+	result.Verify = verificationState(root, all)
+	observed := make(map[string]string)
+	if result.Verify.State != verifyFresh {
+		observed[gateUnverified] = "verify-status is not FRESH-green: " + result.Verify.Detail
+	}
+	if carriesGo(all) && result.Verify.Mode != verifyengine.Mode {
+		observed[gateMissingFullVerifyOK] = "no full native verification covers this commit's Go"
+	}
+	if result.Verify.State != verifyFresh {
+		reds := structuralGateReds(root, all)
+		charged := append([]string(nil), reds.Charged...)
+		if len(charged) == 1 && charged[0] == trackedBuildStage &&
+			strings.TrimSpace(options.BrokenHeadFix) != "" {
+			charged = nil
+		}
+		if len(charged) != 0 && strings.TrimSpace(options.StructuralRedOK) == "" {
+			detail := ""
+			if len(reds.Unattributed) != 0 {
+				detail = "\n  charged for want of path attribution: " +
+					strings.Join(reds.Unattributed, ", ")
+			}
+			return nil, "", fmt.Errorf(
+				"deterministic structural gate(s) are red for this commit: %s%s\n"+
+					"  fix the producer, use broken-head-fix for the sole tracked-build red, "+
+					"or name structural-red-ok with a truthful reason",
+				strings.Join(charged, ", "), detail,
+			)
+		}
+	}
+
+	stem, err := closureStem(root, paths, removed)
+	if err != nil {
+		return nil, "", err
+	}
+	reviewCheck := ""
+	if stem != "" {
+		review := CheckReview(root, stem, paths)
+		result.Review = &review
+		if !review.Clean && strings.TrimSpace(options.ReviewOverride) == "" {
+			return nil, "", errors.New(strings.Join(review.Problems, "\n"))
+		}
+		if review.Clean {
+			reviewCheck = reviewCheckCommand(stem, paths)
+		}
+	}
+
+	overrides := map[string]string{
+		gateUnverified:          options.Unverified,
+		gateStructuralRedOK:     options.StructuralRedOK,
+		gateMissingFullVerifyOK: options.MissingFullVerifyOK,
+		gateStaleIndexOK:        options.StaleIndexOK,
+		gateReviewOverride:      options.ReviewOverride,
+		gateBrokenHeadFix:       options.BrokenHeadFix,
+		gateRFCChangeOK:         options.RFCChangeOK,
+	}
+	owed := owedDebt(result.Session, options.Subject, overrides, observed)
+	if len(owed) != 0 && !options.DryRun {
+		debtFile, err := recordDebt(root, result.Session, options.Subject, owed)
+		if err != nil {
+			return nil, "", err
+		}
+		if !slices.Contains(paths, debtFile) {
+			paths = append(paths, debtFile)
+			result.Verify = verificationState(root, append(paths, removed...))
+		}
+	}
+	result.Debt = owed
+	return paths, reviewCheck, nil
+}
+
+// refusePushWithDebt keeps an authorized push behind every open obligation, the
+// rows this commit is about to write included.
+func refusePushWithDebt(root string, owed []Debt) error {
+	open, err := openDebt(root)
+	if err != nil {
+		return err
+	}
+	if len(open)+len(owed) == 0 {
+		return nil
+	}
+	return fmt.Errorf("refusing push: %d open verification-debt row(s); run le commit debt-clear",
+		len(open)+len(owed))
 }
 
 func normalizePaths(root string, raw []string, validate func(string, string) error) ([]string, error) {
@@ -435,9 +496,14 @@ func refuseForeignReplace(script string, paths []string) error {
 	return errors.New("replace refused: script was prepared for a different commit and shares none of these files")
 }
 
-func composeScript(existing, scriptPath, session string, block commitBlock, appendBlock bool, push string) (string, error) {
+func composeScript(root, existing, scriptPath, session string, block commitBlock, appendBlock bool, push string) (string, error) {
+	// The script names the checkout it was prepared for, rather than asking git
+	// which checkout it is being RUN in. Those are two different trees whenever
+	// ZE_REPO_ROOT points le at a sibling: the script sits in the site's tmp/
+	// and is run from the Ze checkout, where `git rev-parse --show-toplevel`
+	// answered "the Ze checkout" and staged this commit's paths there.
 	header := "#!/bin/bash\nset -euo pipefail\n" +
-		"cd \"$(git rev-parse --show-toplevel)\"\n\n" +
+		"cd " + shellQuote(root) + "\n\n" +
 		markerLine(scriptMarker, scriptPath+" session="+session) + "\n\n"
 	body := header
 	existingPush := ""

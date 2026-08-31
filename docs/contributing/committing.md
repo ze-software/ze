@@ -24,7 +24,9 @@ optional push into one script, so no partial-staging window exists.
 | `subject` | no | The one-line commit subject. At most 72 characters, and a longer one is refused with the count and the overage |
 | `body` | yes | A body paragraph. Lines are wrapped to 72 characters without breaking a word |
 | `file` | yes | One explicit file to stage. Never a directory |
+| `file-list` | yes | A file holding one path to stage per line. Blank lines and `#` comments are skipped |
 | `remove` | yes | One tracked path to delete |
+| `remove-list` | yes | A file holding one tracked path to delete per line |
 | `replace` | no | Start a fresh script. Use it for the first commit of a session |
 | `append` | no | Add another commit block to a script that already exists |
 | `script` | no | The script to append to. `create` with no `script` always gets a distinct path |
@@ -44,12 +46,24 @@ path before the script is written:
 - A path outside the repository, or a `..` component.
 - Anything under `.git/`.
 - A generated agent file: `AGENTS.md` and `CLAUDE.md`.
-- A path `git check-ignore` matches.
+- A path `git check-ignore` matches. The index is consulted, so a TRACKED file
+  that matches an ignore pattern is committable: git already carries it, and the
+  pattern governs what is added under that path next.
 - A path that does not exist. Use `remove` for a tracked deletion.
 - A directory. Scripts stage explicit files.
 
 `validateRemovePath` refuses a `remove` path that is not tracked, so you never
 have to run `git ls-files --error-unmatch` yourself.
+
+A list keyword buys one thing: a population too large to type stays explicit. It
+broadens nothing else. Every line is validated as its own path, the script
+spells each one, and the concurrency guard names them all. Write the list with a
+command that answers what changed, then read it before you pass it:
+
+```bash
+cd ../gh-pages && git -c core.quotePath=false status --porcelain |
+  grep -v '^ D' | sed 's/^...//' > "$dir/add.txt"
+```
 
 The command also checks verification freshness for the named file population,
 records verification debt rather than dropping a local commit, refuses
@@ -104,8 +118,9 @@ them. One commit block holds, in order:
    concurrent session's staged file is caught before it is committed.
 6. `git commit -F <message-file>`.
 
-The script opens with `set -euo pipefail` and a `cd` to the repository root, so
-a failed step stops it. A push, when one was authorised, runs after every commit
+The script opens with `set -euo pipefail` and a `cd` to the checkout it was
+PREPARED for, named as an absolute path, so a failed step stops it and a script
+prepared for one tree never stages in another. A push, when one was authorised, runs after every commit
 in the script succeeds.
 
 The message file is read when the SCRIPT runs, not when `create` wrote it. So
@@ -129,6 +144,28 @@ quotes, or name the thing without quoting it.
 Two habits make it self-checking. Read the generated message file before running
 the script, at the path on the `message=` line. And treat `command not found`
 anywhere in the output as a failed invocation rather than noise.
+
+## Committing a sibling checkout
+
+`ZE_REPO_ROOT` points the command at another tree, which is how the published
+site and the wiki are committed from the Ze checkout:
+
+```bash
+ZE_REPO_ROOT=../gh-pages ./le commit create replace \
+  subject "site: republish the generated tree" \
+  file-list "$dir/add.txt" remove-list "$dir/del.txt"
+```
+
+The gates that read Ze's own sources do not run there, and `lepath.IsCheckout`
+decides it: a tree with no `go.mod` beside `feature-gates.txt` is not the Ze
+checkout. It holds no test ledger, no discovery index, no verification
+certificate and no `plan/` specs, so each of those gates would refuse the commit
+for want of a file that tree never had, or read a path that means something else
+in it. `verify=NOT-APPLICABLE` says so in the output, and no verification-debt
+row is written into a tree that has no native gate to owe.
+
+Path validation, the message contract, the concurrency guard and the push
+authorisation apply in every tree.
 
 ## After the script runs
 

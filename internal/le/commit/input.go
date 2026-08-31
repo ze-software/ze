@@ -66,7 +66,13 @@ func validateAddPath(root, path string) error {
 	if forbiddenGeneratedPaths[path] {
 		return fmt.Errorf("generated agent file must not be committed: %s", path)
 	}
-	ignored, err := gitExit(root, "check-ignore", "--no-index", "-q", "--", path)
+	// The index is consulted, which is check-ignore's default and the reason
+	// --no-index is not passed. A TRACKED file matching an ignore pattern is not
+	// ignored: git already carries it, so refusing its update commits nobody to
+	// anything and only blocks the change. The published site tracks
+	// assets/demos/ while ignoring new files under it, and every republish of a
+	// cast was refused for a rule that no longer governs the file.
+	ignored, err := gitExit(root, "check-ignore", "-q", "--", path)
 	if err != nil {
 		return fmt.Errorf("check ignored path %s: %w", path, err)
 	}
@@ -95,6 +101,52 @@ func validateRemovePath(root, path string) error {
 		return fmt.Errorf("remove path is not tracked: %s", path)
 	}
 	return nil
+}
+
+// expandLists answers the paths named directly beside the paths every list file
+// names, in that order.
+func expandLists(named, lists []string) ([]string, error) {
+	paths := append([]string{}, named...)
+	for _, list := range lists {
+		fromFile, err := readPathList(list)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, fromFile...)
+	}
+	return paths, nil
+}
+
+// readPathList reads one repository path per line, so a population too large to
+// type stays explicit.
+//
+// A site republish names about 1400 files, and `file <path>` 1400 times is not
+// an invocation anybody writes. This broadens nothing: every line is validated
+// as its own explicit path, the generated script still spells each one, and the
+// concurrency guard still names them all. What it does NOT do is name a
+// directory, or read the population from git at run time, which would let a
+// file appear between preparation and staging.
+//
+// The list is a filesystem path like any other shell argument, read from the
+// working directory. A blank line and a `#` comment are skipped, so a generated
+// list can carry a header.
+func readPathList(name string) ([]string, error) {
+	content, err := os.ReadFile(name) //nolint:gosec // the list is a path the caller named on the command line
+	if err != nil {
+		return nil, fmt.Errorf("read path list %s: %w", name, err)
+	}
+	paths := make([]string, 0)
+	for line := range strings.SplitSeq(string(content), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		paths = append(paths, line)
+	}
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("path list names no file: %s", name)
+	}
+	return paths, nil
 }
 
 func gitExit(root string, args ...string) (int, error) {

@@ -238,6 +238,7 @@ func parseCreate(args []string) (Options, error) {
 	rules := map[string]keywordRule{
 		keywordSession: {Value: true}, "tag": {Value: true}, "subject": {Value: true},
 		"body": {Value: true, Repeat: true}, "file": {Value: true, Repeat: true},
+		"file-list": {Value: true, Repeat: true}, "remove-list": {Value: true, Repeat: true},
 		"remove": {Value: true, Repeat: true}, "script": {Value: true},
 		"append": {}, "replace": {}, "push": {Value: true}, "no-test": {Value: true},
 		gateUnverified:      {Value: true},
@@ -249,9 +250,19 @@ func parseCreate(args []string) (Options, error) {
 	if err != nil {
 		return Options{}, err
 	}
+	// A list expands where the keywords are read, so Options stays one contract:
+	// an explicit population, however the caller wrote it down.
+	files, err := expandLists(values["file"], values["file-list"])
+	if err != nil {
+		return Options{}, err
+	}
+	removed, err := expandLists(values["remove"], values["remove-list"])
+	if err != nil {
+		return Options{}, err
+	}
 	return Options{
 		Session: values.one(keywordSession), Tag: values.one("tag"), Subject: values.one("subject"),
-		Body: values["body"], Files: values["file"], Remove: values["remove"], Script: values.one("script"),
+		Body: values["body"], Files: files, Remove: removed, Script: values.one("script"),
 		Append: values.has("append"), Replace: values.has("replace"), Push: values.one("push"),
 		NoTest: values.one("no-test"), Unverified: values.one(gateUnverified),
 		StructuralRedOK:     values.one(gateStructuralRedOK),

@@ -64,7 +64,13 @@ func renderBlock(block commitBlock, scriptPath string) string {
 
 func renderAdd(paths []string) string {
 	lines := make([]string, 0, 1+len(paths))
-	lines = append(lines, "git add -- \\")
+	// -f is what lets a TRACKED file under an ignored directory be staged. Git
+	// reports the whole pathspec as ignored and exits 1 without it, even though
+	// it staged every path, which stops the script between the add and the
+	// commit and leaves the index full. Forcing costs nothing here: every path
+	// in this script passed validateAddPath, which already refuses a path git
+	// ignores with the index consulted.
+	lines = append(lines, "git add -f -- \\")
 	for index, path := range paths {
 		suffix := " \\"
 		if index+1 == len(paths) {

@@ -95,6 +95,16 @@ func ancestorWithMarkers(start string) string {
 	}
 }
 
+// IsCheckout answers whether dir is a Ze checkout rather than some other tree
+// le was pointed at.
+//
+// ZE_REPO_ROOT can name a sibling checkout that holds no Ze software at all:
+// the published site, the wiki. A tool whose gates read Ze's own sources needs
+// to know which of the two it has, because in the second tree those sources are
+// absent and every gate over them either refuses or answers about a path that
+// means something else there.
+func IsCheckout(dir string) bool { return hasMarkers(dir) }
+
 func hasMarkers(dir string) bool {
 	for _, marker := range markers {
 		if _, err := os.Stat(filepath.Join(dir, marker)); err != nil {

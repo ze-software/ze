@@ -41,6 +41,17 @@ func TestAddAndRemoveValidationProtectExplicitStaging(t *testing.T) {
 			t.Errorf("validateAddPath(%q) accepted a protected population", path)
 		}
 	}
+	// A tracked file that matches an ignore pattern is committable. Git already
+	// carries it, so the pattern governs new files under that path and not this
+	// one. The published site tracks assets/demos/ and ignores additions to it,
+	// and every republish of a tracked cast there was refused.
+	writeCommitFixture(t, root, "tracked-ignored.txt", "was added before the rule\n")
+	runCommitGit(t, root, "add", "-f", "--", "tracked-ignored.txt")
+	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "tracked before the ignore rule")
+	writeCommitFixture(t, root, ".gitignore", "ignored.txt\ntracked-ignored.txt\n")
+	if err := validateAddPath(root, "tracked-ignored.txt"); err != nil {
+		t.Fatalf("validateAddPath refused a tracked file for an ignore rule: %v", err)
+	}
 	if err := validateAddPath(root, "plain.txt"); err != nil {
 		t.Fatalf("validateAddPath(plain.txt): %v", err)
 	}
@@ -149,7 +160,7 @@ func TestGeneratedBlockQuotesPathsAndGuardsForeignStaging(t *testing.T) {
 	}
 	script := renderBlock(block, "tmp/commit-owner.sh")
 	for _, want := range []string{
-		"git add -- \\", "'space name.txt'", `'quote'"'"'s.txt'`, "git rm -- 'old name.txt'",
+		"git add -f -- \\", "'space name.txt'", `'quote'"'"'s.txt'`, "git rm -- 'old name.txt'",
 		"git -c core.quotePath=false diff --cached --name-only", "this script: tmp/commit-owner.sh",
 		"git commit -F 'tmp/message name.txt'",
 	} {
@@ -247,8 +258,8 @@ func TestCreateDryRunBuildsExactScriptWithoutTouchingSharedIndex(t *testing.T) {
 	if !slices.Equal(prepared.Added, []string{"mine name.txt"}) || len(prepared.Removed) != 0 {
 		t.Fatalf("prepared population = added %q removed %q", prepared.Added, prepared.Removed)
 	}
-	if !strings.Contains(prepared.ScriptText, "git add -- \\\n  'mine name.txt'") ||
-		strings.Contains(prepared.ScriptText, "git add -- \\\n  'tracked.txt'") {
+	if !strings.Contains(prepared.ScriptText, "git add -f -- \\\n  'mine name.txt'") ||
+		strings.Contains(prepared.ScriptText, "git add -f -- \\\n  'tracked.txt'") {
 		t.Fatalf("prepared script stages the wrong population:\n%s", prepared.ScriptText)
 	}
 	if staged := strings.TrimSpace(runCommitGitOutput(t, root, "diff", "--cached", "--name-only")); staged != "tracked.txt" {
@@ -263,12 +274,12 @@ func TestCreateDryRunBuildsExactScriptWithoutTouchingSharedIndex(t *testing.T) {
 func TestAppendKeepsOneAuthorisedPushAtTheEnd(t *testing.T) {
 	t.Parallel()
 	first := commitBlock{Tag: "a", Subject: "first", Paths: []string{"one.txt"}, MessagePath: "tmp/a.txt"}
-	initial, err := composeScript("", "tmp/commit-owner.sh", "12345678", first, false, "owner approved this push")
+	initial, err := composeScript("/repo", "", "tmp/commit-owner.sh", "12345678", first, false, "owner approved this push")
 	if err != nil {
 		t.Fatal(err)
 	}
 	second := commitBlock{Tag: "b", Subject: "second", Paths: []string{"two.txt"}, MessagePath: "tmp/b.txt"}
-	appended, err := composeScript(initial, "tmp/commit-owner.sh", "12345678", second, true, "")
+	appended, err := composeScript("/repo", initial, "tmp/commit-owner.sh", "12345678", second, true, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -493,6 +504,11 @@ func TestCommitSessionIsStableAndExplicitlyReplaceable(t *testing.T) {
 func newCommitRepository(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
+	// The markers make the fixture a Ze CHECKOUT, which is what the gates below
+	// judge. lepath.IsCheckout reads the pair, and Create runs the source,
+	// verification and review gates only where it answers true.
+	writeCommitFixture(t, root, "go.mod", "module fixture\n")
+	writeCommitFixture(t, root, "feature-gates.txt", "")
 	writeCommitFixture(t, root, "tracked.txt", "tracked\n")
 	runCommitGit(t, root, "init", "-q")
 	runCommitGit(t, root, "add", "--", "tracked.txt")
@@ -592,4 +608,107 @@ func TestValidateTagReportsLengthSeparatelyFromCharacters(t *testing.T) {
 	if err := validateTag("fix(bgp)"); err == nil || !strings.Contains(err.Error(), "alphanumeric") {
 		t.Fatalf("validateTag(%q) = %v, want the character-class refusal", "fix(bgp)", err)
 	}
+}
+
+// TestCreateOutsideTheZeCheckoutSkipsTheGatesThatReadZeSources is the case that
+// made the published site uncommittable.
+//
+// VALIDATES: Create runs the source, verification and review gates only where
+// lepath.IsCheckout answers true, and prepares a plain explicit commit in the
+// sibling checkouts ZE_REPO_ROOT names.
+// PREVENTS: the two failures a site republish met. The discovery-index gate
+// refused every commit with "the tree holds no ai/ directory", and the debt the
+// stale certificate owed was written to plan/verification-debt/ INSIDE the site
+// and published from there.
+func TestCreateOutsideTheZeCheckoutSkipsTheGatesThatReadZeSources(t *testing.T) {
+	t.Setenv("CLAUDE_CODE_SESSION_ID", "commit-site-fixture")
+	site := newSiteRepository(t)
+	writeCommitFixture(t, site, "index.html", "<p>published</p>\n")
+
+	prepared, err := Create(site, &Options{
+		Subject: "site: publish the generated tree", Files: []string{"index.html"},
+	})
+	if err != nil {
+		t.Fatalf("Create refused a site commit: %v", err)
+	}
+	if prepared.Verify.State != verifyNotApplicable {
+		t.Fatalf("verify state = %q, want %q", prepared.Verify.State, verifyNotApplicable)
+	}
+	if len(prepared.Debt) != 0 {
+		t.Fatalf("site commit owed %d debt row(s)", len(prepared.Debt))
+	}
+	if _, err := os.Stat(filepath.Join(site, "plan", "verification-debt")); err == nil {
+		t.Fatal("Create wrote verification debt into the published tree")
+	}
+	script, err := os.ReadFile(filepath.Join(site, filepath.FromSlash(prepared.Script)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(script), "cd "+shellQuote(site)+"\n") {
+		t.Fatalf("script does not cd to the checkout it was prepared for:\n%s", script)
+	}
+
+	// The discrimination: the same call in a tree that IS the Ze checkout still
+	// meets the discovery-index gate, so the skip is keyed to the tree and not
+	// to the absence of an ai/ directory.
+	checkout := newCommitRepository(t)
+	writeCommitFixture(t, checkout, "index.html", "<p>published</p>\n")
+	if _, err := Create(checkout, &Options{
+		Subject: "site: publish the generated tree", Files: []string{"index.html"},
+	}); err == nil {
+		t.Fatal("Create skipped the discovery-index gate inside the Ze checkout")
+	}
+}
+
+// TestListKeywordsExpandToTheSameExplicitPopulation pins what file-list buys and
+// what it must not buy. A site republish names about 1400 paths, which nobody
+// writes as 1400 keywords; the list is read into the same explicit population,
+// so every path is still validated and still spelled in the script.
+func TestListKeywordsExpandToTheSameExplicitPopulation(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	list := filepath.Join(dir, "paths.txt")
+	if err := os.WriteFile(list, []byte("# generated by the site build\nfirst.html\n\nsecond.html\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gone := filepath.Join(dir, "gone.txt")
+	if err := os.WriteFile(gone, []byte("old.html\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	options, err := parseCreate([]string{
+		"subject", "site: republish", "file", "named.html",
+		"file-list", list, "remove-list", gone,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(options.Files, []string{"named.html", "first.html", "second.html"}) {
+		t.Fatalf("expanded files = %q", options.Files)
+	}
+	if !slices.Equal(options.Remove, []string{"old.html"}) {
+		t.Fatalf("expanded removals = %q", options.Remove)
+	}
+	if _, err := parseCreate([]string{"subject", "s", "file-list", filepath.Join(dir, "missing.txt")}); err == nil {
+		t.Fatal("parseCreate accepted a list file that does not exist")
+	}
+	empty := filepath.Join(dir, "empty.txt")
+	if err := os.WriteFile(empty, []byte("# nothing but a header\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parseCreate([]string{"subject", "s", "file-list", empty}); err == nil {
+		t.Fatal("parseCreate accepted a list that names no file")
+	}
+}
+
+// newSiteRepository is a git checkout that is NOT a Ze checkout: it carries
+// neither marker, exactly like the published site and the wiki.
+func newSiteRepository(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	writeCommitFixture(t, root, "tracked.txt", "tracked\n")
+	runCommitGit(t, root, "init", "-q")
+	runCommitGit(t, root, "add", "--", "tracked.txt")
+	runCommitGit(t, root, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "baseline")
+	return root
 }

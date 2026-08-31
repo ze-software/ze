@@ -269,6 +269,7 @@ const (
 	keywordSession          = "session"
 	actionReviewCheck       = "review-check"
 	verifyFresh             = "fresh"
+	verifyNotApplicable     = "not-applicable"
 	gateUnverified          = "unverified"
 	gateStructuralRedOK     = "structural-red-ok"
 	gateMissingFullVerifyOK = "missing-full-verify-ok"
