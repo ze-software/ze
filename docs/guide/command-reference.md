@@ -80,8 +80,7 @@ from stdin (`ze -`) is unaffected.
 | `--name <name>` | Override client name for managed mode |
 | `--token <token>` | Override auth token for managed mode |
 | `--color` | Force colored output (even when not a TTY) |
-| `--no-color` | Disable colored output (also: `NO_COLOR` env var, `TERM=dumb`) |
-<!-- source: cmd/ze/main.go -- global flag parsing -->
+| `--no-color` | Disable colored output (also: `NO_COLOR` env var, `TERM=dumb`) <!-- source: cmd/ze/main.go -- global flag parsing --> |
 
 ### ze config validate
 
@@ -266,8 +265,7 @@ ze show bgp encode <route-command>
 | `-i` | Enable ADD-PATH (include path-id) |
 | `-n` | Output only NLRI bytes |
 | `--no-header` | Exclude BGP header |
-| `--asn4` | 4-byte ASN (default: true) |
-<!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode -->
+| `--asn4` | 4-byte ASN (default: true) <!-- source: internal/component/bgp/cli/main.go -- Run; internal/component/bgp/cli/decode.go -- cmdDecode; internal/component/bgp/cli/encode.go -- cmdEncode --> |
 
 ### ze show warnings / ze show errors
 
@@ -1779,8 +1777,7 @@ ze data registered <pattern>       # Show details for a key pattern
 
 | Flag | Purpose |
 |------|---------|
-| `--path <store>` | Blob store path |
-<!-- source: internal/component/config/storage/cli/main.go -- Run, subcommandHandlers -->
+| `--path <store>` | Blob store path <!-- source: internal/component/config/storage/cli/main.go -- Run, subcommandHandlers --> |
 
 ### ze plugin
 
@@ -1855,8 +1852,7 @@ ze resolve irr prefix AS-CLOUDFLARE                    # Lookup announced prefix
 |------|------------|---------|
 | `--server <host>` | dns, irr | Override DNS/whois server |
 | `--dns-server <host>` | cymru | Override DNS server for TXT queries |
-| `--url <url>` | peeringdb | Override PeeringDB API base URL |
-<!-- source: internal/component/resolve/cli/main.go -- Run -->
+| `--url <url>` | peeringdb | Override PeeringDB API base URL <!-- source: internal/component/resolve/cli/main.go -- Run --> |
 
 ### ze-perf
 
@@ -2021,8 +2017,7 @@ Many commands take a `peer <selector>` argument:
 | ASN | `peer as65001` | By remote ASN, case-insensitive (matches all peers with that ASN) |
 | Glob | `peer 192.168.*.*` | Pattern match |
 | Exclusion | `peer !10.0.0.1` | All except this peer |
-| ASN exclusion | `peer !as65001` | All except peers with this ASN |
-<!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel; internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handler -->
+| ASN exclusion | `peer !as65001` | All except peers with this ASN <!-- source: internal/component/bgp/reactor/reactor_api.go -- getMatchingPeersSel; internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handler --> |
 
 ### Peer Commands
 
@@ -2038,8 +2033,7 @@ Many commands take a `peer <selector>` argument:
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
-| `request peer <sel> flush` | write | Block until all queued updates for peer are on the wire |
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang -->
+| `request peer <sel> flush` | write | Block until all queued updates for peer are on the wire <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang --> |
 
 `show bgp peer <sel> capabilities` and `show bgp peer <sel> statistics` answer
 one row for each matched peer, under a `peers` key, whatever the number of
@@ -2117,14 +2111,12 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `delete bgp peer <sel>` | write | Remove peer |
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- del peer handler -->
+| `delete bgp peer <sel>` | write | Remove peer <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- del peer handler --> |
 
 ### Update Commands
 
 | Command | Access | Purpose |
-|---------|--------|---------|
-<!-- source: internal/component/cmd/update/update.go -- update verb RPC registration; internal/component/cmd/update/yang/ze-cli-update-cmd.yang -->
+|---------|--------|--------- <!-- source: internal/component/cmd/update/update.go -- update verb RPC registration; internal/component/cmd/update/yang/ze-cli-update-cmd.yang --> |
 
 ### Route Injection
 
@@ -2167,8 +2159,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `clear bgp rib out <selector> [family]` | write | Regenerate and re-advertise Adj-RIB-Out (`*` for all peers, optional family filter) |
 | `request bgp rib inject <peer> <family> <prefix> [attrs...]` | write | Insert route into Adj-RIB-In as if received from peer |
 | `request bgp rib withdraw <peer> <family> <prefix>` | write | Remove route from Adj-RIB-In |
-| `show bgp rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families |
-<!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin -->
+| `show bgp rib rpf <family> <source-addr>` | read | RPF lookup: longest-prefix-match against Loc-RIB for CIDR families <!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin --> |
 
 ### IRR Filter Commands
 
@@ -2179,10 +2170,8 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `show bgp irr check <peer> <prefix>` | read-only | Test whether a prefix would be accepted by the IRR filter |
 | `update bgp irr all` | write | Refresh all IRR prefix-lists immediately |
 | `update bgp irr asn <asn>` | write | Refresh IRR prefix-list for a specific ASN |
-| `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET |
-<!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet -->
-| `update bgp peer <sel> prefix` | write | Refresh max-prefix limits from PeeringDB (saves to draft; run `config commit` to apply) |
-<!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate -->
+| `update bgp irr as-set <as-set>` | write | Refresh IRR prefix-list for a specific AS-SET <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet --> |
+| `update bgp peer <sel> prefix` | write | Refresh max-prefix limits from PeeringDB (saves to draft; run `config commit` to apply) <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- handleBgpPeerPrefixUpdate --> |
 
 ### Healthcheck Commands
 
@@ -2190,8 +2179,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 |---------|--------|---------|
 | `show bgp healthcheck` | read-only | One row for each probe: its name, its group and its state |
 | `show bgp healthcheck <name>` | read-only | One row, with the ten fields of that probe |
-| `clear bgp healthcheck <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. |
-<!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow -->
+| `clear bgp healthcheck <name>` | write | Withdraw route, reset FSM to INIT, immediate re-check. Error if DISABLED. <!-- source: internal/component/bgp/plugins/healthcheck/healthcheck.go -- handleCommand, handleShow --> |
 
 Both spellings answer a row set, so `| count`, `| first` and `| match` act on
 either. The two answers carry different field sets on purpose. Each row
@@ -2206,8 +2194,7 @@ declares `map` rather than `tab`. `| fill` is refused by name.
 | `show bmp sessions` | read-only | Show active BMP receiver sessions (router address, sysName, uptime) |
 | `show bmp peers` | read-only | Show monitored BGP peers (AS, BGP ID, up/down status) |
 | `show bmp collectors` | read-only | Show BMP sender collector connection status |
-| `show bmp rib` | read-only | Show BMP-monitored routes |
-<!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy -->
+| `show bmp rib` | read-only | Show BMP-monitored routes <!-- source: internal/component/bgp/plugins/bmp/cmd_show.go -- ForwardToPlugin proxy --> |
 
 ### Commit (Atomic Updates)
 
@@ -2409,8 +2396,7 @@ Streaming command: use in interactive `ze cli` or via SSH. Press Esc to stop.
 |---------|--------|---------|
 | `show metrics values` | read-only | Prometheus text format metrics |
 | `show metrics list` | read-only | List metric names |
-| `show metrics pool` | read-only | Per-attribute-pool occupancy, dedup rates, and aggregate totals (13 BGP pools) |
-<!-- source: internal/component/cmd/metrics/ -- show metrics values/list/pool RPCs -->
+| `show metrics pool` | read-only | Per-attribute-pool occupancy, dedup rates, and aggregate totals (13 BGP pools) <!-- source: internal/component/cmd/metrics/ -- show metrics values/list/pool RPCs --> |
 
 ### Logging
 
@@ -2440,8 +2426,7 @@ active after enabling debug or applying a profile.
 |---------|--------|---------|
 | `bgp plugin encoding <json\|text>` | write | Set event encoding |
 | `bgp plugin format <hex\|base64\|parsed\|full>` | write | Set wire format display |
-| `bgp plugin ack <sync\|async>` | write | Set ACK timing |
-<!-- source: internal/component/cmd/subscribe/ -- subscribe/unsubscribe RPCs -->
+| `bgp plugin ack <sync\|async>` | write | Set ACK timing <!-- source: internal/component/cmd/subscribe/ -- subscribe/unsubscribe RPCs --> |
 
 ### Discovery
 
@@ -2450,10 +2435,8 @@ active after enabling debug or applying a profile.
 | `help` | read-only | List available subcommands |
 | `show command list` | read-only | List all commands with descriptions |
 | `show command help <name>` | read-only | Detailed help for a command |
-| `show event list` | read-only | List available event types |
-<!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd -->
-| `show event delivery` | read-only | Show which peers feed which attached processes |
-<!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery -->
+| `show event list` | read-only | List available event types <!-- source: internal/plugins/meta/yang/ze-command-meta-cmd.yang -- module ze-command-meta-cmd --> |
+| `show event delivery` | read-only | Show which peers feed which attached processes <!-- source: internal/component/cmd/show/yang/ze-cli-show-cmd.yang -- container delivery --> |
 
 ---
 
@@ -2483,10 +2466,7 @@ Inside `ze cli`:
 | Pipe: named alias | `show bgp \| summary`, `show bgp \| peers` |
 | Set default format | `set cli format json` (session override) |
 | Show current format | `set cli format` (no argument) |
-| Tab completion | Contextual command/argument completion |
-<!-- source: internal/component/cli/client/main.go -- pipe operators, interactive model -->
-<!-- source: internal/component/command/pipe.go -- pipe operator definitions -->
-<!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat -->
+| Tab completion | Contextual command/argument completion <!-- source: internal/component/cli/client/main.go -- pipe operators, interactive model --> <!-- source: internal/component/command/pipe.go -- pipe operator definitions --> <!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat --> |
 
 `ze cli` with no command argument runs the interactive model in the CLIENT
 process and expands the pipe chain there. Only the aliases compiled into Ze
@@ -2508,8 +2488,7 @@ The daemon handles these Unix signals directly:
 |--------|--------|
 | `SIGHUP` | Reload configuration |
 | `SIGTERM` / `SIGINT` | Graceful shutdown |
-| `SIGUSR1` | Dump status to stderr |
-<!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGTERM/SIGINT/SIGHUP/SIGUSR1 -->
+| `SIGUSR1` | Dump status to stderr <!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGTERM/SIGINT/SIGHUP/SIGUSR1 --> |
 
 ## ze-chaos
 

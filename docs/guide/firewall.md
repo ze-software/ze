@@ -14,9 +14,7 @@ the nft backend lowers them to nftables kernel expressions.
 | Backend | Platform | Default | Mechanism |
 |---------|----------|---------|-----------|
 | `nft` | Linux | yes | google/nftables netlink library |
-| `vpp` | Linux with VPP | no | GoVPP ACL classify pipeline and NAT44-ED |
-<!-- source: internal/plugins/firewall/nft/register.go -- RegisterBackend("nft") -->
-<!-- source: internal/plugins/firewall/vpp/register.go -- RegisterBackend("vpp") -->
+| `vpp` | Linux with VPP | no | GoVPP ACL classify pipeline and NAT44-ED <!-- source: internal/plugins/firewall/nft/register.go -- RegisterBackend("nft") --> <!-- source: internal/plugins/firewall/vpp/register.go -- RegisterBackend("vpp") --> |
 
 ```
 firewall {

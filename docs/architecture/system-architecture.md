@@ -482,9 +482,7 @@ Each plugin follows this protocol with the hub:
 | 2 | Hub → Plugin | Initial commit: `config verify` → plugin queries live/edit → `config apply` → `config done` |
 | 3 | Plugin → Hub | `capability hex ...`, `capability done` |
 | 4 | Hub → Plugin | `registry cmd ...`, `registry done` |
-| 5 | Plugin → Hub | `ready` |
-<!-- source: internal/component/plugin/registration.go -- 5-stage protocol parsing -->
-<!-- source: internal/component/plugin/startup_coordinator.go -- startup coordination -->
+| 5 | Plugin → Hub | `ready` <!-- source: internal/component/plugin/registration.go -- 5-stage protocol parsing --> <!-- source: internal/component/plugin/startup_coordinator.go -- startup coordination --> |
 
 **Priority:** Determines verify/apply order. Lower = first. Example: BGP=100, RIB=200, GR=300.
 
@@ -613,9 +611,7 @@ declare done
 |--------|----------|---------|
 | `ze-types` | `yang/ze-types.yang` | Common types (asn, ip-address, etc.) |
 | `ze-bgp-conf` | `internal/component/bgp/yang/ze-bgp-conf.yang` | `container bgp` with peers, families |
-| `ze-plugin-conf` | `internal/component/plugin/yang/` | `container plugin` for process declarations |
-<!-- source: internal/component/bgp/yang/ -- BGP YANG schemas -->
-<!-- source: internal/component/plugin/yang/ -- plugin YANG schemas -->
+| `ze-plugin-conf` | `internal/component/plugin/yang/` | `container plugin` for process declarations <!-- source: internal/component/bgp/yang/ -- BGP YANG schemas --> <!-- source: internal/component/plugin/yang/ -- plugin YANG schemas --> |
 | `ze-rib` | `internal/component/bgp/plugins/rib/yang/ze-rib.yang` | Augments `ze-bgp-conf` with `container rib` |
 | `ze-graceful-restart` | `internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang` | Augments `ze-bgp-conf` for graceful-restart |
 | `ze-hostname` | `internal/component/bgp/plugins/hostname/yang/ze-hostname.yang` | Augments `ze-bgp-conf` for FQDN capability |

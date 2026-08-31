@@ -247,10 +247,7 @@ the stats poll interval only when the defaults do not fit the workload.
 | `vpp.lcp.sync` | boolean | `true` | Mirror VPP state changes (link, MTU, IP) into the Linux TAPs. |
 | `vpp.lcp.auto-subint` | boolean | `true` | Auto-create Linux TAPs for dot1q and QinQ sub-interfaces. |
 | `vpp.lcp.netns` | string | `dataplane` | Network namespace where LCP TAPs appear, also emitted as VPP's global `default netns`. Must be printable, carry no whitespace and no path separator, and stay under 256 characters. VPP resolves the value as a name under `/var/run/netns/`, so it must be a namespace that exists: `host` and `root` are not special to VPP and do **not** mean "the host namespace". Ze's BGP has no netns awareness and cannot bind on a TAP in this namespace unless ze itself runs there. An EMPTY value is the exception: it clears VPP's global `default netns` and the TAPs stay in VPP's own namespace. `ze doctor` reports `doctor-vpp-lcp-netns` for every other value. See ["How the two halves fit together"](#how-the-two-halves-fit-together). |
-| `vpp.plugins.wireguard` | boolean | `false` | Load `wireguard_plugin.so` so the vpp interface backend can program WireGuard tunnels (`interface { backend vpp; wireguard ...; }`). `ze doctor` warns (`doctor-vpp-wireguard`) if a wireguard interface is configured under vpp with this off. |
-<!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above -->
-<!-- source: internal/component/vpp/config.go -- defaults and validation -->
-<!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-lcp-plugin, doctor-vpp-wireguard -->
+| `vpp.plugins.wireguard` | boolean | `false` | Load `wireguard_plugin.so` so the vpp interface backend can program WireGuard tunnels (`interface { backend vpp; wireguard ...; }`). `ze doctor` warns (`doctor-vpp-wireguard`) if a wireguard interface is configured under vpp with this off. <!-- source: internal/component/vpp/yang/ze-vpp-conf.yang -- every leaf above --> <!-- source: internal/component/vpp/config.go -- defaults and validation --> <!-- source: internal/plugins/iface/vpp/doctor.go -- doctor-vpp-lcp-netns, doctor-vpp-lcp-plugin, doctor-vpp-wireguard --> |
 
 ### Enabling FIB programming
 
@@ -271,8 +268,7 @@ fib {
 | `fib.vpp.enabled` | boolean | `false` | Enable route programming. Off means the plugin loads but does nothing. |
 | `fib.vpp.table-id` | uint32 | `0` | VRF table ID. `0` is the default VRF. |
 | `fib.vpp.batch-size` | uint16 | `256` | Max routes per GoVPP batch. |
-| `fib.vpp.batch-interval-ms` | uint16 | `10` | Max milliseconds to wait before dispatching a partial batch. |
-<!-- source: internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang -- augments /fib:fib -->
+| `fib.vpp.batch-interval-ms` | uint16 | `10` | Max milliseconds to wait before dispatching a partial batch. <!-- source: internal/plugins/fib/vpp/yang/ze-fib-vpp-conf.yang -- augments /fib:fib --> |
 
 `fib-vpp` depends on the `vpp` subsystem and on the RIB plugin. If VPP
 is disabled or the GoVPP channel fails to open, the plugin falls back to
@@ -297,8 +293,7 @@ insufficient, or clamped. Before enabling VPP:
 | IOMMU enabled | BIOS: enable VT-d / AMD-Vi. Kernel cmdline: `intel_iommu=on iommu=pt` |
 | CPU isolation for VPP workers | Kernel cmdline: `isolcpus=<worker-cores>` so Linux does not schedule on them |
 | Netlink buffer for route injection | `sysctl net.core.rmem_default=67108864` |
-| Minimum hardware | 4 CPU cores, 8 GB RAM, a DPDK-compatible NIC |
-<!-- source: docs/research/vpp-deployment-reference.md -- system prerequisites table -->
+| Minimum hardware | 4 CPU cores, 8 GB RAM, a DPDK-compatible NIC <!-- source: docs/research/vpp-deployment-reference.md -- system prerequisites table --> |
 
 Supported NICs through DPDK include Intel i210/i350, X520/X540, X710/XL710
 and E810 families, plus VirtIO for VMs. Mellanox ConnectX-5 and later use
@@ -331,14 +326,9 @@ telemetry are in the tree. The remaining phases:
 | Phase | What it adds | Why not yet |
 |-------|--------------|-------------|
 | vpp-3 | MPLS label push / swap / pop driven from BGP labelled unicast | **In tree.** Labels stripped at NLRI parse (SplitLabeled, RFC 8277), stored as FamilyRIB side-data, propagated through bgp-rib and sysRIB BestChangeEntry.Labels, programmed into VPP via IPRouteAddDel with LabelStack (push) or MplsRouteAddDel (swap/pop). 20-bit label range and stack depth 16 validated before GoVPP call. |
-| vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (`spec-followup-vpp-iface`, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by `internal/le/deployment.Answer`; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping `linux_cp_plugin.so`/`linux_nl_plugin.so` (the `ligato/vpp-base` image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in `spec-iface-vpp-ready-gate`. |
-<!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip -->
-<!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN -->
-<!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API -->
-<!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del -->
+| vpp-4 | VPP-native `iface.Backend`: managing interfaces directly via GoVPP instead of through the kernel | **In tree.** Backend registers as `"vpp"` and loads cleanly under `interface { backend vpp; }`. Interface lifecycle (CreateDummy/Bridge/VLAN, Delete, SetAdminUp/Down, SetMTU), addressing, bridge port add/del, query (`ListInterfaces`, `GetInterface`, `GetMACAddress`, `SetMACAddress`), and monitor (`WantInterfaceEvents` -> EventBus) all wired against vendored GoVPP. Tunnels (GRE/GRETAP/IPIP + VXLAN as a new kind), mirror (SPAN), wireguard, and LCP TAP pairs are now implemented (`spec-followup-vpp-iface`, GoVPP binapi vendored). GRE tunnels and wireguard interfaces are proven against real VPP 25.10 by `internal/le/deployment.Answer`; LCP pairs are unit- and wiring-tested but their real-VPP proof needs a VPP build shipping `linux_cp_plugin.so`/`linux_nl_plugin.so` (the `ligato/vpp-base` image does not). Iface-component reconciliation still races the vpp handshake at startup and degrades to additive-only -- tracked in `spec-iface-vpp-ready-gate`. <!-- source: internal/plugins/iface/vpp/tunnel.go -- CreateTunnel gre/gretap/ipip --> <!-- source: internal/plugins/iface/vpp/mirror.go -- SetupMirror via SPAN --> <!-- source: internal/plugins/iface/vpp/wireguard.go -- wireguard plugin binary API --> <!-- source: internal/plugins/iface/vpp/lcp.go -- SetupLCPPair via lcp_itf_pair_add_del --> |
 | vpp-5 | L2 cross-connect, bridge domains, policers, ACLs, SRv6, sFlow | Depends on vpp-4. Each feature is independent. (VXLAN tunnels landed with `spec-followup-vpp-iface`.) |
-| (netns) | Netns-aware BGP listening: BGP binds inside a named network namespace | **Not in tree.** `RealListenerFactory.Listen` binds via `net.ListenConfig` in whatever namespace the ze process runs in; nothing in the BGP reactor references a network namespace. So with the default `vpp.lcp.netns` of `dataplane`, BGP reaches an LCP TAP only if ze itself runs in that namespace (see "How the two halves fit together"). Specced, not implemented; `ze doctor` reports `doctor-vpp-lcp-netns` meanwhile. |
-<!-- source: internal/core/network/network.go -- RealListenerFactory.Listen, no netns awareness -->
+| (netns) | Netns-aware BGP listening: BGP binds inside a named network namespace | **Not in tree.** `RealListenerFactory.Listen` binds via `net.ListenConfig` in whatever namespace the ze process runs in; nothing in the BGP reactor references a network namespace. So with the default `vpp.lcp.netns` of `dataplane`, BGP reaches an LCP TAP only if ze itself runs in that namespace (see "How the two halves fit together"). Specced, not implemented; `ze doctor` reports `doctor-vpp-lcp-netns` meanwhile. <!-- source: internal/core/network/network.go -- RealListenerFactory.Listen, no netns awareness --> |
 
 The three-strategy framing in
 [`docs/research/ze-vpp-analysis.md`](../research/ze-vpp-analysis.md)
