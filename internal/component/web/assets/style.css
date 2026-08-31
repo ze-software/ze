@@ -2034,6 +2034,15 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   margin-bottom: 1rem;
 }
 
+/* The explanation keeps the line breaks its author wrote, so pre-line rather
+   than the collapsing default. */
+.command-form-help {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  white-space: pre-line;
+}
+
 .command-form-field {
   margin-bottom: 0.75rem;
 }

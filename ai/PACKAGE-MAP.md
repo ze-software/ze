@@ -704,7 +704,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/plugins/ddos/observe` | DDoS observability: incident store and show ddos status/incidents CLI |  |
 | `internal/plugins/ddos/observe/cmd/yang` | embeds and registers the ze-ddos-cmd YANG command schema for the DDoS observe plugin |  |
 | `internal/plugins/ddos/observe/yang` | embeds and registers the ze-ddos-observe-conf YANG configuration schema for the DDoS observe plugin |  |
-| `internal/plugins/debug` | Enable debug for a subsystem; optionally set level/flag/scope. E.g. 'set debug module bgp.reactor level debug'. |  |
+| `internal/plugins/debug` | Enable debug output for one subsystem. |  |
 | `internal/plugins/debug/cmd` | registers RPC handlers that report live debug logging state for the debug plugin |  |
 | `internal/plugins/debug/yang` | embeds and registers the ze-debug-cmd YANG command schema for the debug plugin |  |
 | `internal/plugins/dhcpserver` | DHCP server: address assignment for LAN clients (RFC 2131) | dhcpserver |

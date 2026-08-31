@@ -15,15 +15,15 @@ from.";
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container plugins {
             config false;
             ze:command "ze-show:plugins";
-            description "List the plugins compiled into this binary.
-Each row carries the plugin name, what it does, the address families it
-handles, the RFCs it implements, the BGP capability codes it owns, the
-setup outcome its own init() recorded (succeeded, soft-failure,
+            description "List the plugins compiled into this binary.";
+            ze:help "Each row carries the plugin name, what it does, the address
+families it handles, the RFCs it implements, the BGP capability codes it owns,
+the setup outcome its own init() recorded (succeeded, soft-failure,
 hard-failure or unknown) and the reason the plugin gave. A plugin that
 recorded nothing is listed as unknown, never omitted, and a plugin that
 recorded and then did not register keeps its row.

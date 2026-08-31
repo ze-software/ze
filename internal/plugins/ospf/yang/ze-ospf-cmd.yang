@@ -25,7 +25,7 @@ module ze-ospf-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container ospf {
             config false;
@@ -35,40 +35,41 @@ module ze-ospf-cmd {
             container instance {
                 config false;
                 ze:command "ze-show:ospf-instance";
-                description "Show the configured OSPFv2 instances (RFC 6549 Multi-Instance).
-Lists each Instance ID with its router-id and the size of its isolated
-area, interface, neighbor, and link-state database state.";
+                description "Show the configured OSPFv2 instances (RFC 6549 Multi-Instance).";
+                ze:help "Lists each Instance ID with its router-id and the size of its isolated area,
+interface, neighbor, and link-state database state.";
             }
 
             container graceful-restart {
                 config false;
                 ze:command "ze-show:ospf-graceful-restart";
-                description "Show OSPFv2 (IPv4) Graceful Restart state (RFC 3623): the restarter
-state (in-restart or not, grace end, reason) and the per-neighbor helper
-sessions (which neighbors are being helped and their remaining grace).";
+                description "Show OSPFv2 (IPv4) Graceful Restart state (RFC 3623).";
+                ze:help "The restarter state (in-restart or not, grace end, reason) and the
+per-neighbor helper sessions (which neighbors are being helped and their
+remaining grace).";
             }
 
             container segment-routing {
                 config false;
                 ze:command "ze-show:ospf-segment-routing";
-                description "Show OSPFv2 (IPv4) Segment Routing state (RFC 8665): the configured
-SRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node
-Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.";
+                description "Show OSPFv2 (IPv4) Segment Routing state (RFC 8665).";
+                ze:help "The configured SRGB/SRLB label ranges, the advertised SR-Algorithm,
+this node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.";
             }
 
             container ipv6 {
                 config false;
                 ze:command "ze-show:ospf-ipv6";
-                description "Show the OSPFv3 (IPv6) address-family instances (RFC 5838).
-Lists each configured address family (ipv6-unicast, ipv6-multicast,
+                description "Show the OSPFv3 (IPv6) address-family instances (RFC 5838).";
+                ze:help "Lists each configured address family (ipv6-unicast, ipv6-multicast,
 ipv4-unicast, ipv4-multicast) with its Instance ID, router-id, and
 neighbor/interface counts, so multiple AF instances on a link are
 distinguishable.";
                 container interface {
                     config false;
                     ze:command "ze-show:ospf-ipv6-interface";
-                    description "Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status.
-Returns per interface whether IPsec is configured, the protocol (ah/esp) and
+                    description "Show OSPFv3 (IPv6-family) interfaces and their RFC 4552 IPsec status.";
+                    ze:help "Returns per interface whether IPsec is configured, the protocol (ah/esp) and
 SPI, and whether the kernel SA is installed. The key is never shown.";
                     container detail {
                         config false;
@@ -79,21 +80,24 @@ SPI, and whether the kernel SA is installed. The key is never shown.";
                 container graceful-restart {
                     config false;
                     ze:command "ze-show:ospf-ipv6-graceful-restart";
-                    description "Show OSPFv3 (IPv6) Graceful Restart state (RFC 5187): the restarter
-state (in-restart or not, grace end, reason) and the per-neighbor helper
-sessions (which neighbors are being helped and their remaining grace).";
+                    description "Show OSPFv3 (IPv6) Graceful Restart state (RFC 5187).";
+                    ze:help "The restarter state (in-restart or not, grace end, reason) and the
+per-neighbor helper sessions (which neighbors are being helped and their
+remaining grace).";
                 }
                 container segment-routing {
                     config false;
                     ze:command "ze-show:ospf-ipv6-segment-routing";
-                    description "Show OSPFv3 (IPv6) Segment Routing state (RFC 8666): the configured
-SRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node
-Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.";
+                    description "Show OSPFv3 (IPv6) Segment Routing state (RFC 8666).";
+                    ze:help "The configured SRGB/SRLB label ranges, the advertised SR-Algorithm,
+this node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.";
                 }
                 container database {
                     config false;
                     ze:command "ze-show:ospfv3-database";
-                    description "Show the OSPFv3 (IPv6) link-state database with each native scope-aware LSA decoded (RFC 5340). Base types decode into named fields; unknown function codes fall back to a scope-aware header + body-hex view (spec-ospf-ext-14).";
+                    description "Show the OSPFv3 (IPv6) link-state database with each native scope-aware LSA decoded (RFC 5340).";
+                    ze:help "Base types decode into named fields; unknown function codes fall back to a
+scope-aware header + body-hex view (spec-ospf-ext-14).";
                     container detail {
                         config false;
                         ze:command "ze-show:ospfv3-database-detail";
@@ -165,7 +169,8 @@ Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.";
                     container detail {
                         config false;
                         ze:command "ze-show:ospfv3-spf-detail";
-                        description "Explain why each OSPFv3 route won (spec-ospf-ext-14), AF/Instance-ID tagged; read-only.";
+                        description "Explain why each OSPFv3 route won (spec-ospf-ext-14), AF/Instance-ID tagged.";
+                        ze:help "The command is read-only.";
                     }
                 }
             }
@@ -173,22 +178,22 @@ Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.";
             container neighbor {
                 config false;
                 ze:command "ze-show:ospf-neighbor";
-                description "Show OSPF neighbors.
-Returns each neighbor's router-id, interface, adjacency state, DR/BDR,
+                description "Show OSPF neighbors.";
+                ze:help "Returns each neighbor's router-id, interface, adjacency state, DR/BDR,
 priority, dead time, and address.";
                 container detail {
                     config false;
                     ze:command "ze-show:ospf-neighbor-detail";
-                    description "Show full per-neighbor state (spec-ospf-ext-14): DD sequence, decoded Options (incl. the RFC 5250 O-bit), request/summary list sizes, last NSM event, and timers.";
+                    description "Show full per-neighbor state (spec-ospf-ext-14): DD sequence, decoded Options (including the RFC 5250 O-bit), request/summary list sizes, last NSM event, and timers.";
                 }
             }
 
             container interface {
                 config false;
                 ze:command "ze-show:ospf-interface";
-                description "Show OSPF-enabled interfaces.
-Returns area, network-type, cost, ISM state, DR/BDR, hello/dead
-intervals, priority, and passive flag per interface.";
+                description "Show OSPF-enabled interfaces.";
+                ze:help "Returns area, network-type, cost, ISM state, DR/BDR, hello/dead intervals,
+priority, and passive flag per interface.";
                 container detail {
                     config false;
                     ze:command "ze-show:ospf-interface-detail";
@@ -199,9 +204,9 @@ intervals, priority, and passive flag per interface.";
             container database {
                 config false;
                 ze:command "ze-show:ospf-database";
-                description "Show the OSPF link-state database.
-Lists each LSA with its LS Type, Link State ID, Advertising Router,
-sequence number, age, and checksum.";
+                description "Show the OSPF link-state database.";
+                ze:help "Lists each LSA with its LS Type, Link State ID, Advertising Router, sequence
+number, age, and checksum.";
 
                 container router {
                     config false;
@@ -266,8 +271,8 @@ sequence number, age, and checksum.";
                 container router-information {
                     config false;
                     ze:command "ze-show:ospf-database-router-information";
-                    description "Show the Router Information LSAs (RFC 7770) for both address
-families -- OSPFv2 opaque type 4 and OSPFv3 function code 12 -- decoded into the
+                    description "Show the Router Information LSAs (RFC 7770) for both address families.";
+                    ze:help "OSPFv2 opaque type 4 and OSPFv3 function code 12, decoded into the
 advertised informational capability bits and the TLV list.";
                 }
             }
@@ -275,24 +280,24 @@ advertised informational capability bits and the TLV list.";
             container te-database {
                 config false;
                 ze:command "ze-show:ospf-te-database";
-                description "Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392):
-router addresses plus TE links with their Link ID, local/remote address, link
-type, TE metric, bandwidths, admin group, and (for inter-AS links) remote AS and
-remote ASBR.";
+                description "Show the OSPF Traffic Engineering Database (RFC 3630 / RFC 5392).";
+                ze:help "Router addresses plus TE links with their Link ID, local/remote address,
+link type, TE metric, bandwidths, admin group, and (for inter-AS links) remote
+AS and remote ASBR.";
             }
 
             container route {
                 config false;
                 ze:command "ze-show:ospf-route";
-                description "Show OSPF-computed routes.
-Lists each prefix with its path type (intra/inter/external-1/2), cost,
+                description "Show OSPF-computed routes.";
+                ze:help "Lists each prefix with its path type (intra/inter/external-1/2), cost,
 next-hops, and area.";
 
                 container fast-reroute {
                     config false;
                     ze:command "ze-show:ospf-route-fast-reroute";
-                    description "Show OSPF fast-reroute (LFA / TI-LFA) backups (RFC 5286).
-Lists each prefix's primary next-hops with their pre-computed loop-free
+                    description "Show OSPF fast-reroute (LFA / TI-LFA) backups (RFC 5286).";
+                    ze:help "Lists each prefix's primary next-hops with their pre-computed loop-free
 backup, protection class (node/link/downstream), and TI-LFA repair label
 stack. Unprotected primaries are shown as unprotected.";
                 }
@@ -301,39 +306,39 @@ stack. Unprotected primaries are shown as unprotected.";
             container virtual-links {
                 config false;
                 ze:command "ze-show:ospf-virtual-links";
-                description "Show OSPF virtual links (RFC 2328 section 15).
-Lists each configured virtual link with its transit area, remote
-router-id, adjacency state, computed cost, and transit next hop.";
+                description "Show OSPF virtual links (RFC 2328 section 15).";
+                ze:help "Lists each configured virtual link with its transit area, remote router-id,
+adjacency state, computed cost, and transit next hop.";
             }
 
             container border-routers {
                 config false;
                 ze:command "ze-show:ospf-border-routers";
-                description "Show routes to OSPF area-border and AS-boundary routers.
-Lists each reachable ABR/ASBR with its router-id, cost, next-hops, and
-area.";
+                description "Show routes to OSPF area-border and AS-boundary routers.";
+                ze:help "Lists each reachable ABR/ASBR with its router-id, cost, next-hops, and area.";
             }
 
             container spf {
                 config false;
                 ze:command "ze-show:ospf-spf";
-                description "Show recent OSPF SPF runs.
-Returns the most recent per-area SPF runs with their timestamp,
-duration, node count, and pending state.";
+                description "Show recent OSPF SPF runs.";
+                ze:help "Returns the most recent per-area SPF runs with their timestamp, duration, node
+count, and pending state.";
                 container detail {
                     config false;
                     ze:command "ze-show:ospf-spf-detail";
-                    description "Explain why each route won (spec-ospf-ext-14): the candidate paths considered per prefix, the winning cost, and the RFC 2328 section 16.4 path-preference tie-break. Read-only; the route table and SPF run count are unchanged.";
+                    description "Explain why each route won (spec-ospf-ext-14): the candidate paths considered per prefix, the winning cost, and the RFC 2328 section 16.4 path-preference tie-break.";
+                    ze:help "Read-only; the route table and SPF run count are unchanged.";
                 }
             }
 
             container ldp-sync {
                 config false;
                 ze:command "ze-show:ospf-ldp-sync";
-                description "Show OSPF LDP-IGP synchronization state (RFC 5443, RFC 6138).
-Lists each ldp-sync interface with its state (not-synchronized /
-hold-down / synchronized), remaining hold-down, effective metric, and
-whether it is stuck not-synchronized after having been synchronized.";
+                description "Show OSPF LDP-IGP synchronization state (RFC 5443, RFC 6138).";
+                ze:help "Lists each ldp-sync interface with its state (not-synchronized / hold-down /
+synchronized), remaining hold-down, effective metric, and whether it is stuck
+not-synchronized after having been synchronized.";
             }
         }
     }
@@ -348,24 +353,22 @@ whether it is stuck not-synchronized after having been synchronized.";
             container process {
                 config false;
                 ze:command "ze-clear:ospf-process";
-                description "Full OSPF reset: tear down every adjacency and re-run SPF.
-Adjacencies re-form from the next Hello;
-the configuration is unchanged.";
+                description "Full OSPF reset: tear down every adjacency and re-run SPF.";
+                ze:help "Adjacencies re-form from the next Hello; the configuration is unchanged.";
             }
 
             container neighbor {
                 config false;
                 ze:command "ze-clear:ospf-neighbor";
-                description "Tear down every OSPF adjacency so neighbors re-form.
-Adjacencies re-learn from the next Hello.";
+                description "Tear down every OSPF adjacency so neighbors re-form.";
+                ze:help "Adjacencies re-learn from the next Hello.";
             }
 
             container counters {
                 config false;
                 ze:command "ze-clear:ospf-counters";
-                description "Reset the OSPF SPF-run history.
-Monotonic Prometheus series are not reset;
-the SPF-run log is cleared.";
+                description "Reset the OSPF SPF-run history.";
+                ze:help "Monotonic Prometheus series are not reset; the SPF-run log is cleared.";
             }
         }
     }
@@ -380,20 +383,21 @@ the SPF-run log is cleared.";
             container graceful-restart {
                 config false;
                 ze:command "ze-ospf:graceful-restart-prepare";
-                description "Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).
-The engine originates one Grace-LSA per
-interface, persists the non-volatile restart fact, and suppresses route churn
-so the FIB is retained across the ensuing control-plane restart. Refused when
-graceful-restart is not configured.";
+                description "Trigger a planned OSPFv2 graceful restart (RFC 3623 section 2.1).";
+                ze:help "The engine originates one Grace-LSA per interface, persists the non-volatile
+restart fact, and suppresses route churn so the FIB is retained across the
+ensuing control-plane restart. Refused when graceful-restart is not
+configured.";
             }
         }
     }
 
     container debug {
         config false;
-        description "OSPF debug LSA injection (spec-ospf-ext-14). Denied by the read-only
-authz profile and off by default; a testing/research facility that injects a
-crafted LSA into this router's LSDB, which then floods normally.";
+        description "OSPF debug LSA injection (spec-ospf-ext-14).";
+        ze:help "Denied by the read-only authz profile and off by default; a testing/research
+facility that injects a crafted LSA into this router's LSDB, which then floods
+normally.";
 
         container ip {
             config false;
@@ -407,8 +411,8 @@ crafted LSA into this router's LSDB, which then floods normally.";
                     container opaque {
                         config false;
                         ze:command "ze-debug:ospf-inject";
-                        description "Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).
-The default Opaque Type is Private-Use so a test LSA never collides with a
+                        description "Inject a crafted IPv4 opaque LSA into the local LSDB (RFC 5250).";
+                        ze:help "The default Opaque Type is Private-Use so a test LSA never collides with a
 standards-track consumer. Requires `debug ospf inject enable`.";
 
                         container scope {
@@ -440,8 +444,9 @@ standards-track consumer. Requires `debug ospf inject enable`.";
                         container type {
                             config false;
                             ze:modifier "once";
-                            description "Opaque Type of the injected LSA. Defaults to a
-Private-Use type so a test LSA never collides with a standards-track consumer.";
+                            description "Opaque Type of the injected LSA.";
+                            ze:help "Defaults to a Private-Use type so a test LSA never collides with a
+standards-track consumer.";
                             leaf type {
                                 type uint8 {
                                     range "128..255";
@@ -501,16 +506,16 @@ Private-Use type so a test LSA never collides with a standards-track consumer.";
                     container lsa {
                         config false;
                         ze:command "ze-debug:ospfv3-inject";
-                        description "Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).
-The flooding scope is derived from
-the LS Type S2/S1 bits (a reserved scope is rejected). Requires
-`debug ospf inject enable`.";
+                        description "Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340).";
+                        ze:help "The flooding scope is derived from the LS Type S2/S1 bits (a reserved scope is
+rejected). Requires `debug ospf inject enable`.";
 
                         container type {
                             config false;
                             ze:modifier "required";
-                            description "LS Type of the injected LSA. Its S2/S1 bits carry the
-flooding scope, which is why the scope keyword is a cross-check and not the source.";
+                            description "LS Type of the injected LSA.";
+                            ze:help "Its S2/S1 bits carry the flooding scope, which is why the scope keyword is a
+cross-check and not the source.";
                             leaf ls-type {
                                 type string {
                                     pattern "(0[xX])?[0-9a-fA-F]{1,4}";
@@ -532,8 +537,9 @@ flooding scope, which is why the scope keyword is a cross-check and not the sour
                         container scope {
                             config false;
                             ze:modifier "once";
-                            description "Cross-check on the scope the LS Type states. Supplying a
-scope that disagrees with the LS Type is refused; supplying none accepts the LS Type.";
+                            description "Cross-check on the scope the LS Type states.";
+                            ze:help "Supplying a scope that disagrees with the LS Type is refused; supplying none
+accepts the LS Type.";
                             leaf scope {
                                 type enumeration {
                                     enum link;
@@ -575,8 +581,8 @@ scope that disagrees with the LS Type is refused; supplying none accepts the LS 
                 container enable {
                     config false;
                     ze:command "ze-debug:ospf-inject-enable";
-                    description "Enable OSPF debug LSA injection (shared across both address
-families). Off by default.";
+                    description "Enable OSPF debug LSA injection (shared across both address families).";
+                    ze:help "Off by default.";
                 }
                 container disable {
                     config false;

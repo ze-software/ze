@@ -62,10 +62,13 @@ type Reference struct {
 	Services     []ServiceRef      `json:"services"`
 }
 
-// RPC is one daemon API endpoint (wire method) with its description.
+// RPC is one daemon API endpoint (wire method) with its two declared help
+// texts: the one-line summary, and the long explanation where one was written.
+// The keys match the pair `ze help command --json` carries for a command.
 type RPC struct {
 	WireMethod  string `json:"wire-method"`
 	Description string `json:"description,omitempty"`
+	LongHelp    string `json:"long-help,omitempty"`
 }
 
 // Plugin is one loaded plugin with the address families it handles.
@@ -295,7 +298,7 @@ func Build() Reference {
 
 	schemaReg := SchemaRegistry()
 	for _, rpc := range schemaReg.ListRPCs("") {
-		ref.RPCs = append(ref.RPCs, RPC{WireMethod: rpc.WireMethod, Description: rpc.Description})
+		ref.RPCs = append(ref.RPCs, RPC{WireMethod: rpc.WireMethod, Description: rpc.Description, LongHelp: rpc.LongHelp})
 	}
 	for _, brpc := range pluginserver.AllBuiltinRPCs() {
 		ref.RPCs = append(ref.RPCs, RPC{WireMethod: brpc.WireMethod})

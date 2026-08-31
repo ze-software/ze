@@ -10,7 +10,7 @@ gap was that the interactive tree never consulted it.
 | Surface | Producer | How it stays live |
 |---------|----------|-------------------|
 | entry source | `VisibleCommandEntries()` returns every non-`Hidden` command as a `command.CommandEntry` | RLock over the registry map, mirroring `All()` and `Complete()` |
-| injection | `MergeCommandPaths` splits each command name on spaces and inserts tree nodes | non-destructive: an existing node is never mutated, and `Description` is set only on a leaf the call creates |
+| injection | `MergeCommandPaths` splits each command name on spaces and inserts tree nodes | non-destructive: an existing node is never mutated. Each of the two help fields is set only on a leaf the call creates, or on one that holds nothing in THAT field |
 | SSH | `mergePluginCommands` merges into the per-session tree | the tree is rebuilt per session, so a plugin that exited is absent next session |
 | Web | `pluginAwareCommandCompleter` builds a throwaway overlay per `/cli/complete` request and composites it, YANG winning a name collision | the shared YANG tree stays immutable and is never mutated |
 
@@ -22,10 +22,16 @@ The `ze cli` client runs the same rule against the command list it fetches from
 the daemon: `injectPluginCommands` skips a hidden command, and skips a path that
 already exists in the tree from a YANG proxy RPC.
 
-A plugin command can never overwrite a builtin's `WireMethod` or description,
-because `MergeCommandPaths` writes a description only on a leaf it creates. The
-completer offers a node on name prefix and `backendAllowed` alone and never
-reads `WireMethod`, so a completion-only node surfaces.
+A plugin command can never overwrite a builtin's `WireMethod`, its summary, or
+its long help. `MergeCommandPaths` writes each of the two help fields only on a
+leaf it creates, or on one whose own copy of that field is empty. The completer
+offers a node on name prefix and `backendAllowed` alone and never reads
+`WireMethod`, so a completion-only node surfaces.
+
+A `command.CommandEntry` carries both fields. `Description` is the one-line
+summary and `Help` is the long explanation the command's own help page prints.
+They are decided one at a time, so a plugin that states a summary and no
+explanation fills the summary alone.
 
 ## Why web sources at request time
 

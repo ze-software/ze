@@ -212,7 +212,7 @@ func TestALatinAbbreviationIsReportedUnderHedging(t *testing.T) {
 // ─── Sentences and the word count ───────────────────────────────────────────
 
 func TestASentenceIsNotSplitInsideAnAbbreviationOrANumber(t *testing.T) {
-	got := sentences("Read RFC 4271 Section 4.5, e.g. the header. Then stop.")
+	got := Sentences("Read RFC 4271 Section 4.5, e.g. the header. Then stop.")
 	if len(got) != 2 {
 		t.Fatalf("want 2 sentences, got %d: %q", len(got), got)
 	}
@@ -224,12 +224,12 @@ func TestASentenceIsNotSplitInsideAnAbbreviationOrANumber(t *testing.T) {
 func TestNumberedAbbreviationHoldsOnlyInFrontOfItsNumber(t *testing.T) {
 	// "No. 5" is a label and keeps its dot. "answered Yes/No." ends a sentence,
 	// and an unconditional hold glues the next sentence onto it.
-	label := sentences("Read No. 5 first. Then stop.")
+	label := Sentences("Read No. 5 first. Then stop.")
 	if len(label) != 2 {
 		t.Errorf("the labeled number split its sentence: %q", label)
 	}
 
-	ending := sentences("The answer is Yes/No. Then stop.")
+	ending := Sentences("The answer is Yes/No. Then stop.")
 	if len(ending) != 2 {
 		t.Errorf("a real full stop after No was held: %q", ending)
 	}
@@ -238,20 +238,20 @@ func TestNumberedAbbreviationHoldsOnlyInFrontOfItsNumber(t *testing.T) {
 func TestASentenceEndsThroughItsClosingMarkup(t *testing.T) {
 	// "**... dictionary.** It cannot ..." -- without the closer class a bolded
 	// lead-in glues its whole bullet into one sentence.
-	got := sentences("**The dictionary.** It cannot be embedded.")
+	got := Sentences("**The dictionary.** It cannot be embedded.")
 	if len(got) != 2 {
 		t.Errorf("the bolded lead-in was not split off: %q", got)
 	}
 }
 
 func TestTheWordCountCollapsesAParenthesisAQuoteAndAMeasure(t *testing.T) {
-	if got := wordCount("Stop (for a while) now"); got != 3 {
+	if got := WordCount("Stop (for a while) now"); got != 3 {
 		t.Errorf("parenthesised text counts as one word, got %d", got)
 	}
-	if got := wordCount(`Read "the whole page" now`); got != 3 {
+	if got := WordCount(`Read "the whole page" now`); got != 3 {
 		t.Errorf("quoted text counts as one word, got %d", got)
 	}
-	if got := wordCount("Wait 30 seconds now"); got != 3 {
+	if got := WordCount("Wait 30 seconds now"); got != 3 {
 		t.Errorf("a number with its unit counts as one word, got %d", got)
 	}
 }
@@ -263,7 +263,7 @@ func TestAPercentSignAloneIsNotAUnit(t *testing.T) {
 	if got := replaceMeasures("50 % of"); got != "50 % of" {
 		t.Errorf("a lone %% was read as a unit: %q", got)
 	}
-	if got := wordCount("50 % of"); got != 2 {
+	if got := WordCount("50 % of"); got != 2 {
 		t.Errorf("`50 %% of` counts 50 and of, got %d", got)
 	}
 }
@@ -725,5 +725,35 @@ func TestAGitThatCannotAnswerIsARefusalRatherThanAnEmptySet(t *testing.T) {
 
 	if _, _, err := Ratchet(root, nil); err == nil {
 		t.Error("an unborn HEAD must refuse rather than answer no growth")
+	}
+}
+
+// VALIDATES: the long explanation a command node declares with ze:help is
+// reviewed as prose, on the same terms as the description beside it, and the
+// finding names the line the extension opens on.
+// PREVENTS: prose leaving STE review by moving one statement. A command's help
+// is split into a one-line description and a long ze:help
+// (plan/spec-yang-short-and-long-command-help.md), so every word that moves
+// into the extension would stop being reviewed by a pattern that matches the
+// description keyword alone (AC-13).
+func TestSTEExtractsHelpExtension(t *testing.T) {
+	body := "module m {\n" +
+		"  container sockets {\n" +
+		"    ze:command \"ze-show:sockets\";\n" +
+		"    description \"List the open sockets.\";\n" +
+		"    ze:help \"The daemon may list a socket twice.\";\n" +
+		"  }\n}\n"
+	found, _ := Review("m.yang", body, SurfaceYANG)
+
+	if !containsDetail(found, `"may"`) {
+		t.Errorf("the ze:help argument was not reviewed: %v", findingDetails(found))
+	}
+	for _, finding := range found {
+		if finding.Detail != `"may"` {
+			continue
+		}
+		if finding.Line != 5 {
+			t.Errorf("the finding names line %d, want the ze:help at 5", finding.Line)
+		}
 	}
 }

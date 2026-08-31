@@ -8,7 +8,7 @@ module ze-traffic-stat-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container traffic {
             config false;
@@ -17,8 +17,9 @@ module ze-traffic-stat-cmd {
             container stat {
                 config false;
                 ze:command "ze-show:traffic-stat";
-                description "Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).
-Without arguments, shows all interfaces. With 'name <interface>', filters to one interface.";
+                description "Show aggregated traffic snapshot (interface rates, top talkers, top ports, severity).";
+                ze:help "Without arguments, shows all interfaces. With
+'name <interface>', filters to one interface.";
                 leaf name {
                     type string;
                     description "Interface name filter";
@@ -29,7 +30,7 @@ Without arguments, shows all interfaces. With 'name <interface>', filters to one
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop)";
+        description "Continuous monitoring commands (Ctrl-C to stop).";
 
         container traffic {
             config false;
@@ -38,8 +39,9 @@ Without arguments, shows all interfaces. With 'name <interface>', filters to one
             container stat {
                 config false;
                 ze:command "ze-monitor:traffic-stat";
-                description "Start streaming traffic monitor (per-second snapshots).
-Without arguments, shows all interfaces. With 'name <interface>', filters to one interface.";
+                description "Start streaming traffic monitor (per-second snapshots).";
+                ze:help "Without arguments, shows all interfaces. With
+'name <interface>', filters to one interface.";
                 leaf name {
                     type string;
                     description "Interface name filter";

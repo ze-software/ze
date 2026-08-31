@@ -35,8 +35,13 @@ type CommandResultData struct {
 type CommandFormData struct {
 	// CommandName is the human-readable command name.
 	CommandName string
-	// Description is the YANG description for this command, if available.
+	// Description is the one-line summary of this command, from its YANG
+	// description statement. It is the lede above the form.
 	Description string
+	// Help is the long explanation of this command, from its ze:help
+	// extension. It is the body under the lede, and it keeps the newlines its
+	// author wrote. Empty means the command declares no explanation.
+	Help string
 	// ActionURL is the POST target (e.g., "/admin/peer/192.168.1.1/teardown").
 	ActionURL string
 	// Parameters lists the command's input parameters.
@@ -62,9 +67,13 @@ type CommandDispatcher = plugin.CommandDispatcher
 
 // HandleAdminView returns an HTTP handler that serves the admin command tree
 // using finder-style column navigation (same layout as config). Leaf commands
-// render a form in the detail panel. The children map provides the static
-// command tree structure.
-func HandleAdminView(renderer *Renderer, children map[string][]string) http.HandlerFunc {
+// render a form in the detail panel.
+//
+// tree is the merged YANG operational command tree. The handler reads its
+// shape for the navigation columns and its two help texts for the command
+// form, so the page shows the same summary and explanation every other surface
+// shows. A nil tree serves an empty console rather than panicking.
+func HandleAdminView(renderer *Renderer, tree *command.Node) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parsed, err := ParseURL(r)
 		if err != nil {
@@ -76,8 +85,7 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 
 		// JSON response: return the command tree structure.
 		if parsed.Format == formatJSON {
-			pathKey := textbuf.Join(path, "/")
-			kids := children[pathKey]
+			kids := adminChildNames(adminNodeAt(tree, path))
 
 			data := map[string]any{
 				"path":     path,
@@ -93,7 +101,7 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 			return
 		}
 
-		fragData := buildAdminFragmentData(path, children)
+		fragData := buildAdminFragmentData(path, tree)
 
 		// HTMX partial: return finder + detail via oob_response.
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
@@ -198,14 +206,14 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 // buildAdminFragmentData builds FragmentData for the admin command tree,
 // using finder-style columns for navigation and a command form in the detail
 // panel for leaf commands.
-func buildAdminFragmentData(path []string, children map[string][]string) *FragmentData {
+func buildAdminFragmentData(path []string, tree *command.Node) *FragmentData {
 	currentPath := textbuf.Join(path, "/")
 	data := &FragmentData{
 		Path:            path,
 		CurrentPath:     currentPath,
 		Breadcrumbs:     buildAdminBreadcrumbs(path),
 		HasSession:      true,
-		Columns:         buildAdminFinderColumns(path, children),
+		Columns:         buildAdminFinderColumns(path, tree),
 		CLIPrompt:       formatCLIPrompt(nil),
 		CLIContextPath:  "",
 		CLIPathSegments: nil,
@@ -214,28 +222,71 @@ func buildAdminFragmentData(path []string, children map[string][]string) *Fragme
 	}
 
 	// Leaf command: show form in detail panel.
-	pathKey := textbuf.Join(path, "/")
-	kids := children[pathKey]
-	if len(path) > 0 && len(kids) == 0 {
+	node := adminNodeAt(tree, path)
+	if len(path) > 0 && !adminHasChildren(node) {
 		var tb textbuf.Buffer
-		data.CommandForm = &CommandFormData{
+		form := &CommandFormData{
 			CommandName: textbuf.Join(path, " "),
 			ActionURL:   tb.Str("/admin/").Join(path, "/").String(),
 		}
+		// A path the tree does not hold still renders a form, which is what the
+		// children map did before it. It shows no help, because it has none to
+		// read. An absent command MUST NOT borrow its parent's text.
+		if node != nil {
+			form.Description = node.Description
+			form.Help = node.Help
+		}
+		data.CommandForm = form
 	}
 
 	return data
 }
 
+// adminNodeAt walks the command tree to the node the path names. It answers nil
+// for the path no node holds, so a caller reading help text off the result must
+// test for it: an empty summary and an absent command must not read the same.
+//
+// The walk is bounded by the path length, which the URL parser caps.
+func adminNodeAt(tree *command.Node, path []string) *command.Node {
+	node := tree
+	for _, name := range path {
+		if node == nil || node.Children == nil {
+			return nil
+		}
+		node = node.Children[name]
+	}
+	return node
+}
+
+// adminHasChildren answers whether the node holds a child command. The finder
+// asks it for each rendered item, so it counts rather than building a list.
+func adminHasChildren(node *command.Node) bool {
+	return node != nil && len(node.Children) > 0
+}
+
+// adminChildNames answers the node's child command names, sorted, so the
+// rendered finder columns are deterministic. A nil node has none.
+func adminChildNames(node *command.Node) []string {
+	if node == nil || len(node.Children) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(node.Children))
+	for name := range node.Children {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
 // buildAdminFinderColumns builds finder columns from the admin command tree.
 // Each level of the tree gets a column showing available sub-commands.
-func buildAdminFinderColumns(path []string, children map[string][]string) []FinderColumn {
+func buildAdminFinderColumns(path []string, tree *command.Node) []FinderColumn {
 	var columns []FinderColumn
 
 	for depth := 0; depth <= len(path); depth++ {
 		prefix := path[:depth]
-		pathKey := textbuf.Join(prefix, "/")
-		kids := children[pathKey]
+		parent := adminNodeAt(tree, prefix)
+		kids := adminChildNames(parent)
 		if len(kids) == 0 && depth < len(path) {
 			break
 		}
@@ -257,7 +308,7 @@ func buildAdminFinderColumns(path []string, children map[string][]string) []Find
 				URL:         url,
 				HxPath:      tb.Reset().Str("admin/").Str(childKey).String(),
 				Selected:    name == selectedName,
-				HasChildren: len(children[childKey]) > 0,
+				HasChildren: adminHasChildren(adminNodeAt(tree, childPath)),
 			})
 		}
 		if len(col.UnnamedItems) > 0 {
@@ -291,63 +342,4 @@ func buildAdminBreadcrumbs(path []string) []BreadcrumbSegment {
 	}
 
 	return crumbs
-}
-
-// buildAdminCommandTree returns the static admin command tree derived from
-// the ze-bgp-api YANG RPCs. The tree groups commands by category (peer,
-// route, cache, system) for web UI navigation.
-//
-// Deprecated: Phase 6 of spec-web-2-operator-workbench replaces this map
-// with [AdminTreeFromYANG], which derives the same structure from the
-// merged YANG command tree so plugin-contributed commands appear without
-// editing this file. Kept temporarily so existing call sites compile; new
-// code MUST use AdminTreeFromYANG.
-func buildAdminCommandTree() map[string][]string {
-	// adminCmdList is the one command name two categories both offer.
-	const adminCmdList = "list"
-
-	return map[string][]string{
-		"":       {"peer", "route", "cache", "system"},
-		"peer":   {adminCmdList, "show", "summary", "capabilities", "statistics", "add", "remove"},
-		"route":  {"update", "raw"},
-		"cache":  {adminCmdList, "retain", "release", "expire", "forward"},
-		"system": {"events"},
-	}
-}
-
-// AdminTreeFromYANG converts a merged YANG operational command tree into
-// the children-map format consumed by HandleAdminView. The returned map
-// keys are slash-joined parent paths; values are the sorted child names at
-// that depth. The empty key holds the top-level commands.
-//
-// Pass the result of yang.BuildCommandTree(loader). Plugin-contributed
-// commands appear automatically because the loader registers every
-// imported `-cmd` YANG module via init().
-func AdminTreeFromYANG(tree *command.Node) map[string][]string {
-	result := make(map[string][]string)
-	walkAdminTree(tree, "", result)
-	return result
-}
-
-// walkAdminTree recursively populates the children map. Keys are sorted at
-// each level so the rendered finder columns are deterministic.
-func walkAdminTree(node *command.Node, prefix string, result map[string][]string) {
-	if node == nil || node.Children == nil {
-		return
-	}
-	names := make([]string, 0, len(node.Children))
-	for name := range node.Children {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	result[prefix] = names
-
-	var tb textbuf.Buffer
-	for _, name := range names {
-		childPrefix := name
-		if prefix != "" {
-			childPrefix = tb.Reset().Str(prefix).Byte('/').Str(name).String()
-		}
-		walkAdminTree(node.Children[name], childPrefix, result)
-	}
 }

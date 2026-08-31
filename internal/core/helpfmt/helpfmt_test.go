@@ -181,26 +181,42 @@ func TestSeeAlso(t *testing.T) {
 	assert.Contains(t, out, "ze config validate")
 }
 
-func TestSummary(t *testing.T) {
-	tests := []struct {
-		in   string
-		want string
-	}{
-		{"simple", "simple"},
-		{"First sentence. Second sentence.", "First sentence."},
-		{"Multi\nline\ntext", "Multi"},
-		{"First line.\nSecond sentence. Third sentence.", "First line."},
-		{"Wrapped first sentence\ncontinues here. Details follow.", "Wrapped first sentence continues here."},
-		{"List cached BGP UPDATE message IDs with their\nretain and consumer state.", "List cached BGP UPDATE message IDs with their retain and consumer state."},
-		{"With trailing spaces   \nmore", "With trailing spaces"},
-		{"subcommands: alpha, bravo, charlie, ... (5 total)", "subcommands: alpha, bravo, charlie, ... (5 total)"},
-		{"No period no newline", "No period no newline"},
-		{"", ""},
+// TestPageRendersEachDeclaredHelpTextWhole renders both declared texts and
+// asserts neither is shortened. The entry summary keeps its second sentence.
+// The long explanation keeps the newlines its author wrote.
+//
+// VALIDATES: AC-2, AC-4 -- the page shortens nothing it is given.
+// PREVENTS: the deleted first-sentence cut coming back. It dropped every word
+// after the first full stop on five shipped help pages.
+func TestPageRendersEachDeclaredHelpTextWhole(t *testing.T) {
+	p := Page{
+		Command: "ze bgp",
+		Summary: "Inspect the BGP protocol engine.",
+		Help:    "One subtree per session.\nEach answers over the negotiated families.",
+		Sections: []HelpSection{{Title: "Commands", Entries: []HelpEntry{
+			{Name: "rib", Desc: "Show one row per route. The row carries the next hop."},
+		}}},
 	}
-	for _, tc := range tests {
-		got := Summary(tc.in)
-		assert.Equal(t, tc.want, got, "Summary(%q)", tc.in)
-	}
+
+	var buf bytes.Buffer
+	p.WriteTo(&buf, false)
+	out := buf.String()
+
+	assert.Contains(t, out, "Inspect the BGP protocol engine.")
+	assert.Contains(t, out, "  One subtree per session.")
+	assert.Contains(t, out, "  Each answers over the negotiated families.")
+	assert.Contains(t, out, "Show one row per route. The row carries the next hop.")
+}
+
+// TestPageWithoutHelpPrintsNoBodyBlock pins the empty-is-a-floor rule: a
+// command nobody wrote an explanation for prints its summary alone.
+func TestPageWithoutHelpPrintsNoBodyBlock(t *testing.T) {
+	p := Page{Command: "ze bgp", Summary: "Inspect the BGP protocol engine."}
+
+	var buf bytes.Buffer
+	p.WriteTo(&buf, false)
+
+	assert.Equal(t, "ze bgp - Inspect the BGP protocol engine.\n\n", buf.String())
 }
 
 func TestEntryWidth(t *testing.T) {

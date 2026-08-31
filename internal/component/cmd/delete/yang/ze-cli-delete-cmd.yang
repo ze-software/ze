@@ -8,9 +8,9 @@ module ze-cli-delete-cmd {
 
     container delete {
         config false;
-        description "Delete elements from the running configuration. This is the
-generic delete verb root; every delete command is owned by its component and
-merges its own subtree here: delete bgp peer (bgp peer command owner).
-See ai/rules/plugin-self-containment.md.";
+        description "Delete elements from the running configuration.";
+        ze:help "This is the generic delete verb root; every delete command is
+owned by its component and merges its own subtree here: delete bgp peer
+(bgp peer command owner). See ai/rules/plugin-self-containment.md.";
     }
 }

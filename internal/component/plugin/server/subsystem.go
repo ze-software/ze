@@ -194,7 +194,8 @@ func (hs *hubStartupSink) conn() *pluginipc.PluginConn { return hs.h.proc.Conn()
 // handler-local fields that FindHandler and RegisterSchemas read.
 func (hs *hubStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {
 	h := hs.h
-	for _, cmd := range input.Commands {
+	for i := range input.Commands {
+		cmd := &input.Commands[i]
 		h.commands = append(h.commands, cmd.Name)
 	}
 	if input.Schema != nil {

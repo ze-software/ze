@@ -8,7 +8,7 @@ module ze-cli-monitor-cmd {
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop)";
+        description "Continuous monitoring commands (Ctrl-C to stop).";
 
         // NOTE: `monitor event` is owned by the command component.
         // See internal/component/command/schema/ze-command-monitor-cmd.yang.

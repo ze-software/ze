@@ -15,7 +15,7 @@ func renderEquivalentDetail(
 	dest := equivalentsDirectory + "/" + row.Slug + "/" + pageIndexFile
 	shell := pageShell{
 		Title:       row.Command.Path + " - Command Equivalents - Ze",
-		Description: "Command details and vendor equivalents for " + row.Command.Path + ".",
+		Description: commandLede(row.Command),
 		Root:        equivalentsDetailRoot,
 		Path:        dest,
 		Sidebar:     pageSidebar(equivalentsDetailRoot, dest, links),
@@ -39,7 +39,7 @@ func equivalentDetailBody(mapping *equivalentMapping, row *equivalentRow, vendor
 	// literal "&lt;args&gt;" for a reader to puzzle over.
 	body.WriteString(pageHero(
 		html.EscapeString(row.Command.Path),
-		"Command details and vendor equivalents for "+html.EscapeString(row.Command.Path)+".",
+		html.EscapeString(commandLede(row.Command)),
 		"Command map", ` id="command-equivalent-detail-title"`, heroClasses))
 	body.WriteString("\n" + `<div class="cmd-detail-grid">` + "\n")
 	body.WriteString(equivalentZeCard(row.Command))
@@ -93,8 +93,13 @@ func equivalentZeCard(command *catalogCommand) string {
 		writeDetailRow(&card, "Address fields", html.EscapeString(strings.Join(command.AddressFields, ", ")))
 	}
 	card.WriteString("</dl>\n")
-	card.WriteString("<h3>Description</h3><p>" +
-		strings.ReplaceAll(html.EscapeString(orDescriptionMissing(command.Description)), "\n", "<br>") + "</p>\n")
+	// The summary is the page's lede, so the card explains rather than repeats
+	// it. A command that declares no long form has nothing to explain, and an
+	// empty heading would read as a claim the command model never made.
+	if command.LongHelp != "" {
+		card.WriteString("<h3>Description</h3><p>" +
+			strings.ReplaceAll(html.EscapeString(command.LongHelp), "\n", "<br>") + "</p>\n")
+	}
 	card.WriteString("<h3>Arguments</h3>\n" + equivalentArgumentTable(command) + "\n</article>\n")
 	return card.String()
 }
@@ -192,12 +197,13 @@ func orNone(value string) string {
 	return value
 }
 
-// orDescriptionMissing answers a description, or says the catalog listed none.
-func orDescriptionMissing(value string) string {
-	if value == "" {
+// commandLede answers the one line that opens a command's page: the summary the
+// command declares, or a statement that the catalog listed none.
+func commandLede(command *catalogCommand) string {
+	if command.Description == "" {
 		return "No description listed."
 	}
-	return value
+	return command.Description
 }
 
 // equivalentArgumentTable renders the command's own arguments.
@@ -313,7 +319,8 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 	command := row.Command
 	grouped := operatorsByAvailability(command)
 	var out strings.Builder
-	out.WriteString("# `" + markdownCell(command.Path) + "`\n\n## Ze command\n\n")
+	out.WriteString("# `" + markdownCell(command.Path) + "`\n\n")
+	out.WriteString(markdownCell(commandLede(command)) + "\n\n## Ze command\n\n")
 	out.WriteString("- Registry path: `" + markdownCell(command.Path) + "`\n")
 	if command.Usage != "" {
 		out.WriteString("- Usage: `" + markdownCell(command.Usage) + "`\n")
@@ -331,7 +338,9 @@ func equivalentDetailMirror(mapping *equivalentMapping, row *equivalentRow, vend
 	}
 	out.WriteString("- Command pipes: " + orNone(commandPipeMirrorList(command)) + "\n")
 	out.WriteString("- Pipe aliases: " + orNone(aliasMirrorList(command)) + "\n\n")
-	out.WriteString(markdownCell(orDescriptionMissing(command.Description)) + "\n\n")
+	if command.LongHelp != "" {
+		out.WriteString(markdownCell(command.LongHelp) + "\n\n")
+	}
 	out.WriteString(argumentMirrorTable(command))
 	out.WriteString("## Mapping intents\n\n")
 	if len(row.Entries) == 0 {

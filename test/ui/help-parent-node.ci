@@ -1,0 +1,26 @@
+# Test: a command node that HAS CHILDREN states its own two help texts first
+# VALIDATES: AC-4 -- ze <path> help on a node with children prints that node's
+#            declared summary on the header line, then its declared long
+#            explanation as the body block, then one line per child
+# PREVENTS: the pre-spec renderer, which printed a node's own description only
+#           when the node had no children, so a parent's authored explanation
+#           reached no operator
+# NOTE: the help page is written to stderr (helpfmt.Page.WriteErr).
+
+cmd=foreground:seq=1:exec=ze show bgp help
+expect=exit:code=0
+
+# The node's OWN summary, whole and on the header line.
+expect=stderr:contains=ze show bgp - BGP peers, sessions, RIB, and protocol tools.
+
+# The node's OWN long explanation, in the indented body block, with the line
+# breaks its author wrote kept.
+expect=stderr:contains=  Typed with no subcommand, lists every peer with state, ASN,
+expect=stderr:contains=  prefixes received, and uptime. Optionally scope by address family
+expect=stderr:contains=  or l2vpn.
+
+# A child row carries the CHILD's own one-line summary.
+expect=stderr:pattern=(?m)^  health +Quick health check for all your BGP peers\.$
+
+# The order AC-4 states: summary, then long explanation, then the children.
+expect=stderr:pattern=(?sm)ze show bgp - BGP peers, sessions, RIB, and protocol tools\..*Typed with no subcommand.*or l2vpn\..*Commands:.*^  health +Quick health check

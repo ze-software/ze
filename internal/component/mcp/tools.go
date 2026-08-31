@@ -58,8 +58,15 @@ type UIResourceInfo struct {
 
 // CommandInfo describes a registered command for MCP tool generation.
 type CommandInfo struct {
-	Name        string           // Dispatch path, e.g. "show bgp rib status", "show config dump"
-	Help        string           // Description from YANG
+	Name string // Dispatch path, e.g. "show bgp rib status", "show config dump"
+	// Description is the one-line summary of the command, from its YANG
+	// description statement. It is what the action enum offers, one line for
+	// each action a model can pick.
+	Description string
+	// LongHelp is the explanation the command declares with ze:help. It is what
+	// the tool's own description carries, and it holds the newlines its author
+	// wrote. Empty means the command declares no explanation.
+	LongHelp    string
 	ReadOnly    bool             // True if read-only command
 	Params      []ParamInfo      // Input parameters from YANG RPC (nil = no typed params)
 	TaskSupport TaskSupportLevel // From YANG ze:task-support extension
@@ -95,7 +102,8 @@ type toolGroup struct {
 // action is a single subcommand within a group.
 type action struct {
 	name          string           // action name (suffix after prefix), e.g. "status", "dump"
-	help          string           // description
+	description   string           // one-line summary, offered in the action enum
+	longHelp      string           // long explanation, carried by the tool description
 	full          string           // full command path for dispatch
 	params        []ParamInfo      // typed parameters from YANG (nil = generic arguments only)
 	taskSupport   TaskSupportLevel // from YANG ze:task-support
@@ -113,7 +121,8 @@ type action struct {
 func groupCommands(commands []CommandInfo) []toolGroup {
 	type entry struct {
 		full          string
-		help          string
+		description   string
+		longHelp      string
 		params        []ParamInfo
 		taskSupport   TaskSupportLevel
 		uiResource    *UIResourceInfo
@@ -129,7 +138,11 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 		if len(tokens) == 0 {
 			continue
 		}
-		e := entry{full: cmd.Name, help: cmd.Help, params: cmd.Params, taskSupport: cmd.TaskSupport, uiResource: cmd.UIResource, takesSelector: cmd.TakesSelector}
+		e := entry{
+			full: cmd.Name, description: cmd.Description, longHelp: cmd.LongHelp,
+			params: cmd.Params, taskSupport: cmd.TaskSupport, uiResource: cmd.UIResource,
+			takesSelector: cmd.TakesSelector,
+		}
 		one := tokens[0]
 		byOne[one] = append(byOne[one], e)
 		if len(tokens) >= 2 {
@@ -168,7 +181,8 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 				}
 				g.actions = append(g.actions, action{
 					name:          suffix,
-					help:          e.help,
+					description:   e.description,
+					longHelp:      e.longHelp,
 					full:          e.full,
 					params:        e.params,
 					taskSupport:   e.taskSupport,
@@ -190,7 +204,11 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 			tokens := strings.Fields(e.full)
 			if len(tokens) == 2 {
 				g := toolGroup{prefix: e.full}
-				g.actions = append(g.actions, action{name: "", help: e.help, full: e.full, params: e.params, taskSupport: e.taskSupport, uiResource: e.uiResource, takesSelector: e.takesSelector})
+				g.actions = append(g.actions, action{
+					name: "", description: e.description, longHelp: e.longHelp, full: e.full,
+					params: e.params, taskSupport: e.taskSupport, uiResource: e.uiResource,
+					takesSelector: e.takesSelector,
+				})
 				g.taskSupport = e.taskSupport
 				g.uiResource = e.uiResource
 				used[e.full] = true
@@ -219,7 +237,8 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 			}
 			g.actions = append(g.actions, action{
 				name:        suffix,
-				help:        e.help,
+				description: e.description,
+				longHelp:    e.longHelp,
 				full:        e.full,
 				params:      e.params,
 				taskSupport: e.taskSupport,
@@ -272,6 +291,24 @@ func generateTools(groups []toolGroup, skipNames map[string]bool) []map[string]a
 	return result
 }
 
+// commandText answers the whole help of one command: its one-line summary, then
+// a blank line, then its long explanation. A command that declares one half
+// answers that half alone. A command that declares neither answers the empty
+// string, which the caller MUST test for rather than publish.
+//
+// An MCP client shows one description for each tool, so a tool that IS one
+// command has this one place to carry both halves.
+func commandText(a action) string {
+	if a.longHelp == "" {
+		return a.description
+	}
+	if a.description == "" {
+		return a.longHelp
+	}
+	var tb textbuf.Buffer
+	return tb.Str(a.description).Str("\n\n").Str(a.longHelp).String()
+}
+
 // buildToolDef creates an MCP tool definition from a command group.
 func buildToolDef(g toolGroup) map[string]any {
 	name := toolName(g.prefix)
@@ -295,9 +332,12 @@ func buildToolDef(g toolGroup) map[string]any {
 		actionDescs := make([]string, 0, len(namedActions))
 		for i, a := range namedActions {
 			actionEnums[i] = a.name
-			if a.help != "" {
+			// The enum description is one line for each action, so it carries
+			// summaries only. The explanation goes to the tool description
+			// below, which is the one place a client shows a paragraph.
+			if a.description != "" {
 				var tb textbuf.Buffer
-				actionDescs = append(actionDescs, tb.Str(a.name).Str(": ").Str(a.help).String())
+				actionDescs = append(actionDescs, tb.Str(a.name).Str(": ").Str(a.description).String())
 			}
 		}
 
@@ -315,17 +355,21 @@ func buildToolDef(g toolGroup) map[string]any {
 
 		desc.Reset()
 		if len(namedActions) == 1 {
-			if namedActions[0].help != "" {
-				desc.Str(namedActions[0].help)
+			// One action means the tool IS that command, so its description is
+			// that command's own help page: the summary, then the explanation.
+			if text := commandText(namedActions[0]); text != "" {
+				desc.Str(text)
 			} else {
 				desc.Str("Run '").Str(g.prefix).Byte(' ').Str(namedActions[0].name).Str("'.")
 			}
 		} else {
 			desc.Str("Actions: ").Join(actionEnums, ", ").Byte('.')
 		}
-	} else if len(g.actions) == 1 && g.actions[0].help != "" {
-		desc.Reset()
-		desc.Str(g.actions[0].help)
+	} else if len(g.actions) == 1 {
+		if text := commandText(g.actions[0]); text != "" {
+			desc.Reset()
+			desc.Str(text)
+		}
 	}
 
 	// Add typed parameters from YANG RPC metadata.

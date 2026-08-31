@@ -36,12 +36,20 @@ type Schema struct {
 }
 
 // RegisteredRPC represents an RPC indexed in the schema registry.
+//
+// Description and LongHelp are the two texts the RPC declares. The description
+// is the one-line SUMMARY a table cell renders. LongHelp is the explanation a
+// reference carries whole. Neither is derived from the other, and an empty
+// LongHelp means nobody has written the explanation yet. The pair is spelled
+// Description + LongHelp everywhere in this package, because Help already means
+// the summary on Command and on Completion.
 type RegisteredRPC struct {
 	Module      string          // YANG module name (e.g., "ze-bgp-api")
 	Name        string          // RPC name in kebab-case (e.g., "peer-list")
 	WireMethod  string          // Wire format "module:rpc-name" (e.g., "ze-bgp:peer-list")
 	CLICommand  string          // CLI text command (e.g., "bgp peer list")
-	Description string          // From YANG description
+	Description string          // One-line summary, from the YANG description
+	LongHelp    string          // Long explanation, from the ze:help extension
 	Input       []yang.LeafMeta // Input parameter leaves
 	Output      []yang.LeafMeta // Output parameter leaves
 	Handler     Handler         // Handler function (set during registration)
@@ -153,6 +161,7 @@ func (r *SchemaRegistry) RegisterRPCs(module string, rpcs []yang.RPCMeta) error 
 			Name:        meta.Name,
 			WireMethod:  wireMethod,
 			Description: meta.Description,
+			LongHelp:    meta.Help,
 			Input:       meta.Input,
 			Output:      meta.Output,
 		}

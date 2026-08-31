@@ -5,9 +5,9 @@ module ze-cli-update-api {
   description
     "Ze update verb RPCs -- refresh stale data from external sources.";
 
-  rpc system-firmware-check { description "Trigger immediate firmware version check"; }
-  rpc system-firmware-download { description "Download firmware update now"; }
-  rpc system-firmware-apply { description "Full firmware update cycle: download+verify+stage+restart"; }
-  rpc system-firmware-restart { description "Restart into staged firmware version"; }
-  rpc system-firmware-rollback { description "Restore previous firmware version and restart"; }
+  rpc system-firmware-check { description "Trigger immediate firmware version check."; }
+  rpc system-firmware-download { description "Download firmware update now."; }
+  rpc system-firmware-apply { description "Full firmware update cycle: download+verify+stage+restart."; }
+  rpc system-firmware-restart { description "Restart into staged firmware version."; }
+  rpc system-firmware-rollback { description "Restore previous firmware version and restart."; }
 }

@@ -8,27 +8,26 @@ module ze-log-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container log {
             config false;
-            description "View log entries and current levels";
+            description "View log entries and current levels.";
 
             container levels {
                 config false;
                 ze:command "ze-bgp:log-levels";
-                description "Show what log level each subsystem is using.
-Lists every registered logger with its current level. Use
-'request log level' to change a level at runtime without restarting.";
+                description "Show what log level each subsystem is using.";
+                ze:help "Lists every registered logger with its current level. Use 'request log level'
+to change a level at runtime without restarting.";
             }
 
             container recent {
                 config false;
                 ze:command "ze-bgp:log-recent";
-                description "Show recent log entries from the in-memory ring.
-Filters (all optional): level <lvl>, component <name>, count <N>.
-Newest entries first. Useful when you cannot access the log file
-directly.";
+                description "Show recent log entries from the in-memory ring.";
+                ze:help "Filters (all optional): level <lvl>, component <name>, count <N>. Newest
+entries first. Useful when you cannot access the log file directly.";
                 leaf level {
                     type enumeration {
                         enum disabled;
@@ -56,14 +55,14 @@ directly.";
 
         container log {
             config false;
-            description "Runtime log operations";
+            description "Runtime log operations.";
 
             container level {
                 config false;
                 ze:command "ze-bgp:log-set";
-                description "Change a subsystem's log level without restarting.
-Takes effect immediately.
-Set to debug when troubleshooting, then back to info when you are done.";
+                description "Change a subsystem's log level without restarting.";
+                ze:help "Takes effect immediately. Set to debug when troubleshooting, then back to info
+when you are done.";
                 leaf logger {
                     type string;
                     mandatory true;

@@ -7,18 +7,18 @@ module ze-host-set-cmd {
 
     container set {
         config false;
-        description "Modify running configuration parameters";
+        description "Modify running configuration parameters.";
 
         container system {
             config false;
-            description "System-level runtime tunables";
+            description "System-level runtime tunables.";
 
             container file-descriptors {
                 config false;
                 ze:command "ze-set:system-file-descriptors";
-                description "Raise the file descriptor limit for the daemon process.
-Pass a number or 'max' to go to the hard limit. Takes effect
-immediately. Check current limits with 'show system file-descriptors'.";
+                description "Raise the file descriptor limit for the daemon process.";
+                ze:help "Pass a number or 'max' to go to the hard limit. Takes effect immediately.
+Check current limits with 'show system file-descriptors'.";
                 leaf limit {
                     type union {
                         type uint64;

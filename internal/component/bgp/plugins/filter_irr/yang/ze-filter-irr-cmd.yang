@@ -7,28 +7,28 @@ module ze-filter-irr-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container bgp {
             config false;
-            description "BGP peers, sessions, RIB, and protocol tools.
-Typed with no subcommand, lists every peer with state, ASN, prefixes
-received, and uptime. Optionally scope by address family: ipv4,
-ipv6, or l2vpn.";
+            description "BGP peers, sessions, RIB, and protocol tools.";
+            ze:help "Typed with no subcommand, lists every peer with state, ASN,
+prefixes received, and uptime. Optionally scope by address family: ipv4, ipv6,
+or l2vpn.";
 
             container irr {
                 config false;
                 ze:command "ze-show:irr-status";
-                description "Show IRR filter status per ASN.
-Lists each enrolled ASN with its resolved AS-SET, prefix counts,
+                description "Show IRR filter status per ASN.";
+                ze:help "Lists each enrolled ASN with its resolved AS-SET, prefix counts,
 last refresh time, and error status. Use this to confirm that IRR
 prefix-lists are loaded and current.";
 
                 container prefix {
                     config false;
                     ze:command "ze-show:irr-prefix";
-                    description "Show IRR-resolved prefixes for a peer.
-Lists all IPv4 and IPv6 prefixes
+                    description "Show IRR-resolved prefixes for a peer.";
+                    ze:help "Lists all IPv4 and IPv6 prefixes
 in the IRR-resolved prefix-list for the given peer address.";
                     leaf peer { type string; mandatory true; description "Peer address"; }
                 }
@@ -36,8 +36,8 @@ in the IRR-resolved prefix-list for the given peer address.";
                 container check {
                     config false;
                     ze:command "ze-show:irr-check";
-                    description "Check if a prefix is accepted by the IRR filter.
-Reports whether the
+                    description "Check if a prefix is accepted by the IRR filter.";
+                    ze:help "Reports whether the
 prefix would be accepted or rejected, and which entry matches.";
                     leaf peer { type string; mandatory true; description "Peer address"; }
                     leaf prefix { type string; mandatory true; description "Prefix to check (CIDR)"; }
@@ -51,17 +51,17 @@ prefix would be accepted or rejected, and which entry matches.";
 
         container bgp {
             config false;
-            description "BGP operational updates";
+            description "BGP operational updates.";
 
             container irr {
                 config false;
-                description "IRR prefix-list refresh commands";
+                description "IRR prefix-list refresh commands.";
 
                 container all {
                     config false;
                     ze:command "ze-update:irr-all";
-                    description "Refresh all IRR prefix-lists immediately.
-Re-queries the IRR server for every enrolled ASN and atomically
+                    description "Refresh all IRR prefix-lists immediately.";
+                    ze:help "Re-queries the IRR server for every enrolled ASN and atomically
 swaps prefix-lists on success. Failed refreshes preserve the
 existing prefix-list and report an error.";
                 }
@@ -69,8 +69,8 @@ existing prefix-list and report an error.";
                 container asn {
                     config false;
                     ze:command "ze-update:irr-asn";
-                    description "Refresh IRR prefix-list for a specific ASN.
-Re-queries the IRR server for
+                    description "Refresh IRR prefix-list for a specific ASN.";
+                    ze:help "Re-queries the IRR server for
 the given ASN only.";
                     leaf asn { type string; mandatory true; description "ASN number"; }
                 }
@@ -78,8 +78,8 @@ the given ASN only.";
                 container as-set {
                     config false;
                     ze:command "ze-update:irr-as-set";
-                    description "Refresh IRR prefix-list for a specific AS-SET.
-Re-queries the IRR server
+                    description "Refresh IRR prefix-list for a specific AS-SET.";
+                    ze:help "Re-queries the IRR server
 for all peers using the given AS-SET name.";
                     leaf as-set { type string; mandatory true; description "AS-SET name"; }
                 }

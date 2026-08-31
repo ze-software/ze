@@ -123,7 +123,8 @@ type Completion struct {
 // Passed from process to registry during registration.
 type CommandDef struct {
 	Name        string        // Command name (e.g., "myapp status")
-	Description string        // Help text
+	Description string        // One-line summary, shown wherever the command appears on one line
+	LongHelp    string        // Long explanation, printed by this command's own help page. Empty = the plugin declared none
 	Args        string        // Usage hint (e.g., "<component>")
 	Completable bool          // Process handles arg completion
 	Hidden      bool          // Hidden from completion and help (works when typed in full)
@@ -139,9 +140,14 @@ type RegisterResult struct {
 
 // RegisteredCommand represents a plugin command in the registry.
 type RegisteredCommand struct {
-	Name         string
-	LowerName    string // Pre-lowercased at registration for dispatch matching (zero alloc per lookup)
-	Description  string
+	Name        string
+	LowerName   string // Pre-lowercased at registration for dispatch matching (zero alloc per lookup)
+	Description string // One-line summary (CommandDecl.Description)
+	// LongHelp is the explanation this command's own help page prints
+	// (CommandDecl.LongHelp). Empty means the plugin declared none, and the
+	// help page then prints the summary alone. It is NEVER read as a summary,
+	// and no one-line surface reads it at all.
+	LongHelp     string
 	Args         string           // Usage hint (e.g., "<component>")
 	Completable  bool             // Process handles arg completion
 	Hidden       bool             // Hidden from completion and help (works when typed in full)
@@ -239,6 +245,7 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 			Name:         def.Name,
 			LowerName:    key,
 			Description:  def.Description,
+			LongHelp:     def.LongHelp,
 			Args:         def.Args,
 			Completable:  def.Completable,
 			Hidden:       def.Hidden,
@@ -500,6 +507,12 @@ func (r *CommandRegistry) CommandCountsByProcess() map[string]int {
 // Used to inject plugin-registered commands into the operational command tree
 // (command.MergeCommandPaths) so interactive tab-completion offers them, matching
 // the shell-completion path that already reads Complete().
+//
+// Each entry carries both help texts, and the names cross here: this package
+// spells the summary Description and the explanation LongHelp, while the
+// command package spells them Description and Help. MergeCommandPaths fills
+// each field on its own, so a command that declared a summary and no
+// explanation fills the summary alone.
 func (r *CommandRegistry) VisibleCommandEntries() []command.CommandEntry {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -512,6 +525,7 @@ func (r *CommandRegistry) VisibleCommandEntries() []command.CommandEntry {
 		entries = append(entries, command.CommandEntry{
 			Name:        cmd.Name,
 			Description: cmd.Description,
+			Help:        cmd.LongHelp,
 		})
 	}
 	return entries

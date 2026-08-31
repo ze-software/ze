@@ -7,15 +7,15 @@ module ze-diag-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container tcp-check {
             config false;
             ze:command "ze-show:tcp-check";
-            description "Test TCP connectivity to a remote host and port.
-Tries to open a TCP connection and reports success or failure with
-the connection time. Use 'source <IP>' to bind a specific local
-address. Quick way to verify a peer's BGP port is reachable.";
+            description "Test TCP connectivity to a remote host and port.";
+            ze:help "Tries to open a TCP connection and reports success or failure with the
+connection time. Use 'source <IP>' to bind a specific local address. Quick way
+to verify a peer's BGP port is reachable.";
             leaf host {
                 type string;
                 mandatory true;
@@ -41,10 +41,10 @@ address. Quick way to verify a peer's BGP port is reachable.";
         container capture {
             config false;
             ze:command "ze-show:capture";
-            description "Show captured control-plane messages.
-Returns protocol messages you previously enabled capture for. Without
-a protocol keyword, shows all protocols. Use this to debug
-session establishment issues.";
+            description "Show captured control-plane messages.";
+            ze:help "Returns protocol messages you previously enabled capture for. Without a
+protocol keyword, shows all protocols. Use this to debug session establishment
+issues.";
             leaf protocol {
                 type enumeration {
                     enum l2tp;
@@ -72,10 +72,9 @@ session establishment issues.";
             container raw {
                 config false;
                 ze:command "ze-show:capture-raw";
-                description "Control raw byte capture for protocol debugging.
-Actions: start (begin capturing), stop (halt), dump (retrieve).
-Protocols: l2tp, bgp. Output formats: pcap (for Wireshark), json.
-Limit with count <N>.";
+                description "Control raw byte capture for protocol debugging.";
+                ze:help "Actions: start (begin capturing), stop (halt), dump (retrieve). Protocols:
+l2tp, bgp. Output formats: pcap (for Wireshark), json. Limit with count <N>.";
                 leaf action {
                     type enumeration {
                         enum start;
@@ -107,10 +106,10 @@ Limit with count <N>.";
             container interface {
                 config false;
                 ze:command "ze-show:capture-interface";
-                description "Capture live packets on an interface (like tcpdump).
-Uses AF_PACKET for zero-copy capture. Filter by protocol and port.
-Limit with count or duration. Output as pcap (for Wireshark) or text.
-Snap-len controls how many bytes per packet are captured.";
+                description "Capture live packets on an interface (like tcpdump).";
+                ze:help "Uses AF_PACKET for zero-copy capture. Filter by protocol and port. Limit with
+count or duration. Output as pcap (for Wireshark) or text. Snap-len controls
+how many bytes per packet are captured.";
                 leaf iface {
                     type string;
                     description "Interface name";

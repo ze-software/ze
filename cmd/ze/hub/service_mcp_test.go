@@ -82,7 +82,8 @@ func TestMCPCommandLister(t *testing.T) {
 		return []commandMeta{
 			{
 				Name:        "show bgp rib dump",
-				Help:        "Dump RIB",
+				Description: "Dump RIB",
+				LongHelp:    "One row for each prefix.\nThe best path is marked.",
 				ReadOnly:    true,
 				TaskSupport: "required",
 				Params: []commandParam{
@@ -90,8 +91,8 @@ func TestMCPCommandLister(t *testing.T) {
 				},
 				UIResource: &commandUIResource{Path: "bgp/index.html", Permissions: "network", CSP: "default-src 'self'"},
 			},
-			{Name: "ping host", Help: "Ping", TaskSupport: "forbidden"},
-			{Name: "show config dump", Help: "Dump config", TaskSupport: ""},
+			{Name: "ping host", Description: "Ping", TaskSupport: "forbidden"},
+			{Name: "show config dump", Description: "Dump config", TaskSupport: ""},
 		}
 	}
 
@@ -99,7 +100,9 @@ func TestMCPCommandLister(t *testing.T) {
 	require.Len(t, infos, 3)
 
 	assert.Equal(t, "show bgp rib dump", infos[0].Name)
-	assert.Equal(t, "Dump RIB", infos[0].Help)
+	assert.Equal(t, "Dump RIB", infos[0].Description)
+	assert.Equal(t, "One row for each prefix.\nThe best path is marked.", infos[0].LongHelp,
+		"the explanation reaches MCP as its own field, never folded into the summary")
 	assert.True(t, infos[0].ReadOnly)
 	assert.Equal(t, zemcp.TaskSupportRequired, infos[0].TaskSupport)
 	require.Len(t, infos[0].Params, 1)

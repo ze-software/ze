@@ -8,7 +8,7 @@ module ze-traffic-feature-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container traffic {
             config false;
@@ -17,9 +17,12 @@ module ze-traffic-feature-cmd {
             container feature {
                 config false;
                 ze:command "ze-show:traffic-feature";
-                description "Show neutral per-source traffic feature signals: fan-out (distinct destinations),
-out/in byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto, and coarse beaconing.
-Without arguments, shows the top source entities. With 'name <address>', filters to one source.";
+                description "Show neutral per-source traffic feature signals.";
+                ze:help "The signals are fan-out (distinct destinations), out/in
+byte ratio (exfiltration), destination-port entropy, new-peer, rare-port/proto,
+and coarse beaconing.
+Without arguments, shows the top source entities. With 'name <address>',
+filters to one source.";
                 leaf name {
                     type string;
                     description "Source address filter";

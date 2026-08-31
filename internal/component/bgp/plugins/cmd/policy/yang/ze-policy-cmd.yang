@@ -9,21 +9,21 @@ module ze-policy-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container policy {
             config false;
-            description "Inspect and test route policy filters";
+            description "Inspect and test route policy filters.";
 
             container chain {
                 config false;
-                description "Show the effective filter chain for a peer";
+                description "Show the effective filter chain for a peer.";
 
                 container peer {
                     config false;
                     ze:command "ze-show:policy-chain";
-                    description "Show the import/export filter chain applied to a peer.
-The selector
+                    description "Show the import/export filter chain applied to a peer.";
+                    ze:help "The selector
 (IP, name, as<N>) and the optional direction are parsed by the handler.
 Shows the effective chain after group inheritance is resolved. Without
 a direction keyword, shows both import and export.";
@@ -32,8 +32,8 @@ a direction keyword, shows both import and export.";
                     container direction {
                         config false;
                         ze:modifier "choice";
-                        description "Which half of the chain to show. Without one, both halves
-are shown.";
+                        description "Which half of the chain to show.";
+                        ze:help "Without one, both halves are shown.";
                         leaf direction {
                             type enumeration {
                                 enum import;
@@ -47,13 +47,13 @@ are shown.";
 
             container test {
                 config false;
-                description "Dry-run a BGP UPDATE through a policy chain (read-only, safe)";
+                description "Dry-run a BGP UPDATE through a policy chain (read-only, safe).";
 
                 container peer {
                     config false;
                     ze:command "ze-show:policy-test";
-                    description "Test what your policy does to a specific UPDATE.
-Feed a hex-encoded BGP UPDATE through a peer's filter chain and see
+                    description "Test what your policy does to a specific UPDATE.";
+                    ze:help "Feed a hex-encoded BGP UPDATE through a peer's filter chain and see
 the accept/reject result plus attribute modifications at each stage.
 Read-only: no routes are actually forwarded. Great for validating
 policy changes before you commit.

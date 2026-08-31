@@ -78,8 +78,15 @@ type Alias struct {
 
 // Entry is one command in the product catalog.
 type Entry struct {
-	Path          string     `json:"path"`
-	Description   string     `json:"description,omitempty"`
+	Path        string `json:"path"`
+	Description string `json:"description,omitempty"`
+	// LongHelp is the command's own explanation, from ze:help. Description is
+	// the one-line summary beside it: two declarations, never one authored
+	// string cut in two, so each surface reads the half it renders.
+	//
+	// The key is `long-help` rather than `help`, because `help` already names
+	// the SUMMARY on the plugin boundary (Completion.Help).
+	LongHelp      string     `json:"long-help,omitempty"`
 	Mode          string     `json:"mode"`
 	WireMethod    string     `json:"wire-method,omitempty"`
 	Backend       []string   `json:"backend,omitempty"`
@@ -121,6 +128,7 @@ func Collect() []Entry {
 			entry := Entry{Path: cliPath, Mode: mode, WireMethod: wireMethod}
 			if node != nil {
 				entry.Description = node.Description
+				entry.LongHelp = node.Help
 				entry.Args = extractArgs(node)
 				entry.Grammar = command.Usage(strings.Fields(cliPath), node)
 				entry.Usage = command.UsageLine(entry.Grammar)
@@ -141,10 +149,28 @@ func Collect() []Entry {
 	// internal package cannot import. The doc-drift producer comparison checks
 	// every field against the live registry and rejects any drift here.
 	builtins := []Entry{
-		{Path: "help ai", Description: "AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).", Mode: modeOffline},
-		{Path: "help command", Description: "List every command with its description. Use a filter to narrow the list.", Mode: modeOffline},
+		{
+			Path:        "help ai",
+			Description: "Print the agent reference this binary builds from its own registries.",
+			LongHelp: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
+				"for a program to read.",
+			Mode: modeOffline,
+		},
+		{
+			Path:        "help command",
+			Description: "List every command this binary carries with its summary.",
+			LongHelp: "A filter word keeps the commands whose path holds it, and the answer renders as " +
+				"JSON for a program to read.",
+			Mode: modeOffline,
+		},
 		{Path: "show version", Description: "Show the running Ze version and build date", Mode: modeOffline},
-		{Path: "update serve", Description: "Run a local update server for firmware checks", Mode: modeOffline},
+		{
+			Path:        "update serve",
+			Description: "Serve this binary and its version manifest for update checks.",
+			LongHelp: "The server answers a version manifest, the running binary and its SHA-256 digest. " +
+				"It is meant for build infrastructure rather than for a router in production.",
+			Mode: modeOffline,
+		},
 	}
 	for index := range builtins {
 		if seen[builtins[index].Path] {
@@ -167,6 +193,7 @@ func Collect() []Entry {
 		entries = append(entries, Entry{
 			Path:        local.Path,
 			Description: local.Meta.Description,
+			LongHelp:    local.Meta.LongHelp,
 			Mode:        mode,
 		})
 		seen[local.Path] = true

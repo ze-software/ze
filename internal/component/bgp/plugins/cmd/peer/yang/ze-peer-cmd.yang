@@ -16,14 +16,14 @@ module ze-peer-cmd {
         container bgp {
             config false;
             ze:command "ze-bgp:overview";
-            description "BGP peers, sessions, RIB, and protocol tools.
-Typed with no subcommand, lists every peer with state, ASN, prefixes
-received, and uptime. Optionally scope by address family: ipv4,
-ipv6, or l2vpn.";
+            description "BGP peers, sessions, RIB, and protocol tools.";
+            ze:help "Typed with no subcommand, lists every peer with state, ASN,
+prefixes received, and uptime. Optionally scope by address family: ipv4, ipv6,
+or l2vpn.";
 
             container peer {
                 config false;
-                description "Peer state, capabilities, statistics, history, and RIB views";
+                description "Peer state, capabilities, statistics, history, and RIB views.";
 
                 // The peer every command below reads. It is declared here, on
                 // the keyword the operator types it after, and each of those
@@ -35,8 +35,8 @@ ipv6, or l2vpn.";
                     config false;
                     ze:command "ze-bgp:peer-list";
                     ze:inherit "none";
-                    description "List your peers, one line each.
-Shows name, address, ASN, state, and uptime. Quick overview without
+                    description "List your peers, one line each.";
+                    ze:help "Shows name, address, ASN, state, and uptime. Quick overview without
 the per-peer detail.";
                 }
 
@@ -72,8 +72,8 @@ the per-peer detail.";
                     container scope {
                         config false;
                         ze:modifier "choice";
-                        description "Which direction of the peer's RIB to read. Without one,
-routes sent and received are both shown.";
+                        description "Which direction of the peer's RIB to read.";
+                        ze:help "Without one, routes sent and received are both shown.";
                         leaf scope {
                             type enumeration {
                                 enum sent;
@@ -91,8 +91,8 @@ another spelling of 'sent'.";
             container health {
                 config false;
                 ze:command "ze-show:bgp-health";
-                description "Quick health check for all your BGP peers.
-Lists every peer with address, state, ASN, and uptime. Reports how
+                description "Quick health check for all your BGP peers.";
+                ze:help "Lists every peer with address, state, ASN, and uptime. Reports how
 many are not Established. Much faster than 'show bgp peer *' when
 you just need a status overview.";
             }
@@ -104,14 +104,14 @@ you just need a status overview.";
 
         container bgp {
             config false;
-            description "Remove BGP peers from running config";
+            description "Remove BGP peers from running config.";
 
             container peer {
                 config false;
 
                 ze:command "ze-delete:bgp-peer";
-                description "Remove a peer from the running config.
-Tears down the TCP session and deletes the peer from the running
+                description "Remove a peer from the running config.";
+                ze:help "Tears down the TCP session and deletes the peer from the running
 configuration. Does not modify the config file on disk.";
                 leaf selector { type string; mandatory true; description "Peer selector"; }
             }
@@ -123,11 +123,11 @@ configuration. Does not modify the config file on disk.";
 
         container bgp {
             config false;
-            description "BGP operational updates";
+            description "BGP operational updates.";
 
             container peer {
                 config false;
-                description "Per-peer data refresh";
+                description "Per-peer data refresh.";
 
                 // The peer every command below updates, declared on the keyword
                 // the operator types it after.
@@ -136,8 +136,8 @@ configuration. Does not modify the config file on disk.";
                 container prefix {
                     config false;
                     ze:command "ze-update:bgp-peer-prefix";
-                    description "Refresh max-prefix limits from PeeringDB.
-Queries PeeringDB for each matched peer's ASN, applies the configured
+                    description "Refresh max-prefix limits from PeeringDB.";
+                    ze:help "Queries PeeringDB for each matched peer's ASN, applies the configured
 margin, and writes the result to the config draft. Run 'config commit'
 to apply.";
                 }
@@ -150,7 +150,7 @@ to apply.";
 
         container peer {
             config false;
-            description "Peer lifecycle and flow control operations";
+            description "Peer lifecycle and flow control operations.";
             ze:ui-resource "bgp-peer/index.html";
             ze:ui-permissions "network";
             ze:ui-csp "default-src 'self'";
@@ -188,11 +188,11 @@ to apply.";
 
             container plugin {
                 config false;
-                description "Plugin-level peer operations";
+                description "Plugin-level peer operations.";
 
                 container session {
                     config false;
-                    description "Plugin session lifecycle";
+                    description "Plugin session lifecycle.";
 
                     container ready {
                         config false;

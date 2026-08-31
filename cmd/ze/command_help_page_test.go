@@ -90,3 +90,59 @@ func TestHelpPageForAnUnknownPath(t *testing.T) {
 		t.Errorf("an unknown path produced %+v", page)
 	}
 }
+
+// VALIDATES: AC-4 -- the operator's per-command page carries the node's two
+// declared help texts, the summary on the header line and the long explanation
+// in the body, and the child rows carry their own summaries.
+// PREVENTS: the long explanation reaching the one-line header, which is what
+// shipped while the whole description was assigned to Page.Summary.
+func TestHelpPageCarriesBothDeclaredHelpTexts(t *testing.T) {
+	node := &command.Node{
+		Name:        "bgp",
+		Description: "Inspect the BGP protocol engine.",
+		Help:        "One subtree per session.\nEach answers over the negotiated families.",
+		Children: map[string]*command.Node{
+			"rib":  {Name: "rib", Description: "Show the BGP RIB."},
+			"peer": {Name: "peer", Description: "Show the configured peers."},
+		},
+	}
+	page := commandHelpPage([]string{"show", "bgp"}, node)
+
+	if page.Summary != "Inspect the BGP protocol engine." {
+		t.Errorf("the header summary is %q", page.Summary)
+	}
+	if page.Help != "One subtree per session.\nEach answers over the negotiated families." {
+		t.Errorf("the body help is %q", page.Help)
+	}
+	if strings.Contains(page.Summary, "\n") {
+		t.Errorf("the one-line header carries a newline: %q", page.Summary)
+	}
+
+	var rendered strings.Builder
+	page.WriteTo(&rendered, false)
+	for _, want := range []string{
+		"Inspect the BGP protocol engine.",
+		"  One subtree per session.",
+		"  Each answers over the negotiated families.",
+		"Show the BGP RIB.",
+		"Show the configured peers.",
+	} {
+		if !strings.Contains(rendered.String(), want) {
+			t.Errorf("the rendered page is missing %q:\n%s", want, rendered.String())
+		}
+	}
+
+	// The order is the summary, then the long explanation, then the children.
+	// A parent that printed only its children left its own authored text
+	// unreachable to the operator who asked about that exact path.
+	out := rendered.String()
+	summary := strings.Index(out, "Inspect the BGP protocol engine.")
+	long := strings.Index(out, "One subtree per session.")
+	children := strings.Index(out, "Show the configured peers.")
+	if summary > long {
+		t.Errorf("the long help came before the summary (summary=%d help=%d)\n%s", summary, long, out)
+	}
+	if long > children {
+		t.Errorf("a child summary came before the node's own help (help=%d children=%d)\n%s", long, children, out)
+	}
+}

@@ -694,10 +694,10 @@ func BuildCommandTree(readOnly bool) *Command {
 		}
 	}
 	tree := cmd.BuildTree(infos, false) // readOnly already filtered above
-	// Merge descriptions from the YANG command tree into the RPC-built tree.
-	// BuildTree creates nodes without descriptions; YANG modules define them.
+	// Merge both help texts from the YANG command tree into the RPC-built tree.
+	// BuildTree creates nodes with neither. YANG modules declare them.
 	if yangCmdTree != nil {
-		mergeDescriptions(tree, yangCmdTree)
+		mergeHelpText(tree, yangCmdTree)
 		mergeArgDefs(tree, yangCmdTree)
 	}
 	cmd.MergeYANGNodes(tree, yangCmdTree)
@@ -735,9 +735,11 @@ func applyArgDefs(root *Command, defsByPath map[string][]cmd.ArgDef) {
 	}
 }
 
-// mergeDescriptions copies Description fields from the YANG tree into dst
-// for nodes that exist in both trees but have an empty description in dst.
-func mergeDescriptions(dst, src *Command) {
+// mergeHelpText copies both declared help texts from the YANG tree into dst.
+// It walks the nodes that exist in both trees. Each field is decided on its
+// own, because each is declared on its own. A node that already states a
+// summary still takes the explanation it has none of.
+func mergeHelpText(dst, src *Command) {
 	if dst == nil || src == nil {
 		return
 	}
@@ -749,7 +751,10 @@ func mergeDescriptions(dst, src *Command) {
 		if dstChild.Description == "" && srcChild.Description != "" {
 			dstChild.Description = srcChild.Description
 		}
-		mergeDescriptions(dstChild, srcChild)
+		if dstChild.Help == "" && srcChild.Help != "" {
+			dstChild.Help = srcChild.Help
+		}
+		mergeHelpText(dstChild, srcChild)
 	}
 }
 

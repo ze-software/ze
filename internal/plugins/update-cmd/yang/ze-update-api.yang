@@ -3,11 +3,11 @@ module ze-update-api {
     prefix update-api;
     description "Update component RPCs for firmware lifecycle and system update status.";
 
-    rpc system-update { description "Show firmware update status"; }
-    rpc system-update-history { description "Show firmware update event history"; }
-    rpc system-firmware-check { description "Trigger immediate firmware version check"; }
-    rpc system-firmware-download { description "Download firmware update now"; }
-    rpc system-firmware-apply { description "Full firmware update cycle: download+verify+stage+restart"; }
-    rpc system-firmware-restart { description "Restart into staged firmware version"; }
-    rpc system-firmware-rollback { description "Restore previous firmware version and restart"; }
+    rpc system-update { description "Show firmware update status."; }
+    rpc system-update-history { description "Show firmware update event history."; }
+    rpc system-firmware-check { description "Trigger immediate firmware version check."; }
+    rpc system-firmware-download { description "Download firmware update now."; }
+    rpc system-firmware-apply { description "Full firmware update cycle: download+verify+stage+restart."; }
+    rpc system-firmware-restart { description "Restart into staged firmware version."; }
+    rpc system-firmware-rollback { description "Restore previous firmware version and restart."; }
 }

@@ -7,15 +7,15 @@ module ze-debug-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container debug {
             config false;
             ze:command "ze-debug:debug-state";
-            description "Show live debug state from the running daemon.
-Lists every registered subsystem with its current log level and any
-active flag or scope filters. Unlike 'debug show' (which reads the
-stored profile), this reflects actual runtime state.";
+            description "Show live debug state from the running daemon.";
+            ze:help "Lists every registered subsystem with its current log level and any active
+flag or scope filters. Unlike 'debug show' (which reads the stored profile),
+this reflects actual runtime state.";
         }
     }
 }

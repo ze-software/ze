@@ -20,68 +20,68 @@ module ze-system-cmd {
 
     container system {
         config false;
-        description "System operations";
+        description "Daemon introspection and command dispatch.";
 
         container help {
             config false;
             ze:command "ze-system:help";
-            description "Show available commands";
+            description "List the subcommands the system verb accepts.";
         }
 
         container dispatch {
             config false;
             ze:command "ze-system:dispatch";
-            description "Dispatch a text command";
+            description "Dispatch a text command through the command dispatcher.";
         }
 
         container version {
             config false;
-            description "Version information";
+            description "Software and protocol version information.";
 
             container software {
                 config false;
                 ze:command "ze-system:version-software";
-                description "Show ze version";
+                description "Show the ze software version.";
             }
 
             container api {
                 config false;
                 ze:command "ze-system:version-api";
-                description "Show IPC protocol version";
+                description "Show the IPC protocol version.";
             }
         }
 
         container subsystem {
             config false;
-            description "Subsystem operations";
+            description "Inspect the registered subsystems.";
 
             container list {
                 config false;
                 ze:command "ze-system:subsystem-list";
-                description "List available subsystems";
+                description "List the subsystems registered in the daemon.";
             }
         }
 
         container command {
             config false;
-            description "Command introspection";
+            description "Inspect the commands the daemon knows.";
 
             container list {
                 config false;
                 ze:command "ze-system:command-list";
-                description "List all commands";
+                description "List every command the daemon knows.";
             }
 
             container help {
                 config false;
                 ze:command "ze-system:command-help";
-                description "Show command details";
+                description "Show the detailed help for one command.";
             }
 
             container complete {
                 config false;
                 ze:command "ze-system:command-complete";
-                description "Complete command/args";
+                description "List the completion candidates for a partial command.";
             }
         }
     }
@@ -130,7 +130,8 @@ module ze-system-cmd {
         container quiesce {
             config false;
             ze:command "ze-system:quiesce";
-            description "Block until every subsystem has drained pending async work, then reply. A test/operator barrier that replaces a fixed sleep.";
+            description "Block until every subsystem has drained pending async work, then reply.";
+            ze:help "It is a test and operator barrier that replaces a fixed sleep.";
         }
     }
 }

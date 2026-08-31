@@ -2,6 +2,8 @@ module ze-fakel2tp-api {
   namespace "urn:ze:test:fakel2tp:api";
   prefix "fakel2tp-api";
 
+  import ze-extensions { prefix ze; }
+
   organization "Ze Project";
   description "Test-only synthetic L2TP route producer RPCs.
                fakel2tp emits route-change events on the l2tp namespace
@@ -12,8 +14,8 @@ module ze-fakel2tp-api {
   }
 
   rpc fakel2tp-emit {
-    description "Emit one synthetic L2TP route-change batch.
-                 Args: <add|remove> <family> <prefix>.";
+    description "Emit one synthetic L2TP route-change batch.";
+    ze:help "Args: <add|remove> <family> <prefix>.";
   }
 
   rpc fakel2tp-help {

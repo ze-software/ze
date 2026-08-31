@@ -30,9 +30,15 @@ const (
 )
 
 // Page is a structured help page for a CLI command.
+//
+// Summary and Help are the command's two declared help texts. Neither is
+// derived from the other. Summary goes on the header line. Help is the long
+// explanation, and it goes in the body block. A command with no long
+// explanation leaves Help empty and prints no block.
 type Page struct {
 	Command  string        // e.g. "ze bgp"
-	Summary  string        // e.g. "BGP protocol tools" (subcommand description)
+	Summary  string        // e.g. "BGP protocol tools" (the one-line summary)
+	Help     string        // the long explanation, printed as the body block
 	Software string        // e.g. "ze Software" (top-level only, styled differently)
 	Usage    []string      // usage patterns
 	Sections []HelpSection // groups of entries
@@ -49,7 +55,10 @@ type HelpSection struct {
 // HelpEntry is a single command, flag, or option in a help section.
 type HelpEntry struct {
 	Name string // e.g. "decode <hex>" or "--verbose"
-	Desc string // description text
+	// Desc is the one-line summary, rendered whole. A caller with a long
+	// explanation puts it in Page.Help, never here. A section entry is one row,
+	// and this package shortens nothing.
+	Desc string
 }
 
 // WriteErr renders the help page to stderr with automatic color detection.
@@ -81,6 +90,14 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 		rw.Line(styled(color, styleCommand, p.Command))
 	}
 
+	// The long explanation, indented, keeping the newlines its author wrote.
+	if p.Help != "" {
+		rw.Str("\n")
+		for line := range strings.SplitSeq(p.Help, "\n") {
+			rw.Line(b.Reset().Str("  ").Str(strings.TrimRight(line, " \t")).String())
+		}
+	}
+
 	// Usage
 	if len(p.Usage) > 0 {
 		rw.Str("\n")
@@ -102,7 +119,7 @@ func (p *Page) WriteTo(w io.Writer, color bool) {
 			// Pad based on raw name length, then apply color.
 			// ANSI codes add bytes, so pad the raw name first.
 			padded := b.Reset().PadRight(e.Name, width).String()
-			rw.Line(b.Reset().Str("  ").Str(styleEntry(color, padded)).Byte(' ').Str(Summary(e.Desc)).String())
+			rw.Line(b.Reset().Str("  ").Str(styleEntry(color, padded)).Byte(' ').Str(e.Desc).String())
 		}
 	}
 
@@ -137,79 +154,6 @@ func WriteError(w io.Writer, color bool, format string, a ...any) {
 func WriteHint(w io.Writer, color bool, format string, a ...any) {
 	prefix := styled(color, styleHint, "hint:")
 	fmt.Fprintf(w, "%s %s\n", prefix, fmt.Sprintf(format, a...)) //nolint:errcheck // help output to stderr
-}
-
-// Summary returns the first sentence or first line of a description.
-// Multi-line YANG descriptions carry grammar and action details
-// that belong in per-command help, not top-level listings.
-func Summary(s string) string {
-	if s == "" {
-		return ""
-	}
-
-	firstLineEnd := -1
-	for i := range len(s) {
-		switch s[i] {
-		case '\n':
-			if firstLineEnd < 0 {
-				firstLineEnd = i
-			}
-		case '.', '!', '?':
-			if s[i] == '.' && ((i > 0 && s[i-1] == '.') || (i+1 < len(s) && s[i+1] == '.')) {
-				continue
-			}
-			if i+1 == len(s) || isSummarySpace(s[i+1]) {
-				return cleanSummary(s[:i+1])
-			}
-		}
-	}
-	if firstLineEnd >= 0 {
-		return cleanSummary(s[:firstLineEnd])
-	}
-	return cleanSummary(s)
-}
-
-func cleanSummary(s string) string {
-	s = strings.TrimRight(s, " \t\r\n")
-	if !needsSummarySpaceCollapse(s) {
-		return s
-	}
-
-	var b textbuf.Buffer
-	pendingSpace := false
-	for i := range len(s) {
-		if isSummarySpace(s[i]) {
-			if b.Len() > 0 {
-				pendingSpace = true
-			}
-			continue
-		}
-		if pendingSpace {
-			b.Byte(' ')
-			pendingSpace = false
-		}
-		b.Byte(s[i])
-	}
-	return b.String()
-}
-
-func needsSummarySpaceCollapse(s string) bool {
-	previousSpace := false
-	for i := range len(s) {
-		if isSummarySpace(s[i]) {
-			if s[i] != ' ' || previousSpace {
-				return true
-			}
-			previousSpace = true
-			continue
-		}
-		previousSpace = false
-	}
-	return false
-}
-
-func isSummarySpace(c byte) bool {
-	return c == ' ' || c == '\n' || c == '\t' || c == '\r'
 }
 
 // entryWidth returns the column width for a section's entries.

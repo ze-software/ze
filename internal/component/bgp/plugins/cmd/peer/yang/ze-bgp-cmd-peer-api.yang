@@ -5,18 +5,18 @@ module ze-bgp-cmd-peer-api {
   description
     "Ze BGP peer lifecycle and introspection command RPCs.";
 
-  rpc peer-list { description "List peer(s) (brief)"; }
-  rpc peer-show { description "Show peer(s) details"; }
-  rpc peer-teardown { description "Teardown peer session with cease subcode"; }
-  rpc peer-add { description "Add a peer dynamically"; }
-  rpc peer-remove { description "Remove a peer dynamically"; }
-  rpc peer-pause { description "Pause peer read loop (flow control)"; }
-  rpc peer-resume { description "Resume peer read loop (flow control)"; }
-  rpc peer-save { description "Save peer(s) to config file"; }
-  rpc summary { description "Show BGP summary (peer table with statistics)"; }
-  rpc peer-capabilities { description "Show negotiated capabilities for peer(s)"; }
-  rpc session-peer-ready { description "Signal peer-specific plugin init complete"; }
-  rpc warnings { description "Show active prefix warnings (stale data, threshold exceeded)"; }
-  rpc peer-history { description "Show FSM transition history for a peer"; }
-  rpc bgp-peer-prefix { description "Update prefix maximums from PeeringDB for matched peer(s)"; }
+  rpc peer-list { description "List peer(s) (brief)."; }
+  rpc peer-show { description "Show peer(s) details."; }
+  rpc peer-teardown { description "Teardown peer session with cease subcode."; }
+  rpc peer-add { description "Add a peer dynamically."; }
+  rpc peer-remove { description "Remove a peer dynamically."; }
+  rpc peer-pause { description "Pause peer read loop (flow control)."; }
+  rpc peer-resume { description "Resume peer read loop (flow control)."; }
+  rpc peer-save { description "Save peer(s) to config file."; }
+  rpc summary { description "Show BGP summary (peer table with statistics)."; }
+  rpc peer-capabilities { description "Show negotiated capabilities for peer(s)."; }
+  rpc session-peer-ready { description "Signal peer-specific plugin init complete."; }
+  rpc warnings { description "Show active prefix warnings (stale data, threshold exceeded)."; }
+  rpc peer-history { description "Show FSM transition history for a peer."; }
+  rpc bgp-peer-prefix { description "Update prefix maximums from PeeringDB for matched peer(s)."; }
 }

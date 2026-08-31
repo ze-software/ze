@@ -7,7 +7,7 @@ module ze-anomaly-observe-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container anomaly {
             config false;
@@ -16,10 +16,11 @@ module ze-anomaly-observe-cmd {
             container observe {
                 config false;
                 ze:command "ze-show:anomaly-observe";
-                description "Show the behavioral anomaly incident lifecycle, newest first: per incident the
-source entity, cohort, fired features with their deviation z-scores, combined score, severity,
-start time, end time, and whether it is still active. Finalized incidents stay in the list, so
-this shows a finished incident's duration, which `show anomaly detect` cannot.";
+                description "Show the behavioral anomaly incident lifecycle, newest first.";
+                ze:help "Per incident: the source entity, cohort, fired features with their
+deviation z-scores, combined score, severity, start time, end time, and whether
+it is still active. Finalized incidents stay in the list, so this shows a
+finished incident's duration, which `show anomaly detect` cannot.";
             }
         }
     }

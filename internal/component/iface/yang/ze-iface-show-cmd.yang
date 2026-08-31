@@ -9,15 +9,15 @@ module ze-iface-show-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container route {
             config false;
             ze:command "ze-show:route";
-            description "Show the kernel routing table.
-Lists installed routes with next-hop, interface, protocol, and metric.
-Pass a CIDR prefix or 'default' to filter, or a route limit to cap the
-output.";
+            description "Show the kernel routing table.";
+            ze:help "Lists installed routes with next-hop, interface, protocol,
+and metric. Pass a CIDR prefix or 'default' to filter, or a route limit to cap
+the output.";
             leaf prefix {
                 type string;
                 description "CIDR prefix filter";
@@ -30,9 +30,9 @@ output.";
             container lookup {
                 config false;
                 ze:command "ze-show:route-lookup";
-                description "Look up which route the kernel would use for a given IP.
-Performs a longest-prefix-match and returns the matching route with
-gateway, interface, protocol, and metric.";
+                description "Look up which route the kernel would use for a given IP.";
+                ze:help "Performs a longest-prefix-match and returns the
+matching route with gateway, interface, protocol, and metric.";
                 leaf ip { type string { pattern '[0-9a-fA-F:.]+(%[a-zA-Z0-9_.-]+)?'; } mandatory true; description "Destination IP address to look up"; }
             }
         }
@@ -40,9 +40,9 @@ gateway, interface, protocol, and metric.";
         container neighbor {
             config false;
             ze:command "ze-show:neighbor";
-            description "Show the ARP and neighbor discovery table.
-Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states.
-Pass ipv4 or ipv6 to filter by address family; no argument shows both.
+            description "Show the ARP and neighbor discovery table.";
+            ze:help "Lists IPv4 ARP and IPv6 ND entries with MAC addresses and
+states. Pass ipv4 or ipv6 to filter by address family. No argument shows both.
 For the IPv4-only view, 'show arp' is a shortcut.";
             leaf family {
                 type enumeration {
@@ -58,10 +58,10 @@ For the IPv4-only view, 'show arp' is a shortcut.";
         container arp {
             config false;
             ze:command "ze-show:arp";
-            description "Show the IPv4 ARP table (shortcut for 'show neighbor ipv4').
-Lists IPv4 ARP entries with MAC address and state. ARP is IPv4-only;
-use 'show neighbor' for both families or 'show neighbor ipv6' for the
-IPv6 ND table.";
+            description "Show the IPv4 ARP table (shortcut for 'show neighbor ipv4').";
+            ze:help "Lists IPv4 ARP entries with MAC address and state. ARP is
+IPv4-only. Use 'show neighbor' for both families or 'show neighbor ipv6' for
+the IPv6 ND table.";
         }
     }
 }

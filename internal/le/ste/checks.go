@@ -223,21 +223,21 @@ func checkPhrasal(u unit, path, surface string, found *[]Finding) {
 // checkRunOns finds habit 5: a sentence past its word bound, a semicolon, and a
 // paragraph past its sentence bound.
 func checkRunOns(u unit, path, surface string, found *[]Finding) {
-	limit := maxDescriptive
+	limit := MaxDescriptiveWords
 	rule := "6.3"
 	if u.Procedural {
 		limit = maxProcedural
 		rule = "5.1"
 	}
 
-	parts := sentences(u.Text)
+	parts := Sentences(u.Text)
 	for _, sentence := range parts {
 		// No cheap prefilter here. STE counting usually LOWERS the total
 		// (Rules 8.5 through 8.7), but "Stop()" becomes two tokens once the
 		// parenthesis is collapsed, so a whitespace count can undercount.
 		// Measuring 42 fewer run-ons is worse than measuring them 3 seconds
 		// slower.
-		count := wordCount(sentence)
+		count := WordCount(sentence)
 		if count > limit {
 			var detail textbuf.Buffer
 			add(found, u, path, surface, "run-ons",

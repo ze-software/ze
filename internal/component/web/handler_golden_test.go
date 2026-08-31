@@ -444,12 +444,12 @@ var (
 		renderer *Renderer
 		schema   *config.Schema
 		tree     *config.Tree
-		admin    map[string][]string
+		admin    *command.Node
 		err      error
 	}
 )
 
-func webGoldenParts(t *testing.T) (*Renderer, *config.Schema, *config.Tree, map[string][]string) {
+func webGoldenParts(t *testing.T) (*Renderer, *config.Schema, *config.Tree, *command.Node) {
 	t.Helper()
 
 	webGoldenOnce.Do(func() {
@@ -477,7 +477,7 @@ func webGoldenParts(t *testing.T) (*Renderer, *config.Schema, *config.Tree, map[
 		webGoldenShared.renderer = renderer
 		webGoldenShared.schema = schema
 		webGoldenShared.tree = tree
-		webGoldenShared.admin = AdminTreeFromYANG(webGoldenCommandTree())
+		webGoldenShared.admin = webGoldenCommandTree()
 	})
 
 	if webGoldenShared.err != nil {
@@ -490,7 +490,7 @@ func webGoldenParts(t *testing.T) (*Renderer, *config.Schema, *config.Tree, map[
 // webGoldenCommandTree is the operational command tree the admin console reads.
 // The hub derives it from the merged YANG modules and the registered plugins,
 // which no test binary holds. The tree is therefore the input. What the capture
-// covers is the markup AdminTreeFromYANG and HandleAdminView build from it.
+// covers is the markup HandleAdminView builds from it.
 func webGoldenCommandTree() *command.Node {
 	return &command.Node{
 		Children: map[string]*command.Node{
@@ -520,7 +520,7 @@ func webGoldenCommandTree() *command.Node {
 func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 	t.Helper()
 
-	renderer, schema, tree, adminChildren := webGoldenParts(t)
+	renderer, schema, tree, commandTree := webGoldenParts(t)
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "ze.conf")
@@ -590,7 +590,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 			return
 		}
 
-		HandleAdminView(renderer, adminChildren)(w, r)
+		HandleAdminView(renderer, commandTree)(w, r)
 	})))
 	mux.Handle("GET /cli", authWrap(HandleCLIPageHTTP(renderer, false)))
 	mux.Handle("POST /cli", mutationWrap(HandleCLICommandWithAuthorizer(editorMgr, schema, renderer, authorizer)))

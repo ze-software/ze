@@ -7,7 +7,7 @@ module ze-anomaly-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container anomaly {
             config false;
@@ -16,9 +16,8 @@ module ze-anomaly-cmd {
             container detect {
                 config false;
                 ze:command "ze-show:anomaly";
-                description "Show recent behavioral anomaly incidents (report-only): source entity, cohort,
-fired features with their deviation z-scores, combined score, and severity. The detector reports;
-the anomaly/shape responder (Spec 2b) acts.";
+                description "Show recent behavioral anomaly incidents (report-only): source entity, cohort, fired features with their deviation z-scores, combined score, and severity.";
+                ze:help "The detector reports; the anomaly/shape responder (Spec 2b) acts.";
             }
         }
     }

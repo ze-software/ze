@@ -10,17 +10,17 @@ module ze-rib-cmd {
 
         container bgp {
             config false;
-            description "BGP peers, sessions, RIB, and protocol tools.
-Typed with no subcommand, lists every peer with state, ASN, prefixes
-received, and uptime. Optionally scope by address family: ipv4,
-ipv6, or l2vpn.";
+            description "BGP peers, sessions, RIB, and protocol tools.";
+            ze:help "Typed with no subcommand, lists every peer with state, ASN,
+prefixes received, and uptime. Optionally scope by address family: ipv4, ipv6,
+or l2vpn.";
 
             container rib {
                 config false;
                 ze:command "ze-rib-api:routes";
                 ze:task-support required;
-                description "Query routes in the BGP RIB.
-Look at received or advertised routes with flexible filters: peer,
+                description "Query routes in the BGP RIB.";
+                ze:help "Look at received or advertised routes with flexible filters: peer,
 family, prefix, AS path regex, community, match expression. Pipe
 operators: | count, | histogram, | graph. This is the main
 route inspection command.";
@@ -28,23 +28,23 @@ route inspection command.";
                 container best {
                     config false;
                     ze:command "ze-rib-api:best";
-                    description "Show the winning route for each prefix.
-Same filters as 'show bgp rib'. Use '| reason' to see why each
+                    description "Show the winning route for each prefix.";
+                    ze:help "Same filters as 'show bgp rib'. Use '| reason' to see why each
 path was selected (local-pref, AS path length, MED, etc.).";
 
                     container status {
                         config false;
                         ze:command "ze-rib-api:best-status";
-                        description "Check whether best-path computation is still running.
-Reports idle, pending, or running, plus the last run duration.";
+                        description "Check whether best-path computation is still running.";
+                        ze:help "Reports idle, pending, or running, plus the last run duration.";
                     }
                 }
 
                 container status {
                     config false;
                     ze:command "ze-rib-api:status";
-                    description "Get a quick RIB overview without dumping routes.
-Shows total peers, received/accepted/advertised route counts, and
+                    description "Get a quick RIB overview without dumping routes.";
+                    ze:help "Shows total peers, received/accepted/advertised route counts, and
 per-family breakdowns. Use this to confirm convergence after a
 peer comes up.";
                 }
@@ -52,8 +52,8 @@ peer comes up.";
                 container rpf {
                     config false;
                     ze:command "ze-rib-api:rpf";
-                    description "Reverse-path forwarding lookup in the Loc-RIB.
-Performs a longest-prefix-match and returns the best-path entry.
+                    description "Reverse-path forwarding lookup in the Loc-RIB.";
+                    ze:help "Performs a longest-prefix-match and returns the best-path entry.
 Use this to verify RPF checks would pass for a given source.";
                 }
             }
@@ -65,18 +65,18 @@ Use this to verify RPF checks would pass for a given source.";
 
         container bgp {
             config false;
-            description "BGP operational state";
+            description "BGP operational state.";
 
             container rib {
                 config false;
-                description "Clear and re-advertise RIB entries";
+                description "Clear and re-advertise RIB entries.";
 
                 container in {
                     config false;
                     ze:command "ze-rib-api:clear-in";
                     ze:task-support forbidden;
-                    description "Remove all routes received from a peer.
-Wipes the Adj-RIB-In for matched peers. They will need to
+                    description "Remove all routes received from a peer.";
+                    ze:help "Wipes the Adj-RIB-In for matched peers. They will need to
 re-advertise everything (or you can send a route-refresh).
 Selector: IP, name, AS pattern, glob, or *.";
                 }
@@ -85,8 +85,8 @@ Selector: IP, name, AS pattern, glob, or *.";
                     config false;
                     ze:command "ze-rib-api:clear-out";
                     ze:task-support forbidden;
-                    description "Re-advertise all routes to a peer.
-Triggers a full Adj-RIB-Out replay to the selected peers. Useful
+                    description "Re-advertise all routes to a peer.";
+                    ze:help "Triggers a full Adj-RIB-Out replay to the selected peers. Useful
 after a policy change to push updated attributes without tearing
 down the session. Selector: IP, name, AS pattern, glob, or *.";
                 }
@@ -99,18 +99,18 @@ down the session. Selector: IP, name, AS pattern, glob, or *.";
 
         container bgp {
             config false;
-            description "BGP operational actions";
+            description "BGP operational actions.";
 
             container rib {
                 config false;
-                description "Request BGP RIB actions";
+                description "Request BGP RIB actions.";
 
                 container inject {
                     config false;
                     ze:command "ze-rib-api:inject";
                     ze:task-support forbidden;
-                    description "Inject a synthetic route into the Adj-RIB-In.
-Behaves as if the route was received from a peer. Use this for
+                    description "Inject a synthetic route into the Adj-RIB-In.";
+                    ze:help "Behaves as if the route was received from a peer. Use this for
 testing policy filters or simulating route announcements.";
                 }
 
@@ -118,8 +118,8 @@ testing policy filters or simulating route announcements.";
                     config false;
                     ze:command "ze-rib-api:withdraw";
                     ze:task-support forbidden;
-                    description "Withdraw a route from the Adj-RIB-In.
-Removes a previously injected or received route from a peer's
+                    description "Withdraw a route from the Adj-RIB-In.";
+                    ze:help "Removes a previously injected or received route from a peer's
 Adj-RIB-In, triggering best-path recomputation.";
                 }
             }

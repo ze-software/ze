@@ -13,14 +13,14 @@ module ze-plugin-api {
     // Introspection
 
     rpc help {
-        description "List plugin subcommands";
+        description "List the subcommands the plugin verb accepts.";
         output {
             leaf-list subcommands { type string; description "Available subcommands"; }
         }
     }
 
     rpc command-list {
-        description "List plugin commands";
+        description "List every command a plugin registered, with its summary.";
         output {
             list command {
                 leaf name { type string; description "Command name"; }
@@ -30,7 +30,7 @@ module ze-plugin-api {
     }
 
     rpc command-help {
-        description "Show command details";
+        description "Show one plugin command's summary, explanation, arguments, and source plugin.";
         input {
             leaf name { type string; mandatory true; description "Command name"; }
         }
@@ -40,7 +40,7 @@ module ze-plugin-api {
     }
 
     rpc command-complete {
-        description "Complete command/args";
+        description "List the completion candidates for a partial plugin command.";
         input {
             leaf partial { type string; mandatory true; description "Partial command string"; }
         }
@@ -52,21 +52,21 @@ module ze-plugin-api {
     // Session lifecycle
 
     rpc session-ready {
-        description "Signal plugin init complete";
+        description "Signal that this plugin process finished its initialization.";
     }
 
     rpc session-peer-ready {
-        description "Signal peer-specific plugin init complete";
+        description "Signal that this peer's plugin process finished its initialization.";
     }
 
     rpc session-ping {
-        description "Health check (returns PID)";
+        description "Answer a health check with the daemon process id.";
         output {
             leaf pong { type boolean; description "Always true when alive"; }
         }
     }
 
     rpc session-bye {
-        description "Disconnect";
+        description "Tell the daemon this session is disconnecting.";
     }
 }

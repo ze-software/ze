@@ -7,13 +7,13 @@ module ze-static-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container static {
             config false;
             ze:command "ze-show:static";
-            description "Show static routes defined in the configuration.
-Lists each static route with its prefix, next-hop, and interface.";
+            description "Show static routes defined in the configuration.";
+            ze:help "Lists each static route with its prefix, next-hop, and interface.";
         }
     }
 }

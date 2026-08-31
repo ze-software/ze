@@ -82,6 +82,10 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 	for _, cmd := range commands {
 		pathKey := "/api/v1/execute/" + strings.ReplaceAll(cmd.Name, " ", "/")
 
+		// OpenAPI 3.1 defines `summary` as the short form and `description` as
+		// the long one. The two halves map one to one, and neither is derived
+		// from the other. A command with no explanation carries no description
+		// key. An empty one would render as a blank paragraph.
 		operation := map[string]any{
 			"summary":     cmd.Description,
 			"operationId": operationID(cmd.Name),
@@ -98,6 +102,10 @@ func OpenAPISchema(commands []CommandMeta) ([]byte, error) {
 					},
 				},
 			},
+		}
+
+		if cmd.LongHelp != "" {
+			operation[schemaKeyDescription] = cmd.LongHelp
 		}
 
 		if len(cmd.Params) > 0 {

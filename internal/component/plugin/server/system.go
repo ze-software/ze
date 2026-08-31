@@ -491,6 +491,7 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 				Data: plugin.Map{
 					fieldCommand:     cmd.Name,
 					fieldDescription: cmd.Help,
+					fieldLongHelp:    cmd.LongHelp,
 					fieldSource:      sourceBuiltin,
 				},
 			}, nil
@@ -502,6 +503,7 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*plugin.Response
 				Data: plugin.Map{
 					fieldCommand:     cmd.Name,
 					fieldDescription: cmd.Description,
+					fieldLongHelp:    cmd.LongHelp,
 					fieldArgs:        cmd.Args,
 					fieldSource:      cmd.Process.Name(),
 					"timeout":        cmd.Timeout.String(),

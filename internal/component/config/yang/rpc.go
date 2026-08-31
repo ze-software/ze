@@ -9,10 +9,17 @@ import (
 )
 
 // RPCMeta describes an RPC extracted from a YANG module.
+//
+// Description and Help are the two help texts a command node also declares
+// (command.go, mergeYANGEntry): the description is the one-line SUMMARY that
+// every list row and table cell renders, and the ze:help beside it is the LONG
+// explanation a help page prints. Neither is derived from the other, and an
+// empty Help means nobody has written the explanation yet.
 type RPCMeta struct {
 	Module      string     // YANG module name (e.g., "ze-bgp-api")
 	Name        string     // RPC name in kebab-case (e.g., "peer-list")
-	Description string     // From YANG description
+	Description string     // One-line summary, from the YANG description
+	Help        string     // Long explanation, from the ze:help extension
 	Input       []LeafMeta // Input parameter leaves
 	Output      []LeafMeta // Output parameter leaves
 }
@@ -49,6 +56,7 @@ func ExtractRPCs(loader *Loader, moduleName string) []RPCMeta {
 			Module:      moduleName,
 			Name:        rpc.Name,
 			Description: valueText(rpc.Description),
+			Help:        getHelpExtension(rpc.Exts()),
 		}
 
 		// Extract input/output from entry tree (has resolved types)

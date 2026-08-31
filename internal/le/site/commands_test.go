@@ -319,3 +319,57 @@ func readFixture(t *testing.T, name string) string {
 	}
 	return string(content)
 }
+
+// twoFormCommandCatalog is one command declaring both halves of its help: a
+// one-line summary and a long form that shares no substring with it.
+//
+// The long form is deliberately longer than the 170 characters the retired
+// `llms.txt` cut used, so a surface that reintroduced a character budget over
+// the wrong field would publish an ellipsis this fixture can see.
+const twoFormCommandCatalog = `[{
+ "path": "show test",
+ "description": "Show the rows of the test table.",
+ "long-help": "Each row is one entry of the test table, in the order the table holds them. The count column is what the table has answered since the last clear, and it never restarts on its own.",
+ "mode": "read-only",
+ "wire-method": "ze-test:rows"
+}]`
+
+// twoFormCommandMapping is the smallest vendor map the detail page renders
+// against: one vendor and no curated intent.
+const twoFormCommandMapping = `{"schema-version": 1,
+ "vendors": {"vyos": {"label": "VyOS", "short-label": "VyOS"}}, "entries": []}`
+
+// VALIDATES: the CLI reference row carries the declared summary and nothing of
+// the long form (AC-9).
+//
+// The row is one line of a table an operator scans, so the long form has no
+// place in it. Both halves are declared, so a row that carried the long form
+// would be a renderer reading the wrong field rather than a truncation.
+func TestPublishedCommandRowUsesSummary(t *testing.T) {
+	paths := commandSurfacePaths(t)
+	writeCatalog(t, paths.Output, twoFormCommandCatalog)
+	if _, err := renderCLIReference(paths); err != nil {
+		t.Fatal(err)
+	}
+
+	page := readArtifact(t, paths.Output, cliReferenceDest)
+	row := publishedRow.FindString(page)
+	if row == "" {
+		t.Fatalf("the page carries no command row:\n%s", page)
+	}
+	if !strings.Contains(row, "Show the rows of the test table.") {
+		t.Errorf("the row does not carry the declared summary:\n%s", row)
+	}
+	if strings.Contains(row, "since the last clear") {
+		t.Errorf("the row carries the long form, which the detail page renders:\n%s", row)
+	}
+
+	mirror := readArtifact(t, paths.Output,
+		strings.TrimSuffix(cliReferenceDest, pageIndexFile)+pageMirrorFile)
+	if !strings.Contains(mirror, "Show the rows of the test table.") {
+		t.Error("the reference mirror does not carry the declared summary")
+	}
+	if strings.Contains(mirror, "since the last clear") {
+		t.Error("the reference mirror carries the long form")
+	}
+}

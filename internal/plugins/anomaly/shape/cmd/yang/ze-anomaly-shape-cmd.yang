@@ -7,7 +7,7 @@ module ze-anomaly-shape-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container anomaly {
             config false;
@@ -16,8 +16,7 @@ module ze-anomaly-shape-cmd {
             container shape {
                 config false;
                 ze:command "ze-show:anomaly-shape";
-                description "Show the shadow-first anomaly responder status: mode (shadow/armed), action,
-kill-switch state, and the currently armed source entities with live firewall actions.";
+                description "Show the shadow-first anomaly responder status: mode (shadow/armed), action, kill-switch state, and the currently armed source entities with live firewall actions.";
             }
         }
     }

@@ -8,8 +8,8 @@ module ze-cli-clear-cmd {
 
     container clear {
         config false;
-        description "Reset counters, caches, and operational state without changing
-configuration. This is the generic clear verb root; every clear command is
+        description "Reset counters, caches, and operational state without changing configuration.";
+        ze:help "This is the generic clear verb root; every clear command is
 owned by its component and merges its own subtree here: clear interface
 counters (iface), clear dns cache (resolve), clear vpn ipsec sa (ike),
 clear l2tp (l2tp), clear bgp rib (bgp). See ai/rules/plugin-self-containment.md.";

@@ -9,7 +9,7 @@ module ze-cli-set-cmd {
 
     container set {
         config false;
-        description "Modify running configuration parameters";
+        description "Modify running configuration parameters.";
 
         // NOTE: `set system file-descriptors` is owned by the host component.
         // See internal/component/host/schema/ze-host-set-cmd.yang.

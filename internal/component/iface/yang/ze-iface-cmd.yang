@@ -29,11 +29,11 @@ the interface itself.";
 
     container create {
         config false;
-        description "Create new resources";
+        description "Create new resources.";
 
         container interface {
             config false;
-            description "Create interfaces, units, and addresses";
+            description "Create interfaces, units, and addresses.";
 
             container dummy {
                 config false;
@@ -116,8 +116,8 @@ the interface itself.";
             container unit {
                 config false;
                 ze:command "ze-iface:interface-unit-add";
-                description "Add a VLAN sub-interface (802.1Q tagged).
-Parent must already exist.";
+                description "Add a VLAN sub-interface (802.1Q tagged).";
+                ze:help "The parent interface must already exist.";
                 leaf name { type string; mandatory true; description "Parent interface name"; }
                 leaf vid { type uint16 { range "1..4094"; } mandatory true; description "VLAN ID"; }
             }
@@ -125,8 +125,8 @@ Parent must already exist.";
             container address {
                 config false;
                 ze:command "ze-iface:interface-addr-add";
-                description "Add an IP address to an interface.
-Interface must already exist.";
+                description "Add an IP address to an interface.";
+                ze:help "The interface must already exist.";
                 leaf name { type string; mandatory true; description "Interface name"; }
                 leaf prefix { type ip-prefix; mandatory true; description "Address in CIDR form"; }
             }
@@ -170,7 +170,7 @@ Interface must already exist.";
 
         container interface {
             config false;
-            description "Interface operational state";
+            description "Interface operational state.";
 
             // The interface every command below acts on. It is declared here,
             // on the keyword the operator types it after, and each of those
@@ -192,7 +192,8 @@ Interface must already exist.";
             container mtu {
                 config false;
                 ze:command "ze-iface:interface-mtu";
-                description "Set the MTU on an interface. Range: 68 to 65535.";
+                description "Set the MTU on an interface.";
+                ze:help "The MTU is between 68 and 65535 bytes.";
                 leaf bytes { type uint16 { range "68..65535"; } mandatory true; description "MTU in bytes"; }
             }
 
@@ -207,10 +208,10 @@ Interface must already exist.";
                 config false;
                 ze:command "ze-iface:interface-migrate";
                 ze:inherit "none";
-                description "Move IP addresses between interfaces with minimal downtime.
-Takes a source interface, a target interface, and the address to move.
-Adds addresses to the target before removing them from the source
-(make-before-break).";
+                description "Move IP addresses between interfaces with minimal downtime.";
+                ze:help "Takes a source interface, a target interface, and the
+address to move. Adds addresses to the target before removing them from the
+source (make-before-break).";
 
                 container from {
                     config false;
@@ -236,8 +237,9 @@ Adds addresses to the target before removing them from the source
                 container create {
                     config false;
                     ze:modifier "once";
-                    description "Create the destination interface before the address moves onto it.
-Leave it out when the destination interface exists.";
+                    description "Create the destination interface before the address moves onto it.";
+                    ze:help "Leave it out when the destination interface
+exists.";
                     leaf type {
                         type enumeration {
                             enum dummy;
@@ -252,8 +254,8 @@ Leave it out when the destination interface exists.";
                 container timeout {
                     config false;
                     ze:modifier "once";
-                    description "How long to wait for BGP to become ready on the destination
-address before the move is abandoned. The default is 30 seconds.";
+                    description "How long to wait for BGP to become ready on the destination address before the move is abandoned.";
+                    ze:help "The default is 30 seconds.";
                     leaf duration { type duration; mandatory true; description "Wait time, as a number and a unit"; }
                 }
             }

@@ -379,8 +379,11 @@ func writeLLMSCommands(out *strings.Builder, inputs *llmsInputs) {
 		group := byVerb[verb]
 		out.WriteString("### `" + verb + "` commands (" + strconv.Itoa(len(group)) + ")\n")
 		for _, command := range group {
+			// The whole summary, with no character budget: it is declared as
+			// one line, so there is nothing left for a cut to do but stop a
+			// sentence mid-clause.
 			out.WriteString("- `" + command.Path + "` (" + commandMetadataLine(command) + "): " +
-				trimInline(command.Description, 170) + "\n")
+				cleanInline(command.Description) + "\n")
 		}
 		out.WriteString("\n")
 	}

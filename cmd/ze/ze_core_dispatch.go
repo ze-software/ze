@@ -465,12 +465,16 @@ func registerLocalCommands() {
 		Subs:        pipeOperatorSubs(),
 	})
 	registry.MustRegisterLocalMeta("help command", printHelpCommand, registry.Meta{
-		Description: "List every command with its description. Use a filter to narrow the list.",
-		Mode:        commandModeOffline,
+		Description: "List every command this binary carries with its summary.",
+		LongHelp: "A filter word keeps the commands whose path holds it, and the answer renders as " +
+			"JSON for a program to read.",
+		Mode: commandModeOffline,
 	})
 	registry.MustRegisterLocalMeta("help ai", printAIHelp, registry.Meta{
-		Description: "AI reference generated from the binary. Sections: cli, api, mcp, dispatch, all (add --json).",
-		Mode:        commandModeOffline,
+		Description: "Print the agent reference this binary builds from its own registries.",
+		LongHelp: "The sections are cli, api, mcp, dispatch and all, and the answer renders as JSON " +
+			"for a program to read.",
+		Mode: commandModeOffline,
 	})
 	// `update` is a YANG verb, so a root handler named `update` would be
 	// unreachable behind the isYANGVerb branch in zeDispatch. RunCommand consults
@@ -478,8 +482,10 @@ func registerLocalCommands() {
 	// `update serve` lives here as a local meta -- the same mechanism `show
 	// version` uses to run a local command under a YANG verb.
 	registry.MustRegisterLocalMeta("update serve", runUpdateServe, registry.Meta{
-		Description: "Run a local update server for firmware checks",
-		Mode:        commandModeOffline,
+		Description: "Serve this binary and its version manifest for update checks.",
+		LongHelp: "The server answers a version manifest, the running binary and its SHA-256 digest. " +
+			"It is meant for build infrastructure rather than for a router in production.",
+		Mode: commandModeOffline,
 	})
 
 	registry.SetRuntimeStorage(func() any { return resolveStorage() })

@@ -575,20 +575,15 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	loginHandler := zeweb.LoginHandlerWithAudit(sessionStore, webAuth, loginRenderer, recorder)
 	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
 
-	// Admin command tree for web UI. Derive from the merged YANG command
-	// tree so plugin-contributed commands appear in the admin nav without
-	// editing the static map (spec-web-2 Phase 6 / Spec D6). The static
-	// fallback was removed because its tree shape (`peer/route/cache`)
-	// drifted from the YANG-derived shape (`peer/show/summary/...`); a
-	// silent fallback after loader failure would surface as broken admin
-	// links rather than a clear error.
-	var adminChildren map[string][]string
-	if commandTree != nil {
-		adminChildren = zeweb.AdminTreeFromYANG(commandTree)
-	} else {
-		adminChildren = map[string][]string{}
-	}
-	adminViewHandler := zeweb.HandleAdminView(renderer, adminChildren)
+	// Admin command tree for web UI. The merged YANG command tree is passed
+	// whole. Plugin-contributed commands then appear in the admin nav with no
+	// static map to edit (spec-web-2 Phase 6 / Spec D6), and each command's
+	// declared summary and explanation reach its form. The static fallback was
+	// removed because its tree shape (`peer/route/cache`) drifted from the
+	// YANG-derived shape (`peer/show/summary/...`). A silent fallback after
+	// loader failure would surface as broken admin links rather than a clear
+	// error. A nil tree serves an empty console for the same reason.
+	adminViewHandler := zeweb.HandleAdminView(renderer, commandTree)
 	adminExecHandler := zeweb.HandleAdminExecute(renderer, dispatch)
 
 	srv.HandleFunc("POST /login", loginHandler)

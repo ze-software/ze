@@ -17,6 +17,8 @@ func init() {
 		Subs:        "[--module M] [--exclude M] [--since T] [--reason R] [--sensitive] [--json] [--list-modules]",
 	})
 	registry.MustRegisterLocalMeta("support", impl.Run, registry.Meta{
-		Description: "Bundle logs, config, state, and diagnostics into one archive file. Send the result to support when reporting an issue.",
+		Description: "Collect logs, config, state and diagnostics into one archive.",
+		LongHelp: "Send the archive to support when you report an issue. Modules can be selected or " +
+			"excluded, and a time window narrows what the archive holds.",
 	})
 }

@@ -116,10 +116,19 @@ func (l *Loader) GetEntry(name string) *yang.Entry {
 	return yang.ToEntry(mod)
 }
 
-// ModuleNames returns the names of all loaded modules.
+// ModuleNames returns the name of every loaded module, once each.
+//
+// goyang keys a module that declares a revision under TWO names, its bare name
+// and `<name>@<revision>` (vendor/github.com/openconfig/goyang/pkg/yang/
+// modules.go, Modules.add), and the bare name always names the most recent
+// revision. 205 of Ze's modules declare one, so a caller that walks this map
+// raw visits each of them twice and counts what it finds there twice with it.
 func (l *Loader) ModuleNames() []string {
 	names := make([]string, 0, len(l.modules.Modules))
 	for name := range l.modules.Modules {
+		if strings.Contains(name, "@") {
+			continue
+		}
 		names = append(names, name)
 	}
 	return names
@@ -137,7 +146,7 @@ func (l *Loader) APIModuleNames() []string {
 
 func (l *Loader) moduleNamesBySuffix(suffix string) []string {
 	var names []string
-	for name := range l.modules.Modules {
+	for _, name := range l.ModuleNames() {
 		if strings.HasSuffix(name, suffix) {
 			names = append(names, name)
 		}

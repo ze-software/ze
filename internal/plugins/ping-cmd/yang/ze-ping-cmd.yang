@@ -9,15 +9,15 @@ module ze-ping-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container ping {
             config false;
             ze:command "ze-show:ping";
-            description "Ping a target from the router itself.
-Sends ICMP echo requests to <dest> (IP or hostname). Default count
-is 5. Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms
-reachability from this box, not from your workstation.";
+            description "Ping a target from the router itself.";
+            ze:help "Sends ICMP echo requests to <dest> (IP or hostname). Default count is 5.
+Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms reachability from
+this box, not from your workstation.";
             leaf dest {
                 type string;
                 description "Target host or IP address";
@@ -43,21 +43,21 @@ reachability from this box, not from your workstation.";
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop)";
+        description "Continuous monitoring commands (Ctrl-C to stop).";
 
         container ping {
             config false;
             ze:command "ze-monitor:ping";
             ze:task-support required;
-            description "Continuous ping with live loss and RTT statistics.
-Pings <target> until you stop it. Adjust interval and timeout as
-needed. Shows running min/avg/max RTT and packet loss.";
+            description "Continuous ping with live loss and RTT statistics.";
+            ze:help "Pings <target> until you stop it. Adjust interval and timeout as needed. Shows
+running min/avg/max RTT and packet loss.";
         }
     }
 
     container resolve {
         config false;
-        description "DNS, ASN, PeeringDB, and IRR resolution tools";
+        description "DNS, ASN, PeeringDB, and IRR resolution tools.";
 
         container ping {
             config false;

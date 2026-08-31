@@ -11,7 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	cli "github.com/ze-software/ze/internal/component/cli/client"
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/core/helpfmt"
 )
 
 func TestCollectCommands(t *testing.T) {
@@ -201,4 +203,82 @@ func TestHelpCommandJSONGrammarRoundTrips(t *testing.T) {
 	require.NoError(t, json.Unmarshal(out.Bytes(), &round))
 	require.Len(t, round, 1)
 	assert.Equal(t, entries[0].Grammar, round[0].Grammar)
+}
+
+// TestCommandCatalogCarriesSummaryAndHelp reads the published catalog and
+// asserts the two declared help texts arrive under two distinct kebab-case
+// keys, each holding what its node declares.
+//
+// VALIDATES: AC-6 -- `ze help command --json` carries the summary and the long
+// help separately.
+// PREVENTS: an agent parsing one string for two answers, and the table row
+// cutting a summary at the first newline.
+func TestCommandCatalogCarriesSummaryAndHelp(t *testing.T) {
+	entries := []commandEntry{{
+		Path:        "show bgp rib",
+		Mode:        "read-only",
+		Description: "Show the BGP RIB.",
+		LongHelp:    "The RIB answers per family.\nAdd a prefix to narrow it.",
+	}, {
+		// An unconverted node, whose one description still holds both halves.
+		// The renderers must print what they are given rather than cut it: a
+		// cut hides the defect the shape gate exists to name.
+		Path:        "show bgp summary",
+		Mode:        "read-only",
+		Description: "Show one row per session.\nThe row carries state, ASN and uptime.",
+	}}
+
+	encoded, err := json.Marshal(entries)
+	require.NoError(t, err)
+
+	var decoded []map[string]any
+	require.NoError(t, json.Unmarshal(encoded, &decoded))
+	require.Len(t, decoded, 2)
+
+	assert.Equal(t, "Show the BGP RIB.", decoded[0]["description"])
+	assert.Equal(t, "The RIB answers per family.\nAdd a prefix to narrow it.", decoded[0]["long-help"])
+	assert.NotContains(t, decoded[0], "help",
+		"`help` names the SUMMARY on the plugin boundary; the long form must not take that spelling")
+
+	assert.NotContains(t, decoded[1], "long-help", "an undeclared long help publishes no key")
+
+	// The table row prints the declared summary whole, with no newline cut.
+	var buf bytes.Buffer
+	printCommandTable(helpfmt.NewRenderWriter(&buf), entries)
+	assert.Contains(t, buf.String(), "Show the BGP RIB.")
+	assert.Contains(t, buf.String(), "The row carries state, ASN and uptime.",
+		"the table row cut the description at its first newline")
+
+	// The verbose page prints the summary and then the long explanation.
+	buf.Reset()
+	printCommandVerbose(helpfmt.NewRenderWriter(&buf), entries)
+	verbose := buf.String()
+	assert.Contains(t, verbose, "  Show the BGP RIB.\n")
+	assert.Contains(t, verbose, "  The RIB answers per family.\n")
+	assert.Contains(t, verbose, "  Add a prefix to narrow it.\n")
+}
+
+// TestCommandCatalogDerivesNeitherHelpTextFromTheOther walks the REAL tree.
+// Each published key is byte-identical to the field its node declares. A
+// hand-built entry proves the JSON shape. This proves the producer feeds it.
+//
+// It says nothing about whether a summary is short. That is the content the
+// shape gate covers (AC-14), over the whole tree rather than the catalog.
+func TestCommandCatalogDerivesNeitherHelpTextFromTheOther(t *testing.T) {
+	tree := cli.YANGCommandTree()
+	require.NotNil(t, tree, "the YANG command tree is empty, so this test proves nothing")
+
+	checked := 0
+	for _, e := range collectCommands() {
+		node := findNode(tree, e.Path)
+		if node == nil {
+			continue
+		}
+		checked++
+		assert.Equal(t, node.Description, e.Description,
+			"command %q publishes a summary the node does not declare", e.Path)
+		assert.Equal(t, node.Help, e.LongHelp,
+			"command %q publishes a long help the node does not declare", e.Path)
+	}
+	require.Greater(t, checked, 100, "too few YANG-backed commands were compared")
 }

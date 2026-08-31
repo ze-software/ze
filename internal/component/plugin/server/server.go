@@ -249,12 +249,13 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 	wireToPaths := yang.WireMethodToPaths(loader)
 	wireToPath := yang.WireMethodToPath(loader)
 	pathToDesc := yang.PathToDescription(loader)
+	pathToHelp := yang.PathToHelp(loader)
 	pathToArgDefs := yang.PathToArgDefs(loader)
 
 	// Register core handlers (text dispatcher for plugin protocol),
 	// including all YANG command aliases.
 	cmdTree := yang.BuildCommandTree(loader)
-	loadBuiltinsWithAliases(s.dispatcher, wireToPaths, pathToDesc, pathToArgDefs, cmdTree)
+	loadBuiltinsWithAliases(s.dispatcher, wireToPaths, pathToDesc, pathToHelp, pathToArgDefs, cmdTree)
 
 	// Register all builtin RPCs with wire method dispatcher (for socket clients)
 	for _, reg := range AllBuiltinRPCs() {
@@ -713,6 +714,62 @@ func (s *Server) GetPluginCapabilitiesForSelectors(selectors ...string) []plugin
 		return nil
 	}
 	return s.capInjector.GetCapabilitiesForSelectors(selectors...)
+}
+
+// PluginsWithPerPeerOpenPolicy names the plugins that hold OPEN-validation policy for
+// ONE peer, sorted and deduplicated. It returns nothing for a peer that no plugin
+// singled out.
+//
+// A plugin holds policy for one peer when it declared a capability for that peer alone
+// rather than for every peer: InjectedCapability.PeerAddr carries the selector it named,
+// and is empty for a global declaration. It holds OPEN-validation policy when it also
+// registered a validate-open callback, which Stage 1 records as
+// PluginRegistration.WantsValidateOpen. Both conditions are needed: bgp-gr and
+// bgp-softver declare per-peer capabilities and validate no OPEN, so a per-peer
+// declaration alone does not make a plugin an OPEN validator.
+//
+// Reading the registration through the live processes cannot report a departed plugin as
+// present policy: releasePluginRegistrations (restart.go) removes a stopped plugin's
+// capabilities and its registration together, so a name absent from the process list is
+// absent from the injector too.
+//
+// broadcastValidateOpen (internal/component/bgp/server/validate.go) requires an answer
+// from every name this returns, and refuses the OPEN when one does not answer.
+func (s *Server) PluginsWithPerPeerOpenPolicy(selectors ...string) []string {
+	if s.capInjector == nil {
+		return nil
+	}
+
+	pm := s.ProcessManager()
+	if pm == nil {
+		return nil
+	}
+
+	validators := make(map[string]bool)
+	for _, proc := range pm.AllProcesses() {
+		if reg := proc.Registration(); reg != nil && reg.WantsValidateOpen {
+			validators[proc.Name()] = true
+		}
+	}
+	if len(validators) == 0 {
+		return nil
+	}
+
+	var names []string
+	for _, injected := range s.capInjector.GetCapabilitiesForSelectors(selectors...) {
+		if injected.PeerAddr == "" {
+			continue
+		}
+		if !validators[injected.Plugin] {
+			continue
+		}
+		if slices.Contains(names, injected.Plugin) {
+			continue
+		}
+		names = append(names, injected.Plugin)
+	}
+	slices.Sort(names)
+	return names
 }
 
 // AllPluginCapabilities returns all stored capabilities (global + all per-peer).

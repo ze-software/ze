@@ -7,26 +7,26 @@ module ze-ldp-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container ldp {
             config false;
-            description "LDP neighbors and label bindings";
+            description "LDP neighbors and label bindings.";
 
             container neighbor {
                 config false;
                 ze:command "ze-show:ldp-neighbor";
-                description "Show LDP neighbors and their session state.
-Returns peer address, transport address, session state, and
-hold time for each LDP neighbor.";
+                description "Show LDP neighbors and their session state.";
+                ze:help "Returns peer address, transport address, session state, and hold time for each
+LDP neighbor.";
             }
 
             container binding {
                 config false;
                 ze:command "ze-show:ldp-binding";
-                description "Show LDP FEC-to-label bindings.
-Lists local and remote label bindings for each FEC (prefix).
-Use this to verify label distribution is working.";
+                description "Show LDP FEC-to-label bindings.";
+                ze:help "Lists local and remote label bindings for each FEC (prefix). Use this to
+verify label distribution is working.";
             }
         }
     }

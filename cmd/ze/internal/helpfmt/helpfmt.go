@@ -41,8 +41,3 @@ func WriteError(w io.Writer, color bool, format string, a ...any) {
 func WriteHint(w io.Writer, color bool, format string, a ...any) {
 	core.WriteHint(w, color, format, a...)
 }
-
-// Summary returns the first sentence of a description.
-func Summary(s string) string {
-	return core.Summary(s)
-}

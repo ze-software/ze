@@ -14,7 +14,7 @@ Nokia SR OS, and VyOS), use the website's
 The native renderer joins the live command registry with the curated vendor
 mapping in `website/data/command-equivalents.json`, so a new Ze command appears
 as unmapped until its vendor equivalents are added.
-<!-- source: internal/le/docvalid/command_render.go -- RenderCommandSurfaces -->
+<!-- source: internal/le/site/equivalents.go -- renderCommandEquivalents -->
 <!-- source: website/data/command-equivalents.json -- vendor mapping -->
 
 ## Conventions
@@ -162,7 +162,9 @@ ze completion families               # Address families (completes --family <TAB
 
 The generated bash/zsh/fish scripts (`ze completion <shell>`) complete
 subcommand flag names from the registry inventory and `--family` values from the
-address-family registry.
+address-family registry. Each record is the candidate, a tab, the summary, a
+newline. A summary carrying a tab or a newline is folded to single spaces, so
+one candidate never reads as two.
 <!-- source: internal/component/command/registry/flags.go -- RegisterCommandFlags, CommandFlags -->
 <!-- source: internal/plugins/completion/flags.go -- writeFlags, writeFamilies -->
 
@@ -1354,7 +1356,9 @@ cache server, as siblings. That shape is what leaves `| summary` a half to
 select. The RPKI plugin declares the alias over the plugin Stage 1 channel
 rather than in Go. So `ze help command --json` and `./le command list` do not
 list it: both read the compiled tree in their own process and start no plugin.
-The full RPKI command list is in `docs/guide/rpki.md`.
+Each row they DO list carries the command's summary under `description` and its
+long explanation under `long-help`. The full RPKI command list is in
+`docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 

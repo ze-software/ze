@@ -7,32 +7,32 @@ module ze-bmp-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container bmp {
             config false;
-            description "BMP monitoring sessions, peers, and routes";
+            description "BMP monitoring sessions, peers, and routes.";
 
             container sessions {
                 config false;
                 ze:command "ze-show:bmp-sessions";
-                description "Show active BMP receiver sessions.
-Lists each session with connection state and message counters.
+                description "Show active BMP receiver sessions.";
+                ze:help "Lists each session with connection state and message counters.
 Check here to confirm your BMP collector is receiving data.";
             }
 
             container peers {
                 config false;
                 ze:command "ze-show:bmp-peers";
-                description "Show BGP peers as seen through BMP monitoring.
-Lists peers reported via BMP with their state and route statistics.";
+                description "Show BGP peers as seen through BMP monitoring.";
+                ze:help "Lists peers reported via BMP with their state and route statistics.";
             }
 
             container collectors {
                 config false;
                 ze:command "ze-show:bmp-collectors";
-                description "Show BMP collector connection status.
-Lists configured collectors with connection state, sent message
+                description "Show BMP collector connection status.";
+                ze:help "Lists configured collectors with connection state, sent message
 counts, and error statistics. Check here if your collector is
 not receiving data.";
             }
@@ -40,8 +40,8 @@ not receiving data.";
             container rib {
                 config false;
                 ze:command "ze-show:bmp-rib";
-                description "Show routes received via BMP monitoring sessions.
-Returns the BMP RIB content. Use this to verify what your
+                description "Show routes received via BMP monitoring sessions.";
+                ze:help "Returns the BMP RIB content. Use this to verify what your
 collector is seeing from remote peers.";
             }
         }

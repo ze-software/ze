@@ -15,36 +15,36 @@ module ze-refresh-cmd {
             container refresh {
                 config false;
                 ze:command "ze-bgp:peer-refresh";
-                description "Ask a peer to re-send all routes (RFC 2918).
-Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The
+                description "Ask a peer to re-send all routes (RFC 2918).";
+                ze:help "Sends a ROUTE-REFRESH message for the specified AFI/SAFI. The
 peer will re-advertise its entire Adj-RIB-Out.";
             }
 
             container borr {
                 config false;
                 ze:command "ze-bgp:peer-borr";
-                description "Start an Enhanced Route Refresh cycle (RFC 7313).
-Tells the peer to mark existing routes as stale. After re-sending,
+                description "Start an Enhanced Route Refresh cycle (RFC 7313).";
+                ze:help "Tells the peer to mark existing routes as stale. After re-sending,
 send EORR to purge anything not refreshed.";
             }
 
             container eorr {
                 config false;
                 ze:command "ze-bgp:peer-eorr";
-                description "Finish an Enhanced Route Refresh cycle (RFC 7313).
-The peer purges any routes not re-advertised since the matching
+                description "Finish an Enhanced Route Refresh cycle (RFC 7313).";
+                ze:help "The peer purges any routes not re-advertised since the matching
 BORR. Only send this after the peer has finished re-advertising.";
             }
 
             container clear {
                 config false;
-                description "Non-disruptive peer refresh";
+                description "Non-disruptive peer refresh.";
 
                 container soft {
                     config false;
                     ze:command "ze-bgp:peer-clear-soft";
-                    description "Soft-clear a peer without dropping the session.
-Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer
+                    description "Soft-clear a peer without dropping the session.";
+                    ze:help "Sends ROUTE-REFRESH for every negotiated AFI/SAFI, causing the peer
 to re-send all routes. No session bounce, no traffic impact.";
                 }
             }

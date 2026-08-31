@@ -363,6 +363,39 @@ func TestSchemaRegistry_RegisterRPCs(t *testing.T) {
 	assert.ErrorIs(t, err, ErrRPCNotFound)
 }
 
+// TestRegisterRPCsCarriesBothHelpTexts verifies that an RPC's two declared help
+// texts both reach the registry, each on its own field.
+//
+// VALIDATES: RegisterRPCs copies the YANG description AND the ze:help long form.
+// PREVENTS: the long explanation stopping at the registry, which left it
+// unreadable to every consumer of the schema registry.
+func TestRegisterRPCsCarriesBothHelpTexts(t *testing.T) {
+	reg := NewSchemaRegistry()
+
+	err := reg.RegisterRPCs("ze-bgp-api", []yang.RPCMeta{
+		{
+			Module:      "ze-bgp-api",
+			Name:        "peer-list",
+			Description: "List the configured BGP peers.",
+			Help:        "One row per peer.\nThe row carries the negotiated families.",
+		},
+		{Module: "ze-bgp-api", Name: "peer-detail", Description: "Show one peer."},
+	})
+	require.NoError(t, err)
+
+	rpc, err := reg.findRPC("ze-bgp:peer-list")
+	require.NoError(t, err)
+	assert.Equal(t, "List the configured BGP peers.", rpc.Description)
+	assert.Equal(t, "One row per peer.\nThe row carries the negotiated families.", rpc.LongHelp)
+
+	// An RPC nobody wrote an explanation for carries an empty long form, never
+	// a copy of its summary.
+	rpc, err = reg.findRPC("ze-bgp:peer-detail")
+	require.NoError(t, err)
+	assert.Equal(t, "Show one peer.", rpc.Description)
+	assert.Empty(t, rpc.LongHelp)
+}
+
 // TestSchemaRegistry_RegisterRPCs_Duplicate verifies duplicate wire method rejection.
 //
 // VALIDATES: Duplicate wire methods are rejected on re-registration.

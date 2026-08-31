@@ -9,7 +9,7 @@ module ze-cli-update-cmd {
 
     container update {
         config false;
-        description "Pull fresh data from external sources or manage firmware";
+        description "Pull fresh data from external sources or manage firmware.";
 
         // NOTE: `update system firmware *` commands are owned by the update-cmd plugin.
         // See internal/plugins/update-cmd/yang/ze-update-firmware-cmd.yang.

@@ -4,12 +4,12 @@ package cmdutil
 
 import (
 	"os"
-	"regexp"
 	"sort"
 	"strings"
 	"testing"
 
 	cli "github.com/ze-software/ze/internal/component/cli/client"
+	cmd "github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -211,26 +211,42 @@ func TestTrailingValueCommandsResolveFromArgv(t *testing.T) {
 	})
 }
 
-// valuePlaceholder matches a positional placeholder as the YANG descriptions
-// spell one: `<ip>`, `<peer-name>`, `<link|area|as>`, `<128-255>`.
-var valuePlaceholder = regexp.MustCompile(`<[a-zA-Z0-9_ .|/-]+>`)
+// valueCommandFloor is the smallest sample this test accepts.
+//
+// The model held 95 such commands and 104 verb forms over them when this floor
+// was set (2026-08-31, every feature tag on). The floor sits just under that,
+// so retiring one command is not a red and a collapse of the sample is.
+const valueCommandFloor = 90
 
-// placeholderValueCommands returns every ze:command whose YANG DESCRIPTION
-// shows a positional placeholder, as an absolute CLI path.
+// declaredValueCommands returns every registered ze:command whose GENERATED
+// invocation form carries a value the operator supplies, as an absolute CLI
+// path.
 //
-// THIS SET IS INDEPENDENT OF THE OLD KEY AND NOT OF THE NEW ONE. Say it plainly
-// rather than claim otherwise, because a reader deciding what this test is worth
-// needs the real answer.
+// THE SAMPLE COMES FROM THE MODEL, WHICH IS WHERE THE INVOCATION FORM IS
+// DECLARED. command.Usage (internal/component/command/usage.go) is the one
+// producer of that form: it reads the path and node.ArgDefs, reaches no
+// description, and marks a token UsageValue for a value the command needs
+// positionally. Every other kind either puts a keyword in front of its value
+// or is a keyword itself, so UsageValue alone names the free positional this
+// test types.
 //
-// Independent of the OLD key: the previous rule ended a path where ArgDefs said
-// it ended, and ArgDefs are derived from ze:command LEAVES. A description is
-// prose a human wrote beside the grammar; BuildCommandTree
-// (internal/component/config/yang/command.go) copies it from the YANG
-// `description` statement and reads no leaf and no ArgDef. That is why this set
-// caught what a round of 44/44 green over an ArgDefs-derived set could not: every
-// leafless command was excluded from that set and the repair alike.
+// Reading node.ArgDefs here instead would restate Usage's own rule. Usage is
+// what decides which definition becomes a bare positional and which sits behind
+// a keyword, and it is the form the published catalog carries (the `grammar`
+// key of `ze help command --json`).
 //
-// NOT independent of the NEW key, and the filter is where it goes. The walk
+// THE SAMPLE AND THE SUBJECT KEY ON DIFFERENT PRODUCERS, which is what makes
+// the test worth running. ExtractValues ends a path where endsDeclaredCommand
+// says it ends, and that asks cli.AbsoluteVerbPath, the RPC registration. The
+// sample asks command.Usage, the YANG grammar. Neither can excuse the other.
+//
+// A description was the sample until 2026-08-31, when
+// plan/spec-yang-short-and-long-command-help.md made every description a
+// one-sentence summary and took the grammar spellings out of it. The sample
+// went to zero, which is the whole reason prose was the wrong producer for a
+// question the model answers.
+//
+// THE FILTER IS WHERE THIS TEST LEANS ON THE RESOLVER'S OWN KEY. The walk
 // keeps a node only when registered[node.WireMethod] holds, over
 // cli.YANGCommandTree -- the same population cliWireToPaths carries and
 // cli.AbsoluteVerbPath scans. So res.Declared is true by construction for every
@@ -243,7 +259,7 @@ var valuePlaceholder = regexp.MustCompile(`<[a-zA-Z0-9_ .|/-]+>`)
 // The filter is not droppable. A wire method this binary's build tags left out
 // has no handler to reach at all, so keeping it would fail the test on a fact
 // about the build rather than about the resolver.
-func placeholderValueCommands(t *testing.T) []string {
+func declaredValueCommands(t *testing.T) []string {
 	t.Helper()
 
 	registered := make(map[string]bool)
@@ -255,7 +271,7 @@ func placeholderValueCommands(t *testing.T) []string {
 	var walk func(node *cli.Command, path []string)
 	walk = func(node *cli.Command, path []string) {
 		if len(path) > 0 && node.WireMethod != "" && registered[node.WireMethod] &&
-			valuePlaceholder.MatchString(node.Description) {
+			takesPositionalValue(path, node) {
 			out = append(out, strings.Join(path, " "))
 		}
 		for name, child := range node.Children {
@@ -267,9 +283,20 @@ func placeholderValueCommands(t *testing.T) []string {
 	return out
 }
 
-// VALIDATES: a command whose description promises a positional value accepts
-// that value from a shell argv, and dispatches on the declared path with the
-// value behind it.
+// takesPositionalValue reports whether the node's generated invocation form
+// asks the operator for a value with no keyword of its own.
+func takesPositionalValue(path []string, node *cli.Command) bool {
+	for _, token := range cmd.Usage(path, node) {
+		if token.Kind == cmd.UsageValue {
+			return true
+		}
+	}
+	return false
+}
+
+// VALIDATES: a command whose generated invocation form declares a positional
+// value accepts that value from a shell argv, and dispatches on the declared
+// path with the value behind it.
 // PREVENTS: ExtractValues deciding where a path ends by a rule the daemon does
 // not use. matchCommandTokens (internal/component/plugin/server/command.go)
 // matches a registered key as a PREFIX and hands tokens[inIdx:] to the handler,
@@ -279,15 +306,15 @@ func placeholderValueCommands(t *testing.T) []string {
 // rejected the path and the operator got `unknown command` for a line
 // `ze cli -c` ran. handleRouteLookup (internal/component/iface/cmd/
 // show_route_lookup.go) reads args[0] while `container lookup`
-// (internal/component/iface/yang/ze-iface-show-cmd.yang) declares no leaf, so
+// (internal/component/iface/yang/ze-iface-show-cmd.yang) declared no leaf, so
 // `ze show route lookup 1.2.3.4` was unreachable while the same words through
 // `ze cli -c` were not.
-func TestDescribedValueCommandsAcceptTheirValue(t *testing.T) {
+func TestDeclaredValueCommandsAcceptTheirValue(t *testing.T) {
 	const value = "a-value"
 
-	paths := placeholderValueCommands(t)
-	if len(paths) < 25 {
-		t.Fatalf("commands whose description shows a value placeholder = %d, want >= 25: the YANG tree is empty, so this test proves nothing", len(paths))
+	paths := declaredValueCommands(t)
+	if len(paths) < valueCommandFloor {
+		t.Fatalf("registered commands whose generated usage carries a value token = %d, want >= %d. The sample is command.Usage over cli.YANGCommandTree, kept where pluginserver.AllBuiltinRPCs registers the wire method, so a count this low says one of those three went missing and the test proves nothing", len(paths), valueCommandFloor)
 	}
 
 	exercised := 0
@@ -306,7 +333,7 @@ func TestDescribedValueCommandsAcceptTheirValue(t *testing.T) {
 				withValue := append(append([]string{}, form.argv...), value)
 				res, ok := ResolveCommand(withValue, form.verb)
 				if !ok || !res.Valid || !res.Declared {
-					t.Fatalf("`ze %s` does not resolve (ok=%v valid=%v declared=%v): the description promises a value, so the value must not cost the command its path", strings.Join(withValue, " "), ok, res.Valid, res.Declared)
+					t.Fatalf("`ze %s` does not resolve (ok=%v valid=%v declared=%v): the invocation form declares a value, so the value must not cost the command its path", strings.Join(withValue, " "), ok, res.Valid, res.Declared)
 				}
 				if got, want := res.dispatchString(), path+" "+value; got != want {
 					t.Errorf("dispatch = %q, want %q", got, want)
@@ -314,8 +341,8 @@ func TestDescribedValueCommandsAcceptTheirValue(t *testing.T) {
 			})
 		}
 	}
-	if exercised < 25 {
-		t.Errorf("verb forms exercised = %d, want >= 25", exercised)
+	if exercised < valueCommandFloor {
+		t.Errorf("verb forms exercised = %d, want >= %d", exercised, valueCommandFloor)
 	}
 }
 

@@ -43,47 +43,67 @@ import (
 // no CLI spelling.
 var usageMarkers = [...]string{"Usage:", "Syntax:", "Filters:"}
 
-// usageRow is one command node's usage line: the CLI path it belongs to, the
+// UsageRow is one command node's usage line: the CLI path it belongs to, the
 // line the model renders, the sentence a description spells by hand, and the
 // word that opened it.
 //
-// The three usage types stay package-private while 80 descriptions still carry
-// authored prose. Exporting them is what wires this gate into `./le verify`
-// (internal/le/doc/wiring/docverify.go, beside Drift and Validate), and a gate
-// wired before the prose is gone turns every session's verify red.
-type usageRow struct {
+// The row and the report are exported because `./le doc check verify` runs this
+// gate (internal/le/doc/wiring/docverify.go, beside Drift and Validate). They
+// were package-private while 80 descriptions still carried authored prose,
+// because a gate wired before the prose was gone turned every session's verify
+// red. The last of those 80 was deleted before this comment was written: the
+// gate reports 390 command nodes and 0 authored sentences.
+type UsageRow struct {
 	Path      string `json:"path"`
 	Generated string `json:"generated"`
 	Authored  string `json:"authored"`
 	Marker    string `json:"marker"`
 }
 
-// usageReport is the whole answer of one `le docvalid usage-contract` run.
+// UsageReport is the whole answer of one `le docvalid usage-contract` run.
 //
 // Prose names every description that prescribes a CLI spelling. Differ names
 // the subset whose authored sentence and generated line disagree, which is the
 // count the model has to close. Hidden names the sentences a commit DELETED
 // while the model still renders something else, which is the same count going
 // missing rather than closing.
-type usageReport struct {
+type UsageReport struct {
 	Commands int        `json:"commands"`
-	Prose    []usageRow `json:"prose"`
-	Differ   []usageRow `json:"differ"`
-	Hidden   []usageRow `json:"hidden"`
+	Prose    []UsageRow `json:"prose"`
+	Differ   []UsageRow `json:"differ"`
+	Hidden   []UsageRow `json:"hidden"`
 	Valid    bool       `json:"valid"`
 }
 
-// usageWalk carries the three answers one walk of the command tree produces:
-// the report itself, the line the model renders for every command path, and the
-// set of paths whose description still spells a grammar by hand.
+// usageWalk carries the answers one walk of the command tree produces: the
+// usage report, the line the model renders for every command path, the set of
+// paths whose description still spells a grammar by hand, and the shape report
+// helpshape.go reads.
 //
-// The last two exist for the HEAD comparison. It asks which paths LOST their
+// The middle two exist for the HEAD comparison. It asks which paths LOST their
 // sentence, so it needs every path the tree carries, not only the ones that
 // still prescribe.
+//
+// Both command gates read ONE walk. Each asks a different question of the same
+// node, and a second recursion over the same tree would be a second place for a
+// node to be missed.
 type usageWalk struct {
-	report    *usageReport
+	report    *UsageReport
 	generated map[string]string
 	authored  map[string]bool
+	shape     *HelpShapeReport
+}
+
+// newUsageWalk answers a walk with every collector allocated. Nothing here is
+// optional: a nil collector would make one gate's answer depend on which caller
+// started the walk.
+func newUsageWalk() usageWalk {
+	return usageWalk{
+		report:    &UsageReport{Prose: []UsageRow{}, Differ: []UsageRow{}, Hidden: []UsageRow{}},
+		generated: map[string]string{},
+		authored:  map[string]bool{},
+		shape:     &HelpShapeReport{Broken: []HelpShapeRow{}},
+	}
 }
 
 // usageContract walks the command tree the loader holds and reports every
@@ -96,9 +116,9 @@ type usageWalk struct {
 // The head map is the same walk performed over the modules at git HEAD, keyed
 // by CLI path. A nil map skips the deletion half, which is what a fixture test
 // of the prose half passes.
-func usageContract(loader *yang.Loader, head map[string]usageRow) usageReport {
-	report := usageReport{Prose: []usageRow{}, Differ: []usageRow{}, Hidden: []usageRow{}}
-	walk := usageWalk{report: &report, generated: map[string]string{}, authored: map[string]bool{}}
+func usageContract(loader *yang.Loader, head map[string]UsageRow) UsageReport {
+	walk := newUsageWalk()
+	report := walk.report
 	collectUsage(yang.BuildCommandTree(loader), nil, &walk)
 
 	for cliPath, was := range head {
@@ -118,7 +138,7 @@ func usageContract(loader *yang.Loader, head map[string]usageRow) usageReport {
 		if usageShape(now) == usageShape(was.Authored) {
 			continue
 		}
-		report.Hidden = append(report.Hidden, usageRow{
+		report.Hidden = append(report.Hidden, UsageRow{
 			Path: cliPath, Generated: now, Authored: was.Authored, Marker: was.Marker,
 		})
 	}
@@ -127,7 +147,7 @@ func usageContract(loader *yang.Loader, head map[string]usageRow) usageReport {
 	sort.Slice(report.Differ, func(i, j int) bool { return report.Differ[i].Path < report.Differ[j].Path })
 	sort.Slice(report.Hidden, func(i, j int) bool { return report.Hidden[i].Path < report.Hidden[j].Path })
 	report.Valid = len(report.Prose) == 0 && len(report.Hidden) == 0
-	return report
+	return *report
 }
 
 // usageShape folds every angle-bracket placeholder in a usage line to `<>`, so
@@ -186,11 +206,20 @@ func collectUsage(node *command.Node, path []string, walk *usageWalk) {
 	for _, name := range names {
 		child := node.Children[name]
 		childPath := append(path, name) //nolint:gocritic // childPath is consumed before the next iteration reuses the array
+		var tb textbuf.Buffer
+		cliPath := tb.Join(childPath, " ").String()
+		if child == nil {
+			// A name the tree holds with no node behind it is a defect in the
+			// builder. Name it: reading it as a node with nothing to say would
+			// report a missing summary the author cannot write
+			// (ai/rules/evidence.md).
+			walk.shape.unreadable(cliPath)
+			continue
+		}
+		walk.shape.node(cliPath, child)
 		if child.WireMethod != "" {
 			walk.report.Commands++
 		}
-		var tb textbuf.Buffer
-		cliPath := tb.Join(childPath, " ").String()
 		// Only a node that RUNS a command has an invocation form, so only such
 		// a node records a generated line. A grouping node renders the empty
 		// string, and recording that would make every path a HEAD sentence
@@ -202,7 +231,7 @@ func collectUsage(node *command.Node, path []string, walk *usageWalk) {
 		}
 		if marker, authored := authoredUsage(child.Description); authored != "" {
 			walk.authored[cliPath] = true
-			row := usageRow{
+			row := UsageRow{
 				Path:      cliPath,
 				Generated: walk.generated[cliPath],
 				Authored:  authored,
@@ -260,7 +289,7 @@ func authoredUsage(description string) (marker, authored string) {
 
 // Text renders the usage report: the command count, one line per authored
 // sentence, and the verdict. It ends in a newline.
-func (r usageReport) Text() string {
+func (r UsageReport) Text() string {
 	var tb textbuf.Buffer
 
 	tb.Str("# Command Usage\n\n")
@@ -301,6 +330,23 @@ func (r usageReport) Text() string {
 	return tb.String()
 }
 
+// Usage answers the usage contract over the modules this binary carries,
+// compared against the same modules in the checkout at root, at git HEAD.
+//
+// Every failure is an error rather than an empty report: a report nobody could
+// produce must not read as a tree with nothing to fix (ai/rules/evidence.md).
+func Usage(root string) (UsageReport, error) {
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		return UsageReport{}, err
+	}
+	head, err := headUsage(root)
+	if err != nil {
+		return UsageReport{}, err
+	}
+	return usageContract(loader, head), nil
+}
+
 // runUsage runs the usage gate over the modules this binary carries.
 func runUsage() (any, int) {
 	root, err := lepath.Root()
@@ -308,17 +354,11 @@ func runUsage() (any, int) {
 		reportError(err)
 		return nil, 1
 	}
-	loader, err := yang.DefaultLoader()
+	report, err := Usage(root)
 	if err != nil {
 		reportError(err)
 		return nil, 1
 	}
-	head, err := headUsage(root)
-	if err != nil {
-		reportError(err)
-		return nil, 1
-	}
-	report := usageContract(loader, head)
 	if !report.Valid {
 		return report, 1
 	}
@@ -343,7 +383,7 @@ const cmdModuleFile = cmdModuleSuffix + ".yang"
 // reports no deletion at all, which is the answer that lets the whole gate be
 // bypassed by breaking git (ai/rules/evidence.md: a zero value must never be a
 // valid-looking answer).
-func headUsage(root string) (map[string]usageRow, error) {
+func headUsage(root string) (map[string]UsageRow, error) {
 	files, err := cmdModulePaths(root)
 	if err != nil {
 		return nil, err
@@ -370,12 +410,11 @@ func headUsage(root string) (map[string]usageRow, error) {
 	// and the extensions they import, not the whole conf and api set.
 	_ = loader.Resolve()
 
-	report := usageReport{Prose: []usageRow{}, Differ: []usageRow{}, Hidden: []usageRow{}}
-	walk := usageWalk{report: &report, generated: map[string]string{}, authored: map[string]bool{}}
+	walk := newUsageWalk()
 	collectUsage(yang.BuildCommandTree(loader), nil, &walk)
 
-	was := make(map[string]usageRow, len(report.Prose))
-	for _, row := range report.Prose {
+	was := make(map[string]UsageRow, len(walk.report.Prose))
+	for _, row := range walk.report.Prose {
 		was[row.Path] = row
 	}
 	return was, nil

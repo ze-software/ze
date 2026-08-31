@@ -9,13 +9,13 @@ module ze-command-meta-cmd {
     container help {
         config false;
         ze:command "ze-bgp:help";
-        description "Show available commands at this level.
-Lists every registered command verb with a brief description.";
+        description "Show available commands at this level.";
+        ze:help "Lists every registered command verb with a brief description.";
     }
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container event {
             config false;
@@ -27,70 +27,69 @@ Lists every registered command verb with a brief description.";
             container list {
                 config false;
                 ze:command "ze-bgp:event-list";
-                description "List every event type you can subscribe to.
-Shows event name, category, and payload structure. Use this to
-discover what events are available before subscribing.";
+                description "List every event type you can subscribe to.";
+                ze:help "Shows event name, category, and payload structure. Use this to discover what
+events are available before subscribing.";
             }
         }
 
         container command {
             config false;
-            description "Command discovery and completion";
+            description "Command discovery and completion.";
 
             container list {
                 config false;
                 ze:command "ze-bgp:command-list";
-                description "List every command the daemon knows about.
-Returns dispatch key and description for each. Useful for scripting
-or discovering commands not shown in the top-level help.";
+                description "List every command the daemon knows about.";
+                ze:help "Returns dispatch key and description for each. Useful for scripting or
+discovering commands not shown in the top-level help.";
             }
 
             container help {
                 config false;
                 ze:command "ze-bgp:command-help";
-                description "Show usage and arguments for a specific command.
-Gives you the full description, expected arguments, and usage
-pattern for one command.";
+                description "Show usage and arguments for a specific command.";
+                ze:help "Gives you the full description, expected arguments, and usage pattern for one
+command.";
             }
 
             container complete {
                 config false;
                 ze:command "ze-bgp:command-complete";
-                description "Get tab-completion candidates for a partial command.
-Returns possible completions for the given input. Used internally
-by the CLI editor, but also callable for scripting.";
+                description "Get tab-completion candidates for a partial command.";
+                ze:help "Returns possible completions for the given input. Used internally by the CLI
+editor, but also callable for scripting.";
             }
         }
     }
 
     container plugin {
         config false;
-        description "Configure how events are delivered to your plugin session";
+        description "Configure how events are delivered to your plugin session.";
 
         container encoding {
             config false;
             ze:command "ze-bgp:plugin-encoding";
-            description "Choose json or text encoding for plugin events.
-Controls how events are serialized in this session. JSON is
-structured and parseable; text is more compact.";
+            description "Choose json or text encoding for plugin events.";
+            ze:help "Controls how events are serialized in this session. JSON is structured and
+parseable; text is more compact.";
         }
 
         container format {
             config false;
             ze:command "ze-bgp:plugin-format";
-            description "Choose how BGP message bytes appear in events.
-hex and base64 are compact wire representations. parsed decodes
-attributes into structured fields. full includes both wire bytes
-and parsed content.";
+            description "Choose how BGP message bytes appear in events.";
+            ze:help "hex and base64 are compact wire representations. parsed decodes attributes
+into structured fields. full includes both wire bytes and parsed content.";
         }
 
         container ack {
             config false;
             ze:command "ze-bgp:plugin-ack";
-            description "Choose sync or async event delivery.
-sync: Ze waits for your plugin to acknowledge each event before
-sending the next one. Safer but slower. async: events fire without
-waiting, giving higher throughput at the cost of backpressure control.";
+            description "Choose sync or async event delivery.";
+            ze:help "sync: Ze waits for your plugin to acknowledge each event before sending the
+next one. Safer but slower. async: events fire without waiting, giving higher
+throughput at the cost of backpressure control.";
         }
     }
 }

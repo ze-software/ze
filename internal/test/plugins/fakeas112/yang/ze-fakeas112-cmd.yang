@@ -11,18 +11,18 @@ module ze-fakeas112-cmd {
     container fakeas112 {
         ze:hidden true;
         config false;
-        description "Fakeas112 test commands";
+        description "Fakeas112 test commands.";
 
         container emit {
             config false;
             ze:command "ze-fakeas112-api:fakeas112-emit";
-            description "Emit the AS112 covering prefixes as route-change batches";
+            description "Emit the AS112 covering prefixes as route-change batches.";
         }
 
         container help {
             config false;
             ze:command "ze-fakeas112-api:fakeas112-help";
-            description "Print the fakeas112 command surface";
+            description "Print the fakeas112 command surface.";
         }
     }
 }

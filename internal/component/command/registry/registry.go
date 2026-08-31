@@ -156,8 +156,18 @@ var sectionTitles = map[string]string{
 // one-line hint at commonly-used sub-paths. SubsFunc, when non-nil, is called
 // instead of reading Subs directly; use it when sub-paths are registered by
 // other packages whose init() order is not guaranteed.
+//
+// Description is the SUMMARY: one sentence a list row, a completion candidate
+// or a table cell can render whole. LongHelp is the explanation the per-command
+// help page prints, and it MAY be written over several lines. The two are
+// separate declarations for the same reason a YANG command node declares a
+// description beside a ze:help: no renderer derives one from the other, so a
+// summary is short because its author wrote it short
+// (plan/spec-yang-short-and-long-command-help.md, AC-1). An empty LongHelp
+// means nobody has written the explanation, never that the command has none.
 type Meta struct {
 	Description string
+	LongHelp    string
 	Mode        string
 	Section     string
 	Subs        string

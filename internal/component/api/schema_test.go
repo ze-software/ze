@@ -141,3 +141,49 @@ func TestOpenAPISchemaSecurityScheme(t *testing.T) {
 	assert.Equal(t, "http", bearer["type"])
 	assert.Equal(t, "bearer", bearer["scheme"])
 }
+
+// VALIDATES: story 8 -- the OpenAPI operation carries the one-line summary in
+// `summary` and the long explanation in `description`, the two roles OpenAPI
+// defines for them.
+// PREVENTS: a client reading the whole explanation as a list-row label, or
+// finding no explanation at all because both halves went into one key.
+func TestOpenAPICarriesSummaryAndDescription(t *testing.T) {
+	commands := []CommandMeta{
+		{
+			Name:        "bgp summary",
+			Description: "Show one line for each configured peer.",
+			LongHelp:    "The state column is the FSM state.\nThe prefix counts are what the peer has sent.",
+			ReadOnly:    true,
+		},
+		{Name: "daemon reload", Description: "Reload the running configuration."},
+	}
+
+	data, err := OpenAPISchema(commands)
+	require.NoError(t, err)
+
+	var spec map[string]any
+	require.NoError(t, json.Unmarshal(data, &spec))
+
+	paths, ok := spec["paths"].(map[string]any)
+	require.True(t, ok)
+
+	bgpPath, ok := paths["/api/v1/execute/bgp/summary"].(map[string]any)
+	require.True(t, ok)
+	get, ok := bgpPath["get"].(map[string]any)
+	require.True(t, ok)
+
+	assert.Equal(t, "Show one line for each configured peer.", get["summary"],
+		"summary is the one-line half, verbatim")
+	assert.Equal(t,
+		"The state column is the FSM state.\nThe prefix counts are what the peer has sent.",
+		get["description"], "description is the long half, verbatim and with its newlines")
+
+	// A command declaring no explanation carries no description key at all,
+	// rather than an empty string a client would render as a blank paragraph.
+	reloadPath, ok := paths["/api/v1/execute/daemon/reload"].(map[string]any)
+	require.True(t, ok)
+	post, ok := reloadPath["post"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "Reload the running configuration.", post["summary"])
+	assert.NotContains(t, post, "description")
+}

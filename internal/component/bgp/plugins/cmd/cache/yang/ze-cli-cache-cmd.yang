@@ -12,18 +12,23 @@ module ze-cli-cache-cmd {
         container cache {
             config false;
             ze:command "ze-bgp:cache-list";
-            description "List cached BGP UPDATE message IDs with their
-retain and consumer state.";
+            description "List cached BGP UPDATE message IDs with their retain and consumer state.";
         }
     }
 
     container request {
         config false;
-        description "Cache operational actions";
+
+        // The top-level request verb root, and this is the only module that
+        // describes it. The summary names what every child does, because the
+        // children come from a dozen owners: as112, bgp, cache, commit,
+        // config, interface, l2tp, log, ospf, peer, quiesce and subscribe.
+        // A summary naming the cache alone was false for the other eleven.
+        description "Commands that act on the running system.";
 
         container cache {
             config false;
-            description "Manage cached BGP UPDATE messages";
+            description "Manage cached BGP UPDATE messages.";
 
             container retain {
                 config false;

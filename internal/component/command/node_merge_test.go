@@ -76,3 +76,48 @@ func TestMergeCommandPathsSkipsEmptyAndNilRoot(t *testing.T) {
 		t.Errorf("empty names produced nodes: %v", root.Children)
 	}
 }
+
+// VALIDATES: the two help fields of a plugin entry are decided one at a time.
+// A field the existing node already holds survives; a field it holds nothing
+// in takes the plugin's text.
+// PREVENTS: a plugin that states a summary and no explanation blanking a
+// builtin's explanation, and a builtin's summary blocking a plugin's
+// explanation from ever reaching the help page.
+func TestMergeCommandPathsDecidesEachHelpFieldOnItsOwn(t *testing.T) {
+	root := &Node{Children: map[string]*Node{
+		"daemon": {Name: "daemon", Children: map[string]*Node{
+			"status": {Name: "status", Description: "Show daemon status"},
+			"health": {Name: "health", Help: "Prints one line for each subsystem."},
+		}},
+	}}
+
+	MergeCommandPaths(root, []CommandEntry{
+		{Name: "daemon status", Description: "PLUGIN OVERRIDE", Help: "The plugin's explanation."},
+		{Name: "daemon health", Description: "Show subsystem health.", Help: "PLUGIN OVERRIDE"},
+		{Name: "daemon trace", Description: "Trace one request.", Help: "The plugin's explanation."},
+	})
+
+	status := root.Children["daemon"].Children["status"]
+	if status.Description != "Show daemon status" {
+		t.Errorf("summary overwritten: got %q", status.Description)
+	}
+	if status.Help != "The plugin's explanation." {
+		t.Errorf("empty explanation not filled: got %q", status.Help)
+	}
+
+	health := root.Children["daemon"].Children["health"]
+	if health.Description != "Show subsystem health." {
+		t.Errorf("empty summary not filled: got %q", health.Description)
+	}
+	if health.Help != "Prints one line for each subsystem." {
+		t.Errorf("explanation overwritten: got %q", health.Help)
+	}
+
+	trace := root.Children["daemon"].Children["trace"]
+	if trace == nil {
+		t.Fatal("a created leaf is missing")
+	}
+	if trace.Description != "Trace one request." || trace.Help != "The plugin's explanation." {
+		t.Errorf("a created leaf takes both fields: got %q / %q", trace.Description, trace.Help)
+	}
+}

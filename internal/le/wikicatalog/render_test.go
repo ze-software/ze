@@ -20,7 +20,8 @@ func TestRenderGoldenCatalogs(t *testing.T) {
 			entries: []Entry{
 				{
 					Path:          "show zeta",
-					Description:   "Zeta | first\nZeta details",
+					Description:   "Zeta | first",
+					LongHelp:      "Zeta details\nZeta second line",
 					Mode:          "read-only",
 					WireMethod:    "show_zeta",
 					AnswerShape:   "tab",
@@ -93,7 +94,8 @@ func TestRenderLiteralProseAndDynamicCodeSpans(t *testing.T) {
 	rendered, err := Render([]Entry{{
 		Path:          "show `tick`",
 		Mode:          "read-only",
-		Description:   "*summary* | literal\n_detail_",
+		Description:   "*summary* | literal",
+		LongHelp:      "_detail_\n**second**",
 		WireMethod:    "`wire`",
 		AnswerShape:   "`shape`",
 		AddressFields: []string{"`address`"},
@@ -110,7 +112,7 @@ func TestRenderLiteralProseAndDynamicCodeSpans(t *testing.T) {
 	for _, want := range []string{
 		"| `` show `tick` `` | read-only | \\*summary\\* \\| literal |",
 		"### `` show `tick` ``",
-		"\\*summary\\* \\| literal\n\\_detail\\_",
+		"\\_detail\\_\n\\*\\*second\\*\\*",
 		"Mode: read-only | Wire: `` `wire` ``",
 		"Answer shape: `` `shape` ``",
 		"Address fields: `` `address` ``",
@@ -243,11 +245,17 @@ func TestRenderLiteralVerbLabelsAndHeadingAnchors(t *testing.T) {
 	}
 }
 
+// VALIDATES: a carriage return in either declared half is normalized, and the
+// caller's own entries are left as they were.
+//
+// A summary is one line by declaration, so the line break this normalizes is
+// the long form's. A summary that still carries one is joined with a space,
+// because a Markdown table cell cannot hold a line break.
 func TestRenderNormalizesDescriptionLineBreaks(t *testing.T) {
 	entries := []Entry{
-		{Path: "show crlf", Mode: "read-only", Description: "first\r\nsecond"},
-		{Path: "clear cr", Mode: "offline", Description: "first\rsecond"},
-		{Path: "set mixed", Mode: "offline", Description: "first\r\nsecond\rthird\nfourth"},
+		{Path: "show crlf", Mode: "read-only", Description: "one line", LongHelp: "first\r\nsecond"},
+		{Path: "clear cr", Mode: "offline", Description: "one line", LongHelp: "first\rsecond"},
+		{Path: "set mixed", Mode: "offline", Description: "first\r\nsecond", LongHelp: "third\nfourth"},
 	}
 	rendered, err := Render(entries)
 	if err != nil {
@@ -255,12 +263,12 @@ func TestRenderNormalizesDescriptionLineBreaks(t *testing.T) {
 	}
 	content := string(rendered)
 	for _, want := range []string{
-		"| `show crlf` | read-only | first |",
+		"| `show crlf` | read-only | one line |",
 		"### `show crlf`\n\nfirst\nsecond\n\nMode: read-only",
-		"| `clear cr` | offline | first |",
+		"| `clear cr` | offline | one line |",
 		"### `clear cr`\n\nfirst\nsecond\n\nMode: offline",
-		"| `set mixed` | offline | first |",
-		"### `set mixed`\n\nfirst\nsecond\nthird\nfourth\n\nMode: offline",
+		"| `set mixed` | offline | first second |",
+		"### `set mixed`\n\nthird\nfourth\n\nMode: offline",
 	} {
 		if !strings.Contains(content, want) {
 			t.Errorf("normalized catalog omitted %q:\n%s", want, content)
@@ -269,7 +277,60 @@ func TestRenderNormalizesDescriptionLineBreaks(t *testing.T) {
 	if strings.ContainsRune(content, '\r') {
 		t.Fatalf("normalized catalog retained carriage returns:\n%q", content)
 	}
-	if entries[0].Description != "first\r\nsecond" {
-		t.Fatalf("Render() mutated caller-owned entries: %q", entries[0].Description)
+	if entries[0].LongHelp != "first\r\nsecond" {
+		t.Fatalf("Render() mutated caller-owned entries: %q", entries[0].LongHelp)
+	}
+}
+
+// VALIDATES: the summary column takes the declared summary verbatim and the
+// detail block takes the declared long form (AC-10).
+//
+// The method is to declare two halves that share no substring, then look for
+// each half where its own surface renders it and refuse it on the other. A
+// renderer that cut one authored string in two would put the same words in
+// both places, so the two negative assertions are what discriminate.
+func TestWikiCatalogRendersDeclaredSummary(t *testing.T) {
+	entries := []Entry{
+		{
+			Path:        "show declared",
+			Mode:        "read-only",
+			Description: "Show what the node declares as its summary.",
+			LongHelp:    "The explanation runs over two lines.\nIt reaches the detail block alone.",
+		},
+		{
+			Path:        "show terse",
+			Mode:        "read-only",
+			Description: "Show a node that declares no long form.",
+		},
+	}
+	rendered, err := Render(entries)
+	if err != nil {
+		t.Fatalf("Render() error: %v", err)
+	}
+	content := string(rendered)
+
+	for _, want := range []string{
+		"| `show declared` | read-only | Show what the node declares as its summary\\. |",
+		"### `show declared`\n\nThe explanation runs over two lines\\.\n" +
+			"It reaches the detail block alone\\.\n\nMode: read-only",
+		"| `show terse` | read-only | Show a node that declares no long form\\. |",
+		"### `show terse`\n\nMode: read-only",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("the catalog omits %q:\n%s", want, content)
+		}
+	}
+
+	summaryRow, _, found := strings.Cut(content, "### `show declared`")
+	if !found {
+		t.Fatalf("the catalog has no detail block for show declared:\n%s", content)
+	}
+	if strings.Contains(summaryRow, "detail block alone") {
+		t.Error("the summary table carries the long form, which belongs to the detail block alone")
+	}
+	detail, _, _ := strings.Cut(content, "### `show terse`")
+	_, detail, _ = strings.Cut(detail, "### `show declared`")
+	if strings.Contains(detail, "declares as its summary") {
+		t.Error("the detail block repeats the summary, which the table row already carries")
 	}
 }

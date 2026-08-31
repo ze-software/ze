@@ -2,6 +2,8 @@ module ze-fakeas112-api {
   namespace "urn:ze:test:fakeas112:api";
   prefix "fakeas112-api";
 
+  import ze-extensions { prefix ze; }
+
   organization "Ze Project";
   description "Test-only synthetic AS112 route producer RPCs.
                fakeas112 emits route-change events on the as112 namespace
@@ -13,8 +15,8 @@ module ze-fakeas112-api {
   }
 
   rpc fakeas112-emit {
-    description "Emit the AS112 covering prefixes as one route-change batch
-                 per family. Args: <add|del> [asn <N>] [community <c1,c2,...>].";
+    description "Emit the AS112 covering prefixes as one route-change batch per family.";
+    ze:help "Args: <add|del> [asn <N>] [community <c1,c2,...>].";
   }
 
   rpc fakeas112-help {

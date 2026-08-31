@@ -124,6 +124,39 @@ module ze-extensions {
                      the handler argument connects it to the registered handler.";
     }
 
+    // Extension: help
+    // Carries the LONG explanation of a command node. The YANG description
+    // statement carries the SHORT one: one sentence a list row, a completion
+    // candidate or a table cell can show whole.
+    //
+    // The split is declared rather than derived. One string served both, and
+    // each surface cut it differently: at the first sentence, at the first
+    // newline, at 170 characters, or not at all. No cut can work, because 178
+    // of the command tree's 653 nodes end in no punctuation and 354 are one
+    // line.
+    //
+    // The description keeps the short form because a plugin compiled before
+    // this extension existed sends a description and nothing else. Read as the
+    // summary, that plugin's commands lose their detail. Read as the long form,
+    // every list row for them renders blank.
+    //
+    // The argument is free text and can span lines. A help page prints it
+    // whole, and no one-line surface reads it.
+    //
+    // Two carriers declare it. A config false container in a -cmd module
+    // carries the CLI path an operator types, and mergeYANGEntry reads it
+    // through Entry.Exts. An rpc carries the wire method that path reaches,
+    // and ExtractRPCs reads it through gyang.RPC.Exts(). One reader answers
+    // both (internal/component/config/yang/command.go, getHelpExtension).
+    extension help {
+        argument text;
+        description "Declares the long explanation of a command node or an rpc.
+                     The YANG description statement declares the one-line
+                     summary. This statement declares the explanation that the
+                     help page for that one command prints. The argument is
+                     free text and can span several lines.";
+    }
+
     // Extension: modifier
     // Marks a config false container as a trailing argument GROUP of its parent
     // command rather than a subcommand of its own: the operator supplies the

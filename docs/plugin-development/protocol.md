@@ -183,12 +183,13 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 
 Each `CommandDecl` has these fields:
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
-<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, registerPluginShapes -->
+<!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateHelpDecls, registerPluginShapes -->
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | `string` | Command path the plugin serves |
-| `description` | `string` | The line help and completion show beside the name |
+| `description` | `string` | The one-line SUMMARY. Every surface that shows the command on one line reads it. One line, at most 256 bytes, no control character |
+| `long-help` | `string` | The LONG explanation the command's own help page prints. At most 4096 bytes, newlines kept, every other control character refused |
 | `args` | `[]string` | Expected argument names, for help and completion |
 | `completable` | `bool` | Whether the command supports tab completion |
 | `hidden` | `bool` | Whether the command is left out of help and completion |
@@ -201,6 +202,20 @@ The last three are optional and additive. A plugin that sends none keeps the
 behavior it had before they existed. A plugin that sends one the engine refuses
 fails Stage 1 and does not start.
 
+`description` and `long-help` are two texts and neither is derived from the
+other. The key is `long-help` and not `help`, because `help` already names the
+SUMMARY in a completion row on this same protocol. A plugin that sends
+`description` and no `long-help` renders with its summary and an empty
+explanation. That is what every plugin written before `long-help` existed
+sends. An empty `long-help` NEVER renders as an empty summary.
+
+`validateHelpDecls` reads both texts before any conversion. It refuses a text
+past its bound, and a control character the text's shape does not allow. The
+summary reaches the tab-separated shell-completion format and the one-line
+terminal candidate. A newline, a tab or an ESC in it breaks the format for
+every row that follows. The alias `description` below is held to the same
+one-line rule.
+
 Each `PipeDecl` has these fields:
 <!-- source: pkg/plugin/rpc/types.go -- PipeDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validatePipeDecls, registerPluginPipes -->
@@ -209,7 +224,7 @@ Each `PipeDecl` has these fields:
 |-------|------|-------------|
 | `command` | `string` | Command path the alias sits on. MUST be one of this plugin's own declared commands |
 | `name` | `string` | The word an operator types after the pipe character (kebab-case, 1-64 chars) |
-| `description` | `string` | The line completion and `command help` show beside the name |
+| `description` | `string` | The one-line summary completion and `command help` show beside the name. At most 256 bytes, no control character |
 | `expansion` | `string` | The operator chain the name stands for, as an operator would type it |
 
 A pipe alias SELECTS and re-sequences the answer the command already returned.

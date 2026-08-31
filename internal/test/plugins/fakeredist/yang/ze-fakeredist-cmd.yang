@@ -11,24 +11,24 @@ module ze-fakeredist-cmd {
     container fakeredist {
         ze:hidden true;
         config false;
-        description "Fakeredist test commands";
+        description "Fakeredist test commands.";
 
         container emit {
             config false;
             ze:command "ze-fakeredist-api:fakeredist-emit";
-            description "Emit one synthetic route-change batch";
+            description "Emit one synthetic route-change batch.";
         }
 
         container emit-burst {
             config false;
             ze:command "ze-fakeredist-api:fakeredist-emit-burst";
-            description "Emit N synthetic batches sequentially";
+            description "Emit N synthetic batches sequentially.";
         }
 
         container help {
             config false;
             ze:command "ze-fakeredist-api:fakeredist-help";
-            description "Print the fakeredist command surface";
+            description "Print the fakeredist command surface.";
         }
     }
 }

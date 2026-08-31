@@ -2,6 +2,8 @@ module ze-l2tp-api {
     namespace "urn:ze:l2tp:api";
     prefix l2tpapi;
 
+    import ze-extensions { prefix ze; }
+
     description
         "L2TP API operations for Ze. RPCs for observing tunnel and
          session state, bound listeners, effective configuration, and
@@ -18,9 +20,7 @@ module ze-l2tp-api {
     // -----------------------------------------------------------------
 
     rpc summary {
-        description
-            "Return subsystem summary: tunnel count, session count,
-             listener count, aggregate state.";
+        description "Return subsystem summary: tunnel count, session count, listener count, aggregate state.";
         output {
             leaf summary {
                 type string;
@@ -84,9 +84,7 @@ module ze-l2tp-api {
     }
 
     rpc statistics {
-        description
-            "Return protocol counters: tunnel/session counts,
-             listener bind state, redistribute activity.";
+        description "Return protocol counters: tunnel/session counts, listener bind state, redistribute activity.";
         output {
             leaf statistics {
                 type string;
@@ -106,9 +104,8 @@ module ze-l2tp-api {
     }
 
     rpc config {
-        description
-            "Return effective runtime configuration. Shared-secret is
-             redacted to <set>/<unset>.";
+        description "Return effective runtime configuration.";
+        ze:help "Shared-secret is redacted to <set>/<unset>.";
         output {
             leaf config {
                 type string;
@@ -122,10 +119,9 @@ module ze-l2tp-api {
     // -----------------------------------------------------------------
 
     rpc observer {
-        description
-            "Return per-session event ring snapshot. With a session-id
-             argument, returns the full event list. With 'all', returns
-             a summary of every active session ring.";
+        description "Return per-session event ring snapshot.";
+        ze:help "With a session-id argument, returns the full event list. With
+'all', returns a summary of every active session ring.";
         input {
             leaf session-id {
                 type uint16;
@@ -141,10 +137,9 @@ module ze-l2tp-api {
     }
 
     rpc cqm {
-        description
-            "Return per-login CQM bucket history. With a login argument,
-             returns the bucket list. With 'summary', returns aggregate
-             state across all tracked logins.";
+        description "Return per-login CQM bucket history.";
+        ze:help "With a login argument, returns the bucket list. With 'summary',
+returns aggregate state across all tracked logins.";
         input {
             leaf login {
                 type string;
@@ -160,9 +155,7 @@ module ze-l2tp-api {
     }
 
     rpc echo {
-        description
-            "Return current echo state for a login derived from CQM
-             buckets: last RTT, loss ratio, echo interval, bucket state.";
+        description "Return current echo state for a login derived from CQM buckets: last RTT, loss ratio, echo interval, bucket state.";
         input {
             leaf login {
                 type string;
@@ -179,10 +172,7 @@ module ze-l2tp-api {
     }
 
     rpc reliable {
-        description
-            "Return reliable transport window state for a tunnel:
-             Ns, Nr, peer-Nr, outstanding count, retransmit count,
-             cwnd, ssthresh, peer receive window size.";
+        description "Return reliable transport window state for a tunnel: Ns, Nr, peer-Nr, outstanding count, retransmit count, cwnd, ssthresh, peer receive window size.";
         input {
             leaf tunnel-id {
                 type uint16;
@@ -241,9 +231,7 @@ module ze-l2tp-api {
     // -----------------------------------------------------------------
 
     rpc tunnel-teardown {
-        description
-            "Send StopCCN Result Code 6 (administrative) for the
-             tunnel with the given local tunnel ID.";
+        description "Send StopCCN Result Code 6 (administrative) for the tunnel with the given local tunnel ID.";
         input {
             leaf tunnel-id {
                 type uint16;
@@ -260,9 +248,7 @@ module ze-l2tp-api {
     }
 
     rpc tunnel-teardown-all {
-        description
-            "Send StopCCN Result Code 6 (administrative) for every
-             live tunnel on every listener.";
+        description "Send StopCCN Result Code 6 (administrative) for every live tunnel on every listener.";
         output {
             leaf result {
                 type string;
@@ -272,9 +258,7 @@ module ze-l2tp-api {
     }
 
     rpc session-teardown {
-        description
-            "Send CDN Result Code 3 (administrative) for the session
-             with the given local session ID.";
+        description "Send CDN Result Code 3 (administrative) for the session with the given local session ID.";
         input {
             leaf session-id {
                 type uint16;
@@ -291,10 +275,8 @@ module ze-l2tp-api {
     }
 
     rpc session-teardown-all {
-        description
-            "Send CDN Result Code 3 (administrative) for every live
-             session on every tunnel on every listener. Tunnels are
-             not torn down.";
+        description "Send CDN Result Code 3 (administrative) for every live session on every tunnel on every listener.";
+        ze:help "The tunnels are not torn down.";
         output {
             leaf result {
                 type string;
@@ -308,14 +290,12 @@ module ze-l2tp-api {
     // -----------------------------------------------------------------
 
     rpc outgoing-call {
-        description
-            "Place an LNS-side outgoing call toward a configured remote
-             (RFC 2661 Section 10.4). Dials the remote if no tunnel is up,
-             sends OCRQ, and blocks until the call establishes or fails.
-             The response reports whether the call came up and, on failure,
-             the cause and RFC 2661 Result Code (tunnel authentication
-             reject, tie-breaker loss, peer CDN, or timeout). The named
-             remote MUST have outgoing-calls enabled.";
+        description "Place an LNS-side outgoing call toward a configured remote (RFC 2661 Section 10.4).";
+        ze:help "Dials the remote if no tunnel is up, sends OCRQ, and blocks
+until the call establishes or fails. The response reports whether the call came
+up and, on failure, the cause and RFC 2661 Result Code (tunnel authentication
+reject, tie-breaker loss, peer CDN, or timeout). The named remote MUST have
+outgoing-calls enabled.";
         input {
             leaf remote {
                 type string;

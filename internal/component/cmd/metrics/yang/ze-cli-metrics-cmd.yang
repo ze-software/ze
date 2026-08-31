@@ -11,21 +11,21 @@ module ze-cli-metrics-cmd {
 
         container metrics {
             config false;
-            description "Access Prometheus metrics and internal pool stats";
+            description "Access Prometheus metrics and internal pool stats.";
 
             container values {
                 config false;
                 ze:command "ze-bgp:metrics-values";
-                description "Dump all metrics in Prometheus text format.
-Outputs every registered metric with labels and values. Suitable
+                description "Dump all metrics in Prometheus text format.";
+                ze:help "Outputs every registered metric with labels and values. Suitable
 for feeding into Prometheus, Grafana, or curl-based monitoring.";
             }
 
             container list {
                 config false;
                 ze:command "ze-bgp:metrics-list";
-                description "List all registered metric names (no values).
-Useful for discovering what metrics exist before querying them.";
+                description "List all registered metric names (no values).";
+                ze:help "Useful for discovering what metrics exist before querying them.";
             }
         }
     }

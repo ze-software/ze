@@ -7,14 +7,14 @@ module ze-doctor-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container doctor {
             config false;
             ze:command "ze-show:doctor";
-            description "Check if this box is ready to run Ze.
-Verifies runtime dependencies: required files, sockets, ports, and
-kernel modules. Each check reports pass or fail with a reason. Run
+            description "Check if this box is ready to run Ze.";
+            ze:help "Verifies runtime dependencies: required files, sockets,
+ports, and kernel modules. Each check reports pass or fail with a reason. Run
 this before first start or after changing the platform setup.";
         }
     }

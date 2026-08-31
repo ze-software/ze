@@ -7,23 +7,23 @@ module ze-ntp-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container system {
             config false;
 
             container ntp {
                 config false;
-                description "NTP clock synchronization status";
+                description "NTP clock synchronization status.";
 
                 ze:command "ze-show:system-ntp";
 
                 container peers {
                     config false;
                     ze:command "ze-show:system-ntp-peers";
-                    description "Show NTP peers with offset, RTT, stratum, and reachability.
-Tells you whether your clock is synced and how far off each
-NTP server thinks you are.";
+                    description "Show NTP peers with offset, RTT, stratum, and reachability.";
+                    ze:help "Tells you whether your clock is synced and how far off each NTP server thinks
+you are.";
                 }
             }
         }

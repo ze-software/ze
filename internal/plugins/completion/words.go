@@ -59,19 +59,33 @@ func writeWords(w io.Writer, args []string) int {
 		if s.Type == "pipe" {
 			continue
 		}
-		// Shell completion is one row per candidate: collapse multi-line YANG
-		// descriptions to their first line (the synopsis). The remaining lines
-		// carry grammar/action detail that belongs in `ze yang doc`, and emitting
-		// them raw would break the word\tdescription contract.
-		desc := s.Description
-		if before, _, ok := strings.Cut(desc, "\n"); ok {
-			desc = before
-		}
-		if _, err := io.WriteString(w, s.Text+"\t"+desc+"\n"); err != nil {
+		if err := writeCompletionRecord(w, s.Text, s.Description); err != nil {
 			return 1
 		}
 	}
 	return 0
+}
+
+// writeCompletionRecord writes one shell-completion record. The record is the
+// candidate, a tab, its summary, a newline. Every shell generator reads that
+// shape. A tab or a newline inside the summary makes the shell read one
+// candidate as two, or read half the summary as a third field.
+//
+// A summary carrying either one is FOLDED to single spaces, never cut. Folding
+// loses no word and decides nothing. It answers the format's one-line
+// constraint, the same answer the TUI completion pane gives the same problem
+// (internal/component/cli/model_render.go). The cut that stood here until this
+// spec published the first line as if the author had chosen it as the summary.
+// It dropped the rest and logged nothing. A summary is declared one line long,
+// so on a converted node this folds nothing.
+func writeCompletionRecord(w io.Writer, candidate, summary string) error {
+	if strings.ContainsAny(summary, "\n\r\t") {
+		summary = textbuf.Join(strings.Fields(summary), " ")
+	}
+	var record textbuf.Buffer
+	record.Str(candidate).Byte('\t').Str(summary).Byte('\n')
+	_, err := io.WriteString(w, record.String())
+	return err
 }
 
 // The two command paths this file names more than once: the read-only verb that

@@ -4,12 +4,8 @@
 package command
 
 import (
-	"fmt"
-	"io"
 	"sort"
-	"strings"
 
-	"github.com/ze-software/ze/internal/core/helpfmt"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -47,41 +43,6 @@ func FindNode(root *Node, path []string) *Node {
 	return current
 }
 
-// writeHelp writes formatted help for the node at the given path.
-// If path is nil/empty, writes top-level help (lists children of root).
-// Returns true if the path was found, false if the path does not exist or root is nil.
-func writeHelp(w io.Writer, root *Node, path []string) bool {
-	if root == nil {
-		return false
-	}
-	node := root
-	if len(path) > 0 {
-		node = FindNode(root, path)
-		if node == nil {
-			return false
-		}
-	}
-
-	names := listedChildNames(node)
-	if len(names) == 0 {
-		if node.Description != "" {
-			writeHelpLine(w, node.Description)
-		}
-		return true
-	}
-
-	for _, name := range names {
-		child := node.Children[name]
-		desc := child.Description
-		if desc == "" && len(child.Children) > 0 {
-			desc = describeChildren(child)
-		}
-		writeHelpEntry(w, name, desc)
-	}
-
-	return true
-}
-
 // listedChildNames names the children a help page lists, sorted.
 //
 // A `ze:modifier "choice"` child is left out: its name is never typed, so it is
@@ -101,7 +62,7 @@ func listedChildNames(node *Node) []string {
 	return names
 }
 
-// HelpEntry is a name + description pair for use with helpfmt.
+// HelpEntry is a name + summary pair for a help section row.
 type HelpEntry struct {
 	Name string
 	Desc string
@@ -135,20 +96,6 @@ func HelpEntries(root *Node, path []string) []HelpEntry {
 		entries = append(entries, HelpEntry{Name: name, Desc: desc})
 	}
 	return entries
-}
-
-// writeHelpLine writes indented description lines to w.
-// Help output goes to stderr; write errors are not actionable.
-func writeHelpLine(w io.Writer, text string) {
-	for line := range strings.SplitSeq(text, "\n") {
-		fmt.Fprintf(w, "  %s\n", strings.TrimRight(line, " ")) //nolint:errcheck // help output to stderr
-	}
-}
-
-// writeHelpEntry writes a formatted name + description line to w.
-// Help output goes to stderr; write errors are not actionable.
-func writeHelpEntry(w io.Writer, name, desc string) {
-	fmt.Fprintf(w, "  %-16s %s\n", name, helpfmt.Summary(desc)) //nolint:errcheck // help output to stderr
 }
 
 // describeChildren returns a summary of a node's children for grouping nodes

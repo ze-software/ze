@@ -1,0 +1,33 @@
+# Test: a shell-completion record carries the DECLARED SUMMARY, on one line
+# VALIDATES: AC-5 -- every completion candidate receives the command's summary,
+#            verbatim, and no newline can reach the `name`-tab-`description`
+#            shell record format
+# PREVENTS: the pre-spec completion path, which handed a candidate the whole
+#           multi-line description and cut it at the first newline, so a shell
+#           read a truncated summary and could read the rest as a third field
+# NOTE: one command on purpose. `reject=stdout:` matches the ACCUMULATED stdout
+#       of every command in the file, so the format reject below is meaningful
+#       only while this is the only command.
+# NOTE: `show bgp rib` is the path because three of its children declare a
+#       summary AND a separate multi-line `ze:help`
+#       (internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang), so the
+#       two texts are distinguishable in the record.
+
+cmd=foreground:seq=1:exec=ze completion words run show bgp rib
+expect=exit:code=0
+
+# One record, whole: the candidate, a tab, the DECLARED SUMMARY, end of line.
+# The trailing `$` is what pins the summary to a single line; the anchored
+# literal is what pins it to the summary rather than to a truncation of it.
+expect=stdout:pattern=(?m)^rpf\tReverse-path forwarding lookup in the Loc-RIB\.$
+expect=stdout:pattern=(?m)^status\tGet a quick RIB overview without dumping routes\.$
+expect=stdout:pattern=(?m)^best\tShow the winning route for each prefix\.$
+
+# The long form belongs to the command's own help page. No candidate receives it.
+reject=stdout:contains=Performs a longest-prefix-match
+reject=stdout:contains=per-family breakdowns
+
+# The format itself. Every line of this output is one record, so every line
+# carries a tab. A newline reaching a description would emit a continuation line
+# with no tab on it, and this refuses that line.
+reject=stdout:pattern=(?m)^[^\t\n]+$

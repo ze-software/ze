@@ -11,12 +11,12 @@ module ze-command-meta-api {
     description "Relocated from central meta API schema (plugin self-containment).";
   }
 
-  rpc help { description "List subcommands"; }
-  rpc command-list { description "List commands"; }
-  rpc command-help { description "Show command details"; }
-  rpc command-complete { description "Complete command/args"; }
-  rpc event-list { description "List available event types"; }
-  rpc plugin-encoding { description "Set event encoding (json|text)"; }
-  rpc plugin-format { description "Set wire format (hex|base64|parsed|full)"; }
-  rpc plugin-ack { description "Set ACK timing (sync|async)"; }
+  rpc help { description "List subcommands."; }
+  rpc command-list { description "List commands."; }
+  rpc command-help { description "Show command details."; }
+  rpc command-complete { description "Complete command/args."; }
+  rpc event-list { description "List available event types."; }
+  rpc plugin-encoding { description "Set event encoding (json|text)."; }
+  rpc plugin-format { description "Set wire format (hex|base64|parsed|full)."; }
+  rpc plugin-ack { description "Set ACK timing (sync|async)."; }
 }

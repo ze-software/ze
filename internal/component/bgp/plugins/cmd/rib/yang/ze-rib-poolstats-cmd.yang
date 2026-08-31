@@ -10,13 +10,13 @@ module ze-rib-poolstats-cmd {
 
         container metrics {
             config false;
-            description "Access Prometheus metrics and internal pool stats";
+            description "Access Prometheus metrics and internal pool stats.";
 
             container pool {
                 config false;
                 ze:command "ze-bgp:pool-stats";
-                description "Show attribute pool memory usage and dedup efficiency.
-Returns allocated entries, reference counts, and deduplication hit
+                description "Show attribute pool memory usage and dedup efficiency.";
+                ze:help "Returns allocated entries, reference counts, and deduplication hit
 rates per attribute type. Watch the dedup rate to gauge how much
 memory pooling is saving you.";
             }

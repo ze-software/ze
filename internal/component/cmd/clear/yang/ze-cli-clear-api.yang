@@ -8,6 +8,6 @@ module ze-cli-clear-api {
      session stats. Differs from `del` in that nothing is removed from
      the running config -- only accumulated runtime state is zeroed.";
 
-  rpc interface-counters { description "Reset RX/TX counters on one or all interfaces"; }
-  rpc dns-cache { description "Flush DNS cache entries or reset cache counters"; }
+  rpc interface-counters { description "Reset RX/TX counters on one or all interfaces."; }
+  rpc dns-cache { description "Flush DNS cache entries or reset cache counters."; }
 }

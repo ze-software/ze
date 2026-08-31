@@ -7,56 +7,55 @@ module ze-update-firmware-cmd {
 
     container update {
         config false;
-        description "Pull fresh data from external sources or manage firmware";
+        description "Pull fresh data from external sources or manage firmware.";
 
         container system {
             config false;
-            description "System firmware lifecycle management";
+            description "System firmware lifecycle management.";
 
             container firmware {
                 config false;
-                description "Check, download, apply, and rollback firmware";
+                description "Check, download, apply, and rollback firmware.";
 
                 container check {
                     config false;
                     ze:command "ze-update:system-firmware-check";
-                    description "Check for a new firmware version right now.
-Bypasses the scheduled interval timer and contacts the update server
+                    description "Check for a new firmware version right now.";
+                    ze:help "Bypasses the scheduled interval timer and contacts the update server
 immediately. Compare the result with 'show system update'.";
                 }
 
                 container download {
                     config false;
                     ze:command "ze-update:system-firmware-download";
-                    description "Download the latest firmware image right now.
-Bypasses the maintenance window and spread timers. The image is
-staged but not applied. Use 'update system firmware apply' or
-'restart' to activate it.";
+                    description "Download the latest firmware image right now.";
+                    ze:help "Bypasses the maintenance window and spread timers. The image is staged but not
+applied. Use 'update system firmware apply' or 'restart' to activate it.";
                 }
 
                 container apply {
                     config false;
                     ze:command "ze-update:system-firmware-apply";
-                    description "Full upgrade: download, verify, stage, and restart.
-Runs the complete update cycle in one command. Only available on
-platforms where Ze owns the update lifecycle (e.g. gokrazy).
-The box will reboot into the new version.";
+                    description "Full upgrade: download, verify, stage, and restart.";
+                    ze:help "Runs the complete update cycle in one command. Only available on platforms
+where Ze owns the update lifecycle (e.g. gokrazy). The box will reboot into
+the new version.";
                 }
 
                 container restart {
                     config false;
                     ze:command "ze-update:system-firmware-restart";
-                    description "Reboot into the already-staged firmware.
-No download happens. Use this after 'update system firmware download'
-when you are ready to activate the new version.";
+                    description "Reboot into the already-staged firmware.";
+                    ze:help "No download happens. Use this after 'update system firmware download' when you
+are ready to activate the new version.";
                 }
 
                 container rollback {
                     config false;
                     ze:command "ze-update:system-firmware-rollback";
-                    description "Roll back to the previous firmware and restart.
-Reverts to the prior image. Only available on platforms with A/B
-partitioning (e.g. gokrazy). Use this if the new version has issues.";
+                    description "Roll back to the previous firmware and restart.";
+                    ze:help "Reverts to the prior image. Only available on platforms with A/B partitioning
+(e.g. gokrazy). Use this if the new version has issues.";
                 }
             }
         }

@@ -1,0 +1,22 @@
+# Test: the published catalog carries a command's two help texts as two keys
+# VALIDATES: AC-6 -- ze help command --json answers with `description` and
+#            `long-help` as two distinct lowercase kebab-case keys for a
+#            command that declares both, each rendered whole
+# PREVENTS: one authored string published twice, or a long explanation cut to
+#           make a summary, which is the guess this spec deletes
+# NOTE: `rpf` selects exactly one catalog entry, `show bgp rib rpf`, so every
+#       assertion below is about that one entry. The exec string is split on
+#       whitespace by the runner, so the selector cannot be a quoted path.
+
+cmd=foreground:seq=1:exec=ze help command rpf --json
+expect=exit:code=0
+
+expect=stdout:contains="path": "show bgp rib rpf"
+
+# The summary, whole, under `description`.
+expect=stdout:contains="description": "Reverse-path forwarding lookup in the Loc-RIB."
+
+# The long explanation, whole, under `long-help`. It is a second declaration,
+# not the summary again, and the line break its author wrote survives as \n
+# inside the JSON string.
+expect=stdout:contains="long-help": "Performs a longest-prefix-match and returns the best-path entry.\nUse this to verify RPF checks would pass for a given source."

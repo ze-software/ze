@@ -61,7 +61,8 @@ type PluginRegistration struct {
 	Families               []string            // Address families (e.g., "ipv4/unicast", "all")
 	DecodeFamilies         []string            // Families this plugin decodes (claimed via "declare family X decode")
 	Commands               []string            // Command names to register
-	CommandDescriptions    map[string]string   // Command name -> description (from CommandDecl)
+	CommandDescriptions    map[string]string   // Command name -> one-line summary (from CommandDecl.Description)
+	CommandLongHelp        map[string]string   // Command name -> long explanation (from CommandDecl.LongHelp); absent means the plugin declared none
 	CommandHidden          map[string]bool     // Command name -> hidden from completion (from CommandDecl)
 	CommandCompletable     map[string]bool     // Command name -> process handles arg completion (from CommandDecl)
 	CommandDeprecatedNames map[string][]string // Canonical command name -> deprecated aliases

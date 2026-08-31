@@ -11,28 +11,28 @@ module ze-cli-show-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container version {
             config false;
             ze:command "ze-show:version";
-            description "Show the running Ze version and build date.
-You can verify which release is deployed on this box.";
+            description "Show the running Ze version and build date.";
+            ze:help "You can verify which release is deployed on this box.";
         }
 
         container uptime {
             config false;
             ze:command "ze-show:uptime";
-            description "Show how long the daemon has been running.
-Returns the start time and elapsed uptime. Handy after a maintenance
+            description "Show how long the daemon has been running.";
+            ze:help "Returns the start time and elapsed uptime. Handy after a maintenance
 window to confirm the process restarted.";
         }
 
         container reload-status {
             config false;
             ze:command "ze-show:reload-status";
-            description "Show how many config reloads the daemon has processed.
-Returns a generation counter, the outcome of the most recent reload
+            description "Show how many config reloads the daemon has processed.";
+            ze:help "Returns a generation counter, the outcome of the most recent reload
 (applied or failed), and when it finished. The counter advances on every
 processed reload, including one that rejected or changed nothing, so you
 can confirm a SIGHUP was acted on even when it deliberately left the
@@ -41,13 +41,13 @@ running config alone.";
 
         container runtime {
             config false;
-            description "Go runtime internals of the daemon process";
+            description "Go runtime internals of the daemon process.";
 
             container memory {
                 config false;
                 ze:command "ze-show:system-memory";
-                description "Show the Go runtime allocator memory stats.
-Returns allocated bytes, heap in-use, total allocations, GC cycles, and
+                description "Show the Go runtime allocator memory stats.";
+                ze:help "Returns allocated bytes, heap in-use, total allocations, GC cycles, and
 last GC pause duration. Compare over time to spot leaks. For the OS-level
 process memory (RSS/VSZ) use 'show system memory'.";
             }
@@ -55,13 +55,13 @@ process memory (RSS/VSZ) use 'show system memory'.";
 
         container system {
             config false;
-            description "Daemon process and runtime diagnostics";
+            description "Daemon process and runtime diagnostics.";
 
             container memory {
                 config false;
                 ze:command "ze-show:system-memory-map";
-                description "Show how much memory the daemon is using, from the OS's view.
-Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status
+                description "Show how much memory the daemon is using, from the OS's view.";
+                ze:help "Returns VmRSS, VmSize, VmSwap, and thread count from /proc/self/status
 (Linux only). This is what the operating system reports the process is
 using. For the Go runtime allocator view (heap, GC), use
 'show runtime memory'.";
@@ -70,8 +70,8 @@ using. For the Go runtime allocator view (heap, GC), use
             container cpu {
                 config false;
                 ze:command "ze-show:system-cpu";
-                description "Show CPU utilization context for the daemon.
-Returns goroutine count, logical CPU count, and GOMAXPROCS setting.
+                description "Show CPU utilization context for the daemon.";
+                ze:help "Returns goroutine count, logical CPU count, and GOMAXPROCS setting.
 Useful when the box feels sluggish and you want to see if Ze is
 hogging threads.";
             }
@@ -79,28 +79,28 @@ hogging threads.";
             container date {
                 config false;
                 ze:command "ze-show:system-date";
-                description "Show the daemon's current wall-clock time and timezone.
-Useful for correlating log timestamps when the box is in a
+                description "Show the daemon's current wall-clock time and timezone.";
+                ze:help "Useful for correlating log timestamps when the box is in a
 different timezone than you are.";
             }
 
             container platform {
                 config false;
                 ze:command "ze-show:system-platform";
-                description "Show what kind of platform the daemon is running on.
-Reports whether this is gokrazy, systemd, container, plain-linux, or
+                description "Show what kind of platform the daemon is running on.";
+                ze:help "Reports whether this is gokrazy, systemd, container, plain-linux, or
 darwin, along with platform-specific capabilities.";
             }
 
             container subsystem {
                 config false;
-                description "Subsystem lifecycle and state";
+                description "Subsystem lifecycle and state.";
 
                 container list {
                     config false;
                     ze:command "ze-show:system-subsystem-list";
-                    description "List every registered subsystem and whether it is running.
-Shows you which components (bgp, dns, web, l2tp, etc.) are active,
+                    description "List every registered subsystem and whether it is running.";
+                    ze:help "Shows you which components (bgp, dns, web, l2tp, etc.) are active,
 stopped, or failed.";
                 }
             }
@@ -117,8 +117,8 @@ stopped, or failed.";
             container sockets {
                 config false;
                 ze:command "ze-show:system-sockets";
-                description "Show open TCP and UDP sockets on this box.
-Every filter is optional and they combine. States use
+                description "Show open TCP and UDP sockets on this box.";
+                ze:help "Every filter is optional and they combine. States use
 kernel names (ESTABLISHED, LISTEN, TIME_WAIT).
 Linux only. Good for confirming listeners or spotting stuck connections.";
                 leaf protocol {
@@ -144,8 +144,8 @@ Linux only. Good for confirming listeners or spotting stuck connections.";
             container goroutines {
                 config false;
                 ze:command "ze-show:system-goroutines";
-                description "Dump goroutine stacks for debugging hangs or deadlocks.
-Modes: summary (groups by state), blocked (only lock/channel waiters),
+                description "Dump goroutine stacks for debugging hangs or deadlocks.";
+                ze:help "Modes: summary (groups by state), blocked (only lock/channel waiters),
 full (all stacks). Default: summary. Share the output with support
 when the daemon stops responding.";
                 leaf mode {
@@ -161,8 +161,8 @@ when the daemon stops responding.";
             container file-descriptors {
                 config false;
                 ze:command "ze-show:system-file-descriptors";
-                description "Show how many file descriptors the daemon has open.
-Summary mode: totals by type (socket, pipe, file). Detail mode: every
+                description "Show how many file descriptors the daemon has open.";
+                ze:help "Summary mode: totals by type (socket, pipe, file). Detail mode: every
 fd with its path and type. Linux only (reads /proc/self/fd). Check
 this when you suspect fd exhaustion.";
                 leaf mode {
@@ -177,8 +177,8 @@ this when you suspect fd exhaustion.";
             container profile {
                 config false;
                 ze:command "ze-show:system-profile";
-                description "Capture a runtime profile for performance analysis.
-Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs
+                description "Capture a runtime profile for performance analysis.";
+                ze:help "Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs
 (instant snapshots). Output is pprof format you can open with
 'go tool pprof'. Send the file to support for deep analysis.";
                 leaf type {
@@ -212,8 +212,8 @@ Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs
         container warnings {
             config false;
             ze:command "ze-show:warnings";
-            description "Show active warnings across all subsystems.
-Displays any conditions that need your attention (degraded peers,
+            description "Show active warnings across all subsystems.";
+            ze:help "Displays any conditions that need your attention (degraded peers,
 resource limits approaching, etc.). Use 'source <name>' to filter
 to a single subsystem.";
         }
@@ -228,8 +228,8 @@ to a single subsystem.";
         container audit {
             config false;
             ze:command "ze-show:audit";
-            description "Show who did what and when on this box.
-Returns audit log entries with timestamps, actors, and actions.
+            description "Show who did what and when on this box.";
+            ze:help "Returns audit log entries with timestamps, actors, and actions.
 Filters (all optional, combinable): action <type>, actor <name>,
 surface <name> (cli, web, api), since/until <RFC3339>, count <N>.
 Actions include config-commit, login, peer-teardown, and more.";
@@ -262,8 +262,8 @@ Actions include config-commit, login, peer-teardown, and more.";
         container errors {
             config false;
             ze:command "ze-show:errors";
-            description "Show recent errors across all subsystems, newest first.
-This is the first place to look when something goes wrong. Filter
+            description "Show recent errors across all subsystems, newest first.";
+            ze:help "This is the first place to look when something goes wrong. Filter
 with source <name> to narrow to one subsystem, count <N> to limit
 output.";
         }
@@ -274,8 +274,8 @@ output.";
         container health {
             config false;
             ze:command "ze-show:health";
-            description "Is this box healthy? One command to find out.
-Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.)
+            description "Show the health of every component and the overall status of this box.";
+            ze:help "Returns per-component health (bgp, fib, iface, plugins, l2tp, etc.)
 plus an overall status. Each component reports healthy, degraded, or
 unhealthy with a reason. Start here when troubleshooting.
 This runs a probe NOW and reports what the daemon is doing at this
@@ -288,20 +288,21 @@ outcome each plugin recorded once, before main(), when it set itself up.";
 
         container metrics {
             config false;
-            description "Access Prometheus metrics and internal pool stats";
+            description "Access Prometheus metrics and internal pool stats.";
 
             container name {
                 config false;
                 ze:command "ze-show:metrics-query";
-                description "Show one Prometheus metric by name.
-Returns matching time series from the internal registry. Multiple label
+                description "Show one Prometheus metric by name.";
+                ze:help "Returns matching time series from the internal registry. Multiple label
 filters are ANDed. More targeted than the full metrics dump.";
                 leaf name { type string { length "1..128"; } mandatory true; description "Prometheus metric name"; }
 
                 container label {
                     config false;
                     ze:modifier "repeat";
-                    description "A label and the value it must hold for a series to be reported. Every filter given must match.";
+                    description "A label and the value it must hold for a series to be reported.";
+                    ze:help "Every filter given must match.";
                     leaf key { type string { length "1..128"; } mandatory true; description "Prometheus label name"; }
                     leaf value { type string { length "1..256"; } mandatory true; description "The value the label must hold"; }
                 }
@@ -313,13 +314,13 @@ filters are ANDed. More targeted than the full metrics dump.";
 
         container event {
             config false;
-            description "Internal event history and namespace discovery";
+            description "Internal event history and namespace discovery.";
 
             container recent {
                 config false;
                 ze:command "ze-show:event-recent";
-                description "Show recent events, newest first.
-Each event includes timestamp, namespace, and type. Filter with
+                description "Show recent events, newest first.";
+                ze:help "Each event includes timestamp, namespace, and type. Filter with
 namespace <name> to focus on one area, count <N> to limit output.
 Useful for reconstructing what happened before an incident.";
             }
@@ -327,16 +328,16 @@ Useful for reconstructing what happened before an incident.";
             container namespaces {
                 config false;
                 ze:command "ze-show:event-namespaces";
-                description "List all event namespaces and how many events each has logged.
-Tells you which subsystems are generating events and how active
+                description "List all event namespaces and how many events each has logged.";
+                ze:help "Tells you which subsystems are generating events and how active
 they are.";
             }
 
             container delivery {
                 config false;
                 ze:command "ze-show:event-delivery";
-                description "Show which peers feed which attached processes.
-One block per peer, one row per `attach process` block on it: the
+                description "Show which peers feed which attached processes.";
+                ze:help "One block per peer, one row per `attach process` block on it: the
 event types that process is fed, and the message types it may send
 toward that peer. A token the event registry does not know is listed
 as unresolved and carries no edge. Answer to 'why does my program
@@ -369,13 +370,13 @@ see nothing from this peer'.";
 
         container policy {
             config false;
-            description "Inspect and test route policy filters";
+            description "Inspect and test route policy filters.";
 
             container list {
                 config false;
                 ze:command "ze-show:policy-list";
-                description "List all available filter types and named instances.
-Shows each filter type and its implementing plugin. Check here
+                description "List all available filter types and named instances.";
+                ze:help "Shows each filter type and its implementing plugin. Check here
 when building a new policy chain to see what filters you can use.";
             }
 

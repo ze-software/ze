@@ -2075,7 +2075,7 @@ func TestBuiltinPathsResolveToTheirOwnHandler(t *testing.T) {
 	assert.Contains(t, wireToPaths["ze-bgp:overview"], "show bgp", "the container command must produce the bare path")
 
 	d := NewDispatcher()
-	loadBuiltinsWithAliases(d, wireToPaths, yang.PathToDescription(loader),
+	loadBuiltinsWithAliases(d, wireToPaths, yang.PathToDescription(loader), yang.PathToHelp(loader),
 		yang.PathToArgDefs(loader), yang.BuildCommandTree(loader))
 
 	cases := []struct {
@@ -2139,7 +2139,7 @@ func TestShowBgpSummaryIsNotRegistered(t *testing.T) {
 	}
 
 	d := NewDispatcher()
-	loadBuiltinsWithAliases(d, wireToPaths, yang.PathToDescription(loader),
+	loadBuiltinsWithAliases(d, wireToPaths, yang.PathToDescription(loader), yang.PathToHelp(loader),
 		yang.PathToArgDefs(loader), yang.BuildCommandTree(loader))
 
 	assert.Nil(t, d.Lookup("show bgp summary"), "no dispatcher key answers the retired path")
@@ -2188,7 +2188,7 @@ func TestNoArgTakingKeyIsAPrefixOfAnotherPath(t *testing.T) {
 
 	pathToArgDefs := yang.PathToArgDefs(loader)
 	d := NewDispatcher()
-	loadBuiltinsWithAliases(d, yang.WireMethodToPaths(loader), yang.PathToDescription(loader),
+	loadBuiltinsWithAliases(d, yang.WireMethodToPaths(loader), yang.PathToDescription(loader), yang.PathToHelp(loader),
 		pathToArgDefs, yang.BuildCommandTree(loader))
 
 	keys := make([]string, 0, len(d.commands))
@@ -2239,7 +2239,7 @@ func BenchmarkMatchBuiltinTokens(b *testing.B) {
 	require.NoError(b, err, "load YANG")
 
 	d := NewDispatcher()
-	loadBuiltinsWithAliases(d, yang.WireMethodToPaths(loader), yang.PathToDescription(loader),
+	loadBuiltinsWithAliases(d, yang.WireMethodToPaths(loader), yang.PathToDescription(loader), yang.PathToHelp(loader),
 		yang.PathToArgDefs(loader), yang.BuildCommandTree(loader))
 
 	inputs := map[string][]string{

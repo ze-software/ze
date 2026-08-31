@@ -22,18 +22,18 @@ const determinismRuns = 50
 // two-token command, and a first token with only depth-1 commands (metrics).
 func orderProbeCommands() []CommandInfo {
 	return []CommandInfo{
-		{Name: "show bgp rib status", Help: "RIB summary"},
-		{Name: "show bgp rib best", Help: "Best paths"},
-		{Name: "show bgp peer list", Help: "List peers"},
-		{Name: "show bgp peer detail", Help: "Peer detail"},
-		{Name: "show config dump", Help: "Dump config"},
-		{Name: "show config diff", Help: "Diff config"},
-		{Name: "show schema tree", Help: "Schema tree"},
-		{Name: "show version", Help: "Version"},
-		{Name: "metrics list", Help: "List metrics"},
-		{Name: "metrics values", Help: "Metric values"},
-		{Name: "clear bgp peer counters", Help: "Clear counters"},
-		{Name: "clear dns cache", Help: "Clear DNS cache"},
+		{Name: "show bgp rib status", Description: "RIB summary"},
+		{Name: "show bgp rib best", Description: "Best paths"},
+		{Name: "show bgp peer list", Description: "List peers"},
+		{Name: "show bgp peer detail", Description: "Peer detail"},
+		{Name: "show config dump", Description: "Dump config"},
+		{Name: "show config diff", Description: "Diff config"},
+		{Name: "show schema tree", Description: "Schema tree"},
+		{Name: "show version", Description: "Version"},
+		{Name: "metrics list", Description: "List metrics"},
+		{Name: "metrics values", Description: "Metric values"},
+		{Name: "clear bgp peer counters", Description: "Clear counters"},
+		{Name: "clear dns cache", Description: "Clear DNS cache"},
 	}
 }
 

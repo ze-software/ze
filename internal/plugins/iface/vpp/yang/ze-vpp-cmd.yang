@@ -7,49 +7,47 @@ module ze-vpp-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container vpp {
             config false;
             ze:backend "vpp";
-            description "VPP dataplane tracing and runtime statistics";
+            description "VPP dataplane tracing and runtime statistics.";
 
             container trace {
                 config false;
-                description "Capture and inspect VPP dataplane packet traces";
+                description "Capture and inspect VPP dataplane packet traces.";
 
                 container start {
                     config false;
                     ze:command "ze-show:vpp-trace-start";
-                    description "Start capturing packets in the VPP dataplane.
-Default input node is dpdk-input, default count is 100 (max 10000).
-After starting, use 'show vpp trace show' to retrieve the captured
-packets. Requires the VPP backend.";
+                    description "Start capturing packets in the VPP dataplane.";
+                    ze:help "Default input node is dpdk-input, default count is 100 (max 10000). After
+starting, use 'show vpp trace show' to retrieve the captured packets. Requires
+the VPP backend.";
                 }
 
                 container show {
                     config false;
                     ze:command "ze-show:vpp-trace-show";
-                    description "Retrieve packets captured since the last trace start.
-Shows per-packet VPP graph node traversal. Requires the VPP backend.";
+                    description "Retrieve packets captured since the last trace start.";
+                    ze:help "Shows per-packet VPP graph node traversal. Requires the VPP backend.";
                 }
 
                 container clear {
                     config false;
                     ze:command "ze-show:vpp-trace-clear";
-                    description "Discard the captured VPP trace buffer.
-Clears all packets so you can start a fresh trace. Requires the
-VPP backend.";
+                    description "Discard the captured VPP trace buffer.";
+                    ze:help "Clears all packets so you can start a fresh trace. Requires the VPP backend.";
                 }
             }
 
             container runtime {
                 config false;
                 ze:command "ze-show:vpp-runtime";
-                description "Show VPP graph node processing statistics.
-Returns per-node packet counts, vectors, clocks, and suspends.
-Helps you find which node is the bottleneck. Requires the VPP
-backend.";
+                description "Show VPP graph node processing statistics.";
+                ze:help "Returns per-node packet counts, vectors, clocks, and suspends. Helps you find
+which node is the bottleneck. Requires the VPP backend.";
             }
         }
     }

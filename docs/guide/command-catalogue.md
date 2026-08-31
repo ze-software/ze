@@ -13,7 +13,7 @@ cross-vendor migration surface. For what ze ships today, see
 Code-tree readers can inspect the curated mapping in
 [`website/data/command-equivalents.json`](https://github.com/ze-software/ze/blob/main/website/data/command-equivalents.json).
 The native renderer joins it with the live command registry.
-<!-- source: internal/le/docvalid/command_render.go -- RenderCommandSurfaces -->
+<!-- source: internal/le/site/equivalents.go -- renderCommandEquivalents -->
 <!-- source: website/data/command-equivalents.json -- vendor mapping -->
 
 ## How to read this

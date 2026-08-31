@@ -75,3 +75,51 @@ func TestFamilyFlagValues(t *testing.T) {
 		}
 	}
 }
+
+// TestShellCompletionRejectsNewlineInSummary drives the shell-completion
+// emitter with descriptions that hold a newline and a tab. The record format is
+// `name`, tab, `description`, newline, so either one makes the shell read one
+// candidate as two.
+//
+// VALIDATES: AC-5 -- no newline and no tab reaches the tab-separated shell
+// format, the record count matches the candidate count, and every word of the
+// declared text survives.
+// PREVENTS: the first-newline cut that stood here until this spec. It
+// published the first line as if the author had chosen it as the summary. It
+// dropped the rest and logged nothing, so its tell is a MISSING second half.
+func TestShellCompletionRejectsNewlineInSummary(t *testing.T) {
+	registry.RegisterCommandFlags("ze-newline-cmd sub", []registry.FlagSpec{
+		{Name: "--wrapped", Description: "First half.\nSecond half.", ValueHint: registry.FlagValueNone},
+		{Name: "--tabbed", Description: "Left\tright", ValueHint: registry.FlagValueNone},
+		{Name: "--whole", Description: "Keep every word. The tail must survive.", ValueHint: registry.FlagValueNone},
+	})
+
+	var buf bytes.Buffer
+	if rc := writeFlags(&buf, []string{"ze-newline-cmd", "sub"}); rc != 0 {
+		t.Fatalf("writeFlags rc = %d", rc)
+	}
+
+	records := strings.Split(strings.TrimSuffix(buf.String(), "\n"), "\n")
+	if len(records) != 3 {
+		t.Fatalf("three flags produced %d records, want 3:\n%q", len(records), buf.String())
+	}
+
+	byName := make(map[string]string, len(records))
+	for _, record := range records {
+		name, description, ok := strings.Cut(record, "\t")
+		if !ok {
+			t.Fatalf("record %q is not name-tab-description", record)
+		}
+		byName[name] = description
+	}
+
+	for name, want := range map[string]string{
+		"--wrapped": "First half. Second half.",
+		"--tabbed":  "Left right",
+		"--whole":   "Keep every word. The tail must survive.",
+	} {
+		if byName[name] != want {
+			t.Errorf("flag %s came out as %q, want %q", name, byName[name], want)
+		}
+	}
+}

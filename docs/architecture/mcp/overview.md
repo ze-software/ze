@@ -399,6 +399,16 @@ daemon reference.
 Tools are derived at every `tools/list` call, so newly registered commands <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 become available without any MCP code changes (rule: `derive-not-hardcode`).
 
+A command declares two help texts, and the tool definition puts each where it
+reads well. `CommandInfo.Description` is the one-line summary, and it is what
+the `action` enum offers, one line for each action a model can pick.
+`CommandInfo.LongHelp` is the explanation from `ze:help`, and it reaches the
+tool's own `description`, which is the one place an MCP client shows a
+paragraph. A tool that IS one command carries both there, the summary first
+(`commandText`). Neither text is derived from the other and neither is
+truncated. `docs/architecture/api/commands.md` names every surface and the half
+it reads.
+
 A command that a plugin registers with `Hidden` never becomes a tool.
 `buildCommandMeta` skips it, so the tool list and the completion tree hide the
 same commands.

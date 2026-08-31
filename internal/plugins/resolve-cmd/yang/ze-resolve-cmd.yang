@@ -9,11 +9,11 @@ module ze-resolve-cmd {
 
     container resolve {
         config false;
-        description "DNS, ASN, PeeringDB, and IRR resolution tools";
+        description "DNS, ASN, PeeringDB, and IRR resolution tools.";
 
         container dns {
             config false;
-            description "DNS record lookups from the router";
+            description "DNS record lookups from the router.";
 
             container a {
                 config false;
@@ -30,8 +30,8 @@ module ze-resolve-cmd {
             container txt {
                 config false;
                 ze:command "ze-resolve:dns-txt";
-                description "Look up TXT records for a hostname.
-Returns all TXT strings.";
+                description "Look up TXT records for a hostname.";
+                ze:help "Returns all TXT strings.";
                 leaf hostname { type string { length "1..253"; } mandatory true; description "Hostname to look up"; }
             }
             container ptr {
@@ -44,75 +44,73 @@ Returns all TXT strings.";
 
         container cymru {
             config false;
-            description "AS number lookups via Team Cymru";
+            description "AS number lookups via Team Cymru.";
 
             container asn-name {
                 config false;
                 ze:command "ze-resolve:cymru-asn-name";
-                description "Find out who owns an AS number.
-Queries Team Cymru DNS to return the organization name for the ASN.";
+                description "Find out who owns an AS number.";
+                ze:help "Queries Team Cymru DNS to return the organization name for the ASN.";
                 leaf asn { type uint32; mandatory true; description "AS number"; }
             }
         }
 
         container peeringdb {
             config false;
-            description "PeeringDB lookups for peering information";
+            description "PeeringDB lookups for peering information.";
 
             container max-prefix {
                 config false;
                 ze:command "ze-resolve:peeringdb-max-prefix";
-                description "Get max-prefix limits for an ASN from PeeringDB.
-Returns IPv4 and IPv6 prefix limits. Apply via the config editor.";
+                description "Get max-prefix limits for an ASN from PeeringDB.";
+                ze:help "Returns IPv4 and IPv6 prefix limits. Apply via the config editor.";
                 leaf asn { type uint32; mandatory true; description "AS number"; }
             }
             container as-set {
                 config false;
                 ze:command "ze-resolve:peeringdb-as-set";
-                description "Find the IRR AS-SET registered for an ASN in PeeringDB.
-Feed the result into
-'resolve irr expand' to get the full member list.";
+                description "Find the IRR AS-SET registered for an ASN in PeeringDB.";
+                ze:help "Feed the result into 'resolve irr expand' to get the full member list.";
                 leaf asn { type uint32; mandatory true; description "AS number"; }
             }
         }
 
         container irr {
             config false;
-            description "Internet Routing Registry (WHOIS) queries";
+            description "Internet Routing Registry (WHOIS) queries.";
 
             container expand {
                 config false;
                 ze:command "ze-resolve:irr-expand";
-                description "Expand an AS-SET into its member AS numbers.
-Recursively resolves nested AS-SET objects via WHOIS into a flat
-list. Useful for building prefix filters from IRR data.";
+                description "Expand an AS-SET into its member AS numbers.";
+                ze:help "Recursively resolves nested AS-SET objects via WHOIS into a flat list. Useful
+for building prefix filters from IRR data.";
             }
             container prefix {
                 config false;
                 ze:command "ze-resolve:irr-prefix";
-                description "Get all prefixes announced by an AS-SET's members.
-Expands the AS-SET, then returns every route/route6 object for
-each member ASN. Use this to build or verify prefix filters.";
+                description "Get all prefixes announced by an AS-SET's members.";
+                ze:help "Expands the AS-SET, then returns every route/route6 object for each member
+ASN. Use this to build or verify prefix filters.";
             }
         }
     }
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container dns {
             config false;
-            description "DNS lookups and cache inspection";
+            description "DNS lookups and cache inspection.";
 
             container lookup {
                 config false;
                 ze:command "ze-show:dns-lookup";
-                description "Look up a DNS name from the router.
-Resolves <hostname> using the daemon's DNS resolver (falls back to
-the system resolver if no DNS component is configured). Default type
-is A. Returns records, TTL, and query time. Supports A, AAAA, MX,
-NS, TXT, CNAME, and PTR.";
+                description "Look up a DNS name from the router.";
+                ze:help "Resolves <hostname> using the daemon's DNS resolver (falls back to the system
+resolver if no DNS component is configured). Default type is A. Returns
+records, TTL, and query time. Supports A, AAAA, MX, NS, TXT, CNAME, and PTR.";
                 leaf hostname {
                     type string;
                     mandatory true;
@@ -134,7 +132,9 @@ NS, TXT, CNAME, and PTR.";
 
             container cache {
                 config false;
-                description "Inspect the DNS cache. Each operation is modeled as its own command so completion, help, and generated references show distinct read-only actions.";
+                description "Inspect the DNS cache.";
+                ze:help "Each operation is modeled as its own command so completion, help, and
+generated references show distinct read-only actions.";
 
                 container stats {
                     config false;
@@ -167,7 +167,7 @@ NS, TXT, CNAME, and PTR.";
 
         container dns {
             config false;
-            description "DNS cache clearing operations";
+            description "DNS cache clearing operations.";
 
             container cache {
                 config false;

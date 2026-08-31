@@ -36,8 +36,8 @@ Mode: daemon | Wire: `show_alpha`
 
 ### `show zeta`
 
-Zeta \| first
 Zeta details
+Zeta second line
 
 Mode: read-only | Wire: `show_zeta`
 Answer shape: `tab`

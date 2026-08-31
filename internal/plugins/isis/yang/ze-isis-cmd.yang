@@ -16,7 +16,7 @@ module ze-isis-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container isis {
             config false;
@@ -25,66 +25,65 @@ module ze-isis-cmd {
             container neighbor {
                 config false;
                 ze:command "ze-show:isis-neighbor";
-                description "Show IS-IS adjacencies.
-Returns the neighbor System ID, interface, level, adjacency state,
-and hold time for each IS-IS neighbor.";
+                description "Show IS-IS adjacencies.";
+                ze:help "Returns the neighbor System ID, interface, level, adjacency state, and hold
+time for each IS-IS neighbor.";
             }
 
             container database {
                 config false;
                 ze:command "ze-show:isis-database";
-                description "Show the IS-IS link-state database.
-Lists each LSP with its LSP ID, sequence number, remaining lifetime,
-checksum, and overload bit, across Level-1 and Level-2. The own field
-is true on the LSPs this node originated and false on the LSPs it
-learned from a neighbor.";
+                description "Show the IS-IS link-state database.";
+                ze:help "Lists each LSP with its LSP ID, sequence number, remaining lifetime, checksum,
+and overload bit, across Level-1 and Level-2. The own field is true on the
+LSPs this node originated and false on the LSPs it learned from a neighbor.";
 
                 container detail {
                     config false;
                     ze:command "ze-show:isis-database-detail";
-                    description "Show the IS-IS link-state database with TLV detail.
-Expands each LSP into its decoded TLVs (type, length, value) so you
-can read exactly what each node advertises. It carries the same fields
-as the summary view, the own field included.";
+                    description "Show the IS-IS link-state database with TLV detail.";
+                    ze:help "Expands each LSP into its decoded TLVs (type, length, value) so you can read
+exactly what each node advertises. It carries the same fields as the summary
+view, the own field included.";
                 }
             }
 
             container route {
                 config false;
                 ze:command "ze-show:isis-route";
-                description "Show IS-IS-computed routes.
-Lists each prefix the SPF installed with its metric, level, up/down
-bit, and next-hops (address and outgoing interface).";
+                description "Show IS-IS-computed routes.";
+                ze:help "Lists each prefix the SPF installed with its metric, level, up/down bit, and
+next-hops (address and outgoing interface).";
 
                 container ipv6 {
                     config false;
                     ze:command "ze-show:isis-route-ipv6";
-                    description "Show IS-IS-computed IPv6 routes (RFC 5308).
-Lists each IPv6 prefix the SPF installed with its metric, level,
-and next-hops (link-local address and outgoing interface).";
+                    description "Show IS-IS-computed IPv6 routes (RFC 5308).";
+                    ze:help "Lists each IPv6 prefix the SPF installed with its metric, level, and next-hops
+(link-local address and outgoing interface).";
                 }
             }
 
             container interface {
                 config false;
                 ze:command "ze-show:isis-interface";
-                description "Show IS-IS-enabled circuits.
-Returns level, circuit type, metric, hello interval, hold multiplier,
-passive flag, DIS state, and the count of Up adjacencies per circuit.";
+                description "Show IS-IS-enabled circuits.";
+                ze:help "Returns level, circuit type, metric, hello interval, hold multiplier, passive
+flag, DIS state, and the count of Up adjacencies per circuit.";
             }
 
             container hostname {
                 config false;
                 ze:command "ze-show:isis-hostname";
-                description "Show the IS-IS dynamic-hostname mapping (RFC 5301).
-Maps each System ID to the hostname it advertises in TLV 137.";
+                description "Show the IS-IS dynamic-hostname mapping (RFC 5301).";
+                ze:help "Maps each System ID to the hostname it advertises in TLV 137.";
             }
 
             container spf-log {
                 config false;
                 ze:command "ze-show:isis-spf-log";
-                description "Show recent IS-IS SPF runs.
-Returns the most recent SPF runs with their timestamp, level, trigger,
+                description "Show recent IS-IS SPF runs.";
+                ze:help "Returns the most recent SPF runs with their timestamp, level, trigger,
 duration, and node count.";
             }
         }
@@ -100,17 +99,16 @@ duration, and node count.";
             container adjacency {
                 config false;
                 ze:command "ze-clear:isis-adjacency";
-                description "Tear down every IS-IS adjacency so neighbors re-form.
-Adjacencies re-learn from the next Hello;
-the circuit is not closed and the configuration is unchanged.";
+                description "Tear down every IS-IS adjacency so neighbors re-form.";
+                ze:help "Adjacencies re-learn from the next Hello; the circuit is not closed and the
+configuration is unchanged.";
             }
 
             container counters {
                 config false;
                 ze:command "ze-clear:isis-counters";
-                description "Reset IS-IS observational counters and the SPF log.
-Monotonic Prometheus series are not reset;
-the SPF-run history is cleared.";
+                description "Reset IS-IS observational counters and the SPF log.";
+                ze:help "Monotonic Prometheus series are not reset; the SPF-run history is cleared.";
             }
         }
     }

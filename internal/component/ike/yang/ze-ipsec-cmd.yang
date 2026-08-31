@@ -8,48 +8,48 @@ module ze-ipsec-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container vpn {
             config false;
-            description "VPN tunnel state (IPsec)";
+            description "VPN tunnel state (IPsec).";
 
             container ipsec {
                 config false;
-                description "IPsec SAs, tunnels, and peer connections";
+                description "IPsec SAs, tunnels, and peer connections.";
 
                 container sa {
                     config false;
                     ze:command "ze-show:vpn-ipsec-sa";
-                    description "Show all IKE and Child Security Associations.
-Lists every SA with peer, negotiated algorithms, byte counts, rekey
-timers, and uptime. Includes SPIs, NAT detection, and child SA
-traffic selectors. Your main IPsec status command.";
+                    description "Show all IKE and Child Security Associations.";
+                    ze:help "Lists every SA with peer, negotiated algorithms,
+byte counts, rekey timers, and uptime. Includes SPIs, NAT detection, and child
+SA traffic selectors. It is the main IPsec status command.";
                 }
 
                 container status {
                     config false;
                     ze:command "ze-show:vpn-ipsec-status";
-                    description "Quick IPsec health check.
-Reports whether the IKE engine is running, how many peers are
-configured, and how many IKE SAs are Established.";
+                    description "Quick IPsec health check.";
+                    ze:help "Reports whether the IKE engine is running, how many
+peers are configured, and how many IKE SAs are Established.";
                 }
 
                 container dataplane {
                     config false;
-                    description "Kernel dataplane state, read back from the forwarding plane.
-Every other command in this tree reports what the IKE engine believes it
-installed. These commands read the kernel instead, so a kernel expiry, an
-external flush, or a stranded policy becomes visible.";
+                    description "Kernel dataplane state, read back from the forwarding plane.";
+                    ze:help "Every other command in this tree reports what the
+IKE engine believes it installed. These commands read the kernel instead, so a
+kernel expiry, an external flush, or a stranded policy becomes visible.";
 
                     container sa {
                         config false;
                         ze:command "ze-show:vpn-ipsec-dataplane-sa";
-                        description "Show the Security Association Database the kernel holds.
-Lists each installed ESP SA with its SPI, addresses, mode, algorithms,
-replay window, byte and packet counters, and timestamps. Give 'spi <spi>'
-to show one SA. Without a selector the command dumps every SA, which on a
-device with many tunnels is one row per SA.";
+                        description "Show the Security Association Database the kernel holds.";
+                        ze:help "Lists each installed ESP SA with its SPI,
+addresses, mode, algorithms, replay window, byte and packet counters, and
+timestamps. Give 'spi <spi>' to show one SA. Without a selector the command
+dumps every SA, which on a device with many tunnels is one row per SA.";
                         leaf spi {
                             type uint32 {
                                 range "1..4294967295";
@@ -63,34 +63,35 @@ valid selector and the command refuses it.";
                     container policy {
                         config false;
                         ze:command "ze-show:vpn-ipsec-dataplane-policy";
-                        description "Show the Security Policy Database the kernel holds.
-Lists each policy with its selector prefixes and ports, direction, priority,
-upper-layer protocol, if_id, tunnel endpoints, and the peer that installed
-it. A policy with no matching SA is the failure this command exists to show.
-RFC 4301 Section 4.4 keeps the SPD and the SAD separate, and so does this
-tree.";
+                        description "Show the Security Policy Database the kernel holds.";
+                        ze:help "Lists each policy with its selector prefixes
+and ports, direction, priority, upper-layer protocol, if_id, tunnel endpoints,
+and the peer that installed it. A policy with no matching SA is the failure
+this command exists to show. RFC 4301 Section 4.4 keeps the SPD and the SAD
+separate, and so does this tree.";
                     }
 
                     container drift {
                         config false;
                         ze:command "ze-show:vpn-ipsec-dataplane-drift";
-                        description "Compare what the IKE engine believes against what the kernel holds.
-Reports each Child SA the engine counts as installed whose SPI the kernel
-SAD does not hold. The command exits non-zero when it finds drift, so a
-script CAN test it. A rekey window holds two SPIs and is not drift.";
+                        description "Compare what the IKE engine believes against what the kernel holds.";
+                        ze:help "Reports each Child SA the engine counts as
+installed whose SPI the kernel SAD does not hold. The command exits non-zero
+when it finds drift, so a script CAN test it. A rekey window holds two SPIs and
+is not drift.";
                     }
                 }
 
                 container peer {
                     config false;
-                    description "IPsec peer detail";
+                    description "IPsec peer detail.";
 
                     container name {
                         config false;
                         ze:command "ze-show:vpn-ipsec-peer";
-                        description "Show full detail for one IPsec peer.
-Returns IKE SA state, all child SAs with traffic selectors, and
-byte counts.";
+                        description "Show full detail for one IPsec peer.";
+                        ze:help "Returns IKE SA state, all child SAs with
+traffic selectors, and byte counts.";
                         leaf name {
                             type string;
                             mandatory true;
@@ -107,19 +108,19 @@ byte counts.";
 
         container vpn {
             config false;
-            description "VPN tunnel clearing operations";
+            description "VPN tunnel clearing operations.";
 
             container ipsec {
                 config false;
-                description "IPsec SA teardown";
+                description "IPsec SA teardown.";
 
                 container sa {
                     config false;
                     ze:command "ze-clear:vpn-ipsec-sa";
-                    description "Tear down IKE Security Associations.
-Without arguments, terminates all SAs. Use 'peer <name>' to clear
-just one peer. The tunnel will renegotiate automatically if the
-config is still active.";
+                    description "Tear down IKE Security Associations.";
+                    ze:help "Without arguments, terminates all SAs. Use
+'peer <name>' to clear just one peer. The tunnel WILL renegotiate
+automatically if the config is still active.";
                 }
             }
         }
@@ -127,19 +128,19 @@ config is still active.";
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop)";
+        description "Continuous monitoring commands (Ctrl-C to stop).";
 
         container vpn {
             config false;
-            description "VPN event streams";
+            description "VPN event streams.";
 
             container ipsec {
                 config false;
                 ze:command "ze-monitor:vpn-ipsec";
                 ze:task-support required;
-                description "Watch IPsec SA events as they happen.
-Streams sa-up, sa-down, child-up, child-down, and child-rekey
-events. Useful for debugging tunnel flaps or rekey issues.";
+                description "Watch IPsec SA events as they happen.";
+                ze:help "Streams sa-up, sa-down, child-up, child-down, and
+child-rekey events. Use it to debug a tunnel flap or a rekey problem.";
             }
         }
     }

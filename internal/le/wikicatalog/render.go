@@ -17,6 +17,7 @@ func Render(entries []Entry) ([]byte, error) {
 	for index := range entries {
 		entry := entries[index]
 		entry.Description = normalizeLineBreaks(entry.Description)
+		entry.LongHelp = normalizeLineBreaks(entry.LongHelp)
 		words := strings.Fields(entry.Path)
 		verb := entry.Path
 		if len(words) > 0 {
@@ -70,7 +71,7 @@ func Render(entries []Entry) ([]byte, error) {
 			out.WriteString(" | ")
 			out.WriteString(entry.Mode)
 			out.WriteString(" | ")
-			out.WriteString(markdownLiteralProse(firstLine(entry.Description)))
+			out.WriteString(markdownLiteralProse(tableProse(entry.Description)))
 			line(&out, " |")
 		}
 		line(&out, "")
@@ -103,16 +104,28 @@ func normalizeLineBreaks(value string) string {
 	return strings.ReplaceAll(value, "\r", "\n")
 }
 
-func firstLine(description string) string {
-	first, _, _ := strings.Cut(description, "\n")
-	return first
+// tableProse answers one prose value as a Markdown table cell.
+//
+// A cell cannot hold a line break, so a value that carries one is joined with a
+// space. A declared summary never carries one -- `./le docvalid help-shape`
+// refuses it -- so this only ever fires for a description a plugin sent.
+func tableProse(value string) string {
+	if !strings.ContainsRune(value, '\n') {
+		return value
+	}
+	return strings.ReplaceAll(value, "\n", " ")
 }
 
+// renderDetail writes one command's own section: the long form it declares,
+// then everything the command model states about it.
+//
+// The summary is not repeated here. The table above carries it, and the two
+// halves are separate declarations rather than one string cut in two.
 func renderDetail(out *bytes.Buffer, entry *Entry) error {
-	if strings.Contains(entry.Description, "\n") {
+	if entry.LongHelp != "" {
 		line(out, "")
-		for descriptionLine := range strings.SplitSeq(entry.Description, "\n") {
-			line(out, markdownLiteralProse(descriptionLine))
+		for helpLine := range strings.SplitSeq(entry.LongHelp, "\n") {
+			line(out, markdownLiteralProse(helpLine))
 		}
 	}
 

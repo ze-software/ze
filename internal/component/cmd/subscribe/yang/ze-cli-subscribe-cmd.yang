@@ -12,16 +12,16 @@ module ze-cli-subscribe-cmd {
             config false;
             ze:command "ze-bgp:subscribe";
             ze:task-support required;
-            description "Start receiving events of one or more types.
-Events are delivered asynchronously to your plugin session until
+            description "Start receiving events of one or more types.";
+            ze:help "Events are delivered asynchronously to your plugin session until
 you unsubscribe. Use 'show event list' to see available event types.";
         }
 
         container unsubscribe {
             config false;
             ze:command "ze-bgp:unsubscribe";
-            description "Stop receiving events you previously subscribed to.
-Removes the subscription for the specified event type from your
+            description "Stop receiving events you previously subscribed to.";
+            ze:help "Removes the subscription for the specified event type from your
 current plugin session.";
         }
     }

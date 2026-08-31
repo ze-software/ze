@@ -68,7 +68,10 @@ func mergeChildren(dst, src *Node) {
 	for name, srcChild := range src.Children {
 		dstChild, exists := dst.Children[name]
 		if !exists {
-			dstChild = &Node{Name: name, Description: srcChild.Description}
+			// Both declared help texts come across. A node carrying a summary
+			// and no explanation would answer an empty help page while the
+			// module it came from declares one.
+			dstChild = &Node{Name: name, Description: srcChild.Description, Help: srcChild.Help}
 			dst.Children[name] = dstChild
 		}
 		mergeChildren(dstChild, srcChild)

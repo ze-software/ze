@@ -11,14 +11,13 @@ module ze-pki-cmd {
     augment "/clishowcmd:show" {
         container pki {
             config false;
-            description "TLS certificates and CA trust store";
+            description "TLS certificates and CA trust store.";
             container certificates {
                 config false;
                 ze:command "ze-show:pki-certificates";
-                description "List all loaded certificates with expiry dates.
-Shows name, type (CA or device), subject, issuer, expiry, and
-validity status. Check here to find certificates approaching
-expiration.";
+                description "List all loaded certificates with expiry dates.";
+                ze:help "Shows name, type (CA or device), subject, issuer, expiry, and validity status.
+Check here to find certificates approaching expiration.";
             }
             container certificate {
                 config false;
@@ -26,8 +25,8 @@ expiration.";
                 container name {
                     config false;
                     ze:command "ze-show:pki-certificate";
-                    description "Inspect a specific certificate in detail.
-Each export form is a command of its own.";
+                    description "Inspect a specific certificate in detail.";
+                    ze:help "Each export form is a command of its own.";
                     leaf name {
                         type string;
                         mandatory true;
@@ -37,9 +36,8 @@ Each export form is a command of its own.";
                     container pem {
                         config false;
                         ze:command "ze-show:pki-certificate-pem";
-                        description "Export the certificate, and any intermediate it
-carries, as PEM. Use this form to give the certificate to another
-system.";
+                        description "Export the certificate, and any intermediate it carries, as PEM.";
+                        ze:help "Use this form to give the certificate to another system.";
                         leaf name {
                             type string;
                             mandatory true;
@@ -54,9 +52,8 @@ system.";
                         container pem {
                             config false;
                             ze:command "ze-show:pki-certificate-bundle-pem";
-                            description "Export the certificate, its intermediates and
-its private key as one PEM stream. Device certificates only: a CA
-certificate in the store holds no private key.";
+                            description "Export the certificate, its intermediates and its private key as one PEM stream.";
+                            ze:help "Device certificates only: a CA certificate in the store holds no private key.";
                             leaf name {
                                 type string;
                                 mandatory true;
@@ -68,9 +65,8 @@ certificate in the store holds no private key.";
                     container fingerprint {
                         config false;
                         ze:command "ze-show:pki-certificate-fingerprint";
-                        description "Show the hash of the certificate, to verify its
-identity against the one another system reports. Without an
-algorithm, SHA-256.";
+                        description "Show the hash of the certificate, to verify its identity against the one another system reports.";
+                        ze:help "Without an algorithm, SHA-256.";
                         leaf name {
                             type string;
                             mandatory true;

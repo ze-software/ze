@@ -12,9 +12,7 @@ module ze-pppoe-api {
     }
 
     rpc summary {
-        description
-            "Return subsystem summary: session count, interface count,
-             aggregate state.";
+        description "Return subsystem summary: session count, interface count, aggregate state.";
         output {
             leaf summary {
                 type string;
@@ -51,9 +49,7 @@ module ze-pppoe-api {
     }
 
     rpc statistics {
-        description
-            "Return protocol counters: active sessions per interface,
-             discovery packet counts.";
+        description "Return protocol counters: active sessions per interface, discovery packet counts.";
         output {
             leaf statistics {
                 type string;

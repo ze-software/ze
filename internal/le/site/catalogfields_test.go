@@ -23,6 +23,7 @@ import (
 const enrichedCommandCatalog = `[{
  "path": "show test",
  "description": "Show the rows of the test table.",
+ "long-help": "Each row is one entry of the test table, in the order the table holds them.",
  "mode": "read-only",
  "wire-method": "ze-test:rows",
  "backend": ["netlink", "vpp"],
@@ -83,6 +84,12 @@ var catalogFieldRenderings = map[string]catalogFieldRendering{
 		Reason:    "the description is what the command model says the command does.",
 		Reference: []string{"Show the rows of the test table."},
 		Detail:    []string{"Show the rows of the test table."},
+	},
+	"long-help": {
+		Reason: "the long form is what the command's own page explains, and it is the half a " +
+			"list row has no space for. The CLI reference is a table an operator scans, so " +
+			"the long form is published on the detail page alone.",
+		Detail: []string{"Each row is one entry of the test table"},
 	},
 	"mode": {
 		Reason:    "the mode says whether an operator needs a running daemon.",

@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/ze-software/ze/internal/component/config/yang"
 )
 
 // TestReferenceJSONShape locks the wire shape of the AI reference so the CLI
@@ -50,4 +52,89 @@ func TestBuildRunsAndInitializesDispatchKeys(t *testing.T) {
 	data, err := json.Marshal(ref)
 	require.NoError(t, err)
 	assert.NotEmpty(t, data)
+}
+
+// TestReferenceRPCCarriesLongHelp pins the two RPC help keys in the JSON both
+// `ze help ai --json` and the MCP ze_reference tool emit. They are the RPC half
+// of the pair `ze help command --json` already carries for a command.
+//
+// VALIDATES: an RPC's summary and its long explanation are two distinct
+// kebab-case keys, and the long one is omitted when nobody wrote it.
+// PREVENTS: a consumer reading a one-line summary where a page of explanation
+// was declared, or an empty "long-help" key implying an authored empty string.
+func TestReferenceRPCCarriesLongHelp(t *testing.T) {
+	ref := Reference{RPCs: []RPC{
+		{WireMethod: "ze-bgp:peer-list", Description: "List the configured peers.", LongHelp: "One row per peer."},
+		{WireMethod: "ze-bgp:peer-detail", Description: "Show one peer."},
+	}}
+
+	data, err := json.Marshal(ref)
+	require.NoError(t, err)
+
+	s := string(data)
+	assert.Contains(t, s, `"description":"List the configured peers.","long-help":"One row per peer."`)
+	assert.Contains(t, s, `"description":"Show one peer."}`, "an RPC with no explanation carries no long-help key")
+}
+
+// helpFixtureModule is a YANG API module registered by this test file alone. It
+// gives the package a registered RPC that declares BOTH help texts, so the
+// end-to-end check below cannot pass by finding nothing to compare. The RPC
+// names are prefixed so no production wire method collides with them.
+const helpFixtureModule = `module ze-aihelpfixture-api {
+    namespace "urn:ze:aihelpfixture:api";
+    prefix ahf;
+
+    import ze-extensions { prefix ze; }
+
+    description "Fixture module for the aihelp reference tests.";
+
+    revision 2026-08-31 { description "Initial revision"; }
+
+    rpc fixture-both {
+        description "Summarize the fixture in one line.";
+        ze:help "The long explanation the reference carries whole.";
+    }
+
+    rpc fixture-summary-only {
+        description "Summarize the second fixture in one line.";
+    }
+}`
+
+func init() { yang.RegisterModule("ze-aihelpfixture-api", helpFixtureModule) }
+
+// TestBuildCarriesEveryRegisteredRPCHelpText verifies that the reference an
+// agent reads carries what the schema registry holds, for both help texts and
+// for every RPC. The registry is the single declaration; Build only projects it.
+//
+// VALIDATES: Build copies Description and LongHelp for each registered RPC.
+// PREVENTS: the long explanation reaching the registry and stopping there,
+// which is where it stopped before this test existed.
+func TestBuildCarriesEveryRegisteredRPCHelpText(t *testing.T) {
+	published := make(map[string]RPC)
+	for _, rpc := range Build().RPCs {
+		published[rpc.WireMethod] = rpc
+	}
+
+	longForms := 0
+	for _, registered := range SchemaRegistry().ListRPCs("") {
+		got, ok := published[registered.WireMethod]
+		if !ok {
+			t.Errorf("the reference omits the registered RPC %q", registered.WireMethod)
+			continue
+		}
+		assert.Equal(t, registered.Description, got.Description, "summary for %q", registered.WireMethod)
+		assert.Equal(t, registered.LongHelp, got.LongHelp, "long help for %q", registered.WireMethod)
+		if registered.LongHelp != "" {
+			longForms++
+		}
+	}
+
+	// The comparison is only discriminating while some RPC declares a ze:help.
+	// helpFixtureModule guarantees one, whatever the build tags load.
+	assert.Positive(t, longForms, "no registered RPC declares a ze:help, so this test proved nothing")
+	assert.Equal(t, "The long explanation the reference carries whole.",
+		published["ze-aihelpfixture:fixture-both"].LongHelp,
+		"the fixture RPC's long form did not reach the reference")
+	assert.Empty(t, published["ze-aihelpfixture:fixture-summary-only"].LongHelp,
+		"an RPC with no ze:help gained a long form from somewhere")
 }

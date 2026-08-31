@@ -968,3 +968,212 @@ func TestOnRegistrationRefusesConflictingShapeDeclaration(t *testing.T) {
 	assert.Empty(t, s.registry.LookupCommand(commandName),
 		"the refused plugin left its registry row behind")
 }
+
+// TestPluginHelpDeclarationReachesTheCommandTree proves a plugin's two help
+// texts cross the process boundary and arrive at the two fields the command
+// tree reads.
+//
+// The method is the whole Stage 1 handshake: a plugin declares a summary and an
+// explanation, and the test reads what the registry holds and what
+// MergeCommandPaths writes into the tree the completer and the help page read.
+//
+// VALIDATES: AC-7, the carrying side.
+// PREVENTS: a boundary that validates both texts and stores one of them, which
+// leaves every plugin command with the explanation the plugin never sent.
+func TestPluginHelpDeclarationReachesTheCommandTree(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-help"
+	const commandName = "show lifecycle help"
+	const summary = "Show the lifecycle help fixture."
+	const explanation = "The fixture declares two help texts.\nThis is the second line of the explanation."
+
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		err := p.Run(context.Background(), sdk.Registration{
+			Commands: []sdk.CommandDecl{{
+				Name:        commandName,
+				Description: summary,
+				LongHelp:    explanation,
+			}},
+		})
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+
+	s, _ := newLifecycleStartupServer(t)
+	if err := s.runPluginPhase([]plugin.PluginConfig{
+		{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON},
+	}); err != nil {
+		t.Fatalf("plugin phase: %v", err)
+	}
+
+	registered := s.dispatcher.Registry().Lookup(commandName)
+	if registered == nil {
+		t.Fatalf("the registry holds no %q", commandName)
+	}
+	if registered.Description != summary {
+		t.Errorf("registered summary = %q, want %q", registered.Description, summary)
+	}
+	if registered.LongHelp != explanation {
+		t.Errorf("registered explanation = %q, want %q", registered.LongHelp, explanation)
+	}
+
+	tree := &command.Node{Children: map[string]*command.Node{}}
+	command.MergeCommandPaths(tree, s.dispatcher.Registry().VisibleCommandEntries())
+	node := tree.Children["show"].Children["lifecycle"].Children["help"]
+	if node.Description != summary {
+		t.Errorf("tree summary = %q, want %q", node.Description, summary)
+	}
+	if node.Help != explanation {
+		t.Errorf("tree explanation = %q, want %q", node.Help, explanation)
+	}
+}
+
+// TestPluginWithNoHelpDeclarationKeepsItsSummary proves the zero value of the
+// explanation is the refusal all the way through the boundary, not a blank
+// summary.
+//
+// The method is the declaration a plugin compiled before `long-help` existed
+// sends: a summary and nothing else.
+//
+// VALIDATES: AC-7, the zero-value half.
+// PREVENTS: the failure recorded in plan/journal/field-carries-two-meanings.md,
+// where the second field on a cross-process contract empties the first one for
+// every peer that predates it.
+func TestPluginWithNoHelpDeclarationKeepsItsSummary(t *testing.T) {
+	snap := registry.Snapshot()
+	registry.Reset()
+	t.Cleanup(func() { registry.Restore(snap) })
+
+	const pluginName = "lifecycle-help-absent"
+	const commandName = "show lifecycle silent"
+	const summary = "Show the fixture that declares no explanation."
+
+	registerLifecyclePlugin(t, pluginName, nil, func(conn net.Conn) int {
+		p := sdk.NewWithConn(pluginName, conn)
+		err := p.Run(context.Background(), sdk.Registration{
+			Commands: []sdk.CommandDecl{{
+				Name:        commandName,
+				Description: summary,
+			}},
+		})
+		if err != nil {
+			return 1
+		}
+		return 0
+	})
+
+	s, _ := newLifecycleStartupServer(t)
+	if err := s.runPluginPhase([]plugin.PluginConfig{
+		{Name: pluginName, Internal: true, Encoder: plugin.EncodingJSON},
+	}); err != nil {
+		t.Fatalf("plugin phase: %v", err)
+	}
+
+	registered := s.dispatcher.Registry().Lookup(commandName)
+	if registered == nil {
+		t.Fatalf("the registry holds no %q", commandName)
+	}
+	if registered.Description != summary {
+		t.Errorf("registered summary = %q, want the summary the plugin sent", registered.Description)
+	}
+	if registered.LongHelp != "" {
+		t.Errorf("registered explanation = %q, want empty", registered.LongHelp)
+	}
+
+	tree := &command.Node{Children: map[string]*command.Node{}}
+	command.MergeCommandPaths(tree, s.dispatcher.Registry().VisibleCommandEntries())
+	node := tree.Children["show"].Children["lifecycle"].Children["silent"]
+	if node.Description != summary {
+		t.Errorf("tree summary = %q, want the summary the plugin sent", node.Description)
+	}
+	if node.Help != "" {
+		t.Errorf("tree explanation = %q, want empty", node.Help)
+	}
+}
+
+// TestValidateHelpDecls checks the bound and the control-character refusal on
+// each of the two declared help texts.
+//
+// The summary is one line, so every control character is refused there. The
+// explanation is a paragraph, so it keeps a newline and refuses the rest.
+//
+// VALIDATES: the Security Review rows for this spec: a plugin-supplied string
+// reaches a terminal, an HTML page and a JSON document.
+// PREVENTS: an unbounded declaration in the daemon's memory and its log, and an
+// ANSI escape or a tab written into the one-line completion format.
+func TestValidateHelpDecls(t *testing.T) {
+	cases := []struct {
+		name    string
+		decl    rpc.CommandDecl
+		wantErr string
+	}{
+		{name: "both empty", decl: rpc.CommandDecl{Name: "show x"}},
+		{name: "both present", decl: rpc.CommandDecl{Name: "show x", Description: "Show x.", LongHelp: "One line.\nAnother line."}},
+		{name: "summary at the bound", decl: rpc.CommandDecl{Name: "show x", Description: strings.Repeat("a", 256)}},
+		{name: "summary past the bound", decl: rpc.CommandDecl{Name: "show x", Description: strings.Repeat("a", 257)}, wantErr: "257 bytes (max 256)"},
+		{name: "summary with a newline", decl: rpc.CommandDecl{Name: "show x", Description: "Show x.\nAnd more."}, wantErr: "control character 0x0a at byte 7"},
+		{name: "summary with a tab", decl: rpc.CommandDecl{Name: "show x", Description: "Show\tx."}, wantErr: "control character 0x09 at byte 4"},
+		{name: "summary with an escape", decl: rpc.CommandDecl{Name: "show x", Description: "Show \x1b[31mx."}, wantErr: "control character 0x1b at byte 5"},
+		{name: "explanation at the bound", decl: rpc.CommandDecl{Name: "show x", LongHelp: strings.Repeat("a", 4096)}},
+		{name: "explanation past the bound", decl: rpc.CommandDecl{Name: "show x", LongHelp: strings.Repeat("a", 4097)}, wantErr: "4097 bytes (max 4096)"},
+		{name: "explanation with an escape", decl: rpc.CommandDecl{Name: "show x", LongHelp: "Line.\n\x1b[31mLine."}, wantErr: "control character 0x1b at byte 6"},
+		{name: "explanation with a delete", decl: rpc.CommandDecl{Name: "show x", LongHelp: "Line.\x7f"}, wantErr: "control character 0x7f at byte 5"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateHelpDecls([]rpc.CommandDecl{tc.decl})
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validateHelpDecls = %v, want no error", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("validateHelpDecls accepted the declaration, want %q", tc.wantErr)
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("validateHelpDecls = %q, want it to name %q", err.Error(), tc.wantErr)
+			}
+		})
+	}
+}
+
+// TestValidatePipeDeclsBoundsTheDescription checks the alias summary is held to
+// the same one-line rule as a command summary, because completion writes both
+// into the same tab-separated format.
+//
+// VALIDATES: the Security Review row on the shell-completion format.
+// PREVENTS: one alias with a newline in its description breaking every
+// completion row that follows it.
+func TestValidatePipeDeclsBoundsTheDescription(t *testing.T) {
+	commands := []rpc.CommandDecl{{Name: "show x"}}
+
+	err := validatePipeDecls([]rpc.PipeDecl{{
+		Command: "show x", Name: "best", Expansion: "match state best",
+		Description: "Best routes.\nAnd more.",
+	}}, commands)
+	if err == nil {
+		t.Fatal("a pipe alias description with a newline was accepted")
+	}
+	if !strings.Contains(err.Error(), "control character 0x0a") {
+		t.Errorf("refusal = %q, want it to name the control character", err.Error())
+	}
+
+	err = validatePipeDecls([]rpc.PipeDecl{{
+		Command: "show x", Name: "best", Expansion: "match state best",
+		Description: strings.Repeat("a", 257),
+	}}, commands)
+	if err == nil {
+		t.Fatal("a pipe alias description past the bound was accepted")
+	}
+	if !strings.Contains(err.Error(), "257 bytes (max 256)") {
+		t.Errorf("refusal = %q, want it to name the bound", err.Error())
+	}
+}

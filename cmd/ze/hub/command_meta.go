@@ -29,8 +29,16 @@ import (
 // surface has to traverse the dispatcher or load YANG itself. Surface-specific
 // adapters convert it to api.CommandMeta / zemcp.CommandInfo.
 type commandMeta struct {
-	Name        string             // dispatch path, e.g. "show bgp rib status"
-	Help        string             // description from YANG
+	Name string // dispatch path, e.g. "show bgp rib status"
+	// Description is the command's one-line summary, from its YANG description
+	// statement or from the plugin's own declaration. Every surface that shows
+	// the command on one line reads it.
+	Description string
+	// LongHelp is the explanation the command declares with ze:help, or that a
+	// plugin sends as CommandDecl.LongHelp. Only a per-command help page reads
+	// it: the OpenAPI operation description, and the MCP tool description. It
+	// is NEVER read as a summary. Empty means none was declared.
+	LongHelp    string
 	ReadOnly    bool               // true if a read-only command
 	Params      []commandParam     // input parameters from YANG RPC (nil = none)
 	TaskSupport string             // raw YANG ze:task-support value ("" = optional)
@@ -123,7 +131,8 @@ func buildCommandMeta(
 	for _, cmd := range dispatcherCmds {
 		info := commandMeta{
 			Name:          cmd.Name,
-			Help:          cmd.Help,
+			Description:   cmd.Help,
+			LongHelp:      cmd.LongHelp,
 			ReadOnly:      cmd.ReadOnly,
 			Params:        paramsByPath[cmd.Name],
 			TaskSupport:   taskSupportByPath[cmd.Name],
@@ -140,12 +149,14 @@ func buildCommandMeta(
 		infos = append(infos, info)
 	}
 
-	// Plugin-registered commands carry only name + description. The dispatcher
-	// entry wins on every field it has, because it is a strict superset: YANG
-	// help, read-only, params, task-support, ui-resource and selector handling.
-	// The one thing the plugin can supply that the dispatcher may lack is help
-	// text, when the YANG node carries no description (dispatcher Help comes
-	// from pathToDesc in LoadBuiltins), so fill that gap rather than drop it.
+	// A plugin-registered command carries a name, a summary and an explanation.
+	// The dispatcher entry wins on every field it has, because it is a strict
+	// superset: YANG help, read-only, params, task-support, ui-resource and
+	// selector handling. What the plugin supplies that the dispatcher can lack
+	// is either half of the help, when the YANG node declares neither. The
+	// dispatcher reads both halves from pathToDesc and pathToHelp in
+	// LoadBuiltins. Each half is filled on its own, so a command with a YANG
+	// summary and a plugin explanation keeps both.
 	for _, cmd := range pluginCmds {
 		// A plugin sets Hidden to remove a command from the operator-facing
 		// surfaces. VisibleCommandEntries and Complete already exclude a hidden
@@ -164,15 +175,19 @@ func buildCommandMeta(
 			continue
 		}
 		if i, dup := byName[strings.ToLower(cmd.Name)]; dup {
-			if infos[i].Help == "" {
-				infos[i].Help = cmd.Description
+			if infos[i].Description == "" {
+				infos[i].Description = cmd.Description
+			}
+			if infos[i].LongHelp == "" {
+				infos[i].LongHelp = cmd.LongHelp
 			}
 			continue
 		}
 		byName[strings.ToLower(cmd.Name)] = len(infos)
 		infos = append(infos, commandMeta{
-			Name: cmd.Name,
-			Help: cmd.Description,
+			Name:        cmd.Name,
+			Description: cmd.Description,
+			LongHelp:    cmd.LongHelp,
 		})
 	}
 

@@ -328,10 +328,13 @@ type DeclareRegistrationInput struct {
 // already returned, so the command owes a payload the selection can cut. It
 // takes no argument and it names no other alias.
 type PipeDecl struct {
-	Command     string `json:"command"`               // Command path the alias sits on (one of this plugin's own declared commands)
-	Name        string `json:"name"`                  // The word an operator types after the pipe character (kebab-case)
-	Description string `json:"description,omitempty"` // The line completion and help show beside the name
-	Expansion   string `json:"expansion"`             // The operator chain the name stands for, as an operator would type it
+	Command string `json:"command"` // Command path the alias sits on (one of this plugin's own declared commands)
+	Name    string `json:"name"`    // The word an operator types after the pipe character (kebab-case)
+	// Description is the one-line summary completion and help show beside the
+	// name. An alias has no second, longer text: the expansion below is the
+	// whole of what the name does, and it is reported beside the summary.
+	Description string `json:"description,omitempty"`
+	Expansion   string `json:"expansion"` // The operator chain the name stands for, as an operator would type it
 }
 
 // EnricherDecl declares a show enricher the plugin provides.
@@ -420,8 +423,25 @@ type FamilyDecl struct {
 // what every plugin written before they existed sends. The engine then derives
 // the shape from the payload in hand, as it always has.
 type CommandDecl struct {
-	Name            string   `json:"name"`
-	Description     string   `json:"description,omitempty"`
+	Name string `json:"name"`
+	// Description is the one-line SUMMARY of the command. Every surface that
+	// shows the command on one line reads it: a completion candidate, a list
+	// row, a table cell. It carries no newline and no control character, and
+	// the engine refuses a declaration that does (validateHelpDecls).
+	Description string `json:"description,omitempty"`
+	// LongHelp is the explanation the command's OWN help page prints, under
+	// the summary. It is the plugin-side twin of the ze:help extension a YANG
+	// command node declares, and the engine copies it into
+	// command.CommandEntry.Help.
+	//
+	// The key is `long-help` and not `help`, because `help` already names the
+	// SUMMARY on this same boundary (Completion, command_registry.go). One
+	// spelling, one meaning.
+	//
+	// It is optional, and its zero value is the refusal: a plugin that sends
+	// `description` and no `long-help` renders with its summary and an empty
+	// explanation. Empty here MUST NOT be read as an empty summary.
+	LongHelp        string   `json:"long-help,omitempty"`
 	Args            []string `json:"args,omitempty"`
 	Completable     bool     `json:"completable,omitempty"`
 	Hidden          bool     `json:"hidden,omitempty"`

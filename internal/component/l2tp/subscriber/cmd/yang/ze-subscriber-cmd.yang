@@ -16,9 +16,9 @@ module ze-subscriber-cmd {
         container subscriber {
             config false;
             ze:command "ze-subscriber-api:summary";
-            description "Show a summary of all subscriber sessions.
-Counts by access type (PPPoE, L2TP, IPoE) with totals. Quick way
-to see how many subscribers are online.";
+            description "Show a summary of all subscriber sessions.";
+            ze:help "Counts by access type (PPPoE, L2TP, IPoE) with totals. It
+is the quick way to see how many subscribers are online.";
 
             container id {
                 config false;
@@ -27,9 +27,9 @@ to see how many subscribers are online.";
                 container detail {
                     config false;
                     ze:command "ze-subscriber-api:detail";
-                    description "Show everything about one subscriber session.
-Pass the session ID. Returns access type, assigned addresses,
-authentication state, uptime, and traffic counters.";
+                    description "Show everything about one subscriber session.";
+                    ze:help "Pass the session ID. Returns access type, assigned
+addresses, authentication state, uptime, and traffic counters.";
                     leaf id {
                         type string;
                         mandatory true;

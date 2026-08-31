@@ -10,19 +10,22 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 )
 
-// TestBuildAdminCommandTree_FromYANG verifies that AdminTreeFromYANG
-// converts a merged YANG operational command tree into the children-map
-// format consumed by HandleAdminView. Each level lists its children sorted
-// alphabetically so the rendered finder columns are deterministic.
+// TestAdminNavFromYANGTree verifies that the admin console reads its navigation
+// off the merged YANG operational command tree. It reads one level at a time,
+// and each level is sorted, so the rendered finder columns are deterministic.
+//
+// The tree used to be flattened into a children map before it reached the
+// handler. That map carried no help text, so the command form had nothing to
+// show. The handler now takes the tree itself.
 //
 // VALIDATES: Phase 6 spec deliverable -- admin command tree derived from
-// YANG, not from the static BuildAdminCommandTree map.
+// YANG, not from a static map.
 // PREVENTS: Plugin-contributed commands silently disappearing from the
-// admin nav because someone forgot to update the static map.
-func TestBuildAdminCommandTree_FromYANG(t *testing.T) {
+// admin nav because someone forgot to update a static map.
+func TestAdminNavFromYANGTree(t *testing.T) {
 	// Synthesize a small command tree that mirrors what the merged YANG
 	// modules produce: root has `peer` and `show` subtrees with their own
-	// children. The test verifies adapter shape, not YANG parsing.
+	// children. The test verifies navigation shape, not YANG parsing.
 	tree := &command.Node{
 		Children: map[string]*command.Node{
 			"peer": {
@@ -44,46 +47,50 @@ func TestBuildAdminCommandTree_FromYANG(t *testing.T) {
 		},
 	}
 
-	got := AdminTreeFromYANG(tree)
-
-	root := got[""]
+	root := adminChildNames(adminNodeAt(tree, nil))
 	require.NotEmpty(t, root, "root must list every top-level command")
 	assert.Equal(t, []string{"overview", "peer", "show"}, root, "top-level children must be alphabetical")
 
-	peerKids := got["peer"]
+	peerKids := adminChildNames(adminNodeAt(tree, []string{"peer"}))
 	assert.True(t, sort.StringsAreSorted(peerKids), "peer subtree must be sorted")
 	assert.Equal(t, []string{"capabilities", "detail", "teardown"}, peerKids)
 
-	showKids := got["show"]
+	showKids := adminChildNames(adminNodeAt(tree, []string{"show"}))
 	assert.Equal(t, []string{"version", "warnings"}, showKids)
 
-	// Leaf commands have no further children -- they are absent from the
-	// children map (the FragmentData builder treats missing keys as leaves).
-	_, hasLeaf := got["peer/detail"]
-	assert.False(t, hasLeaf, "leaves must not appear with an empty child slice")
-	_, hasRootLeaf := got["overview"]
-	assert.False(t, hasRootLeaf, "leaves at the root must not appear")
+	// A leaf command has no children, which is what makes the detail panel
+	// render its form rather than another column.
+	assert.Empty(t, adminChildNames(adminNodeAt(tree, []string{"peer", "detail"})))
+	assert.Empty(t, adminChildNames(adminNodeAt(tree, []string{"overview"})))
+
+	// The finder shows one column for each level down to the selected node.
+	fragData := buildAdminFragmentData([]string{"peer"}, tree)
+	require.Len(t, fragData.Columns, 2, "root column plus the peer column")
+	assert.Nil(t, fragData.CommandForm, "peer has children, so it is a container")
 }
 
-// TestAdminTreeFromYANG_NilTree verifies that a nil command tree produces
-// an empty map without panicking. This is the loader-failure fallback
-// safety net.
-func TestAdminTreeFromYANG_NilTree(t *testing.T) {
-	got := AdminTreeFromYANG(nil)
-	assert.Empty(t, got)
+// TestAdminNavNilTree verifies that a nil command tree serves an empty console
+// without panicking. This is the loader-failure fallback safety net: the hub
+// passes the tree it has, and it has none when the YANG loader failed.
+func TestAdminNavNilTree(t *testing.T) {
+	assert.Empty(t, adminChildNames(adminNodeAt(nil, nil)))
+	assert.Nil(t, adminNodeAt(nil, []string{"peer"}))
+
+	fragData := buildAdminFragmentData(nil, nil)
+	assert.Empty(t, fragData.Columns)
+	assert.Nil(t, fragData.CommandForm)
 }
 
-// TestAdminTreeFromYANG_EmptyTree verifies that a tree with no children
-// produces an empty map (the empty-key entry is omitted because there is
-// nothing to list).
-func TestAdminTreeFromYANG_EmptyTree(t *testing.T) {
-	got := AdminTreeFromYANG(&command.Node{})
-	assert.Empty(t, got)
+// TestAdminNavEmptyTree verifies that a tree with no children lists nothing.
+func TestAdminNavEmptyTree(t *testing.T) {
+	assert.Empty(t, adminChildNames(adminNodeAt(&command.Node{}, nil)))
+	assert.Empty(t, buildAdminFragmentData(nil, &command.Node{}).Columns)
 }
 
-// TestAdminTreeFromYANG_DeepNesting verifies that grandchildren and deeper
-// levels are reachable via slash-joined keys.
-func TestAdminTreeFromYANG_DeepNesting(t *testing.T) {
+// TestAdminNavDeepNesting verifies that grandchildren and deeper levels are
+// reachable. A path leaving the tree answers nil, never the last node the walk
+// passed through.
+func TestAdminNavDeepNesting(t *testing.T) {
 	tree := &command.Node{
 		Children: map[string]*command.Node{
 			"show": {
@@ -98,8 +105,13 @@ func TestAdminTreeFromYANG_DeepNesting(t *testing.T) {
 			},
 		},
 	}
-	got := AdminTreeFromYANG(tree)
-	assert.Equal(t, []string{"show"}, got[""])
-	assert.Equal(t, []string{"system"}, got["show"])
-	assert.Equal(t, []string{"cpu", "memory"}, got["show/system"])
+
+	assert.Equal(t, []string{"show"}, adminChildNames(adminNodeAt(tree, nil)))
+	assert.Equal(t, []string{"system"}, adminChildNames(adminNodeAt(tree, []string{"show"})))
+	assert.Equal(t, []string{"cpu", "memory"},
+		adminChildNames(adminNodeAt(tree, []string{"show", "system"})))
+
+	assert.Nil(t, adminNodeAt(tree, []string{"show", "system", "memory", "deeper"}),
+		"a path past a leaf holds no node")
+	assert.Nil(t, adminNodeAt(tree, []string{"nosuch"}))
 }

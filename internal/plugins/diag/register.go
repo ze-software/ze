@@ -19,6 +19,8 @@ func init() {
 		Subs:        "wireguard keypair",
 	})
 	registry.MustRegisterLocalMeta("generate wireguard keypair", RunWgKeypair, registry.Meta{
-		Description: "Generate a WireGuard keypair. Prints private and public keys to stdout for use in your config.",
+		Description: "Generate a WireGuard keypair with the system wg binary.",
+		LongHelp: "The private key is written on the first line and the public key on the second. " +
+			"The wg binary must be installed on this host.",
 	})
 }

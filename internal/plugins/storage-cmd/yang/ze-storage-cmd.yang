@@ -10,14 +10,14 @@ module ze-storage-cmd {
     augment "/clishowcmd:show" {
         container storage {
             config false;
-            description "Storage device health and diagnostics";
+            description "Storage device health and diagnostics.";
             container smart {
                 config false;
                 ze:command "ze-show:storage-smart";
-                description "Show disk health via SMART data.
-Returns health status, temperature, power-on hours, and self-test
-schedule for each block device. Replace drives that report failing
-health before they cause data loss.";
+                description "Show disk health via SMART data.";
+                ze:help "Returns health status, temperature, power-on hours, and self-test schedule for
+each block device. Replace drives that report failing health before they cause
+data loss.";
             }
         }
     }

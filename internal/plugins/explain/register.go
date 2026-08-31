@@ -16,6 +16,8 @@ func init() {
 		Subs:        "--json <code>",
 	})
 	registry.MustRegisterLocalMeta("explain", Run, registry.Meta{
-		Description: "Print the meaning, likely cause, and recommended fix for a Ze diagnostic code. Pass the code you saw in a log or error message.",
+		Description: "Explain one diagnostic code Ze printed.",
+		LongHelp: "The answer gives the meaning of the code, its likely cause and the recommended " +
+			"fix. Pass the code you read in a log line or an error message.",
 	})
 }

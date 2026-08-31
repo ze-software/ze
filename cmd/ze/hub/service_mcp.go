@@ -85,7 +85,8 @@ func mcpCommandLister(src func() []commandMeta) zemcp.CommandLister {
 		for i, m := range metas {
 			infos[i] = zemcp.CommandInfo{
 				Name:          m.Name,
-				Help:          m.Help,
+				Description:   m.Description,
+				LongHelp:      m.LongHelp,
 				ReadOnly:      m.ReadOnly,
 				TaskSupport:   parseTaskSupportLevel(m.TaskSupport),
 				TakesSelector: m.TakesSelector,

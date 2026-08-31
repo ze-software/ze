@@ -2,6 +2,8 @@ module ze-pki-api {
     namespace "urn:ze:pki:api";
     prefix pkiapi;
 
+    import ze-extensions { prefix ze; }
+
     description "PKI API operations for Ze. RPCs for inspecting
                  loaded certificates and CA trust anchors.";
 
@@ -20,8 +22,9 @@ module ze-pki-api {
     }
 
     rpc certificate {
-        description "Show details, PEM, bundle, or fingerprint of a named certificate.
-                     Sub-commands: pem, bundle pem, fingerprint [sha256|sha384|sha512].";
+        description "Show details, PEM, bundle, or fingerprint of a named certificate.";
+        ze:help "Sub-commands: pem, bundle pem, fingerprint
+[sha256|sha384|sha512].";
         input {
             leaf name {
                 type string;

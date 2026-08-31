@@ -17,13 +17,17 @@ func init() {
 	// local registry before the daemon, so they run in-process without shadowing
 	// the daemon `show debug` command (live runtime state, in yang/).
 	registry.MustRegisterLocalMeta("set debug module", runSetModule, registry.Meta{
-		Description: "Enable debug for a subsystem; optionally set level/flag/scope. E.g. 'set debug module bgp.reactor level debug'.",
+		Description: "Enable debug output for one subsystem.",
+		LongHelp: "A level, a flag or a scope can be set in the same command, and each one narrows " +
+			"what the subsystem writes.",
 	})
 	registry.MustRegisterLocalMeta("delete debug module", runDeleteModule, registry.Meta{
 		Description: "Disable debug for a subsystem, or remove one of its flags/scopes.",
 	})
 	registry.MustRegisterLocalMeta("set debug timeout", runSetTimeout, registry.Meta{
-		Description: "Set the debug auto-disable timer (e.g. 30m, 1h, 90s; 0 disables).",
+		Description: "Set how long debug output stays enabled.",
+		LongHelp: "The duration is written as 30m, 1h or 90s, seconds are rounded up to minutes, " +
+			"and the longest accepted value is 24h. Zero disables the timer.",
 	})
 	registry.MustRegisterLocalMeta("set debug profile name", runSaveProfile, registry.Meta{
 		Description: "Save the current debug state as a named profile.",

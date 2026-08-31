@@ -10,18 +10,18 @@ module ze-fakel2tp-cmd {
     container fakel2tp {
         ze:hidden true;
         config false;
-        description "Fakel2tp test commands";
+        description "Fakel2tp test commands.";
 
         container emit {
             config false;
             ze:command "ze-fakel2tp-api:fakel2tp-emit";
-            description "Emit one synthetic L2TP route-change batch";
+            description "Emit one synthetic L2TP route-change batch.";
         }
 
         container help {
             config false;
             ze:command "ze-fakel2tp-api:fakel2tp-help";
-            description "Print the fakel2tp command surface";
+            description "Print the fakel2tp command surface.";
         }
     }
 }

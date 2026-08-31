@@ -334,7 +334,8 @@ func apiCommandLister(s *pluginserver.Server) api.CommandSource {
 		for i, cmd := range cmds {
 			infos[i] = api.CommandMeta{
 				Name:        cmd.Name,
-				Description: cmd.Help,
+				Description: cmd.Description,
+				LongHelp:    cmd.LongHelp,
 				ReadOnly:    cmd.ReadOnly,
 			}
 			for _, p := range cmd.Params {

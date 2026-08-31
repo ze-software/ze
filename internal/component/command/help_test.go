@@ -1,7 +1,6 @@
 package command
 
 import (
-	"bytes"
 	"strings"
 	"testing"
 )
@@ -104,15 +103,24 @@ func testVerbTree() *Node {
 	}
 }
 
-// VALIDATES: Top-level help lists all verbs with descriptions.
-// PREVENTS: missing verbs in help output.
-func TestHelpTopLevel(t *testing.T) {
-	tree := testVerbTree()
-	var buf bytes.Buffer
-	writeHelp(&buf, tree, nil)
-	output := buf.String()
+// entriesByName indexes a listing by child name, so a test states the property
+// it cares about rather than a position in a slice.
+func entriesByName(entries []HelpEntry) map[string]string {
+	byName := make(map[string]string, len(entries))
+	for _, entry := range entries {
+		byName[entry.Name] = entry.Desc
+	}
+	return byName
+}
 
-	// Check verbs and their descriptions appear together.
+// VALIDATES: the top-level listing names every verb and carries its summary.
+// PREVENTS: a missing verb in the help listing.
+// Retargeted onto HelpEntries when the second, unshipped renderer was deleted:
+// the listing an operator reads is built from these entries
+// (cmd/ze/command_help_page.go, commandHelpPage).
+func TestHelpTopLevel(t *testing.T) {
+	entries := entriesByName(HelpEntries(testVerbTree(), nil))
+
 	checks := map[string]string{
 		"show":     "Read-only introspection commands",
 		"set":      "Modify configuration",
@@ -124,121 +132,87 @@ func TestHelpTopLevel(t *testing.T) {
 		"monitor":  "Streaming, continuous observation",
 	}
 	for verb, desc := range checks {
-		if !strings.Contains(output, verb) {
-			t.Errorf("top-level help missing verb %q", verb)
+		got, ok := entries[verb]
+		if !ok {
+			t.Errorf("the top-level listing is missing the verb %q", verb)
+			continue
 		}
-		if !strings.Contains(output, desc) {
-			t.Errorf("top-level help missing description %q for verb %q", desc, verb)
+		if got != desc {
+			t.Errorf("the verb %q carries the summary %q, want %q", verb, got, desc)
 		}
 	}
 }
 
-// VALIDATES: Verb-level help lists commands under that verb.
-// PREVENTS: help not reflecting YANG tree.
+// VALIDATES: a verb's listing names the commands under that verb.
+// PREVENTS: the listing not reflecting the YANG tree.
 func TestHelpVerbLevel(t *testing.T) {
-	tree := testVerbTree()
-	var buf bytes.Buffer
-	writeHelp(&buf, tree, []string{"show"})
-	output := buf.String()
+	entries := entriesByName(HelpEntries(testVerbTree(), []string{"show"}))
 
-	if !strings.Contains(output, "bgp") {
-		t.Error("show help missing 'bgp' subcommand")
+	if _, ok := entries["bgp"]; !ok {
+		t.Error("the show listing is missing the bgp subcommand")
 	}
-	if !strings.Contains(output, "version") {
-		t.Error("show help missing 'version' subcommand")
+	if _, ok := entries["version"]; !ok {
+		t.Error("the show listing is missing the version subcommand")
 	}
 }
 
-// VALIDATES: Nested help lists leaf commands.
-// PREVENTS: help not descending into nested paths.
+// VALIDATES: a nested path lists its leaf commands.
+// PREVENTS: the listing not descending into a nested path.
 func TestHelpNestedLevel(t *testing.T) {
-	tree := testVerbTree()
-	var buf bytes.Buffer
-	writeHelp(&buf, tree, []string{"show", "bgp"})
-	output := buf.String()
+	entries := entriesByName(HelpEntries(testVerbTree(), []string{"show", "bgp"}))
 
-	if !strings.Contains(output, "peer") {
-		t.Error("show bgp help missing 'peer'")
+	if _, ok := entries["peer"]; !ok {
+		t.Error("the show bgp listing is missing peer")
 	}
-	if !strings.Contains(output, "decode") {
-		t.Error("show bgp help missing 'decode'")
+	if _, ok := entries["decode"]; !ok {
+		t.Error("the show bgp listing is missing decode")
 	}
 }
 
-// VALIDATES: Help for unknown path returns false.
-// PREVENTS: panic on invalid help path.
+// VALIDATES: an unknown path lists nothing.
+// PREVENTS: a mistyped path producing entries from the wrong node.
 func TestHelpUnknownPath(t *testing.T) {
-	tree := testVerbTree()
-	var buf bytes.Buffer
-	ok := writeHelp(&buf, tree, []string{"nonexistent"})
-
-	if ok {
-		t.Error("expected WriteHelp to return false for unknown path")
+	if entries := HelpEntries(testVerbTree(), []string{"nonexistent"}); entries != nil {
+		t.Errorf("an unknown path listed %+v", entries)
 	}
 }
 
-// VALIDATES: Help includes descriptions from YANG tree.
-// PREVENTS: descriptions missing in help output.
+// VALIDATES: a listing row carries the description declared in YANG.
+// PREVENTS: a row rendering a name with no summary beside it.
 func TestHelpIncludesDescriptions(t *testing.T) {
-	tree := testVerbTree()
-	var buf bytes.Buffer
-	writeHelp(&buf, tree, []string{"show"})
-	output := buf.String()
+	entries := entriesByName(HelpEntries(testVerbTree(), []string{"show"}))
 
-	if !strings.Contains(output, "BGP introspection") {
-		t.Error("show help missing description for bgp")
+	if entries["bgp"] != "BGP introspection" {
+		t.Errorf("the bgp row carries %q, want its declared description", entries["bgp"])
 	}
 }
 
-// VALIDATES: List help shows compact one-line summaries for multi-line descriptions.
-// PREVENTS: top-level help dumping unindented YANG paragraphs.
+// VALIDATES: a listing row carries the child's declared SUMMARY and never its
+// long explanation, which belongs to that child's own help page.
+// PREVENTS: the listing dumping unindented YANG paragraphs. The mechanism
+// changed with this spec: the summary is declared one line long rather than cut
+// out of a longer string, so the listing shortens nothing.
 func TestHelpEntryUsesSummaryLine(t *testing.T) {
 	tree := &Node{
 		Children: map[string]*Node{
 			"audit": {
 				Name:        "audit",
-				Description: "Show who did what and when on this box.\nReturns audit log entries with timestamps, actors, and actions.",
+				Description: "Show who did what and when on this box.",
+				Help:        "Returns audit log entries with timestamps, actors, and actions.",
 			},
 		},
 	}
-	var buf bytes.Buffer
-	writeHelp(&buf, tree, nil)
-	output := buf.String()
 
-	if !strings.Contains(output, "audit") {
-		t.Fatalf("help missing audit entry: %q", output)
+	entries := entriesByName(HelpEntries(tree, nil))
+	got, ok := entries["audit"]
+	if !ok {
+		t.Fatalf("the listing is missing the audit entry: %+v", entries)
 	}
-	if !strings.Contains(output, "Show who did what and when on this box.") {
-		t.Fatalf("help missing summary line: %q", output)
+	if got != "Show who did what and when on this box." {
+		t.Fatalf("the audit row carries %q, want its declared summary", got)
 	}
-	if strings.Contains(output, "Returns audit log entries") {
-		t.Fatalf("help should not dump detailed continuation text: %q", output)
-	}
-}
-
-// VALIDATES: Leaf help keeps full multi-line descriptions visibly indented.
-// PREVENTS: continuation lines starting at column 1 in help output.
-func TestHelpLeafMultilineDescriptionIndented(t *testing.T) {
-	tree := &Node{
-		Children: map[string]*Node{
-			"crashes": {
-				Name:        "crashes",
-				Description: "View saved crash reports from panics.\nUse latest to see the newest crash.",
-			},
-		},
-	}
-	var buf bytes.Buffer
-	writeHelp(&buf, tree, []string{"crashes"})
-	output := buf.String()
-
-	if !strings.Contains(output, "  View saved crash reports from panics.\n") {
-		t.Fatalf("help missing first indented line: %q", output)
-	}
-	if !strings.Contains(output, "  Use latest to see the newest crash.\n") {
-		t.Fatalf("help missing indented continuation line: %q", output)
-	}
-	if strings.Contains(output, "\nUse latest") {
-		t.Fatalf("help continuation line was not indented: %q", output)
+	if strings.Contains(got, "Returns audit log entries") {
+		t.Fatalf("a listing row carried the long explanation: %q", got)
 	}
 }
 
@@ -273,38 +247,37 @@ func TestVerbClassification(t *testing.T) {
 	}
 }
 
-// VALIDATES: Leaf node help displays its description.
-// PREVENTS: leaf nodes producing empty help output.
+// VALIDATES: a leaf lists no children, so its help page is its own two texts
+// and nothing else.
+// PREVENTS: a leaf's page growing a Commands section with no rows in it.
+// The old assertion also said a leaf's page shows its own description. That
+// half moved to the shipped renderer with the page itself, and is now
+// TestHelpPageCarriesBothDeclaredHelpTexts (cmd/ze/command_help_page_test.go).
 func TestHelpLeafNode(t *testing.T) {
 	tree := testVerbTree()
-	var buf bytes.Buffer
-	ok := writeHelp(&buf, tree, []string{"show", "version"})
-	output := buf.String()
 
-	if !ok {
-		t.Error("expected WriteHelp to return true for leaf node")
+	if node := FindNode(tree, []string{"show", "version"}); node == nil {
+		t.Fatal("the leaf path was not found")
 	}
-	if !strings.Contains(output, "Show version and build date") {
-		t.Errorf("leaf help missing description, got: %q", output)
+	if entries := HelpEntries(tree, []string{"show", "version"}); entries != nil {
+		t.Errorf("a leaf listed children: %+v", entries)
 	}
 }
 
-// VALIDATES: Grouping nodes without description show subcommand summary.
-// PREVENTS: empty help for intermediate nodes.
+// VALIDATES: a grouping node with no description of its own falls back to a
+// summary of its children.
+// PREVENTS: an empty row for an intermediate node.
 func TestHelpDescribeChildren(t *testing.T) {
-	tree := testVerbTree()
-	var buf bytes.Buffer
-	writeHelp(&buf, tree, []string{"set"})
-	output := buf.String()
+	entries := entriesByName(HelpEntries(testVerbTree(), []string{"set"}))
 
-	// set > system has no description, should show "subcommands: file-descriptors"
-	if !strings.Contains(output, "subcommands: file-descriptors") {
-		t.Errorf("set help should describe system children, got: %q", output)
+	// set > system has no description, so the row states its subcommands.
+	if entries["system"] != "subcommands: file-descriptors" {
+		t.Errorf("the system row carries %q, want a summary of its children", entries["system"])
 	}
 }
 
 // VALIDATES: describeChildren truncates when >4 children.
-// PREVENTS: overly long help output for large command groups.
+// PREVENTS: an overly long row for a large command group.
 func TestHelpDescribeChildrenTruncation(t *testing.T) {
 	tree := &Node{
 		Children: map[string]*Node{
@@ -320,12 +293,10 @@ func TestHelpDescribeChildrenTruncation(t *testing.T) {
 			},
 		},
 	}
-	var buf bytes.Buffer
-	writeHelp(&buf, tree, nil)
-	output := buf.String()
 
-	if !strings.Contains(output, "... (5 total)") {
-		t.Errorf("expected truncated summary with count, got: %q", output)
+	entries := entriesByName(HelpEntries(tree, nil))
+	if !strings.Contains(entries["big"], "... (5 total)") {
+		t.Errorf("the big row carries %q, want a truncated summary with the count", entries["big"])
 	}
 }
 
@@ -343,8 +314,8 @@ func TestFindNodeEmptyPath(t *testing.T) {
 	}
 }
 
-// VALIDATES: FindNode and WriteHelp handle nil root safely.
-// PREVENTS: nil pointer dereference panic.
+// VALIDATES: FindNode and HelpEntries handle a nil root safely.
+// PREVENTS: a nil pointer dereference panic.
 func TestHelpNilRoot(t *testing.T) {
 	if FindNode(nil, []string{"show"}) != nil {
 		t.Error("FindNode(nil, ...) should return nil")
@@ -352,13 +323,11 @@ func TestHelpNilRoot(t *testing.T) {
 	if FindNode(nil, nil) != nil {
 		t.Error("FindNode(nil, nil) should return nil")
 	}
-
-	var buf bytes.Buffer
-	if writeHelp(&buf, nil, nil) {
-		t.Error("WriteHelp with nil root should return false")
+	if HelpEntries(nil, nil) != nil {
+		t.Error("HelpEntries with a nil root should list nothing")
 	}
-	if writeHelp(&buf, nil, []string{"show"}) {
-		t.Error("WriteHelp with nil root and path should return false")
+	if HelpEntries(nil, []string{"show"}) != nil {
+		t.Error("HelpEntries with a nil root and a path should list nothing")
 	}
 }
 
@@ -395,11 +364,16 @@ func TestFindNode(t *testing.T) {
 	}
 }
 
-// VALIDATES: A-3 -- a listing line is byte-identical with and without the
-// authored usage sentence, because the listing stops at the first sentence.
-// PREVENTS: deleting the 80 authored sentences reddening every .ci that asserts
-// a `ze help` listing line.
-func TestHelpListingUnchangedWithoutUsageProse(t *testing.T) {
+// VALIDATES: a listing row is the node's declared summary, byte for byte.
+// PREVENTS: prose that does not belong in a summary hiding behind a cut.
+// This test used to pin the opposite property. It said the row was unchanged
+// whether or not a description carried an authored `Usage:` sentence, BECAUSE
+// the listing stopped at the first sentence. That cut is deleted, so an
+// authored sentence now reaches the operator's listing. `./le docvalid
+// usage-contract` keeps one out of a description. This test is why that gate
+// has to exist, because nothing downstream hides one any more. The usage line
+// itself is generated from the command model (usage.go).
+func TestHelpListingIsTheDeclaredSummaryByteForByte(t *testing.T) {
 	const meaning = "Add a VLAN sub-interface to the dummy."
 	const withProse = meaning + "\nUsage: create interface dummy name <name> unit <vid>."
 
@@ -409,32 +383,27 @@ func TestHelpListingUnchangedWithoutUsageProse(t *testing.T) {
 		}}
 	}
 
-	var before, after strings.Builder
-	if !writeHelp(&before, root(withProse), nil) {
-		t.Fatal("the listing with prose was not written")
-	}
-	if !writeHelp(&after, root(meaning), nil) {
-		t.Fatal("the listing without prose was not written")
+	if got := entriesByName(HelpEntries(root(meaning), nil))["unit"]; got != meaning {
+		t.Errorf("the listing row is %q, want the declared summary %q", got, meaning)
 	}
 
-	if before.String() != after.String() {
-		t.Errorf("the listing changed when the prose went:\n before: %q\n after:  %q",
-			before.String(), after.String())
+	authored := entriesByName(HelpEntries(root(withProse), nil))["unit"]
+	if authored != withProse {
+		t.Errorf("the listing row is %q, want the declared summary %q", authored, withProse)
 	}
-	if !strings.Contains(before.String(), meaning) {
-		t.Errorf("the listing does not state the meaning: %q", before.String())
-	}
-	if strings.Contains(before.String(), "Usage:") {
-		t.Errorf("the listing carries the authored sentence: %q", before.String())
+	if !strings.Contains(authored, "Usage:") {
+		t.Errorf("an authored usage sentence was hidden by the listing: %q", authored)
 	}
 }
 
 // VALIDATES: a `ze:modifier "choice"` child is not listed as a subcommand, so
-// a command whose only child is a choice still shows its own description.
+// a command whose only child is a choice lists nothing at all.
 // PREVENTS: the regression declaring `[import|export]` would otherwise cause.
-// `show policy chain peer` has no children today and shows its description;
-// adding the choice container would turn that page into a listing of one word
-// no operator ever types.
+// `show policy chain peer` has no listed children today and shows its own
+// description. Adding the choice container would turn that page into a listing
+// of one word no operator types. That the page still carries the command's own
+// description is asserted where the page is built:
+// TestHelpPageCarriesBothDeclaredHelpTexts (cmd/ze/command_help_page_test.go).
 func TestHelpDoesNotListAChoiceGroupAsASubcommand(t *testing.T) {
 	node := &Node{
 		Name:        "peer",
@@ -450,17 +419,25 @@ func TestHelpDoesNotListAChoiceGroupAsASubcommand(t *testing.T) {
 	}
 	root := &Node{Name: "root", Children: map[string]*Node{"chain": {Name: "chain", Children: map[string]*Node{"peer": node}}}}
 
-	var out strings.Builder
-	if !writeHelp(&out, root, []string{"chain", "peer"}) {
-		t.Fatal("the path was not found")
-	}
-	if strings.Contains(out.String(), "direction") {
-		t.Errorf("the page lists the choice container: %q", out.String())
-	}
-	if !strings.Contains(out.String(), "filter chain applied to a peer") {
-		t.Errorf("the page dropped the command's own description: %q", out.String())
-	}
 	if entries := HelpEntries(root, []string{"chain", "peer"}); len(entries) != 0 {
 		t.Errorf("the entries list the choice container: %+v", entries)
+	}
+}
+
+// VALIDATES: an entry carries the child's declared summary byte for byte.
+// PREVENTS: a renderer cutting the summary at a sentence break. The deleted
+// helpfmt.Summary dropped every word after the first full stop.
+func TestHelpEntriesKeepTheWholeSummary(t *testing.T) {
+	// An unconverted node, whose one description still holds both halves. The
+	// listing must carry what it is given rather than choose a boundary.
+	const declared = "Show one row per session. The row carries state and uptime."
+	tree := &Node{
+		Children: map[string]*Node{
+			"summary": {Name: "summary", Description: declared},
+		},
+	}
+
+	if got := entriesByName(HelpEntries(tree, nil))["summary"]; got != declared {
+		t.Errorf("the entry lost the tail of its summary: %q", got)
 	}
 }

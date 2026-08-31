@@ -72,9 +72,11 @@ func AllBuiltinRPCs() []RPCRegistration {
 
 // LoadBuiltins registers all builtin handlers with the dispatcher.
 // The wireToPath map provides the dispatch key for each handler, derived from
-// the YANG command tree (WireMethod -> CLI path). pathToDesc provides YANG
-// descriptions for help text. Handlers without a YANG entry are skipped.
-func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc map[string]string, pathToArgDefs map[string][]command.ArgDef) {
+// the YANG command tree (WireMethod -> CLI path). pathToDesc provides the
+// one-line summary each command's YANG description declares, and pathToHelp the
+// long explanation its ze:help extension declares. Handlers without a YANG
+// entry are skipped.
+func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef) {
 	for _, reg := range AllBuiltinRPCs() {
 		name := wireToPath[reg.WireMethod]
 		if name == "" {
@@ -85,6 +87,7 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc map[string]string, pathT
 			RequiresSelector: reg.RequiresSelector,
 			PluginProxy:      reg.PluginCommand != "",
 			ArgDefs:          pathToArgDefs[name],
+			LongHelp:         pathToHelp[name],
 		})
 	}
 }
@@ -93,7 +96,7 @@ func LoadBuiltins(d *Dispatcher, wireToPath, pathToDesc map[string]string, pathT
 // including all YANG command aliases for each wire method. When cmdTree is
 // non-nil, commands whose YANG path passes through a ze:ensure-exists node
 // are wrapped to auto-ensure the parent resource and rollback on failure.
-func loadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pathToDesc map[string]string, pathToArgDefs map[string][]command.ArgDef, cmdTree *command.Node) {
+func loadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pathToDesc, pathToHelp map[string]string, pathToArgDefs map[string][]command.ArgDef, cmdTree *command.Node) {
 	wireToHandler := make(map[string]Handler, len(AllBuiltinRPCs()))
 	for _, reg := range AllBuiltinRPCs() {
 		if reg.Handler != nil {
@@ -116,6 +119,7 @@ func loadBuiltinsWithAliases(d *Dispatcher, wireToPaths map[string][]string, pat
 				RequiresSelector: reg.RequiresSelector,
 				PluginProxy:      reg.PluginCommand != "",
 				ArgDefs:          pathToArgDefs[name],
+				LongHelp:         pathToHelp[name],
 			})
 		}
 	}
@@ -143,7 +147,7 @@ func IsReadOnlyPath(path string) bool {
 
 // registerDefaultHandlers registers all builtin handlers with the dispatcher.
 func registerDefaultHandlers(d *Dispatcher, wireToPath map[string]string) {
-	LoadBuiltins(d, wireToPath, nil, nil)
+	LoadBuiltins(d, wireToPath, nil, nil, nil)
 }
 
 // Handler processes a command and returns a response.
@@ -426,10 +430,21 @@ func (c *CommandContext) Selector(name string) string {
 }
 
 // Command represents a registered command with metadata.
+//
+// A Command is 168 bytes, past the 160-byte rangeValCopy bound .golangci.yml
+// sets. A loop over a []Command therefore ranges by index and takes the address
+// of the element, rather than copying it.
 type Command struct {
-	Name             string
-	Handler          Handler
-	Help             string
+	Name    string
+	Handler Handler
+	// Help is the one-line SUMMARY of the command, from its YANG description.
+	// Every surface that shows the command on one line reads it.
+	Help string
+	// LongHelp is the explanation this command's own help page prints, from its
+	// ze:help extension. Empty means the command declares no explanation, and
+	// the help page then prints the summary alone. It is NEVER read as a
+	// summary, and no one-line surface reads it at all.
+	LongHelp         string
 	ReadOnly         bool             // True if command only reads state (safe for "ze show")
 	RequiresSelector bool             // True if command requires an explicit selector instead of implicit/all scope
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves.
@@ -467,6 +482,7 @@ type RegisterOptions struct {
 	RequiresSelector bool             // True if the command requires an explicit selector value
 	PluginProxy      bool             // True if this builtin proxies to a plugin command (allows plugin to register same name)
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves
+	LongHelp         string           // The long explanation the command's own help page prints (empty = none declared)
 }
 
 // Dispatcher routes commands to handlers.
@@ -552,6 +568,7 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 		Name:             name,
 		Handler:          handler,
 		Help:             help,
+		LongHelp:         opts.LongHelp,
 		ReadOnly:         opts.ReadOnly,
 		RequiresSelector: opts.RequiresSelector,
 		ArgDefs:          opts.ArgDefs,

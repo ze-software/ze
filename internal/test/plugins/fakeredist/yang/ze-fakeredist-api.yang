@@ -2,6 +2,8 @@ module ze-fakeredist-api {
   namespace "urn:ze:test:fakeredist:api";
   prefix "fakeredist-api";
 
+  import ze-extensions { prefix ze; }
+
   organization "Ze Project";
   description "Test-only synthetic redistribute producer RPCs.
                fakeredist exposes these so .ci scenarios can drive the
@@ -12,15 +14,14 @@ module ze-fakeredist-api {
   }
 
   rpc fakeredist-emit {
-    description "Emit one synthetic route-change batch.
-                 Args: <add|remove> <family> <prefix> [<nexthop>].";
+    description "Emit one synthetic route-change batch.";
+    ze:help "Args: <add|remove> <family> <prefix> [<nexthop>].";
   }
 
   rpc fakeredist-emit-burst {
-    description "Emit N synthetic batches with the host portion of the
-                 base prefix auto-incremented.
-                 Args: <N> <add|remove> <family> <base-prefix>.
-                 N is bounded to one million per call.";
+    description "Emit N synthetic batches with the host portion of the base prefix auto-incremented.";
+    ze:help "Args: <N> <add|remove> <family> <base-prefix>. N is bounded to one million per
+call.";
   }
 
   rpc fakeredist-help {

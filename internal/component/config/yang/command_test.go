@@ -645,7 +645,13 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	require.NotNil(t, clear)
 	clearRIB := clear.Children["bgp"].Children["rib"]
 	require.NotNil(t, clearRIB)
-	assert.Equal(t, "Clear and re-advertise RIB entries", clearRIB.Description, "clear bgp rib grouping gets YANG description")
+	// A grouping node still receives its module's declared SUMMARY. The
+	// sentence itself is authored content that changes. So this asserts the
+	// shape the spec guarantees rather than one string. A summary is present,
+	// and it is one line. Pinning the sentence made this test fail the day an
+	// author added the full stop the house style asks for.
+	require.NotEmpty(t, clearRIB.Description, "clear bgp rib grouping gets its YANG description")
+	assert.NotContains(t, clearRIB.Description, "\n", "a summary is one line, and the long form belongs in ze:help")
 	assert.Equal(t, "", clearRIB.WireMethod, "clear bgp rib grouping has no WireMethod")
 	assert.Equal(t, "ze-rib-api:clear-in", clearRIB.Children["in"].WireMethod)
 	assert.Equal(t, "ze-rib-api:clear-out", clearRIB.Children["out"].WireMethod)
@@ -1283,7 +1289,8 @@ func TestMergeYANGEntryWarnsOnDescriptionMismatch(t *testing.T) {
 
 	mergeYANGEntry(root, entry)
 
-	assert.Contains(t, buf.String(), "YANG command description mismatch")
+	assert.Contains(t, buf.String(), "YANG command help text mismatch")
+	assert.Contains(t, buf.String(), "field=description")
 	assert.Contains(t, buf.String(), "First description")
 	assert.Contains(t, buf.String(), "Different description")
 	assert.Equal(t, "First description", root.Children["show"].Description, "first description wins")
@@ -1655,4 +1662,210 @@ module test-orphan-cmd {
 	assert.Contains(t, buf.String(), "YANG grouping container declares a value no command below it takes")
 	assert.Contains(t, buf.String(), "node=orphan")
 	assert.NotContains(t, buf.String(), "node=peer", "a container whose commands take its value is silent")
+}
+
+// helpExtensionModule declares one command carrying both help fields. The
+// ze:help argument spans three lines, because a long explanation is the reason
+// the extension exists and goyang has to return it whole.
+const helpExtensionModule = `
+module test-help-cmd {
+    namespace "urn:test:help:cmd";
+    prefix thc;
+    import ze-extensions { prefix ze; }
+
+    container show {
+        config false;
+        description "Read state from the daemon.";
+        container widget {
+            config false;
+            ze:command "ze-test:widget-list";
+            description "List every widget the daemon holds.";
+            ze:help "Each row names one widget and the module that declared it.
+
+                     A widget with no module is one a plugin registered at run
+                     time, and it disappears when that plugin exits.";
+        }
+    }
+}
+`
+
+// TestMergeYANGEntryReadsHelpExtension reads a module declaring both help
+// fields and asserts each reaches its own field on the command node.
+//
+// VALIDATES: goyang returns a ze:help argument whole, newlines included, and
+// the merge writes it beside the description rather than over it.
+// PREVENTS: the long form and the short form sharing one field, which is the
+// state every renderer guesses its way out of today.
+func TestMergeYANGEntryReadsHelpExtension(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.AddModuleFromText("test-help-cmd.yang", helpExtensionModule))
+	require.NoError(t, loader.Resolve())
+
+	node := BuildCommandTree(loader).Children["show"].Children["widget"]
+	require.NotNil(t, node)
+
+	assert.Equal(t, "List every widget the daemon holds.", node.Description)
+	assert.Contains(t, node.Help, "Each row names one widget")
+	assert.Contains(t, node.Help, "it disappears when that plugin exits.")
+	assert.Contains(t, node.Help, "\n", "a long explanation keeps the line breaks its author wrote")
+	assert.NotContains(t, node.Description, node.Help, "neither field is derived from the other")
+}
+
+// TestMergeYANGEntryReadsNoHelpExtension reads a command declaring a
+// description alone.
+//
+// VALIDATES: the long form is empty when nobody wrote one, and the summary is
+// untouched.
+// PREVENTS: an unconverted node answering its own summary as its explanation,
+// which hides how much of the tree still needs an explanation written.
+func TestMergeYANGEntryReadsNoHelpExtension(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.AddModuleFromText("test-order-cmd.yang", declarationOrderModule))
+	require.NoError(t, loader.Resolve())
+
+	node := BuildCommandTree(loader).Children["request"].Children["outgoing-call"]
+	require.NotNil(t, node)
+
+	assert.Equal(t, "Place a call.", node.Description)
+	assert.Empty(t, node.Help, "no ze:help statement means no long explanation")
+}
+
+// TestMergeYANGEntryWarnsPerFieldOnMismatch merges a second module over a node
+// whose two help fields disagree one at a time.
+//
+// VALIDATES: each field is decided on its own, the first value survives both
+// collisions, and the warning names the field that collided.
+// PREVENTS: a summary collision being reported as a help collision, which
+// sends the reader of the log to the wrong statement in the wrong module.
+func TestMergeYANGEntryWarnsPerFieldOnMismatch(t *testing.T) {
+	entryWith := func(description, help string) *gyang.Entry {
+		child := &gyang.Entry{Name: "show", Description: description, Config: gyang.TSFalse}
+		if help != "" {
+			child.Exts = []*gyang.Statement{{Keyword: "ze:help", Argument: help}}
+		}
+		return &gyang.Entry{Dir: map[string]*gyang.Entry{"show": child}}
+	}
+
+	cases := []struct {
+		name        string
+		description string
+		help        string
+		warnFields  []string
+		quietFields []string
+	}{
+		{
+			name:        "only the summary collides",
+			description: "Second summary.",
+			help:        "First explanation.",
+			warnFields:  []string{"description"},
+			quietFields: []string{"help"},
+		},
+		{
+			name:        "only the explanation collides",
+			description: "First summary.",
+			help:        "Second explanation.",
+			warnFields:  []string{"help"},
+			quietFields: []string{"description"},
+		},
+		{
+			name:        "both collide",
+			description: "Second summary.",
+			help:        "Second explanation.",
+			warnFields:  []string{"description", "help"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			old := slog.Default()
+			slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+			defer slog.SetDefault(old)
+
+			root := &command.Node{Children: map[string]*command.Node{
+				"show": {Name: "show", Description: "First summary.", Help: "First explanation."},
+			}}
+
+			mergeYANGEntry(root, entryWith(tc.description, tc.help))
+
+			for _, field := range tc.warnFields {
+				assert.Contains(t, buf.String(), "YANG command help text mismatch")
+				assert.Contains(t, buf.String(), "field="+field)
+			}
+			for _, field := range tc.quietFields {
+				assert.NotContains(t, buf.String(), "field="+field, "a field that agrees is not reported")
+			}
+			assert.Equal(t, "First summary.", root.Children["show"].Description, "the first summary survives")
+			assert.Equal(t, "First explanation.", root.Children["show"].Help, "the first explanation survives")
+		})
+	}
+}
+
+// TestMergeYANGEntryFillsEachFieldOnItsOwn merges a module that states only the
+// explanation onto a node that holds only the summary.
+//
+// VALIDATES: an empty field takes what arrives while a filled one is left
+// alone, with no warning either way.
+// PREVENTS: one module having to state both halves to contribute either.
+func TestMergeYANGEntryFillsEachFieldOnItsOwn(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(old)
+
+	root := &command.Node{Children: map[string]*command.Node{
+		"show": {Name: "show", Description: "First summary."},
+	}}
+
+	mergeYANGEntry(root, &gyang.Entry{Dir: map[string]*gyang.Entry{
+		"show": {
+			Name:        "show",
+			Description: "First summary.",
+			Config:      gyang.TSFalse,
+			Exts:        []*gyang.Statement{{Keyword: "ze:help", Argument: "The long explanation."}},
+		},
+	}})
+
+	assert.Equal(t, "First summary.", root.Children["show"].Description)
+	assert.Equal(t, "The long explanation.", root.Children["show"].Help)
+	assert.Empty(t, buf.String(), "filling an empty field is not a collision")
+}
+
+// TestMergeYANGEntryWireMethodOverwriteIsPerField merges the module that marks
+// a node executable over a node that already holds both help fields.
+//
+// VALIDATES: the module declaring ze:command states both halves of that
+// command's help, one field at a time, and a half it does not state is empty
+// rather than inherited from a grouping container.
+// PREVENTS: a command page built from two modules' text, where the summary
+// comes from the command's own module and the explanation from whichever other
+// module the alphabet merged first.
+func TestMergeYANGEntryWireMethodOverwriteIsPerField(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelWarn})))
+	defer slog.SetDefault(old)
+
+	root := &command.Node{Children: map[string]*command.Node{
+		"show": {Name: "show", Description: "Grouping summary.", Help: "Grouping explanation."},
+	}}
+
+	mergeYANGEntry(root, &gyang.Entry{Dir: map[string]*gyang.Entry{
+		"show": {
+			Name:        "show",
+			Description: "Command summary.",
+			Config:      gyang.TSFalse,
+			Exts: []*gyang.Statement{
+				{Keyword: "ze:command", Argument: "ze-test:show"},
+			},
+		},
+	}})
+
+	node := root.Children["show"]
+	assert.Equal(t, "ze-test:show", node.WireMethod)
+	assert.Equal(t, "Command summary.", node.Description, "the command's own module states the summary")
+	assert.Empty(t, node.Help, "a half the command's module does not state is empty, not inherited")
+	assert.Empty(t, buf.String(), "the command's own module is not in collision with a grouping container")
 }

@@ -8,17 +8,17 @@ module ze-policyroute-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container policy {
             config false;
-            description "Inspect and test route policy filters";
+            description "Inspect and test route policy filters.";
 
             container routes {
                 config false;
                 ze:command "ze-show:policy-routes";
-                description "Show policy-based routing rules.
-Lists PBR rules with match criteria and routing actions.";
+                description "Show policy-based routing rules.";
+                ze:help "Lists PBR rules with match criteria and routing actions.";
             }
         }
     }

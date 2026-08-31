@@ -2,6 +2,7 @@ module ze-system-api {
     namespace "urn:ze:system:api";
     prefix sys;
 
+    import ze-extensions { prefix ze; }
     import ze-types { prefix zt; }
 
     description
@@ -13,21 +14,21 @@ module ze-system-api {
     }
 
     rpc help {
-        description "Show available commands";
+        description "List the subcommands the system verb accepts.";
         output {
             leaf-list subcommands { type string; description "Available subcommands"; }
         }
     }
 
     rpc version-software {
-        description "Show ze version";
+        description "Show the ze software version.";
         output {
             leaf version { type string; description "Software version string"; }
         }
     }
 
     rpc version-api {
-        description "Show IPC protocol version";
+        description "Show the IPC protocol version.";
         output {
             leaf version { type string; description "API protocol version"; }
         }
@@ -36,19 +37,19 @@ module ze-system-api {
     // Daemon lifecycle (system-wide operations affecting all plugins)
 
     rpc daemon-shutdown {
-        description "Gracefully shutdown the daemon";
+        description "Shut the daemon down gracefully.";
     }
 
     rpc daemon-reboot {
-        description "Gracefully shutdown then reboot the system (requires root on Linux)";
+        description "Shut the daemon down gracefully, then reboot the system (root is required on Linux).";
     }
 
     rpc daemon-quit {
-        description "Dump goroutine stacks and shutdown";
+        description "Dump every goroutine stack, then shut the daemon down.";
     }
 
     rpc daemon-status {
-        description "Query daemon status";
+        description "Show the daemon uptime, peer count, and start time.";
         output {
             leaf uptime-seconds { type uint32; description "Seconds since start"; }
             leaf peer-count { type uint32; description "Number of configured peers"; }
@@ -57,11 +58,12 @@ module ze-system-api {
     }
 
     rpc daemon-reload {
-        description "Reload configuration";
+        description "Reload the configuration.";
     }
 
     rpc quiesce {
-        description "Block until every subsystem drains pending async work; a test/operator barrier that replaces a fixed sleep";
+        description "Block until every subsystem drains its pending async work.";
+        ze:help "It is a test and operator barrier that replaces a fixed sleep.";
         output {
             leaf-list quiesced { type string; description "Subsystems that were asked to drain"; }
             leaf-list failed { type string; description "Subsystems that failed or timed out"; }
@@ -69,7 +71,7 @@ module ze-system-api {
     }
 
     rpc subsystem-list {
-        description "List available subsystems";
+        description "List the subsystems registered in the daemon.";
         output {
             list subsystem {
                 leaf name { type string; description "Subsystem name"; }
@@ -79,7 +81,7 @@ module ze-system-api {
     }
 
     rpc command-list {
-        description "List all available commands";
+        description "List every command the daemon knows.";
         output {
             list command {
                 uses zt:command-info;
@@ -88,7 +90,7 @@ module ze-system-api {
     }
 
     rpc command-help {
-        description "Get detailed help for a command";
+        description "Show the detailed help for one command.";
         input {
             leaf name { type string; mandatory true; description "Command name"; }
         }
@@ -98,7 +100,7 @@ module ze-system-api {
     }
 
     rpc command-complete {
-        description "Tab completion for partial commands";
+        description "List the completion candidates for a partial command.";
         input {
             leaf partial { type string; mandatory true; description "Partial command string"; }
             leaf arg { type string; description "Current argument being completed"; }
@@ -109,7 +111,7 @@ module ze-system-api {
     }
 
     rpc dispatch {
-        description "Dispatch a text command through the command dispatcher";
+        description "Dispatch a text command through the command dispatcher.";
         input {
             leaf-list args { type string; description "Command words to join and dispatch"; }
         }

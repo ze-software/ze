@@ -7,26 +7,25 @@ module ze-update-show-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container system {
             config false;
-            description "Daemon process and runtime diagnostics";
+            description "Daemon process and runtime diagnostics.";
 
             container update {
                 config false;
                 ze:command "ze-show:system-update";
-                description "Check if a firmware update is available.
-Shows the running version, latest available version, and when the
-last check ran. Use 'update system firmware check' to trigger an
-immediate re-check.";
+                description "Check if a firmware update is available.";
+                ze:help "Shows the running version, latest available version, and when the last check
+ran. Use 'update system firmware check' to trigger an immediate re-check.";
 
                 container history {
                     config false;
                     ze:command "ze-show:system-update-history";
-                    description "Show recent firmware update activity.
-Lists the last 20 update events: checks, downloads, installs,
-and rollbacks with timestamps and outcomes.";
+                    description "Show recent firmware update activity.";
+                    ze:help "Lists the last 20 update events: checks, downloads, installs, and rollbacks
+with timestamps and outcomes.";
                 }
             }
         }

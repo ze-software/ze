@@ -521,6 +521,13 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 		logger().Error("plugin answer shape refused", "plugin", proc.Config().Name, "error", err)
 		return fmt.Errorf("invalid answer shape: %s: %w", proc.Config().Name, err)
 	}
+	// Validate the two declared help texts in the same position. They reach an
+	// operator's terminal, an HTML page and a JSON document, so the bound and
+	// the control-character refusal happen before the declaration is stored.
+	if err := validateHelpDecls(input.Commands); err != nil {
+		logger().Error("plugin help text refused", "plugin", proc.Config().Name, "error", err)
+		return fmt.Errorf("invalid help text: %s: %w", proc.Config().Name, err)
+	}
 
 	// Convert RPC input to engine registration type.
 	reg := registrationFromRPC(input)
@@ -651,7 +658,13 @@ func (e *engineStartupSink) onReady(input *rpc.ReadyInput) error {
 	if reg := proc.Registration(); reg != nil && len(reg.Commands) > 0 {
 		defs := make([]CommandDef, len(reg.Commands))
 		for i, name := range reg.Commands {
-			defs[i] = CommandDef{Name: name, Description: reg.CommandDescriptions[name], Hidden: reg.CommandHidden[name], Completable: reg.CommandCompletable[name]}
+			defs[i] = CommandDef{
+				Name:        name,
+				Description: reg.CommandDescriptions[name],
+				LongHelp:    reg.CommandLongHelp[name],
+				Hidden:      reg.CommandHidden[name],
+				Completable: reg.CommandCompletable[name],
+			}
 		}
 		results := s.dispatcher.Registry().Register(proc, defs)
 		for _, r := range results {
@@ -862,13 +875,25 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		}
 	}
 
-	for _, cmd := range input.Commands {
+	for i := range input.Commands {
+		cmd := &input.Commands[i]
 		reg.Commands = append(reg.Commands, cmd.Name)
 		if cmd.Description != "" {
 			if reg.CommandDescriptions == nil {
 				reg.CommandDescriptions = make(map[string]string, len(input.Commands))
 			}
 			reg.CommandDescriptions[cmd.Name] = cmd.Description
+		}
+		// The two help texts are carried in two maps. Each entry is written
+		// only when the plugin declared that text. A plugin that declares a
+		// summary and no explanation therefore appears in the first map and
+		// not in the second. That is the reading the empty value owes
+		// (plan/journal/field-carries-two-meanings.md).
+		if cmd.LongHelp != "" {
+			if reg.CommandLongHelp == nil {
+				reg.CommandLongHelp = make(map[string]string, len(input.Commands))
+			}
+			reg.CommandLongHelp[cmd.Name] = cmd.LongHelp
 		}
 		if cmd.Hidden {
 			if reg.CommandHidden == nil {
@@ -1013,7 +1038,8 @@ func validatePipeDecls(pipes []rpc.PipeDecl, commands []rpc.CommandDecl) error {
 		return fmt.Errorf("too many pipe aliases: %d (max %d)", len(pipes), maxPipes)
 	}
 	declared := make(map[string]struct{}, len(commands))
-	for _, c := range commands {
+	for i := range commands {
+		c := &commands[i]
 		if path := commandPathKey(c.Name); path != "" {
 			declared[path] = struct{}{}
 		}
@@ -1030,6 +1056,11 @@ func validatePipeDecls(pipes []rpc.PipeDecl, commands []rpc.CommandDecl) error {
 		}
 		if strings.TrimSpace(p.Expansion) == "" {
 			return fmt.Errorf("pipe alias %q on %q expands to nothing", p.Name, p.Command)
+		}
+		// The alias description is a one-line summary, and completion writes it
+		// into the same tab-separated format a command summary goes into.
+		if err := validateDeclaredText(p.Description, maxSummaryLen, textOneLine); err != nil {
+			return fmt.Errorf("pipe alias %q declares an invalid description: %w", p.Name, err)
 		}
 		if _, owned := declared[commandPathKey(p.Command)]; !owned {
 			return fmt.Errorf("pipe alias %q sits on %q, a command this plugin does not declare", p.Name, p.Command)
@@ -1078,7 +1109,8 @@ func registerPluginPipes(owner string, pipes []rpc.PipeDecl, commands []rpc.Comm
 		})
 	}
 	declaredCommands := make([]string, 0, len(commands))
-	for _, c := range commands {
+	for i := range commands {
+		c := &commands[i]
 		declaredCommands = append(declaredCommands, c.Name)
 	}
 	return command.RegisterPluginAliases(owner, declaredCommands, declared)
@@ -1115,7 +1147,8 @@ func validateShapeDecls(commands []rpc.CommandDecl) error {
 	const maxAddressFields = 16
 	const maxFieldNameLen = 64
 
-	for _, c := range commands {
+	for i := range commands {
+		c := &commands[i]
 		if c.Shape == "" {
 			if len(c.Columns) == 0 && len(c.AddressFields) == 0 {
 				continue
@@ -1165,6 +1198,78 @@ func validateDeclaredFieldName(command, kind, name string, maxNameLen int) error
 	return nil
 }
 
+// The bounds on the two help texts a plugin declares. They are the widest text
+// in this repository with room over it. The longest declared summary in the
+// tree is 64 bytes, and an authored summary is one sentence of at most 25
+// words. A declaration past a bound has a defect rather than a long
+// explanation. The strings also arrive from another process
+// (docs/contributing/ze-go-style.md, "A limit on everything").
+const (
+	maxSummaryLen  = 256
+	maxLongHelpLen = 4096
+)
+
+// textShape says whether a declared text is read as one line or as a
+// paragraph. The zero value is the stricter reading, so a text whose shape
+// nobody stated is held to the one-line rule.
+type textShape uint8
+
+const (
+	textOneLine   textShape = iota // No control character at all.
+	textParagraph                  // Newlines are kept; every other control character is refused.
+)
+
+// validateHelpDecls bounds the two help texts a Stage 1 command declaration
+// carries, and refuses a control character in either one.
+//
+// It runs where validateShapeDecls runs, before onRegistration converts
+// anything, and for the same reason. A declared string reaches an operator's
+// terminal, an HTML page and a JSON document, so it is refused before it is
+// stored.
+//
+// The summary is ONE LINE. It is written into the tab-separated shell
+// completion format and into the one-line terminal candidate. A newline or a
+// tab in it breaks the format for every row that follows. An ESC in it writes
+// an ANSI sequence to the operator's terminal.
+//
+// The explanation is a PARAGRAPH. Only the command's own help page prints it,
+// so it keeps the newlines its author wrote and refuses every other control
+// character.
+func validateHelpDecls(commands []rpc.CommandDecl) error {
+	for i := range commands {
+		c := &commands[i]
+		if err := validateDeclaredText(c.Description, maxSummaryLen, textOneLine); err != nil {
+			return fmt.Errorf("command %q declares an invalid description: %w", clampDeclared(c.Name), err)
+		}
+		if err := validateDeclaredText(c.LongHelp, maxLongHelpLen, textParagraph); err != nil {
+			return fmt.Errorf("command %q declares an invalid long-help: %w", clampDeclared(c.Name), err)
+		}
+	}
+	return nil
+}
+
+// validateDeclaredText refuses a declared text that runs past its bound or
+// carries a control character its shape does not allow. The caller names the
+// declaration the text belongs to, because this reports on the text alone.
+//
+// An empty text is valid: it says the plugin declared nothing there.
+func validateDeclaredText(text string, maxLen int, shape textShape) error {
+	if len(text) > maxLen {
+		return fmt.Errorf("%d bytes (max %d)", len(text), maxLen)
+	}
+	for i := range len(text) {
+		c := text[i]
+		if c == '\n' && shape == textParagraph {
+			continue
+		}
+		if c >= 0x20 && c != 0x7f {
+			continue
+		}
+		return fmt.Errorf("control character %#02x at byte %d", c, i)
+	}
+	return nil
+}
+
 // clampDeclared bounds a string from a plugin message before it reaches an error
 // message, and through it the daemon log.
 //
@@ -1203,7 +1308,8 @@ func clampDeclared(value string) string {
 // under, on the rollback path and when the plugin stops.
 func registerPluginShapes(owner string, commands []rpc.CommandDecl) error {
 	declared := make([]command.PluginShape, 0, len(commands))
-	for _, c := range commands {
+	for i := range commands {
+		c := &commands[i]
 		if c.Shape == "" {
 			continue
 		}

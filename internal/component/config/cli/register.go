@@ -93,8 +93,10 @@ func init() {
 		return Run(append([]string{"fmt"}, args...))
 	}, registry.Meta{Description: "Pretty-print the config with consistent formatting and ordering."})
 	registry.MustRegisterLocalData("validate config", dataValidate, registry.Meta{
-		Description: "Check your config for errors without applying anything. Reports syntax and semantic issues.",
-		Mode:        modeOffline,
+		Description: "Check a config for errors without applying it.",
+		LongHelp: "Both the grammar of the file and the meaning of its values are checked, and each " +
+			"problem is reported with the diagnostic code that explains it.",
+		Mode: modeOffline,
 	}, command.RenderLocalAnswer)
 	registry.MustRegisterLocalMeta("show config graph", func(args []string) int {
 		return Run(append([]string{"graph"}, args...))

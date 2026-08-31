@@ -8,7 +8,7 @@ module ze-traffic-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container traffic {
             config false;
@@ -17,10 +17,10 @@ module ze-traffic-cmd {
             container control {
                 config false;
                 ze:command "ze-show:traffic";
-                description "Show traffic control (QoS) configuration per interface.
-Without arguments, lists every interface with its qdisc type and
-class/filter counts. With an interface name, shows the full qdisc
-and class breakdown. Use this to verify your shaping is applied.";
+                description "Show traffic control (QoS) configuration per interface.";
+                ze:help "Without arguments, lists every interface with its qdisc type and class/filter
+counts. With an interface name, shows the full qdisc and class breakdown. Use
+this to verify your shaping is applied.";
             }
         }
     }

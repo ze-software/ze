@@ -72,6 +72,8 @@ type docVerifyStage struct {
 var docVerifyStages = [...]docVerifyStage{
 	{"Documentation drift (docs claims vs registries and filesystem)...", docDriftStage},
 	{"YANG/handler contract (validate-commands)...", docContractStage},
+	{"Command usage contract (the model states every grammar, no description spells one)...", docUsageStage},
+	{"Command help shape (every command node declares a one-sentence summary)...", docHelpShapeStage},
 	{"Source anchors (docs source references exist)...", docIndexStage},
 	{"Rules render (ai/rules/<rule>.md matches ai/rules/points/)...", rulesRenderStage},
 	{"Rules round trip (split every rendered rule, render it back, compare bytes)...", rulesRoundTripStage},
@@ -116,6 +118,35 @@ func docDriftStage(root string) (any, int) {
 
 func docContractStage(root string) (any, int) {
 	report, err := docvalid.Validate(root)
+	if err != nil {
+		return errorPage(err), 1
+	}
+	if !report.Valid {
+		return report, 1
+	}
+	return report, 0
+}
+
+// docUsageStage refuses a description that prescribes a CLI spelling, and a
+// deletion that hides a grammar the model still does not state.
+func docUsageStage(root string) (any, int) {
+	report, err := docvalid.Usage(root)
+	if err != nil {
+		return errorPage(err), 1
+	}
+	if !report.Valid {
+		return report, 1
+	}
+	return report, 0
+}
+
+// docHelpShapeStage refuses a command summary that no one-line surface can
+// render, and reports how much of the command tree is written.
+//
+// The root is unused: the gate reads the YANG modules this binary carries,
+// which is the same population every other command gate walks.
+func docHelpShapeStage(_ string) (any, int) {
+	report, err := docvalid.HelpShape()
 	if err != nil {
 		return errorPage(err), 1
 	}

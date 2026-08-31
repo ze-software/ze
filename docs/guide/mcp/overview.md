@@ -385,7 +385,7 @@ so it is never out of date.
 | Command | Content |
 |---------|---------|
 | `ze help ai` | Summary with counts and quick start |
-| `ze help ai --json` | Machine-readable JSON with commands, RPCs, plugins, families, services |
+| `ze help ai --json` | Machine-readable JSON with commands, RPCs, plugins, families, services. An RPC carries its one-line summary under `description` and its long explanation under `long-help`, and omits `long-help` when the module declares no `ze:help` |
 | `ze help ai cli` | CLI subcommands (ze bgp, ze config, ...) |
 | `ze help ai api` | Daemon API commands with parameters (YANG RPCs) |
 | `ze help ai mcp` | MCP tools with parameters and examples |

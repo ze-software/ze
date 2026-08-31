@@ -11,8 +11,8 @@ module ze-update-cmd {
         container update {
             config false;
             ze:command "ze-bgp:peer-update";
-            description "Send a pre-built BGP UPDATE to a peer.
-Payload can be text (human-readable route syntax), hex, or base64.
+            description "Send a pre-built BGP UPDATE to a peer.";
+            ze:help "Payload can be text (human-readable route syntax), hex, or base64.
 Use 'show bgp encode' to build the payload, then send it here.";
             leaf selector { type string; mandatory true; description "Peer selector"; }
         }

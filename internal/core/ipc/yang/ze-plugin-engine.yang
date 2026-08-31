@@ -2,6 +2,7 @@ module ze-plugin-engine {
     namespace "urn:ze:plugin:engine";
     prefix engine;
 
+    import ze-extensions { prefix ze; }
     import ze-types { prefix zt; }
 
     description
@@ -16,9 +17,8 @@ module ze-plugin-engine {
     // Stage 1: Plugin declares itself to the engine.
 
     rpc declare-registration {
-        description
-            "Plugin declares families, commands, config wants, and YANG schema.
-             Called during Stage 1 of the 5-stage startup protocol.";
+        description "Plugin declares families, commands, config wants, and YANG schema.";
+        ze:help "Called during Stage 1 of the 5-stage startup protocol.";
         input {
             list family {
                 key "name";
@@ -151,9 +151,8 @@ module ze-plugin-engine {
     // Stage 3: Plugin declares OPEN capabilities.
 
     rpc declare-capabilities {
-        description
-            "Plugin declares capabilities for BGP OPEN injection.
-             Called during Stage 3 of the 5-stage startup protocol.";
+        description "Plugin declares capabilities for BGP OPEN injection.";
+        ze:help "Called during Stage 3 of the 5-stage startup protocol.";
         input {
             list capability {
                 key "code";
@@ -185,9 +184,8 @@ module ze-plugin-engine {
     // Stage 5: Plugin signals readiness.
 
     rpc ready {
-        description
-            "Plugin signals it is operational and ready to process events.
-             Called during Stage 5 of the 5-stage startup protocol.";
+        description "Plugin signals it is operational and ready to process events.";
+        ze:help "Called during Stage 5 of the 5-stage startup protocol.";
     }
 
     // Runtime: Route injection.
@@ -222,12 +220,11 @@ module ze-plugin-engine {
     // Runtime: Command dispatch (inter-plugin communication).
 
     rpc dispatch-command {
-        description
-            "Plugin dispatches a command through the engine's command dispatcher.
-             Enables inter-plugin communication: the engine routes the command
-             to the target plugin via longest-match registry lookup and returns
-             the full {status, data} response. Unlike update-route, which
-             extracts only route counters, this preserves structured responses.";
+        description "Plugin dispatches a command through the engine's command dispatcher.";
+        ze:help "Enables inter-plugin communication: the engine routes the command
+to the target plugin via longest-match registry lookup and returns
+the full {status, data} response. Unlike update-route, which
+extracts only route counters, this preserves structured responses.";
         input {
             leaf command {
                 type string;
@@ -277,9 +274,8 @@ module ze-plugin-engine {
     // Plugins call these to decode BGP wire data via the engine's parsers.
 
     rpc decode-nlri {
-        description
-            "Decode NLRI hex for a specific address family.
-             Engine routes to the compile-time plugin registry for decoding.";
+        description "Decode NLRI hex for a specific address family.";
+        ze:help "Engine routes to the compile-time plugin registry for decoding.";
         input {
             leaf family {
                 type string;
@@ -301,9 +297,8 @@ module ze-plugin-engine {
     }
 
     rpc encode-nlri {
-        description
-            "Encode NLRI from text arguments for a specific address family.
-             Engine routes to the compile-time plugin registry for encoding.";
+        description "Encode NLRI from text arguments for a specific address family.";
+        ze:help "Engine routes to the compile-time plugin registry for encoding.";
         input {
             leaf family {
                 type string;
@@ -324,9 +319,8 @@ module ze-plugin-engine {
     }
 
     rpc decode-mp-reach {
-        description
-            "Decode a full MP_REACH_NLRI attribute value (RFC 4760 Section 3).
-             Engine extracts address family, next-hop, and decoded NLRI.";
+        description "Decode a full MP_REACH_NLRI attribute value (RFC 4760 Section 3).";
+        ze:help "Engine extracts address family, next-hop, and decoded NLRI.";
         input {
             leaf hex {
                 type string;
@@ -356,9 +350,8 @@ module ze-plugin-engine {
     }
 
     rpc decode-mp-unreach {
-        description
-            "Decode a full MP_UNREACH_NLRI attribute value (RFC 4760 Section 4).
-             Engine extracts address family and decoded withdrawn NLRI.";
+        description "Decode a full MP_UNREACH_NLRI attribute value (RFC 4760 Section 4).";
+        ze:help "Engine extracts address family and decoded withdrawn NLRI.";
         input {
             leaf hex {
                 type string;
@@ -384,10 +377,9 @@ module ze-plugin-engine {
     }
 
     rpc decode-update {
-        description
-            "Decode a full UPDATE message body (RFC 4271 Section 4.3).
-             Engine parses attributes, NLRI, and withdrawn routes.
-             Returns ze-bgp JSON format (same structure as deliver-event).";
+        description "Decode a full UPDATE message body (RFC 4271 Section 4.3).";
+        ze:help "Engine parses attributes, NLRI, and withdrawn routes.
+Returns ze-bgp JSON format (same structure as deliver-event).";
         input {
             leaf hex {
                 type string;
@@ -411,10 +403,9 @@ module ze-plugin-engine {
     // Runtime: Event emission (plugin-generated events).
 
     rpc emit-event {
-        description
-            "Plugin emits a custom event to subscribers.
-             The engine routes the event to all plugins subscribed to the
-             matching namespace and event-type.";
+        description "Plugin emits a custom event to subscribers.";
+        ze:help "The engine routes the event to all plugins subscribed to the
+matching namespace and event-type.";
         input {
             leaf namespace {
                 type string;

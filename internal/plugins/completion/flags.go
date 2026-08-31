@@ -24,10 +24,8 @@ func flags(args []string) int {
 func writeFlags(w io.Writer, args []string) int {
 	var key textbuf.Buffer
 	path := key.Join(args, " ").String()
-	var line textbuf.Buffer
 	for _, f := range registry.CommandFlags(path) {
-		line.Reset().Str(f.Name).Byte('\t').Str(f.Description).Byte('\n')
-		if _, err := io.WriteString(w, line.String()); err != nil {
+		if err := writeCompletionRecord(w, f.Name, f.Description); err != nil {
 			return 1
 		}
 	}
@@ -42,10 +40,8 @@ func families() int {
 }
 
 func writeFamilies(w io.Writer) int {
-	var line textbuf.Buffer
 	for _, s := range command.FamilyValueHints() {
-		line.Reset().Str(s.Text).Byte('\t').Str(s.Description).Byte('\n')
-		if _, err := io.WriteString(w, line.String()); err != nil {
+		if err := writeCompletionRecord(w, s.Text, s.Description); err != nil {
 			return 1
 		}
 	}

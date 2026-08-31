@@ -40,8 +40,8 @@ func TestBuildCommandMeta_DedupesPluginProxiedCommand(t *testing.T) {
 	}
 	// The dispatcher entry is a strict superset, so its help must survive and
 	// the YANG-derived fields must be attached to the surviving entry.
-	if got[0].Help != "Show IS-IS neighbors" {
-		t.Errorf("Help = %q, want the dispatcher (YANG) help", got[0].Help)
+	if got[0].Description != "Show IS-IS neighbors" {
+		t.Errorf("Description = %q, want the dispatcher (YANG) help", got[0].Description)
 	}
 	if !got[0].ReadOnly {
 		t.Error("ReadOnly = false, want true from the dispatcher entry")
@@ -82,8 +82,8 @@ func TestBuildCommandMeta_PluginHelpFillsEmptyDispatcherHelp(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("merged list length = %d, want 1", len(got))
 	}
-	if got[0].Help != "plugin help" {
-		t.Errorf("Help = %q, want the plugin description to fill the empty dispatcher help", got[0].Help)
+	if got[0].Description != "plugin help" {
+		t.Errorf("Description = %q, want the plugin description to fill the empty dispatcher help", got[0].Description)
 	}
 }
 
@@ -101,7 +101,7 @@ func TestBuildCommandMeta_KeepsPluginOnlyCommand(t *testing.T) {
 	}
 	var found bool
 	for _, c := range got {
-		if c.Name == "show widget status" && c.Help == "widget" {
+		if c.Name == "show widget status" && c.Description == "widget" {
 			found = true
 		}
 	}
@@ -195,8 +195,8 @@ func TestBuildCommandMeta_HiddenPluginCommandDoesNotFillHelp(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("merged list length = %d, want 1; entries = %+v", len(got), got)
 	}
-	if got[0].Help != "" {
-		t.Errorf("Help = %q, want the hidden plugin description to be dropped", got[0].Help)
+	if got[0].Description != "" {
+		t.Errorf("Description = %q, want the hidden plugin description to be dropped", got[0].Description)
 	}
 }
 
@@ -222,5 +222,62 @@ func TestBuildCommandMeta_UIResourceSurvivesDedupe(t *testing.T) {
 	}
 	if got[0].UIResource.Path != "bgp-peer/index.html" {
 		t.Errorf("UIResource.Path = %q, want %q", got[0].UIResource.Path, "bgp-peer/index.html")
+	}
+}
+
+// TestBuildCommandMetaCarriesBothHelpTexts proves two things. The neutral
+// metadata carries the summary and the explanation as two fields. The plugin
+// gap-fill decides each of them on its own.
+//
+// The dispatcher's two fields come from YANG, through LoadBuiltins reading
+// PathToDescription and PathToHelp. A plugin sends its own pair on CommandDecl.
+// A command with a YANG summary and a plugin explanation keeps both.
+//
+// VALIDATES: story 7 and story 8 upstream of MCP and OpenAPI, which read this
+// type.
+// PREVENTS: the explanation being dropped at the merge, and the gap-fill
+// overwriting one half because the other was empty.
+func TestBuildCommandMetaCarriesBothHelpTexts(t *testing.T) {
+	const yangOnly = "show isis neighbor"
+	const halfEach = "show widget status"
+	const pluginOnly = "widget clear"
+
+	got := buildCommandMeta(
+		[]*pluginserver.Command{
+			{Name: yangOnly, Help: "List the IS-IS neighbors.", LongHelp: "One row for each adjacency.\nThe hold time is what the neighbor advertised."},
+			{Name: halfEach, Help: "Show the widget state."},
+		},
+		[]*pluginserver.RegisteredCommand{
+			{Name: halfEach, Description: "plugin summary", LongHelp: "The widget count is since the last clear."},
+			{Name: pluginOnly, Description: "Clear the widget counters.", LongHelp: "The counters restart at zero."},
+		},
+		nil, nil, nil)
+
+	byName := make(map[string]commandMeta, len(got))
+	for _, c := range got {
+		byName[c.Name] = c
+	}
+
+	yang := byName[yangOnly]
+	if yang.Description != "List the IS-IS neighbors." {
+		t.Errorf("Description = %q, want the YANG summary", yang.Description)
+	}
+	if yang.LongHelp != "One row for each adjacency.\nThe hold time is what the neighbor advertised." {
+		t.Errorf("LongHelp = %q, want the YANG explanation with its newline", yang.LongHelp)
+	}
+
+	// The dispatcher declared a summary and no explanation, so the plugin fills
+	// the explanation and does NOT replace the summary.
+	half := byName[halfEach]
+	if half.Description != "Show the widget state." {
+		t.Errorf("Description = %q, want the dispatcher summary to win", half.Description)
+	}
+	if half.LongHelp != "The widget count is since the last clear." {
+		t.Errorf("LongHelp = %q, want the plugin explanation to fill the empty half", half.LongHelp)
+	}
+
+	only := byName[pluginOnly]
+	if only.Description != "Clear the widget counters." || only.LongHelp != "The counters restart at zero." {
+		t.Errorf("plugin-only command = %+v, want both halves carried", only)
 	}
 }

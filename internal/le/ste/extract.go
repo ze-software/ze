@@ -303,12 +303,20 @@ func hasGoMarker(body string) bool {
 	return false
 }
 
-// yangDescriptionRe finds a `description` or `error-message` string. The
-// leading `\b` is applied by findBounded rather than by the pattern.
-var yangDescriptionRe = mustPattern(`(?s)(?:description|error-message){SP}+(?:"(?P<body>[^"]*)"|'(?P<body2>[^']*)')`)
+// yangDescriptionRe finds a `description`, an `error-message` or a `ze:help`
+// string. The leading `\b` is applied by findBounded rather than by the pattern.
+//
+// `ze:help` carries the long explanation of a command node, and the
+// `description` beside it carries the one-line summary
+// (plan/spec-yang-short-and-long-command-help.md). Both are authored prose, so
+// both are reviewed: a pattern naming the description keyword alone would let
+// a sentence leave STE scope by moving one statement down. The prefix is
+// literal because every module in the tree imports the extensions module as
+// `prefix ze`.
+var yangDescriptionRe = mustPattern(`(?s)(?:description|error-message|ze:help){SP}+(?:"(?P<body>[^"]*)"|'(?P<body2>[^']*)')`)
 
-// unitsYANG extracts `description` and `error-message` strings from a YANG
-// module.
+// unitsYANG extracts `description`, `error-message` and `ze:help` strings from
+// a YANG module.
 func unitsYANG(text string) []unit {
 	var out []unit
 	names := yangDescriptionRe.SubexpNames()
@@ -405,8 +413,12 @@ func holdInnerDots(text string) string {
 // glues its whole bullet into one 29-word sentence.
 const sentenceClosers = "*_`\"'’”)]"
 
-// sentences splits a unit into sentences, keeping numbers and file names whole.
-func sentences(text string) []string {
+// Sentences splits a unit into sentences, keeping numbers and file names whole.
+//
+// The command help-shape gate reads it too: a command summary is one sentence,
+// and this is the repository's one answer to where a sentence ends
+// (internal/le/docvalid/helpshape.go).
+func Sentences(text string) []string {
 	holdText := text
 	for _, abbreviation := range abbreviations {
 		holdText = strings.ReplaceAll(holdText, abbreviation,
@@ -479,10 +491,14 @@ var (
 	numberUnitRe = mustPattern(`{D}+(?:\.{D}+)?{SP}+[A-Za-z%]+`)
 )
 
-// wordCount counts words the way STE counts them (Rules 8.5 through 8.7).
+// WordCount counts words the way STE counts them (Rules 8.5 through 8.7).
 // Parenthesised text, quoted text, a number with its unit, and a hyphenated
 // word each count as one word.
-func wordCount(sentence string) int {
+//
+// The command help-shape gate reads it too, so the word cap it applies to a
+// command summary counts the same words this checker counts
+// (internal/le/docvalid/helpshape.go).
+func WordCount(sentence string) int {
 	text := parenthesesRe.ReplaceAllLiteralString(sentence, " PAREN ")
 	text = quotedRe.ReplaceAllLiteralString(text, " QUOTED ")
 	text = replaceMeasures(text)

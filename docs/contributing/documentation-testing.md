@@ -26,6 +26,8 @@ checks needed for the current diff and is included in `./le verify current mode 
 |---------------|-------------------|
 | `./le docvalid doc-drift` | Published counts and lists agree with live registries and the tree |
 | `./le docvalid command-contract` | Every YANG `ze:command` has a registered handler |
+| `./le docvalid usage-contract` | The model states every command's argument grammar, and no description spells one in prose |
+| `./le docvalid help-shape` | Every command node, every RPC and every offline local command declares a one-line summary, and the report states how much of each corpus is written |
 | `./le docs-to-code check` | Documentation source paths and claimed symbols resolve |
 | `./le doc check links` | Tracked path citations resolve |
 | `./le digest` | Every `file:line` anchor in `ai/digests/*.md` resolves |
@@ -33,8 +35,8 @@ checks needed for the current diff and is included in `./le verify current mode 
 | `./le doc wiring` | Changed files trigger their documentation and inventory checks |
 | `./le ste check` | No ASD-STE100 habit grew against `HEAD` |
 
-`./le doc check verify` combines documentation drift, command validation, and
-source-anchor validation. `./le doc wiring` is the changed-file-aware
+`./le doc check verify` combines documentation drift, command validation, the two
+command help gates, and source-anchor validation. `./le doc wiring` is the changed-file-aware
 pre-commit gate.
 
 <!-- source: internal/le/docvalid/actions.go -- Answer -->
@@ -54,6 +56,8 @@ pre-commit gate.
 | After adding or removing a plugin | `./le doc check verify` |
 | After writing a path reference in ANY tracked file | `./le doc check links` (`./le doc check verify` does not cover it) |
 | After adding or renaming a YANG `ze:command` | `./le docvalid command-contract` |
+| After writing the `description` or the `ze:help` of a command node or an RPC | `./le docvalid help-shape` |
+| After writing the `Description` or the `LongHelp` of a `registry.Meta` | `./le docvalid help-shape` |
 | After adding a doc validator, inventory source, command source, or exported Go API | `./le doc wiring` |
 | Before opening a documentation PR | `./le doc check verify` |
 
@@ -99,6 +103,77 @@ Registered handlers: 69
 Two-direction check. Both directions are contract bugs:
 - YANG declares a command but no Go code registered an RPC or local handler -> dead command
 - RPC handler registered but YANG doesn't declare it -> command unreachable from CLI
+
+### `./le docvalid help-shape`
+
+```
+# Command Help Shape
+
+Command tree nodes: 601
+Nodes that run a command: 390
+Nodes with a summary: 601
+Nodes with a long help: 0
+RPCs: 211
+RPCs with a summary: 211
+RPCs with a long help: 0
+Offline local commands: 19
+Offline local commands with a summary: 19
+Offline local commands with a long help: 0
+
+Nodes with a broken summary: 419
+RPCs with a broken summary: 170
+Offline local commands with a broken summary: 11
+
+## Broken rules (1095)
+
+  no-newline 333
+  ...
+
+  command show sockets
+    rule:    word-cap
+    problem: the summary is 32 words (STE Rule 6.3 allows 25)
+    summary: ...
+  local generate wireguard keypair
+    rule:    one-sentence
+    problem: the summary is 2 sentences
+    summary: ...
+  rpc ze-rib-api:show
+    rule:    no-usage-marker
+    problem: the summary prescribes a CLI spelling under "Syntax:"
+    summary: ...
+```
+
+The gate walks three corpora and holds all three to the same seven rules. A
+`-cmd.yang` node declares the CLI path an operator types. An `-api.yang` rpc
+declares the wire method that path reaches, and the plugin IPC modules in
+`internal/core/ipc/yang/` declare 22 more. Every loaded module is walked, so a
+module whose name carries no `-api` suffix is judged with the rest. An offline
+local command declares its help in a `registry.Meta` beside its handler and
+reaches no YANG module at all, and `ze help command --json` merges it with the
+tree (`cmd/ze/help_command.go`, `collectCommands`).
+
+The third corpus is read two ways, because Go forbids importing a main package.
+The registrations this binary links are read from the registry. The four
+`cmd/ze` declares in `package main` are read from its source, and a registration
+there whose path is not a literal STOPS the gate rather than being skipped. A
+path the command tree also holds is left to the command half: the catalog
+publishes the node's description for such a path and never the registration's.
+Development commands under `le ` are left out, for the reason the published
+catalog leaves them out.
+
+The coverage counts say how much of each corpus is written. A node with no
+summary and a node with no long help are both counted, so an unwritten command
+is visible rather than silent. Each refusal opens with its surface, `command`,
+`rpc` or `local`, then the name that finds it. That name is the CLI path for a
+command node and for a local command, and `<module>:<rpc-name>` for an rpc. A
+summary that breaks two rules is reported twice. The report therefore states the
+number of nodes, of RPCs and of local commands as well as the number of
+refusals.
+
+Fix the summary in the YANG `description` of that node or that rpc, or in the
+`Description` of that registration. Prose that does not fit one short sentence
+belongs in the `ze:help` beside it, or in the `LongHelp` beside it, which no
+one-line surface reads.
 
 ## How to fix common issues
 

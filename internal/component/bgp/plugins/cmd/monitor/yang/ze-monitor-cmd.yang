@@ -7,14 +7,14 @@ module ze-monitor-cmd {
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop)";
+        description "Continuous monitoring commands (Ctrl-C to stop).";
 
         container bgp {
             config false;
             ze:command "ze-bgp:monitor";
             ze:task-support required;
-            description "Live BGP peer dashboard that refreshes automatically.
-Shows all peers with state, uptime, and prefix counts. State changes
+            description "Live BGP peer dashboard that refreshes automatically.";
+            ze:help "Shows all peers with state, uptime, and prefix counts. State changes
 highlight as they happen. Ctrl-C to stop.";
         }
     }

@@ -11,9 +11,9 @@ module ze-gnmi-cmd {
         container gnmi {
             config false;
             ze:command "ze-show:gnmi";
-            description "Show whether the gNMI server is running and how it is configured.
-Returns listen address, TLS details, authentication mode, and the
-number of active streaming subscribers.";
+            description "Show whether the gNMI server is running and how it is configured.";
+            ze:help "Returns listen address, TLS details, authentication mode, and the number of
+active streaming subscribers.";
         }
     }
 }

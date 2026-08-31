@@ -46,10 +46,19 @@ func TestACommandEquivalentPageReadsAsThePublishedPage(t *testing.T) {
 	// and cut at the first ". ". Its replacement is a Usage row taken from the
 	// command model, which `show bgp` does not have in the published catalog,
 	// so the row is absent rather than wrong.
+	// The second deliberate deviation is the help split. The published lead was
+	// one hard-coded sentence naming the command a second time, and the card's
+	// Description body carried the one authored string. The lead is now the
+	// command's declared summary, and the body is the long form, which this
+	// published catalog predates and does not declare. So the published lead is
+	// replaced by the published body, and the body is removed.
+	summary := publishedCommandSummary(t, paths, "show bgp")
 	got := visibleText(mainContent(t, page))
 	published := publishedSyntaxRow.ReplaceAllString(
 		readFixture(t, "published-equivalent-show-bgp.html"), "")
+	published = publishedDescriptionBody.ReplaceAllString(published, "")
 	want := visibleText(mainContent(t, published))
+	want = strings.Replace(want, "Command details and vendor equivalents for show bgp.", summary, 1)
 	assertPublishedReadingSurvives(t, "the detail page", got, want)
 
 	// The mirror carries the same deviation, plus one label correction: the
@@ -60,7 +69,31 @@ func TestACommandEquivalentPageReadsAsThePublishedPage(t *testing.T) {
 	wantMirror := strings.ReplaceAll(readFixture(t, "published-equivalent-show-bgp.md"),
 		"- Pipes, on rows:", "- Pipes, on its rows:")
 	wantMirror = strings.ReplaceAll(wantMirror, "- Syntax: `show bgp`\n", "")
+	// The help split again: the published mirror wrote the command's own prose
+	// after the fact list, and the summary is now the mirror's lede. The
+	// paragraph is moved to where the lede is written rather than dropped.
+	wantMirror = strings.Replace(wantMirror, "\n"+summary+"\n", "", 1)
+	wantMirror = strings.Replace(wantMirror,
+		"# `show bgp`\n", "# `show bgp`\n\n"+summary+"\n", 1)
 	assertPublishedMirrorSurvives(t, mirror, wantMirror)
+}
+
+// publishedCommandSummary answers one command's declared summary as a reader
+// meets it: the runs of whitespace collapsed, which is what both the page and
+// its mirror write.
+func publishedCommandSummary(t *testing.T, paths Paths, path string) string {
+	t.Helper()
+	commands, err := loadCommandCatalog(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index := range commands {
+		if commands[index].Path == path {
+			return strings.Join(strings.Fields(commands[index].Description), " ")
+		}
+	}
+	t.Fatalf("the fixture catalog holds no command %q", path)
+	return ""
 }
 
 // assertPublishedReadingSurvives reports the first word of the published page a
@@ -113,6 +146,11 @@ func assertPublishedMirrorSurvives(t *testing.T, got, want string) {
 // publishedSyntaxRow matches the detail-card row that carried the retired
 // `syntax` value, so a comparison can state that one difference by name.
 var publishedSyntaxRow = regexp.MustCompile(`(?s)<div><dt>Syntax</dt>.*?</div>`)
+
+// publishedDescriptionBody matches the detail card's Description block, which
+// carried the one authored string before the help split. The block now carries
+// the long form, and this published catalog declares none.
+var publishedDescriptionBody = regexp.MustCompile(`(?s)<h3>Description</h3><p>.*?</p>`)
 
 // mainOpen matches the element a published page opens its content with.
 var mainOpen = regexp.MustCompile(`<main\b[^>]*>`)

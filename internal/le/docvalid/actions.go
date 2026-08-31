@@ -43,6 +43,11 @@ var actions = []action{
 		answer: runUsage,
 	},
 	{
+		verb:   "help-shape",
+		why:    "every command node declares a one-sentence summary, and the tree reports how much of it is written",
+		answer: runHelpShape,
+	},
+	{
 		verb:   "pipe-operators-update",
 		why:    "regenerate the published pipe operator table from the operator catalog",
 		writes: true,

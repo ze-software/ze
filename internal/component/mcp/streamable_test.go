@@ -315,7 +315,7 @@ func resultBearingMethods(taskID string) []methodProbe {
 // send to create one.
 func taskCapableCommands() []CommandInfo {
 	return []CommandInfo{
-		{Name: "slow cmd", Help: "Long", TaskSupport: TaskSupportRequired},
+		{Name: "slow cmd", Description: "Long", TaskSupport: TaskSupportRequired},
 	}
 }
 
@@ -1170,7 +1170,7 @@ func TestStreamable_ForbiddenNeverTasked(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		Commands: func() []CommandInfo {
 			return []CommandInfo{
-				{Name: "fast cmd", Help: "Quick", TaskSupport: TaskSupportForbidden},
+				{Name: "fast cmd", Description: "Quick", TaskSupport: TaskSupportForbidden},
 			}
 		},
 	})
@@ -1198,7 +1198,7 @@ func TestStreamable_RequiredIsTaskedServerDirected(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		Commands: func() []CommandInfo {
 			return []CommandInfo{
-				{Name: "slow cmd", Help: "Long", TaskSupport: TaskSupportRequired},
+				{Name: "slow cmd", Description: "Long", TaskSupport: TaskSupportRequired},
 			}
 		},
 	})
@@ -1246,7 +1246,7 @@ func TestTaskNotReturnedWithoutExtension(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		Commands: func() []CommandInfo {
 			return []CommandInfo{
-				{Name: "slow cmd", Help: "Long", TaskSupport: TaskSupportRequired},
+				{Name: "slow cmd", Description: "Long", TaskSupport: TaskSupportRequired},
 			}
 		},
 	})
@@ -1274,7 +1274,7 @@ func TestTaskNotReturnedWithoutExtension(t *testing.T) {
 func TestStreamable_TasksMethodWithoutCapability(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		Commands: func() []CommandInfo {
-			return []CommandInfo{{Name: "demo cmd", Help: "Test"}}
+			return []CommandInfo{{Name: "demo cmd", Description: "Test"}}
 		},
 	})
 	defer cleanup()
@@ -1300,7 +1300,7 @@ func TestStreamable_TasksMethodWithoutCapability(t *testing.T) {
 func TestRemovedTaskMethods(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		Commands: func() []CommandInfo {
-			return []CommandInfo{{Name: "demo cmd", Help: "Test"}}
+			return []CommandInfo{{Name: "demo cmd", Description: "Test"}}
 		},
 	})
 	defer cleanup()

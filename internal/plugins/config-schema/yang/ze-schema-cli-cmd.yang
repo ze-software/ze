@@ -7,45 +7,45 @@ module ze-schema-cli-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container schema {
             config false;
-            description "Discover registered YANG schemas, RPCs, and events";
+            description "Discover registered YANG schemas, RPCs, and events.";
 
             container list {
                 config false;
                 ze:command "ze-show:schema-list";
-                description "List all YANG schemas loaded by the daemon.
-Shows module name, namespace, and revision for each schema.";
+                description "List all YANG schemas loaded by the daemon.";
+                ze:help "Shows module name, namespace, and revision for each schema.";
             }
 
             container methods {
                 config false;
                 ze:command "ze-show:schema-methods";
-                description "List all RPC methods defined in YANG API modules.
-Useful for plugin developers to discover available operations.";
+                description "List all RPC methods defined in YANG API modules.";
+                ze:help "Useful for plugin developers to discover available operations.";
             }
 
             container events {
                 config false;
                 ze:command "ze-show:schema-events";
-                description "List all notification types defined in YANG API modules.
-Shows which events a plugin can subscribe to.";
+                description "List all notification types defined in YANG API modules.";
+                ze:help "Shows which events a plugin can subscribe to.";
             }
 
             container handlers {
                 config false;
                 ze:command "ze-show:schema-handlers";
-                description "Show which handler serves each YANG module.
-Maps module names to their implementing Go handler.";
+                description "Show which handler serves each YANG module.";
+                ze:help "Maps module names to their implementing Go handler.";
             }
 
             container protocol {
                 config false;
                 ze:command "ze-show:schema-protocol";
-                description "Show the wire protocol version and format details.
-Useful for checking compatibility between Ze versions.";
+                description "Show the wire protocol version and format details.";
+                ze:help "Useful for checking compatibility between Ze versions.";
             }
         }
     }

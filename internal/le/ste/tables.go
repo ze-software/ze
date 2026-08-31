@@ -200,9 +200,14 @@ var marketing = []string{
 
 // The run-on bounds, habit 5. STE Rule 5.1 governs a numbered step, Rule 6.3 a
 // description, and Rule 6.6 a paragraph.
+//
+// MaxDescriptiveWords is exported because the command help-shape gate holds a
+// command summary to the same bound (internal/le/docvalid/helpshape.go). One
+// declaration, so the two gates cannot disagree about how long a description
+// is allowed to be.
 const (
 	maxProcedural            = 20
-	maxDescriptive           = 25
+	MaxDescriptiveWords      = 25
 	maxSentencesPerParagraph = 6
 )
 

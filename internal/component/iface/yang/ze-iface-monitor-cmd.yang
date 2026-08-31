@@ -7,19 +7,20 @@ module ze-iface-monitor-cmd {
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop)";
+        description "Continuous monitoring commands (Ctrl-C to stop).";
 
         container system {
             config false;
-            description "System-level event streams";
+            description "System-level event streams.";
 
             container netlink {
                 config false;
                 ze:command "ze-monitor:system-netlink";
                 ze:task-support required;
-                description "Watch kernel networking changes in real time.
-Streams netlink events: route adds/deletes, link state changes,
-address assignments. Filter with route, link, address, or all.";
+                description "Watch kernel networking changes in real time.";
+                ze:help "Streams netlink events: route adds and deletes, link
+state changes, address assignments. Filter with route, link, address, or
+all.";
             }
         }
     }

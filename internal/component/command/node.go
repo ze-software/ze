@@ -111,8 +111,16 @@ func (a ArgInherit) String() string {
 // Node represents a node in the operational command tree.
 // Used for completion and command validation across CLI and editor command mode.
 type Node struct {
-	Name         string
-	Description  string
+	Name string
+	// Description is the one-line summary of this node, from the YANG
+	// description statement. Every surface that shows a command on one line
+	// reads it: a list row, a completion candidate, a table cell.
+	Description string
+	// Help is the long explanation of this node, from ze:help. Only the help
+	// page for this one command reads it, and it holds the newlines its author
+	// wrote. Empty means nobody has written an explanation for this command,
+	// which is not a defect: the help page then prints the summary alone.
+	Help         string
 	WireMethod   string   // Handler dispatch key (from ze:command argument). Empty for grouping nodes.
 	TaskSupport  string   // MCP task-support level (from ze:task-support). Empty = optional.
 	Backend      []string // Allowed backends (from ze:backend). Nil = unrestricted.
@@ -195,7 +203,8 @@ func BuildTree(rpcs []RPCInfo, readOnly bool) *Node {
 // exist only so the commands surface in completion and help.
 type CommandEntry struct {
 	Name        string // full command path, space-separated (e.g. "show bgp irr")
-	Description string // help text shown alongside the completion
+	Description string // the one-line summary shown alongside the completion
+	Help        string // the long explanation the command's own help page prints
 }
 
 // MergeCommandPaths inserts each entry's command path into the tree as
@@ -203,10 +212,15 @@ type CommandEntry struct {
 //
 // It is NON-DESTRUCTIVE: an existing node (a YANG-backed command or grouping
 // node) is never modified. Its WireMethod, ArgDefs, and children are left
-// intact, and an entry's Description is applied ONLY to a leaf node this call
-// creates or that has no Description yet — so a plugin command can never
-// overwrite a builtin's metadata. This preserves dispatch precedence (builtins
-// win over plugin commands) at the completion layer too.
+// intact. Each of the entry's two help fields is applied ONLY to a leaf node
+// this call creates, or to one that holds nothing in THAT field. So a plugin
+// command can never overwrite a builtin's metadata, and dispatch precedence
+// (builtins win over plugin commands) holds at the completion layer too.
+//
+// The two fields are decided separately because they are declared separately.
+// A plugin that states a summary and no explanation fills the summary alone.
+// A builtin that already states a summary still takes the plugin's
+// explanation when it has none of its own.
 //
 // Entries whose Name is empty after whitespace splitting are skipped, and a nil
 // root is a no-op. Called after the YANG-derived tree is built to surface
@@ -230,8 +244,13 @@ func MergeCommandPaths(root *Node, entries []CommandEntry) {
 				child = &Node{Name: part}
 				current.Children[part] = child
 			}
-			if i == len(parts)-1 && child.Description == "" {
-				child.Description = e.Description
+			if i == len(parts)-1 {
+				if child.Description == "" {
+					child.Description = e.Description
+				}
+				if child.Help == "" {
+					child.Help = e.Help
+				}
 			}
 			current = child
 		}

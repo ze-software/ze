@@ -9,34 +9,33 @@ module ze-storage-cli-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container data {
             config false;
-            description "ZeFS blob store keys and content";
+            description "ZeFS blob store keys and content.";
 
             container list {
                 config false;
                 ze:command "ze-show:data-list";
-                description "List everything stored in the ZeFS blob store.
-Shows all keys and their sizes. Use 'show data cat <key>' to see
-the content of a specific entry.";
+                description "List everything stored in the ZeFS blob store.";
+                ze:help "Shows all keys and their sizes. Use 'show data cat <key>' to see the content
+of a specific entry.";
             }
 
             container cat {
                 config false;
                 ze:command "ze-show:data-cat";
-                description "Print the raw content of a blob store entry.
-Outputs the value for the given key,
-like 'cat' for ZeFS.";
+                description "Print the raw content of a blob store entry.";
+                ze:help "Outputs the value for the given key, like 'cat' for ZeFS.";
                 leaf key { type string { length "1..512"; } mandatory true; description "Blob store key to print"; }
             }
 
             container registered {
                 config false;
                 ze:command "ze-show:data-registered";
-                description "List the key patterns registered by all subsystems.
-Shows you what types of data ZeFS knows about.";
+                description "List the key patterns registered by all subsystems.";
+                ze:help "Shows you what types of data ZeFS knows about.";
             }
         }
     }

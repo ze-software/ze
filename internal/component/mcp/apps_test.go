@@ -22,17 +22,17 @@ const (
 func uiAnnotatedCommands() []CommandInfo {
 	return []CommandInfo{
 		{
-			Name: "show bgp peer list",
-			Help: "List peers",
+			Name:        "show bgp peer list",
+			Description: "List peers",
 			UIResource: &UIResourceInfo{
 				Path:        "bgp-peer/index.html",
 				Permissions: "network",
 				CSP:         "default-src 'self'",
 			},
 		},
-		{Name: "show bgp peer detail", Help: "Peer details"},
-		{Name: "show bgp rib status", Help: "RIB summary"},
-		{Name: "show config dump", Help: "Dump config"},
+		{Name: "show bgp peer detail", Description: "Peer details"},
+		{Name: "show bgp rib status", Description: "RIB summary"},
+		{Name: "show config dump", Description: "Dump config"},
 	}
 }
 

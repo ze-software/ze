@@ -333,3 +333,96 @@ func TestConfigDiffSectionMarshal(t *testing.T) {
 	assert.Empty(t, decoded.Removed)
 	assert.Empty(t, decoded.Changed)
 }
+
+// TestPluginCommandDeclCarriesHelp proves a command declaration carries BOTH
+// help texts across the process boundary, under two distinct wire keys.
+//
+// The method is a round trip in each direction: a value with both fields set
+// marshals to `description` and `long-help`, and a payload carrying both keys
+// unmarshals into the two fields.
+//
+// VALIDATES: AC-7, the declaration side. `description` is the one-line summary
+// and `long-help` is the explanation the command's own help page prints.
+// PREVENTS: one field renamed to the other's key, which would make every
+// plugin's summary read as its explanation.
+func TestPluginCommandDeclCarriesHelp(t *testing.T) {
+	t.Parallel()
+
+	decl := CommandDecl{
+		Name:        "show widget",
+		Description: "Show the widget table.",
+		LongHelp:    "Each row is one widget.\nThe count column is the widgets seen since the last clear.",
+	}
+
+	data, err := json.Marshal(decl)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("unmarshal to map: %v", err)
+	}
+	if got := raw["description"]; got != "Show the widget table." {
+		t.Errorf("description key = %v, want the summary", got)
+	}
+	if got := raw["long-help"]; got != decl.LongHelp {
+		t.Errorf("long-help key = %v, want the explanation", got)
+	}
+	if _, present := raw["help"]; present {
+		t.Errorf("declaration carries a %q key; that spelling means the summary on Completion", "help")
+	}
+
+	var decoded CommandDecl
+	if err := json.Unmarshal([]byte(`{"name":"show widget","description":"Show the widget table.","long-help":"Each row is one widget."}`), &decoded); err != nil {
+		t.Fatalf("unmarshal declaration: %v", err)
+	}
+	if decoded.Description != "Show the widget table." {
+		t.Errorf("Description = %q, want the summary", decoded.Description)
+	}
+	if decoded.LongHelp != "Each row is one widget." {
+		t.Errorf("LongHelp = %q, want the explanation", decoded.LongHelp)
+	}
+}
+
+// TestPluginCommandDeclWithoutHelpKeepsSummary proves the zero value of the
+// second field is the refusal, not a blank summary.
+//
+// The method is the payload a plugin compiled before `long-help` existed sends:
+// a name and a description, and no second key. It MUST decode as
+// summary-present and explanation-absent, and it MUST re-encode without the
+// key it never carried.
+//
+// VALIDATES: AC-7. PREVENTS: the failure recorded in
+// plan/journal/field-carries-two-meanings.md, where a second field on a
+// cross-process contract renders the first one blank for every peer that
+// predates it.
+func TestPluginCommandDeclWithoutHelpKeepsSummary(t *testing.T) {
+	t.Parallel()
+
+	var decoded CommandDecl
+	if err := json.Unmarshal([]byte(`{"name":"show widget","description":"Show the widget table."}`), &decoded); err != nil {
+		t.Fatalf("unmarshal legacy declaration: %v", err)
+	}
+	if decoded.Description != "Show the widget table." {
+		t.Errorf("Description = %q, want the summary the legacy plugin sent", decoded.Description)
+	}
+	if decoded.LongHelp != "" {
+		t.Errorf("LongHelp = %q, want empty: the plugin declared no explanation", decoded.LongHelp)
+	}
+
+	data, err := json.Marshal(decoded)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("unmarshal to map: %v", err)
+	}
+	if _, present := raw["long-help"]; present {
+		t.Errorf("re-encoded declaration carries long-help: %s", data)
+	}
+	if got := raw["description"]; got != "Show the widget table." {
+		t.Errorf("description key = %v, want the summary preserved", got)
+	}
+}

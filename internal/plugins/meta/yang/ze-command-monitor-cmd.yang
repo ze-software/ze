@@ -7,16 +7,15 @@ module ze-command-monitor-cmd {
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop)";
+        description "Continuous monitoring commands (Ctrl-C to stop).";
 
         container event {
             config false;
             ze:command "ze-event:monitor";
             ze:task-support required;
-            description "Stream live events as they happen.
-Shows a real-time feed of internal events. Filter with
-include <pattern> or exclude <pattern> to focus on what matters.
-Patterns match event type names.";
+            description "Stream live events as they happen.";
+            ze:help "Shows a real-time feed of internal events. Filter with include <pattern> or
+exclude <pattern> to focus on what matters. Patterns match event type names.";
         }
     }
 }

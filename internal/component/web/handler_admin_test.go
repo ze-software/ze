@@ -12,17 +12,38 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
-// testCommandTree builds a static command tree for admin handler tests.
-func testCommandTree() map[string][]string {
-	return map[string][]string{
-		"":     {"peer", "bgp rib"},
-		"peer": {"raw"},
-		"rib":  {"clear"},
+// testCommandTree builds a static command tree for admin handler tests. One
+// leaf carries both help texts, so a test tells a summary from an explanation
+// with no YANG load.
+func testCommandTree() *command.Node {
+	return &command.Node{
+		Children: map[string]*command.Node{
+			"peer": {
+				Name: "peer",
+				Children: map[string]*command.Node{
+					"raw": {Name: "raw"},
+					"teardown": {
+						Name:        "teardown",
+						Description: testTeardownSummary,
+						Help:        testTeardownHelp,
+					},
+				},
+			},
+			"bgp rib": {Name: "bgp rib"},
+		},
 	}
 }
+
+// The two halves one admin command declares, quoted by the tests that assert
+// which of them reaches which part of the page.
+const (
+	testTeardownSummary = "Close the session with one peer."
+	testTeardownHelp    = "The peer is torn down at once.\nA configured peer reconnects on its own timer."
+)
 
 // testDispatcher returns a CommandDispatcher that echoes the command string
 // as output. If the command contains "fail", it returns an error.
@@ -45,8 +66,8 @@ func TestAdminRouteDispatch(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	children := testCommandTree()
-	handler := HandleAdminView(renderer, children)
+	tree := testCommandTree()
+	handler := HandleAdminView(renderer, tree)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -55,7 +76,7 @@ func TestAdminRouteDispatch(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	fragData := buildAdminFragmentData([]string{"peer"}, children)
+	fragData := buildAdminFragmentData([]string{"peer"}, tree)
 	assert.Nil(t, fragData.CommandForm, "peer is a container, not a leaf")
 	// Finder columns: root column + peer column.
 	require.GreaterOrEqual(t, len(fragData.Columns), 2, "root + peer columns")
@@ -137,9 +158,9 @@ func TestAdminBreadcrumbDeep(t *testing.T) {
 // VALIDATES: AC-10 (command with parameters renders form with path and parameter fields).
 // PREVENTS: Leaf nodes rendered as containers, missing action URL.
 func TestCommandFormRendering(t *testing.T) {
-	children := testCommandTree()
+	tree := testCommandTree()
 
-	fragData := buildAdminFragmentData([]string{"peer", "teardown"}, children)
+	fragData := buildAdminFragmentData([]string{"peer", "teardown"}, tree)
 
 	require.NotNil(t, fragData.CommandForm, "leaf command must have form data")
 
@@ -295,8 +316,8 @@ func TestAdminContentNegotiationView(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
-	children := testCommandTree()
-	handler := HandleAdminView(renderer, children)
+	tree := testCommandTree()
+	handler := HandleAdminView(renderer, tree)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/?format=json", http.NoBody)
 	rec := httptest.NewRecorder()
@@ -312,7 +333,7 @@ func TestAdminContentNegotiationView(t *testing.T) {
 
 	kids, ok := data["children"].([]any)
 	require.True(t, ok, "children must be an array")
-	assert.Len(t, kids, 1)
+	assert.Equal(t, []any{"raw", "teardown"}, kids, "children are the node's own, sorted")
 }
 
 // VALIDATES: web command completion follows the response writer.
@@ -359,29 +380,6 @@ func TestAdminExecuteMethodNotAllowed(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 }
 
-// TestBuildAdminCommandTree verifies that the production command tree has
-// the expected top-level categories and peer sub-commands.
-//
-// VALIDATES: BuildAdminCommandTree returns a valid tree structure.
-// PREVENTS: Missing top-level categories, empty sub-command lists.
-func TestBuildAdminCommandTree(t *testing.T) {
-	tree := buildAdminCommandTree() //nolint:staticcheck // legacy tree retained for fallback path
-
-	// Root must have top-level categories.
-	root := tree[""]
-	require.NotEmpty(t, root, "root must have children")
-	assert.Contains(t, root, "peer")
-	assert.Contains(t, root, "route")
-	assert.Contains(t, root, "cache")
-	assert.Contains(t, root, "system")
-
-	// Peer must have operational sub-commands.
-	peer := tree["peer"]
-	require.NotEmpty(t, peer, "peer must have children")
-	assert.Contains(t, peer, "show")
-	assert.Contains(t, peer, "list")
-}
-
 // TestAdminExecuteNilDispatcher verifies that POST with nil dispatcher
 // returns 503 instead of panicking.
 //
@@ -408,9 +406,9 @@ func TestAdminExecuteNilDispatcher(t *testing.T) {
 // VALIDATES: AC-1 (root admin view with top-level mutation command modules).
 // PREVENTS: Empty root view, missing top-level commands.
 func TestAdminRootView(t *testing.T) {
-	children := testCommandTree()
+	tree := testCommandTree()
 
-	fragData := buildAdminFragmentData(nil, children)
+	fragData := buildAdminFragmentData(nil, tree)
 
 	assert.Nil(t, fragData.CommandForm, "root is a container")
 	// Root column should list top-level commands.
@@ -456,4 +454,85 @@ func TestAdminErrorContentNegotiation(t *testing.T) {
 
 	assert.Equal(t, true, data["error"])
 	assert.Contains(t, data["output"], "command failed")
+}
+
+// TestAdminCommandFormShowsHelp drives GET /admin/peer/teardown/ and reads the
+// rendered page. It is the wiring test for AC-8 and user story 4. The form for
+// one command shows the summary the YANG node declares, then the explanation
+// its ze:help declares.
+//
+// The page rendered neither before this spec. CommandFormData.Description was
+// documented as the YANG description, and no producer set it. The template's
+// non-empty guard was therefore never true (plan/journal/unwired-feature.md).
+//
+// PREVENTS: the form losing its help text again, and the explanation reaching
+// the page unescaped.
+func TestAdminCommandFormShowsHelp(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	tree := testCommandTree()
+	handler := HandleAdminView(renderer, tree)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/teardown/", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	body := rec.Body.String()
+
+	assert.Contains(t, body, testTeardownSummary, "the summary is the lede of the command form")
+	assert.Contains(t, body, "The peer is torn down at once.", "the explanation is the body")
+	assert.Contains(t, body, "command-form-help", "the explanation has its own class, so CSS can keep its line breaks")
+
+	summaryAt := strings.Index(body, testTeardownSummary)
+	helpAt := strings.Index(body, "The peer is torn down at once.")
+	assert.Less(t, summaryAt, helpAt, "the summary comes before the explanation")
+
+	// The fragment builder is the producer both halves come from.
+	fragData := buildAdminFragmentData([]string{"peer", "teardown"}, tree)
+	require.NotNil(t, fragData.CommandForm)
+	assert.Equal(t, testTeardownSummary, fragData.CommandForm.Description)
+	assert.Equal(t, testTeardownHelp, fragData.CommandForm.Help)
+
+	// A path no node holds still renders a form, and shows no text it cannot
+	// read. An absent command must not borrow its parent's help.
+	unknown := buildAdminFragmentData([]string{"peer", "nosuchcommand"}, tree)
+	require.NotNil(t, unknown.CommandForm)
+	assert.Empty(t, unknown.CommandForm.Description)
+	assert.Empty(t, unknown.CommandForm.Help)
+}
+
+// TestAdminCommandFormEscapesHelp proves the security row of the spec's review
+// checklist: a plugin-supplied help string reaches an HTML page, so the templ
+// layer must escape it. The assertion is on the rendered bytes, not on the
+// library's reputation.
+//
+// PREVENTS: a plugin injecting markup or script into the admin console through
+// a command description or explanation.
+func TestAdminCommandFormEscapesHelp(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	tree := &command.Node{Children: map[string]*command.Node{
+		"peer": {Name: "peer", Children: map[string]*command.Node{
+			"teardown": {
+				Name:        "teardown",
+				Description: `Close <b>one</b> session.`,
+				Help:        `<script>alert("x")</script>`,
+			},
+		}},
+	}}
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/admin/peer/teardown/", http.NoBody)
+	rec := httptest.NewRecorder()
+	HandleAdminView(renderer, tree).ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	body := rec.Body.String()
+
+	assert.NotContains(t, body, "<script>alert", "the explanation must reach the page escaped")
+	assert.NotContains(t, body, "<b>one</b>", "the summary must reach the page escaped")
+	assert.Contains(t, body, "&lt;script&gt;", "the explanation is still shown, as text")
 }

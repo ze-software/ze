@@ -3322,11 +3322,17 @@ func TestWikiValidatorAcceptsReservedEmptyHeadingAnchors(t *testing.T) {
 	}
 }
 
+// VALIDATES: a carriage return in either declared half round-trips through the
+// renderer and the validator that mirrors it.
+//
+// The summary is one line by declaration, so the line break normalized here is
+// the long form's. A summary that still carries one is joined with a space,
+// because a Markdown table cell cannot hold a line break.
 func TestWikiValidatorRoundTripsNormalizedDescriptionBreaks(t *testing.T) {
 	live := []publishedCommand{
-		{Path: "show crlf", Mode: "read-only", Description: "first\r\nsecond"},
-		{Path: "clear cr", Mode: "offline", Description: "first\rsecond"},
-		{Path: "set mixed", Mode: "offline", Description: "first\r\nsecond\rthird\nfourth"},
+		{Path: "show crlf", Mode: "read-only", Description: "one line", LongHelp: "first\r\nsecond"},
+		{Path: "clear cr", Mode: "offline", Description: "one line", LongHelp: "first\rsecond"},
+		{Path: "set mixed", Mode: "offline", Description: "first\r\nsecond", LongHelp: "third\nfourth"},
 	}
 	raw, err := json.Marshal(live)
 	if err != nil {
@@ -3344,11 +3350,12 @@ func TestWikiValidatorRoundTripsNormalizedDescriptionBreaks(t *testing.T) {
 		t.Fatalf("canonical wiki catalog retained carriage returns: %q", content)
 	}
 	for _, want := range []string{
-		"| `show crlf` | read-only | first |",
+		"| `show crlf` | read-only | one line |",
 		"### `show crlf`\n\nfirst\nsecond\n\nMode: read-only",
-		"| `clear cr` | offline | first |",
+		"| `clear cr` | offline | one line |",
 		"### `clear cr`\n\nfirst\nsecond\n\nMode: offline",
-		"### `set mixed`\n\nfirst\nsecond\nthird\nfourth\n\nMode: offline",
+		"| `set mixed` | offline | first second |",
+		"### `set mixed`\n\nthird\nfourth\n\nMode: offline",
 	} {
 		if !strings.Contains(content, want) {
 			t.Fatalf("normalized wiki catalog omitted %q:\n%s", want, content)

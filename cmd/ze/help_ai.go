@@ -199,12 +199,10 @@ func printAPICommands(rw *helpfmt.RenderWriter) {
 
 	var tb textbuf.Buffer
 	for _, rpc := range rpcs {
+		// The RPC description is the declared one-line summary, printed whole.
 		desc := rpc.Description
 		if desc == "" {
 			desc = "(no description)"
-		}
-		if idx := strings.Index(desc, ". "); idx > 0 && idx < 80 {
-			desc = desc[:idx+1]
 		}
 
 		ro := ""

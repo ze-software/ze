@@ -59,17 +59,40 @@ standard YANG tools ignore but ze interprets at runtime.
 
 | Extension | Purpose | Argument |
 |-----------|---------|----------|
-| `ze:syntax` | Config parser syntax mode (flex, freeform, inline-list, etc.) | mode name |
-| `ze:validate` | References a Go validator function for runtime validation + completion | function name |
-| `ze:command` | Marks a `config false` container as an executable CLI command | WireMethod string |
-| `ze:edit-shortcut` | Makes a command available in edit mode without `run` prefix | (none) |
-| `ze:backend` | Restricts a node to specific backends; commit-time validation and completion-time filtering | space-separated backend names |
-| `ze:sensitive` | Marks a leaf as containing sensitive data (passwords, keys) | (none) |
-| `ze:key-type` | Key type for inline-list nodes | type name |
-| `ze:route-attributes` | Marks a node as accepting standard BGP route attributes | (none) |
-| `ze:ordered` | Marks a leaf-list as an ordered sequence whose duplicate values are meaningful (AS_PATH prepends, MPLS label stacks); the parser preserves duplicates instead of deduplicating as a set | (none) |
 | `ze:allow-unknown-fields` | Container accepts arbitrary key-value pairs | (none) |
+| `ze:backend` | Restricts a node to named backends. Commit validates it and completion filters on it | space-separated backend names |
+| `ze:bcrypt` | Leaf holds a one-way bcrypt hash. The commit hook hashes its `plaintext-<name>` sibling into it | (none) |
+| `ze:command` | Marks a `config false` container as an executable CLI command | WireMethod string |
+| `ze:cumulative` | Leaf-list accumulates values from the bgp, group and peer levels instead of the most specific level replacing them | (none) |
+| `ze:decorate` | Attaches a registered display-time decorator to a leaf | decorator name |
+| `ze:display-key` | Names the leaf the web interface shows for a keyless list entry | (none) |
+| `ze:edit-shortcut` | Makes a command available in edit mode without the `run` prefix | (none) |
+| `ze:ensure-exists` | Marks a command container as a resource checkpoint. Each descendant command ensures the resource exists | WireMethod of the rollback handler |
+| `ze:ephemeral` | Node is validated and completed but never written to the config file | (none) |
+| `ze:filter` | Marks a list as a named filter type of the route policy framework | (none) |
+| `ze:flatten` | Serializes a container's children with the container name as a leading keyword | (none) |
+| `ze:help` | Declares the LONG explanation of a command node. The `description` statement declares the one-line summary | free text, several lines allowed |
+| `ze:hidden` | Hides a leaf from config display and from the web editor | `true` or `false` |
+| `ze:inherit` | Says whether a command takes the leaves its ancestor containers declare | `none` |
+| `ze:key-type` | Key type for inline-list nodes | type name |
+| `ze:listener` | Marks a list entry as a network listener endpoint, for port-conflict detection at parse time | (none) |
+| `ze:modifier` | Marks a `config false` container as a trailing argument group of its parent command | `once`, `repeat`, `required`, `choice` |
+| `ze:ordered` | Leaf-list is an ordered sequence whose duplicates are meaningful (AS_PATH prepends, MPLS label stacks) | (none) |
+| `ze:os` | Restricts a node to one operating system. The schema drops the node elsewhere | GOOS value |
 | `ze:related` | workbench: declares an operator tool descriptor on a config node | descriptor string |
+| `ze:required` | Field must hold a value after config inheritance resolves | path |
+| `ze:route-attributes` | Node accepts standard BGP route attributes | (none) |
+| `ze:sensitive` | Leaf holds sensitive data. Display obfuscates it with JunOS-compatible `$9$` encoding | (none) |
+| `ze:suggest` | Field appears in a creation dialog with its inherited default. The entry is created without it | path |
+| `ze:syntax` | Config parser syntax mode (flex, freeform, inline-list) | mode name |
+| `ze:task-support` | MCP task-support level for a command | `required`, `optional`, `forbidden` |
+| `ze:ui-csp` | CSP directive advertised in `_meta.ui.csp` | policy string |
+| `ze:ui-permissions` | MCP App permission capabilities advertised in `_meta.ui.permissions` | space-separated capabilities |
+| `ze:ui-resource` | Associates an embedded MCP App UI bundle with a command group | path under `internal/component/mcp/ui/` |
+| `ze:validate` | References a Go validator function for runtime validation and completion | function name |
+
+The table is complete: it holds every extension the module declares, in name
+order. An extension that is absent here is a defect of this page.
 
 <!-- source: internal/component/config/yang/modules/ze-extensions.yang -- all extension definitions -->
 
@@ -381,12 +404,57 @@ Trade-off of the inline form: a member value that legitimately begins with
 
 ### CLI Help from YANG
 
-Leaf descriptions and type constraints generate help text:
+A config leaf's description and its type constraints generate its help text:
 
 ```
 ze(edit)# hold-time ?
   <0, 3-65535>    Hold time in seconds (RFC 4271: 0 or >= 3)
 ```
+
+#### A command node declares two help texts
+
+A command node in a `-cmd.yang` module declares its help in two statements, and
+each one answers a different question.
+
+| Statement | Holds | Read by |
+|-----------|-------|---------|
+| `description` | the one-line SUMMARY of the command | every surface that shows a command on one line: a list row, a completion candidate, a table cell |
+| `ze:help` | the LONG explanation of that one command | the help page for that command |
+
+`mergeYANGEntry` (`internal/component/config/yang/command.go`) writes them to
+`command.Node.Description` and `command.Node.Help`. Neither field is derived
+from the other, and no reader shortens either one. A summary is authored short
+because it is a summary.
+
+#### An rpc declares the same two texts
+
+An `rpc` statement carries the same pair, in the same two statements.
+`ExtractRPCs` (`internal/component/config/yang/rpc.go`) writes them to
+`RPCMeta.Description` and `RPCMeta.Help`.
+
+One reader serves both carriers. `getHelpExtension` takes the extension
+statement list, which a command container reaches through `Entry.Exts` and an
+rpc through `gyang.RPC.Exts()`. A second reader would let the two surfaces drift
+into two spellings of one declaration.
+
+`./le docvalid help-shape` holds both corpora to one shape: 601 command tree
+nodes and 211 RPCs, each summary one sentence of 25 words at most, on one line,
+with no semicolon and a full stop at the end.
+
+An empty `ze:help` means nobody has written an explanation for that command.
+That is not a defect. The help page then prints the summary alone.
+
+An empty `description` is a defect. Every list that names the command shows a
+blank cell, and `validateNode` warns for each one by path.
+
+Two modules can contribute the same command path. `mergeHelpText` decides each
+of the two fields on its own, in three cases:
+
+- The module that marks the node executable states both halves of that
+  command's help.
+- An empty field takes what arrives.
+- Two different non-empty values leave the first value in place. The merge logs
+  `YANG command help text mismatch` and names the field that collided.
 
 ---
 
@@ -460,6 +528,11 @@ its config module declares `urn:ze:ddos-local-conf` while its command module
 declares `urn:ze:ddos-local:cmd`.
 
 `zt` (ze-types) and `ze` (ze-extensions) are reserved prefixes.
+
+goyang keys a module that declares a `revision` under TWO names, its bare name
+and `<name>@<revision>`. `Loader.ModuleNames` answers the bare name alone, so a
+caller that counts what it walks counts each module once. Reach a module by its
+bare name; the revision key is goyang's, not an identity Ze uses.
 
 ### Command-module naming is not converged
 

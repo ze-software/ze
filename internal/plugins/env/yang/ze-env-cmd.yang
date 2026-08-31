@@ -8,33 +8,32 @@ module ze-env-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container env {
             config false;
-            description "Ze environment variable inspection";
+            description "Ze environment variable inspection.";
 
             container list {
                 config false;
                 ze:command "ze-show:env-list";
-                description "List all Ze environment variables with their current values.
-Shows which env vars are set and their defaults.";
+                description "List all Ze environment variables with their current values.";
+                ze:help "Shows which env vars are set and their defaults.";
             }
 
             container get {
                 config false;
                 ze:command "ze-show:env-get";
-                description "Show one environment variable in detail.
-Returns the variable name, current value, default, and what it
-controls.";
+                description "Show one environment variable in detail.";
+                ze:help "Returns the variable name, current value, default, and what it controls.";
                 leaf name { type string { length "1..128"; } mandatory true; description "Environment variable name"; }
             }
 
             container registered {
                 config false;
                 ze:command "ze-show:env-registered";
-                description "List every registered environment variable with metadata.
-Includes type, default, description, and whether it is currently set.";
+                description "List every registered environment variable with metadata.";
+                ze:help "Includes type, default, description, and whether it is currently set.";
             }
         }
     }

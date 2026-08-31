@@ -9,56 +9,57 @@ module ze-iface-interface-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container interface {
             config false;
             ze:command "ze-show:interface";
-            description "Show network interfaces on this box.
-Without arguments, returns all interfaces with full detail.
+            description "Show network interfaces on this box.";
+            ze:help "Without arguments, returns all interfaces with full detail.
 Subcommands: brief, type <t>, errors, rate [<name>], name <name> detail,
 name <name> counters.";
 
             container brief {
                 config false;
                 ze:command "ze-show:interface-brief";
-                description "One-line summary per interface: name, state, IP, and MTU.
-Quick way to see what is up and what addresses are assigned.";
+                description "One-line summary per interface: name, state, IP, and MTU.";
+                ze:help "It is the quick way to see what is up and what
+addresses are assigned.";
             }
 
             container scan {
                 config false;
                 ze:command "ze-show:interface-scan";
-                description "Discover and classify all OS interfaces.
-Returns name, Ze type (ethernet, bridge, vxlan, etc.), and MAC for
-each interface found. Pipe to table, yaml, or json for different
-views. Useful during initial setup to see what the box has.";
+                description "Discover and classify all OS interfaces.";
+                ze:help "Returns name, Ze type (ethernet, bridge, vxlan, etc.),
+and MAC for each interface found. Pipe to table, yaml, or json for different
+views. Use it during initial setup to see what the box has.";
             }
 
             container type {
                 config false;
                 ze:command "ze-show:interface-type";
-                description "Show only interfaces of a given type.
-Types include ethernet, bridge,
-vxlan, wireguard, tunnel, bond, and more. If you pick an invalid
-type, the error lists all valid ones.";
+                description "Show only interfaces of a given type.";
+                ze:help "Types include ethernet, bridge, vxlan, wireguard,
+tunnel, bond, and more. If you pick an invalid type, the error lists all valid
+ones.";
                 leaf type { type string { length "1..32"; } mandatory true; description "Ze interface type to filter by"; }
             }
 
             container errors {
                 config false;
                 ze:command "ze-show:interface-errors";
-                description "Show interfaces that have errors or drops.
-Filters to only interfaces with non-zero Rx/Tx error or drop
-counters. Quick way to find troubled links.";
+                description "Show interfaces that have errors or drops.";
+                ze:help "Filters to only interfaces with non-zero Rx/Tx error or
+drop counters. It is the quick way to find troubled links.";
             }
 
             container rate {
                 config false;
                 ze:command "ze-show:interface-rate";
-                description "Show per-second traffic rates on your interfaces.
-Returns rx/tx bytes and packets per second. Pass an interface name
-to narrow the output. Requires the rate tracker. For continuous
+                description "Show per-second traffic rates on your interfaces.";
+                ze:help "Returns rx/tx bytes and packets per second. Pass an
+interface name to narrow the output. Requires the rate tracker. For continuous
 monitoring, use 'monitor interface rate' instead.";
             }
 
@@ -93,19 +94,19 @@ monitoring, use 'monitor interface rate' instead.";
 
     container monitor {
         config false;
-        description "Continuous monitoring commands (Ctrl-C to stop)";
+        description "Continuous monitoring commands (Ctrl-C to stop).";
 
         container interface {
             config false;
-            description "Interface traffic monitoring";
+            description "Interface traffic monitoring.";
 
             container rate {
                 config false;
                 ze:command "ze-monitor:interface-rate";
                 ze:task-support required;
-                description "Stream per-second traffic rates for your interfaces.
-Shows rx/tx bytes and packets per second, updating every second.
-Optionally pass an interface name to watch just one link.";
+                description "Stream per-second traffic rates for your interfaces.";
+                ze:help "Shows rx/tx bytes and packets per second, updating
+every second. Optionally pass an interface name to watch just one link.";
             }
         }
     }

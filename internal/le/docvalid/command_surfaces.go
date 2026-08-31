@@ -124,8 +124,13 @@ type publishedCommandToken struct {
 }
 
 type publishedCommand struct {
-	Path          string                     `json:"path"`
-	Description   string                     `json:"description,omitempty"`
+	Path        string `json:"path"`
+	Description string `json:"description,omitempty"`
+	// LongHelp is the command's own explanation, from ze:help. The catalog
+	// carries it beside Description because the two answer different
+	// questions, and the parser rejects an unknown field, so a catalog
+	// carrying a long help is unreadable without it.
+	LongHelp      string                     `json:"long-help,omitempty"`
 	Mode          string                     `json:"mode"`
 	WireMethod    string                     `json:"wire-method,omitempty"`
 	Backend       []string                   `json:"backend,omitempty"`
@@ -713,8 +718,12 @@ func validateGeneratedWikiCommandSurface(
 	)...)
 	for index := range live {
 		command := &live[index]
-		description := normalizeWikiDescription(command.Description)
-		summary, _, _ := strings.Cut(description, "\n")
+		// The summary column takes the declared summary whole, and the detail
+		// block takes the declared long form. Neither is a cut of the other:
+		// the wiki renderer reads two fields the command model declares
+		// separately (internal/le/wikicatalog/render.go, Render).
+		summary := wikiTableProse(normalizeWikiDescription(command.Description))
+		longHelp := normalizeWikiDescription(command.LongHelp)
 		wantRow := rendered.Reset().Str("| ").
 			Str(markdownCodeLiteral(commandMarkdownTableValue(command.Path))).Str(" | ").
 			Str(command.Mode).Str(" | ").
@@ -733,16 +742,16 @@ func validateGeneratedWikiCommandSurface(
 			))
 			continue
 		}
-		if strings.Contains(description, "\n") {
-			lines := strings.Split(description, "\n")
+		if longHelp != "" {
+			lines := strings.Split(longHelp, "\n")
 			for index := range lines {
 				lines[index] = markdownLiteralProse(lines[index])
 			}
-			wantDescription := rendered.Reset().Byte('\n').Str(strings.Join(lines, "\n")).
+			wantLongHelp := rendered.Reset().Byte('\n').Str(strings.Join(lines, "\n")).
 				Str("\n\n").String()
-			if !strings.HasPrefix(detail, wantDescription) {
+			if !strings.HasPrefix(detail, wantLongHelp) {
 				issues = append(issues, generatedCommandContractIssue(
-					surface, command.Path, "wiki command description",
+					surface, command.Path, "wiki command long help",
 				))
 			}
 		}
@@ -1072,6 +1081,16 @@ func wikiTotalLines(content string) ([]string, bool) {
 		}
 	}
 	return totals, footer && valid
+}
+
+// wikiTableProse answers one prose value as the wiki renders it into a Markdown
+// table cell, which cannot hold a line break
+// (internal/le/wikicatalog/render.go, tableProse).
+func wikiTableProse(value string) string {
+	if !strings.ContainsRune(value, '\n') {
+		return value
+	}
+	return strings.ReplaceAll(value, "\n", " ")
 }
 
 func normalizeWikiDescription(value string) string {

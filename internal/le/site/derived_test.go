@@ -165,3 +165,52 @@ func TestAMissingLLMSInputStopsTheBuild(t *testing.T) {
 		t.Errorf("a partial llms.txt was written before the refusal: %v", err)
 	}
 }
+
+// VALIDATES: the llms.txt command line carries the whole declared summary, with
+// no character budget and no ellipsis (AC-9).
+//
+// The line used to hold 170 characters of one authored string, cut at a word
+// boundary and closed with "...". A machine reader met a sentence that stopped
+// mid-clause. The summary is declared as one line now, so the whole of it is
+// what the line carries.
+func TestLLMSCommandLineCarriesWholeSummary(t *testing.T) {
+	paths := llmsPaths(t)
+	summary := "Show every row of the test table, with the address family it belongs to, " +
+		"the number of answers it has produced since the last clear, and the peer that " +
+		"originated it, in the order the table holds them."
+	writeCatalog(t, paths.Output, `[{"path":"show test","mode":"read-only",
+		"wire-method":"ze-test:rows","description":"`+summary+`",
+		"long-help":"The count column never restarts on its own."}]`)
+
+	if _, err := renderLLMS(paths); err != nil {
+		t.Fatal(err)
+	}
+	content := readArtifact(t, paths.Output, llmsFile)
+
+	if len(summary) <= 170 {
+		t.Fatalf("the fixture summary is %d characters, which the retired cut would not have trimmed",
+			len(summary))
+	}
+	if !strings.Contains(content, summary) {
+		t.Errorf("llms.txt does not carry the whole summary:\n%s", commandLineOf(t, content, "show test"))
+	}
+	line := commandLineOf(t, content, "show test")
+	if strings.Contains(line, "...") {
+		t.Errorf("the command line was cut and closed with an ellipsis:\n%s", line)
+	}
+	if strings.Contains(line, "never restarts on its own") {
+		t.Errorf("the command line carries the long form, which the detail page renders:\n%s", line)
+	}
+}
+
+// commandLineOf answers the llms.txt line naming one command.
+func commandLineOf(t *testing.T, content, path string) string {
+	t.Helper()
+	for line := range strings.SplitSeq(content, "\n") {
+		if strings.HasPrefix(line, "- `"+path+"` (") {
+			return line
+		}
+	}
+	t.Fatalf("llms.txt carries no line for %q", path)
+	return ""
+}

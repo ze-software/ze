@@ -57,3 +57,67 @@ func TestExtractNotificationsNonexistentModule(t *testing.T) {
 	notifs := ExtractNotifications(loader, "nonexistent-module")
 	assert.Empty(t, notifs, "should return empty for nonexistent module")
 }
+
+// rpcHelpModule declares two RPCs. The first carries both help texts, and its
+// ze:help argument spans three lines, because a long explanation is the reason
+// the extension exists and goyang has to return it whole. The second carries a
+// description alone, which is what every unconverted RPC looks like.
+const rpcHelpModule = `
+module ze-fixture-api {
+    namespace "urn:ze:fixture:api";
+    prefix zefa;
+    import ze-extensions { prefix ze; }
+
+    rpc socket-list {
+        description "List the open sockets.";
+        ze:help "One row is written for each socket the daemon holds open.
+
+                 The state column names the TCP state.";
+        output {
+            leaf count {
+                type uint32;
+                description "How many sockets are open.";
+            }
+        }
+    }
+
+    rpc socket-clear {
+        description "Close every idle socket.";
+    }
+}
+`
+
+// TestRPCDescriptionCarriesSummaryAndHelp reads an RPC declaring both help
+// texts and asserts each reaches its own field on the extracted metadata.
+//
+// VALIDATES: goyang exposes the extension statements of an rpc, so an RPC
+// declares its long explanation through the same ze:help the command tree uses,
+// and the description keeps the one-line summary.
+// PREVENTS: a second mechanism for the long form on the RPC side, and an RPC
+// whose summary and explanation share one string, which is the state every
+// renderer guesses its way out of (AC-16).
+func TestRPCDescriptionCarriesSummaryAndHelp(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.AddModuleFromText("ze-fixture-api.yang", rpcHelpModule))
+	require.NoError(t, loader.Resolve())
+
+	rpcs := ExtractRPCs(loader, "ze-fixture-api")
+	require.Len(t, rpcs, 2)
+
+	byName := map[string]RPCMeta{}
+	for _, rpc := range rpcs {
+		byName[rpc.Name] = rpc
+	}
+
+	declared := byName["socket-list"]
+	assert.Equal(t, "List the open sockets.", declared.Description)
+	assert.Contains(t, declared.Help, "One row is written for each socket")
+	assert.Contains(t, declared.Help, "The state column names the TCP state.")
+	assert.Contains(t, declared.Help, "\n", "a long explanation keeps the line breaks its author wrote")
+	assert.NotContains(t, declared.Description, declared.Help, "neither field is derived from the other")
+
+	silent := byName["socket-clear"]
+	assert.Equal(t, "Close every idle socket.", silent.Description)
+	assert.Empty(t, silent.Help, "no ze:help statement means no long explanation")
+}

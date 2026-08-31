@@ -14,15 +14,12 @@ module ze-geodns-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container geodns {
             config false;
             ze:command "ze-show:geodns";
-            description
-                "GeoDNS server status: enabled, bind addresses/port, client-IP
-                 source mode, zones, nameserver/host-set/source counts, and the
-                 current SOA serial.";
+            description "GeoDNS server status: enabled, bind addresses/port, client-IP source mode, zones, nameserver/host-set/source counts, and the current SOA serial.";
         }
     }
 }

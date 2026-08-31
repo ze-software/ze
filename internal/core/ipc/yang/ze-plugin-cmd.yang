@@ -18,52 +18,52 @@ module ze-plugin-cmd {
         container help {
             config false;
             ze:command "ze-plugin:help";
-            description "List plugin subcommands";
+            description "List the subcommands the plugin verb accepts.";
         }
 
         container command {
             config false;
-            description "Command introspection";
+            description "Inspect the commands the plugins registered.";
 
             container list {
                 config false;
                 ze:command "ze-plugin:command-list";
-                description "List plugin commands";
+                description "List every command a plugin registered, with its summary.";
             }
 
             container help {
                 config false;
                 ze:command "ze-plugin:command-help";
-                description "Show command details";
+                description "Show one plugin command's summary, explanation, arguments, and source plugin.";
             }
 
             container complete {
                 config false;
                 ze:command "ze-plugin:command-complete";
-                description "Complete command/args";
+                description "List the completion candidates for a partial plugin command.";
             }
         }
 
         container session {
             config false;
-            description "Session lifecycle";
+            description "Drive the lifecycle of this plugin session.";
 
             container ready {
                 config false;
                 ze:command "ze-plugin:session-ready";
-                description "Signal plugin init complete";
+                description "Signal that this plugin process finished its initialization.";
             }
 
             container ping {
                 config false;
                 ze:command "ze-plugin:session-ping";
-                description "Health check (returns PID)";
+                description "Answer a health check with the daemon process id.";
             }
 
             container bye {
                 config false;
                 ze:command "ze-plugin:session-bye";
-                description "Disconnect";
+                description "Tell the daemon this session is disconnecting.";
             }
         }
     }

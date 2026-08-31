@@ -16,6 +16,8 @@ func init() {
 		Subs:        "list, get <name> [--full]",
 	})
 	registry.MustRegisterLocalMeta("skills", Run, registry.Meta{
-		Description: "List or retrieve agent skill definitions matching this Ze version. Use 'get <name>' to fetch a specific skill.",
+		Description: "List the agent skills this binary carries, or fetch one by name.",
+		LongHelp: "Each skill is a Markdown document bundled with the binary, so it always matches " +
+			"the running version. One skill is fetched by name, in its short form or in full.",
 	})
 }

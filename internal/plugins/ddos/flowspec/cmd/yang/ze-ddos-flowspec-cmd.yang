@@ -7,7 +7,7 @@ module ze-ddos-flowspec-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container ddos {
             config false;
@@ -16,8 +16,7 @@ module ze-ddos-flowspec-cmd {
             container flowspec {
                 config false;
                 ze:command "ze-show:ddos-flowspec";
-                description "Show the upstream FlowSpec/RTBH DDoS mitigation status: whether a rule is
-currently announced, the target vector it covers, and whether the leak-probe is running.";
+                description "Show the upstream FlowSpec/RTBH DDoS mitigation status: whether a rule is currently announced, the target vector it covers, and whether the leak-probe is running.";
             }
         }
     }

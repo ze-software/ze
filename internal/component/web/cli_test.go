@@ -1093,3 +1093,53 @@ func TestBuildConfigEditURL(t *testing.T) {
 		})
 	}
 }
+
+// TestCLICompleteSendsSummaryNotExplanation proves AC-5 on the web completion
+// endpoint: the JSON `description` key carries the one-line summary the command
+// node declares, and never the long explanation. The dropdown renders one line
+// for each candidate (assets/cli.js, showCompletions), so an explanation there
+// is a paragraph in a list row.
+//
+// It drives the production handler over the real command completer, because the
+// JSON payload is built from whatever that completer answers.
+//
+// PREVENTS: a later edit routing Node.Help into the candidate line.
+func TestCLICompleteSendsSummaryNotExplanation(t *testing.T) {
+	mgr, _ := setupCLITest(t)
+	schema, _ := buildTestSchemaAndTree()
+
+	tree := &command.Node{Children: map[string]*command.Node{
+		"show": {Name: "show", Children: map[string]*command.Node{
+			"peer": {
+				Name:        "peer",
+				Description: "Show one line for each peer.",
+				Help:        "The state column is the FSM state.\nThe counts are prefixes received.",
+			},
+		}},
+	}}
+	handler := HandleCLICompleteWithCommandCompleter(cli.NewCompleter(), cli.NewCommandCompleter(tree), mgr, schema)
+
+	w := httptest.NewRecorder()
+	r := authedRequest(t, http.MethodGet, "/cli/complete?input=show+&mode=operational", nil)
+	handler.ServeHTTP(w, r)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var items []struct {
+		Text        string `json:"text"`
+		Description string `json:"description"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &items))
+
+	found := false
+	for _, it := range items {
+		if it.Text != "peer" {
+			continue
+		}
+		found = true
+		assert.Equal(t, "Show one line for each peer.", it.Description,
+			"the candidate line carries the summary, verbatim")
+		assert.NotContains(t, it.Description, "\n",
+			"a candidate line is one line")
+	}
+	assert.True(t, found, "peer missing from web completion: %s", w.Body.String())
+}

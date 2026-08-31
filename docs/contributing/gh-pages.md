@@ -55,6 +55,36 @@ plugin's `register.go`. If the website needs another fact, add a structured
 field to `registry.Registration` first, then render from that data. Regenerate
 the site with `./le site build`.
 
+## Command surfaces
+
+Every published command page is generated from one file. `publishCommandCatalog`
+asks `internal/le/docvalid.LiveCommandCatalog` for the answer `ze help command
+--json` gives, and writes it to `../gh-pages/data/cli-commands.json`. The
+producers below read that file and nothing else.
+<!-- source: internal/le/site/build.go -- publishCommandCatalog, liveCommandCatalog -->
+<!-- source: internal/le/site/catalog.go -- catalogFile, loadCommandCatalog -->
+
+| Published route | Producer | What it renders |
+|-----------------|----------|-----------------|
+| `reference/cli/` | `internal/le/site/commands.go` -- `renderCLIReference` | One row per command, plus the pipe-operator table `renderOperatorGuide` writes into the same page |
+| `reference/command-equivalents/` | `internal/le/site/equivalents.go` -- `renderCommandEquivalents` | The vendor map index, joined with `website/data/command-equivalents.json` |
+| `reference/command-equivalents/<slug>/` | `internal/le/site/equivalentdetail.go` -- `renderEquivalentDetail` | One detail page per mapped command |
+| `llms.txt` | `internal/le/site/derived.go` -- `renderLLMS` | One line per command, for a machine reader |
+
+A command carries two help texts, and each surface reads the one it has room
+for. `description` is the one-line summary, and all four producers print it
+whole. `long-help` is the explanation, and only `renderEquivalentDetail` prints
+it, as the detail page body. No producer derives one text from the other, and
+none cuts either one. `docs/architecture/api/commands.md` holds the same table
+for every other surface.
+
+`internal/le/docvalid` publishes no page. Its unexported `renderCommandSurfaces`
+writes a contract fixture into a temporary tree, and the documentation drift
+gate compares each published page against that fixture. The symbol was exported
+until 2026-08-29, and a build that called it overwrote 396 pages with the
+fixture.
+<!-- source: internal/le/docvalid/command_render.go -- renderCommandSurfaces -->
+
 ## Quality pages
 
 `../gh-pages/quality/health/` and `../gh-pages/quality/rfc-compliance/` are

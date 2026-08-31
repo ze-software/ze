@@ -219,8 +219,16 @@ func streamingOperators(ops []commandOperator) []string {
 
 // commandEntry is a single command in the catalog.
 type commandEntry struct {
-	Path        string       `json:"path"`
+	Path string `json:"path"`
+	// Description is the command's one-line summary. LongHelp is its long
+	// explanation. They are two declarations, not one string cut in two, so a
+	// reader takes whichever its surface renders.
+	//
+	// The key is `long-help` rather than `help`. On the plugin boundary `help`
+	// already names the SUMMARY (`Completion.Help`), and one spelling for two
+	// halves on two boundaries is the defect this spec closes.
 	Description string       `json:"description,omitempty"`
+	LongHelp    string       `json:"long-help,omitempty"`
 	Mode        string       `json:"mode"`
 	WireMethod  string       `json:"wire-method,omitempty"`
 	Backend     []string     `json:"backend,omitempty"`
@@ -316,13 +324,14 @@ func collectCommands() []commandEntry {
 				mode = "read-only"
 			}
 			node := findNode(tree, cliPath)
-			desc := ""
+			desc, longHelp := "", ""
 			if node != nil {
-				desc = node.Description
+				desc, longHelp = node.Description, node.Help
 			}
 			e := commandEntry{
 				Path:        cliPath,
 				Description: desc,
+				LongHelp:    longHelp,
 				Mode:        mode,
 				WireMethod:  wireMethod,
 			}
@@ -356,6 +365,7 @@ func collectCommands() []commandEntry {
 		entries = append(entries, commandEntry{
 			Path:        lc.Path,
 			Description: lc.Meta.Description,
+			LongHelp:    lc.Meta.LongHelp,
 			Mode:        mode,
 		})
 		seen[lc.Path] = true
@@ -492,14 +502,18 @@ func printCommandVerbose(rw *helpfmt.RenderWriter, entries []commandEntry) {
 		tb.Reset().Colored(c.BoldCyan).Str(e.Path).Colored(c.Reset)
 		rw.Line(tb.Slice())
 
-		// Description (full, multi-line)
+		// The summary on one line, then the long explanation under it.
 		desc := e.Description
 		if desc == "" {
 			desc = "-"
 		}
-		for line := range strings.SplitSeq(desc, "\n") {
-			tb.Reset().Str("  ").Str(line)
-			rw.Line(tb.Slice())
+		tb.Reset().Str("  ").Str(desc)
+		rw.Line(tb.Slice())
+		if e.LongHelp != "" {
+			for line := range strings.SplitSeq(e.LongHelp, "\n") {
+				tb.Reset().Str("  ").Str(line)
+				rw.Line(tb.Slice())
+			}
 		}
 
 		// Mode, wire method, backend, task support
@@ -614,12 +628,10 @@ func printCommandTable(rw *helpfmt.RenderWriter, entries []commandEntry) {
 	c := textbuf.C
 	for i := range entries {
 		e := &entries[i]
+		// The summary is declared one line long, so the row prints it whole.
 		desc := e.Description
 		if desc == "" {
 			desc = "-"
-		}
-		if i := strings.Index(desc, "\n"); i >= 0 {
-			desc = desc[:i]
 		}
 		pad := strings.Repeat(" ", width-len(e.Path))
 		tb.Reset().Str("  ").Colored(c.BoldCyan).Str(e.Path).Str(pad).Colored(c.Reset).Str("  ").Str(desc)

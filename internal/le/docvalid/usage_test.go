@@ -214,7 +214,7 @@ var cleanModule = strings.Replace(proseModule,
 // the authored count falls, and the model still cannot state the grammar. The
 // difference is then unrecorded anywhere.
 func TestUsageContractRefusesHiddenGap(t *testing.T) {
-	head := map[string]usageRow{
+	head := map[string]UsageRow{
 		"show sockets": {Path: "show sockets", Authored: "show sockets [state <STATE>] [port <N>]", Marker: "Usage:"},
 	}
 	report := usageContract(fixtureLoader(t, cleanModule), head)
@@ -248,7 +248,7 @@ func TestUsageContractRefusesHiddenGap(t *testing.T) {
 // PREVENTS: a ratchet that refuses every deletion, which would freeze the 49
 // sentences this phase removes and make the gate impossible to satisfy.
 func TestUsageContractAllowsDeletingAMatchingLine(t *testing.T) {
-	head := map[string]usageRow{
+	head := map[string]UsageRow{
 		"show sockets": {Path: "show sockets", Authored: "show sockets [port <port>]", Marker: "Usage:"},
 	}
 	report := usageContract(fixtureLoader(t, cleanModule), head)
@@ -266,7 +266,7 @@ func TestUsageContractAllowsDeletingAMatchingLine(t *testing.T) {
 // PREVENTS: the same difference counted twice, once as prose and once as a
 // hidden gap, which would double every number the gate prints.
 func TestUsageContractCountsAStandingSentenceOnceOnly(t *testing.T) {
-	head := map[string]usageRow{
+	head := map[string]UsageRow{
 		"show sockets": {Path: "show sockets", Authored: "show sockets [port <N>]", Marker: "Usage:"},
 	}
 	report := usageContract(fixtureLoader(t, proseModule), head)
@@ -283,7 +283,7 @@ func TestUsageContractCountsAStandingSentenceOnceOnly(t *testing.T) {
 // PREVENTS: a gate that refuses to let a command be removed or renamed, which
 // is a different change from hiding a difference.
 func TestUsageContractIgnoresARetiredCommand(t *testing.T) {
-	head := map[string]usageRow{
+	head := map[string]UsageRow{
 		"show retired": {Path: "show retired", Authored: "show retired now", Marker: "Usage:"},
 	}
 	report := usageContract(fixtureLoader(t, cleanModule), head)
@@ -328,7 +328,7 @@ module ze-fixture-cmd {
 // gate refuse the one change it exists to encourage: moving a grammar out of
 // prose and into the model.
 func TestUsageContractIgnoresACommandSplitIntoItsForms(t *testing.T) {
-	head := map[string]usageRow{
+	head := map[string]UsageRow{
 		"show sockets": {Path: "show sockets", Authored: "show sockets [port <N>]", Marker: "Usage:"},
 	}
 	report := usageContract(fixtureLoader(t, splitModule), head)
@@ -402,7 +402,7 @@ func TestUsageShapeFoldsPlaceholders(t *testing.T) {
 // grammar; the owner ruled the generated form acceptable on 2026-08-29 and the
 // prose deletable, and a whole-line comparison refuses that deletion.
 func TestUsageContractAllowsDeletingAPlaceholderOnlyLine(t *testing.T) {
-	head := map[string]usageRow{
+	head := map[string]UsageRow{
 		"show sockets": {Path: "show sockets", Authored: "show sockets [port <N>]", Marker: "Usage:"},
 	}
 	report := usageContract(fixtureLoader(t, cleanModule), head)
@@ -423,7 +423,7 @@ func TestUsageContractAllowsDeletingAPlaceholderOnlyLine(t *testing.T) {
 // `request interface down <name>` is wrong. An exemption that reached them would
 // delete the only record of the renderer's defect.
 func TestUsageContractRefusesDeletingAValuePositionLine(t *testing.T) {
-	head := map[string]usageRow{
+	head := map[string]UsageRow{
 		"request interface down": {
 			Path: "request interface down", Authored: "request interface <name> down", Marker: "Usage:",
 		},

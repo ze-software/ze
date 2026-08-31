@@ -5,5 +5,5 @@ module ze-cli-delete-api {
   description
     "Ze delete verb RPCs -- remove configuration.";
 
-  rpc bgp-peer { description "Remove a peer dynamically"; }
+  rpc bgp-peer { description "Remove a peer dynamically."; }
 }

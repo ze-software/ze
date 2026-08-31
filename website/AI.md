@@ -105,10 +105,13 @@ artifact boundary and can seed it from the current complete Pages checkout.
 - **Paths and deployment.** `internal/le/site.ResolvePaths` derives the
   checkout, source and artifact roots. `IsSourceOnly` is the common deployment
   boundary used by the builder and checker.
-- **Command surfaces.** `internal/le/docvalid.RenderCommandSurfaces` writes the
-  CLI HTML, Markdown, command-equivalent detail pages and `llms.txt` metadata
-  directly from the live JSON catalogue. The same typed contract is validated
-  by the documentation drift gate.
+- **Command surfaces.** Three producers in `internal/le/site` publish them from
+  the live JSON catalog. `commands.go` writes the CLI reference and the
+  operator guide, `equivalentdetail.go` the command-equivalent detail pages, and
+  `derived.go` the `llms.txt` command lines. `internal/le/docvalid` renders no
+  published page. Its unexported `renderCommandSurfaces` emits the contract
+  fixture, and the documentation drift gate compares each published page against
+  it.
 - **Presentation tools.** `internal/le/site.BundlePresentation` embeds
   images, fonts, stylesheets, slide sources and screenshots in one HTML file.
   `RenderActivity` derives the activity table from Git history.

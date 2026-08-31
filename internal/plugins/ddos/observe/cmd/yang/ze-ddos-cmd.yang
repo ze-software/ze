@@ -7,7 +7,7 @@ module ze-ddos-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container ddos {
             config false;
@@ -16,16 +16,15 @@ module ze-ddos-cmd {
             container status {
                 config false;
                 ze:command "ze-show:ddos-status";
-                description "Show DDoS observation status: whether the incident store is running, the
-number of currently active attacks, and the number of incidents retained in the ring.";
+                description "Show DDoS observation status: whether the incident store is running, the number of currently active attacks, and the number of incidents retained in the ring.";
             }
 
             container incidents {
                 config false;
                 ze:command "ze-show:ddos-incidents";
-                description "Show the recent DDoS incident ring (newest first): per incident the
-target vector (prefix/proto/port), attack family, top source addresses, peak pps/bps,
-start/end time, and whether it is still active.";
+                description "Show the recent DDoS incident ring (newest first).";
+                ze:help "Per incident: the target vector (prefix/proto/port), attack family, top
+source addresses, peak pps/bps, start/end time, and whether it is still active.";
             }
         }
     }

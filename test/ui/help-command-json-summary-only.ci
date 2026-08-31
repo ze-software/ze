@@ -1,0 +1,21 @@
+# Test: a command that declares only a summary publishes no long explanation
+# VALIDATES: AC-6, the zero-value half -- ze help command --json carries
+#            `description` and NO `long-help` key for a command whose YANG node
+#            declares a description and no ze:help
+# PREVENTS: a reader inventing a long form out of the summary, which is what
+#           every deleted guess did
+# NOTE: this file runs ONE command on purpose. A reject=stdout matches the
+#       ACCUMULATED stdout of every command in the file, so a second command
+#       here would leave the negative assertion meaningless
+#       (docs/architecture/testing/ci-format.md). `veth` selects exactly one
+#       catalog entry, and internal/component/iface/yang/ze-iface-cmd.yang
+#       declares it with a description and no ze:help.
+
+cmd=foreground:seq=1:exec=ze help command veth --json
+expect=exit:code=0
+
+expect=stdout:contains="path": "create interface veth name"
+expect=stdout:contains="description": "Create a veth pair (two linked virtual Ethernet interfaces)."
+
+# Nothing invents a long form. The key is absent, not empty.
+reject=stdout:contains="long-help"

@@ -20,6 +20,11 @@ const (
 	argVerbose    = "verbose"
 	// keyDescription is the response payload key carrying a one-line summary.
 	keyDescription = "description"
+	// keyLongHelp is the response payload key carrying the long explanation of
+	// one command. The spelling is `long-help` and not `help`, because `help`
+	// already names the one-line SUMMARY in a Completion row, which the
+	// command-list answer on this same surface is built from.
+	keyLongHelp = "long-help"
 )
 
 func init() {
@@ -97,7 +102,12 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 	}
 
 	if cmd := dispatcher.Lookup(name); cmd != nil {
-		return commandHelp(cmd.Name, cmd.Help, sourceBuiltin, ""), nil
+		return commandHelp(commandHelpText{
+			Name:        cmd.Name,
+			Description: cmd.Help,
+			LongHelp:    cmd.LongHelp,
+			Source:      sourceBuiltin,
+		}), nil
 	}
 
 	// A plugin's command sits in the command registry rather than in the
@@ -105,10 +115,32 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 	// is declared on. Reading the builtins alone answers "unknown command" for
 	// every command any plugin declares.
 	if cmd := dispatcher.Registry().Lookup(name); cmd != nil {
-		return commandHelp(cmd.Name, cmd.Description, cmd.Process.Name(), cmd.Args), nil
+		return commandHelp(commandHelpText{
+			Name:        cmd.Name,
+			Description: cmd.Description,
+			LongHelp:    cmd.LongHelp,
+			Source:      cmd.Process.Name(),
+			Args:        cmd.Args,
+		}), nil
 	}
 
 	return nil, fmt.Errorf("unknown command: %s", name)
+}
+
+// commandHelpText is what one command says about itself: its two help texts,
+// who provides it, and the arguments it takes.
+//
+// Description is the one-line SUMMARY and LongHelp is the explanation the
+// command's own help page prints. Neither is derived from the other, and an
+// empty LongHelp is a command nobody has written an explanation for. The
+// answer carries the key either way, beside the summary it is the twin of, so
+// a reader meets one shape rather than two.
+type commandHelpText struct {
+	Name        string
+	Description string
+	LongHelp    string
+	Source      string
+	Args        string
 }
 
 // commandHelp answers for one command: what it is, and the pipe names it
@@ -118,19 +150,20 @@ func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plu
 // alias are each registered at startup, an alias by an in-tree package or by a
 // plugin's Stage 1 message, so a tool reading the compiled command tree in its
 // own process can report neither.
-func commandHelp(name, description, source, args string) *plugin.Response {
+func commandHelp(cmd commandHelpText) *plugin.Response {
 	data := map[string]any{
-		"command":      name,
-		keyDescription: description,
-		"source":       source,
+		"command":      cmd.Name,
+		keyDescription: cmd.Description,
+		keyLongHelp:    cmd.LongHelp,
+		"source":       cmd.Source,
 	}
-	if args != "" {
-		data["args"] = args
+	if cmd.Args != "" {
+		data["args"] = cmd.Args
 	}
-	if filters := pipeFilterHelp(command.PipeFiltersForCommand(name)); len(filters) > 0 {
+	if filters := pipeFilterHelp(command.PipeFiltersForCommand(cmd.Name)); len(filters) > 0 {
 		data["pipe-filters"] = filters
 	}
-	if aliases := pipeAliasHelp(command.AliasesForCommand(name)); len(aliases) > 0 {
+	if aliases := pipeAliasHelp(command.AliasesForCommand(cmd.Name)); len(aliases) > 0 {
 		data["pipe-aliases"] = aliases
 	}
 	return &plugin.Response{

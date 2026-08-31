@@ -11,14 +11,14 @@ module ze-mpls-cmd {
     augment "/clishowcmd:show" {
         container mpls {
             config false;
-            description "MPLS forwarding table and label operations";
+            description "MPLS forwarding table and label operations.";
 
             container forwarding {
                 config false;
                 ze:command "ze-show:mpls-forwarding";
-                description "Show MPLS forwarding entries installed in the kernel.
-Each entry shows the incoming label, swap/push/pop operation, and
-outgoing next-hop. Pass 'limit N' to cap large tables. Linux only.";
+                description "Show MPLS forwarding entries installed in the kernel.";
+                ze:help "Each entry shows the incoming label, swap/push/pop operation, and outgoing
+next-hop. Pass 'limit N' to cap large tables. Linux only.";
                 leaf limit {
                     type uint32;
                     description "Maximum number of entries";

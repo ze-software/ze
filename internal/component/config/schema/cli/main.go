@@ -309,11 +309,13 @@ func printSchemaTable(header, kind string, entries []schemaEntry) {
 
 	fmt.Printf("%-36s %-16s %s\n", header, "Module", "Description")
 	for _, e := range entries {
+		// The description is written whole. It is the declared one-line
+		// summary, which the help-shape gate holds to one sentence of at
+		// most 25 words, so this surface has nothing left to shorten. The
+		// fixed 50-character cut that stood here sliced bytes rather than
+		// runes, so a multi-byte character on the boundary left invalid
+		// UTF-8 behind.
 		desc := e.desc
-		if len(desc) > 50 {
-			var tb textbuf.Buffer
-			desc = tb.Str(desc[:47]).Str("...").String()
-		}
 		fmt.Printf("%-36s %-16s %s\n", e.wire, e.module, desc)
 	}
 }

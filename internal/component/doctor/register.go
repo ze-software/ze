@@ -17,7 +17,10 @@ func init() {
 		Subs:        "[--json] [<config-file>]",
 	})
 	registry.MustRegisterLocalMeta("doctor", Run, registry.Meta{
-		Description: "Verify kernel features, file descriptor limits, sockets, and required dependencies. Run this before first start or after platform changes.",
+		Description: "Check that this system is ready to run Ze.",
+		LongHelp: "The checks cover kernel features, file descriptor limits, listening sockets and " +
+			"the dependencies Ze needs. Run it before the first start, and again after a change " +
+			"to the platform.",
 	})
 	diagnostic.RegisterDoctorProvider(runChecks)
 }

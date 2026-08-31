@@ -7,31 +7,31 @@ module ze-bgp-tools-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container bgp {
             config false;
-            description "BGP peers, sessions, RIB, and protocol tools.
-Typed with no subcommand, lists every peer with state, ASN, prefixes
-received, and uptime. Optionally scope by address family: ipv4,
-ipv6, or l2vpn.";
+            description "BGP peers, sessions, RIB, and protocol tools.";
+            ze:help "Typed with no subcommand, lists every peer with state, ASN,
+prefixes received, and uptime. Optionally scope by address family: ipv4, ipv6,
+or l2vpn.";
 
             container decode {
                 config false;
                 ze:command "ze-show:bgp-decode";
-                description "Decode a hex-encoded BGP message into readable JSON.
-Paste a hex BGP UPDATE and get back parsed attributes, NLRI, and
-withdrawn prefixes. Handy for reading pcap captures or debugging
-wire issues. Also available in the web UI under tools.";
+                description "Decode a hex-encoded BGP message into readable JSON.";
+                ze:help "Paste a hex BGP UPDATE and get back parsed attributes,
+NLRI, and withdrawn prefixes. Use it to read pcap captures or to debug wire
+issues. The web UI carries the same tool under tools.";
             }
 
             container encode {
                 config false;
                 ze:command "ze-show:bgp-encode";
-                description "Turn a route announcement into wire-format hex.
-Takes a route in API syntax and returns the BGP UPDATE as a hex
-string. Useful for building test payloads, feeding to ze-test, or
-verifying that your announcement encodes correctly.";
+                description "Turn a route announcement into wire-format hex.";
+                ze:help "Takes a route in API syntax and returns the BGP UPDATE
+as a hex string. Use it to build a test payload, to feed ze-test, or to verify
+that an announcement encodes correctly.";
             }
         }
     }

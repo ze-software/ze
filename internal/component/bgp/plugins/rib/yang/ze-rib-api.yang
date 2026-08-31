@@ -3,6 +3,7 @@ module ze-rib-api {
     prefix ribapi;
 
     import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
 
     description
         "RIB API operations for Ze.
@@ -16,14 +17,14 @@ module ze-rib-api {
     // Introspection
 
     rpc help {
-        description "Show RIB subcommands";
+        description "Show RIB subcommands.";
         output {
             leaf-list subcommands { type string; description "Available subcommands"; }
         }
     }
 
     rpc command-list {
-        description "List RIB commands";
+        description "List RIB commands.";
         output {
             list command {
                 leaf name { type string; description "Command name"; }
@@ -33,7 +34,7 @@ module ze-rib-api {
     }
 
     rpc command-help {
-        description "Show RIB command details";
+        description "Show RIB command details.";
         input {
             leaf name { type string; mandatory true; description "Command name"; }
         }
@@ -43,7 +44,7 @@ module ze-rib-api {
     }
 
     rpc command-complete {
-        description "Complete RIB command/args";
+        description "Complete RIB command/args.";
         input {
             leaf partial { type string; mandatory true; description "Partial command string"; }
         }
@@ -53,7 +54,7 @@ module ze-rib-api {
     }
 
     rpc event-list {
-        description "List RIB event types";
+        description "List RIB event types.";
         output {
             list event {
                 leaf name { type string; description "Event type name"; }
@@ -76,14 +77,15 @@ module ze-rib-api {
     }
 
     rpc show {
-        description "Show routes with pipeline filters.
-                     Syntax: show bgp rib [scope] [filters...] [terminal]
-                     Scope: sent | received | sent-received (default)
-                     Filters: path <pattern>, prefix <pattern>, community <value>,
-                              family <afi/safi>, match <text>
-                     Terminals: count (metadata only), json (serialized output),
-                                histogram (per-family prefix-length distribution),
-                                graph (AS-path topology as box-drawing text)";
+        description "Show routes with pipeline filters.";
+        ze:help "The scope is sent, received, or sent-received, which is the default.
+                 A filter is path <pattern>, prefix <pattern>, community <value>,
+                 family <afi/safi>, or match <text>.
+                 A terminal is one of four.
+                 count returns metadata only.
+                 json returns serialized output.
+                 histogram returns the per-family prefix-length distribution.
+                 graph returns the AS-path topology as box-drawing text.";
         input {
             leaf peer { type zt:ip-address; description "Filter by peer"; }
             leaf-list args { type string; description "Pipeline args: scope, filters, terminal"; }
@@ -94,13 +96,14 @@ module ze-rib-api {
     }
 
     rpc best {
-        description "Show best-path per prefix (RFC 4271 §9.1.2).
-                     Syntax: show bgp rib best [filters...] [terminal]
-                     Filters: path <pattern>, prefix <pattern>, community <value>,
-                              family <afi/safi>, match <text>
-                     Terminals: count (metadata only), json (serialized output),
-                                histogram (per-family prefix-length distribution),
-                                graph (AS-path topology as box-drawing text)";
+        description "Show best-path per prefix (RFC 4271 §9.1.2).";
+        ze:help "A filter is path <pattern>, prefix <pattern>, community <value>,
+                 family <afi/safi>, or match <text>.
+                 A terminal is one of four.
+                 count returns metadata only.
+                 json returns serialized output.
+                 histogram returns the per-family prefix-length distribution.
+                 graph returns the AS-path topology as box-drawing text.";
         input {
             leaf peer { type zt:ip-address; description "Filter by peer"; }
             leaf-list args { type string; description "Pipeline args: filters, terminal"; }
@@ -111,7 +114,7 @@ module ze-rib-api {
     }
 
     rpc best-status {
-        description "Show best-path computation status";
+        description "Show best-path computation status.";
         output {
             leaf peers-with-rib { type uint32; description "Peers with RIB entries"; }
             leaf total-routes { type uint32; description "Total route count across peers"; }
@@ -119,7 +122,7 @@ module ze-rib-api {
     }
 
     rpc clear-in {
-        description "Clear Adj-RIB-In entries";
+        description "Clear Adj-RIB-In entries.";
         input {
             leaf peer { type zt:ip-address; description "Filter by peer"; }
             leaf family { type zt:address-family; description "Filter by address family"; }
@@ -127,7 +130,7 @@ module ze-rib-api {
     }
 
     rpc clear-out {
-        description "Clear Adj-RIB-Out entries";
+        description "Clear Adj-RIB-Out entries.";
         input {
             leaf peer { type zt:ip-address; description "Filter by peer"; }
             leaf family { type zt:address-family; description "Filter by address family"; }
@@ -135,10 +138,8 @@ module ze-rib-api {
     }
 
     rpc inject {
-        description "Insert route into Adj-RIB-In as if received from a peer.
-                     The peer address is a label; no live BGP session required.
-                     Syntax: request bgp rib inject <peer> <family> <prefix> [origin <val>]
-                             [nhop|nexthop <ip>] [aspath <asn,...>] [localpref <n>] [med <n>]";
+        description "Insert route into Adj-RIB-In as if received from a peer.";
+        ze:help "The peer address is a label; no live BGP session required.";
         input {
             leaf peer { type zt:ip-address; mandatory true; description "Peer address label"; }
             leaf family { type zt:address-family; mandatory true; description "Address family (e.g. ipv4/unicast)"; }
@@ -158,8 +159,7 @@ module ze-rib-api {
     }
 
     rpc withdraw {
-        description "Remove route from Adj-RIB-In.
-                     Syntax: request bgp rib withdraw <peer> <family> <prefix>";
+        description "Remove route from Adj-RIB-In.";
         input {
             leaf peer { type zt:ip-address; mandatory true; description "Peer address label"; }
             leaf family { type zt:address-family; mandatory true; description "Address family"; }

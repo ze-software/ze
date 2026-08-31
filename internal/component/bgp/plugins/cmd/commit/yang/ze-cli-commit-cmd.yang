@@ -11,8 +11,8 @@ module ze-cli-commit-cmd {
         container commit {
             config false;
             ze:command "ze-bgp:commit";
-            description "Group route changes into named atomic commits.
-Actions: start (begin a commit), end (finalize), eor (signal end of
+            description "Group route changes into named atomic commits.";
+            ze:help "Actions: start (begin a commit), end (finalize), eor (signal end of
 RIB), rollback (undo), show (inspect), withdraw (remove all routes
 in a commit), list (show all commits). Grammar: request commit <action>
 <name> [args].";

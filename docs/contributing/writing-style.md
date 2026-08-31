@@ -489,6 +489,10 @@ meaning and never a count.
 | An error message | Name what failed, the offending value, and the next action. Keep the leading phrase stable so it stays greppable (`ai/rules/cli.md`) |
 | A code comment | Say why, and state a caller obligation with MUST (`ai/rules/go-standards.md`) |
 | A YANG `description` | One sentence on what the leaf MEANS. Never prescribe a CLI spelling (`ai/rules/config.md`) |
+| A YANG `description` on a COMMAND node or an RPC | The one-line summary: one sentence, 25 words at most, one line, no semicolon, and it ends in a full stop. `./le docvalid help-shape` names the path and the rule when it does not |
+| A YANG `ze:help` | The long explanation the help page of that one command or rpc prints. It can be several sentences over several lines, and STE reviews it as prose |
+| A `registry.Meta.Description` on an offline local command | The same one-line summary a command node owes, judged by the same gate. The catalog publishes it where the command reaches no YANG node |
+| A `registry.Meta.LongHelp` | The long explanation, in the same shape as a `ze:help` |
 | A commit message | Procedural limits apply: 20 words in a sentence, and an imperative subject (`ai/rules/completion.md`) |
 | A spec or a learned summary | The same limits. A spec is read by the next agent under time pressure |
 | A guide step | Imperative, one instruction, 20 words |

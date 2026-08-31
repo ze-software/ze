@@ -7,15 +7,15 @@ module ze-crashes-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container crashes {
             config false;
             ze:command "ze-show:crashes";
-            description "View saved crash reports from panics.
-Without arguments, lists available crash files. Use 'latest' to see
-the newest crash or 'name <filename>' to print one specific report.
-Send the output to support when reporting a crash.";
+            description "View saved crash reports from panics.";
+            ze:help "Without arguments, lists available crash files. Use 'latest' to see the newest
+crash or 'name <filename>' to print one specific report. Send the output to
+support when reporting a crash.";
             leaf name {
                 type string;
                 description "Crash report name (used with 'name <filename>')";

@@ -38,7 +38,9 @@ they start no plugin. Neither reports a pipe alias a plugin declared in its
 Stage 1 message. The running daemon answers that question, through
 `command help "<name>"` and through Tab completion in the interactive session.
 The wiki catalog built from the JSON therefore lists a plugin's commands without
-its aliases.
+its aliases. That answer carries a command's two help texts under `description`
+(the one-line summary) and `long-help` (the explanation), for a builtin and for
+a plugin command alike.
 <!-- source: cmd/ze/help_command.go -- collectCommands, extractPipes -->
 <!-- source: internal/plugins/meta/cmd/help.go -- commandHelp, pipeAliasHelp -->
 

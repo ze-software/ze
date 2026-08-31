@@ -24,9 +24,13 @@ const (
 	fieldCompletions = "completions"
 	fieldCount       = "count"
 	fieldDescription = "description"
-	fieldMessage     = "message"
-	fieldSource      = "source"
-	fieldSubsystems  = "subsystems"
+	// fieldLongHelp is the response payload key carrying the long explanation.
+	// The spelling is `long-help` and not `help`, because `help` already names
+	// the one-line SUMMARY in a Completion row on this same surface.
+	fieldLongHelp   = "long-help"
+	fieldMessage    = "message"
+	fieldSource     = "source"
+	fieldSubsystems = "subsystems"
 )
 
 func init() {
@@ -87,6 +91,7 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*plugin.Respon
 				Data: plugin.Map{
 					fieldCommand:     cmd.Name,
 					fieldDescription: cmd.Description,
+					fieldLongHelp:    cmd.LongHelp,
 					fieldArgs:        cmd.Args,
 					fieldSource:      cmd.Process.Name(),
 				},

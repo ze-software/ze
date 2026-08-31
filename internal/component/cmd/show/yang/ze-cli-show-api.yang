@@ -5,18 +5,18 @@ module ze-cli-show-api {
   description
     "Ze show verb RPCs -- read-only introspection commands.";
 
-  rpc bgp-peer { description "Show peer(s) details"; }
-  rpc bgp-warnings { description "Show active prefix warnings (stale data, threshold exceeded)"; }
-  rpc traffic { description "Show traffic control state per interface"; }
-  rpc event-recent { description "Show recent events from global event ring"; }
-  rpc event-namespaces { description "Show registered event namespaces with counts"; }
-  rpc event-delivery { description "Show which peers feed which attached processes"; }
-  rpc l2tp-health { description "Show L2TP session health sorted by echo loss"; }
-  rpc bgp-health { description "Show BGP peer health sorted by state and activity"; }
-  rpc metrics-query { description "Query Prometheus metrics by name and label filter"; }
-  rpc ping { description "ICMP ping from the router to a destination IP"; }
-  rpc route-lookup { description "Longest-prefix-match route lookup for a destination IP"; }
-  rpc capture { description "Show captured control messages"; }
-  rpc health { description "Show aggregated component health status"; }
-  rpc system-update-history { description "Show firmware update history"; }
+  rpc bgp-peer { description "Show peer(s) details."; }
+  rpc bgp-warnings { description "Show active prefix warnings (stale data, threshold exceeded)."; }
+  rpc traffic { description "Show traffic control state per interface."; }
+  rpc event-recent { description "Show recent events from global event ring."; }
+  rpc event-namespaces { description "Show registered event namespaces with counts."; }
+  rpc event-delivery { description "Show which peers feed which attached processes."; }
+  rpc l2tp-health { description "Show L2TP session health sorted by echo loss."; }
+  rpc bgp-health { description "Show BGP peer health sorted by state and activity."; }
+  rpc metrics-query { description "Query Prometheus metrics by name and label filter."; }
+  rpc ping { description "ICMP ping from the router to a destination IP."; }
+  rpc route-lookup { description "Longest-prefix-match route lookup for a destination IP."; }
+  rpc capture { description "Show captured control messages."; }
+  rpc health { description "Show aggregated component health status."; }
+  rpc system-update-history { description "Show firmware update history."; }
 }

@@ -28,10 +28,18 @@ func IsLoopbackAddr(addr string) bool {
 
 // CommandMeta describes a registered command for API consumers.
 type CommandMeta struct {
-	Name        string      // Dispatch path, e.g. "show bgp rib status"
-	Description string      // From YANG or registration
-	ReadOnly    bool        // True if read-only command
-	Params      []ParamMeta // Input parameters from YANG RPC (nil = no typed params)
+	Name string // Dispatch path, e.g. "show bgp rib status"
+	// Description is the one-line summary, from the YANG description statement
+	// or from the plugin's registration. It is the OpenAPI operation `summary`.
+	Description string
+	// LongHelp is the explanation the command declares with ze:help, or that a
+	// plugin sends as CommandDecl.LongHelp. It is the OpenAPI operation
+	// `description`, which OpenAPI defines as the long form. Empty means the
+	// command declares no explanation, and the operation then carries no
+	// description key at all.
+	LongHelp string
+	ReadOnly bool        // True if read-only command
+	Params   []ParamMeta // Input parameters from YANG RPC (nil = no typed params)
 }
 
 // ParamMeta describes a single input parameter from YANG RPC metadata.

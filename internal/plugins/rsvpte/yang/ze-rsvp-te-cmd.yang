@@ -8,42 +8,41 @@ module ze-rsvp-te-cmd {
 
     container show {
         config false;
-        description "Read-only commands to inspect system, protocol, and network state";
+        description "Read-only commands to inspect system, protocol, and network state.";
 
         container rsvp-te {
             config false;
-            description "RSVP-TE LSPs, tunnels, and bandwidth reservations";
+            description "RSVP-TE LSPs, tunnels, and bandwidth reservations.";
 
             container lsp {
                 config false;
                 ze:command "ze-show:rsvp-te-lsp";
-                description "Show RSVP-TE label-switched paths.
-Returns state, role (ingress/transit/egress), reserved bandwidth,
-and in/out labels for each LSP.";
+                description "Show RSVP-TE label-switched paths.";
+                ze:help "Returns state, role (ingress/transit/egress), reserved bandwidth, and in/out
+labels for each LSP.";
             }
 
             container interface {
                 config false;
                 ze:command "ze-show:rsvp-te-interface";
-                description "Show RSVP-TE bandwidth allocation per interface.
-Returns reserved, available, and maximum bandwidth for each
-TE-enabled interface.";
+                description "Show RSVP-TE bandwidth allocation per interface.";
+                ze:help "Returns reserved, available, and maximum bandwidth for each TE-enabled
+interface.";
             }
 
             container tunnel {
                 config false;
                 ze:command "ze-show:rsvp-te-tunnel";
-                description "Show configured RSVP-TE tunnels and their current state.
-Returns tunnel name, endpoints, signaling state, and active LSP.";
+                description "Show configured RSVP-TE tunnels and their current state.";
+                ze:help "Returns tunnel name, endpoints, signaling state, and active LSP.";
             }
 
             container fast-reroute {
                 config false;
                 ze:command "ze-show:rsvp-te-fast-reroute";
-                description "Show RSVP-TE Fast Reroute (RFC 4090) protection state.
-Returns each configured facility-backup bypass LSP and each protected
-LSP with its armed bypass, mode, and whether local protection is
-available and in use.";
+                description "Show RSVP-TE Fast Reroute (RFC 4090) protection state.";
+                ze:help "Returns each configured facility-backup bypass LSP and each protected LSP with
+its armed bypass, mode, and whether local protection is available and in use.";
             }
         }
     }

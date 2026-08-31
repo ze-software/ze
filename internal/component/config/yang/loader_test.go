@@ -468,3 +468,46 @@ module test-mixed {
 	assert.NotNil(t, stateEntry.Dir["peer"], "peer leaf should exist in notification")
 	assert.NotNil(t, stateEntry.Dir["new-state"], "new-state leaf should exist in notification")
 }
+
+// revisionedModule declares a revision, which is what makes goyang key one
+// module under two names.
+const revisionedModule = `
+module ze-fixture-revision {
+    namespace "urn:ze:fixture:revision";
+    prefix zefr;
+    revision 2026-08-31 {
+        description "The revision that makes goyang key this module twice.";
+    }
+}
+`
+
+// TestLoaderNamesEachModuleOnce loads a module that declares a revision and
+// asserts the loader names it once.
+//
+// VALIDATES: ModuleNames answers one name for one module, and never the
+// `<name>@<revision>` key goyang stores beside the bare one.
+// PREVENTS: every caller that COUNTS what it walks counting a revisioned module
+// twice. 205 of Ze's modules declare a revision, so a raw walk of the map
+// reports the gNMI Capabilities model list, the RPC corpus and the module
+// inventory at nearly twice their size.
+func TestLoaderNamesEachModuleOnce(t *testing.T) {
+	loader := NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.AddModuleFromText("ze-fixture-revision.yang", revisionedModule))
+	require.NoError(t, loader.Resolve())
+
+	names := loader.ModuleNames()
+	assert.Contains(t, names, "ze-fixture-revision", "the bare name of a revisioned module is answered")
+
+	seen := make(map[string]bool, len(names))
+	for _, name := range names {
+		assert.NotContains(t, name, "@", "a revision key is not a module name")
+		assert.False(t, seen[name], "module %q is named twice", name)
+		seen[name] = true
+	}
+
+	// The raw goyang map is the producer this guard is written against: it holds
+	// the revisioned module under two keys, and the loader answers one.
+	require.NotNil(t, loader.GetModule("ze-fixture-revision@2026-08-31"),
+		"goyang no longer stores the revision key: this guard is measuring nothing")
+}

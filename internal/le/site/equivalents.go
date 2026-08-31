@@ -668,9 +668,12 @@ func writeEquivalentIndexRow(out *strings.Builder, row *equivalentRow, vendors [
 
 // searchText answers the lowercase haystack the page's own filter searches.
 func (row *equivalentRow) searchText(vendors []string) string {
+	// Both halves of the command's help are indexed. A reader searching this
+	// page wants the most text, and the long form is where a command names the
+	// thing an operator remembers it by.
 	terms := []string{
 		row.Command.Path, row.Command.Usage, row.Command.Description,
-		row.Command.Mode, row.Command.WireMethod, row.Group,
+		row.Command.LongHelp, row.Command.Mode, row.Command.WireMethod, row.Group,
 	}
 	for _, entry := range row.Entries {
 		terms = append(terms, entry.Intent, entry.Category, entry.Notes)

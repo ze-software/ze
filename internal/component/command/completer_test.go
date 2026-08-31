@@ -2,6 +2,7 @@ package command
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -802,5 +803,63 @@ func TestChoiceGroupCompletesItsWordsNotItsName(t *testing.T) {
 	}
 	if got["detail"] != SuggestionCommand {
 		t.Errorf("completion dropped the real subcommand: %v", got)
+	}
+}
+
+// VALIDATES: a completion candidate carries the node's declared SUMMARY and
+// never its long help, on both the static-child path and the choice-group path.
+// PREVENTS: the whole authored text reaching a one-line candidate, which is
+// what shipped while one description carried both halves.
+func TestCompleterSuggestsSummaryNotWholeDescription(t *testing.T) {
+	const (
+		summary  = "Show the BGP RIB."
+		longHelp = "The RIB answers per family.\nAdd a prefix to narrow it."
+	)
+	tree := &Node{
+		Children: map[string]*Node{
+			"rib": {Name: "rib", Description: summary, Help: longHelp},
+			"family": {
+				Name:        "family",
+				Description: "Pick the address family.",
+				Help:        "The families are the ones this session negotiated.",
+				Modifier:    ModifierChoice,
+				ArgDefs:     []ArgDef{{Name: "family", EnumValues: []string{"ipv4"}}},
+			},
+		},
+	}
+
+	got := NewTreeCompleter(tree).Complete("")
+	if len(got) == 0 {
+		t.Fatal("the completer offered nothing")
+	}
+	for _, s := range got {
+		if s.Description == "" {
+			t.Errorf("candidate %q carries no summary", s.Text)
+		}
+		if strings.Contains(s.Description, "\n") {
+			t.Errorf("candidate %q carries a newline in its summary: %q", s.Text, s.Description)
+		}
+		if strings.Contains(s.Description, "answers per family") ||
+			strings.Contains(s.Description, "this session negotiated") {
+			t.Errorf("candidate %q carries the long help: %q", s.Text, s.Description)
+		}
+	}
+
+	for _, want := range []struct{ text, desc string }{
+		{"rib", summary},
+		{"ipv4", "Pick the address family."},
+	} {
+		found := false
+		for _, s := range got {
+			if s.Text == want.text {
+				found = true
+				if s.Description != want.desc {
+					t.Errorf("candidate %q has summary %q, want %q", want.text, s.Description, want.desc)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("the completer never offered %q", want.text)
+		}
 	}
 }
