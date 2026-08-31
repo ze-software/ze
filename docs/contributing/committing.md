@@ -22,7 +22,7 @@ optional push into one script, so no partial-staging window exists.
 | Keyword | Repeats | Meaning |
 |---------|---------|---------|
 | `subject` | no | The one-line commit subject. At most 72 characters, and a longer one is refused with the count and the overage |
-| `body` | yes | A body paragraph. Lines are wrapped to 72 characters without breaking a word |
+| `body` | yes | One body chunk, wrapped to 72 characters without breaking a word. Two chunks run together, so a paragraph break is an empty `body ""` between them |
 | `file` | yes | One explicit file to stage. Never a directory |
 | `file-list` | yes | A file holding one path to stage per line. Blank lines and `#` comments are skipped |
 | `remove` | yes | One tracked path to delete |
