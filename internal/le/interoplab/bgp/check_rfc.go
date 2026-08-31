@@ -413,7 +413,94 @@ func checkRFC7606TypedNLRIDiscard(ctx context.Context, check *interoplab.CheckCo
 // RFC requirement: RFC7999-3.3-2 positive -- "The receiving party agreed to honor the BLACKHOLE community on the particular BGP session" (RFC 7999 Section 3.3, second condition). The FRR session names that community in its blackhole `communities`, which is that agreement, and the same 10.100.0.1/32 reaches the kernel as a discard route. Both conditions of the one MUST sentence hold on this session, which is why one outcome is positive evidence for both.
 // RFC requirement: RFC7999-3.3-2 negative -- BIRD announces 10.200.0.1/32 carrying 65535:666, inside the 10.200.0.0/24 that peer IS authorized for, on a session whose blackhole `communities` names 65001:666 alone. The kernel forwards it. The authorization is present and the session agreed to a DIFFERENT community, so this isolates the second condition rather than testing an absent config block, and it also pins that a stated community list is taken exactly: the well-known value is never added to it.
 func checkRFC7999Blackhole(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "bgp-rfc7999-blackhole-frr")
+	const (
+		name = "bgp-rfc7999-blackhole-frr"
+		// The three host routes the two peers announce, every one of them tagged
+		// 65535:666 by its own daemon. renderScenario never rewrites them: they are
+		// announced prefixes rather than lab addresses, so they read the same on
+		// every network the suite selects. The verdict each one owes differs in the
+		// scenario's configuration alone.
+		blackholedAddress = "10.100.0.1"   // FRR, inside the authorized 10.100.0.0/24, community agreed.
+		uncoveredAddress  = "198.51.100.1" // FRR, outside every prefix that peer is authorized for.
+		unagreedAddress   = "10.200.0.1"   // BIRD, inside its authorized 10.200.0.0/24, 65535:666 not agreed.
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+	if !check.Network.IPv4.IsValid() {
+		return fail(1, errors.New("blackhole scenario has no selected IPv4 network"))
+	}
+	// FRR names its neighbor by address, while BIRD names ze by the protocol
+	// bird.conf declares, so the two session assertions read different identities.
+	zeAddress := networkHostAddress(check.Network, 2)
+
+	// Assertions 1 and 2. Both sessions, read from the two peers themselves. The
+	// FIB assertions below need both, because one prefix arrives over each session.
+	sessions := []operation{
+		{kind: opFRRSession, argument: zeAddress},
+		{kind: opBIRDSession, argument: birdZeProtocol},
+	}
+	for index := range sessions {
+		if err := runOperation(ctx, check.Network, check.Lab, &sessions[index]); err != nil {
+			return fail(index+1, err)
+		}
+	}
+
+	// Assertion 3. The Linux FIB inside the ze container, which is what an operator
+	// reads and the only place a wrong netlink message shows up: Linux refuses
+	// RTN_BLACKHOLE carrying a gateway, and every BGP path resolves one. Every test
+	// above this one reads a Ze table instead.
+	//
+	// The poll waits for all three destinations to REACH the FIB, and asserts
+	// nothing about their shape. Waiting for the shapes would turn a wrong verdict
+	// into a timeout, and a timeout says which prefixes never arrived rather than
+	// which one ze decided wrongly.
+	blackholed := netip.MustParseAddr(blackholedAddress)
+	uncovered := netip.MustParseAddr(uncoveredAddress)
+	unagreed := netip.MustParseAddr(unagreedAddress)
+	showKernelRoutes := []string{"ip", "-4", "route", "show"}
+	table, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout:     90 * time.Second,
+		Interval:    2 * time.Second,
+		Description: "ip route show in the ze container",
+	}, func(probeCtx context.Context) (string, error) {
+		return check.Lab.Query(probeCtx, "ze", showKernelRoutes, nil)
+	}, func(text string) bool {
+		for _, destination := range []netip.Addr{blackholed, uncovered, unagreed} {
+			if kernelRouteFor(text, destination) == kernelRouteUnspecified {
+				return false
+			}
+		}
+		return true
+	})
+	if err != nil {
+		return fail(3, err)
+	}
+
+	// Assertion 4. Both conditions of the one MUST sentence hold on the FRR
+	// session, so the announcement is honored and the kernel discards the traffic.
+	if verdict := kernelRouteFor(table, blackholed); verdict != kernelRouteDiscard {
+		return fail(4, fmt.Errorf("the kernel holds %s for the covered %s announced on the agreed session, want a discard route:\n%s", verdict, blackholed, table))
+	}
+
+	// Assertion 5. The first condition fails: this prefix is outside every entry of
+	// that peer's blackhole `prefixes`. Forwarding is asserted positively rather
+	// than as the absence of a discard route, so a prefix that reached neither the
+	// FIB nor a discard route cannot pass as honored-correctly. Without this
+	// polarity the check passes equally when the community alone grants a discard.
+	if verdict := kernelRouteFor(table, uncovered); verdict != kernelRouteForwarded {
+		return fail(5, fmt.Errorf("the kernel holds %s for the uncovered %s, want it forwarded through a gateway:\n%s", verdict, uncovered, table))
+	}
+
+	// Assertion 6. The second condition fails: the BIRD session names 65001:666 in
+	// its blackhole `communities` and nothing else, so it carries the authorization
+	// and withholds THIS agreement. That isolates the session-agreement condition
+	// rather than testing an absent config block, and it pins that a stated
+	// community list is taken exactly: the well-known value is never added to it.
+	if verdict := kernelRouteFor(table, unagreed); verdict != kernelRouteForwarded {
+		return fail(6, fmt.Errorf("the kernel holds %s for %s, which BIRD tagged on a session that agreed a different community, want it forwarded through a gateway:\n%s", verdict, unagreed, table))
+	}
+	return nil
 }
 
 // RFC requirement: RFC9234-5-4 positive -- an independent conforming receiver (FRR 10.3.1) reports the OTC Attribute carrying ze's local AS on a route ze advertises to it as a Customer.
@@ -464,7 +551,60 @@ func checkOTCWithdrawal(ctx context.Context, check *interoplab.CheckContext) err
 // from Ze's own RIB view: an AS-path transparency claim read back out of the speaker that
 // built the path proves the least interesting half of it.
 func checkRouteServerASPath(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "bgp-route-server-frr")
+	const (
+		name   = "bgp-route-server-frr"
+		prefix = peerPrefixFirst
+		// frr.conf originates the prefix in AS 65002 and both peers are RS clients,
+		// so the path BIRD owes is the originating client's AS alone. ze.conf gives
+		// ze AS 65001, and `rs-client true` on both peers is the only leaf that
+		// selects the non-prepending rail.
+		clientASPath = "65002"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+	if !check.Network.IPv4.IsValid() {
+		return fail(1, errors.New("route server scenario has no selected IPv4 network"))
+	}
+	// FRR names its neighbor by address, while BIRD names ze by the protocol
+	// bird.conf declares, so the two session assertions read different identities.
+	zeAddress := networkHostAddress(check.Network, 2)
+
+	// Assertions 1 to 3. Both sessions, then the relayed route at the FAR side.
+	// FRR originates the prefix, so BIRD holding it is what proves the relay ran.
+	relay := []operation{
+		{kind: opFRRSession, argument: zeAddress},
+		{kind: opBIRDSession, argument: birdZeProtocol},
+		{kind: opBIRDRoute, argument: prefix, timeout: 60 * time.Second},
+	}
+	for index := range relay {
+		if err := runOperation(ctx, check.Network, check.Lab, &relay[index]); err != nil {
+			return fail(index+1, err)
+		}
+	}
+
+	// Assertion 4. The AS_PATH a SECOND foreign daemon decoded off the wire ze
+	// emitted. Reading the same claim out of ze's own RIB would prove the least
+	// interesting half of it: the transparency this requirement asks for is a
+	// property of what the receiver parses.
+	route, err := check.Lab.Query(ctx, peerBIRD, []string{cmdBirdc, "show route for " + prefix + " all"}, nil)
+	if err != nil {
+		return fail(4, err)
+	}
+	if err := requireBIRDASPath(route, prefix, clientASPath); err != nil {
+		return fail(4, err)
+	}
+
+	// Assertions 5 and 6. Both sessions survived the relay. A route server that
+	// suppressed its own AS and then dropped the session would satisfy every
+	// assertion above, and BIRD refusing an UPDATE whose leftmost AS is not the
+	// sender's is exactly the compatibility case RFC 7947 Section 2.2.2.2 names.
+	for index := range relay[:2] {
+		if err := runOperation(ctx, check.Network, check.Lab, &relay[index]); err != nil {
+			return fail(index+5, err)
+		}
+	}
+	return nil
 }
 
 // RFC requirement: RFC4271-5.1.3-1 positive -- FRR, a conforming implementation, never decodes an UPDATE carrying 10.11.0.0/24, whose NEXT_HOP 172.30.0.3 is FRR's own address. The assertion is on FRR's own per-UPDATE log rather than on its table, because FRR applies Section 6.3(a) itself and would drop such a route either way.
@@ -564,7 +704,81 @@ func checkSelfNextHopWithheld(ctx context.Context, check *interoplab.CheckContex
 // RFC requirement: RFC1997-Well-1 positive -- "All routes received carrying a communities attribute containing this value [NO_EXPORT] MUST NOT be advertised outside a BGP confederation boundary" (RFC 1997, Well-known Communities). An independent conforming receiver (FRR) never learns 10.10.0.0/24, while it does learn 10.11.0.0/24 relayed by the same Ze over the same session in the same run.
 // RFC requirement: RFC1997-Well-1 negative -- the clause's condition is "outside a BGP confederation boundary", and Ze runs a stand-alone AS, which RFC 1997 says to consider a confederation itself. A second independent receiver INSIDE that boundary (BIRD, AS 65001) learns the same 10.10.0.0/24, so the prohibition is scoped rather than a blanket refusal.
 func checkNoExportBoundary(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "bgp-wellknown-noexport-frr")
+	const (
+		name = "bgp-wellknown-noexport-frr"
+		// inject.msg (1): 10.10.0.0/24 carrying COMMUNITY 0xFFFFFF01, which is
+		// NO_EXPORT. The external observer must never learn it.
+		noExportPrefix = injectPrefixFirst
+		// inject.msg (2): the same shape carrying the ordinary community
+		// 64985:100, sent AFTER the tagged route. It must reach both observers, and
+		// its arrival at FRR is what proves ze had already decided the tagged one.
+		controlPrefix = "10.11.0.0/24"
+		showTableJSON = "show bgp ipv4 unicast json"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+
+	// Assertion 1. The injected NEXT_HOP is raw hex in inject.msg (AC1E0009), and
+	// renderScenario rewrites text rather than hex, so those octets name the
+	// injector on the base network alone. On any other selected network both
+	// observers refuse the relayed routes as unreachable, and every assertion below
+	// would read a renumbered lab as an egress defect. Say which it is. The zero
+	// Network is not the base network either, so this one guard also covers it, and
+	// every address below is a constant BECAUSE it holds.
+	baseNetwork := netip.MustParseAddr(baseIPv4Prefix + "0")
+	if check.Network.IPv4.Addr() != baseNetwork {
+		return fail(1, fmt.Errorf("scenario runs on network %s, and the injected NEXT_HOP octets name a peer only on %s", check.Network.IPv4, baseNetwork))
+	}
+
+	// Assertions 2 to 5. Both sessions, then the CONTROL route at both observers.
+	// Everything after this is an assertion about one prefix being withheld from
+	// one observer, and an absence proves nothing until this run is shown to
+	// deliver routes over that very session.
+	observers := []operation{
+		{kind: opFRRSession, argument: zeLabAddress},
+		{kind: opBIRDSession, argument: birdZeProtocol},
+		{kind: opFRRRoute, argument: controlPrefix, timeout: 90 * time.Second},
+		{kind: opBIRDRoute, argument: controlPrefix, timeout: 90 * time.Second},
+	}
+	for index := range observers {
+		if err := runOperation(ctx, check.Network, check.Lab, &observers[index]); err != nil {
+			return fail(index+2, err)
+		}
+	}
+
+	// Assertion 6. The INTERNAL half. RFC 1997 scopes the prohibition to a
+	// confederation boundary, and ze runs a stand-alone AS, which that same
+	// sentence says to consider a confederation itself. BIRD is inside it, peering
+	// with ze in AS 65001 on both sides, so it MUST still learn the tagged route: a
+	// build that suppressed the route everywhere is a different defect wearing this
+	// scenario's green bar.
+	internal := operation{kind: opBIRDRoute, argument: noExportPrefix, timeout: 90 * time.Second}
+	if err := runOperation(ctx, check.Network, check.Lab, &internal); err != nil {
+		return fail(6, err)
+	}
+
+	// Assertion 7. The EXTERNAL half, read from ONE answer: FRR's whole IPv4
+	// unicast table must hold the control prefix and must not hold the tagged one.
+	// Requiring both of one query is what makes the absence evidence, because a
+	// query that answered nothing holds no tagged route either.
+	table, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", showTableJSON}, nil)
+	if err != nil {
+		return fail(7, err)
+	}
+	if err := requireRouteWithheld(table, noExportPrefix, controlPrefix); err != nil {
+		return fail(7, err)
+	}
+
+	// Assertions 8 and 9. Both sessions survived. Withholding a route is a decision
+	// about egress, and a peer that answered the relay with a NOTIFICATION would
+	// also never learn the prefix.
+	for index := range observers[:2] {
+		if err := runOperation(ctx, check.Network, check.Lab, &observers[index]); err != nil {
+			return fail(index+8, err)
+		}
+	}
+	return nil
 }
 
 // RFC requirement: RFC5301-3-4 positive -- "The Dynamic hostname TLV is

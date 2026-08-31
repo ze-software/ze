@@ -432,3 +432,172 @@ func requireNoAttributeError(log, peer, prefix string) error {
 	}
 	return nil
 }
+
+// The Linux FIB, as `ip -4 route show` prints it inside the ze container. A
+// discard route opens its line with the verb and a forwarded one carries the
+// gateway keyword, so those two words separate a prefix ze blackholed from one
+// it programmed for forwarding. Reading the address alone cannot tell them apart.
+const (
+	kernelDiscardVerb = "blackhole"
+	kernelViaKeyword  = "via"
+)
+
+// kernelRoute names what the Linux FIB does with one host destination. The zero
+// value is the answer for a destination the table does not name at all, and a
+// route in neither shape gets its own value rather than reading as absent: a
+// caller asserting "forwarded" must fail on an on-link route instead of being
+// told there is no route.
+type kernelRoute uint8
+
+const (
+	kernelRouteUnspecified kernelRoute = iota
+	kernelRouteDiscard
+	kernelRouteForwarded
+	kernelRouteOther
+)
+
+func (route kernelRoute) String() string {
+	switch route {
+	case kernelRouteUnspecified:
+		return "absent from the FIB"
+	case kernelRouteDiscard:
+		return "a discard route"
+	case kernelRouteForwarded:
+		return "forwarded through a gateway"
+	case kernelRouteOther:
+		return "a route in neither the discard nor the forwarded shape"
+	}
+	return "an unspecified route"
+}
+
+// kernelRouteDestination returns the host address one `ip route show` field
+// names, and reports whether the field names one. A prefix shorter than a host
+// route is rejected rather than reduced to its first address: a covering
+// `blackhole 10.100.0.0/24` is not evidence that the announced 10.100.0.1/32 was
+// programmed, and reading it as such would credit ze with honoring an
+// announcement it never installed. busybox prints a host route without its /32
+// and iproute2 with it, so both spellings resolve to the same address.
+func kernelRouteDestination(field string) (netip.Addr, bool) {
+	if prefix, err := netip.ParsePrefix(field); err == nil {
+		if prefix.Bits() != prefix.Addr().BitLen() {
+			return netip.Addr{}, false
+		}
+		return prefix.Addr(), true
+	}
+	address, err := netip.ParseAddr(field)
+	if err != nil {
+		return netip.Addr{}, false
+	}
+	return address, true
+}
+
+// kernelRouteFor returns what the Linux FIB does with destination. The verb and
+// the destination are read from ONE line, so a discard route for another address
+// cannot lend its verb to this one, and a longer address that carries this one as
+// a text prefix cannot answer for it either: every field is parsed to an address
+// and compared as an address. The first line naming the destination decides,
+// because the FIB holds one route per destination and `ip route show` prints one
+// line for it.
+func kernelRouteFor(table string, destination netip.Addr) kernelRoute {
+	for line := range strings.SplitSeq(table, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		named := fields[0]
+		discard := named == kernelDiscardVerb
+		if discard {
+			if len(fields) < 2 {
+				continue
+			}
+			named = fields[1]
+		}
+		address, ok := kernelRouteDestination(named)
+		if !ok || address != destination {
+			continue
+		}
+		if discard {
+			return kernelRouteDiscard
+		}
+		if slices.Contains(fields, kernelViaKeyword) {
+			return kernelRouteForwarded
+		}
+		return kernelRouteOther
+	}
+	return kernelRouteUnspecified
+}
+
+// BIRD's own decode of one route, as `show route for <prefix> all` prints it. The
+// attribute name is the whole first field of its line, so a value that carries the
+// same text cannot pass as the attribute.
+const birdASPathAttribute = "BGP.as_path:"
+
+// requireBIRDASPath reports whether BIRD attributes exactly want to the route it
+// holds for prefix. Three conditions carry the decision. A route line naming
+// prefix as a whole FIELD is required first, because `show route for` answers with
+// the LONGEST MATCH: without it a covering route's AS_PATH would pass as this
+// prefix's, and an unanswered query would pass as anything. Exactly one AS_PATH
+// line is required next, because two paths for one prefix leave the assertion
+// picking one of them, which is a guess. The whole path is then compared, so an AS
+// the relay added ANYWHERE fails: RFC 7947 Section 2.2.2.1 asks a route server not
+// to prepend its own AS "nor modify the AS_PATH segment in any other way", and a
+// search for the relay's own AS would prove only the first half of that.
+func requireBIRDASPath(routeText, prefix, want string) error {
+	named := false
+	paths := 0
+	decoded := ""
+	for line := range strings.SplitSeq(routeText, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		if slices.Contains(fields, prefix) {
+			named = true
+		}
+		if fields[0] != birdASPathAttribute {
+			continue
+		}
+		paths++
+		if paths == 1 {
+			decoded = strings.Join(fields[1:], " ")
+		}
+	}
+	if !named {
+		return fmt.Errorf("BIRD's answer names no route for %s", prefix)
+	}
+	if paths != 1 {
+		return fmt.Errorf("BIRD holds %d AS_PATH attributes for %s, want 1", paths, prefix)
+	}
+	if decoded != want {
+		return fmt.Errorf("BIRD decoded AS_PATH %q for %s, want %q", decoded, prefix, want)
+	}
+	return nil
+}
+
+// frrTableDocument is FRR's `show bgp ipv4 unicast json`, cut to the one member the
+// egress assertions read. The map is keyed by the prefix exactly as FRR renders it,
+// so a key is compared whole and 110.10.0.0/24 can never answer for 10.10.0.0/24.
+type frrTableDocument struct {
+	Routes map[string]json.RawMessage `json:"routes"`
+}
+
+// requireRouteWithheld reports whether FRR's table holds control and does NOT hold
+// withheld. The control half is the positive proof that the query ran and answered
+// about a live table carrying routes ze relayed over this session: a table with
+// neither prefix in it holds no withheld route either, and reading that as
+// compliance is how an absence assertion passes vacuously. An unparsed answer is an
+// error rather than an empty table, because a query that answered nothing is not a
+// table with no route in it.
+func requireRouteWithheld(tableJSON, withheld, control string) error {
+	var document frrTableDocument
+	if err := json.Unmarshal([]byte(tableJSON), &document); err != nil {
+		return fmt.Errorf("decode FRR table JSON: %w", err)
+	}
+	if _, ok := document.Routes[control]; !ok {
+		return fmt.Errorf("FRR holds no route for the control prefix %s, so the absence of %s proves nothing", control, withheld)
+	}
+	if _, ok := document.Routes[withheld]; ok {
+		return fmt.Errorf("FRR learned %s, which ze must withhold from this peer", withheld)
+	}
+	return nil
+}

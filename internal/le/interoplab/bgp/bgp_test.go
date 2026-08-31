@@ -700,6 +700,150 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("bgp-rfc7999-blackhole-frr", func(t *testing.T) {
+		blackholed := netip.MustParseAddr("10.100.0.1")
+		uncovered := netip.MustParseAddr("198.51.100.1")
+		unagreed := netip.MustParseAddr("10.200.0.1")
+		fib := "172.30.0.0/24 dev eth0 proto kernel scope link src 172.30.0.2\n" +
+			"blackhole " + blackholed.String() + "\n" +
+			uncovered.String() + " via 172.30.0.3 dev eth0 proto bgp\n" +
+			unagreed.String() + " via 172.30.0.4 dev eth0 proto bgp\n"
+		if verdict := kernelRouteFor(fib, blackholed); verdict != kernelRouteDiscard {
+			t.Fatalf("the honored blackhole read as %s", verdict)
+		}
+		for _, forwarded := range []netip.Addr{uncovered, unagreed} {
+			if verdict := kernelRouteFor(fib, forwarded); verdict != kernelRouteForwarded {
+				t.Fatalf("the forwarded %s read as %s", forwarded, verdict)
+			}
+		}
+		if verdict := kernelRouteFor("blackhole "+blackholed.String()+"/32\n", blackholed); verdict != kernelRouteDiscard {
+			t.Fatalf("iproute2's /32 spelling of a discard route read as %s", verdict)
+		}
+		ignored := blackholed.String() + " via 172.30.0.3 dev eth0 proto bgp\n"
+		if verdict := kernelRouteFor(ignored, blackholed); verdict == kernelRouteDiscard {
+			t.Fatal("a forwarded route for the covered prefix passed as a discard route")
+		}
+		discarded := "blackhole " + uncovered.String() + "\n"
+		if verdict := kernelRouteFor(discarded, uncovered); verdict == kernelRouteForwarded {
+			t.Fatal("a discard route for the uncovered prefix passed as forwarded")
+		}
+		covering := "blackhole 10.100.0.0/24\n"
+		if verdict := kernelRouteFor(covering, blackholed); verdict != kernelRouteUnspecified {
+			t.Fatalf("a covering discard route answered for the announced host route as %s", verdict)
+		}
+		if verdict := kernelRouteFor(covering, netip.MustParseAddr("10.100.0.0")); verdict != kernelRouteUnspecified {
+			t.Fatalf("a covering discard route answered for the host route at its own network address as %s", verdict)
+		}
+		longer := "blackhole 10.100.0.10\n"
+		if verdict := kernelRouteFor(longer, blackholed); verdict != kernelRouteUnspecified {
+			t.Fatalf("a longer address carrying the wanted one answered as %s", verdict)
+		}
+		split := "blackhole 10.9.9.9\n" + blackholed.String() + " via 172.30.0.3 dev eth0\n"
+		if verdict := kernelRouteFor(split, blackholed); verdict != kernelRouteForwarded {
+			t.Fatalf("the discard verb matched from another route's line, giving %s", verdict)
+		}
+		onLink := blackholed.String() + " dev eth0 scope link\n"
+		if verdict := kernelRouteFor(onLink, blackholed); verdict != kernelRouteOther {
+			t.Fatalf("a route in neither shape read as %s", verdict)
+		}
+		if verdict := kernelRouteFor("", blackholed); verdict != kernelRouteUnspecified {
+			t.Fatalf("an empty route table read as %s", verdict)
+		}
+	})
+
+	t.Run("bgp-route-server-frr", func(t *testing.T) {
+		const (
+			prefix = "10.99.0.0/24"
+			want   = "65002"
+		)
+		relayed := prefix + "           unicast [ze_peer 03:18:06.271] * (100) [AS65002i]\n" +
+			"\tvia 172.30.0.2 on eth0\n" +
+			"\tType: BGP univ\n" +
+			"\tBGP.origin: IGP\n" +
+			"\tBGP.as_path: " + want + "\n" +
+			"\tBGP.next_hop: 172.30.0.2\n"
+		if err := requireBIRDASPath(relayed, prefix, want); err != nil {
+			t.Fatalf("a relay that kept the client's own path was rejected: %v", err)
+		}
+		prepended := strings.ReplaceAll(relayed, "BGP.as_path: "+want, "BGP.as_path: 65001 "+want)
+		if requireBIRDASPath(prepended, prefix, want) == nil {
+			t.Fatal("a relay that prepended ze's own AS passed as route-server transparency")
+		}
+		appended := strings.ReplaceAll(relayed, "BGP.as_path: "+want, "BGP.as_path: "+want+" 65001")
+		if requireBIRDASPath(appended, prefix, want) == nil {
+			t.Fatal("a relay that added ze's AS elsewhere in the path passed")
+		}
+		emptied := strings.ReplaceAll(relayed, "BGP.as_path: "+want, "BGP.as_path:")
+		if requireBIRDASPath(emptied, prefix, want) == nil {
+			t.Fatal("an empty AS_PATH passed as the client's own path")
+		}
+		covering := strings.ReplaceAll(relayed, prefix, "10.0.0.0/8")
+		if requireBIRDASPath(covering, prefix, want) == nil {
+			t.Fatal("BIRD's longest-match answer about a covering route passed as this prefix's")
+		}
+		longer := strings.ReplaceAll(relayed, prefix, "110.99.0.0/24")
+		if requireBIRDASPath(longer, prefix, want) == nil {
+			t.Fatal("a longer prefix carrying the wanted one passed as the wanted route")
+		}
+		if requireBIRDASPath(relayed+relayed, prefix, want) == nil {
+			t.Fatal("two paths for one prefix passed the exact-one branch")
+		}
+		if requireBIRDASPath(relayed, "10.98.0.0/24", want) == nil {
+			t.Fatal("an answer about another prefix passed as the answer about the one asked for")
+		}
+		if requireBIRDASPath(relayed, prefix, "65004") == nil {
+			t.Fatal("the predicate read a fixed AS_PATH rather than the one it was given")
+		}
+		if requireBIRDASPath("", prefix, want) == nil {
+			t.Fatal("an unanswered route query passed as a decoded AS_PATH")
+		}
+	})
+
+	t.Run("bgp-wellknown-noexport-frr", func(t *testing.T) {
+		const (
+			withheld = "10.10.0.0/24"
+			control  = "10.11.0.0/24"
+		)
+		table := func(prefixes ...string) string {
+			routes := make([]string, 0, len(prefixes))
+			for _, prefix := range prefixes {
+				routes = append(routes, fmt.Sprintf("%q:[{\"prefix\":%q,\"valid\":true}]", prefix, prefix))
+			}
+			return `{"vrfId":0,"localAS":65002,"routes":{` + strings.Join(routes, ",") + `}}`
+		}
+		if err := requireRouteWithheld(table(control), withheld, control); err != nil {
+			t.Fatalf("a table holding the control route alone was rejected: %v", err)
+		}
+		if requireRouteWithheld(table(control, withheld), withheld, control) == nil {
+			t.Fatal("the external observer learning the NO_EXPORT route passed")
+		}
+		if requireRouteWithheld(table(withheld), withheld, control) == nil {
+			t.Fatal("a table missing the control route passed as a withheld route")
+		}
+		if requireRouteWithheld(table(), withheld, control) == nil {
+			t.Fatal("an empty table passed as proof that ze withheld the route")
+		}
+		if err := requireRouteWithheld(table(control, "110.10.0.0/24"), withheld, control); err != nil {
+			t.Fatalf("a longer prefix carrying the withheld one was read as the withheld route: %v", err)
+		}
+		if requireRouteWithheld(table("110.11.0.0/24"), withheld, control) == nil {
+			t.Fatal("a longer prefix carrying the control one passed as the control route")
+		}
+		const third = "10.12.0.0/24"
+		if err := requireRouteWithheld(table(control), third, control); err != nil {
+			t.Fatalf("a prefix the table does not hold was reported as learned: %v", err)
+		}
+		if requireRouteWithheld(table(control, third), third, control) == nil {
+			t.Fatal("the predicate read a fixed withheld prefix rather than the one it was given")
+		}
+		if err := requireRouteWithheld(table(third), withheld, third); err != nil {
+			t.Fatalf("the predicate read a fixed control prefix rather than the one it was given: %v", err)
+		}
+		if requireRouteWithheld("", withheld, control) == nil {
+			t.Fatal("an unanswered table query passed as a withheld route")
+		}
+	})
+
 	t.Run("bgp-addpath-rail-agreement-speaker", func(t *testing.T) {
 		const update = "0000000000000007180a6300"
 		logs := "established: yes\nresult: PASS\nnote: update-hex: " + update + "\n"
