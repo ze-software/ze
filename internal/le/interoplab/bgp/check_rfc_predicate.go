@@ -103,24 +103,83 @@ type nextHop struct {
 	IP    string `json:"ip"`
 }
 
+// frrPath is one path of FRR's `show bgp <family> <prefix> json`, cut to the two
+// fields the restored checkers read: the AS_PATH FRR attributes to the route, and
+// the next-hop addresses it decoded.
+type frrPath struct {
+	ASPath struct {
+		String string `json:"string"`
+	} `json:"aspath"`
+	NextHops []nextHop `json:"nexthops"`
+}
+
 type frrPrefixDocument struct {
-	Paths []struct {
-		NextHops []nextHop `json:"nexthops"`
-	} `json:"paths"`
+	Paths []frrPath `json:"paths"`
+}
+
+// frrSinglePath decodes FRR's answer about one prefix and returns the one path it
+// holds. Two paths are an error rather than a choice: every caller asserts about
+// the route ze advertised over the single session the scenario runs, so picking
+// one of two would be a guess. An unparsed document is an error rather than an
+// empty path list, because a query that answered nothing is not a table with no
+// route in it.
+func frrSinglePath(output string) (frrPath, error) {
+	var document frrPrefixDocument
+	if err := json.Unmarshal([]byte(output), &document); err != nil {
+		return frrPath{}, fmt.Errorf("decode FRR route JSON: %w", err)
+	}
+	if len(document.Paths) != 1 {
+		return frrPath{}, fmt.Errorf("FRR route has %d paths, want 1", len(document.Paths))
+	}
+	return document.Paths[0], nil
 }
 
 func parseFRRNextHops(output string) ([]nextHop, error) {
-	var document frrPrefixDocument
-	if err := json.Unmarshal([]byte(output), &document); err != nil {
-		return nil, fmt.Errorf("decode FRR route JSON: %w", err)
+	path, err := frrSinglePath(output)
+	if err != nil {
+		return nil, err
 	}
-	if len(document.Paths) != 1 {
-		return nil, fmt.Errorf("FRR route has %d paths, want 1", len(document.Paths))
-	}
-	if len(document.Paths[0].NextHops) == 0 {
+	if len(path.NextHops) == 0 {
 		return nil, errors.New("FRR route carries no next-hop entries")
 	}
-	return document.Paths[0].NextHops, nil
+	return path.NextHops, nil
+}
+
+// requireFRRASPath reports whether FRR attributes exactly the wanted AS_PATH to
+// the route it decoded. The whole path is compared rather than searched for a
+// member AS, so a path that carries the wanted one BESIDE another AS fails: the
+// requirement is what the receiver decoded, and an AS the relay added or dropped
+// changes that answer. FRR's own spelling is normalized on whitespace alone, so
+// the comparison is against the AS numbers in their order.
+func requireFRRASPath(routeJSON, want string) error {
+	path, err := frrSinglePath(routeJSON)
+	if err != nil {
+		return err
+	}
+	decoded := strings.Join(strings.Fields(path.ASPath.String), " ")
+	if decoded != want {
+		return fmt.Errorf("FRR attributes AS_PATH %q to the route, want %q", decoded, want)
+	}
+	return nil
+}
+
+// requireSoleNextHop reports whether FRR attributes exactly one next hop to the
+// route, and that it is want. The count is asserted with the address, because a
+// route carrying the wanted next hop BESIDE another one is not the route ze
+// relayed. The address is parsed rather than compared as text, so one spelling of
+// an address cannot pass as a different one.
+func requireSoleNextHop(entries []nextHop, want netip.Addr) error {
+	if len(entries) != 1 {
+		return fmt.Errorf("FRR decoded %d next-hop addresses, want 1", len(entries))
+	}
+	address, err := netip.ParseAddr(entries[0].IP)
+	if err != nil {
+		return fmt.Errorf("invalid FRR next hop %q: %w", entries[0].IP, err)
+	}
+	if address != want {
+		return fmt.Errorf("FRR decoded next hop %s, want %s", address, want)
+	}
+	return nil
 }
 
 func requireNextHopShape(entries []nextHop, global, linkLocal netip.Addr) error {
@@ -291,4 +350,85 @@ func isisDatabaseNamesZe(database string) bool {
 		}
 	}
 	return false
+}
+
+// FRR's own per-UPDATE decode, as `debug bgp updates in` writes it. The receive
+// verb and the withdrawn marker are whole FIELDS of the line, never substrings of
+// it: FRR spells the other direction `send`, and a decode of an announcement and a
+// decode of a withdrawal differ by this one word.
+const (
+	frrReceiveVerb     = "rcvd"
+	frrWithdrawnMarker = "withdrawn"
+)
+
+// frrDecodeFields returns the fields of line when line is FRR's own decode of an
+// UPDATE that carried prefix from peer, and nil when it is not. FRR 10.3.x writes
+// `<peer> rcvd <prefix> IPv4 unicast` for an announcement and `<peer> rcvd UPDATE
+// about <prefix> IPv4 unicast -- withdrawn` for a withdrawal, so all three tokens
+// are required on ONE line: a peer address on one line and a prefix on another
+// belong to two different events. Each token is matched as a whole field, so
+// 110.11.0.0/24 cannot pass as 10.11.0.0/24 and neighbor 172.30.0.22 cannot pass
+// as 172.30.0.2.
+func frrDecodeFields(line, peer, prefix string) []string {
+	fields := strings.Fields(line)
+	if !slices.Contains(fields, peer) {
+		return nil
+	}
+	if !slices.Contains(fields, frrReceiveVerb) {
+		return nil
+	}
+	if !slices.Contains(fields, prefix) {
+		return nil
+	}
+	return fields
+}
+
+// frrDecodedPrefix reports whether FRR's log holds its own decode of an UPDATE
+// that carried prefix from peer, announced or withdrawn. The question it answers
+// is whether the prefix reached FRR at all, which no routing table can answer:
+// FRR applies RFC 4271 Section 6.3(a) itself, so a route naming FRR's own address
+// as NEXT_HOP is absent from its table whether ze withheld it or sent it.
+func frrDecodedPrefix(log, peer, prefix string) bool {
+	for line := range strings.SplitSeq(log, "\n") {
+		if frrDecodeFields(line, peer, prefix) != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// frrDecodedWithdrawal reports whether FRR's log holds its own decode of an UPDATE
+// that WITHDREW prefix from peer. The marker is required on the same line as the
+// prefix and the receive verb, so a decode of the announcement of that prefix,
+// which the same session carries first, cannot pass as a decode of its withdrawal.
+func frrDecodedWithdrawal(log, peer, prefix string) bool {
+	for line := range strings.SplitSeq(log, "\n") {
+		if slices.Contains(frrDecodeFields(line, peer, prefix), frrWithdrawnMarker) {
+			return true
+		}
+	}
+	return false
+}
+
+// requireNoAttributeError reports whether FRR accepted the withdrawal of prefix
+// from peer with no verdict against the UPDATE's attributes. The decode of that
+// withdrawal is required FIRST and is the positive proof that the mechanism ran:
+// a log with no such line, an unanswered query among them, holds no attribute
+// error either, and reading that as acceptance is how an absence assertion passes
+// vacuously. The verdicts are FRR's own words from bgp_attr_parse and
+// bgp_update_receive, and the whole log is scanned rather than one line, because
+// FRR states the refusal and the route it withdrew on separate lines.
+func requireNoAttributeError(log, peer, prefix string) error {
+	if !frrDecodedWithdrawal(log, peer, prefix) {
+		return fmt.Errorf("FRR logged no decode of a withdrawal for %s from %s, so an absent attribute error proves nothing", prefix, peer)
+	}
+	verdicts := []string{"Missing well-known attribute", "rcvd UPDATE with errors in attr"}
+	for line := range strings.SplitSeq(log, "\n") {
+		for _, verdict := range verdicts {
+			if strings.Contains(line, verdict) {
+				return fmt.Errorf("FRR refused the attributes of an UPDATE ze relayed: %s", strings.TrimSpace(line))
+			}
+		}
+	}
+	return nil
 }

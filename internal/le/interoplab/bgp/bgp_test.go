@@ -554,6 +554,152 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 	})
 
+	t.Run("bgp-relay-withdraw-shape-frr", func(t *testing.T) {
+		const (
+			peer   = "172.30.0.2"
+			prefix = "10.10.0.0/24"
+			want   = "65001 65004"
+		)
+		relayed := fmt.Sprintf(`{"prefix":%q,"paths":[{"aspath":{"string":%q}}]}`, prefix, want)
+		if err := requireFRRASPath(relayed, want); err != nil {
+			t.Fatalf("the AS_PATH ze prepended its own AS to was rejected: %v", err)
+		}
+		if requireFRRASPath(`{"paths":[{"aspath":{"string":"65004"}}]}`, want) == nil {
+			t.Fatal("a path missing ze's prepended AS passed")
+		}
+		if requireFRRASPath(`{"paths":[{"aspath":{"string":"65001 65004 65005"}}]}`, want) == nil {
+			t.Fatal("a longer path carrying the wanted one passed")
+		}
+		if requireFRRASPath(`{"paths":[{"aspath":{"string":"65001 65004"}},{"aspath":{"string":"65002 65004"}}]}`, want) == nil {
+			t.Fatal("the wanted path found beside a second path passed")
+		}
+		if requireFRRASPath("", want) == nil {
+			t.Fatal("an unanswered route query passed as a decoded AS_PATH")
+		}
+		withdrawn := "2026/08/31 03:18:06 BGP: [T1234-56789] " + peer + " rcvd UPDATE about " + prefix + " IPv4 unicast -- withdrawn\n"
+		announced := "BGP: " + peer + " rcvd " + prefix + " IPv4 unicast\n"
+		if !frrDecodedWithdrawal(withdrawn, peer, prefix) {
+			t.Fatal("FRR's own decode of the withdrawal was rejected")
+		}
+		if frrDecodedWithdrawal(announced, peer, prefix) {
+			t.Fatal("the decode of the announcement passed as a decode of the withdrawal")
+		}
+		if frrDecodedWithdrawal("BGP: "+peer+" send UPDATE about "+prefix+" IPv4 unicast -- withdrawn\n", peer, prefix) {
+			t.Fatal("the send direction passed as FRR's receive decode")
+		}
+		if frrDecodedWithdrawal("BGP: "+peer+" rcvd UPDATE about "+prefix+" IPv4 unicast\nBGP: withdrawn\n", peer, prefix) {
+			t.Fatal("the withdrawn marker matched from a second line")
+		}
+		if frrDecodedWithdrawal(strings.ReplaceAll(withdrawn, peer, "172.30.0.22"), peer, prefix) {
+			t.Fatal("a neighbor whose address carries ze's as a prefix passed as ze")
+		}
+		if err := requireNoAttributeError(withdrawn, peer, prefix); err != nil {
+			t.Fatalf("a withdrawal FRR accepted was reported as refused: %v", err)
+		}
+		missing := "BGP: [EC 33554482] " + peer + " Missing well-known attribute NEXT_HOP.\n"
+		if requireNoAttributeError(withdrawn+missing, peer, prefix) == nil {
+			t.Fatal("FRR's missing-attribute verdict passed as acceptance")
+		}
+		refused := "BGP: [EC 33554455] " + peer + "(Unknown) rcvd UPDATE with errors in attr(s)!! Withdrawing route.\n"
+		if requireNoAttributeError(withdrawn+refused, peer, prefix) == nil {
+			t.Fatal("FRR's attribute-error verdict passed as acceptance")
+		}
+		if requireNoAttributeError(announced+refused, peer, prefix) == nil {
+			t.Fatal("a log carrying no withdrawal decode passed as an accepted withdrawal")
+		}
+		if requireNoAttributeError("", peer, prefix) == nil {
+			t.Fatal("an unanswered log query passed as an accepted withdrawal")
+		}
+	})
+
+	t.Run("bgp-rfc7606-relay-shape-frr", func(t *testing.T) {
+		const (
+			replayed = "10.0.0.0/24"
+			want     = "65004"
+		)
+		transparent := fmt.Sprintf(`{"prefix":%q,"paths":[{"aspath":{"string":%q},"nexthops":[{"ip":"172.30.0.9"}]}]}`, replayed, want)
+		if err := requireFRRASPath(transparent, want); err != nil {
+			t.Fatalf("a route-server relay that kept the client's own path was rejected: %v", err)
+		}
+		if requireFRRASPath(`{"paths":[{"aspath":{"string":"65001 65004"}}]}`, want) == nil {
+			t.Fatal("a relay that prepended ze's own AS passed as route-server transparency")
+		}
+		if requireFRRASPath(`{"paths":[{"aspath":{"string":""}}]}`, want) == nil {
+			t.Fatal("an empty AS_PATH passed as the client's own path")
+		}
+		if requireFRRASPath("{}", want) == nil {
+			t.Fatal("a prefix FRR does not hold passed as a relayed path")
+		}
+		const (
+			announced = "203.0.113.0/24"
+			injector  = "172.30.0.9"
+		)
+		installed := "B>* " + announced + " [20/0] via " + injector + ", eth0, weight 1, 00:00:09\n"
+		if err := requireRouteInstalledVia(installed, announced, injector); err != nil {
+			t.Fatalf("the split announce FRR installed was rejected: %v", err)
+		}
+		if requireRouteInstalledVia("B>* "+announced+" [20/0] via 172.30.0.2, eth0\n", announced, injector) == nil {
+			t.Fatal("a route installed through ze's own address passed as the relayed third-party next hop")
+		}
+		if requireRouteInstalledVia("B>* "+replayed+" [20/0] via "+injector+", eth0\n", announced, injector) == nil {
+			t.Fatal("another route's installation passed as the split announce's")
+		}
+		if requireRouteInstalledVia("", announced, injector) == nil {
+			t.Fatal("an unanswered route query passed as an installed route")
+		}
+	})
+
+	t.Run("bgp-self-nexthop-withheld-frr", func(t *testing.T) {
+		const (
+			peer     = "172.30.0.2"
+			control  = "10.12.0.0/24"
+			withheld = "10.11.0.0/24"
+			injector = "172.30.0.9"
+			frrOwn   = "172.30.0.3"
+		)
+		decoded := "2026/08/31 03:18:06 BGP: [T1234-56789] " + peer + " rcvd " + control + " IPv4 unicast\n"
+		if !frrDecodedPrefix(decoded, peer, control) {
+			t.Fatal("FRR's own decode of the control route was rejected")
+		}
+		if frrDecodedPrefix(decoded, peer, withheld) {
+			t.Fatal("the withheld route passed on the control route's decode")
+		}
+		if !frrDecodedPrefix("BGP: "+peer+" rcvd UPDATE about "+control+" IPv4 unicast -- withdrawn\n", peer, control) {
+			t.Fatal("the withdrawn form of a decode was not read as the prefix reaching FRR")
+		}
+		if frrDecodedPrefix("BGP: "+peer+" rcvd 1"+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("a longer prefix carrying the wanted one passed")
+		}
+		if frrDecodedPrefix("BGP: 172.30.0.22 rcvd "+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("a neighbor whose address carries ze's as a prefix passed as ze")
+		}
+		if frrDecodedPrefix("BGP: "+peer+" send "+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("the send direction passed as FRR's receive decode")
+		}
+		if frrDecodedPrefix("BGP: "+peer+" went from OpenConfirm to Established\nBGP: rcvd "+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("the peer and its decode matched across two log lines")
+		}
+		if frrDecodedPrefix("", peer, control) {
+			t.Fatal("an empty log passed as a decoded prefix")
+		}
+		third := netip.MustParseAddr(injector)
+		if err := requireSoleNextHop([]nextHop{{IP: injector}}, third); err != nil {
+			t.Fatalf("the third-party next hop ze relayed was rejected: %v", err)
+		}
+		if requireSoleNextHop([]nextHop{{IP: injector}, {IP: frrOwn}}, third) == nil {
+			t.Fatal("a second next hop beside the wanted one passed")
+		}
+		if requireSoleNextHop([]nextHop{{IP: frrOwn}}, third) == nil {
+			t.Fatal("FRR's own address passed as the third-party next hop")
+		}
+		if requireSoleNextHop(nil, third) == nil {
+			t.Fatal("a route carrying no next hop passed")
+		}
+		if requireSoleNextHop([]nextHop{{IP: "not-an-address"}}, third) == nil {
+			t.Fatal("an unparsable next hop passed")
+		}
+	})
+
 	t.Run("bgp-addpath-rail-agreement-speaker", func(t *testing.T) {
 		const update = "0000000000000007180a6300"
 		logs := "established: yes\nresult: PASS\nnote: update-hex: " + update + "\n"

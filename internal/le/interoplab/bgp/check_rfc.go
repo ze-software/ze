@@ -126,7 +126,89 @@ func checkMEDRemovalConfiguration(ctx context.Context, check *interoplab.CheckCo
 // RFC requirement: RFC4271-5.1.2-3 positive -- an independent conforming receiver (FRR 10.3.1) reports AS_PATH "65001 65004" on a route ze relays to it as an ordinary external peer, so the local AS is prepended when a route IS advertised.
 // RFC requirement: RFC4271-5.1.2-3 negative -- the same receiver accepts ze's withdrawal of that route with no attribute error, because the clause's condition ("advertises the route") is not met and no AS_PATH is created. RFC 4271 Section 6.3 makes the opposite a Missing Well-known Attribute error.
 func checkRelayWithdrawalShape(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "bgp-relay-withdraw-shape-frr")
+	const (
+		name   = "bgp-relay-withdraw-shape-frr"
+		prefix = injectPrefixFirst
+		// ze.conf gives ze AS 65001 and the injector AS 65004, and neither peer is
+		// an RS client, so the path FRR owes on the advertisement is ze's own AS
+		// ahead of the injector's. FRR also runs with enforce-first-as, which is a
+		// second, independent way for a lost prepend to redden this scenario.
+		relayedASPath = "65001 65004"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+	if !check.Network.IPv4.IsValid() {
+		return fail(1, errors.New("relay withdrawal scenario has no selected IPv4 network"))
+	}
+	// FRR names the peer that sent an UPDATE at the head of every decode line, so
+	// the two log assertions below read ze's address on the scenario's own network.
+	zeAddress := networkHostAddress(check.Network, 2)
+
+	// Assertions 1 and 2. The session, then the relayed advertisement. The prefix
+	// is read back out of the operation that waited for it, so the wait and the
+	// AS_PATH assertion can never name two routes.
+	session := operation{kind: opFRRSession, argument: zeAddress}
+	announced := operation{kind: opFRRRoute, argument: prefix, timeout: 60 * time.Second}
+	for index, step := range []*operation{&session, &announced} {
+		if err := runOperation(ctx, check.Network, check.Lab, step); err != nil {
+			return fail(index+1, err)
+		}
+	}
+
+	// Assertion 3. RFC 4271 Section 5.1.2 b) conditions the prepend on advertising
+	// the route, and this is the half where the condition HOLDS. An independent
+	// receiver decodes the path ze built.
+	route, err := queryFRRIPv4Route(ctx, check.Lab, announced.argument)
+	if err != nil {
+		return fail(3, err)
+	}
+	if err := requireFRRASPath(route, relayedASPath); err != nil {
+		return fail(3, err)
+	}
+
+	// Assertion 4. The injector withdraws the prefix two KEEPALIVEs after it
+	// announces it (inject.msg, BARRIER 2), so assertion 3 has already had its
+	// window. FRR dropping the route is the barrier the log assertions below read.
+	withdrawn := operation{kind: opFRRRouteAbsent, argument: prefix, timeout: 90 * time.Second}
+	if err := runOperation(ctx, check.Network, check.Lab, &withdrawn); err != nil {
+		return fail(4, err)
+	}
+
+	// Assertion 5. FRR's own decode of the withdrawal. A routing table cannot tell
+	// "FRR parsed the withdrawal" from "FRR refused the UPDATE and withdrew the
+	// route as the RFC 7606 treat-as-withdraw fallback", because both remove the
+	// prefix. FRR writes each line as it parses, so the read is polled rather than
+	// raced.
+	frrLog, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout:     20 * time.Second,
+		Interval:    time.Second,
+		Description: "FRR decode of the relayed withdrawal",
+	}, func(probeCtx context.Context) (string, error) {
+		return check.Lab.Query(probeCtx, peerFRR, []string{cmdCat, frrLogPath}, nil)
+	}, func(text string) bool {
+		return frrDecodedWithdrawal(text, zeAddress, withdrawn.argument)
+	})
+	if err != nil {
+		return fail(5, err)
+	}
+
+	// Assertion 6. The negative half of the tag: the clause's condition is not met,
+	// no AS_PATH is created, and the receiver states no verdict against the
+	// attributes. A lone AS_PATH on a withdraw-only UPDATE leaves a well-known set
+	// that is incomplete by construction, which RFC 4271 Section 6.3 makes a
+	// Missing Well-known Attribute error.
+	if err := requireNoAttributeError(frrLog, zeAddress, withdrawn.argument); err != nil {
+		return fail(6, err)
+	}
+
+	// Assertion 7. The session survived the withdrawal. RFC 7606 Section 5.2 lets a
+	// receiver answer an UPDATE that carries attributes but encodes no reachable
+	// NLRI with a session reset, so acceptance is only proven on a live session.
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(7, err)
+	}
+	return nil
 }
 
 // RFC requirement: RFC2545-3-2 positive -- an independent conforming receiver (FRR
@@ -224,7 +306,101 @@ func checkRFC2545NextHops(ctx context.Context, check *interoplab.CheckContext) e
 // combination" clause against a foreign peer. The existing unit binding
 // (message/rfc7606_test.go) proves the "any position" clause only; its own audit note says so.
 func checkRFC7606MixedUpdate(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "bgp-rfc7606-relay-shape-frr")
+	const (
+		name = "bgp-rfc7606-relay-shape-frr"
+		// The injector announces this one before FRR connects, so it reaches FRR
+		// through ze's replay-on-peer-up. The replay is forwarded verbatim, so it
+		// is a relay-liveness barrier rather than the discriminator.
+		replayedPrefix = "10.0.0.0/24"
+		// The two halves of the ONE UPDATE that mixes Withdrawn Routes with NLRI.
+		// The announced half is the discriminator: ze splits the mixed shape and
+		// re-encodes the announcement through the wire-mode builder, and a
+		// duplicated NEXT_HOP there is a treat-as-withdraw at FRR.
+		splitAnnouncedPrefix = "203.0.113.0/24"
+		splitWithdrawnPrefix = "198.51.100.0/24"
+		// ze.conf makes both peers RS clients, so RFC 7947 Section 2.2.2.1 leaves
+		// the injector's AS alone at the head of the relayed path. FRR runs with
+		// enforce-first-as off for the same reason.
+		relayedASPath = "65004"
+		// The NEXT_HOP both injected UPDATEs carry, and the vtysh command that
+		// reads what FRR gave to zebra. FRR takes one command after each -c flag.
+		injectorAddress = baseIPv4Prefix + "9"
+		showRouteBGP    = "show ip route bgp"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+
+	// Assertion 1. The session, read from FRR.
+	session := operation{kind: opFRRSession, argument: zeLabAddress}
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(1, err)
+	}
+
+	// Assertion 2. Both injected UPDATEs carry their NEXT_HOP as raw hex
+	// (inject.msg, AC1E0009), and renderScenario rewrites text rather than hex, so
+	// those octets name the injector on the base network alone. On any other
+	// selected network FRR resolves that address through nothing and installs no
+	// route, and the installation assertion below would read a renumbered lab as a
+	// relay defect. Say which it is.
+	baseNetwork := netip.MustParseAddr(baseIPv4Prefix + "0")
+	if check.Network.IPv4.Addr() != baseNetwork {
+		return fail(2, fmt.Errorf("scenario runs on network %s, and the injected NEXT_HOP octets name a peer only on %s", check.Network.IPv4, baseNetwork))
+	}
+
+	// Assertion 3. The replayed route, which is the relay-liveness barrier.
+	replayed := operation{kind: opFRRRoute, argument: replayedPrefix, timeout: 100 * time.Second}
+	if err := runOperation(ctx, check.Network, check.Lab, &replayed); err != nil {
+		return fail(3, err)
+	}
+
+	// Assertion 4. The relay is a route server on this rail, so what FRR decodes is
+	// the client's own path. Without this half the route above proves a relay ran
+	// and says nothing about what it relayed.
+	route, err := queryFRRIPv4Route(ctx, check.Lab, replayed.argument)
+	if err != nil {
+		return fail(4, err)
+	}
+	if err := requireFRRASPath(route, relayedASPath); err != nil {
+		return fail(4, err)
+	}
+
+	// Assertion 5. The announced half of the mixed UPDATE reaches FRR. Ze splits
+	// that UPDATE and re-encodes this half through the wire-mode builder, and a
+	// duplicated NEXT_HOP there is a treat-as-withdraw under RFC 7606 Section 3(g),
+	// so this is the half that goes red when the de-duplication is lost.
+	announced := operation{kind: opFRRRoute, argument: splitAnnouncedPrefix, timeout: 100 * time.Second}
+	if err := runOperation(ctx, check.Network, check.Lab, &announced); err != nil {
+		return fail(5, err)
+	}
+
+	// Assertion 6. FRR gives that route to zebra through the injector's address, so
+	// the mixed UPDATE was not merely held in a BGP table but INSTALLED, which is
+	// what the tag above claims. The prefix and the next hop are required on ONE
+	// line, so a next hop belonging to another route cannot satisfy it.
+	routes, err := check.Lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", showRouteBGP}, nil)
+	if err != nil {
+		return fail(6, err)
+	}
+	if err := requireRouteInstalledVia(routes, announced.argument, injectorAddress); err != nil {
+		return fail(6, err)
+	}
+
+	// Assertions 7 and 8. The withdrawn half of that UPDATE never announced
+	// anything, so its absence alone would also hold with the whole rail deleted:
+	// the arrival of its message-mate above is the barrier this absence is read
+	// against. Then the session, because ze accepting the mixed shape on receive
+	// and FRR accepting ze's output both require that no NOTIFICATION passed.
+	closing := []operation{
+		{kind: opFRRRouteAbsent, argument: splitWithdrawnPrefix, timeout: 30 * time.Second},
+		{kind: opFRRSession, argument: zeLabAddress},
+	}
+	for index := range closing {
+		if err := runOperation(ctx, check.Network, check.Lab, &closing[index]); err != nil {
+			return fail(index+7, err)
+		}
+	}
+	return nil
 }
 
 // RFC requirement: RFC7606-5.4-1 positive -- an independent peer receives the assigned EVPN route type and never the unassigned one ze was sent in the same attribute.
@@ -294,7 +470,95 @@ func checkRouteServerASPath(ctx context.Context, check *interoplab.CheckContext)
 // RFC requirement: RFC4271-5.1.3-1 positive -- FRR, a conforming implementation, never decodes an UPDATE carrying 10.11.0.0/24, whose NEXT_HOP 172.30.0.3 is FRR's own address. The assertion is on FRR's own per-UPDATE log rather than on its table, because FRR applies Section 6.3(a) itself and would drop such a route either way.
 // RFC requirement: RFC4271-5.1.3-1 negative -- the same session, one message later, receives 10.12.0.0/24 with the third-party NEXT_HOP 172.30.0.9 and installs it with that address. Section 5.1.3 case 2 permits a third-party next hop, so a relay that withheld everything would be a different violation, and this half is what stops the absence above from passing vacuously.
 func checkSelfNextHopWithheld(ctx context.Context, check *interoplab.CheckContext) error {
-	return checkScenario(ctx, check, "bgp-self-nexthop-withheld-frr")
+	const (
+		name = "bgp-self-nexthop-withheld-frr"
+		// inject.msg (1), NEXT_HOP AC1E0003, which is FRR's own address. Ze must
+		// withhold it. It is sent FIRST, so by the time FRR decodes the control
+		// route below, this one has already been through the same rail and the
+		// same fan-out.
+		withheldPrefix = "10.11.0.0/24"
+		// inject.msg (2), NEXT_HOP AC1E0009, the injector. Ze must relay it.
+		controlPrefix   = "10.12.0.0/24"
+		injectorAddress = baseIPv4Prefix + "9"
+	)
+	fail := func(assertion int, cause error) error {
+		return checkerFailure(ctx, check.Lab, name, assertion, cause)
+	}
+	if !check.Network.IPv4.IsValid() {
+		return fail(1, errors.New("self next-hop scenario has no selected IPv4 network"))
+	}
+	// FRR names the peer that sent an UPDATE at the head of every decode line, so
+	// the two log assertions below read ze's address on the scenario's own network.
+	zeAddress := networkHostAddress(check.Network, 2)
+
+	// Assertion 1. The session, read from FRR.
+	session := operation{kind: opFRRSession, argument: zeAddress}
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(1, err)
+	}
+
+	// Assertion 2. Both injected NEXT_HOPs are raw hex in inject.msg, and
+	// renderScenario rewrites text rather than hex, so those octets name FRR and
+	// the injector on the base network alone. On any other selected network they
+	// name a third party, ze relays both routes correctly, and this scenario cannot
+	// assert Section 5.1.3 at all. Say that, rather than read a renumbered lab as a
+	// Ze defect. Every address below is a constant BECAUSE this assertion holds.
+	baseNetwork := netip.MustParseAddr(baseIPv4Prefix + "0")
+	if check.Network.IPv4.Addr() != baseNetwork {
+		return fail(2, fmt.Errorf("scenario runs on network %s, and the injected NEXT_HOP octets name a peer only on %s", check.Network.IPv4, baseNetwork))
+	}
+
+	// Assertion 3. FRR's own decode of the control route. The assertion is on the
+	// log rather than on the table because FRR applies RFC 4271 Section 6.3(a)
+	// itself: a route naming FRR's own address would be absent from its table
+	// whether ze withheld it or sent it, and only `debug bgp updates in` says which
+	// prefixes reached the wire.
+	frrLog, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout:     90 * time.Second,
+		Interval:    time.Second,
+		Description: "FRR decode of the control route",
+	}, func(probeCtx context.Context) (string, error) {
+		return check.Lab.Query(probeCtx, peerFRR, []string{cmdCat, frrLogPath}, nil)
+	}, func(text string) bool {
+		return frrDecodedPrefix(text, zeAddress, controlPrefix)
+	})
+	if err != nil {
+		return fail(3, err)
+	}
+
+	// Assertion 4. The control route is installed carrying the injector's address,
+	// so ze relays a third-party NEXT_HOP rather than withholding everything. RFC
+	// 4271 Section 5.1.3 case 2 permits that address, and a relay that withheld it
+	// too would be a different violation wearing this scenario's green bar.
+	control := operation{kind: opFRRRoute, argument: controlPrefix, timeout: 60 * time.Second}
+	if err := runOperation(ctx, check.Network, check.Lab, &control); err != nil {
+		return fail(4, err)
+	}
+	route, err := queryFRRIPv4Route(ctx, check.Lab, control.argument)
+	if err != nil {
+		return fail(4, err)
+	}
+	entries, err := parseFRRNextHops(route)
+	if err != nil {
+		return fail(4, err)
+	}
+	if err := requireSoleNextHop(entries, netip.MustParseAddr(injectorAddress)); err != nil {
+		return fail(4, err)
+	}
+
+	// Assertion 5. The withheld route has no decode in the SAME log text the
+	// control decode was found in, which is what makes this absence evidence.
+	if frrDecodedPrefix(frrLog, zeAddress, withheldPrefix) {
+		return fail(5, fmt.Errorf("FRR decoded an UPDATE carrying %s, whose NEXT_HOP %s is FRR's own address", withheldPrefix, frrLabAddress))
+	}
+
+	// Assertion 6. Withholding one route must not disturb the session: Section
+	// 5.1.3 states a prohibition on advertising, and RFC 4271 Section 6.3 says a
+	// NOTIFICATION SHOULD NOT be sent over a semantically incorrect NEXT_HOP.
+	if err := runOperation(ctx, check.Network, check.Lab, &session); err != nil {
+		return fail(6, err)
+	}
+	return nil
 }
 
 // RFC requirement: RFC1997-Well-1 positive -- "All routes received carrying a communities attribute containing this value [NO_EXPORT] MUST NOT be advertised outside a BGP confederation boundary" (RFC 1997, Well-known Communities). An independent conforming receiver (FRR) never learns 10.10.0.0/24, while it does learn 10.11.0.0/24 relayed by the same Ze over the same session in the same run.
@@ -519,6 +783,14 @@ func waitFRRNewEpoch(ctx context.Context, lab interoplab.CheckerLab, neighbor st
 		return queryFRREstablishedEpoch(probeCtx, lab, neighbor)
 	}, func(epoch uint64) bool { return epoch != 0 && epoch != previous })
 	return err
+}
+
+// queryFRRIPv4Route returns FRR's own decode of one IPv4 unicast prefix, as the
+// JSON its CLI renders. The restored relay checkers read the AS_PATH and the next
+// hops out of it, so each one asserts what a FOREIGN daemon parsed off ze's wire
+// rather than ze's own view of what it sent.
+func queryFRRIPv4Route(ctx context.Context, lab interoplab.CheckerLab, prefix string) (string, error) {
+	return lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast " + prefix + " json"}, nil)
 }
 
 func queryFRRNextHops(ctx context.Context, lab interoplab.CheckerLab, prefix string) ([]nextHop, error) {
