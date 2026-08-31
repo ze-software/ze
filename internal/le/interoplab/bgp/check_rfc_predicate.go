@@ -372,7 +372,7 @@ const (
 // as 172.30.0.2.
 func frrDecodeFields(line, peer, prefix string) []string {
 	fields := strings.Fields(line)
-	if !slices.Contains(fields, peer) {
+	if !frrNamesPeer(fields, peer) {
 		return nil
 	}
 	if !slices.Contains(fields, frrReceiveVerb) {
@@ -382,6 +382,22 @@ func frrDecodeFields(line, peer, prefix string) []string {
 		return nil
 	}
 	return fields
+}
+
+// frrNamesPeer reports whether one field of line names peer. FRR writes the
+// neighbor of a decode line as `<address>(<hostname>)`, and it spells the
+// hostname `Unknown` for a peer that advertised none, so `172.30.0.2(Unknown)`
+// is ONE field and the address is a prefix of it rather than the whole of it.
+// Requiring the whole field made every decode assertion unmatchable against FRR
+// 10.3.1, which is what a live run found. The open parenthesis stays in the
+// comparison, so neighbor 172.30.0.22 still cannot pass as 172.30.0.2.
+func frrNamesPeer(fields []string, peer string) bool {
+	for _, field := range fields {
+		if field == peer || strings.HasPrefix(field, peer+"(") {
+			return true
+		}
+	}
+	return false
 }
 
 // frrDecodedPrefix reports whether FRR's log holds its own decode of an UPDATE

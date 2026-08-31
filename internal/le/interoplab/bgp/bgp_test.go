@@ -593,6 +593,16 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		if frrDecodedWithdrawal(strings.ReplaceAll(withdrawn, peer, "172.30.0.22"), peer, prefix) {
 			t.Fatal("a neighbor whose address carries ze's as a prefix passed as ze")
 		}
+		// FRR 10.3.1 writes the neighbor as `<address>(<hostname>)`, and it spells
+		// the hostname `Unknown` for a peer that advertised none, so this is the
+		// form a live run reads. Every fixture above carries the bare address,
+		// which is why a predicate that could never match a real log stayed green.
+		if !frrDecodedWithdrawal(strings.ReplaceAll(withdrawn, peer, peer+"(Unknown)"), peer, prefix) {
+			t.Fatal("FRR's own `<address>(<hostname>)` spelling of the neighbor was rejected")
+		}
+		if frrDecodedWithdrawal(strings.ReplaceAll(withdrawn, peer, "172.30.0.22(Unknown)"), peer, prefix) {
+			t.Fatal("a longer neighbor address in FRR's own spelling passed as ze")
+		}
 		if err := requireNoAttributeError(withdrawn, peer, prefix); err != nil {
 			t.Fatalf("a withdrawal FRR accepted was reported as refused: %v", err)
 		}
@@ -673,6 +683,12 @@ func TestBespokeCheckerBranches(t *testing.T) {
 		}
 		if frrDecodedPrefix("BGP: "+peer+" rcvd 1"+control+" IPv4 unicast\n", peer, control) {
 			t.Fatal("a longer prefix carrying the wanted one passed")
+		}
+		if !frrDecodedPrefix("BGP: "+peer+"(Unknown) rcvd "+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("FRR's own `<address>(<hostname>)` spelling of the neighbor was rejected")
+		}
+		if frrDecodedPrefix("BGP: 172.30.0.22(Unknown) rcvd "+control+" IPv4 unicast\n", peer, control) {
+			t.Fatal("a longer neighbor address in FRR's own spelling passed as ze")
 		}
 		if frrDecodedPrefix("BGP: 172.30.0.22 rcvd "+control+" IPv4 unicast\n", peer, control) {
 			t.Fatal("a neighbor whose address carries ze's as a prefix passed as ze")
