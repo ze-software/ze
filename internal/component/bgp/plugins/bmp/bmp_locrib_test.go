@@ -2,6 +2,7 @@ package bmp
 
 import (
 	"bytes"
+	"encoding/binary"
 	"net"
 	"net/netip"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
 	"github.com/ze-software/ze/internal/core/family"
@@ -57,9 +59,10 @@ const (
 )
 
 func TestLocRIBPeerHeader(t *testing.T) {
-	// VALIDATES: RFC 9069 PeerType=3 header: Address/AS zero, BGP ID=router-id,
-	// and Flags=0 (F=0 in-Loc-RIB; V/L/A/O MUST NOT be set).
-	ph := locRIBPeerHeader(0x0a141e01)
+	// VALIDATES: RFC 9069 Section 5.1 PeerType=3 header: Peer Address zero, Peer
+	// AS the router's own ASN, BGP ID the router-id, and Flags=0 (F=0
+	// in-Loc-RIB; the reserved bits MUST be transmitted as 0).
+	ph := locRIBPeerHeader(localIdentity{asn: 4200000001, routerID: 0x0a141e01})
 
 	if ph.PeerType != PeerTypeLocRIB {
 		t.Errorf("PeerType = %d, want %d (Loc-RIB)", ph.PeerType, PeerTypeLocRIB)
@@ -70,9 +73,11 @@ func TestLocRIBPeerHeader(t *testing.T) {
 	if ph.Flags != 0 {
 		t.Errorf("Flags = %#x, want 0 (RFC 9069: V/L/A/O MUST be 0)", ph.Flags)
 	}
-	// RFC requirement: RFC9069-x-6 positive -- the Loc-RIB per-peer header carries Peer AS 0.
-	if ph.PeerAS != 0 {
-		t.Errorf("PeerAS = %d, want 0 (RFC 9069)", ph.PeerAS)
+	// RFC requirement: RFC9069-x-6 positive -- "Peer Autonomous System (AS): Set to the
+	// primary router BGP autonomous system number (ASN)." The value is a 4-octet ASN,
+	// which is the case a 2-octet field could not carry.
+	if ph.PeerAS != 4200000001 {
+		t.Errorf("PeerAS = %d, want the router's own ASN 4200000001 (RFC 9069 Section 5.1)", ph.PeerAS)
 	}
 	// RFC requirement: RFC9069-x-7 positive -- the Loc-RIB per-peer header carries the local
 	// router-id as its Peer BGP ID.
@@ -83,6 +88,22 @@ func TestLocRIBPeerHeader(t *testing.T) {
 	// all-zero Peer Address.
 	if ph.Address != ([16]byte{}) {
 		t.Errorf("Address = %v, want all-zero (RFC 9069)", ph.Address)
+	}
+}
+
+// RFC requirement: RFC9069-x-6 negative -- the Peer AS is the router's OWN ASN and not
+// a constant. A header built for a second identity carries that identity's ASN, so an
+// implementation that hardcoded one value, or that zero-filled the field as ze did until
+// 2026-08-31, fails here while still passing the positive case.
+func TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven(t *testing.T) {
+	first := locRIBPeerHeader(localIdentity{asn: 65001, routerID: 0x0a141e01})
+	second := locRIBPeerHeader(localIdentity{asn: 65002, routerID: 0x0a141e02})
+
+	if first.PeerAS == second.PeerAS {
+		t.Errorf("two identities produced one Peer AS (%d): the field does not come from the identity", first.PeerAS)
+	}
+	if first.PeerAS != 65001 || second.PeerAS != 65002 {
+		t.Errorf("PeerAS = (%d, %d), want (65001, 65002)", first.PeerAS, second.PeerAS)
 	}
 }
 
@@ -123,6 +144,55 @@ func TestBuildLocRIBUpdateBody_IPv4Announce(t *testing.T) {
 	wantNLRI := encodeNLRIPrefix(e.Prefix)
 	if !bytes.Equal(nlri, wantNLRI) {
 		t.Errorf("NLRI = %x, want %x", nlri, wantNLRI)
+	}
+}
+
+// RFC requirement: RFC9069-5.4.1-1 positive -- "Loc-RIB Route Monitoring messages MUST
+// use a 4-byte ASN encoding as indicated in the Peer Up sent OPEN message (Section 5.2)
+// capability."
+// RFC requirement: RFC9069-5.4.1-1 negative -- the same sentence read the other way: an
+// encoder that is not 4-byte is caught, rather than any encoding being accepted.
+//
+// One polarity per tag line: the scanner reads a single polarity token, so a combined
+// "positive and negative" tag registers only the first and the requirement reads as
+// negative-less.
+//
+// The positive is the width: an AS_PATH segment of two ASNs occupies 2 header octets
+// plus 8, not plus 4. The negative is the value: an ASN above 65535 survives the encode
+// whole, so a 2-byte encoder is caught by more than an off-by-four -- it cannot represent
+// the number at all. The two run together because the same encoded segment answers both.
+func TestLocRIBRouteMonitoringUsesFourByteASNs(t *testing.T) {
+	e := ribevents.BestChangeEntry{
+		Action:  ribevents.BestChangeAdd,
+		Prefix:  netip.MustParsePrefix("10.20.30.0/24"),
+		NextHop: netip.MustParseAddr("192.0.2.1"),
+		ASPath:  []uint32{4200000001, 65002},
+	}
+
+	body := buildLocRIBUpdateBody(family.IPv4Unicast, e)
+	sec, err := wire.ParseUpdateSections(body)
+	if err != nil {
+		t.Fatalf("ParseUpdateSections: %v", err)
+	}
+	asPath := findAttr(sec.Attrs(body), attrASPATH)
+	if asPath == nil {
+		t.Fatal("missing AS_PATH attribute")
+	}
+
+	// RFC 4271 Section 4.3: each AS_PATH segment is type(1) + count(1) + the ASNs.
+	const segmentHeader = 2
+	if len(asPath) != segmentHeader+len(e.ASPath)*4 {
+		t.Fatalf("AS_PATH value is %d octets for %d ASNs, want %d: the ASNs are not 4-byte encoded",
+			len(asPath), len(e.ASPath), segmentHeader+len(e.ASPath)*4)
+	}
+	if count := int(asPath[1]); count != len(e.ASPath) {
+		t.Fatalf("AS_PATH segment count = %d, want %d", count, len(e.ASPath))
+	}
+	for i, want := range e.ASPath {
+		off := segmentHeader + i*4
+		if got := binary.BigEndian.Uint32(asPath[off : off+4]); got != want {
+			t.Errorf("AS_PATH[%d] = %d, want %d", i, got, want)
+		}
 	}
 }
 
@@ -202,23 +272,112 @@ func TestBuildLocRIBUpdateBody_IPv6Withdraw(t *testing.T) {
 	}
 }
 
-func TestBgpIdentifierFromSentOpen(t *testing.T) {
-	// VALIDATES: the local router-id is extracted from a sent OPEN's BGP
-	// Identifier (RFC 4271 offset 24).
+func TestBgpIdentityFromSentOpen(t *testing.T) {
+	// VALIDATES: the router's own ASN and router-id are read out of a sent OPEN,
+	// which is where the Loc-RIB emulated peer gets both (RFC 9069 Sections 5.1
+	// and 5.2).
 	open := makeBGPOpen(65000, 0x01020305)
-	id, ok := bgpIdentifierFromSentOpen(open)
+	id, ok := bgpIdentityFromSentOpen(open)
 	if !ok {
-		t.Fatal("expected to extract BGP Identifier from a full OPEN")
+		t.Fatal("expected to read an identity from a full OPEN")
 	}
-	if id != 0x01020305 {
-		t.Errorf("BGP Identifier = %#x, want 0x01020305", id)
+	if id.routerID != 0x01020305 {
+		t.Errorf("BGP Identifier = %#x, want 0x01020305", id.routerID)
+	}
+	if id.asn != 65000 {
+		t.Errorf("ASN = %d, want the My AS field's 65000", id.asn)
 	}
 
-	if _, ok := bgpIdentifierFromSentOpen(open[:20]); ok {
-		t.Error("a truncated OPEN must not yield a BGP Identifier")
+	if _, ok := bgpIdentityFromSentOpen(open[:20]); ok {
+		t.Error("a truncated OPEN must not yield an identity")
 	}
-	if _, ok := bgpIdentifierFromSentOpen(nil); ok {
-		t.Error("a nil OPEN must not yield a BGP Identifier")
+	if _, ok := bgpIdentityFromSentOpen(nil); ok {
+		t.Error("a nil OPEN must not yield an identity")
+	}
+}
+
+// RFC requirement: RFC9069-x-6 negative -- "the primary router BGP autonomous system
+// number" is the 4-octet ASN, not the two-octet field a 4-byte speaker fills with
+// AS_TRANS. An OPEN carrying My AS 23456 and a 4-octet ASN capability yields the
+// capability's value, so an implementation that read only the fixed field would publish
+// 23456 as the router's AS while still passing the positive case above.
+//
+// RFC 6793 Section 4.1: "When a NEW BGP speaker processes an OPEN message from another
+// NEW BGP speaker, it MUST use the AS number encoded in this capability in lieu of the
+// 'My Autonomous System' field of the OPEN message".
+func TestBgpIdentityPrefersTheFourOctetASNCapability(t *testing.T) {
+	open := fabricateLocRIBOpen(localIdentity{asn: 4200000001, routerID: 0x01020305})
+
+	// The fabricated OPEN is itself the fixture: it carries AS_TRANS in My AS
+	// and the real ASN in the capability, which is exactly the shape ze's own
+	// sessions put on the wire for a 4-byte ASN.
+	body := open[message.HeaderLen:]
+	if got := binary.BigEndian.Uint16(body[1:3]); got != message.AS_TRANS {
+		t.Fatalf("My AS = %d, want AS_TRANS %d: the fixture does not exercise the capability", got, message.AS_TRANS)
+	}
+
+	id, ok := bgpIdentityFromSentOpen(open)
+	if !ok {
+		t.Fatal("expected to read an identity from the fabricated OPEN")
+	}
+	if id.asn != 4200000001 {
+		t.Errorf("ASN = %d, want the capability's 4200000001", id.asn)
+	}
+	if id.routerID != 0x01020305 {
+		t.Errorf("BGP Identifier = %#x, want 0x01020305", id.routerID)
+	}
+}
+
+// RFC requirement: RFC9069-5.2-1 positive -- "Sent OPEN Message: This is a fabricated BGP
+// OPEN message. Capabilities MUST include the 4-octet ASN and all necessary capabilities
+// to represent the Loc-RIB Route Monitoring messages. Only include capabilities if they
+// will be used for Loc-RIB monitoring messages."
+//
+// The fabricated OPEN decodes as a BGP OPEN, carries the 4-octet ASN capability with the
+// router's own ASN, and carries one Multiprotocol capability for each family the dump
+// delivers -- and none for a family it does not.
+func TestFabricatedLocRIBOpenCarriesTheRequiredCapabilities(t *testing.T) {
+	open := fabricateLocRIBOpen(localIdentity{asn: 4200000001, routerID: 0x01020305})
+
+	if got := msgtype.MessageType(open[message.MarkerLen+2]); got != msgtype.TypeOPEN {
+		t.Fatalf("message type = %d, want OPEN", got)
+	}
+	parsed, err := message.UnpackOpen(open[message.HeaderLen:])
+	if err != nil {
+		t.Fatalf("the fabricated OPEN does not decode: %v", err)
+	}
+	if parsed.Version != 4 {
+		t.Errorf("Version = %d, want 4", parsed.Version)
+	}
+	if parsed.BGPIdentifier != 0x01020305 {
+		t.Errorf("BGP Identifier = %#x, want the router-id 0x01020305", parsed.BGPIdentifier)
+	}
+
+	caps, err := capability.ParseFromOptionalParams(parsed.OptionalParams, parsed.ExtendedParams)
+	if err != nil {
+		t.Fatalf("the fabricated OPEN's capabilities do not decode: %v", err)
+	}
+
+	var asn uint32
+	families := map[family.Family]bool{}
+	for _, capa := range caps {
+		switch c := capa.(type) {
+		case *capability.ASN4:
+			asn = c.ASN
+		case *capability.Multiprotocol:
+			families[family.Family{AFI: c.AFI, SAFI: c.SAFI}] = true
+		}
+	}
+	if asn != 4200000001 {
+		t.Errorf("4-octet ASN capability = %d, want the router's own 4200000001", asn)
+	}
+	for _, fam := range dumpFamilies {
+		if !families[fam] {
+			t.Errorf("no Multiprotocol capability for %s, which the dump delivers", fam)
+		}
+	}
+	if len(families) != len(dumpFamilies) {
+		t.Errorf("the OPEN advertises %d families and the dump delivers %d: a capability that will not be used", len(families), len(dumpFamilies))
 	}
 }
 
@@ -264,10 +423,42 @@ func TestHandleBestChangeEmitsPeerUpThenRM(t *testing.T) {
 	if up.Peer.PeerBGPID != 0x01020305 {
 		t.Errorf("Peer Up BGP ID = %#x, want local router-id 0x01020305", up.Peer.PeerBGPID)
 	}
-	// RFC requirement: RFC9069-x-3 positive -- the Loc-RIB Peer Up carries zero-length sent
-	// and received OPEN messages.
-	if len(up.SentOpenMsg) != 0 || len(up.ReceivedOpenMsg) != 0 {
-		t.Error("RFC 9069: Loc-RIB Peer Up OPENs must be zero-length")
+	// RFC requirement: RFC9069-x-3 positive -- the Loc-RIB Peer Up carries the fabricated
+	// OPEN of RFC 9069 Section 5.2 in BOTH fields: "Received OPEN Message: Repeat of the
+	// same sent OPEN message. The duplication allows the BMP receiver to parse the expected
+	// received OPEN message as defined in Section 4.10 of [RFC7854]."
+	if len(up.SentOpenMsg) == 0 {
+		t.Fatal("RFC 9069 Section 5.2: the Loc-RIB Peer Up must carry a fabricated sent OPEN")
+	}
+	if !bytes.Equal(up.SentOpenMsg, up.ReceivedOpenMsg) {
+		t.Errorf("the received OPEN is not a repeat of the sent one: %x vs %x", up.ReceivedOpenMsg, up.SentOpenMsg)
+	}
+	// The OPEN describes this router: the same 4-octet ASN the per-peer header carries.
+	sent, err := message.UnpackOpen(up.SentOpenMsg[message.HeaderLen:])
+	if err != nil {
+		t.Fatalf("the Peer Up's sent OPEN does not decode: %v", err)
+	}
+	if sent.BGPIdentifier != 0x01020305 {
+		t.Errorf("sent OPEN BGP Identifier = %#x, want the local router-id 0x01020305", sent.BGPIdentifier)
+	}
+	caps, err := capability.ParseFromOptionalParams(sent.OptionalParams, sent.ExtendedParams)
+	if err != nil {
+		t.Fatalf("the Peer Up's sent OPEN carries capabilities that do not decode: %v", err)
+	}
+	sawASN4, sawFamily := false, false
+	for _, capa := range caps {
+		switch capa.(type) {
+		case *capability.ASN4:
+			sawASN4 = true
+		case *capability.Multiprotocol:
+			sawFamily = true
+		}
+	}
+	if !sawASN4 {
+		t.Error("RFC 9069 Section 5.2: capabilities MUST include the 4-octet ASN")
+	}
+	if !sawFamily {
+		t.Error("RFC 9069 Section 6.1.1: the OPEN must indicate the address family capabilities")
 	}
 
 	// Then a Route Monitoring with a PeerType=3 header and a valid UPDATE PDU.

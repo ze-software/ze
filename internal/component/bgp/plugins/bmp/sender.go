@@ -165,6 +165,23 @@ func newSenderSession(name string, cfg collectorConfig) *senderSession {
 	}
 }
 
+// targets reports whether this session already connects to what cfg names. A
+// session that does keeps running across a config reload, so the collector on
+// the far end keeps its BMP session and everything it has learned on it.
+//
+// The three fields compared are the whole of what decides the connection: the
+// destination, the port, and the source address the dial binds. Everything else
+// in a collectorConfig is the map key, which the caller matches on first.
+func (ss *senderSession) targets(cfg collectorConfig) bool {
+	if ss.address != cfg.Address {
+		return false
+	}
+	if ss.port != parseUint16(cfg.Port, DefaultPort) {
+		return false
+	}
+	return ss.sourceAddress == cfg.SourceAddress
+}
+
 // run is the long-lived goroutine for the sender session.
 // It connects to the collector, sends the Initiation message,
 // and enters a loop that reconnects on failure.
@@ -623,14 +640,23 @@ func (ss *senderSession) writePeerUpLocked(peer PeerHeader, localAddr [16]byte, 
 
 // writePeerDown encodes and sends a BMP Peer Down message.
 func (ss *senderSession) writePeerDown(peer PeerHeader, reason uint8, data []byte) error {
+	ss.writeMu.Lock()
+	defer ss.writeMu.Unlock()
+	return ss.writePeerDownLocked(peer, reason, data)
+}
+
+// writePeerDownLocked is writePeerDown for a caller that already holds writeMu
+// -- the RFC 8671 Section 7.2 peer bounce (BMPPlugin.bounceMonitoredPeers),
+// which queues a Peer Down and the Peer Up that answers it in one critical
+// section so no Route Monitoring can land between the pair.
+//
+// Caller MUST hold writeMu.
+func (ss *senderSession) writePeerDownLocked(peer PeerHeader, reason uint8, data []byte) error {
 	pd := &PeerDown{
 		Peer:   peer,
 		Reason: reason,
 		Data:   data,
 	}
-
-	ss.writeMu.Lock()
-	defer ss.writeMu.Unlock()
 
 	buf, err := ss.scratchFor(CommonHeaderSize + PeerHeaderSize + 1 + len(data))
 	if err != nil {

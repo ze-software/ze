@@ -229,6 +229,12 @@ func TestShutdownDeliversLocRIBPeerDownThenTermination(t *testing.T) {
 			if v.Peer.PeerType != PeerTypeLocRIB {
 				t.Errorf("Peer Down PeerType = %d, want %d (Loc-RIB)", v.Peer.PeerType, PeerTypeLocRIB)
 			}
+			// RFC 9069 Section 5.3: "The Peer Down notification MUST use reason
+			// code 6." The Loc-RIB instance peer has no BGP session, so the
+			// reasons that report an FSM event or a NOTIFICATION cannot apply.
+			if v.Reason != PeerDownTLVData {
+				t.Errorf("Loc-RIB Peer Down reason = %d, want %d (RFC 9069 Section 5.3)", v.Reason, PeerDownTLVData)
+			}
 			sawPeerDown = true
 		case *Termination:
 			if !sawPeerDown {
@@ -599,13 +605,13 @@ func TestSenderReconnectReplaysInitiationPeerUpAndDump(t *testing.T) {
 	readSessionOpening(t, second, dumped, "reconnection")
 }
 
-func TestStartSenderWiresSessionPriming(t *testing.T) {
-	// VALIDATES: the sessions startSender creates are primed -- a collector that
+func TestSyncSendersWiresSessionPriming(t *testing.T) {
+	// VALIDATES: the sessions syncSenders creates are primed -- a collector that
 	// connects to a session built by the production entry point receives
 	// Initiation and then the Peer Up of every established peer.
 	// PREVENTS: the priming existing but never being wired. Every other test in
 	// this file installs the hooks itself, so without this one deleting the
-	// assignment in startSender would leave the whole suite green.
+	// assignment in syncSenders would leave the whole suite green.
 	var lc net.ListenConfig
 	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
@@ -627,7 +633,7 @@ func TestStartSenderWiresSessionPriming(t *testing.T) {
 		bp.sessions.Wait()
 	})
 
-	bp.startSender(&senderConfig{Collectors: map[string]collectorConfig{
+	bp.syncSenders(&senderConfig{Collectors: map[string]collectorConfig{
 		"c1": {Address: "127.0.0.1", Port: strconv.Itoa(addr.Port)},
 	}})
 

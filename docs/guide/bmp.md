@@ -89,7 +89,9 @@ bgp {
 | `collector` | - | Named collector endpoints (key: name) |
 | `address` | (required) | Collector IP address |
 | `port` | 11019 | Collector TCP port |
+| `source-address` | - | Source IP address for outbound BMP connections |
 | `route-monitoring-policy` | all | `pre-policy` (Adj-RIB-In), `post-policy` (Adj-RIB-Out, RFC 8671), or `all` |
+| `route-mirroring` | false | Stream verbatim copies of every BGP message as Route Mirroring (RFC 7854 Section 4.7) |
 | `loc-rib` | false | Stream local RIB best-path changes as Loc-RIB Route Monitoring (RFC 9069, Peer Type 3) |
 | `statistics-timeout` | 0 | Seconds between statistics reports (0 = disabled) |
 
@@ -118,7 +120,7 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 | Peer Down (2) | Marks peer down | Sends on BGP session close |
 | Route Monitoring (0) | Decodes inner BGP UPDATE | Wraps received UPDATEs |
 | Statistics Report (1) | Stores per-peer counters | Periodic (if configured) |
-| Route Mirroring (6) | Logs raw BGP PDUs | Not implemented (follow-up) |
+| Route Mirroring (6) | Logs raw BGP PDUs | Wraps every BGP PDU when `route-mirroring` is on |
 
 ### Receiver Behavior
 
@@ -135,11 +137,56 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 - Sends Peer Down with mapped reason code on session close
 - Wraps received BGP UPDATEs as Route Monitoring (pre-policy, Adj-RIB-In)
 - Wraps sent BGP UPDATEs as Route Monitoring with O+L flags (post-policy, Adj-RIB-Out, RFC 8671)
+- With `route-mirroring true`, wraps every BGP message (OPEN, UPDATE, NOTIFICATION,
+  KEEPALIVE, ROUTE-REFRESH, both directions) as Route Mirroring (RFC 7854 Section 4.7).
+  The O flag follows the direction, as it does for Route Monitoring
 - Route-monitoring-policy controls which direction(s) are streamed
 - With `loc-rib true`, streams local RIB best-path changes as Loc-RIB Route
   Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance with
   zero-length OPENs and the local router-id as Peer BGP ID, a full-table dump,
-  and a Loc-RIB Peer Down on shutdown
+  and a Loc-RIB Peer Down with reason code 6 (RFC 9069 Section 5.3) on shutdown
+  and on the commit that turns `loc-rib` off
+
+#### A Config Change Bounces the Peers, Not the Session
+
+RFC 8671 Section 7.2 says a change that alters the behavior of an existing BMP
+session MUST bounce that session with a Peer Down and Peer Up sequence. Ze
+bounces the peers inside the session and leaves the session itself up: each
+established BGP peer gets a Peer Down with reason 5 (configuration reasons)
+followed by a Peer Up, so the collector re-learns that peer under the new
+configuration. The TCP connection is not closed and no Termination is sent, so
+the collector keeps everything the change did not touch.
+
+Ze acts on a change, not on a commit. Four leaves decide what a collector
+session carries, and only a move in one of them bounces the peers:
+
+| Leaf | Why it alters the session |
+|------|---------------------------|
+| `route-monitoring-policy` | decides which direction is streamed |
+| `route-mirroring` | decides whether verbatim BGP messages are streamed |
+| `loc-rib` | decides whether the Loc-RIB feed is streamed |
+| `statistics-timeout` | configures the Statistics Report interval |
+
+A commit that changes anything else under `bgp`, a new neighbor for example,
+leaves every collector session untouched. So does a commit that changes nothing
+under `bgp`.
+
+The collector list is separate, because changing it changes which sessions exist
+rather than what one of them carries. A collector you remove, or point at another
+address, is sent a Termination and its TCP connection is closed: that session
+ends rather than continues. A collector you add gets a new session, with
+Initiation and a Peer Up for every established peer. A collector you leave alone
+keeps its session, even when you edit another collector beside it.
+
+One consequence for an operator: a behavior change costs one Peer Down and one
+Peer Up per peer on each collector, rather than a full re-dump of the table.
+
+<!-- source: internal/component/bgp/plugins/bmp/sender_config.go -- applySenderConfig, behaviorOf, syncSenders -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- bounceMonitoredPeers -->
+<!-- source: internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang -- the four sender behavior leaves -->
+
+Ze sends no periodic Statistics Report yet, so `statistics-timeout` bounces the
+peers but changes nothing else (`plan/journal/unwired-feature.md`, 2026-08-31).
 
 #### Every Connection Is a Fresh BMP Session
 
@@ -210,6 +257,7 @@ collector that is not reading, ze gives it one second and then closes anyway
 rather than delaying the shutdown of the other collectors.
 
 <!-- source: internal/component/bgp/plugins/bmp/sender.go -- stop, terminateAndClose -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- handleSenderMirror, peerHeaderFromEvent -->
 
 
 ## Looking Glass Integration
@@ -266,4 +314,3 @@ other looking glass frontends.
 - **Loc-RIB Route Monitoring** (RFC 9069) omits communities and LOCAL_PREF:
   the best-change feed it is built from does not carry them, and RFC 9069
   forbids a RIB back-door for the full attribute set.
-- **Route Mirroring** encoding on the sender side is not implemented.

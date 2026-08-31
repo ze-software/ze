@@ -1,12 +1,32 @@
+# Test weakenings this commit accepts
+
+**This file is REPLACED for each commit. It never accumulates.** Delete the rows
+of the last commit, write the rows of this one. The commit gate refuses a row
+naming a test the prospective commit does not weaken, so a row left behind by an
+earlier commit blocks the next author rather than helping anybody. Git history
+holds every past entry: `git log -p -- test/weakened.md` shows the rows of any
+commit beside the change they justified.
+
+**Several sessions share this checkout, and this is one shared path.** Write your
+rows immediately before you run `./le commit create`, then read the file again
+between writing them and running the script. Rows written earlier are a window
+for another session to replace them, and a session that writes with `cat >`
+rather than an edit replaces the file whole. The refusal is the safe outcome. The
+unsafe one is silent: your commit lands carrying another session's justification,
+and no gate sees it, because the file is present and the row count is plausible.
+Say so on the message bus before you take the slot.
+
+A row here is the AUTHOR's own justification. The owner's approval for changing a
+test that carries an `RFC requirement:` tag is a different file,
+`test/rfc-changed.md`, and a row here does not authorize one there.
+
+`parseLedger` (`internal/le/testweakened/ledger.go`) reads the first
+`| Test | Reason |` table it finds and every table row under it, so this prose is
+safe above the table. Do not write a second such header anywhere in the file: the
+parser refuses two tables rather than guess which one the gate should read.
+
 | Test | Reason |
 |------|--------|
-| registry.registerModule | Helper, not a test, RENAMED to `registerPlugin` in the same file. Its body is unchanged. The rename is the point of the commit: this registry calls the same set `plugins` in every other symbol, and the helper was the last place still calling it a module. No case and no assertion left the suite. |
-| plugin.registerModule | The same rename, in `internal/component/plugin/register_test.go`, for the same reason. Body unchanged. |
-| registerGateModule | The same rename again, in `cmd/ze/hub/startup_gate_test.go`, now `registerGatePlugin`. Body unchanged. |
-| TestSetupResultsNamesEveryRegisteredModule | RENAMED to `TestSetupResultsNamesEveryRegisteredPlugin`, same assertion: every registered name appears in the answer, and one that recorded nothing appears as `unknown`. That property is the whole reason the feature exists, so it did not move or soften; only the word in its name changed. |
-| TestSetupResultsKeepsARecordFromAnUnregisteredModule | RENAMED to `…UnregisteredPlugin`, same assertion: a name that recorded an outcome and never registered keeps its row. It guards the union that `pluginRows` depends on, and this commit adds a second test over the same property at the command level (`TestShowPluginsKeepsAPluginThatRecordedAndDidNotRegister`), so coverage went up. |
-| TestShowModuleListReachesTheRegistry | REMOVED with the command it tested. `show module list` is deleted by this commit: its content moved onto `show plugins` rows, on the owner's ruling that a second command had no reason to exist. Its assertion survives as `TestShowPluginsCarriesTheRecordedSetupOutcome`, which drives the same handler through the same registry and additionally proves the outcome is joined onto the plugin rows rather than answered separately. |
-| TestShowModuleListNamesAModuleThatRecordedNothing | REMOVED with the same command; survives as `TestShowPluginsNamesAPluginThatRecordedNothing`, asserting the same `unknown` row against the merged answer. |
-| TestShowModuleListRendersInEveryFormat | REMOVED with the same command; survives as `TestShowPluginsRendersTheOutcomeInEveryFormat`, which still drives the json, yaml and table pipe operators and now proves the outcome column renders in each, not merely that the command renders. |
-| TestShowModuleListDeclaresItsShapeAndColumns | REMOVED with the same command, and deliberately NOT recreated as its own test: `show plugins` already had `TestShowPluginsDeclaresItsShapeAndColumns`, so the outcome and reason columns were added to that existing assertion instead. One command has one shape declaration, and two tests asserting one fact is the duplication this commit is removing elsewhere. |
-| register_test | The file's fatal-assertion count falls 30 to 29, and the drop is arithmetic rather than a downgrade. Two commands collapsed into one: 11 `t.Fatal`/`require` lines went with the deleted `show module list` tests and 10 arrived with the merged `show plugins` tests. Nothing became non-fatal. The assertion the counter is most likely to be read as having lost, the answer's row type, is still fatal and still checked twice, at `register_test.go:83` and `:259`, now against `[]pluginRow` where it read `[]PluginInfo`. |
+| TestStartSenderWiresSessionPriming | REPLACED, not removed, and the replacement is why. `startSender` was a stop-all/start-all: its first statement was `stopSenders()`, so any reload that reached it ended every collector's session, including collectors the operator never touched. That is the behaviour the owner overturned on 2026-08-31 when he ruled ze must implement a real per-peer Peer Down/Peer Up for RFC 8671 Section 7.2 rather than bouncing the whole session. `syncSenders` replaces it as a reconciler: an unchanged collector keeps its session, a removed or moved one is stopped. A test named for wiring a stop-all/start-all cannot assert a reconciler. The priming it covered is asserted in `rfc8671_test.go` through the plugin config-apply callback, which is a stronger position than the old test held -- it drove the function directly, and the function was at that time unreachable from any reload. |
+| TestStartSenderIsIdempotent | Same replacement. Its subject was that calling `startSender` twice is safe, which was true and is now the wrong question: `syncSenders` is not idempotent-by-restart, it is a reconciler whose result depends on the difference between two configurations. The property that matters after the change is that an unrelated reload bounces nothing, and `TestRFC8671UnrelatedBGPChangeBouncesNothing` asserts exactly that over the real callback. Its own doc comment had also gone stale in the other direction: it read "LATENT, not live, and deliberately tested anyway", written when no reload could reach the function at all. |
+| TestBgpIdentifierFromSentOpen | RENAMED to `TestBgpIdentityPrefersTheFourOctetASNCapability`, following its subject. `bgpIdentifierFromSentOpen` returned only the router id; RFC 9069 Section 5.1 also requires the Peer AS, so `bgpIdentityFromSentOpen` returns both as one `localIdentity`. The rename is not cosmetic: the new test asserts something the old one could not, that the ASN is read from the 4-octet ASN capability rather than the two-octet My AS field, because an AS4 speaker fills My AS with AS_TRANS (23456) and reading it would publish 23456 as the router's AS. Coverage went up by the case that matters. |

@@ -17,6 +17,7 @@ package bmp
 
 import (
 	"encoding/binary"
+	"math"
 	"net/netip"
 	"sync/atomic"
 	"time"
@@ -27,10 +28,20 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/replay"
 	"github.com/ze-software/ze/pkg/ze"
+)
+
+// The two BGP constants the fabricated Loc-RIB OPEN needs.
+//
+// RFC 4271 Section 4.2: "Version: ... The current BGP version number is 4."
+// RFC 5492 Section 4: the Capabilities Optional Parameter is "Parameter Type: 2".
+const (
+	bgpVersion           uint8 = 4
+	optParamCapabilities byte  = 2
 )
 
 // eventBusPtr holds the in-process EventBus, installed by the plugin's
@@ -50,33 +61,136 @@ func getEventBus() ze.EventBus {
 	return nil
 }
 
+// localIdentity is the router's own BGP identity: the two values RFC 9069
+// requires the Loc-RIB emulated peer to describe itself with, read from a
+// cached sent OPEN (BMPPlugin.localIdentity).
+//
+// One struct rather than two uint32 arguments: the ASN and the router-id are
+// the same Go type, so a caller that transposed them would compile and would
+// put each value in the other's wire field.
+type localIdentity struct {
+	asn      uint32
+	routerID uint32
+}
+
 // locRIBPeerHeader builds the RFC 9069 PeerType=3 per-peer header for a Loc-RIB
 // Route Monitoring or Peer Up message.
 //
-// RFC 9069: for Loc-RIB (Peer Type 3) the Peer Address and Peer AS are 0 (not
-// applicable), the Peer BGP ID is the local router-id, and the V-flag position
-// (bit 7) is reused as the F flag. F=0 means "route is in the Loc-RIB" (a
-// best path); the V/L/A/O flags MUST NOT be set, so Flags is 0.
-func locRIBPeerHeader(routerID uint32) PeerHeader {
+// RFC 9069 Section 5.1 fixes every field of it:
+//   - "Peer Type: Set to 3 to indicate Loc-RIB Instance Peer."
+//   - "Peer Address: Zero-filled. The remote peer address is not applicable.
+//     The V flag is not applicable with the Loc-RIB Instance Peer Type
+//     considering addresses are zero-filled."
+//   - "Peer Autonomous System (AS): Set to the primary router BGP autonomous
+//     system number (ASN)."
+//   - "Peer BGP ID: Set the ID to the router-id of the VRF instance if VRF is
+//     used; otherwise, set to the global instance router-id."
+//
+// RFC 9069 Section 4.2 defines the flags byte: bit 7 is the F flag, "set when a
+// filter is applied to Loc-RIB routes sent to the BMP collector", and ze filters
+// none, so F is 0. The remaining bits are "reserved for future use. They MUST be
+// transmitted as 0", which the V, L, A and O flags of RFC 7854 and RFC 8671 sit
+// in for this peer type.
+func locRIBPeerHeader(id localIdentity) PeerHeader {
 	return PeerHeader{
 		PeerType:     PeerTypeLocRIB,
-		Flags:        0, // RFC 9069: F=0 (in Loc-RIB); V/L/A/O MUST be 0.
-		PeerBGPID:    routerID,
+		Flags:        0, // RFC 9069 Section 4.2: F=0 (unfiltered), reserved bits 0.
+		PeerAS:       id.asn,
+		PeerBGPID:    id.routerID,
 		TimestampSec: uint32(time.Now().Unix()), //nolint:gosec // wall-clock seconds
 	}
 }
 
-// bgpIdentifierFromSentOpen extracts the 4-byte BGP Identifier (the local
-// router-id) from a sent BGP OPEN PDU. RFC 4271 Section 4.2: the OPEN body
-// begins after the 19-byte message header with Version(1) + My AS(2) +
-// Hold Time(2), so the BGP Identifier lives at offset 24. Returns (0, false)
-// when the PDU is too short to contain it.
-func bgpIdentifierFromSentOpen(open []byte) (uint32, bool) {
-	const bgpIDOffset = message.HeaderLen + 1 + 2 + 2 // header + version + myAS + holdtime
-	if len(open) < bgpIDOffset+4 {
-		return 0, false
+// bgpIdentityFromSentOpen reads the router's own ASN and router-id out of a sent
+// BGP OPEN PDU (marker, length, type, then the RFC 4271 Section 4.2 body).
+// Returns ok=false when the PDU does not parse as an OPEN.
+//
+// RFC 6793 Section 4.1: "When a NEW BGP speaker processes an OPEN message from
+// another NEW BGP speaker, it MUST use the AS number encoded in this capability
+// in lieu of the 'My Autonomous System' field of the OPEN message." So the
+// 4-octet ASN capability answers where it is present, and the two-octet My AS
+// field answers only where it is not: a speaker with an ASN above 65535 puts
+// AS_TRANS in that field, which is nobody's autonomous system.
+func bgpIdentityFromSentOpen(open []byte) (localIdentity, bool) {
+	if len(open) < message.HeaderLen {
+		return localIdentity{}, false
 	}
-	return binary.BigEndian.Uint32(open[bgpIDOffset : bgpIDOffset+4]), true
+	parsed, err := message.UnpackOpen(open[message.HeaderLen:])
+	if err != nil {
+		return localIdentity{}, false
+	}
+
+	id := localIdentity{asn: uint32(parsed.MyAS), routerID: parsed.BGPIdentifier}
+	caps, err := capability.ParseFromOptionalParams(parsed.OptionalParams, parsed.ExtendedParams)
+	if err != nil {
+		return id, true // the fixed fields parsed; a malformed capability blob leaves My AS standing
+	}
+	for _, capa := range caps {
+		if asn4, ok := capa.(*capability.ASN4); ok {
+			id.asn = asn4.ASN
+			break
+		}
+	}
+	return id, true
+}
+
+// fabricateLocRIBOpen builds the BGP OPEN message a Loc-RIB Peer Up carries.
+//
+// RFC 9069 Section 5.2: "Sent OPEN Message: This is a fabricated BGP OPEN
+// message. Capabilities MUST include the 4-octet ASN and all necessary
+// capabilities to represent the Loc-RIB Route Monitoring messages. Only include
+// capabilities if they will be used for Loc-RIB monitoring messages." The
+// capabilities are therefore the 4-octet ASN and one Multiprotocol capability
+// per family in dumpFamilies -- the same list the dump closes with an End-of-RIB
+// marker, so what the OPEN advertises and what the dump delivers are one
+// declaration rather than two that can disagree.
+//
+// RFC 9069 Section 6.1.1 is what the receiver does with them: "Each emulated
+// peer instance MUST send a Peer Up with the OPEN message indicating the address
+// family capabilities. A BMP receiver MUST process these capabilities to know
+// which peer belongs to which address family."
+//
+// The Hold Time is 0. RFC 4271 Section 4.2 allows "either zero or at least three
+// seconds", and this peer has no session to keep alive.
+func fabricateLocRIBOpen(id localIdentity) []byte {
+	caps := make([]capability.Capability, 0, 1+len(dumpFamilies))
+	caps = append(caps, &capability.ASN4{ASN: id.asn})
+	for _, fam := range dumpFamilies {
+		// capability.AFI and capability.SAFI are aliases of the family package's
+		// own types, so the fields take a family.Family's halves unconverted.
+		caps = append(caps, &capability.Multiprotocol{AFI: fam.AFI, SAFI: fam.SAFI})
+	}
+
+	capBytes := 0
+	for _, capa := range caps {
+		capBytes += capa.Len()
+	}
+
+	// RFC 5492 Section 4: the Capabilities Optional Parameter is parameter type
+	// 2, whose value is the sequence of capability triples.
+	params := make([]byte, 2+capBytes)
+	params[0] = optParamCapabilities
+	params[1] = byte(capBytes) // bounded: three capabilities of 6 octets each
+	off := 2
+	for _, capa := range caps {
+		off += capa.WriteTo(params, off)
+	}
+
+	open := &message.Open{
+		Version:        bgpVersion,
+		HoldTime:       0,
+		BGPIdentifier:  id.routerID,
+		ASN4:           id.asn,
+		OptionalParams: params,
+	}
+	// RFC 6793 Section 3: a speaker whose ASN does not fit the two-octet field
+	// sends AS_TRANS in it, which Open.WriteTo substitutes from ASN4.
+	if id.asn <= math.MaxUint16 {
+		open.MyAS = uint16(id.asn)
+	}
+
+	buf := make([]byte, open.Len(nil))
+	return buf[:open.WriteTo(buf, 0, nil)]
 }
 
 // encodeNLRIPrefix encodes a prefix as RFC 4271 Section 4.3 NLRI:
@@ -161,6 +275,13 @@ func buildLocRIBUpdateBody(fam family.Family, e ribevents.BestChangeEntry) []byt
 	// Announce. ORIGIN defaults to IGP; AS_PATH is empty for locally originated
 	// routes (RFC 9069 allows this). The attribute encoder is the same one
 	// injectRoute uses, so no parallel encoder is introduced.
+	//
+	// RFC 9069 Section 5.4.1: "Loc-RIB Route Monitoring messages MUST use a
+	// 4-byte ASN encoding as indicated in the Peer Up sent OPEN message
+	// (Section 5.2) capability." attribute.ASPath.WriteTo writes 4-byte ASNs
+	// unconditionally (WriteToWithASN4(buf, off, true)), and the fabricated OPEN
+	// advertises the matching 4-octet ASN capability, so the two agree by
+	// construction rather than by negotiation.
 	ab := attribute.NewBuilder()
 	ab.SetOrigin(uint8(attribute.OriginIGP))
 	if len(e.ASPath) > 0 {
@@ -187,21 +308,26 @@ func buildLocRIBUpdateBody(fam family.Family, e ribevents.BestChangeEntry) []byt
 	return assembleUpdateBody(nil, attrs, nil)
 }
 
-// localRouterID returns the local router-id (BGP Identifier) for the Loc-RIB
-// peer header, read from any cached sent OPEN PDU. Returns 0 when no OPEN has
-// been cached yet (no peer has come up).
-func (bp *BMPPlugin) localRouterID() uint32 {
+// localIdentity returns the router's own ASN and router-id for the Loc-RIB
+// emulated peer, read from any cached sent OPEN PDU. Both are zero when no OPEN
+// has been cached yet, which is to say when no BGP peer has come up.
+//
+// Both values come from ONE OPEN. Every session ze opens carries the same My AS
+// and BGP Identifier, so any cached OPEN answers; reading the ASN from one entry
+// and the router-id from another would still be correct today and would stop
+// being so the moment a second local ASN existed.
+func (bp *BMPPlugin) localIdentity() localIdentity {
 	bp.mu.RLock()
 	defer bp.mu.RUnlock()
 	for _, pair := range bp.openCache {
 		if pair == nil {
 			continue
 		}
-		if id, ok := bgpIdentifierFromSentOpen(pair.sent); ok {
+		if id, ok := bgpIdentityFromSentOpen(pair.sent); ok {
 			return id
 		}
 	}
-	return 0
+	return localIdentity{}
 }
 
 // startLocRIB subscribes to (bgp-rib, best-change) and requests an initial
@@ -292,10 +418,17 @@ func nextDumpToken() uint64 {
 	return dumpTokens.Add(1)
 }
 
-// dumpFamilies are the families a Loc-RIB dump owes an End-of-RIB marker for.
-// The Loc-RIB emulated peer carries zero-length OPENs (RFC 9069 Section 5.2, and
-// RFC9069-x-3), so there is no negotiated family set to derive this from: these
-// are the two a collector is realistically waiting on.
+// dumpFamilies are the families a Loc-RIB dump carries: the families it owes an
+// End-of-RIB marker for, and the families the fabricated OPEN advertises a
+// Multiprotocol capability for (fabricateLocRIBOpen).
+//
+// It is one declaration because RFC 9069 Section 5.2 binds the two together:
+// "Only include capabilities if they will be used for Loc-RIB monitoring
+// messages." A second list would let the emulated peer advertise a family the
+// dump never delivers, or deliver one it never advertised.
+//
+// There is no negotiated set to derive it from -- the Loc-RIB peer has no
+// session -- so these are the two a collector is realistically waiting on.
 var dumpFamilies = [...]family.Family{family.IPv4Unicast, family.IPv6Unicast}
 
 // closeDumpFamilies sends the End-of-RIB markers a dump still owes: every family
@@ -344,7 +477,7 @@ func (bp *BMPPlugin) closeDumpFamilies(scope *dumpScope, ss *senderSession) {
 	// nothing else has sent one; the guard inside is per-session and idempotent.
 	bp.ensureLocRIBPeerUp(senders)
 
-	peer := locRIBPeerHeader(bp.localRouterID())
+	peer := locRIBPeerHeader(bp.localIdentity())
 	for _, fam := range missing {
 		bp.sendLocRIBEndOfRIB(senders, fam, peer)
 	}
@@ -424,7 +557,7 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 
 	bp.ensureLocRIBPeerUp(senders)
 
-	peer := locRIBPeerHeader(bp.localRouterID())
+	peer := locRIBPeerHeader(bp.localIdentity())
 	for i := range batch.Changes {
 		body := buildLocRIBUpdateBody(batch.Family, batch.Changes[i])
 		if body == nil {
@@ -455,8 +588,13 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 }
 
 // ensureLocRIBPeerUp sends the RFC 9069 Loc-RIB Peer Up before the first Route
-// Monitoring. Per RFC 9069 the sent/received OPENs are zero-length and the
-// local/remote ports are 0.
+// Monitoring.
+//
+// RFC 9069 Section 5.2 fixes what it carries: "Local Address: Zero-filled",
+// "Local Port: Set to 0", "Remote Port: Set to 0", a fabricated sent OPEN
+// (fabricateLocRIBOpen), and "Received OPEN Message: Repeat of the same sent
+// OPEN message. The duplication allows the BMP receiver to parse the expected
+// received OPEN message as defined in Section 4.10 of [RFC7854]."
 //
 // The guard is per SESSION, not per plugin: RFC 9069's "per-instance, not
 // per-peer" means one Peer Up per Loc-RIB instance per BMP session, and a
@@ -464,7 +602,9 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 // nothing. bp.locRIBUp stays as the plugin-wide record that Loc-RIB monitoring
 // has been announced at all, which is what sendLocRIBPeerDown keys off.
 func (bp *BMPPlugin) ensureLocRIBPeerUp(senders []*senderSession) {
-	peer := locRIBPeerHeader(bp.localRouterID())
+	id := bp.localIdentity()
+	peer := locRIBPeerHeader(id)
+	open := fabricateLocRIBOpen(id)
 	var zeroAddr [16]byte
 	announced := false
 	for _, ss := range senders {
@@ -477,7 +617,7 @@ func (bp *BMPPlugin) ensureLocRIBPeerUp(senders []*senderSession) {
 		claimed := ss.locRIBUpSent.CompareAndSwap(false, true)
 		var err error
 		if claimed {
-			err = ss.writePeerUpLocked(peer, zeroAddr, 0, 0, nil, nil)
+			err = ss.writePeerUpLocked(peer, zeroAddr, 0, 0, open, open)
 		}
 		ss.writeMu.Unlock()
 
@@ -505,7 +645,8 @@ func (bp *BMPPlugin) ensureLocRIBPeerUp(senders []*senderSession) {
 }
 
 // primeLocRIBPeerUp queues the RFC 9069 Loc-RIB Peer Up for a session that has
-// just connected, claiming the session's once-per-connection guard.
+// just connected, claiming the session's once-per-connection guard. It carries
+// the same fabricated OPEN, twice, that ensureLocRIBPeerUp does.
 //
 // This is where the Loc-RIB Peer Up belongs: the connection is known, and the
 // caller holds writeMu, so it cannot be overtaken by a Route Monitoring from a
@@ -518,8 +659,10 @@ func (bp *BMPPlugin) primeLocRIBPeerUp(ss *senderSession) {
 	if !ss.locRIBUpSent.CompareAndSwap(false, true) {
 		return
 	}
+	id := bp.localIdentity()
+	open := fabricateLocRIBOpen(id)
 	var zeroAddr [16]byte
-	if err := ss.writePeerUpLocked(locRIBPeerHeader(bp.localRouterID()), zeroAddr, 0, 0, nil, nil); err != nil {
+	if err := ss.writePeerUpLocked(locRIBPeerHeader(id), zeroAddr, 0, 0, open, open); err != nil {
 		ss.locRIBUpSent.Store(false) // nothing reached the collector; let the next batch retry
 		logger().Debug("bmp: loc-rib peer up failed", "collector", ss.name, "error", err)
 		return
@@ -595,9 +738,21 @@ func (bp *BMPPlugin) requestLocRIBDump(ss *senderSession) {
 	logger().Info("bmp: loc-rib dump requested for collector session", "collector", ss.name)
 }
 
-// sendLocRIBPeerDown emits a Loc-RIB Peer Down (RFC 9069: signals end of
-// Loc-RIB monitoring) best-effort on shutdown, before the sender sessions are
-// torn down. No-op when Peer Up was never sent.
+// sendLocRIBPeerDown emits a Loc-RIB Peer Down, which signals the end of
+// Loc-RIB monitoring. Sent best-effort on shutdown before the sender sessions
+// are torn down, and on the reload that turns `loc-rib` off while they stay up.
+// No-op when Peer Up was never sent.
+//
+// RFC 9069 Section 5.3: "The Peer Down notification MUST use reason code 6."
+// No Peer Down Information TLV follows it: the same section requires the
+// VRF/Table Name TLV only "if it was in the Peer Up", and ze sends a Loc-RIB
+// Peer Up with no Information TLVs (primeLocRIBPeerUp).
+//
+// The per-session guard is given back with the Peer Down, because the pair is
+// what makes Loc-RIB monitoring restartable on a session that survives the
+// reload: monitoring turned off and on again owes the collector a second Peer
+// Up before any further Loc-RIB Route Monitoring, and the guard is what would
+// otherwise swallow it.
 func (bp *BMPPlugin) sendLocRIBPeerDown() {
 	bp.mu.Lock()
 	if !bp.locRIBUp {
@@ -608,10 +763,11 @@ func (bp *BMPPlugin) sendLocRIBPeerDown() {
 	senders := bp.senders
 	bp.mu.Unlock()
 
-	peer := locRIBPeerHeader(bp.localRouterID())
+	peer := locRIBPeerHeader(bp.localIdentity())
 	for _, ss := range senders {
-		if err := ss.writePeerDown(peer, PeerDownLocalNoNotify, nil); err != nil {
+		if err := ss.writePeerDown(peer, PeerDownTLVData, nil); err != nil {
 			logger().Debug("bmp: loc-rib peer down failed", "collector", ss.name, "error", err)
 		}
+		ss.locRIBUpSent.Store(false)
 	}
 }

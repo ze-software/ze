@@ -1,3 +1,4 @@
+// RFC: rfc/short/rfc7854.md
 // Design: docs/architecture/core-design.md -- BMP message types
 //
 // Related: bmp.go -- plugin lifecycle and session handling
@@ -60,13 +61,19 @@ type PeerDown struct {
 	Data   []byte // NOTIFICATION PDU or FSM event code, depending on reason
 }
 
-// Peer Down reason codes (RFC 7854 Section 4.9).
+// Peer Down reason codes (RFC 7854 Section 4.9, and RFC 9069 Section 8.4 for
+// reason 6).
 const (
 	PeerDownLocalNotify   uint8 = 1
 	PeerDownLocalNoNotify uint8 = 2
 	PeerDownRemoteNotify  uint8 = 3
 	PeerDownRemoteNoData  uint8 = 4
 	PeerDownDeconfigured  uint8 = 5
+	// PeerDownTLVData is "Local system closed, TLV data follows". RFC 9069
+	// Section 5.3: "The Peer Down notification MUST use reason code 6." It is
+	// the reason of the Loc-RIB instance peer, which has no BGP session and so
+	// no FSM event or NOTIFICATION to report.
+	PeerDownTLVData uint8 = 6
 )
 
 // RouteMonitoring represents a BMP Route Monitoring message (Type 0).
@@ -161,28 +168,34 @@ func decodePeerUp(buf []byte, off, end int) (*PeerUp, error) {
 	pu.RemotePort = binary.BigEndian.Uint16(buf[off+18 : off+20])
 	off += peerUpFixedSize
 
-	// RFC 9069 Section 5.2: a Loc-RIB (Peer Type 3) Peer Up carries zero-length
-	// sent/received OPEN messages -- only optional Information TLVs may follow
-	// the fixed fields. Skip OPEN extraction so the receiver decodes it (and the
-	// sender round-trips its own Loc-RIB Peer Up); Adj-RIB peer types keep the
-	// mandatory sent/received OPEN parsing.
-	if peer.PeerType != PeerTypeLocRIB {
-		// Sent OPEN: BGP header (19 bytes) + optional params.
-		sentOpen, n, err := extractBGPOpen(buf, off, end)
-		if err != nil {
-			return nil, fmt.Errorf("peer up sent open: %w", err)
-		}
-		pu.SentOpenMsg = sentOpen
-		off += n
+	// Both OPEN messages, for every peer type. RFC 7854 Section 4.10 defines the
+	// Peer Up body as the fixed fields followed by the "Sent OPEN Message" and
+	// the "Received OPEN Message", and RFC 9069 Section 5.2 keeps both for the
+	// Loc-RIB Instance Peer: "Sent OPEN Message: This is a fabricated BGP OPEN
+	// message", "Received OPEN Message: Repeat of the same sent OPEN message.
+	// The duplication allows the BMP receiver to parse the expected received
+	// OPEN message as defined in Section 4.10 of [RFC7854]."
+	//
+	// The Information TLVs are located by walking past both, so a decoder that
+	// skipped them for Peer Type 3 read the first TLV out of the middle of an
+	// OPEN. This one did until 2026-08-31, on a reading of Section 5.2 that the
+	// section states the reverse of.
 
-		// Received OPEN.
-		recvOpen, n, err := extractBGPOpen(buf, off, end)
-		if err != nil {
-			return nil, fmt.Errorf("peer up received open: %w", err)
-		}
-		pu.ReceivedOpenMsg = recvOpen
-		off += n
+	// Sent OPEN: BGP header (19 bytes) + optional params.
+	sentOpen, n, err := extractBGPOpen(buf, off, end)
+	if err != nil {
+		return nil, fmt.Errorf("peer up sent open: %w", err)
 	}
+	pu.SentOpenMsg = sentOpen
+	off += n
+
+	// Received OPEN.
+	recvOpen, n, err := extractBGPOpen(buf, off, end)
+	if err != nil {
+		return nil, fmt.Errorf("peer up received open: %w", err)
+	}
+	pu.ReceivedOpenMsg = recvOpen
+	off += n
 
 	// Optional trailing TLVs (RFC 9736).
 	if off < end {

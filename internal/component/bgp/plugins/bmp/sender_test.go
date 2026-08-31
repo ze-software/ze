@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -379,20 +380,20 @@ func TestBMPSenderTermination(t *testing.T) {
 	}
 }
 
-// VALIDATES: startSender is idempotent -- calling it twice leaves ONE sender
-// session per collector, not two.
-// PREVENTS: doubling every collector's BMP stream, socket and goroutine. The
-// old startSender appended to bp.senders with no preceding stopSenders, while
-// its call-site neighbor startLocRIB documents itself as idempotent across
-// reloads; the asymmetry read as unintentional and this pins the fix.
+// VALIDATES: syncSenders is idempotent -- calling it twice with one
+// configuration leaves ONE sender session per collector, and leaves the SAME
+// session objects in place.
+// PREVENTS: two failures at once. Doubling every collector's BMP stream, socket
+// and goroutine, which is what an earlier startSender did by appending with no
+// preceding stopSenders. And replacing a session whose collector configuration
+// did not move, which would end a BMP session RFC 8671 Section 7.2 requires to
+// continue and cost that collector a full re-dump.
 //
-// LATENT, not live, and deliberately tested anyway. Stage-2 configure is sent
-// by deliverConfigRPC (internal/component/plugin/server/startup.go:736), whose
-// only caller chain is engineStartupSink.deliverConfig -> runStartupHandshake
-// -> handleProcessStartupRPC, i.e. once per plugin PROCESS startup, so a config
-// reload does not re-deliver it today. The guard exists so that if a reload
-// path ever does, it cannot silently double the sender set.
-func TestStartSenderIsIdempotent(t *testing.T) {
+// Live, not latent. Stage-2 configure is delivered once per plugin PROCESS
+// startup, but a config reload carrying the `bgp` root reaches syncSenders
+// through the config-apply callback (registerCallbacks, bmp.go), so every
+// reload is the second call this test stands for.
+func TestSyncSendersIsIdempotent(t *testing.T) {
 	// Port 1 on a loopback address: newSenderSession only records the address,
 	// and run() dials in its own goroutine, so nothing here depends on a
 	// connection being established. stopSenders cancels those goroutines.
@@ -409,20 +410,30 @@ func TestStartSenderIsIdempotent(t *testing.T) {
 		bp.sessions.Wait()
 	})
 
-	bp.startSender(cfg)
+	if kept := bp.syncSenders(cfg); len(kept) != 0 {
+		t.Fatalf("first syncSenders kept %d sessions, want 0: there were none to keep", len(kept))
+	}
 	bp.mu.RLock()
-	afterFirst := len(bp.senders)
+	afterFirst := slices.Clone(bp.senders)
 	bp.mu.RUnlock()
-	if afterFirst != len(cfg.Collectors) {
-		t.Fatalf("first startSender: got %d senders, want %d", afterFirst, len(cfg.Collectors))
+	if len(afterFirst) != len(cfg.Collectors) {
+		t.Fatalf("first syncSenders: got %d senders, want %d", len(afterFirst), len(cfg.Collectors))
 	}
 
-	bp.startSender(cfg)
+	kept := bp.syncSenders(cfg)
 	bp.mu.RLock()
-	afterSecond := len(bp.senders)
+	afterSecond := slices.Clone(bp.senders)
 	bp.mu.RUnlock()
-	if afterSecond != len(cfg.Collectors) {
-		t.Fatalf("second startSender: got %d senders, want %d (sender set doubled)", afterSecond, len(cfg.Collectors))
+	if len(afterSecond) != len(cfg.Collectors) {
+		t.Fatalf("second syncSenders: got %d senders, want %d (sender set doubled)", len(afterSecond), len(cfg.Collectors))
+	}
+	if len(kept) != len(cfg.Collectors) {
+		t.Fatalf("second syncSenders kept %d sessions, want %d (an unchanged collector lost its session)", len(kept), len(cfg.Collectors))
+	}
+	for _, ss := range afterFirst {
+		if !slices.Contains(afterSecond, ss) {
+			t.Errorf("collector %q was given a new session by a reload that did not change it", ss.name)
+		}
 	}
 }
 

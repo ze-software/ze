@@ -5,6 +5,7 @@
 // Related: tlv.go -- TLV encode/decode
 // Related: msg.go -- message type encode/decode
 // Detail: bmp_events.go -- reactor events turned into BMP sender messages
+// Detail: sender_config.go -- the sender configuration the callbacks below install
 
 package bmp
 
@@ -85,22 +86,6 @@ type receiverConfig struct {
 type listenerConfig struct {
 	IP   string `json:"ip"`
 	Port string `json:"port"`
-}
-
-// senderConfig holds parsed sender configuration from bgp { bmp { sender { ... } } }.
-// YANG list with key is delivered as a map keyed by the key value.
-type senderConfig struct {
-	Collectors            map[string]collectorConfig `json:"collector"`
-	RouteMonitoringPolicy string                     `json:"route-monitoring-policy"`
-	RouteMirroring        string                     `json:"route-mirroring"`
-	StatisticsTimeout     string                     `json:"statistics-timeout"`
-	LocRIB                string                     `json:"loc-rib"` // RFC 9069 Loc-RIB monitoring (PeerType=3)
-}
-
-type collectorConfig struct {
-	Address       string `json:"address"`
-	Port          string `json:"port"`
-	SourceAddress string `json:"source-address"`
 }
 
 // The two configuration roots BMP reads, and the protocol name it injects
@@ -310,6 +295,56 @@ func runBMPPlugin(conn net.Conn) int {
 		bp.sessions.Wait()
 	}()
 
+	bp.registerCallbacks()
+
+	ctx, cancel := sdk.SignalContext()
+	defer cancel()
+	err := p.Run(ctx, sdk.Registration{
+		Commands: []sdk.CommandDecl{
+			{Name: "show bmp sessions", Description: "Show BMP receiver sessions"},
+			{Name: "show bmp peers", Description: "Show monitored BGP peers"},
+			{Name: "show bmp collectors", Description: "Show BMP sender collector status"},
+			{Name: "show bmp rib", Description: "Show BMP-monitored routes"},
+		},
+		WantsConfig: []string{configRootBGP, configRootEnvironment},
+	})
+	if err != nil {
+		logger().Error("bgp-bmp plugin failed", "error", err)
+		return 1
+	}
+
+	return 0
+}
+
+// registerCallbacks wires every engine callback the BMP plugin serves onto its
+// SDK plugin, and declares the startup subscriptions the sender feeds on.
+// Called once, before Run enters the startup handshake.
+//
+// Separated from runBMPPlugin so a test can register the callbacks on a
+// BMPPlugin it built itself and then drive one of them through the SDK the way
+// the engine does. bp.plugin MUST be set before this is called.
+func (bp *BMPPlugin) registerCallbacks() {
+	p := bp.plugin
+
+	// Reload state, carried between the config callbacks. Stage-2 configure and
+	// all three reload callbacks are served on one goroutine (Plugin.Run, then
+	// eventLoop or bridgeEventLoop), so these are captured locals rather than
+	// plugin state, as they are for every other plugin that reloads
+	// (internal/plugins/ddos/detect/register.go).
+	//
+	// currentSender is the configuration in force. It starts at the default
+	// configuration, which is what the plugin boots with: no collector, no Route
+	// Mirroring, no Loc-RIB monitoring, so a rollback always has one to restore.
+	// It is also the configuration the first arriving one is COMPARED against,
+	// which is why it carries the YANG defaults rather than empty strings.
+	//
+	// pendingSender is what verify parsed and apply installs. replacedSender is
+	// what apply displaced, for a rollback to put back. Verify clears both, and
+	// verify runs for every participant before any apply runs for one, so
+	// replacedSender is non-nil only when THIS transaction's apply ran.
+	currentSender := defaultSenderConfig()
+	var pendingSender, replacedSender *senderConfig
+
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return bp.handleCommand(command)
 	})
@@ -360,37 +395,80 @@ func runBMPPlugin(conn net.Conn) int {
 					logger().Error("bmp: sender config parse failed", "error", err)
 					return err
 				}
-				bp.setSenderPolicy(snd.RouteMonitoringPolicy, snd.RouteMirroring == yangTrue)
-				if len(snd.Collectors) > 0 {
-					bp.startSender(snd)
-				}
-				// RFC 9069 Loc-RIB monitoring: subscribe to best-change once
-				// senders exist. startLocRIB is idempotent across reloads.
-				if snd.LocRIB == yangTrue {
-					bp.startLocRIB()
-				}
+				bp.applySenderConfig(currentSender, snd)
+				currentSender = snd
 			}
 		}
 		return nil
 	})
 
-	ctx, cancel := sdk.SignalContext()
-	defer cancel()
-	err := p.Run(ctx, sdk.Registration{
-		Commands: []sdk.CommandDecl{
-			{Name: "show bmp sessions", Description: "Show BMP receiver sessions"},
-			{Name: "show bmp peers", Description: "Show monitored BGP peers"},
-			{Name: "show bmp collectors", Description: "Show BMP sender collector status"},
-			{Name: "show bmp rib", Description: "Show BMP-monitored routes"},
-		},
-		WantsConfig: []string{configRootBGP, configRootEnvironment},
+	// A reload never re-delivers Stage-2 configure: OnConfigure is served once,
+	// by serveOne in Plugin.Run, and its handler is never filed in the SDK's
+	// dispatch map (OnConfigure, pkg/plugin/sdk/sdk_callbacks.go). The reload
+	// rail is config-verify, config-apply and config-rollback, so all three are
+	// wired below and both rails end in applySenderConfig.
+	//
+	// Registering them is what makes a reload reach the sender at all: the SDK
+	// answers each of the three with an accept-and-do-nothing default when no
+	// handler is filed (initCallbackDefaults, pkg/plugin/sdk/sdk_callbacks.go),
+	// so an unregistered plugin reports every reload applied and applies none.
+	//
+	// Verify carries the whole candidate `bgp` subtree and apply carries only
+	// the diff, so the parsed configuration is stashed here for apply to
+	// install. Rejecting a subtree that does not parse is what verify is for:
+	// the transaction aborts before any BMP session is bounced.
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		pendingSender = nil
+		replacedSender = nil
+		for _, section := range sections {
+			if section.Root != configRootBGP {
+				continue
+			}
+			snd, err := parseSenderConfig(section.Data)
+			if err != nil {
+				logger().Error("bmp: sender config parse failed", "error", err)
+				return err
+			}
+			pendingSender = snd
+		}
+		return nil
 	})
-	if err != nil {
-		logger().Error("bgp-bmp plugin failed", "error", err)
-		return 1
-	}
 
-	return 0
+	// A reload that changed no `bgp` section leaves nothing pending, so the
+	// collector sessions are left alone. Anything else MIGHT have changed the
+	// configuration those sessions run under: the `bgp` root carries every
+	// neighbor and policy the operator edits, so the candidate is handed to
+	// applySenderConfig beside the one in force and the two are compared
+	// there. RFC 8671 Section 7.2 owes a bounce to a change in behavior, and
+	// most of what arrives here is not one.
+	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		if pendingSender == nil {
+			return nil
+		}
+		replacedSender = currentSender
+		applied := pendingSender
+		pendingSender = nil
+		bp.applySenderConfig(currentSender, applied)
+		currentSender = applied
+		return nil
+	})
+
+	// A rolled-back reload leaves the router on the configuration it already
+	// had, so the collectors are put back onto that one. Without this the BMP
+	// feed would describe a configuration the operator's commit never took, and
+	// nothing would correct it until the next reload. A rollback of a
+	// transaction whose apply changed nothing restores the same configuration,
+	// which applySenderConfig reads as no change and acts on as one.
+	p.OnConfigRollback(func(_ string) error {
+		if replacedSender == nil {
+			return nil
+		}
+		restored := replacedSender
+		replacedSender = nil
+		bp.applySenderConfig(currentSender, restored)
+		currentSender = restored
+		return nil
+	})
 }
 
 // closeLog closes c and logs any error. Used in deferred cleanup.
@@ -411,20 +489,6 @@ func parseReceiverConfig(data string) (*receiverConfig, error) {
 		return &receiverConfig{}, nil
 	}
 	return sec.Environment.BMP, nil
-}
-
-// parseSenderConfig extracts BMP sender config from the bgp section JSON.
-// The JSON is {"bgp": {"bmp": {"sender": {...}}}} (wrapped by ExtractConfigSubtree).
-// Returns a zero-value config (no collectors) when BMP sender is not configured.
-func parseSenderConfig(data string) (*senderConfig, error) {
-	var sec bgpSenderSection
-	if err := json.Unmarshal([]byte(data), &sec); err != nil {
-		return nil, fmt.Errorf("bmp sender config: %w", err)
-	}
-	if sec.BGP == nil || sec.BGP.BMP == nil || sec.BGP.BMP.Sender == nil {
-		return &senderConfig{}, nil
-	}
-	return sec.BGP.BMP.Sender, nil
 }
 
 // startReceiver starts TCP listeners for the BMP receiver.
@@ -465,76 +529,6 @@ func (bp *BMPPlugin) stopListeners() {
 		}
 	}
 	bp.listeners = nil
-}
-
-// startSender starts outbound TCP connections to BMP collectors.
-//
-// Idempotent: any senders from a previous call are stopped first, so calling it
-// twice yields one session per collector rather than two. This matches
-// startLocRIB, whose call site in OnConfigure documents itself as idempotent
-// across reloads; the asymmetry here was unintentional.
-//
-// Latent rather than live today, and the distinction is worth recording so the
-// guard is not later removed as dead weight. Stage-2 configure is delivered by
-// deliverConfigRPC (internal/component/plugin/server/startup.go:736), whose only
-// caller is engineStartupSink.deliverConfig -> runStartupHandshake ->
-// handleProcessStartupRPC, i.e. once per plugin PROCESS startup. A config
-// reload does not re-deliver it to a running plugin, so nothing calls this
-// twice at present. It would double every collector's BMP stream, sockets and
-// goroutines the moment anything did.
-func (bp *BMPPlugin) startSender(cfg *senderConfig) {
-	bp.stopSenders()
-
-	bp.mu.Lock()
-	defer bp.mu.Unlock()
-
-	for name, col := range cfg.Collectors {
-		ss := newSenderSession(name, col)
-		// Every connection this session makes is a NEW BMP session and starts
-		// from scratch: Peer Up for the peers that are up (queued in the same
-		// critical section that publishes the connection, so nothing precedes
-		// them), then a full fresh dump.
-		ss.onPrimed = func() { bp.primeSender(ss) }
-		ss.onConnected = func() { bp.requestLocRIBDump(ss) }
-		bp.senders = append(bp.senders, ss)
-		bp.sessions.Go(ss.run)
-		logger().Info("bmp: sender started", "collector", name, "address", col.Address, "port", col.Port)
-	}
-}
-
-// setSenderPolicy publishes the two config leaves that decide what a reactor
-// event produces: which direction is streamed as Route Monitoring, and whether
-// Route Mirroring is on. An empty policy leaves the current one in place, which
-// is what the YANG leaf being absent means.
-//
-// Both are published in ONE write lock because handleStructuredEvent snapshots
-// them together: an event must be processed under a single configuration, never
-// under the policy from one and the mirroring flag from the next.
-func (bp *BMPPlugin) setSenderPolicy(policy string, mirroring bool) {
-	bp.mu.Lock()
-	defer bp.mu.Unlock()
-
-	if policy != "" {
-		bp.routeMonitorPolicy = policy
-	}
-	bp.routeMirroring = mirroring
-}
-
-// stopSenders stops all sender sessions.
-//
-// The session list is detached under the lock and the sessions are stopped
-// outside it: stop() now writes the RFC 7854 Section 4.5 Termination message
-// before closing, and no other plugin path should have to wait behind a
-// collector's socket for that.
-func (bp *BMPPlugin) stopSenders() {
-	bp.mu.Lock()
-	senders := bp.senders
-	bp.senders = nil
-	bp.mu.Unlock()
-
-	for _, ss := range senders {
-		ss.stop()
-	}
 }
 
 // acceptLoop accepts BMP connections on the listener until it is closed.

@@ -222,6 +222,73 @@ func (bp *BMPPlugin) primeSender(ss *senderSession) {
 	}
 }
 
+// bounceMonitoredPeers re-announces every established BGP peer on sessions that
+// a config change altered the behavior of.
+//
+// RFC 8671 Section 7.2: "In case of any change that results in the alteration
+// of behavior of an existing BMP session (i.e., changes to filtering and table
+// names), the session MUST be bounced with a Peer Down/Peer Up sequence." What
+// is bounced is each peer, not the transport: the BMP session stays up, so the
+// collector keeps its connection and re-learns each peer under the new
+// configuration. Ending the session instead would cost every collector a full
+// re-dump of everything, including the state the change did not touch.
+//
+// The reason code is PeerDownDeconfigured (RFC 7854 Section 4.9 reason 5,
+// "Information for this peer will no longer be sent to the monitoring station
+// for configuration reasons"). It is the only defined reason that reports a
+// LOCAL configuration decision, and the only one whose text says outright that
+// it "does not, strictly speaking, indicate that the peer has gone down". The
+// BGP session is untouched here, so reason 2 (the local system closed the
+// session) would tell the collector something false about the peer.
+//
+// A Peer Down implicitly withdraws every route the collector holds for that
+// peer (RFC 7854 Section 4.9), so the per-peer Route Monitoring dedup state is
+// dropped with it. Keeping it would suppress the next UPDATE that repeats a
+// body the collector has just been made to forget.
+//
+// Peers are snapshotted under bp.mu and written outside it, which is a lock
+// ORDER requirement rather than a preference: primeSender takes bp.mu while
+// holding a session's writeMu, so taking writeMu under bp.mu here would invert
+// the two. The snapshot cannot go stale meanwhile, because a peer state event
+// and a config apply reach the plugin on the same delivery goroutine.
+func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
+	if len(senders) == 0 {
+		return
+	}
+
+	bp.mu.Lock()
+	states := make([]*peerUpState, 0, len(bp.peerUps))
+	for address, st := range bp.peerUps {
+		states = append(states, st)
+		delete(bp.dedupState, address)
+	}
+	bp.mu.Unlock()
+
+	if len(states) == 0 {
+		return
+	}
+
+	for _, ss := range senders {
+		// One critical section for the whole sequence: every other producer
+		// takes writeMu before it can enqueue, so none can put a Route
+		// Monitoring message between a peer's Peer Down and its Peer Up.
+		ss.writeMu.Lock()
+		for _, st := range states {
+			if err := ss.writePeerDownLocked(st.peer, PeerDownDeconfigured, nil); err != nil {
+				logger().Debug("bmp: peer bounce down failed", "collector", ss.name, "error", err)
+				continue
+			}
+			if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen); err != nil {
+				logger().Debug("bmp: peer bounce up failed", "collector", ss.name, "error", err)
+			}
+		}
+		ss.writeMu.Unlock()
+
+		logger().Info("bmp: bounced peers after a sender configuration change",
+			"collector", ss.name, "peers", len(states))
+	}
+}
+
 // handleSenderState sends Peer Up or Peer Down to all collectors.
 func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*senderSession) {
 	peer := peerHeaderFromEvent(se)
