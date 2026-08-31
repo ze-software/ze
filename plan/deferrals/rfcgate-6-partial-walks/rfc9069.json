@@ -1,0 +1,385 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9069",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9069.txt",
+  "source-sha": "94c44432aead6e40",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 4, rfc9069",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates section 1 and states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: BMP defines no method to send the Loc-RIB, three use cases for Loc-RIB access, and the statement that this document replaces Section 8.2 of RFC 7854. No sentence directs a speaker."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Alternative Method to Monitor Loc-RIB. Argues why deriving a Loc-RIB from a second router's Adj-RIB-In pre-policy is complex and error prone. Wholly indicative; no directive."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Terminology. The BCP 14 key-words paragraph, which binds the key words only when they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Definitions. Five terms: BGP Instance, Adj-RIB-In and Adj-RIB-Out quoted from RFC 4271, Loc-RIB quoted from RFC 4271 Section 1.1, and the pre- and post-policy Adj-RIB-Out pair. The one capitalised keyword sits in the post-policy Adj-RIB-Out definition and is excluded below; RFC 9069 never uses that term again (the only 'Post-Policy' occurrence in the source is this definition) and states no Adj-RIB-Out obligation of its own."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Per-Peer Header. A heading with no body text: 4.1 and 4.2 carry the section."
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Peer Type. Registers Peer Type 3, Loc-RIB Instance Peer, and contrasts it with the RFC 7854 Section 4.2 Local Instance Peer. Stated indicatively as a value definition, so the site scan sees nothing; ze's PeerTypeLocRIB (internal/component/bgp/plugins/bmp/header.go) is that value, and every rfc/short/rfc9069.md row that names Peer Type 3 carries it."
+    },
+    {
+      "id": "4.2",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Peer Flags. Redefines the per-peer header flags byte for Peer Type 3: bit 7 is the F flag and bits 0 to 6 are reserved. Three capitalised MUSTs. The reserved bits sentence is mapped below to RFC9069-x-1. The other two -- locally sourced routes conveyed with the Loc-RIB Instance Peer Type, and the F flag set when a filter is applied -- state obligations rfc/short/rfc9069.md declares no row for and are held; see the notes at the foot of this script."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Loc-RIB Monitoring. Two indicative paragraphs: what the Loc-RIB contains, per RFC 4271 Section 9.1 and 9.4, and that a subset MAY be sent by setting the F flag. The MAY gates nothing."
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Per-Peer Header. One capitalised MUST introducing an indented definition list of six field values: Peer Type, Peer Distinguisher, Peer Address, Peer Autonomous System, Peer BGP ID and Timestamp. The site scan sees the introducing sentence only, and the six values are stated indicatively beneath it. rfc/short/rfc9069.md renders three of them (RFC9069-x-5 Peer Address, RFC9069-x-6 Peer AS, RFC9069-x-7 Peer BGP ID) and none of the other three. The site is HELD rather than mapped: mapping it to any single one of those rows would sign the whole 'MUST use the following values' sentence off against a row covering one field, and the Timestamp value is the one ze gets wrong. See the notes at the foot of this script."
+    },
+    {
+      "id": "5.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Peer Up Notification. Clarifies Section 4.10 of RFC 7854 for the Loc-RIB peer: Local Address zero-filled, Local Port and Remote Port 0, a fabricated sent OPEN whose capabilities carry one capitalised MUST (mapped below), and a received OPEN that repeats it. The zero addresses and ports and the repeated received OPEN are stated indicatively, so the site scan cannot see them; RFC9069-x-3 is read from the Received OPEN sentence and is listed unsourced here.",
+      "unsourced-ids": [
+        "RFC9069-x-3"
+      ]
+    },
+    {
+      "id": "5.2.1",
+      "sites": 11,
+      "disposition": "walked",
+      "reason": "Peer Up Information. Defines Peer Up Information TLV type 3, VRF/Table Name. Eleven capitalised MUSTs: the TLV's content and size rules, the two conditions under which it must be included, the default value 'global' for the default instance, the requirement that its presence in the Peer Up carries into the Peer Down, and the order of repeated strings. The RFC states the paragraph twice, once inside the bullet and once outside it, so sites 6 to 10 repeat sites 1 to 5 word for word. Every one of the eleven is HELD: ze's BMP sender has no producer for a Peer Up Information TLV of any type (senderSession.writePeerUpLocked, internal/component/bgp/plugins/bmp/sender.go, takes no TLV argument and builds a PeerUp literal with InfoTLVs unset), so site 4 is a found-and-unmet obligation under one reading and the other ten hang on it. See the notes at the foot of this script."
+    },
+    {
+      "id": "5.3",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Peer Down Notification. Four capitalised MUSTs. The reason-code-6 sentence is mapped below to RFC9069-5.3-1. The other three restate the VRF/Table Name TLV's content and size rules and require it in the Peer Down when it was in the Peer Up; all three hang on the section 5.2.1 decision and are held."
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Route Monitoring. Two indicative sentences: Route Monitoring is used for initial synchronization of the Loc-RIB and for incremental changes, and the per-peer header is followed by a BGP Update PDU, quoted from Section 4.6 of RFC 7854. No capitalised keyword, so the site scan sees nothing; RFC9069-x-4, which records that Loc-RIB monitoring starting triggers a full-table dump, is read from the initial-synchronization sentence and is listed unsourced here.",
+      "unsourced-ids": [
+        "RFC9069-x-4"
+      ]
+    },
+    {
+      "id": "5.4.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "ASN Encoding. One sentence, one capitalised MUST, mapped below to RFC9069-5.4.1-1."
+    },
+    {
+      "id": "5.4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Granularity. State compression and throttling SHOULD be used, with a worked example, and a receiver should expect granularity to vary. A SHOULD and two indicative sentences; none gates. ze applies no state compression: handleBestChange (internal/component/bgp/plugins/bmp/bmp_locrib.go) writes one Route Monitoring per entry of each best-change batch, which is permitted."
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Route Mirroring. States that verbatim duplication is not applicable to the Loc-RIB because the PDUs are originated by the router, and that received Route Mirroring messages SHOULD be ignored. A SHOULD; it never gates. ze's receiver meets it anyway: processRouteMirroring (internal/component/bgp/plugins/bmp/bmp.go) logs the message and acts on nothing."
+    },
+    {
+      "id": "5.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Statistics Report. Lists the two Stat Types relevant to the Loc-RIB, 8 and 10, as value definitions. No capitalised keyword and no directive: nothing here requires a sender to emit either. ze declares both constants (StatRoutesLocRIB, StatRoutesPerAFILocRIB, internal/component/bgp/plugins/bmp/tlv.go) and emits neither, which this section permits."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Other Considerations. A heading with no body text."
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Loc-RIB Implementation. One indicative paragraph: the implementation emulates a peer with Peer Up, Peer Down and Route Monitoring messages. No directive."
+    },
+    {
+      "id": "6.1.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Multiple Loc-RIB Peers. Three capitalised MUSTs. The at-least-one-emulated-peer sentence and the each-peer-sends-a-Peer-Up sentence are mapped below. The third binds a BMP receiver to process the OPEN capabilities, which ze implements as a role and does not do; it is held. See the notes at the foot of this script."
+    },
+    {
+      "id": "6.1.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Filtering Loc-RIB to BMP Receivers. Describes the F flag's use case, then one capitalised MUST conditioned on multiple filters against the same Loc-RIB. ze offers no Loc-RIB filter, so the antecedent is unreachable, but rfc/short/rfc9069.md declares no row for it and the site is held."
+    },
+    {
+      "id": "6.1.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Changes to Existing BMP Sessions. One sentence, one capitalised MUST: a change that alters the behavior of an existing BMP session bounces it with a Peer Down / Peer Up sequence. ze meets it -- behaviorOf carries the loc-rib leaf (internal/component/bgp/plugins/bmp/sender_config.go) and applySenderConfig acts on a change to it -- but rfc/short/rfc9069.md declares no row for it, so it is held. RFC 8671 Section 7.2 states the same obligation and ze declares that one as RFC8671-7.2-1."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Imports Section 11 of RFC 7854, states that implementations SHOULD require sessions only with authorized and trusted monitoring devices, and states that this document adds no further consideration. The SHOULD is advisory and never gates."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "IANA Considerations. Names the BMP Parameters registry the five subsections write to. Walked rather than skipped because 8.3 below carries two derived sites, and a reader who saw the parent skipped would not look for them."
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Registration of BMP Peer Type 3, Loc-RIB Instance Peer. Binds IANA, not a speaker."
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Creation of the 'BMP Peer Flags for Loc-RIB Instance Peer Type 3' registry and registration of flag 0, the F flag. Binds IANA, not a speaker."
+    },
+    {
+      "id": "8.3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Registration of Peer Up Information TLV type 3, VRF/Table Name. The registry action binds IANA, but the section restates the TLV's content and size rules word for word and the derivation reads two sites from that restatement. Walked rather than skipped so both are visible; both hang on the section 5.2.1 decision and are held."
+    },
+    {
+      "id": "8.4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Registration of BMP Peer Down reason code 6, 'Local system closed, TLV data follows'. Binds IANA, not a speaker; the obligation to USE it is section 5.3."
+    },
+    {
+      "id": "8.5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Deprecation of the F Flag entry in the 'BMP Peer Flags for Peer Types 0 through 2' registry. Binds IANA, not a speaker."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. A heading over 9.1 and 9.2."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 4271, RFC 7854, RFC 8174."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 7911. The section also absorbs the Acknowledgements and Authors' Addresses blocks, neither of which states an obligation."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "This MUST be what is actually sent to the peer.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "Section 3 is the Definitions glossary and this sentence completes the entry for 'Post-Policy Adj-RIB-Out'. The obligation is RFC 8671's: RFC 8671 Section 3 carries the identical glossary sentence and RFC 8671 Section 5.1 states it as the requirement, which ze declares as RFC8671-5.1-1 in rfc/short/rfc8671.md and rfc/extraction/rfc8671.json maps site 5.1:1 to. RFC 9069 defines no Adj-RIB-Out behavior of its own and never uses the term again -- this definition is the only occurrence of 'Post-Policy' in the source."
+    },
+    {
+      "id": "4.2:1",
+      "quote": "If locally sourced routes are communicated using BMP, they MUST be conveyed using the Loc-RIB Instance Peer Type.",
+      "disposition": null
+    },
+    {
+      "id": "4.2:2",
+      "quote": "This MUST be set when a filter is applied to Loc-RIB routes sent to the BMP collector.",
+      "disposition": null
+    },
+    {
+      "id": "4.2:3",
+      "quote": "They MUST be transmitted as 0, and their values MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9069-x-1",
+      "reason": "The reserved bits of the Peer Type 3 flags byte. For this peer type the reserved positions ARE the V, L, A and O flags of RFC 7854 and RFC 8671, which is what RFC9069-x-1 [MUST NOT] renders. Transmit side: locRIBPeerHeader (internal/component/bgp/plugins/bmp/bmp_locrib.go) sets Flags: 0 literally and is the only producer of a Peer Type 3 header -- ensureLocRIBPeerUp, primeLocRIBPeerUp, handleBestChange, closeDumpFamilies and sendLocRIBPeerDown each call it and none touches Flags afterwards. Receipt side: PeerHeader.IsIPv6 (internal/component/bgp/plugins/bmp/header.go) answers false for PeerTypeLocRIB before it reads the V bit, and isPostPolicy, is2ByteAS and isAdjRIBOut have no non-test caller anywhere in internal/, so no receipt path reads a reserved bit for any peer type."
+    },
+    {
+      "id": "5.1:1",
+      "quote": "All peer messages that include a per-peer header as defined in Section 4.2 of [RFC7854] MUST use the following values:",
+      "disposition": null
+    },
+    {
+      "id": "5.2:1",
+      "quote": "Capabilities MUST include the 4-octet ASN and all necessary capabilities to represent the Loc-RIB Route Monitoring messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9069-5.2-1",
+      "reason": "fabricateLocRIBOpen (internal/component/bgp/plugins/bmp/bmp_locrib.go) builds the capability list as one capability.ASN4 carrying the router's own 4-octet ASN plus one capability.Multiprotocol per family of dumpFamilies, and writes them into the RFC 5492 Section 4 parameter type 2 blob of the fabricated OPEN. dumpFamilies is the same list closeDumpFamilies closes with End-of-RIB markers, so what the OPEN advertises and what the dump delivers are one declaration."
+    },
+    {
+      "id": "5.2.1:1",
+      "quote": "The Information field contains a UTF-8 string whose value MUST be equal to the value of the VRF or table name (e.g., RD instance name) being conveyed.",
+      "disposition": null
+    },
+    {
+      "id": "5.2.1:2",
+      "quote": "The string size MUST be within the range of 1 to 255 bytes.",
+      "disposition": null
+    },
+    {
+      "id": "5.2.1:3",
+      "quote": "If a name is configured, it MUST be included.",
+      "disposition": null
+    },
+    {
+      "id": "5.2.1:4",
+      "quote": "The default value of \"global\" MUST be used for the default Loc-RIB instance with a zero-filled distinguisher.",
+      "disposition": null
+    },
+    {
+      "id": "5.2.1:5",
+      "quote": "If the TLV is included, then it MUST also be included in the Peer Down notification.",
+      "disposition": null
+    },
+    {
+      "id": "5.2.1:6",
+      "quote": "The Information field contains a UTF-8 string whose value MUST be equal to the value of the VRF or table name (e.g., RD instance name) being conveyed.",
+      "disposition": null
+    },
+    {
+      "id": "5.2.1:7",
+      "quote": "The string size MUST be within the range of 1 to 255 bytes.",
+      "disposition": null
+    },
+    {
+      "id": "5.2.1:8",
+      "quote": "If a name is configured, it MUST be included.",
+      "disposition": null
+    },
+    {
+      "id": "5.2.1:9",
+      "quote": "The default value of \"global\" MUST be used for the default Loc-RIB instance with a zero-filled distinguisher.",
+      "disposition": null
+    },
+    {
+      "id": "5.2.1:10",
+      "quote": "If the TLV is included, then it MUST also be included in the Peer Down notification.",
+      "disposition": null
+    },
+    {
+      "id": "5.2.1:11",
+      "quote": "If multiple strings are included, their ordering MUST be preserved when they are reported.",
+      "disposition": null
+    },
+    {
+      "id": "5.3:1",
+      "quote": "The Peer Down notification MUST use reason code 6.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9069-5.3-1",
+      "reason": "sendLocRIBPeerDown (internal/component/bgp/plugins/bmp/bmp_locrib.go) is the only producer of a Loc-RIB Peer Down and passes the constant PeerDownTLVData (= 6, internal/component/bgp/plugins/bmp/msg.go) to writePeerDown, which writes it into the reason octet (writePeerDown, msg.go)."
+    },
+    {
+      "id": "5.3:2",
+      "quote": "The Information field contains a UTF-8 string whose value MUST be equal to the value of the VRF or table name (e.g., RD instance name) being conveyed.",
+      "disposition": null
+    },
+    {
+      "id": "5.3:3",
+      "quote": "The string size MUST be within the range of 1 to 255 bytes.",
+      "disposition": null
+    },
+    {
+      "id": "5.3:4",
+      "quote": "The VRF/Table Name informational TLV MUST be included if it was in the Peer Up.",
+      "disposition": null
+    },
+    {
+      "id": "5.4.1:1",
+      "quote": "Loc-RIB Route Monitoring messages MUST use a 4-byte ASN encoding as indicated in the Peer Up sent OPEN message (Section 5.2) capability.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9069-5.4.1-1",
+      "reason": "buildLocRIBUpdateBody (internal/component/bgp/plugins/bmp/bmp_locrib.go) builds the AS_PATH through attribute.NewBuilder().SetASPath, whose encoder writes 4-byte ASNs unconditionally, and fabricateLocRIBOpen advertises the matching 4-octet ASN capability, so the encoding and the capability agree by construction rather than by negotiation."
+    },
+    {
+      "id": "6.1.1:1",
+      "quote": "There MUST be at least one emulated peer for each Loc-RIB instance, such as with VRFs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9069-x-2",
+      "reason": "ze runs one Loc-RIB instance, the global BGP RIB, and emits exactly one emulated peer for it: the Loc-RIB Peer Up is claimed behind the per-session one-shot senderSession.locRIBUpSent, taken by ensureLocRIBPeerUp and primeLocRIBPeerUp (internal/component/bgp/plugins/bmp/bmp_locrib.go), and every best change from every BGP peer passes through that same guard. One instance with one emulated peer satisfies 'at least one for each'."
+    },
+    {
+      "id": "6.1.1:2",
+      "quote": "Each emulated peer instance MUST send a Peer Up with the OPEN message indicating the address family capabilities.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9069-5.2-1",
+      "reason": "The same requirement row, which cites both sections. Every producer of a Loc-RIB Peer Up -- ensureLocRIBPeerUp and primeLocRIBPeerUp (internal/component/bgp/plugins/bmp/bmp_locrib.go) -- passes one fabricateLocRIBOpen result, and that OPEN carries one capability.Multiprotocol per family of dumpFamilies."
+    },
+    {
+      "id": "6.1.1:3",
+      "quote": "A BMP receiver MUST process these capabilities to know which peer belongs to which address family.",
+      "disposition": null
+    },
+    {
+      "id": "6.1.2:1",
+      "quote": "If multiple filters are associated with the same Loc-RIB, a table name MUST be used in order to allow a BMP receiver to make the right associations.",
+      "disposition": null
+    },
+    {
+      "id": "6.1.3:1",
+      "quote": "In case of any change that results in the alteration of behavior of an existing BMP session, i.e., changes to filtering and table names, the session MUST be bounced with a Peer Down / Peer Up sequence.",
+      "disposition": null
+    },
+    {
+      "id": "8.3:1",
+      "quote": "The Information field contains a UTF-8 string whose value MUST be equal to the value of the VRF or table name (e.g., RD instance name) being conveyed.",
+      "disposition": null
+    },
+    {
+      "id": "8.3:2",
+      "quote": "The string size MUST be within the range of 1 to 255 bytes.",
+      "disposition": null
+    }
+  ],
+  "register-reason": "Standards Track, with the BCP 14 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3, 4.2, 5.1, 5.2, 5.2.1, 5.3, 5.4.1, 6.1.1, 6.1.2, 6.1.3 and 8.3. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}

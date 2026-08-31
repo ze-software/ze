@@ -5,62 +5,54 @@
   "source-path": "rfc/full/rfc5176.txt",
   "source-sha": "4852faf09c5bbdd6",
   "signed-off": "",
-  "reviewer": "ze-work agent, spec-rfcgate-6 phase 2, rfc5176",
+  "reviewer": "",
   "sections": [
     {
       "id": "front",
       "sites": 0,
       "disposition": "skipped",
       "skip-kind": "front-matter",
-      "reason": "Title block, Status of This Memo, Abstract and Table of Contents. The Abstract states what the document describes and binds nobody."
+      "reason": "Title, status, copyright and table of contents."
     },
     {
       "id": "1",
       "sites": 0,
-      "disposition": "walked",
-      "reason": "Introduction. Says why RADIUS needs server-initiated messages and names Disconnect and CoA packets. Indicative throughout; no obligation."
+      "disposition": "walked"
     },
     {
       "id": "1.1",
       "sites": 0,
-      "disposition": "walked",
-      "reason": "Applicability. Explains why the document is Informational and recommends an RPF check, IPsec and an Event-Timestamp. Each recommendation is restated normatively in Section 6.1, 6.2 and 6.3 and is walked there."
+      "disposition": "walked"
     },
     {
       "id": "1.2",
       "sites": 0,
-      "disposition": "walked",
-      "reason": "Requirements Language: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+      "disposition": "walked"
     },
     {
       "id": "1.3",
       "sites": 0,
-      "disposition": "walked",
-      "reason": "Terminology. Defines Dynamic Authorization Client, Dynamic Authorization Server, NAS, service, session and 'silently discard'. The one keyword pair sits in the 'silently discard' entry at SHOULD level ('SHOULD provide the capability of logging the error ... SHOULD record the event in a statistics counter') and never gates."
+      "disposition": "walked"
     },
     {
       "id": "2",
       "sites": 0,
-      "disposition": "walked",
-      "reason": "Overview heading. One sentence naming what the section describes."
+      "disposition": "walked"
     },
     {
       "id": "2.1",
       "sites": 0,
-      "disposition": "walked",
-      "reason": "Disconnect Messages. Describes the exchange and the port, and carries one MAY (a Disconnect-ACK MAY contain Acct-Terminate-Cause with value 6). No MUST-level obligation."
+      "disposition": "walked"
     },
     {
       "id": "2.2",
       "sites": 1,
-      "disposition": "walked",
-      "reason": "Change-of-Authorization Messages. Describes the exchange and lists Filter-Id and NAS-Filter-Rule as attributes that MAY be sent. Its single MUST is the Service-Type site below."
+      "disposition": "walked"
     },
     {
       "id": "2.3",
       "sites": 19,
       "disposition": "walked",
-      "reason": "Packet Format: the Code, Identifier, Length, Authenticator and Attributes fields. Nineteen sites, and the section carries three obligations the site scan cannot see because the paragraphs that state them are indicative. Those are the ids in unsourced-ids: the receiver's duty to verify the Request Authenticator before acting and to discard a packet that fails, and the Response Authenticator formula stated as 'contains a one-way MD5 hash calculated over a stream of octets consisting of the Code, Identifier, Length, the Request Authenticator field from the packet being replied to, and the response attributes if any, followed by the shared secret'.",
       "unsourced-ids": [
         "RFC5176-3.5-1",
         "RFC5176-3.5-2",
@@ -70,108 +62,101 @@
     {
       "id": "3",
       "sites": 4,
-      "disposition": "walked",
-      "reason": "Attributes. Names the NAS and session identification attributes and states the matching rule. Four sites; the attribute tables themselves assign values and bind nobody."
+      "disposition": "walked"
     },
     {
       "id": "3.1",
       "sites": 11,
-      "disposition": "walked",
-      "reason": "Proxy State. Eleven sites, of which the first four bind the Dynamic Authorization Server or the NAS and the last seven bind a forwarding proxy."
+      "disposition": "walked"
     },
     {
       "id": "3.2",
       "sites": 7,
-      "disposition": "walked",
-      "reason": "Authorize Only. Seven sites. Section 3.2 makes NAS support for an 'Authorize Only' CoA-Request OPTIONAL, but the NAK a non-supporting NAS owes is not optional."
+      "disposition": "walked"
     },
     {
       "id": "3.3",
       "sites": 9,
       "disposition": "walked",
-      "reason": "State. Nine sites, two of which sit inside a verbatim block quote of RFC 2865 Section 5.44."
+      "unsourced-ids": [
+        "RFC5176-3.3-1"
+      ]
     },
     {
       "id": "3.4",
       "sites": 4,
       "disposition": "walked",
-      "reason": "Message-Authenticator. Four sites covering the receiver's verification duty on each side and the two HMAC-MD5 constructions."
+      "unsourced-ids": [
+        "RFC5176-3.4-2"
+      ]
     },
     {
       "id": "3.5",
       "sites": 7,
-      "disposition": "walked",
-      "reason": "Error-Cause. Seven sites, each confining an Error-Cause value or value range to the ACK or NAK it may travel in. The value list itself is a registry assignment."
+      "disposition": "walked"
     },
     {
       "id": "3.6",
       "sites": 3,
-      "disposition": "walked",
-      "reason": "Table of Attributes. Three sites: the quantity-column legend and two of the numbered notes below the tables."
+      "disposition": "walked"
     },
     {
       "id": "4",
       "sites": 1,
-      "disposition": "walked",
-      "reason": "Diameter Considerations. Describes RADIUS-to-Diameter translation for a gateway Ze does not implement, and closes by restating the Section 3.2 constraint on a Disconnect-Request. That restatement is the section's one site."
+      "disposition": "walked"
     },
     {
       "id": "5",
       "sites": 0,
       "disposition": "skipped",
       "skip-kind": "iana",
-      "reason": "IANA Considerations. Allocates Error-Cause values 407 and 508 in the RADIUS namespace. Binds IANA, not a speaker."
+      "reason": "IANA Considerations: it allocates Error-Cause values 407 and 508 and binds IANA, not an implementation."
     },
     {
       "id": "6",
       "sites": 0,
-      "disposition": "walked",
-      "reason": "Security Considerations heading; the obligations are in 6.1, 6.2 and 6.3."
+      "disposition": "walked"
     },
     {
       "id": "6.1",
       "sites": 2,
-      "disposition": "walked",
-      "reason": "Authorization Issues. Two sites: the unconditional discard of a request from an untrusted source, and the discard that follows a reverse-path-forwarding check the same paragraph makes optional. The shared-secret-per-client sentence is SHOULD and never gates."
+      "disposition": "walked"
     },
     {
       "id": "6.2",
       "sites": 0,
-      "disposition": "walked",
-      "reason": "IPsec Usage Guidelines. RECOMMENDED throughout ('It is RECOMMENDED that IPsec be employed'), and the policy statements that follow are descriptions of what such a policy would say. No MUST-level site."
+      "disposition": "walked"
     },
     {
       "id": "6.3",
       "sites": 4,
-      "disposition": "walked",
-      "reason": "Replay Protection. Four sites covering the Event-Timestamp check, the discard that follows it, the duplicate-detection requirement restated from Section 2.3, and the shared time window."
+      "disposition": "walked"
     },
     {
       "id": "7",
       "sites": 0,
-      "disposition": "walked",
-      "reason": "Example Traces. Three hex dumps of Disconnect-Requests. No prose and no obligation."
+      "disposition": "walked"
     },
     {
       "id": "8",
       "sites": 0,
       "disposition": "skipped",
       "skip-kind": "references",
-      "reason": "References heading."
+      "reason": "Reference list."
     },
     {
       "id": "8.1",
       "sites": 0,
       "disposition": "skipped",
       "skip-kind": "references",
-      "reason": "Normative References: RFC 1321, 2119, 2865, 2866, 2869, 3162, 3575, 3579, 4282."
+      "reason": "Normative references."
     },
     {
       "id": "8.2",
       "sites": 0,
       "disposition": "skipped",
       "skip-kind": "references",
-      "reason": "Informative References."
+      "reason": "Informative references."
     },
     {
       "id": "9",
@@ -185,468 +170,430 @@
       "sites": 0,
       "disposition": "skipped",
       "skip-kind": "appendix-non-normative",
-      "reason": "Appendix A, Changes from RFC 3576. A change log naming what this document altered against the RFC it obsoletes; it states no obligation of its own."
+      "reason": "Appendix A, Changes from RFC 3576: a change log against the obsoleted document."
     }
   ],
   "sites": [
     {
       "id": "2.2:1",
       "quote": "A NAS MUST respond to a CoA-Request including a Service-Type Attribute with an unsupported value with a CoA-NAK; an Error-Cause Attribute with value \"Unsupported Service\" SHOULD be included.",
-      "disposition": null,
-      "reason": "DEFECT-1 Service-Type. Ze never reads radius attribute type 6. handleCoA answers CoA-ACK for a CoA-Request carrying an unsupported Service-Type value alongside a Filter-Id it does understand (coa.go:169)."
+      "disposition": null
     },
     {
       "id": "2.3:1",
       "quote": "The Authenticator field MUST be calculated in the same way as is specified for an Accounting-Request in [RFC2866].",
       "disposition": "mapped",
-      "mapped-to": "RFC5176-3.5-4",
-      "reason": "The Request Authenticator computation for CoA-Request and Disconnect-Request. RFC5176-3.5-4 declares the same MD5(Code+Identifier+Length+16-zero-octets+Attributes+Secret) formula at [MUST]; radius.AccountingRequestAuth (internal/component/radius/packet.go:250) is the producer and radius.VerifyCoARequestAuth reads it on the receive path."
+      "mapped-to": "RFC5176-3.5-4"
     },
     {
       "id": "2.3:2",
       "quote": "Packets received with an invalid Code field MUST be silently discarded.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. coaListener.handlePacket rejects any code other than CoA-Request or Disconnect-Request and returns without answering (coa.go:119)."
+      "disposition": null
     },
     {
       "id": "2.3:3",
       "quote": "A Dynamic Authorization Server implementing this specification MUST be capable of detecting a duplicate request if it has the same source IP address, source UDP port, and Identifier within a short span of time.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. coaListener.cachedReplay/replayKey key on source IP, code, Identifier and Request Authenticator over coaReplayWindow (coa.go:434, 468)."
+      "disposition": null
     },
     {
       "id": "2.3:4",
       "quote": "The Identifier field MUST be changed whenever the content of the Attributes field changes, or whenever a valid reply has been received for a previous request.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. The Identifier field is set by the sender."
+      "reason": "Identifier management by the sender. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "2.3:5",
       "quote": "For retransmissions where the contents are identical, the Identifier MUST remain unchanged.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. Retransmission is the sender's decision; RFC 5176 Section 2.3 states 'The responsibility for retransmission of Disconnect-Request and CoA-Request packets lies with the Dynamic Authorization Client.'"
+      "reason": "Identifier reuse on retransmission by the sender. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "2.3:6",
       "quote": "If the Dynamic Authorization Client is retransmitting a Disconnect-Request or CoA-Request to the same Dynamic Authorization Server as before, and the attributes haven't changed, the same Request Authenticator, Identifier, and source port MUST be used.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. The sentence names the Dynamic Authorization Client as the actor."
+      "reason": "Retransmission by the sender. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "2.3:7",
       "quote": "If any attributes have changed, a new Authenticator and Identifier MUST be used.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. Same paragraph, same actor: the sender picks a new Authenticator and Identifier when the attributes change."
+      "reason": "Authenticator and Identifier choice by the sender. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "2.3:8",
       "quote": "Since this represents a new request, a new Request Authenticator and Identifier MUST be used.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. Failover to a secondary Dynamic Authorization Server is a sender-side decision; Ze never queries one."
+      "reason": "Failover to a secondary DAS by the sender. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "2.3:9",
       "quote": "Octets outside the range of the Length field MUST be treated as padding and ignored on reception.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. radius.Decode parses attributes only up to the Length field and ignores trailing octets (internal/component/radius/packet.go:81)."
+      "disposition": null
     },
     {
       "id": "2.3:10",
       "quote": "If the packet is shorter than the Length field indicates, it MUST be silently discarded.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. radius.Decode fails when pktLen > len(data); handlePacket returns without answering."
+      "disposition": null
     },
     {
       "id": "2.3:11",
       "quote": "The Dynamic Authorization Server MUST use the source IP address of the RADIUS UDP packet to decide which shared secret to use, so that requests can be proxied.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. coaListener.secretForSource selects the shared secret by source IP (coa.go:150)."
+      "disposition": null
     },
     {
       "id": "2.3:12",
       "quote": "In CoA-Request and Disconnect-Request packets, all attributes MUST be treated as mandatory.",
-      "disposition": null,
-      "reason": "DEFECT-4 attributes not mandatory. handleCoA reads only Filter-Id and the vendor rate/CoS VSAs (extractRate, extractCoSProfile, coa.go:351, 365) and ignores every other attribute instead of treating it as mandatory."
+      "disposition": null
     },
     {
       "id": "2.3:13",
       "quote": "If one or more authorization changes specified in a CoA-Request cannot be carried out, the NAS MUST send a CoA-NAK.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. handleCoA answers CoA-NAK when it can carry out no change (coa.go:174, 221, 227, 232)."
+      "disposition": null
     },
     {
       "id": "2.3:14",
       "quote": "A NAS MUST respond to a CoA-Request containing one or more unsupported attributes or Attribute values with a CoA-NAK; an Error-Cause Attribute with value 401 (Unsupported Attribute) or 407 (Invalid Attribute Value) MAY be included.",
-      "disposition": null,
-      "reason": "DEFECT-4 attributes not mandatory. handleCoA answers CoA-NAK 401 only when NO supported attribute is present (coa.go:173). A CoA-Request carrying Filter-Id plus an unsupported attribute is answered CoA-ACK."
+      "disposition": null
     },
     {
       "id": "2.3:15",
       "quote": "A NAS MUST respond to a Disconnect-Request containing one or more unsupported attributes or Attribute values with a Disconnect-NAK; an Error-Cause Attribute with value 401 (Unsupported Attribute) or 407 (Invalid Attribute Value) MAY be included.",
-      "disposition": null,
-      "reason": "DEFECT-4 attributes not mandatory. handleDisconnect inspects no attribute other than the session identifiers (coa.go:259) and never answers Disconnect-NAK for an unsupported one."
+      "disposition": null
     },
     {
       "id": "2.3:16",
       "quote": "State changes resulting from a CoA-Request MUST be atomic: if the CoA-Request is successful for all matching sessions, the NAS MUST send a CoA-ACK in reply, and all requested authorization changes MUST be made.",
-      "disposition": null,
-      "reason": "DEFECT-5 atomicity. handleCoA emits SessionRateChange and SessionCoSChange on the event bus and answers CoA-ACK whether or not the emit succeeded, logging a warning and continuing (coa.go:176, 199). The ACK therefore precedes, and can outlive, the change."
+      "disposition": null
     },
     {
       "id": "2.3:17",
       "quote": "If the CoA-Request is unsuccessful for any matching sessions, the NAS MUST send a CoA-NAK in reply, and the requested authorization changes MUST NOT be made for any of the matching sessions.",
-      "disposition": null,
-      "reason": "DEFECT-5 atomicity. Same producer: a failed emit yields no CoA-NAK and no rollback."
+      "disposition": null
     },
     {
       "id": "2.3:18",
       "quote": "Similarly, a state change MUST NOT occur as a result of a Disconnect-Request that is unsuccessful with respect to any of the matching sessions; a NAS MUST send a Disconnect-NAK in reply if any of the matching sessions cannot be successfully terminated.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. handleDisconnect answers Disconnect-NAK and tears down nothing when svc.TeardownSession fails (coa.go:281)."
+      "disposition": null
     },
     {
       "id": "2.3:19",
       "quote": "A NAS that does not support dynamic authorization changes applying to multiple sessions MUST send a CoA-NAK or Disconnect-NAK in reply; an Error-Cause Attribute with value 508 (Multiple Session Selection Unsupported) SHOULD be included.",
-      "disposition": null,
-      "reason": "DEFECT-6 multiple sessions. Ze supports no multi-session change and sends no CoA-NAK or Disconnect-NAK with Error-Cause 508; findSession returns the first match and Ze answers ACK (coa.go:309)."
+      "disposition": null
     },
     {
       "id": "3:1",
       "quote": "The combination of NAS and session identification attributes included in a CoA-Request or Disconnect-Request packet MUST match at least one session in order for a Request to be successful; otherwise a Disconnect-NAK or CoA-NAK MUST be sent.",
-      "disposition": "mapped",
-      "mapped-to": "RFC5176-3.3-1",
-      "reason": "A request whose identification attributes match no session must be answered with a NAK, which is what RFC5176-3.3-1 declares at [MUST] as the minimum-one-session-identification-attribute rule. coaListener.findSession (coa.go:309) returns false and handleCoA/handleDisconnect answer CoA-NAK/Disconnect-NAK with Error-Cause 503."
+      "disposition": null
     },
     {
       "id": "3:2",
       "quote": "If all NAS identification attributes match, and more than one session matches all of the session identification attributes, then a CoA-Request or Disconnect- Request MUST apply to all matching sessions.",
-      "disposition": null,
-      "reason": "DEFECT-6 multiple sessions. findSession returns the FIRST matching session, so a request matching several is applied to one. Neither this MUST nor its escape hatch at site 2.3:19 is met."
+      "disposition": null
     },
     {
       "id": "3:3",
       "quote": "A Disconnect-Request MUST contain only NAS and session identification attributes.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. The composer of a Disconnect-Request decides which attributes it carries. The receiver's half of the same rule is the separate obligation at site 3:4."
+      "reason": "What a Disconnect-Request MUST contain, an obligation on the composer. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them. The receive-side counterpart is site 3:4, which binds ze and is left unclassified"
     },
     {
       "id": "3:4",
       "quote": "If other attributes are included in a Disconnect- Request, implementations MUST send a Disconnect-NAK; an Error-Cause Attribute with value \"Unsupported Attribute\" MAY be included.",
-      "disposition": null,
-      "reason": "DEFECT-4 attributes not mandatory. Same producer: Ze never checks that a Disconnect-Request carries only NAS and session identification attributes."
+      "disposition": null
     },
     {
       "id": "3.1:1",
       "quote": "If there are any Proxy-State attributes in a Disconnect-Request or CoA-Request received from the Dynamic Authorization Client, the Dynamic Authorization Server MUST include those Proxy-State attributes in its response to the Dynamic Authorization Client.",
-      "disposition": null,
-      "reason": "DEFECT-7 Proxy-State not echoed. sendResponse builds a fresh packet holding at most an Error-Cause and copies no Proxy-State from the request (coa.go:377)."
+      "disposition": null
     },
     {
       "id": "3.1:2",
       "quote": "A forwarding proxy or NAS MUST NOT modify existing Proxy-State, State, or Class attributes present in the packet.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. Ze never rewrites a received attribute; sendResponse builds a fresh packet (coa.go:377)."
+      "disposition": null
     },
     {
       "id": "3.1:3",
       "quote": "The forwarding proxy or NAS MUST treat any Proxy-State attributes already in the packet as opaque data.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. No call site reads radius attribute type 33 (Proxy-State)."
+      "disposition": null
     },
     {
       "id": "3.1:4",
       "quote": "Its operation MUST NOT depend on the content of Proxy-State attributes added by previous proxies.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. Same producer set: no branch in handlePacket, handleCoA or handleDisconnect reads Proxy-State."
+      "disposition": null
     },
     {
       "id": "3.1:5",
       "quote": "The forwarding proxy MUST NOT modify any other Proxy-State attributes that were in the packet; it may choose not to forward them, but it MUST NOT change their contents.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds a forwarding RADIUS proxy. Ze forwards no CoA-Request or Disconnect-Request: coaListener.handlePacket terminates every accepted packet locally (coa.go:96) and the tree holds no CoA relay path. The sentence names the forwarding proxy explicitly."
+      "reason": "Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range"
     },
     {
       "id": "3.1:6",
       "quote": "If the forwarding proxy omits the Proxy-State attributes in the request, it MUST attach them to the response before sending it.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds a forwarding RADIUS proxy. Ze forwards no CoA-Request or Disconnect-Request: coaListener.handlePacket terminates every accepted packet locally (coa.go:96) and the tree holds no CoA relay path. 'If the forwarding proxy omits the Proxy-State attributes in the request' has no reading for a terminating Dynamic Authorization Server."
+      "reason": "Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range"
     },
     {
       "id": "3.1:7",
       "quote": "When the proxy forwards a Disconnect-Request or CoA-Request, it MAY add a Proxy-State Attribute, but it MUST NOT add more than one.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds a forwarding RADIUS proxy. Ze forwards no CoA-Request or Disconnect-Request: coaListener.handlePacket terminates every accepted packet locally (coa.go:96) and the tree holds no CoA relay path. Adding a Proxy-State Attribute is an act of forwarding."
+      "reason": "Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range"
     },
     {
       "id": "3.1:8",
       "quote": "If a Proxy-State Attribute is added to a packet when forwarding the packet, the Proxy-State Attribute MUST be added after any existing Proxy-State attributes.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds a forwarding RADIUS proxy. Ze forwards no CoA-Request or Disconnect-Request: coaListener.handlePacket terminates every accepted packet locally (coa.go:96) and the tree holds no CoA relay path. Ordering of an added Proxy-State Attribute, an act of forwarding."
+      "reason": "Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range"
     },
     {
       "id": "3.1:9",
       "quote": "The forwarding proxy MUST NOT change the order of any attributes of the same type, including Proxy-State.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds a forwarding RADIUS proxy. Ze forwards no CoA-Request or Disconnect-Request: coaListener.handlePacket terminates every accepted packet locally (coa.go:96) and the tree holds no CoA relay path. Attribute ordering in a forwarded packet."
+      "reason": "Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range"
     },
     {
       "id": "3.1:10",
       "quote": "When the proxy receives a response to a CoA-Request or Disconnect- Request, it MUST remove its own Proxy-State Attribute (the last Proxy-State in the packet) before forwarding the response.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds a forwarding RADIUS proxy. Ze forwards no CoA-Request or Disconnect-Request: coaListener.handlePacket terminates every accepted packet locally (coa.go:96) and the tree holds no CoA relay path. Stripping the proxy's own Proxy-State from a response it relays."
+      "reason": "Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range"
     },
     {
       "id": "3.1:11",
       "quote": "Since Disconnect and CoA responses are authenticated on the entire packet contents, the stripping of the Proxy-State Attribute invalidates the integrity check, so the proxy MUST recompute it.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds a forwarding RADIUS proxy. Ze forwards no CoA-Request or Disconnect-Request: coaListener.handlePacket terminates every accepted packet locally (coa.go:96) and the tree holds no CoA relay path. Recomputing the integrity check after that strip."
+      "reason": "Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range"
     },
     {
       "id": "3.2:1",
       "quote": "A Service-Type Attribute MUST NOT be included within a Disconnect-Request.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. The sender decides whether a Service-Type Attribute is placed in a Disconnect-Request."
+      "reason": "What a Disconnect-Request MUST NOT contain, an obligation on the composer. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "3.2:2",
       "quote": "A NAS MUST respond to a CoA-Request including a Service-Type Attribute with value \"Authorize Only\" with a CoA-NAK; a CoA-ACK MUST NOT be sent.",
-      "disposition": null,
-      "reason": "DEFECT-1 Service-Type. Same producer: a CoA-Request with Service-Type 'Authorize Only' and a Filter-Id rate is answered CoA-ACK, which this site forbids outright."
+      "disposition": null
     },
     {
       "id": "3.2:3",
       "quote": "If the NAS does not support a Service-Type value of \"Authorize Only\", then it MUST respond with a CoA-NAK; an Error-Cause Attribute with a value of 405 (Unsupported Service) SHOULD be included.",
-      "disposition": null,
-      "reason": "DEFECT-1 Service-Type. Ze supports no Service-Type value, so this NAK is owed on every such CoA-Request. handleCoA emits none."
+      "disposition": null
     },
     {
       "id": "3.2:4",
       "quote": "A CoA-Request containing a Service-Type Attribute with value \"Authorize Only\" MUST in addition contain only NAS or session identification attributes, as well as a State Attribute.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. The sentence constrains what a Dynamic Authorization Client puts in an 'Authorize Only' CoA-Request."
+      "reason": "What an Authorize Only CoA-Request MUST contain, an obligation on the composer. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them. The receive-side counterpart is site 3.2:5, left unclassified"
     },
     {
       "id": "3.2:5",
       "quote": "If other attributes are included in such a CoA-Request, a CoA-NAK MUST be sent; an Error-Cause Attribute with value 401 (Unsupported Attribute) SHOULD be included.",
-      "disposition": null,
-      "reason": "DEFECT-1 Service-Type. Satisfied a fortiori once site 3.2:3 is implemented; unmet today for the same reason."
+      "disposition": null
     },
     {
       "id": "3.2:6",
       "quote": "If a CoA-Request packet including a Service-Type value of \"Authorize Only\" is successfully processed, the NAS MUST respond with a CoA-NAK containing a Service-Type Attribute with value \"Authorize Only\", and an Error-Cause Attribute with value 507 (Request Initiated).",
-      "disposition": null,
-      "reason": "DEFECT-2 Authorize Only. Binds a NAS that successfully processes an 'Authorize Only' CoA-Request. Section 3.2 makes that support OPTIONAL and Ze does not implement it, but no exclusion kind in the closed set says 'conditional on an OPTIONAL feature Ze declines'. Needs Thomas: implement Authorize Only, or record the declined MAY."
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "RFC 5176 Section 3.2: \"Support for a CoA-Request including a Service-Type Attribute with value \\\"Authorize Only\\\" is OPTIONAL on the NAS and Dynamic Authorization Client.\" The obligation is the interior of that OPTIONAL feature, which the owner declined on 2026-08-31"
     },
     {
       "id": "3.2:7",
       "quote": "The NAS then MUST send an Access-Request to the RADIUS server including a Service-Type Attribute with value \"Authorize Only\", along with a State Attribute.",
-      "disposition": null,
-      "reason": "DEFECT-2 Authorize Only. Same construction: the Access-Request the NAS then sends."
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "RFC 5176 Section 3.2: \"Support for a CoA-Request including a Service-Type Attribute with value \\\"Authorize Only\\\" is OPTIONAL on the NAS and Dynamic Authorization Client.\" The obligation is the interior of that OPTIONAL feature, which the owner declined on 2026-08-31"
     },
     {
       "id": "3.3:1",
       "quote": "The State Attribute is available to be sent by the Dynamic Authorization Client to the NAS in a CoA-Request packet and MUST be sent unmodified from the NAS to the Dynamic Authorization Client in a subsequent ACK or NAK packet.",
-      "disposition": null,
-      "reason": "DEFECT-8 State not echoed. Same producer: sendResponse copies no State Attribute into the ACK or NAK."
+      "disposition": null
     },
     {
       "id": "3.3:2",
       "quote": "An Access-Request MUST contain either a User-Password or a CHAP-Password or State.",
       "disposition": "excluded",
       "excluded-kind": "cross-document",
-      "reason": "Inside the block quote of [RFC2865], Section 5.44 that RFC 5176 Section 3.3 reproduces verbatim: '[RFC2865], Section 5.44 states: An Access-Request MUST contain either a User-Password or a CHAP-Password or State.' The obligation is RFC 2865's and governs the Access-Request, not a CoA or Disconnect packet."
+      "reason": "Block-quoted RFC 2865 Section 5.44, introduced by \"[RFC2865], Section 5.44 states:\". The obligation is RFC 2865's and is carried by rfc/short/rfc2865.md"
     },
     {
       "id": "3.3:3",
       "quote": "An Access-Request MUST NOT contain both a User-Password and a CHAP-Password.",
       "disposition": "excluded",
       "excluded-kind": "cross-document",
-      "reason": "The next sentence of the same [RFC2865] Section 5.44 block quote. RFC 2865 owns it."
+      "reason": "The second sentence of the same block quote of RFC 2865 Section 5.44. The obligation is RFC 2865's"
     },
     {
       "id": "3.3:4",
       "quote": "In order to satisfy the requirements of [RFC2865], Section 5.44, an Access-Request with Service-Type Attribute with value \"Authorize Only\" MUST contain a State Attribute.",
-      "disposition": null,
-      "reason": "DEFECT-2 Authorize Only. The State Attribute in the Access-Request Ze never sends."
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "RFC 5176 Section 3.2: \"Support for a CoA-Request including a Service-Type Attribute with value \\\"Authorize Only\\\" is OPTIONAL on the NAS and Dynamic Authorization Client.\" The obligation is the interior of that OPTIONAL feature, which the owner declined on 2026-08-31. ze sends no Access-Request carrying Service-Type Authorize Only"
     },
     {
       "id": "3.3:5",
       "quote": "In order to provide a State Attribute to the NAS, a Dynamic Authorization Client sending a CoA-Request with a Service-Type Attribute with a value of \"Authorize Only\" MUST include a State Attribute, and the NAS MUST send the State Attribute unmodified to the RADIUS server in the resulting Access-Request, if any.",
-      "disposition": null,
-      "reason": "DEFECT-2 Authorize Only. Second half binds the NAS: 'the NAS MUST send the State Attribute unmodified to the RADIUS server in the resulting Access-Request, if any'. Ze sends no such Access-Request."
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "RFC 5176 Section 3.2: \"Support for a CoA-Request including a Service-Type Attribute with value \\\"Authorize Only\\\" is OPTIONAL on the NAS and Dynamic Authorization Client.\" The obligation is the interior of that OPTIONAL feature, which the owner declined on 2026-08-31. Its first clause binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them, and its second is conditioned on \"the resulting Access-Request, if any\", which ze never sends"
     },
     {
       "id": "3.3:6",
       "quote": "A NAS receiving a CoA-Request containing a Service-Type Attribute with a value of \"Authorize Only\" but lacking a State Attribute MUST send a CoA-NAK and SHOULD include an Error-Cause Attribute with a value of 402 (Missing Attribute).",
-      "disposition": null,
-      "reason": "DEFECT-1 Service-Type. The MUST is the CoA-NAK, which Ze owes on every 'Authorize Only' request and emits on none."
+      "disposition": null
     },
     {
       "id": "3.3:7",
       "quote": "If the NAS performs the Termination-Action by sending a new Access- Request upon termination of the current session, it MUST include the State Attribute unchanged in that Access-Request.",
-      "disposition": null,
-      "reason": "DEFECT-3 Termination-Action. Ze implements no Termination-Action RADIUS-Request re-authorization, so it sends no such Access-Request and echoes no State."
+      "disposition": null
     },
     {
       "id": "3.3:8",
       "quote": "In either usage, the Dynamic Authorization Server MUST NOT interpret the Attribute locally.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. No call site reads radius attribute type 24 (State)."
+      "disposition": null
     },
     {
       "id": "3.3:9",
       "quote": "A CoA-Request packet MUST have only zero or one State Attribute.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. The number of State attributes in a CoA-Request is fixed by the sender."
+      "reason": "A packet-shape rule on the CoA-Request the sender builds; RFC 5176 Section 3.6 states the same bound as the 0-1 column for State. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "3.4:1",
       "quote": "A Dynamic Authorization Server receiving a CoA-Request or Disconnect-Request with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. handlePacket calls radius.VerifyMessageAuthenticator and returns without answering on mismatch (coa.go:126). See the DEFECT on site 3.4:3 for how that value is computed."
+      "disposition": "mapped",
+      "mapped-to": "RFC5176-3.4-3"
     },
     {
       "id": "3.4:2",
       "quote": "A Dynamic Authorization Client receiving a CoA/Disconnect-ACK or CoA/Disconnect-NAK with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. The sentence names the Dynamic Authorization Client receiving a CoA/Disconnect-ACK or NAK. Ze emits those responses and never receives one."
+      "reason": "Verification of a CoA/Disconnect-ACK or -NAK, a packet ze emits and never receives. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "3.4:3",
       "quote": "When the HMAC-MD5 message integrity check is calculated the Request Authenticator field and Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero.",
-      "disposition": null,
-      "reason": "DEFECT-9 Message-Authenticator computed over the wrong bytes. radius.VerifyMessageAuthenticator zeroes the Message-Authenticator value but leaves the Request Authenticator field at data[4:20] intact (internal/component/radius/packet.go:194); this site requires both be sixteen octets of zero. radius.VerifyCoARequestAuth has the inverse error: it zeroes the Message-Authenticator before the MD5 (packet.go:180), where RFC 5176 Section 3.4 fixes the order as 'The Message-Authenticator Attribute is calculated and inserted in the packet before the Request Authenticator is calculated'. Since handlePacket DISCARDS a CoA-Request carrying no Message-Authenticator (coa.go:122), no conformant Dynamic Authorization Client can be answered at all."
+      "disposition": "mapped",
+      "mapped-to": "RFC5176-3.4-1"
     },
     {
       "id": "3.4:4",
       "quote": "When the HMAC-MD5 message integrity check is calculated, the Message-Authenticator Attribute MUST be considered to be sixteen octets of zero.",
-      "disposition": null,
-      "reason": "DEFECT-9 Message-Authenticator. sendResponse emits no Message-Authenticator in any CoA-ACK, CoA-NAK, Disconnect-ACK or Disconnect-NAK, so the response-side computation binds nothing today. Whether Ze should emit one is the MAY at the head of Section 3.4 and is a question for Thomas."
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "The response-direction Message-Authenticator, whose enclosing construction is RFC 5176 Section 3.4: \"The Message-Authenticator Attribute MAY be used to authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK, Disconnect-Request, Disconnect-ACK, and Disconnect-NAK packets in order to prevent spoofing.\" coaListener.sendResponse (internal/component/l2tp/plugins/authradius/coa.go) includes no Message-Authenticator in a CoA-ACK, CoA-NAK, Disconnect-ACK or Disconnect-NAK, which the MAY permits, so the computation rule has no packet to govern"
     },
     {
       "id": "3.5:1",
       "quote": "Values 200-299 represent successful completion, so that these values may only be sent within CoA-ACK or Disconnect-ACK packets and MUST NOT be sent within a CoA-NAK or Disconnect-NAK packet.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. sendResponse attaches an Error-Cause only when errorCause != 0, and every ACK call site passes 0 (coa.go:377, 211, 253, 289)."
+      "disposition": null
     },
     {
       "id": "3.5:2",
       "quote": "Values 400-499 represent fatal errors committed by the Dynamic Authorization Client, so that they MAY be sent within CoA-NAK or Disconnect-NAK packets, and MUST NOT be sent within CoA-ACK or Disconnect-ACK packets.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. Same producer: 401 and 404 are passed only on NAK call sites."
+      "disposition": null
     },
     {
       "id": "3.5:3",
       "quote": "Values 500-599 represent fatal errors occurring on a Dynamic Authorization Server, so that they MAY be sent within CoA-NAK and Disconnect-NAK packets, and MUST NOT be sent within CoA-ACK or Disconnect-ACK packets.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. Same producer: 503 is passed only on NAK call sites."
+      "disposition": null
     },
     {
       "id": "3.5:4",
       "quote": "This value is only sent within a Disconnect-ACK and MUST NOT be sent within a CoA-ACK, Disconnect-NAK, or CoA-NAK.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. Ze never sends Error-Cause 201; radius.ErrorCause* holds no call site for it on any path."
+      "disposition": null
     },
     {
       "id": "3.5:5",
       "quote": "\"Invalid EAP Packet (Ignored)\" is a non-fatal error that MUST NOT be sent by implementations of this specification.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. Ze never sends Error-Cause 202."
+      "disposition": null
     },
     {
       "id": "3.5:6",
       "quote": "\"Request Not Routable\" is a fatal error that MAY be sent by a proxy and MUST NOT be sent by a NAS.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. Ze never sends Error-Cause 502."
+      "disposition": null
     },
     {
       "id": "3.5:7",
       "quote": "It MUST NOT be sent within a CoA-ACK, CoA-NAK, or Disconnect-ACK, only within a Disconnect-NAK.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. Ze never sends Error-Cause 504."
+      "disposition": null
     },
     {
       "id": "3.6:1",
       "quote": "0 This attribute MUST NOT be present in packet. 0+ Zero or more instances of this attribute MAY be present in packet. 0-1 Zero or one instance of this attribute MAY be present in packet. 1 Exactly one instance of this attribute MUST be present in packet.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
-      "reason": "The legend for the quantity columns of the Section 3.6 table of attributes: '0', '0+', '0-1' and '1' are defined for the reader, so the keywords describe the notation rather than bind a speaker. The per-attribute obligations the table expresses are stated normatively in Sections 2.3, 3, 3.2 and 3.3."
+      "reason": "The legend of the Section 3.6 table of attributes. The keywords define what the 0, 0+, 0-1 and 1 columns MEAN; they state no obligation on an implementation. The obligations the table expresses are its rows"
     },
     {
       "id": "3.6:2",
       "quote": "These attributes MUST NOT be used for purposes other than identification (e.g., within CoA-Request packets to request authorization changes).",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. Note 1 under the table of attributes, whose own example names the sender's use: 'e.g., within CoA-Request packets to request authorization changes'."
+      "reason": "Note 1 governs how a sender USES an identification attribute. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "3.6:3",
       "quote": "However, the same Attribute MUST NOT be used for both purposes simultaneously.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. Note 7, on Vendor-Specific Attributes a Dynamic Authorization Client places in a request for identification or for authorization change."
+      "reason": "Note 7 governs how a sender USES a VSA, for identification or for authorization change. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "4:1",
       "quote": "As a result, as noted in Section 3.2, the Service-Type Attribute MUST NOT be used within a Disconnect-Request.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Dynamic Authorization Client, the entity that ORIGINATES a CoA-Request or Disconnect-Request (RFC 5176 Section 1.3). Ze implements only the Dynamic Authorization Server: coaListener (internal/component/l2tp/plugins/authradius/coa.go:30) receives and answers those packets, and no call site in the tree constructs radius.CodeCoARequest or radius.CodeDisconnectRequest for transmission. Section 4 restates the Section 3.2 constraint on what a Dynamic Authorization Client may put in a Disconnect-Request, for Diameter translation."
+      "reason": "The Diameter-considerations restatement of Section 3.2's rule on what a Disconnect-Request may carry. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them"
     },
     {
       "id": "6.1:1",
       "quote": "A Dynamic Authorization Server MUST silently discard Disconnect- Request or CoA-Request packets from untrusted sources.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. handlePacket discards without answering when isAllowedSource is false, and again when VerifyCoARequestAuth fails (coa.go:99, 105)."
+      "disposition": null
     },
     {
       "id": "6.1:2",
       "quote": "If the source address of the Disconnect-Request or CoA-Request is within this set, then the CoA-Request or Disconnect-Request is forwarded; otherwise it MUST be silently discarded.",
       "disposition": "excluded",
       "excluded-kind": "advisory-in-context",
-      "reason": "Sits inside the reverse-path-forwarding construction the preceding sentence makes optional: 'In situations where the Dynamic Authorization Client is co-resident with a RADIUS authentication or accounting server, a proxy MAY perform a \"reverse path forwarding\" (RPF) check to verify that a Disconnect-Request or CoA-Request originates from an authorized Dynamic Authorization Client.' The discard is the consequence of an RPF check nobody is obliged to perform, and the sentence's subject is that proxy. Ze's unconditional source filter is the separate MUST at site 6.1:1."
+      "reason": "The else-branch of an optional check. Its enclosing construction is RFC 5176 Section 6.1: \"In situations where the Dynamic Authorization Client is co-resident with a RADIUS authentication or accounting server, a proxy MAY perform a \\\"reverse path forwarding\\\" (RPF) check to verify that a Disconnect-Request or CoA-Request originates from an authorized Dynamic Authorization Client.\" ze performs no RPF check and maintains no realm routing table, which the same section says makes an RPF check impossible for a NAS"
     },
     {
       "id": "6.3:1",
       "quote": "When the Event-Timestamp Attribute is present, both the Dynamic Authorization Server and the Dynamic Authorization Client MUST check that the Event-Timestamp Attribute is current within an acceptable time window.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. validEventTimestamp compares the Event-Timestamp against coaReplayWindow (coa.go:418)."
+      "disposition": null
     },
     {
       "id": "6.3:2",
       "quote": "If the Event-Timestamp Attribute is not current, then the packet MUST be silently discarded.",
-      "disposition": null,
-      "reason": "DEFECT-10 stale timestamp answered. handlePacket answers a NAK with Error-Cause 404 when validEventTimestamp fails (coa.go:130), where this site requires a silent discard; Section 1.3 defines that as discarding 'the packet without further processing'."
+      "disposition": null
     },
     {
       "id": "6.3:3",
       "quote": "As noted in Section 2.3, duplicate detection is REQUIRED for Dynamic Authorization Servers implementing this specification.",
-      "disposition": null,
-      "reason": "Excluded duplicate-of the id site 2.3:3 will map, once that id exists. The exclusion cannot be recorded before its target: the check refuses a duplicate-of naming an id no other site MAPS."
+      "disposition": null
     },
     {
       "id": "6.3:4",
       "quote": "The time window used for duplicate detection MUST be the same as the window used to detect a stale Event-Timestamp Attribute.",
-      "disposition": null,
-      "reason": "MET, needs a new requirement id. coaReplayWindow (coa.go:53) is the single constant read by both validEventTimestamp and pruneReplayLocked."
+      "disposition": null
     }
-  ],
-  "register-reason": "Informational, with an RFC 2119 key-words paragraph at Section 1.2 and capitalised keywords throughout Sections 2.3, 3, 3.1 to 3.6, 4, 6.1 and 6.3. The derivation grades the source 'rfc2119' and this sign-off claims exactly that grade."
+  ]
 }
