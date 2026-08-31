@@ -122,6 +122,9 @@ func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
 	buf = append(buf, `,"name":"`...)
 	buf = appendJSONSafeString(buf, peer.Name)
 	buf = append(buf, '"')
+	// The top-level router-id is THIS speaker's identifier for the session.
+	// The peer's own goes in the remote block below, beside the peer's address
+	// and AS, so the two are never read for each other.
 	if peer.RouterID != 0 {
 		buf = append(buf, `,"router-id":"`...)
 		buf = appendRouterID(buf, peer.RouterID)
@@ -131,6 +134,16 @@ func appendPeerJSON(buf []byte, peer *plugin.PeerInfo) []byte {
 	buf = peer.Address.AppendTo(buf)
 	buf = append(buf, `","as":`...)
 	buf = strconv.AppendUint(buf, uint64(peer.PeerAS), 10)
+	// RFC 4271 Section 9.1.2.2 step f) compares the PEER's BGP Identifier, and
+	// this key is the only way it crosses to a plugin that reads JSON events
+	// (bgp.PeerRemoteInfo.RouterID, rib.updatePeerMetadata). Omitted before the
+	// peer's OPEN is read, which RFC 6286 Section 2.2 makes unambiguous: a real
+	// identifier is never zero, so absence never hides one.
+	if peer.RemoteRouterID != 0 {
+		buf = append(buf, `,"router-id":"`...)
+		buf = appendRouterID(buf, peer.RemoteRouterID)
+		buf = append(buf, '"')
+	}
 	buf = append(buf, `}}`...)
 	return buf
 }
