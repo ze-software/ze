@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -15,8 +16,7 @@ const (
 	mschapv2OpChallenge uint8 = 1
 	mschapv2OpResponse  uint8 = 2
 	mschapv2OpSuccess   uint8 = 3
-	// mschapv2OpFailure is 4 per RFC 2759; we use EAP-Failure instead of an MS-CHAPv2 Failure packet.
-	_ uint8 = 4
+	mschapv2OpFailure   uint8 = 4
 )
 
 type mschapv2State uint8
@@ -187,8 +187,87 @@ func (m *mschapv2Method) sendSuccess(authResp [20]byte) MethodResult {
 	}
 }
 
+// MS-CHAPv2 Failure Message fields, RFC 2759 Section 6.
+const (
+	// mschapv2ErrorAuthenticationFailure is the E= code for a Response the
+	// authenticator could not verify. RFC 2759 Section 6 lists it among the
+	// codes the field carries: "691 ERROR_AUTHENTICATION_FAILURE".
+	mschapv2ErrorAuthenticationFailure = 691
+
+	// mschapv2PasswordChangeVersion is the V= value. RFC 2759 Section 6: "The
+	// "vvvvvvvvvv" is the ASCII representation of a decimal version code (need
+	// not be 10 digits) indicating the password changing protocol version
+	// supported on the server.  For MS-CHAP-V2, this value SHOULD always be 3."
+	mschapv2PasswordChangeVersion = 3
+
+	// mschapv2ChallengeDigits is the length of the C= field. RFC 2759 Section 6:
+	// "This field MUST be exactly 32 octets long and MUST be present."
+	mschapv2ChallengeDigits = 32
+)
+
+// sendFailure answers an NT-Response the authenticator could not verify with an
+// MS-CHAPv2 Failure packet, and ends the exchange behind it.
+//
+// RFC 2759 Section 6: "The Failure packet is identical in format to the standard
+// CHAP Failure packet.  There is, however, formatted text stored in the Message
+// field which, contrary to the standard CHAP rules, does affect the operation of
+// the protocol.  The Message field format is:
+//
+//	"E=eeeeeeeeee R=r C=cccccccccccccccccccccccccccccccc V=vvvvvvvvvv M=<msg>""
+//
+// Wire format, over the draft-kamath EAP encapsulation:
+//
+//	 0        1        2        3        4                        msLen
+//	+--------+--------+--------+--------+-------------------------+
+//	| OpCode | MS-ID  |    MS-Length    | E= R= C= V= M=<message> |
+//	+--------+--------+--------+--------+-------------------------+
+//	    4      answered  total octets     the formatted Message
+//
+// R is '0' because Ze offers no retry. RFC 2759 Section 6: "The "r" is an ASCII
+// flag set to '1' if a retry is allowed, and '0' if not.  When the authenticator
+// sets this flag to '1' it disables short timeouts, expecting the peer to prompt
+// the user for new credentials and resubmit the response." An IKEv2 EAP exchange
+// inside a router has no user to prompt, so the flag states the truth.
+//
+// The C= challenge is drawn fresh for each refusal and is not kept: it is the
+// challenge a retry would answer, and this authenticator offers none. The
+// mandate is on the field, not on the retry.
 func (m *mschapv2Method) sendFailure() MethodResult {
-	return MethodResult{Err: ErrMethodFailed}
+	var challenge [16]byte
+	if _, err := rand.Read(challenge[:]); err != nil {
+		return MethodResult{Err: fmt.Errorf("eap-mschapv2: generate the Failure challenge: %w", err)}
+	}
+
+	// RFC 2759 Section 6: "This field MUST be exactly 32 octets long and MUST be
+	// present." Sixteen octets of hexadecimal are exactly 32 digits, and Section
+	// 5 sets the case this file writes hexadecimal in.
+	msg := "E=" + strconv.Itoa(mschapv2ErrorAuthenticationFailure) +
+		" R=0" +
+		" C=" + strings.ToUpper(hex.EncodeToString(challenge[:])) +
+		" V=" + strconv.Itoa(mschapv2PasswordChangeVersion) +
+		" M=Authentication failure"
+
+	msLen := 4 + len(msg)
+	td := make([]byte, msLen)
+	td[0] = mschapv2OpFailure
+	td[1] = m.msID
+	td[2] = byte(msLen >> 8)
+	td[3] = byte(msLen)
+	copy(td[4:], msg)
+
+	// The method is finished, so the credential it was given goes now rather
+	// than at a Close the caller might skip.
+	m.state = mschapv2StateDone
+	m.password = ""
+
+	return MethodResult{
+		FinalRequest: &Packet{
+			Code:     CodeRequest,
+			Type:     TypeMSCHAPv2,
+			TypeData: td,
+		},
+		Err: fmt.Errorf("%w: the NT-Response does not match the password, error code %d", ErrMethodFailed, mschapv2ErrorAuthenticationFailure),
+	}
 }
 
 func (m *mschapv2Method) handleSuccessAck() MethodResult {

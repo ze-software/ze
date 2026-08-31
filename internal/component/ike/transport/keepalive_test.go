@@ -75,3 +75,43 @@ func TestKeepaliveDefaultInterval(t *testing.T) {
 		t.Errorf("DefaultKeepaliveInterval = %v, want <= 20s (shorter than a typical NAT UDP binding timeout)", DefaultKeepaliveInterval)
 	}
 }
+
+// VALIDATES: a NAT-keepalive that arrives on the NAT-T socket is dropped by the transport
+// and never becomes a packet a session can read.
+// PREVENTS: keepalive reception standing in for liveness. A keepalive leaves a peer on a
+// timer and says nothing about whether that peer still holds the IKE SA, so a liveness
+// check that counted one would hold a dead SA up until user traffic failed.
+//
+// RFC requirement: RFC3948-4-3 negative -- reception of NAT-keepalive packets is not used
+// to detect whether a connection is live: Run refuses to deliver the datagram at all
+// (udp.go, the 28-byte IKE header floor), so no liveness path in the engine can reach one.
+func TestNATKeepaliveIsNeverDeliveredToASession(t *testing.T) {
+	log := slogutil.DiscardLogger()
+	tr, err := NewNATTTransport("127.0.0.1:0", log)
+	if err != nil {
+		t.Fatalf("NewNATTTransport: %v", err)
+	}
+	t.Cleanup(func() { _ = tr.Close() })
+
+	go tr.Run()
+
+	local, ok := tr.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatal("LocalAddr is not *net.UDPAddr")
+	}
+	sender, err := net.DialUDP("udp4", nil, local)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	t.Cleanup(func() { _ = sender.Close() })
+
+	if _, err := sender.Write([]byte{0xFF}); err != nil {
+		t.Fatalf("write keepalive: %v", err)
+	}
+
+	select {
+	case pkt := <-tr.Recv():
+		t.Fatalf("a NAT-keepalive of %d byte(s) was delivered as a session packet", len(pkt.Data))
+	case <-time.After(100 * time.Millisecond):
+	}
+}

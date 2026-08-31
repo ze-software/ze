@@ -21,6 +21,10 @@ authenticator such as strongSwan. The responder half is described in
   then creates the EAP session.
 - RFC 7296 Section 2.3 governs the message ID, which must increment across the
   EAP round trips inside the same IKE_AUTH exchange.
+- RFC 2759 Section 5 requires the peer to verify the authenticator response in
+  the MS-CHAPv2 Success packet, and to end the session when that response is
+  missing or incorrect. This is the mutual half of MS-CHAPv2: only a party that
+  knows the password hash can produce the S= value.
 
 ## Decisions
 
@@ -53,6 +57,15 @@ chain against the configured roots through an explicit callback.
 **A round-trip cap keeps a broken authenticator from looping forever.**
 
 <!-- source: internal/component/ike/eap/peer.go -- maxEAPRounds -->
+
+**An MS-CHAPv2 Success packet is a claim, not a proof.** The peer recomputes the
+Authenticator Response from the Authenticator Challenge and the NT-Response it
+retained, compares it with the S= value in constant time, and ends the session
+on every other shape, the packet with no Message included. A peer that only
+checks that 40 characters parse as hexadecimal authenticates against any
+responder at all.
+
+<!-- source: internal/component/ike/eap/peer.go -- handleMSCHAPv2Success, authenticatorResponse -->
 
 ## Proof
 

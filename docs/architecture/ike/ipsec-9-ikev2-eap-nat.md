@@ -19,6 +19,9 @@ fails whenever either peer sits behind a NAT device.
   against it.
 - RFC 5216 Section 2.1.3 requires a fatal alert to be delivered to the peer
   before the exchange ends. See the trap on two-round producers below.
+- RFC 2759 Section 6 defines the MS-CHAPv2 Failure packet. A refused
+  NT-Response is answered with it, carrying `E=691`, `R=0`, a fresh 32-digit
+  `C=` challenge, `V=3` and `M=`, and the exchange ends behind that packet.
 - RFC 2759 Section 9 gives the MS-CHAPv2 test vectors. The magic constants are
   used WITHOUT the trailing null byte. The RFC's C declarations size the arrays
   at 39 and then give 40 initializers, which is a defect in the RFC text.
@@ -75,6 +78,25 @@ protocol spends two rounds, the producer has to spend two rounds: park the
 cause, send the packet, and report on the round after. Ze as EAP PEER needs the
 mirror of the same fix, because the authenticator now waits for a reply that the
 peer was discarding.
+
+**A method's last word has its own field, `MethodResult.FinalRequest`.** The
+paragraph above is why: a packet returned in `Response` beside a non-nil `Err`
+is discarded. `FinalRequest` is read first, it fails the exchange as it goes
+out, and it obliges `Err` to be set beside it. MS-CHAPv2 uses it for the Failure
+packet RFC 2759 Section 6 defines. The difference from the parked cause above is
+WHEN the exchange knows: with a last word the failure is recorded at once and no
+later packet can undo it, where a parked cause leaves the session ignorant for a
+round.
+
+**A refusal still costs two rounds, and the lower layer is why.** RFC 3748
+Section 4.2 makes the authenticator send an EAP-Failure after a failure result
+indication, "regardless of the response from the peer", and RFC 7296 Section 2.16
+gives each IKE_AUTH message one EAP payload. So the MS-CHAPv2 Failure packet and
+the EAP-Failure cannot share a round. The authenticator parks in `stateLastWord`
+and answers whatever comes back with the EAP-Failure; the peer acknowledges the
+Failure packet with the OpCode alone so that round exists, and reports the E=
+error code when the EAP-Failure arrives. A peer that ended the conversation on
+the Failure packet would leave the authenticator no round to meet Section 4.2 in.
 
 <!-- source: internal/component/ike/eap/eap.go -- MethodResult, Session.handleMethod, Session.failure -->
 <!-- source: internal/component/ike/eap/eap_tls.go -- tlsMethod.Process, tlsMethod.Close -->

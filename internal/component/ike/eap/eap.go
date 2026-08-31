@@ -89,11 +89,32 @@ func DecodePacket(data []byte) (*Packet, error) {
 }
 
 // MethodResult is the outcome of processing one EAP exchange round.
+//
+// Session.handleMethod reads the fields in this order, and the four outcomes
+// they name are mutually exclusive:
+//
+//	FinalRequest  send it as the method's last word, then fail with Err
+//	Done          the exchange succeeded and MSK carries the key
+//	Err           the exchange failed, and an EAP-Failure answers the peer
+//	Response      the exchange continues with this EAP-Request
+//
+// FinalRequest is the method's last word: a packet the method owes the peer on
+// a refusal, sent by an exchange that has already failed. The EAP-Failure that
+// RFC 3748 Section 4.2 obliges follows it on the next round, and nothing else
+// can. A method that sets FinalRequest MUST set Err too, because the packet
+// carries the protocol's reason and Err carries the operator's.
+//
+// Setting Response BESIDE Err puts the packet nowhere: the Err branch answers
+// with an EAP-Failure and the Response is discarded. That is why the last word
+// has a field of its own rather than a flag over Response, and it is a defect
+// this package has already paid for once (see the EAP-TLS alert in
+// tlsMethod.Process, eap_tls.go).
 type MethodResult struct {
-	Response *Packet
-	MSK      [64]byte
-	Done     bool
-	Err      error
+	Response     *Packet
+	FinalRequest *Packet
+	MSK          [64]byte
+	Done         bool
+	Err          error
 }
 
 // Method is the interface for an EAP authentication method (server/authenticator side).
@@ -141,6 +162,13 @@ const (
 	stateMethod
 	stateSuccess
 	stateFailure
+
+	// stateLastWord is the exchange after a method's last word has gone out and
+	// before the EAP-Failure that RFC 3748 Section 4.2 obliges: "After the
+	// authenticator sends a failure result indication to the peer, regardless of
+	// the response from the peer, it MUST subsequently send a Failure packet."
+	// The exchange has already failed here, and Err already carries the cause.
+	stateLastWord
 )
 
 // NewSession creates an EAP session for the given method type.
@@ -200,6 +228,13 @@ func (s *Session) Process(response *Packet) *Packet {
 		return s.handleIdentity(response)
 	case stateMethod:
 		return s.handleMethod(response)
+	case stateLastWord:
+		// RFC 3748 Section 4.2: "After the authenticator sends a failure result
+		// indication to the peer, regardless of the response from the peer, it
+		// MUST subsequently send a Failure packet." The response is not read:
+		// whatever the peer answered the last word with, this exchange owes it
+		// an EAP-Failure and nothing else.
+		return s.failure(response)
 	default:
 		return nil
 	}
@@ -264,6 +299,9 @@ func (s *Session) handleMethod(response *Packet) *Packet {
 	}
 
 	result := s.method.Process(response)
+	if result.FinalRequest != nil {
+		return s.finalRequest(result)
+	}
 	if result.Err != nil {
 		s.err = result.Err
 		s.state = stateFailure
@@ -288,6 +326,33 @@ func (s *Session) handleMethod(response *Packet) *Packet {
 		result.Response.Identifier = s.identifier
 	}
 	return result.Response
+}
+
+// finalRequest sends a method's last word: the packet a method owes the peer on
+// a refusal, sent by an exchange that has already failed.
+//
+// The decision is taken here and now. Err is recorded, no MSK is kept, and the
+// only packet this exchange can produce afterwards is the EAP-Failure. That is
+// what separates a last word from the parked cause EAP-TLS uses, where the
+// Session does not learn of the failure until the round after.
+//
+// One round still follows, and the lower layer is why. RFC 3748 Section 4.2:
+// "After the authenticator sends a failure result indication to the peer,
+// regardless of the response from the peer, it MUST subsequently send a Failure
+// packet." RFC 7296 Section 2.16 carries one EAP payload for each IKE_AUTH
+// message, so the last word and the EAP-Failure cannot share a round.
+//
+// The packet is an EAP-Request, so it takes a new Identifier exactly as the
+// continuing round below does.
+func (s *Session) finalRequest(result MethodResult) *Packet {
+	if result.Err == nil {
+		panic("BUG: MethodResult.FinalRequest was set with no Err, so the exchange would fail with no cause")
+	}
+	s.err = result.Err
+	s.state = stateLastWord
+	s.identifier++
+	result.FinalRequest.Identifier = s.identifier
+	return result.FinalRequest
 }
 
 // failure ends the exchange, answering the packet the caller was given.

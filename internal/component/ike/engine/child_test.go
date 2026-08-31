@@ -177,6 +177,9 @@ func TestChildSAInstallsInDataplane(t *testing.T) {
 	// RFC requirement: RFC4301-4.1-2 positive -- a security gateway supports tunnel mode: the
 	// Child SA install emits tunnel-mode PROTECT policies alongside the tunnel-mode SAs
 	// (child.go:281,:295).
+	// RFC requirement: RFC3948-1-1 positive -- an IPsec tunnel mode client supports tunnel
+	// mode: the same install programs the SA pair and both policies in tunnel mode, which is
+	// what a peer behind a NAT needs to carry inner traffic over UDP-encapsulated ESP.
 	for i, p := range dp.policies {
 		if p.Mode != modeTunnel {
 			t.Errorf("policy[%d] mode = %d, want modeTunnel (%d)", i, p.Mode, modeTunnel)
@@ -402,6 +405,11 @@ func TestChildSAInboundPolicyUsesNegotiatedTS(t *testing.T) {
 	// RFC requirement: RFC4301-4.4.2-1 positive -- the inbound SAD/SPD entry is populated with
 	// the negotiated traffic selectors: the inbound policy (Dir=In) carries Src == negotiated
 	// TSr and Dst == negotiated TSi (child.go:276-288 over the narrowed TS from :155-164).
+	// RFC requirement: RFC3948-3.1.1-1 positive -- the tunnel mode decapsulation NAT procedure
+	// checks the inner source address against the policy defined for the peer. The check runs
+	// in the kernel, and the source address space it checks against is this Src selector, so
+	// an inner packet from outside the negotiated TSr is dropped rather than accepted from a
+	// peer whose outer address a NAT rewrote.
 	inPol := dp.policies[0]
 	if inPol.Dir != dataplane.SADirIn {
 		t.Fatalf("policies[0] Dir = %d, want inbound (%d)", inPol.Dir, dataplane.SADirIn)

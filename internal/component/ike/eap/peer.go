@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync/atomic"
 )
@@ -22,6 +23,11 @@ const maxEAPRounds = 20
 var (
 	ErrTooManyRounds = errors.New("eap: exceeded maximum exchange rounds")
 	ErrEAPFailure    = errors.New("eap: authenticator sent Failure")
+
+	// errSessionEnded refuses every packet that arrives after the peer ended the
+	// session. An EAP-Success is the packet a rogue authenticator sends next, and
+	// answering it with the MSK would undo the refusal that produced this state.
+	errSessionEnded = errors.New("eap: the peer session ended and answers nothing further")
 
 	// errNoPeerTrustAnchor refuses an EAP-TLS peer session that could not
 	// path-validate the authenticator. RFC 5216 Section 5.3 makes that validation
@@ -62,8 +68,12 @@ type PeerSession struct {
 	state    peerState
 	msk      [64]byte
 
-	// MSCHAPv2 state.
+	// MSCHAPv2 state. The Authenticator Challenge and the NT-Response are held
+	// from the Challenge round to the Success round, because RFC 2759 Section 5
+	// makes the peer recompute the Authenticator Response over both of them.
 	peerChallenge [16]byte
+	authChallenge [16]byte
+	ntResponse    [24]byte
 	userName      string
 
 	// EAP-TLS state.
@@ -139,6 +149,14 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 	if ps.pendingErr != nil {
 		ps.state = peerStateFailed
 		return PeerResult{Err: ps.pendingErr}
+	}
+
+	// A session the peer ended stays ended, whatever arrives next. RFC 2759
+	// Section 5 makes a missing or incorrect authenticator response end the
+	// session, and an EAP-Success is what a rogue authenticator sends after that
+	// refusal: answering it would hand out the MSK the refusal denied.
+	if ps.state == peerStateFailed {
+		return PeerResult{Err: errSessionEnded}
 	}
 
 	switch request.Code {
@@ -239,6 +257,8 @@ func (ps *PeerSession) handleMSCHAPv2Request(req *Packet) PeerResult {
 		return ps.handleMSCHAPv2Challenge(req.Identifier, td)
 	case mschapv2OpSuccess:
 		return ps.handleMSCHAPv2Success(req.Identifier, td)
+	case mschapv2OpFailure:
+		return ps.handleMSCHAPv2Failure(req.Identifier, td)
 	default:
 		return PeerResult{Err: fmt.Errorf("eap-mschapv2: unexpected opcode %d", opCode)}
 	}
@@ -260,6 +280,8 @@ func (ps *PeerSession) handleMSCHAPv2Challenge(identifier uint8, td []byte) Peer
 	}
 
 	ntResponse := GenerateNTResponse(authChallenge, ps.peerChallenge, ps.userName, ps.password)
+	ps.authChallenge = authChallenge
+	ps.ntResponse = ntResponse
 	ps.msk = DeriveMSK(ps.password, ntResponse)
 
 	// MS-CHAPv2 Response: OpCode(1) + MS-ID(1) + MS-Length(2) + ValueSize(1) + Response(49) + Name.
@@ -286,14 +308,33 @@ func (ps *PeerSession) handleMSCHAPv2Challenge(identifier uint8, td []byte) Peer
 	}
 }
 
+// authenticatorResponseDigits is the size of the S= value in the Success
+// Message: a 20-octet number written as 40 hexadecimal digits.
+const authenticatorResponseDigits = 40
+
+// handleMSCHAPv2Success verifies that the authenticator knows the password
+// before it acknowledges the Success packet, which is the second half of
+// MS-CHAPv2 mutual authentication.
+//
+// RFC 2759 Section 5: "The authenticating peer MUST verify the authenticator
+// response when a Success packet is received.  The method for verifying the
+// authenticator is described in section 8.8, below.  If the authenticator
+// response is either missing or incorrect, the peer MUST end the session."
+//
+// Ending the session has two parts here. The state goes to peerStateFailed, so
+// no later packet is answered, and the error reaches startEAPExchange
+// (internal/component/ike/engine/fsm.go), which puts the IKE SA in StateDead.
 func (ps *PeerSession) handleMSCHAPv2Success(identifier uint8, td []byte) PeerResult {
-	if len(td) > 4 {
-		msg := string(td[4:])
-		if strings.HasPrefix(msg, "S=") && len(msg) >= 42 {
-			if _, err := hex.DecodeString(msg[2:42]); err != nil {
-				return PeerResult{Err: fmt.Errorf("eap-mschapv2: invalid authenticator response: %w", err)}
-			}
-		}
+	received, err := parseAuthenticatorResponse(td)
+	if err != nil {
+		ps.state = peerStateFailed
+		return PeerResult{Err: err}
+	}
+
+	expected := GenerateAuthenticatorResponse(ps.password, ps.ntResponse, ps.peerChallenge, ps.authChallenge, ps.userName)
+	if !constantTimeEqual(expected[:], received[:]) {
+		ps.state = peerStateFailed
+		return PeerResult{Err: errors.New("eap-mschapv2: the authenticator response does not match the expected value, so the authenticator does not know the password")}
 	}
 
 	// RFC 2759: peer acknowledges Success with an MSCHAPv2 Success packet (OpCode=3).
@@ -307,6 +348,193 @@ func (ps *PeerSession) handleMSCHAPv2Success(identifier uint8, td []byte) PeerRe
 			TypeData:   ack,
 		},
 	}
+}
+
+// parseAuthenticatorResponse reads the 20-octet authenticator response out of
+// the Message field of an MS-CHAPv2 Success packet.
+//
+// RFC 2759 Section 5 gives the Message field as "S=<auth_string> M=<message>",
+// where "The <auth_string> quantity is a 20 octet number encoded in ASCII as 40
+// hexadecimal digits."  The Message starts after the four-octet header, and it
+// carries no length of its own: it runs to the end of the packet.
+//
+//	 0        1        2        3        4                        len(td)
+//	+--------+--------+--------+--------+-------------------------+
+//	| OpCode | MS-ID  |    MS-Length    | S=<40 hex> M=<message>  |
+//	+--------+--------+--------+--------+-------------------------+
+//
+// Every shape that carries no readable authenticator response is an error, the
+// absent Message included. RFC 2759 Section 5 treats a missing response and an
+// incorrect one the same way, so neither may reach the acknowledgement.
+func parseAuthenticatorResponse(td []byte) ([20]byte, error) {
+	var response [20]byte
+	if len(td) <= 4 {
+		return response, errors.New("eap-mschapv2: the Success packet carries no Message, so it carries no authenticator response")
+	}
+
+	message := string(td[4:])
+	if !strings.HasPrefix(message, "S=") {
+		return response, fmt.Errorf("eap-mschapv2: the Success Message carries no S= authenticator response: %q", message)
+	}
+
+	end := 2 + authenticatorResponseDigits
+	if len(message) < end {
+		return response, fmt.Errorf("eap-mschapv2: the authenticator response is %d characters, want %d hexadecimal digits", len(message)-2, authenticatorResponseDigits)
+	}
+
+	if _, err := hex.Decode(response[:], []byte(message[2:end])); err != nil {
+		return response, fmt.Errorf("eap-mschapv2: the authenticator response is not hexadecimal: %w", err)
+	}
+	return response, nil
+}
+
+// handleMSCHAPv2Failure answers the authenticator's Failure packet and ends the
+// conversation behind it.
+//
+// RFC 2759 Section 6: "The Failure packet is identical in format to the standard
+// CHAP Failure packet.  There is, however, formatted text stored in the Message
+// field which, contrary to the standard CHAP rules, does affect the operation of
+// the protocol."
+//
+// ACKNOWLEDGE NOW, REPORT ON THE ROUND AFTER. The authenticator still owes an
+// EAP-Failure: RFC 3748 Section 4.2 says that after a failure result indication,
+// "regardless of the response from the peer, it MUST subsequently send a Failure
+// packet", and RFC 7296 Section 2.16 gives each IKE_AUTH message one EAP payload,
+// so that packet needs a round of its own. A peer that answered nothing here
+// would leave the authenticator with no round to send it in.
+//
+// The cause is parked rather than returned, for the reason pendingErr exists:
+// PeerResult carries a response and an error, and the IKE engine reads the error
+// first (handleEAPResponse, internal/component/ike/engine/fsm.go), so a cause
+// returned beside the acknowledgement discards the acknowledgement. Parking it
+// also ends the exchange whatever arrives next, which is what RFC 3748 Section
+// 4.2 asks of a peer whose method completed unsuccessfully: "The peer MUST
+// silently discard Success packets".
+//
+// Ze does not retry behind the R= flag. Taking a retry needs new credentials, and
+// RFC 2759 Section 6 says where they come from: the authenticator expects "the
+// peer to prompt the user for new credentials and resubmit the response". An
+// IKEv2 EAP exchange in a router has no user at the keyboard, and Section 6
+// obliges no peer to retry.
+func (ps *PeerSession) handleMSCHAPv2Failure(identifier uint8, td []byte) PeerResult {
+	failure, err := parseMSCHAPv2Failure(td)
+	if err != nil {
+		// A Failure packet Ze cannot read is still a refusal, and it is one with
+		// nothing to acknowledge: the conversation ends here rather than sending
+		// an acknowledgement of a packet whose contents were not understood.
+		ps.state = peerStateFailed
+		return PeerResult{Err: err}
+	}
+
+	// ErrEAPFailure stays the identity of "the authenticator refused us", which
+	// is what the IKE engine and every test of that path read. The MS-CHAPv2
+	// reason rides with it, because the EAP-Failure to come carries no field for
+	// one (RFC 3748 Section 4.2: "Success and Failure packets MUST NOT contain
+	// additional data").
+	ps.pendingErr = fmt.Errorf("%w: %w", ErrEAPFailure, failure)
+
+	// RFC 2759 Section 6 over the draft-kamath EAP encapsulation: the peer
+	// answers the Failure packet with the OpCode alone, framed by the same
+	// four-octet header the Success acknowledgement uses.
+	// RFC 3748 Section 4.1: "The Identifier field of the Response MUST match
+	// that of the currently outstanding Request."
+	ack := []byte{mschapv2OpFailure, td[1], 0, 4}
+	return PeerResult{
+		Response: &Packet{
+			Code:       CodeResponse,
+			Identifier: identifier,
+			Type:       TypeMSCHAPv2,
+			TypeData:   ack,
+		},
+	}
+}
+
+// parseMSCHAPv2Failure reads the Message field of an MS-CHAPv2 Failure packet.
+//
+// RFC 2759 Section 6 gives the format as
+// "E=eeeeeeeeee R=r C=cccccccccccccccccccccccccccccccc V=vvvvvvvvvv M=<msg>".
+// The Message starts after the four-octet header and carries no length of its
+// own: it runs to the end of the packet, and M= runs to the end of the Message.
+//
+//	 0        1        2        3        4                        len(td)
+//	+--------+--------+--------+--------+-------------------------+
+//	| OpCode | MS-ID  |    MS-Length    | E= R= C= V= M=<message> |
+//	+--------+--------+--------+--------+-------------------------+
+//
+// Two fields are checked, and they are the two the RFC states an obligation
+// about. E= carries the error code the caller logs. C= "MUST be exactly 32
+// octets long and MUST be present", so a Message without one is named as the
+// malformed packet it is rather than reported as an ordinary refusal. R= and V=
+// are read past: R= offers a retry Ze does not take, and V= names a
+// password-changing protocol Ze does not speak.
+//
+// Case is not part of the C= mandate, so a lowercase challenge is accepted here
+// while sendFailure writes uppercase (eap_mschapv2.go).
+func parseMSCHAPv2Failure(td []byte) (*mschapv2FailureError, error) {
+	if len(td) <= 4 {
+		return nil, fmt.Errorf("%w: the Failure packet carries no Message", errFailureChallenge)
+	}
+	message := string(td[4:])
+
+	challenge, ok := mschapv2FailureField(message, "C=")
+	if !ok {
+		return nil, fmt.Errorf("%w: the Message carries no C= field: %q", errFailureChallenge, message)
+	}
+	if len(challenge) != mschapv2ChallengeDigits {
+		return nil, fmt.Errorf("%w: the C= field is %d octets, want exactly %d", errFailureChallenge, len(challenge), mschapv2ChallengeDigits)
+	}
+	if _, err := hex.DecodeString(challenge); err != nil {
+		return nil, fmt.Errorf("%w: the C= field is not hexadecimal: %w", errFailureChallenge, err)
+	}
+
+	digits, ok := mschapv2FailureField(message, "E=")
+	if !ok {
+		return nil, fmt.Errorf("eap-mschapv2: the Failure Message carries no E= error code: %q", message)
+	}
+	code, err := strconv.Atoi(digits)
+	if err != nil {
+		return nil, fmt.Errorf("eap-mschapv2: the E= error code %q is not a decimal number", digits)
+	}
+
+	// M= is the last field, and RFC 2759 Section 6 makes it "human-readable text
+	// in the appropriate charset and language", so it runs to the end of the
+	// Message rather than to the next space.
+	text := ""
+	if start := strings.Index(message, "M="); start >= 0 {
+		text = message[start+len("M="):]
+	}
+
+	return &mschapv2FailureError{code: code, message: text}, nil
+}
+
+// mschapv2FailureField returns the value of one space-delimited field of a
+// Failure Message, and reports whether the field is present.
+func mschapv2FailureField(message, prefix string) (string, bool) {
+	for field := range strings.SplitSeq(message, " ") {
+		if strings.HasPrefix(field, prefix) {
+			return strings.TrimPrefix(field, prefix), true
+		}
+	}
+	return "", false
+}
+
+// errFailureChallenge reports an MS-CHAPv2 Failure packet whose C= field is
+// absent or is not 32 hexadecimal digits.
+//
+// RFC 2759 Section 6, on the C= field: "This field MUST be exactly 32 octets
+// long and MUST be present."
+var errFailureChallenge = errors.New("eap-mschapv2: the Failure packet carries no conformant C= challenge")
+
+// mschapv2FailureError is the authenticator's refusal, read as an error so the
+// caller logs the code the authenticator sent rather than the bare fact that
+// the exchange failed.
+type mschapv2FailureError struct {
+	code    int
+	message string
+}
+
+func (e *mschapv2FailureError) Error() string {
+	return "eap-mschapv2: the authenticator refused the credentials with error code " + strconv.Itoa(e.code) + ": " + e.message
 }
 
 // handleTLSRequest processes EAP-TLS requests from the authenticator.

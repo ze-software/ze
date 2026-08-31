@@ -73,6 +73,11 @@ func TestVirtualIPPoolRelease(t *testing.T) {
 	_ = r2
 }
 
+// RFC requirement: RFC3948-5.1-1 negative -- the security gateway refuses rather than hand
+// a second client an inner address that is already in use. RFC 3948 Section 5.1 warns that
+// two remote peers reaching one SGW on the same inner address leave it unable to tell which
+// SA a returning packet belongs to, so a pool that wrapped around under pressure would
+// recreate exactly that conflict.
 func TestVirtualIPPoolExhausted(t *testing.T) {
 	pool, err := NewPool("10.10.0.0/30", "", nil, "")
 	if err != nil {
@@ -210,5 +215,35 @@ func TestVirtualIPPoolReleaseNotAllocated(t *testing.T) {
 	err = pool.Release([]byte{10, 10, 0, 5})
 	if !errors.Is(err, ErrNotAllocated) {
 		t.Fatalf("expected ErrNotAllocated, got %v", err)
+	}
+}
+
+// VALIDATES: every address the virtual IP pool hands out is distinct, for as long as the
+// pool has addresses left.
+// PREVENTS: two road warrior clients reaching one security gateway on the same inner
+// address, which leaves the gateway holding two SAs that lead to that address and no way
+// to choose between them for traffic coming back from the protected network.
+//
+// RFC requirement: RFC3948-5.1-1 positive -- ze prevents the RFC 3948 Section 5.1 conflict
+// the way the section recommends: the gateway assigns each client a locally unique address
+// instead of carrying the address the client brought with it.
+func TestVirtualIPPoolNeverHandsOneAddressTwice(t *testing.T) {
+	pool, err := NewPool("10.10.0.0/28", "", nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A /28 leaves 14 usable addresses once the network and broadcast addresses are out.
+	seen := make(map[string]bool, 14)
+	for i := range 14 {
+		result, allocErr := pool.Allocate()
+		if allocErr != nil {
+			t.Fatalf("allocation %d failed: %v", i, allocErr)
+		}
+		addr := result.IPv4.String()
+		if seen[addr] {
+			t.Fatalf("allocation %d handed out %s a second time; two clients would share an inner address", i, addr)
+		}
+		seen[addr] = true
 	}
 }
