@@ -11,6 +11,7 @@ package rib
 
 import (
 	"fmt"
+	"math"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
@@ -48,7 +49,8 @@ const (
 	BestStepEBGPOverIBGP                 // 5 -- prefer eBGP over iBGP
 	BestStepIGPCost                      // 6 -- lowest IGP cost (deferred)
 	BestStepRouterID                     // 7 -- lowest Router ID / ORIGINATOR_ID
-	BestStepPeerAddr                     // 8 -- lowest peer address
+	BestStepClusterList                  // 8 -- shortest CLUSTER_LIST (RFC 4456 Section 9)
+	BestStepPeerAddr                     // 9 -- lowest peer address
 	BestStepEqual                        // no step resolved -- candidates are byte-for-byte identical
 )
 
@@ -71,6 +73,8 @@ func (s BestStep) String() string {
 		return "igp-cost"
 	case BestStepRouterID:
 		return "router-id"
+	case BestStepClusterList:
+		return "cluster-list-length"
 	case BestStepPeerAddr:
 		return "peer-address"
 	case BestStepEqual:
@@ -90,19 +94,20 @@ const (
 // Candidate holds extracted attribute values for best-path comparison.
 // Built from pool handles by the caller -- this struct has no pool dependency.
 type Candidate struct {
-	PeerAddr     string           // peer IP address string (map keys, JSON, internPeer)
-	PeerIP       netip.Addr       // parsed peer address (zero-alloc comparison)
-	PeerASN      uint32           // peer's AS number
-	LocalASN     uint32           // local AS number (0 = unknown)
-	LocalPref    uint32           // LOCAL_PREF value (default 100 if absent)
-	ASPathLen    int              // AS_PATH length (AS_SET counts as 1)
-	FirstAS      uint32           // first AS in path (for MED neighbor comparison)
-	Origin       attribute.Origin // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
-	MED          uint32           // MED value (default 0 if absent)
-	IGPCost      uint32           // IGP metric to next-hop (0 = directly connected or unknown)
-	OriginatorIP netip.Addr       // ORIGINATOR_ID or Router ID (RFC 4456, zero-alloc comparison)
-	StaleLevel   uint8            // Route staleness level (0=fresh; plugin-defined higher levels)
-	ASPathHandle attrpool.Handle  // AS_PATH pool handle (for content-equal multipath comparison)
+	PeerAddr           string           // peer IP address string (map keys, JSON, internPeer)
+	PeerIP             netip.Addr       // parsed peer address (zero-alloc comparison)
+	PeerASN            uint32           // peer's AS number
+	LocalASN           uint32           // local AS number (0 = unknown)
+	LocalPref          uint32           // LOCAL_PREF value (default 100 if absent)
+	ASPathLen          int              // AS_PATH length (AS_SET counts as 1)
+	FirstAS            uint32           // first AS in path (for MED neighbor comparison)
+	Origin             attribute.Origin // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
+	MED                uint32           // MED value (default 0 if absent)
+	IGPCost            uint32           // IGP metric to next-hop (0 = directly connected or unknown)
+	OriginatorIP       netip.Addr       // ORIGINATOR_ID or Router ID (RFC 4456, zero-alloc comparison)
+	ClusterListEntries uint16           // CLUSTER_ID count in the CLUSTER_LIST (RFC 4456 Section 9; 0 when the attribute is absent)
+	StaleLevel         uint8            // Route staleness level (0=fresh; plugin-defined higher levels)
+	ASPathHandle       attrpool.Handle  // AS_PATH pool handle (for content-equal multipath comparison)
 }
 
 // SelectBest selects the best route from a list of candidates.
@@ -176,10 +181,11 @@ func SelectMultipath(candidates []*Candidate, maxPaths uint32, relaxASPath bool)
 // best-path steps: LOCAL_PREF, AS_PATH length (and content unless relaxed),
 // Origin, MED when from the same neighbor AS, and eBGP/iBGP status.
 //
-// Steps 0 (stale), 6 (IGP cost), 7 (Router ID), and 8 (peer address) are
-// excluded: step 0 is a hard gate already handled by SelectBest choosing a
-// non-stale primary, steps 7-8 are final tiebreakers that always differ
-// between distinct paths, and step 6 is deferred pending IGP integration.
+// Steps 0 (stale), 6 (IGP cost), 7 (Router ID), 8 (CLUSTER_LIST length), and 9
+// (peer address) are excluded: step 0 is a hard gate already handled by
+// SelectBest choosing a non-stale primary, steps 7-9 are final tiebreakers that
+// distinguish paths the earlier steps already found equal-cost, and step 6 is
+// deferred pending IGP integration.
 //
 // relaxASPath == false requires byte-identical AS_PATH. Because the attrpool
 // deduplicates identical byte sequences to the same handle, two candidates
@@ -371,7 +377,21 @@ func comparePair(a, b *Candidate) (int, BestStep) {
 		}
 	}
 
-	// Step 8: Lowest peer address (final tiebreak).
+	// Step 8: Shortest CLUSTER_LIST.
+	// RFC 4456 Section 9: "the following rule SHOULD be inserted between Steps
+	// f) and g): a BGP Speaker SHOULD prefer a route with the shorter
+	// CLUSTER_LIST length. The CLUSTER_LIST length is zero if a route does not
+	// carry the CLUSTER_LIST attribute."
+	// Step f) is the router-id step above and step g) is the peer address
+	// below, so this is the slot the RFC names.
+	if a.ClusterListEntries != b.ClusterListEntries {
+		if a.ClusterListEntries < b.ClusterListEntries {
+			return -1, BestStepClusterList
+		}
+		return 1, BestStepClusterList
+	}
+
+	// Step 9: Lowest peer address (final tiebreak).
 	if a.PeerIP != b.PeerIP {
 		return a.PeerIP.Compare(b.PeerIP), BestStepPeerAddr
 	}
@@ -480,7 +500,21 @@ func comparePairWithReason(a, b *Candidate) (int, BestStep, string) {
 		}
 	}
 
-	// Step 8: Lowest peer address (final tiebreak).
+	// Step 8: Shortest CLUSTER_LIST.
+	// RFC 4456 Section 9: "the following rule SHOULD be inserted between Steps
+	// f) and g): a BGP Speaker SHOULD prefer a route with the shorter
+	// CLUSTER_LIST length. The CLUSTER_LIST length is zero if a route does not
+	// carry the CLUSTER_LIST attribute."
+	if a.ClusterListEntries != b.ClusterListEntries {
+		reason := "cluster-list-length " + textbuf.StringUint32(uint32(a.ClusterListEntries)) +
+			" vs " + textbuf.StringUint32(uint32(b.ClusterListEntries))
+		if a.ClusterListEntries < b.ClusterListEntries {
+			return -1, BestStepClusterList, reason
+		}
+		return 1, BestStepClusterList, reason
+	}
+
+	// Step 9: Lowest peer address (final tiebreak).
 	// RFC 4271 §9.1.2.2(g): "prefer the route received from the peer with the lowest BGP Identifier"
 	if a.PeerIP != b.PeerIP {
 		return a.PeerIP.Compare(b.PeerIP), BestStepPeerAddr,
@@ -540,4 +574,37 @@ func firstASInPath(data []byte) uint32 {
 		return 0
 	}
 	return uint32(data[2])<<24 | uint32(data[3])<<16 | uint32(data[4])<<8 | uint32(data[5])
+}
+
+// clusterIDOctets is the width of one CLUSTER_ID in a CLUSTER_LIST value.
+// RFC 4456 Section 8: "It is a sequence of CLUSTER_ID values representing the
+// reflection path that the route has passed.".
+const clusterIDOctets = 4
+
+// clusterListEntriesMax saturates a CLUSTER_LIST count. It is the widest
+// uint16, so a list too long to count and a list this speaker cannot read both
+// sort LAST at the CLUSTER_LIST step rather than winning it.
+const clusterListEntriesMax = math.MaxUint16
+
+// clusterListEntries counts the CLUSTER_IDs in a CLUSTER_LIST attribute value.
+// The unit is entries, not octets: RFC 4456 Section 9 calls this the
+// "CLUSTER_LIST length", and a CLUSTER_ID is four octets wide.
+//
+// The count is uint16 rather than uint8 because the attribute is not bounded to
+// 255 entries: a BGP path attribute value is at most 65535 octets (RFC 4271
+// Section 4.3, extended length), so a CLUSTER_LIST can carry 16383 CLUSTER_IDs
+// and a uint8 would wrap a long list down to a short one -- the worst direction
+// to be wrong in, because a wrapped count wins the comparison it should lose.
+// A value longer than any wire message saturates instead of wrapping, so an
+// over-long list sorts last.
+//
+// A trailing partial CLUSTER_ID is not counted. ParseClusterList rejects a
+// value whose length is not a multiple of four, and counting a fragment here
+// would claim an ID the wire did not carry.
+func clusterListEntries(data []byte) uint16 {
+	entries := len(data) / clusterIDOctets
+	if entries > clusterListEntriesMax {
+		return clusterListEntriesMax
+	}
+	return uint16(entries)
 }

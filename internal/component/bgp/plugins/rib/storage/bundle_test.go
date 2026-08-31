@@ -166,7 +166,7 @@ func TestBundleNewBundleAllInvalid(t *testing.T) {
 	assert.False(t, b.HasCommunities())
 	assert.False(t, b.hasLargeCommunities())
 	assert.False(t, b.hasExtCommunities())
-	assert.False(t, b.hasClusterList())
+	assert.False(t, b.HasClusterList())
 	assert.False(t, b.HasOriginatorID())
 	assert.False(t, b.HasOtherAttrs())
 }

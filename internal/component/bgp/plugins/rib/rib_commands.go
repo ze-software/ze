@@ -1163,6 +1163,20 @@ func (r *RIBManager) extractCandidate(peerAddr netip.Addr, peerStr string, entry
 		}
 	}
 
+	// RFC 4456 Section 9: "The CLUSTER_LIST length is zero if a route does not
+	// carry the CLUSTER_LIST attribute." Absent leaves the field at its zero
+	// value, which is the answer the RFC gives rather than "unknown".
+	if b.HasClusterList() {
+		// The handle was valid one call ago, so a Get failure here is a pool
+		// defect rather than a wire condition. Leaving the count at zero would
+		// say "no CLUSTER_LIST" and win the step outright, so a value this
+		// speaker cannot read saturates and loses it instead.
+		c.ClusterListEntries = clusterListEntriesMax
+		if data, err := pool.ClusterList.Get(b.ClusterList); err == nil {
+			c.ClusterListEntries = clusterListEntries(data)
+		}
+	}
+
 	// RFC 9494: LLGR-stale flag for best-path depreference.
 	c.StaleLevel = entry.StaleLevel
 

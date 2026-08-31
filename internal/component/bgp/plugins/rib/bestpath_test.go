@@ -1,6 +1,7 @@
 package rib
 
 import (
+	"math"
 	"net/netip"
 	"testing"
 
@@ -150,6 +151,7 @@ func TestBestStep_String(t *testing.T) {
 		BestStepEBGPOverIBGP: "ebgp-over-ibgp",
 		BestStepIGPCost:      "igp-cost",
 		BestStepRouterID:     "router-id",
+		BestStepClusterList:  "cluster-list-length",
 		BestStepPeerAddr:     "peer-address",
 		BestStepEqual:        "equal",
 	} {
@@ -526,9 +528,9 @@ func TestBestPath_MultipleCandidate(t *testing.T) {
 // VALIDATES: All comparison steps evaluated in RFC order.
 // PREVENTS: Steps skipped or evaluated out of order.
 // RFC requirement: RFC4271-9.1.2.2-1 positive -- the tie-breaking criteria run in the specified
-// order: LOCAL_PREF, AS_PATH length, ORIGIN, MED, eBGP over iBGP, IGP cost, router id, then peer
-// address, and the first step that differs decides
-// (internal/component/bgp/plugins/rib/bestpath.go:307-391).
+// order: LOCAL_PREF, AS_PATH length, ORIGIN, MED, eBGP over iBGP, IGP cost, router id, CLUSTER_LIST
+// length (RFC 4456 Section 9, inserted between steps f and g), then peer address, and the first
+// step that differs decides (rib.comparePair in bestpath.go).
 func TestBestPath_FullTiebreak(t *testing.T) {
 	a := &Candidate{
 		PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"),
@@ -552,7 +554,8 @@ func TestBestPath_FullTiebreak(t *testing.T) {
 	}
 	// Equal through steps 1-3. Step 4 (MED): different neighbor AS — skip.
 	// Step 5: both eBGP — skip. Step 7: no ORIGINATOR_ID — skip.
-	// Step 8: peer address — 10.0.0.1 wins.
+	// Step 8: neither carries a CLUSTER_LIST, so both count zero — skip.
+	// Step 9: peer address — 10.0.0.1 wins.
 	best := SelectBest([]*Candidate{a, b})
 	if best.PeerAddr != "10.0.0.1" {
 		t.Errorf("want 10.0.0.1 (peer address tiebreak), got %s", best.PeerAddr)
@@ -1195,4 +1198,120 @@ func TestComparePairIGPCost(t *testing.T) {
 			assert.Equal(t, tt.wantStep, exp.Steps[0].Step)
 		})
 	}
+}
+
+// TestBestPath_ClusterListLength proves the CLUSTER_LIST length tie-break sits
+// between the router-id step and the peer-address step, and that it decides only
+// when the router ids tie.
+//
+// RFC requirement: RFC4456-9-1 positive -- "a BGP Speaker SHOULD prefer a route
+// with the shorter CLUSTER_LIST length": with equal router ids, the candidate
+// reflected through one cluster beats the candidate reflected through two, even
+// though its peer address is the higher of the two. "The CLUSTER_LIST length is
+// zero if a route does not carry the CLUSTER_LIST attribute" is the second case:
+// an absent attribute wins against a present one-entry list.
+// RFC requirement: RFC4456-9-1 negative -- the rule is confined to the slot the
+// RFC gives it, between RFC 4271 Section 9.1.2.2 steps f) and g). A shorter
+// CLUSTER_LIST does NOT rescue a route that already lost on router id (step f),
+// and a tie on CLUSTER_LIST length falls through to the peer address (step g)
+// rather than ending the comparison.
+func TestBestPath_ClusterListLength(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		a, b     *Candidate
+		wantAddr string
+		wantStep BestStep
+	}{
+		{
+			name: "shorter cluster-list wins when router ids tie",
+			a: &Candidate{
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"), ClusterListEntries: 1,
+			},
+			b: &Candidate{
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"), ClusterListEntries: 2,
+			},
+			wantAddr: "10.0.0.2",
+			wantStep: BestStepClusterList,
+		},
+		{
+			name: "absent cluster-list counts as length zero and wins",
+			a: &Candidate{
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"),
+			},
+			b: &Candidate{
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"), ClusterListEntries: 1,
+			},
+			wantAddr: "10.0.0.2",
+			wantStep: BestStepClusterList,
+		},
+		{
+			name: "router id decides first, a shorter cluster-list does not rescue",
+			a: &Candidate{
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("2.2.2.2"), ClusterListEntries: 0,
+			},
+			b: &Candidate{
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"), ClusterListEntries: 5,
+			},
+			wantAddr: "10.0.0.1",
+			wantStep: BestStepRouterID,
+		},
+		{
+			name: "equal cluster-list length falls through to peer address",
+			a: &Candidate{
+				PeerAddr: "10.0.0.2", PeerIP: netip.MustParseAddr("10.0.0.2"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"), ClusterListEntries: 3,
+			},
+			b: &Candidate{
+				PeerAddr: "10.0.0.1", PeerIP: netip.MustParseAddr("10.0.0.1"), LocalPref: 100,
+				OriginatorIP: netip.MustParseAddr("1.1.1.1"), ClusterListEntries: 3,
+			},
+			wantAddr: "10.0.0.1",
+			wantStep: BestStepPeerAddr,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			best := SelectBest([]*Candidate{tt.a, tt.b})
+			require.NotNil(t, best)
+			assert.Equal(t, tt.wantAddr, best.PeerAddr)
+
+			// comparePairWithReason is a second implementation of the same
+			// ladder, so the narrated result is asserted beside the hot-path
+			// one: a rule added to one routine and not the other shows here.
+			exp := SelectBestExplain([]*Candidate{tt.a, tt.b})
+			require.NotNil(t, exp)
+			require.Len(t, exp.Steps, 1)
+			assert.Equal(t, tt.wantStep, exp.Steps[0].Step)
+			assert.Equal(t, tt.wantAddr, exp.Winner.PeerAddr)
+		})
+	}
+}
+
+// TestClusterListEntries proves the CLUSTER_LIST count is derived from the
+// attribute value in entries rather than octets, and that a value longer than
+// any BGP attribute can carry saturates instead of wrapping the uint16.
+//
+// RFC requirement: RFC4456-9-1 positive -- "The CLUSTER_LIST length is zero if a
+// route does not carry the CLUSTER_LIST attribute": an absent or empty value
+// counts zero, which is the same answer the RFC gives.
+func TestClusterListEntries(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, uint16(0), clusterListEntries(nil), "absent CLUSTER_LIST is length zero")
+	assert.Equal(t, uint16(0), clusterListEntries([]byte{}), "empty CLUSTER_LIST is length zero")
+	assert.Equal(t, uint16(1), clusterListEntries([]byte{1, 2, 3, 4}), "one CLUSTER_ID is four octets")
+	assert.Equal(t, uint16(2), clusterListEntries([]byte{1, 2, 3, 4, 5, 6, 7, 8}))
+	assert.Equal(t, uint16(1), clusterListEntries([]byte{1, 2, 3, 4, 5}),
+		"a trailing partial CLUSTER_ID is not counted")
+
+	// Wrapping would turn the longest cluster list into the shortest one and
+	// win the step it must lose.
+	assert.Equal(t, uint16(math.MaxUint16), clusterListEntries(make([]byte, (math.MaxUint16+1)*clusterIDOctets)))
 }

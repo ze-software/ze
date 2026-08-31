@@ -86,15 +86,18 @@ decides.
 | 14 | `lost-ebgp-over-ibgp` | eBGP preferred over iBGP | 4271 | eBGP = PeerASN != LocalASN |
 | 15 | `lost-igp-cost` | Lowest IGP cost to next-hop | 4271 | Not yet implemented |
 | 16 | `lost-router-id` | Lowest Router ID / ORIGINATOR_ID wins | 4271/4456 | Numeric IP comparison |
-| 17 | `lost-peer-address` | Lowest peer IP address wins (final tiebreak) | 4271 | Numeric IP comparison |
+| 17 | `lost-cluster-list-length` | Shortest CLUSTER_LIST wins | 4456 | Section 9 inserts this between RFC 4271 steps f) and g). Counted in CLUSTER_IDs; an absent attribute counts zero. Unconditional |
+| 18 | `lost-peer-address` | Lowest peer IP address wins (final tiebreak) | 4271 | Numeric IP comparison |
 <!-- source: internal/component/bgp/plugins/rib/ -- best-path selection implementation -->
 
 ### Candidate Extraction
 
 Before comparison, each route's attributes are extracted from pool handles into a
 flat `Candidate` struct: LocalPref, ASPathLen, FirstAS, Origin, MED, PeerASN,
-LocalASN, OriginatorIP, PeerIP, PeerAddr, StaleLevel. Router ID and peer address
-comparisons use typed `netip.Addr` fields for zero-allocation numeric ordering.
+LocalASN, OriginatorIP, ClusterListEntries, PeerIP, PeerAddr, StaleLevel. Router ID
+and peer address comparisons use typed `netip.Addr` fields for zero-allocation
+numeric ordering. `ClusterListEntries` counts CLUSTER_IDs rather than octets and
+is `uint16`, because a CLUSTER_LIST can carry 16383 of them.
 
 ### Enforced Before Selection (Not Best-Path Reasons)
 
@@ -105,7 +108,8 @@ enum above:
 - **AS loop detection** (own ASN in AS_PATH): rejected on ingress by the reactor
   loop filter on all sessions (RFC 4271 Section 9).
 - **Cluster-list loop detection** (RFC 4456, own Router ID in CLUSTER_LIST):
-  rejected on ingress by the same loop filter (iBGP sessions).
+  rejected on ingress by the same loop filter (iBGP sessions). A route that
+  survives this filter still has its CLUSTER_LIST length compared at step 17.
 - **Originator-ID loop detection** (RFC 4456, own Router ID as ORIGINATOR_ID):
   rejected on ingress by the same loop filter (iBGP sessions).
 - **OTC mismatch** (RFC 9234, Only-To-Customer attribute validation): enforced
@@ -143,11 +147,12 @@ it fails.
 | 14 | `lost-ebgp-over-ibgp` | Selection | 4271 |
 | 15 | `lost-igp-cost` | Selection | 4271 |
 | 16 | `lost-router-id` | Selection | 4271/4456 |
-| 17 | `lost-peer-address` | Selection | 4271 |
+| 17 | `lost-cluster-list-length` | Selection | 4456 |
+| 18 | `lost-peer-address` | Selection | 4271 |
 
 ## Implementation Notes
 
-- **Type:** `uint8` -- 18 values (0-17), extensible up to 255.
+- **Type:** `uint8` -- 19 values (0-18), extensible up to 255.
 - **One field, not two:** Biorouting splits this into `HiddenReason` (validation) and
   implicit sort order (selection). Ze uses one field because both give the same
   reason: why the route is not the best.
