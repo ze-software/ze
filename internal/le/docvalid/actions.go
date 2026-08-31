@@ -7,9 +7,6 @@
 package docvalid
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/lepath"
 )
@@ -196,15 +193,15 @@ func Answer(args []string) (any, int) {
 // reportError writes one failure line to stderr.
 func reportError(err error) {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Err(err).String()) //nolint:errcheck // CLI output
+	tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // CLI output
 }
 
 // refuseVerb reports an action this command does not hold.
 func refuseVerb(got string) int {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: no such action in ").Str(area).Str(": ").Str(got).String()) //nolint:errcheck // CLI output
+	tb.Str("error: no such action in ").Str(area).Str(": ").Str(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	tb.Reset()
-	fmt.Fprintln(os.Stderr, tb.Str("try one of: ").Str(Subs()).String()) //nolint:errcheck // CLI output
+	tb.Str("try one of: ").Str(Subs()).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	return 2
 }
 
@@ -213,8 +210,8 @@ func refuseVerb(got string) int {
 // command has a value to take (the CLI rule: keyword before value).
 func refuseValue(verb, got string) int {
 	var tb textbuf.Buffer
-	fmt.Fprintln(os.Stderr, tb.Str("error: ").Str(area).Byte(' ').Str(verb).Str(" takes no arguments, got ").Quoted(got).String()) //nolint:errcheck // CLI output
+	tb.Str("error: ").Str(area).Byte(' ').Str(verb).Str(" takes no arguments, got ").Quoted(got).Byte('\n').StdErr() //nolint:errcheck // CLI output
 	tb.Reset()
-	fmt.Fprintln(os.Stderr, tb.Str("usage: le ").Str(area).Byte(' ').Str(verb).Str(" [| json | yaml | table]").String()) //nolint:errcheck // CLI output
+	tb.Str("usage: le ").Str(area).Byte(' ').Str(verb).Str(" [| json | yaml | table]").Byte('\n').StdErr() //nolint:errcheck // CLI output
 	return 2
 }
