@@ -50,7 +50,7 @@ func TestRelationParameterInternalNeverWritten(t *testing.T) {
 	}
 }
 
-// TestRelationWireValue pins RFC 8092 Section 2 field order: Global
+// TestRelationWireValue pins RFC 8092 Section 3 field order: Global
 // Administrator, Local Data Part 1, Local Data Part 2, each four octets in
 // network byte order.
 //

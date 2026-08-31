@@ -85,7 +85,7 @@ func relationParameterFor(peerRole string) uint32 {
 }
 
 // relationWireValue builds the twelve wire bytes of the large community
-// <globalAdmin>:<function>:<parameter> (RFC 8092 Section 2: three
+// <globalAdmin>:<function>:<parameter> (RFC 8092 Section 3: three
 // four-octet fields, Global Administrator first, in network byte order).
 func relationWireValue(globalAdmin, function, parameter uint32) []byte {
 	buf := make([]byte, 12)

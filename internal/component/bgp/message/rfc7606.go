@@ -742,14 +742,15 @@ func validateExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7
 	return nil
 }
 
-// RFC 8092 Section 5: Large Community must be non-zero multiple of 12.
+// RFC 8092 Section 6: "A BGP Large Communities attribute SHALL be considered
+// malformed if the length ... is not a non-zero multiple of 12."
 func validateLargeCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
 	if length == 0 || length%12 != 0 {
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
-			Description: b.Reset().Str("RFC 8092 Section 5: Large Community length ").Int(int64(length)).Str(" not multiple of 12").String(),
+			Description: b.Reset().Str("RFC 8092 Section 6: Large Community length ").Int(int64(length)).Str(" not multiple of 12").String(),
 		}
 	}
 	return nil

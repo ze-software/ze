@@ -478,7 +478,7 @@ func (l LargeCommunities) deduplicate() LargeCommunities {
 
 // ParseLargeCommunities parses a LARGE_COMMUNITIES attribute.
 //
-// RFC 8092 Section 5:
+// RFC 8092 Section 3:
 //
 //	"A receiving speaker MUST silently remove redundant BGP Large Community
 //	 values from a BGP Large Community attribute."
@@ -510,7 +510,7 @@ func ParseLargeCommunities(data []byte) (LargeCommunities, error) {
 		}
 	}
 
-	// RFC 8092 Section 5: MUST silently remove redundant values
+	// RFC 8092 Section 3: MUST silently remove redundant values
 	return comms.deduplicate(), nil
 }
 

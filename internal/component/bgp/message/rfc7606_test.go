@@ -375,7 +375,7 @@ func TestRFC7606ExtendedCommunityUnrecognizedType(t *testing.T) {
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
-// TestRFC7606LargeCommunityLength verifies RFC 8092 Section 5.
+// TestRFC7606LargeCommunityLength verifies RFC 8092 Section 6, Error Handling.
 func TestRFC7606LargeCommunityLength(t *testing.T) {
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP

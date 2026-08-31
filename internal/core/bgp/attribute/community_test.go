@@ -390,7 +390,7 @@ func TestIPv6ExtendedCommunitiesParseInvalid(t *testing.T) {
 
 // TestLargeCommunitiesDeduplication verifies RFC 8092 deduplication requirements.
 //
-// RFC 8092 Section 5:
+// RFC 8092 Section 3:
 //
 //	"Duplicate BGP Large Community values MUST NOT be transmitted."
 //	"A receiving speaker MUST silently remove redundant BGP Large Community
@@ -423,7 +423,7 @@ func TestLargeCommunitiesDeduplication(t *testing.T) {
 
 // TestLargeCommunitiesWriteToNoDuplicates verifies WriteTo doesn't emit duplicates.
 //
-// RFC 8092 Section 5: "Duplicate BGP Large Community values MUST NOT be transmitted."
+// RFC 8092 Section 3: "Duplicate BGP Large Community values MUST NOT be transmitted."
 //
 // VALIDATES: Even if struct contains duplicates, WriteTo outputs unique.
 //
