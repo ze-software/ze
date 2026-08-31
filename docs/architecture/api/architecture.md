@@ -292,7 +292,7 @@ internal/component/plugin/
 ├── resolve.go             # Config-to-plugin resolution helpers
 ├── inprocess.go           # Internal plugin runner lookup
 ├── registry/registry.go   # Compile-time plugin registry
-├── registry/setup.go      # What each module's init() recorded about its setup
+├── registry/setup.go      # What each plugin's init() recorded about its setup
 ├── process/process.go     # Internal and external process lifecycle
 ├── process/delivery.go    # Event queue and batch delivery
 ├── server/server.go       # Plugin server lifecycle
@@ -372,7 +372,7 @@ No other wiring is needed. The engine discovers it through registry queries, the
 | `YANGSchemas()` | YANG loader | All YANG schemas for CLI generation |
 | `ResolveDependencies()` | Engine startup | Expand dependency graph (with cycle detection) |
 | `TopologicalTiers()` | Engine startup | Order plugins for startup (Kahn's algorithm) |
-| `SetupResults()` | `show module list` | Every module and the setup outcome it recorded |
+| `SetupResults()` | `show plugins` | Every plugin and the setup outcome it recorded |
 | `HardSetupFailures()` | `hub.run` first statement | The modules whose recorded failure stops the daemon |
 <!-- source: internal/component/plugin/registry/registry.go -- FamilyMap, CapabilityMap, YANGSchemas, ResolveDependencies, TopologicalTiers -->
 
@@ -891,13 +891,13 @@ it uses match components that describe traffic flows.
 **Examples:**
 ```
 # Basic FlowSpec: match TCP port 80 to destination
-nlri ipv4/flowspec add destination 10.0.0.0/24 protocol tcp destination-port =80
+nlri ipv4/flowspec add destination-ipv4 10.0.0.0/24 protocol tcp destination-port =80
 
 # Multiple components (AND logic)
-nlri ipv4/flowspec add destination 10.0.0.0/24 source 192.168.0.0/16 protocol tcp
+nlri ipv4/flowspec add destination-ipv4 10.0.0.0/24 source 192.168.0.0/16 protocol tcp
 
 # FlowSpec VPN with RD
-nlri ipv4/flowspec-vpn rd 65000:100 add destination 10.0.0.0/24
+nlri ipv4/flowspec-vpn rd 65000:100 add destination-ipv4 10.0.0.0/24
 
 # Port range (>=1024 AND <=65535)
 nlri ipv4/flowspec add destination-port >=1024 <=65535
@@ -930,7 +930,7 @@ extended-community set traffic-marking <dscp>       # Set DSCP value
 **Complete FlowSpec Rule Example:**
 ```
 extended-community set traffic-rate 65000 1000000
-nlri ipv4/flowspec add destination 10.0.0.0/24 protocol tcp destination-port =80
+nlri ipv4/flowspec add destination-ipv4 10.0.0.0/24 protocol tcp destination-port =80
 ```
 
 ## Transaction Support

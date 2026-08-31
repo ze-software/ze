@@ -2,10 +2,10 @@
 // Related: main.go -- run, whose first statement is this gate
 //
 // startup_gate.go answers one question the daemon asks before it does anything
-// irreversible: did a module record a setup failure the daemon cannot run
+// irreversible: did a plugin record a setup failure the daemon cannot run
 // without?
 //
-// The answer is a replay of what each module's init() recorded, so it costs a
+// The answer is a replay of what each plugin's init() recorded, so it costs a
 // map read and no probe. It is reached from run alone, which is why a CLI verb
 // is never refused by it.
 
@@ -18,14 +18,14 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// hardSetupFailure returns the error that names every module which recorded a
+// hardSetupFailure returns the error that names every plugin which recorded a
 // hard setup failure, or nil when none did.
 //
 // It computes; it does not print and it does not exit. The caller applies the
 // refusal in the idiom every other startup stage uses, so one reader sees one
 // shape.
 //
-// Every failing module is named, not only the first. An operator who repairs
+// Every failing plugin is named, not only the first. An operator who repairs
 // one fault and restarts to meet the next one pays a whole boot for each fault
 // after the first.
 func hardSetupFailure() error {
@@ -39,7 +39,7 @@ func hardSetupFailure() error {
 		if index > 0 {
 			text.Str("; ")
 		}
-		text.Str(failure.Module)
+		text.Str(failure.Plugin)
 		if failure.Reason != "" {
 			text.Str(": ").Str(failure.Reason)
 		}

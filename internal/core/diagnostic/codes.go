@@ -795,6 +795,18 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-copp-missing"},
 	},
 	{
+		Code:        "doctor-memlock-rlimit-low",
+		Title:       "RLIMIT_MEMLOCK too small for the ze executable",
+		Description: "RLIMIT_MEMLOCK is smaller than the ze executable, so the kernel refuses to lock the binary in memory and its pages can be evicted under memory pressure. A daemon that waits on the disk holding its own binary drops sessions at the moment it must keep them. Raise the limit: the generated ze.service unit does it with LimitMEMLOCK=infinity, and under Docker use --ulimit memlock=-1 or --cap-add IPC_LOCK. This check reads the host before ze locks anything; `show plugins` reports what a running ze process achieved.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-memlock-rlimit-low"},
+	},
+	{
+		Code:        "doctor-memlock-rlimit-unknown",
+		Title:       "RLIMIT_MEMLOCK could not be read",
+		Description: "The pre-flight memory-lock check could not read RLIMIT_MEMLOCK, the size of /proc/self/exe, or the effective capability set in /proc/self/status, so it has no verdict on whether this host can lock the ze executable. The usual cause is a restricted or absent /proc. Mount /proc, or read the `show plugins` setup outcome on a running ze process instead.",
+		Examples:    []string{exampleDoctorJSON, "ze explain doctor-memlock-rlimit-unknown"},
+	},
+	{
 		Code:         codeDoctorConfigRootUnclaimed,
 		Title:        "Config subtree delivered to nobody",
 		Description:  "A config subtree is stored but no plugin and no handler receives it, so it has no effect. The daemon selects plugins for a config change by matching the changed path against the config roots each plugin declares; a path that matches nothing is accepted and logged at Info level only. Either the owning plugin is not built into this binary, or it did not load, or its config root declaration is missing. Check `ze plugin list` for the owning plugin.",

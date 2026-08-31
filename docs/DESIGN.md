@@ -399,7 +399,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `ddos-local` | DDoS local responder: on-host nftables drop on attack detection |
 | `ddos-observe` | DDoS observability: incident store, status CLI, doctor, metrics |
 | `exabgp-bridge` | In-process ExaBGP compatibility bridge: runs an operator ExaBGP-format script as a subprocess and translates to/from ze events (internal-plugin form of `ze exabgp plugin`) |
-| `memlock` | Locks the running executable's file-backed pages with `mlock2(2)` and `MLOCK_ONFAULT` from `init()`, and records the outcome for `show module list`. Linux only |
+| `memlock` | Locks the running executable's file-backed pages with `mlock2(2)` and `MLOCK_ONFAULT` from `init()`, and records the outcome on its `show plugins` row. Linux only |
 
 <!-- source: internal/plugins/memlock/register.go -- memlock plugin -->
 <!-- source: internal/plugins/exabgp/bridgeplugin/register.go -- exabgp-bridge plugin -->

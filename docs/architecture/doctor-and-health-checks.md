@@ -6,21 +6,45 @@ Ze has three tiers of self-diagnosis, and they differ by WHEN they answer.
 |------|---------|---------------------------|
 | Offline readiness | `ze doctor` | At read time, in the operator's own process, by re-probing config and the environment |
 | Live health | `show health` | At read time, inside the daemon, by running a registered probe now |
-| Recorded setup outcome | `show module list` | Once, in a module's own `init()`, before `main()`. The command replays it |
+| Recorded setup outcome | `show plugins` | Once, in a plugin's own `init()`, before `main()`. The `outcome` and `reason` columns replay it |
 
-The third tier is the only one that remembers. A module that failed to set
-itself up is often a module that never reached the line where it would have
+The third tier is the only one that remembers. A plugin that failed to set
+itself up is often a plugin that never reached the line where it would have
 registered a probe, so the first two tiers answer for it with silence, and
 absence reads as "not built into this binary". The setup registry answers
-because the record is written by the module and keyed by its name, and the list
-is derived from the plugin registry, so a module that recorded nothing is
+because the record is written by the plugin and keyed by its name, and the row
+set is derived from the plugin registry, so a plugin that recorded nothing is
 listed as `unknown` rather than dropped.
 
 The daemon consults that registry once, at the first statement of `hub.run`,
-and refuses to start when a module recorded a HARD failure. A CLI verb never
+and refuses to start when a plugin recorded a HARD failure. A CLI verb never
 reaches `run`, so no `ze` invocation is refused by it: the command that tells
 the operator what is wrong keeps working on a host where the daemon will not
 boot.
+
+## Two tiers on one topic: locking the executable
+
+`memlock` shows why tier one and tier three are not the same fact, and why
+neither derives from the other.
+
+| Question | Tier | What answers it |
+|----------|------|-----------------|
+| Can THIS HOST lock the ze executable at all? | `ze doctor`, before ze runs | The `memlock-rlimit` check compares `RLIMIT_MEMLOCK` against the size of `/proc/self/exe` |
+| Did THIS PROCESS lock it? | `show plugins`, after ze ran | The `memlock` row's `outcome`, recorded by the plugin's own `init()` |
+
+The doctor check warns under `doctor-memlock-rlimit-low` when the limit is
+below the executable's size. The file size is a FLOOR for the mapped size, so a
+limit below it cannot possibly hold the executable, a limit above it still
+might not, and the check claims only the first. It stays silent for a process
+holding `CAP_IPC_LOCK`, which locks what it likes whatever the limit says, so
+it does not warn on an appliance where ze runs as root. When it cannot read the
+host it says so under `doctor-memlock-rlimit-unknown` rather than passing.
+
+The registry cannot answer the first question, because it replays what already
+happened on a host where ze already started. The doctor check cannot answer the
+second, because it runs in the operator's own process rather than the daemon's.
+<!-- source: internal/plugins/memlock/doctor_linux.go -- checkMemlockLimit, memlockLimitDiagnostics -->
+<!-- source: internal/plugins/memlock/memlock_linux.go -- init, the outcome it records -->
 
 <!-- source: internal/component/doctor/doctor.go -- offline checks and listener collection -->
 <!-- source: internal/core/health/registry.go -- runtime health registry -->

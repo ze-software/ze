@@ -325,10 +325,11 @@ ze show plugins
 ## Reporting a Setup Outcome
 
 A plugin that sets something up in its own `init()` records what happened, so
-an operator can ask why a feature is absent:
+an operator can ask why a feature is absent. The `outcome` and `reason` columns
+of `show plugins` carry it:
 
 ```
-ze show module list
+ze show plugins
 ```
 
 The record is one call, made from the plugin's `init()` beside its
@@ -338,7 +339,7 @@ registration:
 |---------|---------|----------------------|
 | `registry.SetupSucceeded` | The setup completed | None |
 | `registry.SetupFailedSoft` | The feature is absent and the daemon runs correctly without it | The daemon starts |
-| `registry.SetupFailedHard` | The daemon cannot run without it | The daemon refuses to start, naming every failing module |
+| `registry.SetupFailedHard` | The daemon cannot run without it | The daemon refuses to start, naming every failing plugin |
 
 The two writes a plugin makes from `init()`, `registry.Register` and
 `registry.RecordSetup`, are keyed by the plugin name and neither reads the
@@ -349,7 +350,9 @@ Recording is optional at the call site, and a plugin that records nothing is
 listed as `unknown`. That is the signal that the plugin owes a record, not that
 it is absent. `memlock` is the worked example: it locks the executable in
 `init()` and records a soft failure carrying the cause and the remedy when
-`RLIMIT_MEMLOCK` is too small.
+`RLIMIT_MEMLOCK` is too small. Its `memlock-rlimit` doctor check answers the
+question this record cannot: whether the host could lock the executable at all,
+BEFORE ze runs (`docs/architecture/doctor-and-health-checks.md`).
 
 A reason string reaches CLI output as data, so never put a secret in one.
 <!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupOutcome -->

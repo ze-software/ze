@@ -921,8 +921,8 @@ func Reset() {
 	clear(metricsPending)
 	clear(metricsConfigured)
 	// Cleared with the registry it belongs to: a setup record surviving Reset
-	// names a module the registry no longer holds, so `show module list` would
-	// answer for a module this binary cannot run.
+	// names a plugin the registry no longer holds, so `show plugins` would
+	// answer for a plugin this binary cannot run.
 	clear(setupResults)
 	eventBusInstance = nil
 	ntpSyncProvider = nil

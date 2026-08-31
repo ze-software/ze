@@ -24,7 +24,7 @@ import (
 func recordedOutcome(t *testing.T) registry.SetupResult {
 	t.Helper()
 	for _, result := range registry.SetupResults() {
-		if result.Module == pluginName {
+		if result.Plugin == pluginName {
 			return result
 		}
 	}
@@ -97,7 +97,7 @@ func TestTheRecordedLockIsALockTheKernelHolds(t *testing.T) {
 	}
 
 	// The same call init() made, over the same already-locked mappings. It
-	// reports the octet count the module claims to have pinned, and the kernel
+	// reports the octet count the plugin claims to have pinned, and the kernel
 	// must hold at least that many.
 	octets, err := lockexe.OnFault()
 	if err != nil {

@@ -1,11 +1,11 @@
-// Design: docs/guide/command-reference.md — show plugins, show module list
-// Related: register.go — the registrations these tests exercise
+// Design: docs/guide/command-reference.md — show plugins
+// Related: register.go — the registration these tests exercise
 //
-// register_test.go proves three things about `show plugins`: it answers, it
-// answers with DATA rather than with text a renderer already formatted, and it
-// refuses by name the operators its answer's shape cannot carry. It proves the
-// same of `show module list`, and that the rows it answers with come from the
-// setup record rather than from a list this package keeps.
+// register_test.go proves four things about `show plugins`: it answers, it
+// answers with DATA rather than with text a renderer already formatted, it
+// refuses by name the operators its answer's shape cannot carry, and each row
+// carries the setup outcome the plugin's own init() recorded rather than a
+// list this package keeps.
 
 package plugin
 
@@ -78,15 +78,15 @@ func TestShowPluginsAnswersEveryRegisteredPlugin(t *testing.T) {
 	if !ok {
 		t.Fatalf("show plugins answered %T, want plugin.Map", payload)
 	}
-	rows, ok := answer[keyPlugins].([]PluginInfo)
+	rows, ok := answer[keyPlugins].([]pluginRow)
 	if !ok {
-		t.Fatalf("answer key %q holds %T, want []PluginInfo", keyPlugins, answer[keyPlugins])
+		t.Fatalf("answer key %q holds %T, want []pluginRow", keyPlugins, answer[keyPlugins])
 	}
 	if len(rows) != len(registry.All()) {
 		t.Errorf("answer has %d rows, registry has %d plugins", len(rows), len(registry.All()))
 	}
 
-	var probe *PluginInfo
+	var probe *pluginRow
 	for i := range rows {
 		if rows[i].Name == probePluginName {
 			probe = &rows[i]
@@ -196,22 +196,18 @@ func TestShowPluginsDeclaresItsShapeAndColumns(t *testing.T) {
 	if len(orders) != 1 {
 		t.Fatalf("show plugins declares %d column orders, want 1", len(orders))
 	}
-	if strings.Join(orders[0], ",") != "name,description,families,rfcs,capabilities" {
+	if strings.Join(orders[0], ",") != "name,description,outcome,families,rfcs,capabilities,reason" {
 		t.Errorf("declared columns = %v", orders[0])
 	}
 }
 
-// commandShowModuleList is the path an operator types for the setup record, as
-// register.go publishes it.
-const commandShowModuleList = "show module list"
+// recordingPluginName is the plugin the setup-outcome tests record against. A
+// name no real plugin uses keeps the assertion readable when it fails.
+const recordingPluginName = "show-plugins-setup-probe"
 
-// recordingModuleName is the module these tests record against. A name no real
-// module uses keeps the assertion readable when it fails.
-const recordingModuleName = "show-module-list-probe"
-
-// silentModuleName is a module that registers and records nothing, which is the
+// silentPluginName is a plugin that registers and records nothing, which is the
 // case AC-4 exists for.
-const silentModuleName = "show-module-list-silent"
+const silentPluginName = "show-plugins-setup-silent"
 
 // isolateRegistry empties the plugin registry and the setup record for one
 // test, and puts both back. Every test in this package shares one binary and
@@ -223,12 +219,12 @@ func isolateRegistry(t *testing.T) {
 	registry.Reset()
 }
 
-// registerModule puts one module in the registry under the given name.
-func registerModule(t *testing.T, name string) {
+// registerPlugin puts one plugin in the registry under the given name.
+func registerPlugin(t *testing.T, name string) {
 	t.Helper()
 	err := registry.Register(registry.Registration{
 		Name:        name,
-		Description: "Probe module for the show module list tests",
+		Description: "Probe plugin for the show plugins tests",
 		RunEngine:   func(net.Conn) int { return 0 },
 		CLIHandler:  func([]string) int { return 0 },
 	})
@@ -237,40 +233,39 @@ func registerModule(t *testing.T, name string) {
 	}
 }
 
-// TestShowModuleListReachesTheRegistry is the wiring test for the command: what
-// a module records from its init() is what the handler answers.
+// TestShowPluginsCarriesTheRecordedSetupOutcome is the wiring test for the
+// join: what a plugin records from its init() is what the row carries.
 //
-// VALIDATES: dataModules answers from registry.SetupResults, with the outcome
-// and the reason intact, and its payload satisfies ResponseData.
+// VALIDATES: dataPlugins takes the outcome and the reason from
+// registry.SetupResults, intact, beside the plugin's own registration fields.
 //
 // PREVENTS: a command that answers a list this package keeps for itself, which
 // would stay green while the registry the daemon reads says something else.
-func TestShowModuleListReachesTheRegistry(t *testing.T) {
+func TestShowPluginsCarriesTheRecordedSetupOutcome(t *testing.T) {
 	isolateRegistry(t)
-	registerModule(t, recordingModuleName)
-	registry.RecordSetup(recordingModuleName, registry.SetupFailedSoft, "RLIMIT_MEMLOCK is too small")
+	registerPlugin(t, recordingPluginName)
+	registry.RecordSetup(recordingPluginName, registry.SetupFailedSoft, "RLIMIT_MEMLOCK is too small")
 
-	payload, code := dataModules(nil)
+	payload, code := dataPlugins(nil)
 	if code != 0 {
-		t.Fatalf("show module list exit code = %d, want 0", code)
+		t.Fatalf("show plugins exit code = %d, want 0", code)
 	}
-	if _, ok := payload.(ResponseData); !ok {
-		t.Fatalf("show module list answered %T, which is not ResponseData", payload)
-	}
-
 	answer, ok := payload.(Map)
 	if !ok {
-		t.Fatalf("show module list answered %T, want plugin.Map", payload)
+		t.Fatalf("show plugins answered %T, want plugin.Map", payload)
 	}
-	rows, ok := answer[keyModules].([]registry.SetupResult)
+	rows, ok := answer[keyPlugins].([]pluginRow)
 	if !ok {
-		t.Fatalf("answer key %q holds %T, want []registry.SetupResult", keyModules, answer[keyModules])
+		t.Fatalf("answer key %q holds %T, want []pluginRow", keyPlugins, answer[keyPlugins])
 	}
 	if len(rows) != 1 {
-		t.Fatalf("answer has %d rows, the registry holds one module: %+v", len(rows), rows)
+		t.Fatalf("answer has %d rows, the registry holds one plugin: %+v", len(rows), rows)
 	}
-	if rows[0].Module != recordingModuleName {
-		t.Errorf("row names %q, want %q", rows[0].Module, recordingModuleName)
+	if rows[0].Name != recordingPluginName {
+		t.Errorf("row names %q, want %q", rows[0].Name, recordingPluginName)
+	}
+	if rows[0].Description == "" {
+		t.Error("the row lost the registration's description")
 	}
 	if rows[0].Outcome != registry.SetupFailedSoft {
 		t.Errorf("row outcome = %v, want soft-failure", rows[0].Outcome)
@@ -280,27 +275,27 @@ func TestShowModuleListReachesTheRegistry(t *testing.T) {
 	}
 }
 
-// TestShowModuleListNamesAModuleThatRecordedNothing proves AC-4 at the command.
+// TestShowPluginsNamesAPluginThatRecordedNothing proves AC-4 at the command.
 //
-// VALIDATES: a registered module that recorded nothing is listed with the
-// unknown outcome.
+// VALIDATES: a registered plugin that recorded nothing is listed with the
+// unknown outcome and no reason.
 //
-// PREVENTS: the failure this command exists to remove. An absent row reads as
-// "not built in", so the module that owes a record is the one nobody sees.
-func TestShowModuleListNamesAModuleThatRecordedNothing(t *testing.T) {
+// PREVENTS: the failure the setup record exists to remove. An absent row reads
+// as "not built in", so the plugin that owes a record is the one nobody sees.
+func TestShowPluginsNamesAPluginThatRecordedNothing(t *testing.T) {
 	isolateRegistry(t)
-	registerModule(t, silentModuleName)
+	registerPlugin(t, silentPluginName)
 
-	answer, code, served := command.ServeLocal(commandShowModuleList+" | json", "")
+	answer, code, served := command.ServeLocal(commandShowPlugins+" | json", "")
 	if !served {
-		t.Fatal("show module list was not served in this process")
+		t.Fatal("show plugins was not served in this process")
 	}
 	if code != 0 {
 		t.Fatalf("exit code = %d, want 0 (answer: %q)", code, answer)
 	}
 
 	var rows []struct {
-		Module  string `json:"module"`
+		Name    string `json:"name"`
 		Outcome string `json:"outcome"`
 		Reason  string `json:"reason"`
 	}
@@ -308,41 +303,42 @@ func TestShowModuleListNamesAModuleThatRecordedNothing(t *testing.T) {
 		t.Fatalf("| json answered something no JSON decoder takes: %v (answer: %q)", err, answer)
 	}
 	if len(rows) != 1 {
-		t.Fatalf("| json answered %d rows, the registry holds one module: %q", len(rows), answer)
+		t.Fatalf("| json answered %d rows, the registry holds one plugin: %q", len(rows), answer)
 	}
-	if rows[0].Module != silentModuleName {
-		t.Errorf("row names %q, want %q", rows[0].Module, silentModuleName)
+	if rows[0].Name != silentPluginName {
+		t.Errorf("row names %q, want %q", rows[0].Name, silentPluginName)
 	}
 	if rows[0].Outcome != "unknown" {
-		t.Errorf("a module that recorded nothing has outcome %q, want unknown", rows[0].Outcome)
+		t.Errorf("a plugin that recorded nothing has outcome %q, want unknown", rows[0].Outcome)
 	}
 	if rows[0].Reason != "" {
-		t.Errorf("a module that recorded nothing carries reason %q, want none", rows[0].Reason)
+		t.Errorf("a plugin that recorded nothing carries reason %q, want none", rows[0].Reason)
 	}
 }
 
-// TestShowModuleListRendersInEveryFormat proves AC-7.
+// TestShowPluginsRendersTheOutcomeInEveryFormat proves AC-7.
 //
-// VALIDATES: `| json`, `| yaml` and `| table` each render the same rows.
+// VALIDATES: `| json`, `| yaml` and `| table` each render the same rows,
+// outcome and reason included.
 //
 // PREVENTS: a handler that returns finished text, which one renderer would
 // hand back unchanged while the other two produce something a parser cannot
 // read.
-func TestShowModuleListRendersInEveryFormat(t *testing.T) {
+func TestShowPluginsRendersTheOutcomeInEveryFormat(t *testing.T) {
 	isolateRegistry(t)
-	registerModule(t, recordingModuleName)
-	registry.RecordSetup(recordingModuleName, registry.SetupFailedSoft, "RLIMIT_MEMLOCK is too small")
+	registerPlugin(t, recordingPluginName)
+	registry.RecordSetup(recordingPluginName, registry.SetupFailedSoft, "RLIMIT_MEMLOCK is too small")
 
 	for _, format := range []string{"json", "yaml", "table"} {
 		t.Run(format, func(t *testing.T) {
-			answer, code, served := command.ServeLocal(commandShowModuleList+" | "+format, "")
+			answer, code, served := command.ServeLocal(commandShowPlugins+" | "+format, "")
 			if !served {
-				t.Fatalf("show module list | %s was not served in this process", format)
+				t.Fatalf("show plugins | %s was not served in this process", format)
 			}
 			if code != 0 {
 				t.Fatalf("exit code = %d, want 0 (answer: %q)", code, answer)
 			}
-			for _, want := range []string{recordingModuleName, "soft-failure", "RLIMIT_MEMLOCK is too small"} {
+			for _, want := range []string{recordingPluginName, "soft-failure", "RLIMIT_MEMLOCK is too small"} {
 				if !strings.Contains(answer, want) {
 					t.Errorf("| %s lost %q: %s", format, want, answer)
 				}
@@ -351,26 +347,99 @@ func TestShowModuleListRendersInEveryFormat(t *testing.T) {
 	}
 }
 
-// TestShowModuleListDeclaresItsShapeAndColumns proves the published catalog can
-// say what the command supports before the command runs.
+// TestShowPluginsKeepsAPluginThatRecordedAndDidNotRegister proves the loudest
+// case survives the join.
 //
-// VALIDATES: the command declares the tab shape and its three columns in order.
+// VALIDATES: a name that recorded an outcome and never completed its Register
+// call still gets a row, and the row says why its registration fields are
+// absent.
 //
-// PREVENTS: a table whose columns come out alphabetical, which puts the reason
-// before the outcome that explains it.
-func TestShowModuleListDeclaresItsShapeAndColumns(t *testing.T) {
-	shape, declared := command.ShapeForCommand(commandShowModuleList)
-	if !declared {
-		t.Fatal("show module list declares no answer shape")
+// PREVENTS: the join dropping the one plugin whose setup failed hard enough to
+// take its own registration with it, which is the absence-reads-as-fine defect
+// the whole setup record exists to remove.
+func TestShowPluginsKeepsAPluginThatRecordedAndDidNotRegister(t *testing.T) {
+	isolateRegistry(t)
+	registry.RecordSetup("never-registered", registry.SetupFailedHard, "the kernel does not support it")
+
+	rows := pluginRows()
+	if len(rows) != 1 {
+		t.Fatalf("pluginRows = %+v, want the one recorded name", rows)
 	}
-	if shape != command.ShapeTab {
-		t.Errorf("declared shape = %v, want tab", shape)
+	if rows[0].Name != "never-registered" {
+		t.Fatalf("row names %q, want the recorded name", rows[0].Name)
 	}
-	orders := command.ColumnsForCommand(commandShowModuleList)
-	if len(orders) != 1 {
-		t.Fatalf("show module list declares %d column orders, want 1", len(orders))
+	if rows[0].Description != descriptionUnregistered {
+		t.Errorf("row description = %q, want %q", rows[0].Description, descriptionUnregistered)
 	}
-	if strings.Join(orders[0], ",") != "module,outcome,reason" {
-		t.Errorf("declared columns = %v", orders[0])
+	if rows[0].Outcome != registry.SetupFailedHard || rows[0].Reason != "the kernel does not support it" {
+		t.Errorf("the row lost the recorded outcome: %+v", rows[0])
+	}
+}
+
+// TestShowPluginsRowsAgreeWithInternalPluginInfo pins the ONE divergence the
+// join is allowed to have.
+//
+// VALIDATES: every row either matches an InternalPluginInfo entry of the same
+// name, field for field, or is a name that recorded without registering, in
+// which case it says so; and every entry InternalPluginInfo returns has a row.
+//
+// PREVENTS: a future divergence between the two registry walks going unnoticed.
+// registry.All and registry.SetupResults read the same map today, so a reader
+// sees rows with the outcome filled in; a walk that stopped agreeing would
+// render blank outcome cells, or silently drop plugins, and no other assertion
+// in this package would go red.
+func TestShowPluginsRowsAgreeWithInternalPluginInfo(t *testing.T) {
+	t.Run("live registry", func(t *testing.T) {
+		registerProbePlugin(t)
+		assertRowsAgreeWithPluginInfo(t)
+	})
+
+	t.Run("with a name that recorded and did not register", func(t *testing.T) {
+		isolateRegistry(t)
+		registerPlugin(t, recordingPluginName)
+		registry.RecordSetup(recordingPluginName, registry.SetupSucceeded, "")
+		registry.RecordSetup("never-registered", registry.SetupFailedHard, "the kernel does not support it")
+		assertRowsAgreeWithPluginInfo(t)
+	})
+}
+
+// assertRowsAgreeWithPluginInfo checks the row set against InternalPluginInfo,
+// allowing only the recorded-but-unregistered row.
+func assertRowsAgreeWithPluginInfo(t *testing.T) {
+	t.Helper()
+
+	described := make(map[string]PluginInfo)
+	for _, info := range InternalPluginInfo() {
+		described[info.Name] = info
+	}
+
+	seen := make(map[string]bool, len(described))
+	for _, row := range pluginRows() {
+		seen[row.Name] = true
+		info, registered := described[row.Name]
+		if !registered {
+			if row.Description != descriptionUnregistered {
+				t.Errorf("row %q matches no registration and does not say so: %q", row.Name, row.Description)
+			}
+			if row.Outcome == registry.SetupUnknown {
+				t.Errorf("row %q matches no registration and recorded nothing, so it has no reason to exist", row.Name)
+			}
+			continue
+		}
+		if row.Description != info.Description {
+			t.Errorf("row %q description = %q, registration says %q", row.Name, row.Description, info.Description)
+		}
+		if strings.Join(row.Families, ",") != strings.Join(info.Families, ",") {
+			t.Errorf("row %q families = %v, registration says %v", row.Name, row.Families, info.Families)
+		}
+		if strings.Join(row.RFCs, ",") != strings.Join(info.RFCs, ",") {
+			t.Errorf("row %q RFCs = %v, registration says %v", row.Name, row.RFCs, info.RFCs)
+		}
+	}
+
+	for name := range described {
+		if !seen[name] {
+			t.Errorf("the registered plugin %q has no row in show plugins", name)
+		}
 	}
 }

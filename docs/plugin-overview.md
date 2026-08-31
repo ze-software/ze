@@ -113,10 +113,10 @@ when you configure the corresponding address family. You do not need to declare 
 plugin list. The groups below mirror the current registrations in
 `internal/component/plugin/all/all.go`.
 
-`./ze show module list` answers the next question: for each of those modules,
-what its own `init()` recorded when it set itself up. A module that recorded
-nothing is listed as `unknown`.
-<!-- source: internal/component/plugin/register.go -- dataModules, show module list registration -->
+Its `outcome` and `reason` columns answer the next question: for each of those
+plugins, what its own `init()` recorded when it set itself up. A plugin that
+recorded nothing is listed as `unknown`.
+<!-- source: internal/component/plugin/register.go -- pluginRows, the setup outcome joined onto each row -->
 
 ### BGP Plugins
 

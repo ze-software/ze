@@ -2,7 +2,7 @@ module ze-plugin-show {
     namespace "urn:ze:plugin:show";
     prefix plugshow;
     import ze-extensions { prefix ze; }
-    description "show plugins and show module list command tree. Owned by internal/component/plugin because the handlers read the internal plugin registry. See ai/rules/plugins.md.
+    description "show plugins command tree. Owned by internal/component/plugin because the handler reads the internal plugin registry. See ai/rules/plugins.md.
 
 Named ze-plugin-show rather than ze-plugin-cmd because internal/core/ipc/yang
 already declares a module of that name, under the same namespace, for the
@@ -10,7 +10,7 @@ plugin help, command and session trees. Two modules sharing a namespace is the
 collision YANG namespaces exist to prevent, and a loader can accept it quietly
 rather than refusing, which leaves nobody able to say which module a node came
 from.";
-    revision 2026-08-31 { description "Declare show module list, which replays the setup outcome each module recorded from its own init()."; }
+    revision 2026-08-31 { description "Carry the setup outcome each plugin recorded from its own init() on the show plugins rows."; }
     revision 2026-08-30 { description "Declare show plugins, the command that replaces the root plugin-listing flag."; }
 
     container show {
@@ -22,25 +22,15 @@ from.";
             ze:command "ze-show:plugins";
             description "List the plugins compiled into this binary.
 Each row carries the plugin name, what it does, the address families it
-handles, the RFCs it implements, and the BGP capability codes it owns.";
-        }
-
-        container module {
-            config false;
-            description "Modules and the setup outcome each one recorded.";
-
-            container list {
-                config false;
-                ze:command "ze-show:module-list";
-                description "List every module with the setup outcome its own init() recorded.
-Each row carries the module name, the outcome (succeeded, soft-failure,
-hard-failure or unknown) and the reason the module gave. A module that
-recorded nothing is listed as unknown, never omitted.
-This replays a past event: the outcome was recorded once, before main(),
+handles, the RFCs it implements, the BGP capability codes it owns, the
+setup outcome its own init() recorded (succeeded, soft-failure,
+hard-failure or unknown) and the reason the plugin gave. A plugin that
+recorded nothing is listed as unknown, never omitted, and a plugin that
+recorded and then did not register keeps its row.
+The outcome replays a past event: it was recorded once, before main(),
 and this command reads it back. 'show health' answers the other question,
 by running a probe now and reporting what the daemon is doing at this
 moment.";
-            }
         }
     }
 }

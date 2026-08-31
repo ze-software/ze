@@ -433,7 +433,7 @@ See `ai/patterns/registration.md` "Binary Personality Registration" section.
 | Root `ze <name> ...` (owner-backed) | `ze bgp decode` | `MustRegisterRootHandler("bgp", wrap(Run), Meta)` in `internal/component/bgp/cli/register.go`; **registry-dispatched** |
 | Root `ze <name> ...` (no-owner) | `ze start`, `ze version` | `RegisterRoot("start", Meta)` from `cmd/ze`; dispatched by `main.go` static switch (allowlisted) |
 | `show X` offline shortcut | `ze show bgp decode` | `MustRegisterLocal("show bgp decode", wrapper)` in the owner package; reached via YANG tree or `LookupLocal` |
-| `show X` offline shortcut answering DATA | `ze show plugins`, `ze show module list` | `MustRegisterLocalData("show plugins", handler, Meta{Mode: "offline"}, command.RenderLocalAnswer)`, plus `command.RegisterShape` and `command.RegisterColumns`, in the owner package. Template: `internal/component/plugin/register.go` |
+| `show X` offline shortcut answering DATA | `ze show plugins` | `MustRegisterLocalData("show plugins", handler, Meta{Mode: "offline"}, command.RenderLocalAnswer)`, plus `command.RegisterShape` and `command.RegisterColumns`, in the owner package. Template: `internal/component/plugin/register.go` |
 | Online RPC | `show interface name <name> detail` | `pluginserver.RegisterRPCs(...)` in the plugin's `init()` (see Online Command section). Independent of the command registry |
 
 ### Local-data commands: what the route owes

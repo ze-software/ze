@@ -91,14 +91,14 @@ filename order.
 |---------|---------|----------------------|
 | `SetupSucceeded` | The setup completed | None |
 | `SetupFailedSoft` | The feature is absent and the daemon runs correctly without it | The daemon starts |
-| `SetupFailedHard` | The daemon cannot run without it | `hub.run` refuses to start, naming every failing module |
+| `SetupFailedHard` | The daemon cannot run without it | `hub.run` refuses to start, naming every failing plugin |
 | `SetupUnknown` | Recorded nothing. A stored state, never a valid ARGUMENT to `RecordSetup` | None |
 
 The record is optional at the call site, so no existing registration changes.
-`show module list` derives its rows from the registry, so a plugin that
-recorded nothing is listed as `unknown` rather than dropped: absence would read
-as "not built into this binary", which is precisely the silence this record
-exists to remove.
+`show plugins` carries the outcome on each of its rows, derived from the same
+registry, so a plugin that recorded nothing is listed as `unknown` rather than
+dropped: absence would read as "not built into this binary", which is precisely
+the silence this record exists to remove.
 
 The reason reaches CLI output as data, so a recording site MUST NOT put a
 secret in one.

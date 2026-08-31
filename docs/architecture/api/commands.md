@@ -145,12 +145,12 @@ a command the daemon normally serves, tried only after the connection fails. A
 local-data command has no daemon side at all, registers no RPC, and therefore
 owes no `wire-methods.snapshot` row.
 
-`internal/component/plugin/register.go` serves two of them, and they are the
-template: `show plugins` answers which plugins this binary carries, and
-`show module list` answers what each module's own `init()` recorded about its
-setup. Both are owned by the package that owns the registry they read, so
-removing the plugin host removes the commands with it.
-<!-- source: internal/component/plugin/register.go -- dataPlugins, dataModules -->
+`internal/component/plugin/register.go` serves one of them, and it is the
+template: `show plugins` answers which plugins this binary carries and what
+each plugin's own `init()` recorded about its setup. It is owned by the package
+that owns the registry it reads, so removing the plugin host removes the
+command with it.
+<!-- source: internal/component/plugin/register.go -- dataPlugins, pluginRows -->
 <!-- source: internal/component/command/local_data.go -- RenderLocalAnswer -->
 
 ---

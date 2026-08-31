@@ -11,14 +11,14 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
-## Amendment, 2026-08-31: the module setup registry now exists
+## Amendment, 2026-08-31: the plugin setup registry now exists
 
 `spec-plugin-registration-result` adds a second startup refusal, and this spec
 must be read against it before its first phase runs.
 
 | Fact | Where it lives now |
 |------|--------------------|
-| What a module's own `init()` achieved when it set itself up | `registry.RecordSetup` / `SetupResults` (`internal/component/plugin/registry/setup.go`), replayed by `show module list` |
+| What a plugin's own `init()` achieved when it set itself up | `registry.RecordSetup` / `SetupResults` (`internal/component/plugin/registry/setup.go`), carried on the `show plugins` rows as `outcome` and `reason` |
 | The daemon's refusal on a recorded HARD setup failure | `hardSetupFailure` (`cmd/ze/hub/startup_gate.go`), read at the FIRST statement of `hub.run` |
 
 **They are not two paths to one verdict, and this section states the boundary
@@ -26,7 +26,7 @@ so a later reader does not merge them.** The setup record is written before
 `main()`, so it cannot see the configuration; this spec's verdict is
 config-dependent by construction (`mplsInUse`, `ipsecInUse`), and it probes the
 environment at read time. A capability probe therefore cannot move into the
-setup registry, and a module's `init()` outcome cannot move into the doctor
+setup registry, and a plugin's `init()` outcome cannot move into the doctor
 registry, which re-probes and keeps no memory of a start.
 
 What this spec MUST do instead, and what its review MUST check:
@@ -35,11 +35,13 @@ What this spec MUST do instead, and what its review MUST check:
   caller: one stderr line, one `logStartupFailure` with its own stage name, and
   `return 1`. A third refusal shape in one function is the parallel path.
 - Its refusal names EVERY failing subsystem, not the first, for the reason the
-  setup gate names every failing module: an operator who repairs one fault and
+  setup gate names every failing plugin: an operator who repairs one fault and
   restarts to meet the next pays a whole boot for each fault after the first.
 - Its docs land in `docs/architecture/doctor-and-health-checks.md`, whose tier
   table now has three rows. A capability gate is the `ze doctor` tier; it MUST
-  NOT be described as a fourth.
+  NOT be described as a fourth. `memlock` is the worked example on that page of
+  a subsystem holding one check in the doctor tier and one record in the setup
+  tier, neither derivable from the other.
 
 ## Task
 

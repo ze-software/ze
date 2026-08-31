@@ -1,9 +1,9 @@
 // Design: docs/architecture/api/architecture.md — plugin registry
 // Related: setup.go — the record these tests exercise
 //
-// setup_test.go proves the setup record answers for every module, that a
-// module which recorded nothing is visible rather than absent, and that the
-// two writes a module makes from init() are independent of each other.
+// setup_test.go proves the setup record answers for every plugin, that a
+// plugin which recorded nothing is visible rather than absent, and that the
+// two writes a plugin makes from init() are independent of each other.
 
 package registry
 
@@ -14,14 +14,14 @@ import (
 	"testing"
 )
 
-// registerModule puts a minimally valid registration in the registry under the
+// registerPlugin puts a minimally valid registration in the registry under the
 // given name. The registry refuses a registration with no engine run and no
 // CLI handler, and these tests care about neither.
-func registerModule(t *testing.T, name string) {
+func registerPlugin(t *testing.T, name string) {
 	t.Helper()
 	err := Register(Registration{
 		Name:        name,
-		Description: "Probe module for the setup record tests",
+		Description: "Probe plugin for the setup record tests",
 		RunEngine:   func(net.Conn) int { return 0 },
 		CLIHandler:  func([]string) int { return 0 },
 	})
@@ -38,11 +38,11 @@ func isolate(t *testing.T) {
 	Reset()
 }
 
-// resultFor returns the row SetupResults holds for a module, and whether it
+// resultFor returns the row SetupResults holds for a plugin, and whether it
 // holds one at all.
-func resultFor(results []SetupResult, module string) (SetupResult, bool) {
+func resultFor(results []SetupResult, plugin string) (SetupResult, bool) {
 	for _, result := range results {
-		if result.Module == module {
+		if result.Plugin == plugin {
 			return result, true
 		}
 	}
@@ -50,21 +50,21 @@ func resultFor(results []SetupResult, module string) (SetupResult, bool) {
 }
 
 // TestRecordSetupIsVisibleToSetupResults is the wiring test for the record: a
-// module writes from its init() and the reader gets what it wrote.
+// plugin writes from its init() and the reader gets what it wrote.
 //
 // VALIDATES: RecordSetup stores the outcome and the reason, and SetupResults
 // returns both unchanged.
 //
 // PREVENTS: a record that is accepted and dropped, which reads to every
-// consumer exactly like a module that never recorded.
+// consumer exactly like a plugin that never recorded.
 func TestRecordSetupIsVisibleToSetupResults(t *testing.T) {
 	isolate(t)
-	registerModule(t, "probe")
+	registerPlugin(t, "probe")
 	RecordSetup("probe", SetupFailedSoft, "the kernel refused the lock")
 
 	result, found := resultFor(SetupResults(), "probe")
 	if !found {
-		t.Fatalf("SetupResults holds no row for the module that recorded: %+v", SetupResults())
+		t.Fatalf("SetupResults holds no row for the plugin that recorded: %+v", SetupResults())
 	}
 	if result.Outcome != SetupFailedSoft {
 		t.Errorf("outcome = %v, want soft-failure", result.Outcome)
@@ -74,38 +74,38 @@ func TestRecordSetupIsVisibleToSetupResults(t *testing.T) {
 	}
 }
 
-// TestSetupResultsNamesEveryRegisteredModule proves AC-4.
+// TestSetupResultsNamesEveryRegisteredPlugin proves AC-4.
 //
-// VALIDATES: a registered module that recorded nothing is listed with the
+// VALIDATES: a registered plugin that recorded nothing is listed with the
 // unknown outcome.
 //
-// PREVENTS: the failure this whole registry exists to remove. A module that is
-// absent from the list reads as "not built in", so the one module that owes a
+// PREVENTS: the failure this whole registry exists to remove. A plugin that is
+// absent from the list reads as "not built in", so the one plugin that owes a
 // record is the one nobody can see.
-func TestSetupResultsNamesEveryRegisteredModule(t *testing.T) {
+func TestSetupResultsNamesEveryRegisteredPlugin(t *testing.T) {
 	isolate(t)
-	registerModule(t, "silent")
-	registerModule(t, "spoken")
+	registerPlugin(t, "silent")
+	registerPlugin(t, "spoken")
 	RecordSetup("spoken", SetupSucceeded, "")
 
 	results := SetupResults()
 	silent, found := resultFor(results, "silent")
 	if !found {
-		t.Fatalf("a registered module that recorded nothing is missing: %+v", results)
+		t.Fatalf("a registered plugin that recorded nothing is missing: %+v", results)
 	}
 	if silent.Outcome != SetupUnknown {
-		t.Errorf("silent module outcome = %v, want unknown", silent.Outcome)
+		t.Errorf("silent plugin outcome = %v, want unknown", silent.Outcome)
 	}
 	if silent.Reason != "" {
-		t.Errorf("silent module carries reason %q, want none", silent.Reason)
+		t.Errorf("silent plugin carries reason %q, want none", silent.Reason)
 	}
 
 	names := make([]string, 0, len(results))
 	for _, result := range results {
-		names = append(names, result.Module)
+		names = append(names, result.Plugin)
 	}
 	if !slices.Equal(names, []string{"silent", "spoken"}) {
-		t.Errorf("SetupResults = %v, want both modules in name order", names)
+		t.Errorf("SetupResults = %v, want both plugins in name order", names)
 	}
 }
 
@@ -114,25 +114,25 @@ func TestSetupResultsNamesEveryRegisteredModule(t *testing.T) {
 // VALIDATES: recording before Register and recording after Register both
 // produce the same row.
 //
-// PREVENTS: a module whose files sort the other way recording against nothing.
-// Go initializes the files of one package in filename order, and no module
+// PREVENTS: a plugin whose files sort the other way recording against nothing.
+// Go initializes the files of one package in filename order, and no plugin
 // author should have to know that.
 func TestRecordSetupIsOrderIndependent(t *testing.T) {
 	isolate(t)
 
 	RecordSetup("early", SetupSucceeded, "recorded before Register")
-	registerModule(t, "early")
+	registerPlugin(t, "early")
 
-	registerModule(t, "late")
+	registerPlugin(t, "late")
 	RecordSetup("late", SetupSucceeded, "recorded after Register")
 
-	for _, module := range []string{"early", "late"} {
-		result, found := resultFor(SetupResults(), module)
+	for _, plugin := range []string{"early", "late"} {
+		result, found := resultFor(SetupResults(), plugin)
 		if !found {
-			t.Fatalf("module %q is missing from SetupResults", module)
+			t.Fatalf("plugin %q is missing from SetupResults", plugin)
 		}
 		if result.Outcome != SetupSucceeded {
-			t.Errorf("module %q outcome = %v, want succeeded", module, result.Outcome)
+			t.Errorf("plugin %q outcome = %v, want succeeded", plugin, result.Outcome)
 		}
 	}
 }
@@ -146,24 +146,24 @@ func TestRecordSetupIsOrderIndependent(t *testing.T) {
 // without, which is worse than the silence this spec removes.
 func TestHardSetupFailuresSelectsOnlyHard(t *testing.T) {
 	isolate(t)
-	registerModule(t, "unknown-module")
-	registerModule(t, "good")
+	registerPlugin(t, "unknown-plugin")
+	registerPlugin(t, "good")
 	RecordSetup("good", SetupSucceeded, "")
-	registerModule(t, "degraded")
+	registerPlugin(t, "degraded")
 	RecordSetup("degraded", SetupFailedSoft, "the feature is absent")
 
 	if failures := HardSetupFailures(); len(failures) != 0 {
 		t.Fatalf("HardSetupFailures = %+v, want none", failures)
 	}
 
-	registerModule(t, "broken")
+	registerPlugin(t, "broken")
 	RecordSetup("broken", SetupFailedHard, "the daemon cannot run without it")
 
 	failures := HardSetupFailures()
 	if len(failures) != 1 {
 		t.Fatalf("HardSetupFailures = %+v, want the one hard failure", failures)
 	}
-	if failures[0].Module != "broken" || failures[0].Reason != "the daemon cannot run without it" {
+	if failures[0].Plugin != "broken" || failures[0].Reason != "the daemon cannot run without it" {
 		t.Errorf("hard failure row = %+v", failures[0])
 	}
 }
@@ -173,22 +173,22 @@ func TestHardSetupFailuresSelectsOnlyHard(t *testing.T) {
 // VALIDATES: two hard failures produce two rows, in name order.
 //
 // PREVENTS: an operator repairing the first fault, restarting, and meeting the
-// second one. A refusal that names one of two modules costs a whole restart
+// second one. A refusal that names one of two plugins costs a whole restart
 // cycle for each fault after the first.
 func TestHardSetupFailuresNamesEveryFailure(t *testing.T) {
 	isolate(t)
-	registerModule(t, "second")
+	registerPlugin(t, "second")
 	RecordSetup("second", SetupFailedHard, "second reason")
-	registerModule(t, "first")
+	registerPlugin(t, "first")
 	RecordSetup("first", SetupFailedHard, "first reason")
 
 	failures := HardSetupFailures()
 	names := make([]string, 0, len(failures))
 	for _, failure := range failures {
-		names = append(names, failure.Module)
+		names = append(names, failure.Plugin)
 	}
 	if !slices.Equal(names, []string{"first", "second"}) {
-		t.Errorf("HardSetupFailures = %v, want both modules in name order", names)
+		t.Errorf("HardSetupFailures = %v, want both plugins in name order", names)
 	}
 }
 
@@ -226,17 +226,17 @@ func TestSetupOutcomeZeroValueIsUnknown(t *testing.T) {
 // VALIDATES: RecordSetup panics on an argument that carries no outcome, and on
 // one above the declared range.
 //
-// PREVENTS: a module recording SetupUnknown and reading as one that never
+// PREVENTS: a plugin recording SetupUnknown and reading as one that never
 // recorded, which makes the record indistinguishable from its own absence.
 func TestRecordSetupRefusesAnOutcomeThatSaysNothing(t *testing.T) {
 	for _, testCase := range []struct {
 		name    string
-		module  string
+		plugin  string
 		outcome SetupOutcome
 	}{
-		{name: "unknown is not an argument", module: "probe", outcome: SetupUnknown},
-		{name: "above the range", module: "probe", outcome: SetupOutcome(4)},
-		{name: "no module name", module: "", outcome: SetupSucceeded},
+		{name: "unknown is not an argument", plugin: "probe", outcome: SetupUnknown},
+		{name: "above the range", plugin: "probe", outcome: SetupOutcome(4)},
+		{name: "no plugin name", plugin: "", outcome: SetupSucceeded},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			isolate(t)
@@ -245,7 +245,7 @@ func TestRecordSetupRefusesAnOutcomeThatSaysNothing(t *testing.T) {
 					t.Fatal("RecordSetup accepted an argument that carries no answer")
 				}
 			}()
-			RecordSetup(testCase.module, testCase.outcome, "")
+			RecordSetup(testCase.plugin, testCase.outcome, "")
 		})
 	}
 }
@@ -253,13 +253,13 @@ func TestRecordSetupRefusesAnOutcomeThatSaysNothing(t *testing.T) {
 // TestRecordSetupReplacesRatherThanAccumulates covers the denial-of-service row
 // of the spec's security review.
 //
-// VALIDATES: a module that records twice holds one row, the last one.
+// VALIDATES: a plugin that records twice holds one row, the last one.
 //
-// PREVENTS: unbounded growth from a module in a retry loop, and a stale row
+// PREVENTS: unbounded growth from a plugin in a retry loop, and a stale row
 // beside a fresh one with nothing to say which is current.
 func TestRecordSetupReplacesRatherThanAccumulates(t *testing.T) {
 	isolate(t)
-	registerModule(t, "probe")
+	registerPlugin(t, "probe")
 	RecordSetup("probe", SetupFailedSoft, "first attempt")
 	RecordSetup("probe", SetupSucceeded, "")
 
@@ -272,27 +272,27 @@ func TestRecordSetupReplacesRatherThanAccumulates(t *testing.T) {
 	}
 }
 
-// TestSetupResultsKeepsARecordFromAnUnregisteredModule proves the record is
+// TestSetupResultsKeepsARecordFromAnUnregisteredPlugin proves the record is
 // never silently dropped.
 //
-// VALIDATES: a module that recorded but did not register is still listed.
+// VALIDATES: a plugin that recorded but did not register is still listed.
 //
-// PREVENTS: the loudest case going missing. A module whose Register call
+// PREVENTS: the loudest case going missing. A plugin whose Register call
 // failed is exactly the one an operator needs to see, and deriving the list
 // from the registry alone would delete its row.
-func TestSetupResultsKeepsARecordFromAnUnregisteredModule(t *testing.T) {
+func TestSetupResultsKeepsARecordFromAnUnregisteredPlugin(t *testing.T) {
 	isolate(t)
 	RecordSetup("unregistered", SetupFailedHard, "registration never happened")
 
 	result, found := resultFor(SetupResults(), "unregistered")
 	if !found {
-		t.Fatalf("a record from an unregistered module was dropped: %+v", SetupResults())
+		t.Fatalf("a record from an unregistered plugin was dropped: %+v", SetupResults())
 	}
 	if result.Outcome != SetupFailedHard {
 		t.Errorf("outcome = %v, want hard-failure", result.Outcome)
 	}
 	if failures := HardSetupFailures(); len(failures) != 1 {
-		t.Errorf("HardSetupFailures = %+v, want the unregistered module's failure", failures)
+		t.Errorf("HardSetupFailures = %+v, want the unregistered plugin's failure", failures)
 	}
 }
 
@@ -302,10 +302,10 @@ func TestSetupResultsKeepsARecordFromAnUnregisteredModule(t *testing.T) {
 // VALIDATES: Reset empties the setup record, and Restore puts it back.
 //
 // PREVENTS: a test that empties the registry and then reads a record naming a
-// module the registry no longer holds.
+// plugin the registry no longer holds.
 func TestResetClearsTheSetupRecord(t *testing.T) {
 	isolate(t)
-	registerModule(t, "probe")
+	registerPlugin(t, "probe")
 	RecordSetup("probe", SetupSucceeded, "")
 
 	saved := Snapshot()
@@ -326,19 +326,19 @@ var errProbe = errors.New("probe failure")
 // TestRecordSetupCarriesAnErrorTextVerbatim proves the reason survives the
 // round trip a recording site depends on.
 //
-// VALIDATES: the reason a module builds from an error reaches the reader
+// VALIDATES: the reason a plugin builds from an error reaches the reader
 // unchanged.
 //
 // PREVENTS: a truncated or reformatted reason, which costs the operator the
 // one sentence that says what to repair.
 func TestRecordSetupCarriesAnErrorTextVerbatim(t *testing.T) {
 	isolate(t)
-	registerModule(t, "probe")
+	registerPlugin(t, "probe")
 	RecordSetup("probe", SetupFailedSoft, errProbe.Error())
 
 	result, found := resultFor(SetupResults(), "probe")
 	if !found {
-		t.Fatal("the probe module is missing from SetupResults")
+		t.Fatal("the probe plugin is missing from SetupResults")
 	}
 	if result.Reason != errProbe.Error() {
 		t.Errorf("reason = %q, want %q", result.Reason, errProbe.Error())

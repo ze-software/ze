@@ -1,7 +1,7 @@
 // Design: docs/architecture/hub-architecture.md -- hub CLI entry point
 // Related: startup_gate.go -- the refusal these tests drive
 //
-// startup_gate_test.go proves three things about the module setup gate: a hard
+// startup_gate_test.go proves three things about the plugin setup gate: a hard
 // failure stops the daemon before it does anything irreversible, a soft
 // failure does not stop it at all, and no CLI verb can reach the gate.
 
@@ -24,9 +24,9 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
-// gateModule is the module these tests record against. A name no real module
+// gatePlugin is the plugin these tests record against. A name no real plugin
 // uses keeps the record readable when the assertion fails.
-const gateModule = "startup-gate-probe"
+const gatePlugin = "startup-gate-probe"
 
 // isolateRegistry empties the plugin registry and the setup record for one
 // test, and puts both back. Every test in this binary shares one registry.
@@ -37,13 +37,13 @@ func isolateRegistry(t *testing.T) {
 	registry.Reset()
 }
 
-// registerGateModule puts one module in the registry so the setup record has a
-// registered module to answer for.
-func registerGateModule(t *testing.T, name string) {
+// registerGatePlugin puts one plugin in the registry so the setup record has a
+// registered plugin to answer for.
+func registerGatePlugin(t *testing.T, name string) {
 	t.Helper()
 	err := registry.Register(registry.Registration{
 		Name:        name,
-		Description: "Probe module for the startup gate tests",
+		Description: "Probe plugin for the startup gate tests",
 		RunEngine:   func(net.Conn) int { return 0 },
 		CLIHandler:  func([]string) int { return 0 },
 	})
@@ -103,16 +103,16 @@ func stderrDuringRun(t *testing.T, fn func() int) (int, string) {
 // TestRunRefusesOnHardSetupFailure proves AC-3.
 //
 // VALIDATES: a recorded hard setup failure stops run with exit code 1, a
-// stderr line naming the module and its reason, and no state store created.
+// stderr line naming the plugin and its reason, and no state store created.
 //
-// PREVENTS: a daemon that starts without a module it cannot run without, and
+// PREVENTS: a daemon that starts without a plugin it cannot run without, and
 // a refusal that lands after the first irreversible act. The empty config
 // directory is what proves the ordering: openStateOnlyStore creates
 // database.zefs there the moment run gets past this gate.
 func TestRunRefusesOnHardSetupFailure(t *testing.T) {
 	isolateRegistry(t)
-	registerGateModule(t, gateModule)
-	registry.RecordSetup(gateModule, registry.SetupFailedHard, "the kernel has no such module")
+	registerGatePlugin(t, gatePlugin)
+	registry.RecordSetup(gatePlugin, registry.SetupFailedHard, "the kernel does not support it")
 	configDir := pinConfigDir(t)
 
 	code, written := stderrDuringRun(t, func() int {
@@ -123,7 +123,7 @@ func TestRunRefusesOnHardSetupFailure(t *testing.T) {
 	if code != 1 {
 		t.Errorf("run exit code = %d, want 1", code)
 	}
-	for _, want := range []string{"module setup", gateModule, "the kernel has no such module"} {
+	for _, want := range []string{"plugin setup", gatePlugin, "the kernel does not support it"} {
 		if !strings.Contains(written, want) {
 			t.Errorf("the refusal does not carry %q: %s", want, written)
 		}
@@ -139,17 +139,17 @@ func TestRunRefusesOnHardSetupFailure(t *testing.T) {
 
 // TestRunRefusalNamesEveryHardFailure proves AC-8 at the entry point.
 //
-// VALIDATES: two modules that recorded a hard failure are both named in the
+// VALIDATES: two plugins that recorded a hard failure are both named in the
 // one refusal.
 //
 // PREVENTS: an operator repairing the first fault, restarting, and meeting the
 // second. Each fault after the first would cost a whole boot.
 func TestRunRefusalNamesEveryHardFailure(t *testing.T) {
 	isolateRegistry(t)
-	registerGateModule(t, "beta-module")
-	registry.RecordSetup("beta-module", registry.SetupFailedHard, "beta reason")
-	registerGateModule(t, "alpha-module")
-	registry.RecordSetup("alpha-module", registry.SetupFailedHard, "alpha reason")
+	registerGatePlugin(t, "beta-plugin")
+	registry.RecordSetup("beta-plugin", registry.SetupFailedHard, "beta reason")
+	registerGatePlugin(t, "alpha-plugin")
+	registry.RecordSetup("alpha-plugin", registry.SetupFailedHard, "alpha reason")
 	configDir := pinConfigDir(t)
 
 	code, written := stderrDuringRun(t, func() int {
@@ -160,13 +160,13 @@ func TestRunRefusalNamesEveryHardFailure(t *testing.T) {
 	if code != 1 {
 		t.Errorf("run exit code = %d, want 1", code)
 	}
-	for _, want := range []string{"alpha-module", "alpha reason", "beta-module", "beta reason"} {
+	for _, want := range []string{"alpha-plugin", "alpha reason", "beta-plugin", "beta reason"} {
 		if !strings.Contains(written, want) {
 			t.Errorf("the refusal does not carry %q: %s", want, written)
 		}
 	}
-	if strings.Index(written, "alpha-module") > strings.Index(written, "beta-module") {
-		t.Errorf("the refusal is not in module name order: %s", written)
+	if strings.Index(written, "alpha-plugin") > strings.Index(written, "beta-plugin") {
+		t.Errorf("the refusal is not in plugin name order: %s", written)
 	}
 }
 
@@ -179,8 +179,8 @@ func TestRunRefusalNamesEveryHardFailure(t *testing.T) {
 // without, which is worse than the silence this registry removes.
 func TestRunProceedsOnSoftFailure(t *testing.T) {
 	isolateRegistry(t)
-	registerGateModule(t, gateModule)
-	registry.RecordSetup(gateModule, registry.SetupFailedSoft, "the feature is absent")
+	registerGatePlugin(t, gatePlugin)
+	registry.RecordSetup(gatePlugin, registry.SetupFailedSoft, "the feature is absent")
 
 	previous := env.Get("ze.config.dir")
 	if err := env.Set("ze.config.dir", ""); err != nil {
@@ -200,7 +200,7 @@ func TestRunProceedsOnSoftFailure(t *testing.T) {
 	if code != 1 {
 		t.Errorf("run over a missing config exited %d, want 1", code)
 	}
-	if strings.Contains(written, "module setup") {
+	if strings.Contains(written, "plugin setup") {
 		t.Errorf("a soft failure refused the start: %s", written)
 	}
 	if !strings.Contains(written, "read config") {
@@ -210,7 +210,7 @@ func TestRunProceedsOnSoftFailure(t *testing.T) {
 
 // TestCLIVerbUnaffectedByHardSetupFailure proves AC-5.
 //
-// VALIDATES: a CLI verb answers normally while a module holds a recorded hard
+// VALIDATES: a CLI verb answers normally while a plugin holds a recorded hard
 // failure, and the answer carries that failure.
 //
 // PREVENTS: the fix becoming worse than the fault. A registry that refuses
@@ -218,17 +218,17 @@ func TestRunProceedsOnSoftFailure(t *testing.T) {
 // out what is wrong.
 func TestCLIVerbUnaffectedByHardSetupFailure(t *testing.T) {
 	isolateRegistry(t)
-	registerGateModule(t, gateModule)
-	registry.RecordSetup(gateModule, registry.SetupFailedHard, "the kernel has no such module")
+	registerGatePlugin(t, gatePlugin)
+	registry.RecordSetup(gatePlugin, registry.SetupFailedHard, "the kernel does not support it")
 
-	answer, code, served := command.ServeLocal("show module list | json", "")
+	answer, code, served := command.ServeLocal("show plugins | json", "")
 	if !served {
-		t.Fatal("show module list was not served in this process")
+		t.Fatal("show plugins was not served in this process")
 	}
 	if code != 0 {
 		t.Fatalf("a CLI verb exited %d while a hard failure was recorded: %s", code, answer)
 	}
-	for _, want := range []string{gateModule, "hard-failure", "the kernel has no such module"} {
+	for _, want := range []string{gatePlugin, "hard-failure", "the kernel does not support it"} {
 		if !strings.Contains(answer, want) {
 			t.Errorf("the CLI answer does not carry %q: %s", want, answer)
 		}

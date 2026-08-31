@@ -1,6 +1,7 @@
 // Design: docs/architecture/plugin/plugin-system.md -- memlock plugin registration
 // Overview: memlock.go -- why the executable is locked
 // Related: memlock_linux.go -- the init() that takes the lock and records the outcome
+// Related: doctor_linux.go -- the pre-flight check this registration declares
 
 //go:build linux
 
@@ -12,22 +13,34 @@ import (
 	"os"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// pluginName is the one spelling of this module's name. The registration and
+// pluginName is the one spelling of this plugin's name. The registration and
 // the setup record are two writes keyed by it, so they MUST agree.
 const pluginName = "memlock"
 
 func init() { //nolint:gochecknoinits // plugin registration
-	// No doctor check. `ze doctor` runs in the operator's own process, so it
-	// reports THAT process's lock and not the daemon's, and it is optional, so
-	// it cannot carry a fact the daemon depends on. The lock outcome is
-	// recorded by memlock_linux.go and read by `show module list`.
+	// The doctor check is a PRE-FLIGHT probe of the host, not a report of the
+	// lock. `ze doctor` runs in the operator's own process, so it can never say
+	// whether the DAEMON took its lock; `show plugins` answers that, by
+	// replaying what the daemon's own init() recorded. What the doctor check
+	// adds is the tier before ze runs: whether this host could lock the
+	// executable at all. See doctor_linux.go.
 	reg := registry.Registration{
 		Name:        pluginName,
 		Description: "Memory lock: keep the running executable resident under memory pressure",
 		RunEngine:   runMemlockPlugin,
+		DoctorChecks: []registry.DoctorCheckDef{{
+			Name:         "memlock-rlimit",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        726,
+			Dependencies: []string{"kernel"},
+			Platforms:    []string{"any"},
+			Codes:        []string{codeMemlockRlimitLow, codeMemlockRlimitUnknown},
+			Check:        checkMemlockLimit,
+		}},
 	}
 	reg.CLIHandler = func(_ []string) int {
 		return 1
