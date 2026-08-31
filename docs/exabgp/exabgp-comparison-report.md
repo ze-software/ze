@@ -93,7 +93,7 @@
 | 4-Byte AS Number | 65 | RFC 6793 |
 | ADD-PATH | 69 | RFC 7911 |
 | FQDN | 73 | RFC 8516 |
-| Software Version | 75 | draft-ietf-idr-software-version |
+| Software Version | 75 | draft-abraitis-bgp-version-capability |
 
 **ExaBGP Additional Capabilities:**
 - Outbound Route Filtering (3)

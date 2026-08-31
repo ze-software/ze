@@ -3,7 +3,7 @@
 // Package bgp_softver implements a software-version capability plugin for ze.
 // It advertises the software version of the BGP speaker (code 75).
 //
-// draft-ietf-idr-software-version: BGP Software Version Capability.
+// draft-abraitis-bgp-version-capability: BGP Software Version Capability.
 package softver
 
 import (
@@ -46,7 +46,7 @@ const (
 )
 
 // encodeValue returns the hex-encoded capability value (without code/length prefix).
-// draft-ietf-idr-software-version: version-length (1 octet) + version-string (UTF-8).
+// draft-abraitis-bgp-version-capability: version-length (1 octet) + version-string (UTF-8).
 func encodeValue() string {
 	version := ZeVersion
 	if len(version) > 255 {

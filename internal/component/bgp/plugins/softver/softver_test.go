@@ -138,7 +138,7 @@ func TestExtractSoftverCapabilitiesEmpty(t *testing.T) {
 }
 
 func TestEncodeValueBoundary(t *testing.T) {
-	// draft-ietf-idr-software-version: version-length is 1 octet (max 255).
+	// draft-abraitis-bgp-version-capability: version-length is 1 octet (max 255).
 	//
 	// VALIDATES: Boundary encoding at 255 and 256 byte version strings.
 	// PREVENTS: Overflow in 1-octet length field.

@@ -59,9 +59,10 @@ All capabilities share a common TLV (Type-Length-Value) format:
 | 65 | 0x41 | 4-Byte AS Number | RFC 6793 | 4 | Core parser |
 | 69 | 0x45 | ADD-PATH | RFC 7911 | 4 per family | Core parser |
 | 70 | 0x46 | Enhanced Route Refresh | RFC 7313 | 0 | Core parser |
-| 73 | 0x49 | FQDN | RFC 8516 | Variable | Core parser |
-| 75 | 0x4B | Software Version | draft-abraitis-bgp-version | Variable | Preserved as unknown |
+| 73 | 0x49 | FQDN | draft-walton-bgp-hostname-capability | Variable | Core parser |
+| 75 | 0x4B | Software Version | draft-abraitis-bgp-version-capability | Variable | Preserved as unknown |
 | 76 | 0x4C | PATHS-LIMIT | draft-abraitis-idr-addpath-paths-limit | 5 per family | Core parser |
+| 77 | 0x4D | Link-Local Next Hop | draft-ietf-idr-linklocal-capability | 0 | Preserved as unknown |
 | 128 | 0x80 | Route Refresh (Cisco) | Vendor | 0 | Preserved as unknown |
 | 131 | 0x83 | Multisession (Cisco) | Vendor | Variable | Preserved as unknown |
 
@@ -323,7 +324,7 @@ draft-walton-bgp-hostname-capability
 
 ## 10. Software Version (Code 75)
 
-draft-abraitis-bgp-version-capability
+draft-abraitis-bgp-version-capability, revision 18
 
 ```
  0                   1                   2   ...

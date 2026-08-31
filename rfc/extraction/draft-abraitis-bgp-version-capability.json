@@ -1,0 +1,176 @@
+{
+  "schema-version": 1,
+  "stem": "draft-abraitis-bgp-version-capability",
+  "register": "prose",
+  "source-path": "rfc/drafts/draft-abraitis-bgp-version-capability.txt",
+  "source-sha": "472ca7a757b75dda",
+  "signed-off": "2026-09-01",
+  "reviewer": "ze-work agent, spec-rfcgate-6 draft walk, draft-abraitis-bgp-version-capability",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 2,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo and Copyright Notice. The Abstract carries the sentence that makes the whole mechanism optional and one boilerplate site; both are excluded below."
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Introduction. Says data-center routers run different routing-software versions, that knowing them helps root-cause a fault, and that LLDP and CDP are awkward in containerized environments. Its one site restates the Abstract's optionality and is excluded below. No obligation."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Specification of Requirements. The BCP 14 key-words paragraph. It tells a reader how to read the rest and binds nobody, which is why the derivation raises no site here."
+    },
+    {
+      "id": "3",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "Software Version Capability. The document's main normative section: seven sites, five mapped to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1, 3-3, 3-4, 3-6, 3-7 and 3-8, and two excluded. It also assigns Capability Code 75 and defines the Capability Length and Capability Value fields, which are value definitions carried by the Wire Format section of rfc/short/draft-abraitis-bgp-version-capability.md. Six ids are declared unsourced here. Two are the second obligation of a sentence already mapped: 3-2, the MUST to default to disabled, shares site 3:1 with 3-1, and 3-5, the MUST to ignore a zero-length capability, shares site 3:4 with 3-4. The other four are advisory levels the capitalised MUST-level scan does not raise: 3-9 (the SHOULD that Capability Length be no greater than 64), 3-10 (the SHOULD to limit the product identifier, the first clause of site 3:7), 3-11 (the SHOULD NOT to put non-version information in product-version) and 3-12 (the NOT RECOMMENDED against use outside one Autonomous System). The opening sentence, that the document is not Standards Track but uses BCP 14 terminology, and the OPTIONAL sentence 'The inclusion of the Software Version Capability is OPTIONAL' state no obligation on a speaker.",
+      "unsourced-ids": [
+        "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2",
+        "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5",
+        "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-9",
+        "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-10",
+        "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-11",
+        "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-12"
+      ]
+    },
+    {
+      "id": "3.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Capabilities Length Overflow. Two sites: 3.1:1 is mapped to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1 and 3.1:2 is excluded below. The rest recounts that RFC 5492 caps the BGP Capabilities Optional Parameter at 255 bytes and that exceeding it leaves no room for more important capabilities."
+    },
+    {
+      "id": "4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Operation. Two sites, both mapped, to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 and DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2. The remaining paragraph is the worked example of an operator correlating a bug with a routing-daemon version across upstream nodes."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records that IANA has assigned capability number 75 in the BGP Capability Codes registry, with the one-row table naming it. Binds IANA, not a speaker."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that the version should be treated as sensitive, that an attacker who learns it has an easier time, that a forged or snooped value is possible without an integrity- or confidentiality-providing transport, and that GTSM or a firewall on TCP 179 limits the exposure. Every sentence uses a lowercase 'should' the document's own Section 2 gives no normative level, and the derivation raises no site. No obligation on a speaker."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix A. Implementation Report. The RFC 7942 running-code list -- FRRouting, GoBGP, freeRouter and ExaBGP commits -- plus three figures of sample CLI output. No obligation."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Implementations are not required to advertise the version nor to process received advertisements.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Indicative, and permissive rather than obligatory: it states that an implementation need not advertise the version and need not process a received one. It directs no behavior, and it is the sentence that makes both halves of the mechanism optional. Ze offers the send half and declines the receive half, which is why the three receiver requirements are met by ignoring rather than by parsing."
+    },
+    {
+      "id": "front:2",
+      "quote": "Code Components extracted from this document must include Revised BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Revised BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust boilerplate the splitter did not strip. The sentence binds a person who extracts Code Components from the document into other software and tells them to carry the Revised BSD License text. It directs no BGP speaker and describes no protocol behavior. Its 'must' is lowercase, so it is raised only by the case-insensitive modal scan the 'prose' register uses."
+    },
+    {
+      "id": "1:1",
+      "quote": "Implementations are not required to advertise their software version nor to process it on receipt.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The Introduction's restatement of the Abstract sentence at site front:1, in the same permissive shape: implementations 'are not required to' advertise or to process. Indicative, and it directs no behavior. It is not recorded as a duplicate-of, because duplicate-of names an id another site maps and no site maps this sentence: it states no obligation for an id to hold."
+    },
+    {
+      "id": "3:1",
+      "quote": "If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1",
+      "reason": "One derived sentence stating two distinct MUST obligations on an implementation that offers the capability: a configuration option to enable or disable it, and a default of disabled. It is mapped to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1, the configuration-option half, and DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2 carries the default-to-disabled half and is declared unsourced on this section. Both are produced by extractSoftverCapabilities (internal/component/bgp/plugins/softver/softver.go), which reads a 'software-version' capability key from the peer or group config and appends the code-75 declaration only when that key is present and its mode is neither 'disable' nor 'refuse'."
+    },
+    {
+      "id": "3:2",
+      "quote": "An implementation that does not recognize or support the Software Version Capability but receives one must ignore it, as described in Section 3 of [RFC5492].",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 5492, which the sentence cites: a speaker that receives a capability it does not recognize or support must ignore it, RFC 5492 Section 3. The sentence is a back-reference telling a reader what already governs an unrecognized code 75, and its 'must' is lowercase. RFC 5492 is enrolled and that obligation is gated there as RFC5492-3-2."
+    },
+    {
+      "id": "3:3",
+      "quote": "The Capability Length for the Software Version Capability MUST be greater than zero.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3",
+      "reason": "The sender's obligation that the Capability Length be greater than zero, captured verbatim as DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3 at [MUST]. Produced by encodeValue (internal/component/bgp/plugins/softver/softver.go), which writes one length octet followed by the constant ZeVersion, so the value field is never empty."
+    },
+    {
+      "id": "3:4",
+      "quote": "A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4",
+      "reason": "One derived sentence stating two obligations on a receiver of a zero-length capability: a SHALL that it be treated as an encoding error, and a MUST that the capability be ignored. It is mapped to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4, the encoding-error half, and DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5 carries the ignore half and is declared unsourced on this section. Ze's session receive path answers both by never recognizing code 75: parseCapability (internal/core/bgp/capability/capability.go) has no case for it, so its default branch returns an Unknown that no reactor code reads."
+    },
+    {
+      "id": "3:5",
+      "quote": "The Version field MUST be encoded using UTF-8.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6",
+      "reason": "The sender's obligation that the Version field be encoded using UTF-8, captured verbatim as DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6 at [MUST]. Produced by encodeValue (internal/component/bgp/plugins/softver/softver.go), which copies the Go string constant ZeVersion, 'Ze/0.1.0'."
+    },
+    {
+      "id": "3:6",
+      "quote": "A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7",
+      "reason": "The receiver's prohibition on interpreting invalid UTF-8 sequences, captured verbatim as DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7 at [MUST NOT]. Ze's session receive path interprets no code-75 value at all: parseCapability (internal/core/bgp/capability/capability.go) returns an Unknown holding the raw bytes and nothing reads them. decodeSoftwareVersion (internal/component/bgp/plugins/softver/softver.go) converts the bytes to a string with no UTF-8 validation, but it is reached only from 'ze bgp decode', an operator tool that decodes a hex payload the operator supplies, and not from a BGP session."
+    },
+    {
+      "id": "3:7",
+      "quote": "A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8",
+      "reason": "One derived sentence stating a SHOULD and a MUST NOT about the product identifier a sender generates. It is mapped to DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8, the MUST NOT against advertising or other nonessential information, and DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-10 carries the SHOULD to limit the identifier and is declared unsourced on this section. The identifier Ze sends is the compile-time constant ZeVersion, 'Ze/0.1.0' (internal/component/bgp/plugins/softver/softver.go), which is a product name and a version and nothing else."
+    },
+    {
+      "id": "3.1:1",
+      "quote": "Implementations of this specification are REQUIRED Extended Optional Parameters Length for BGP OPEN Message support as defined in [RFC9072].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1",
+      "reason": "The obligation that an implementation of this draft support RFC 9072, captured verbatim as DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1 at [REQUIRED]. It is mapped rather than excluded cross-document because the sentence itself states the requirement on an implementation of THIS document. RFC 9072 is separately enrolled and its row in docs/features/rfc-status.md reads 'Partial', with four MUST-level gaps annotated in rfc/short/rfc9072.md."
+    },
+    {
+      "id": "3.1:2",
+      "quote": "A rogue node can prevent the proper operation of a BGP session, or the advertisement of other Capabilities, by not excluding the Software Version Capability as required in Section 3.1.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Indicative, and a security observation rather than a directive: it states that a rogue node can deny the advertisement of other capabilities by not excluding this one, and that the risk is not new to BGP. The words 'as required in Section 3.1' are a back-reference to the sentence at site 3.1:1, which this walk maps; they impose nothing of their own."
+    },
+    {
+      "id": "4:1",
+      "quote": "The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
+      "reason": "The restriction that the capability be used only to display a speaker's routing-daemon version, captured verbatim as DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 at [MUST]. Ze uses a received code 75 for nothing: parseCapability (internal/core/bgp/capability/capability.go) has no case for it and no reactor code reads the Unknown it produces, so no route selection, policy or session decision can turn on it."
+    },
+    {
+      "id": "4:2",
+      "quote": "Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2",
+      "reason": "The obligation that the feature be explicitly configured before the capability is advertised, captured verbatim as DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2 at [MUST]. Produced by extractSoftverCapabilities (internal/component/bgp/plugins/softver/softver.go): the code-75 declaration is appended only inside the branch guarded by an explicit 'software-version' capability key on the peer or its group, so an unconfigured peer advertises nothing."
+    }
+  ]
+}

@@ -5,7 +5,7 @@ module ze-softver {
     import ze-bgp-conf { prefix bgp; }
 
     description
-        "Software Version capability plugin for ZeBGP (draft-ietf-idr-software-version, code 75).
+        "Software Version capability plugin for ZeBGP (draft-abraitis-bgp-version-capability, code 75).
          Advertises the software version of the BGP speaker.";
 
     revision 2026-02-22 {

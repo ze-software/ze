@@ -618,7 +618,7 @@ and registering it.
 | Long-Lived Graceful Restart | 71 | RFC 9494 | Implemented |
 | BGP Role | 9 | RFC 9234 | Implemented |
 | Hostname | 73 | draft-walton-bgp-hostname-capability | Implemented |
-| Software Version | 75 | draft-ietf-idr-software-version | Implemented |
+| Software Version | 75 | draft-abraitis-bgp-version-capability | Implemented |
 | Link-Local Next Hop | 77 | draft-ietf-idr-linklocal-capability | Implemented |
 
 <!-- source: internal/core/bgp/capability/capability.go -- capability codes and parsing, CodeRole -->

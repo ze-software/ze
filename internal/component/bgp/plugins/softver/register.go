@@ -15,7 +15,7 @@ func init() {
 	reg := registry.Registration{
 		Name:            "bgp-softver",
 		Description:     "Software Version capability (code 75)",
-		RFCs:            []string{"draft-ietf-idr-software-version"},
+		RFCs:            []string{"draft-abraitis-bgp-version-capability"},
 		SupportsCapa:    true,
 		Features:        "capa yang",
 		ConfigRoots:     []string{configRootBGP},

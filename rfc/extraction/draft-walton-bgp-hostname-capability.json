@@ -1,0 +1,89 @@
+{
+  "schema-version": 1,
+  "stem": "draft-walton-bgp-hostname-capability",
+  "register": "manual-walk",
+  "source-path": "rfc/drafts/draft-walton-bgp-hostname-capability.txt",
+  "source-sha": "83f56181a3009274",
+  "signed-off": "2026-09-01",
+  "reviewer": "ze-work agent, spec-rfcgate-6 draft walk, draft-walton-bgp-hostname-capability",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo and Copyright Notice. The Abstract says the document introduces a BGP capability carrying a speaker's hostname. It directs no speaker. The one site the scan raises here is the Copyright Notice sentence, excluded below."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Says BGP is used inside the data center, that displaying a speaker's hostname eases troubleshooting, and that this document defines a capability exchanging a speaker's FQDN. Indicative throughout; no keyword site and no obligation."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Specification of Requirements. The RFC 2119 key-words paragraph. It tells a reader how to read the rest and binds nobody, which is why the derivation excludes it from the capitalised site inventory."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "FQDN Capability. Defines the wire format: Hostname Length, Hostname, Domain Name Length, Domain Name, with the two strings 'encoded via UTF-8' and the capability code deferred to the IANA Considerations section. Every sentence is a field definition in indicative prose, carried by the Wire Format table of rfc/short/draft-walton-bgp-hostname-capability.md. No RFC 2119 keyword and no obligation on a speaker."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Operation. Carries the document's one normative sentence, the SHOULD captured as DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1: 'The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier.' The scan raises no site for it because the row is advisory and the sentence sits below the gated levels this artifact counts, so the id is declared unsourced here. The rest of the section is two pages of sample 'cl-bgp summary' output and the sentence that the hostname and domain are assumed to be taken from the ones set on the device.",
+      "unsourced-ids": [
+        "DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records that IANA has assigned capability number 73 in the BGP Capability Codes registry. Binds IANA, not a speaker."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. One sentence: the document 'introduces no new security concerns to BGP or other specifications referenced in this document'. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. The heading over sections 7.1 and 7.2."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 5492 and RFC 2119."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Implementation References: the Quagga BGP FQDN Capability commit."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust boilerplate the splitter did not strip. The sentence binds a person who extracts Code Components from the document into other software and tells them to carry the Simplified BSD License text; it directs no BGP speaker and describes no protocol behavior. Its 'must' is lowercase, so it is raised only by the case-insensitive modal scan the 'prose' register uses."
+    }
+  ],
+  "register-reason": "The document states no MUST-level obligation. Its only RFC 2119 keywords are the ten listed in the Section 2 key-words paragraph, which binds no speaker, and the derivation raises exactly one keyword site in the whole text: the Copyright Notice's lowercase 'Code Components extracted from this document must include Simplified BSD License text', excluded below. DeriveRegister (internal/le/rfc/inventory.go) grades that source 'prose', because the capitalised scan finds no site outside the key-words paragraph. 'manual-walk' is declared instead, which is the weaker grade, because the sign-off rests on a section walk rather than on any inventory: the mechanical inventory over this text is one boilerplate sentence and it can bound nothing. The document's single normative sentence is the Section 4 SHOULD, captured as DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1 at an advisory level that this gate does not count. Zero gated rows is therefore a property of the DOCUMENT, not of the extraction."
+}

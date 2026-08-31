@@ -1,0 +1,216 @@
+{
+  "schema-version": 1,
+  "stem": "draft-ietf-idr-linklocal-capability",
+  "register": "prose",
+  "source-path": "rfc/drafts/draft-ietf-idr-linklocal-capability.txt",
+  "source-sha": "f6a372b9b6ab4db5",
+  "signed-off": "2026-09-01",
+  "reviewer": "ze-work agent, spec-rfcgate-6 draft walk, draft-ietf-idr-linklocal-capability",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract says the document updates RFC 2545 to clarify the next-hop encoding when only an IPv6 Link-Local address is available, and defines a capability signalling support for it. It directs no speaker. Its one site is the Copyright Notice, excluded below."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-1"
+      ]
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-2-1"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 9,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-10",
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-11",
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-12",
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-13",
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-14"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-2",
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-3"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-7-1",
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-7-2",
+        "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-7-3"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements. Thanks, plus the note that the work builds on draft-kumar-idr-link-local-nexthop and draft-kato-bgp-ipv6-link-local."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records that IANA has assigned capability number 77 in the BGP Capability Codes registry, with the one-row table naming it. Binds IANA, not a speaker."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. The heading over sections 11.1 and 11.2."
+    },
+    {
+      "id": "11.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References."
+    },
+    {
+      "id": "11.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix A. Motivations for a Capability. Two sentences saying Link-Local-only next hops have been inconsistently supported and that the capability lets two conforming implementations interoperate without extra configuration."
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix B. Inconsistency Reports. The RFC 7942 running-code notes for FRRouting and Bird."
+    },
+    {
+      "id": "C",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix C. Implementation Report. The RFC 7942 running-code note for FRRouting."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "If an implementation intends to send both a IPv6 Global and Link- Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2"
+    },
+    {
+      "id": "4:1",
+      "quote": "If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2"
+    },
+    {
+      "id": "4:3",
+      "quote": "If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer's address, the next hop MUST include its own Link- Local IPv6 address.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3"
+    },
+    {
+      "id": "4:4",
+      "quote": "If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4"
+    },
+    {
+      "id": "4:5",
+      "quote": "A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5"
+    },
+    {
+      "id": "4:6",
+      "quote": "For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6"
+    },
+    {
+      "id": "4:7",
+      "quote": "If no next hops are included, the route MUST NOT be announced (treat-as- withdraw).",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7"
+    },
+    {
+      "id": "4:8",
+      "quote": "* Link-Local IPv6 next hops MUST NOT be included.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8"
+    },
+    {
+      "id": "4:9",
+      "quote": "* By default, the BGP speaker SHOULD use the Global IPv6 address of the interface that the speaker uses in the next hop to establish the BGP connection to peer X. * If a Global IPv6 next hop is not included, the route MUST NOT be advertised to the external peer (treat-as-withdraw).",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9"
+    },
+    {
+      "id": "5:1",
+      "quote": "When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1"
+    },
+    {
+      "id": "6:1",
+      "quote": "If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of \"treat-as- withdraw\", as described in section 7.3 of [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1"
+    }
+  ]
+}
