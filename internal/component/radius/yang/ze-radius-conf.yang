@@ -83,14 +83,16 @@ module ze-radius-conf {
                         enum filter-id {
                             description "RADIUS Filter-Id (11), RFC 2865 Section 5.11";
                         }
-                        enum class {
-                            description "RADIUS Class (25), RFC 2865 Section 5.25";
-                        }
                     }
                     default "filter-id";
                     description
                         "Access-Accept reply attribute whose value(s) name the
-                         ze authorization profile(s) for the user";
+                         ze authorization profile(s) for the user.
+
+                         Filter-Id is the only value. RFC 2865 Section 5.25 says
+                         of Class that 'the client MUST NOT interpret the
+                         attribute locally', so reading a profile name out of it
+                         is not available.";
                 }
 
                 leaf-list default-profile {

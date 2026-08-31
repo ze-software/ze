@@ -297,16 +297,20 @@ func TestRadiusAuthenticatedImpliesProfiles(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-6 the configured Class attribute is honored as the carrier.
-// PREVENTS: hardcoding Filter-Id and ignoring the operator's profile-attribute.
-func TestRadiusProfileMappingClass(t *testing.T) {
+// VALIDATES: a Class attribute in an Access-Accept names no ze profile.
+// PREVENTS: reading an authorization decision out of an attribute the RFC
+// reserves as opaque accounting correlation.
+// RFC requirement: RFC2865-5.25-1 positive -- an Access-Accept whose only
+// candidate carrier is Class (25) resolves to no profile, so the login is
+// rejected rather than authorized from a locally interpreted Class value.
+func TestRadiusClassIsNotInterpretedLocally(t *testing.T) {
 	key := []byte("testing123")
-	reply := []Attr{{Type: attrClass, Value: []byte("admins")}}
+	reply := []Attr{{Type: 25, Value: []byte("admins")}}
 	srv := newReplyServer(t, key, CodeAccessAccept, reply)
 	defer srv.close()
 
-	a := testAuthenticator(t, srv.addr, key, ExtractedConfig{ProfileAttr: attrClass})
+	a := testAuthenticator(t, srv.addr, key, ExtractedConfig{ProfileAttr: AttrFilterID})
 	res, err := a.Authenticate(aaa.AuthRequest{Username: "alice", Password: "pw"})
-	require.NoError(t, err)
-	assert.Equal(t, []string{"admins"}, res.Profiles)
+	require.ErrorIs(t, err, aaa.ErrAuthRejected)
+	assert.Empty(t, res.Profiles)
 }

@@ -278,12 +278,20 @@ anything else authorizes a service ze cannot bring up (RFC 2865 Sections 5.6
 and 1.1).
 <!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS -->
 
-Every Accounting-Request carries User-Name, Acct-Status-Type, Acct-Session-Id,
-Service-Type (Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual) and
-NAS-Port. NAS-IP-Address, NAS-Identifier and NAS-Port-Id are added when they are
-configured. Stop and Interim-Update add Acct-Session-Time, the input and output
-octet and packet counters, and the RFC 2869 gigaword counters when a counter
-passes 2^32.
+Every Accounting-Request carries Acct-Status-Type, Acct-Session-Id, Service-Type
+(Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual) and NAS-Port. User-Name
+is added when the session has one: a session the LNS never authenticated has no
+username, and RFC 2866 Section 5 forbids sending text of length zero.
+NAS-Port-Id is added when the operator configured a template. Stop and
+Interim-Update add Acct-Session-Time, the input and output octet and packet
+counters, and the RFC 2869 gigaword counters when a counter passes 2^32.
+
+RFC 2866 Section 4.1 requires either NAS-IP-Address or NAS-Identifier in every
+Accounting-Request, and RFC 2865 Section 4.1 requires the same of every
+Access-Request, so ze always sends one of the two. A configured `source-address`
+becomes NAS-IP-Address and a configured `nas-identifier` becomes NAS-Identifier.
+When neither leaf is set, the host name is sent as NAS-Identifier, which is what
+the RADIUS admin backend already does.
 
 Framed-IP-Address carries the address the session was actually given, which RFC
 2866 Section 4.1 requires of the attribute. The value is the IPCP-negotiated
@@ -291,6 +299,7 @@ peer address the reactor put on `pppN`. RFC 2865 Section 5.8 makes the attribute
 four octets, so a session with no address yet, or one whose only assignment is
 IPv6, sends no attribute rather than a wrong one.
 <!-- source: internal/component/l2tp/plugins/authradius/acct.go -- buildAcctPacket -->
+<!-- source: internal/component/l2tp/plugins/authradius/nasidentity.go -- appendNASIdentity -->
 
 Three attributes an operator may look for are deliberately absent, because no
 runtime value exists for them: Framed-Interface-Id, Framed-IPv6-Prefix and
@@ -350,7 +359,35 @@ listener. It has no default: leaving it unset keeps the listener off, so an
 upgrade cannot expose a new RADIUS endpoint unexpectedly. Port 3799 is the
 standard deployment choice. Ze accepts CoA/DM requests only from addresses
 listed under `server`; the authentication and accounting destination port on
-each server is configured separately.
+each server is configured separately. When no `server` address resolves to an IP
+the listener does not start at all, because there is then no dynamic
+authorization client to trust and the port would answer anybody.
+
+Ze answers a request only when every check below passes. A failed check either
+discards the packet without a reply, which is what RFC 5176 requires where a
+reply would confirm the shared secret to a sender that guessed wrong, or answers
+a NAK carrying an Error-Cause.
+
+| Check | Refused how |
+|-------|-------------|
+| Source address is a configured `server` | Discarded |
+| Request Authenticator matches the shared secret for that source | Discarded |
+| Code is CoA-Request or Disconnect-Request | Discarded |
+| Message-Authenticator, when the request carries one, is correct | Discarded |
+| Event-Timestamp is within 5 minutes | Discarded when stale, NAK 404 when absent |
+| CoA-Request carries no Service-Type | NAK 405 |
+| Every attribute is one Ze supports | NAK 401 |
+| The identification attributes match exactly one session | NAK 503 for none, NAK 508 for several |
+| The requested change reached the shaper | NAK 506 |
+
+One of these is stricter than RFC 5176, deliberately. Section 6.3 makes the
+Event-Timestamp a SHOULD and lets an implementation be configurable about its
+absence; Ze refuses a request that omits it, because the port takes unsolicited
+packets that tear subscriber sessions down and without the attribute there is no
+replay protection.
+
+The response echoes the request's Proxy-State and State attributes unchanged,
+and Ze never reads their contents.
 
 RFC 5176 Section 3.4 makes the Message-Authenticator attribute optional, and Ze
 follows the RFC by default: a CoA-Request or Disconnect-Request that carries none
@@ -375,7 +412,8 @@ packet the finished Message-Authenticator is part of. A client that inverts the
 two is refused.
 
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- coa-port -->
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- source-address validation, handlePacket -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- handlePacket, unsupportedAttr, oneSession -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- startCoAListener -->
 <!-- source: internal/component/radius/packet.go -- VerifyCoARequestAuth, VerifyCoAMessageAuthenticator -->
 
 

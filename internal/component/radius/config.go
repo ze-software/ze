@@ -1,6 +1,6 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS admin AAA config
 // Overview: aaa.go -- backend Build consuming this config
-// RFC: rfc/short/rfc2865.md -- Filter-Id (Section 5.11), Class (Section 5.25)
+// RFC: rfc/short/rfc2865.md -- Filter-Id (Section 5.11)
 
 // RADIUS admin-authentication configuration extraction from the YANG tree.
 // Reads system/authentication/radius; separate from the L2TP subscriber
@@ -20,10 +20,6 @@ const (
 	defaultAdminPort = 1812
 	defaultTimeout   = 3 * time.Second
 	defaultRetries   = 3
-	// attrClass is the RADIUS Class attribute (RFC 2865 Section 5.25). It is
-	// defined here rather than in dict.go so the admin backend never has to
-	// touch the shared dictionary used by the L2TP subscriber path.
-	attrClass = 25
 )
 
 // ExtractedConfig holds RADIUS admin-auth configuration read from the tree.
@@ -123,13 +119,12 @@ func ExtractConfig(tree *config.Tree) (ExtractedConfig, error) {
 }
 
 // profileAttrType maps the YANG profile-attribute enum to a RADIUS attribute
-// type. Unknown values fall back to Filter-Id (the schema default and the
-// RFC 2865 Section 5.11 standard authorization carrier).
-func profileAttrType(name string) uint8 {
-	switch name {
-	case "class":
-		return attrClass
-	default:
-		return AttrFilterID
-	}
+// type. Filter-Id is the only enum value and the only conformant carrier, so an
+// unknown value lands there too.
+//
+// RFC 2865 Section 5.25 rules Class out: "The client MUST NOT interpret the
+// attribute locally." Section 5.11 gives Filter-Id the opposite job, naming "the
+// filter list for this user", which is what a ze authorization profile is.
+func profileAttrType(_ string) uint8 {
+	return AttrFilterID
 }

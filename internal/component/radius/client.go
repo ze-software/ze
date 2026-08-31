@@ -117,6 +117,15 @@ func (c *Client) NextID() uint8 {
 // the server's shared secret before sending. RFC 2866 Section 3:
 // Accounting-Request authenticators are computed (not random).
 func (c *Client) Exchange(ctx context.Context, pkt *Packet, secret []byte, serverAddr string) (*Packet, error) {
+	// RFC 2865 Section 3: "The secret MUST NOT be empty (length 0) since this
+	// would allow packets to be trivially forged." Every RADIUS packet ze sends
+	// leaves through here, so this is the one place that has to hold the rule.
+	// ExtractConfig (config.go) refuses the empty secret when the operator's
+	// configuration is read; this is the paired check at the socket.
+	if len(secret) == 0 {
+		return nil, fmt.Errorf("radius: empty shared secret for %s", serverAddr)
+	}
+
 	buf := Bufs.Get()
 	defer Bufs.Put(buf)
 

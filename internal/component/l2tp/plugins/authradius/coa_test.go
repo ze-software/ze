@@ -47,8 +47,13 @@ func sendCoAPacket(t *testing.T, addr string, code uint8, secret []byte, attrs [
 func buildCoAPacket(t *testing.T, code uint8, secret []byte, attrs []radius.Attr, ts time.Time) []byte {
 	t.Helper()
 	attrs = append(attrs, radius.Attr{Type: radius.AttrMessageAuthenticator, Value: make([]byte, radius.AuthenticatorLen)})
-	wire := encodeCoAPacket(t, code, attrs, ts)
+	return signCoAPacket(t, encodeCoAPacket(t, code, 1, attrs, ts), secret)
+}
 
+// signCoAPacket writes the Message-Authenticator and then the Request
+// Authenticator into an encoded request, in the RFC 5176 Section 3.4 order.
+func signCoAPacket(t *testing.T, wire, secret []byte) []byte {
+	t.Helper()
 	maOff := messageAuthenticatorOffsetForTest(t, wire)
 	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 5176 Section 3.4 mandates HMAC-MD5.
 	mac.Write(wire)
@@ -60,14 +65,17 @@ func buildCoAPacket(t *testing.T, code uint8, secret []byte, attrs []radius.Attr
 
 func buildCoAPacketWithoutMessageAuthenticator(t *testing.T, code uint8, secret []byte, attrs []radius.Attr, ts time.Time) []byte {
 	t.Helper()
-	wire := encodeCoAPacket(t, code, attrs, ts)
+	wire := encodeCoAPacket(t, code, 1, attrs, ts)
 	signCoARequestAuthenticator(wire, secret)
 	return wire
 }
 
 // encodeCoAPacket returns the wire bytes with the Request Authenticator field
-// left as sixteen octets of zero.
-func encodeCoAPacket(t *testing.T, code uint8, attrs []radius.Attr, ts time.Time) []byte {
+// left as sixteen octets of zero. A zero Event-Timestamp leaves the attribute
+// out, which is how a test drives the absent branch of eventTimestampState. The
+// Identifier is a parameter because RFC 5176 Section 2.3 keys duplicate
+// detection on it.
+func encodeCoAPacket(t *testing.T, code, identifier uint8, attrs []radius.Attr, ts time.Time) []byte {
 	t.Helper()
 	if !ts.IsZero() {
 		tsAttr := make([]byte, 4)
@@ -76,7 +84,7 @@ func encodeCoAPacket(t *testing.T, code uint8, attrs []radius.Attr, ts time.Time
 	}
 	pkt := &radius.Packet{
 		Code:       code,
-		Identifier: 1,
+		Identifier: identifier,
 		Attrs:      attrs,
 	}
 

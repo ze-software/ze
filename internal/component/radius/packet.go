@@ -65,6 +65,18 @@ func (p *Packet) EncodeTo(buf []byte, off int) (int, error) {
 	off += AuthenticatorLen
 
 	for _, a := range p.Attrs {
+		// RFC 2865 Section 5: "Text of length zero (0) MUST NOT be sent; omit the
+		// entire attribute instead." The next paragraph repeats it for String, and
+		// address, integer and time are each four octets, so no RADIUS data type
+		// has a legal zero-octet value. Omitting is what the RFC asks for.
+		//
+		// AppendTextAttr (attr.go) holds the same rule on the caller's side, where
+		// the empty value is known by name. This is the paired check at the wire
+		// boundary, so an attribute assembled any other way cannot go out empty.
+		if len(a.Value) == 0 {
+			continue
+		}
+
 		attrLen := 2 + len(a.Value)
 		if attrLen > MaxAttrLen {
 			return 0, fmt.Errorf("radius: attribute type %d too long (%d)", a.Type, attrLen)

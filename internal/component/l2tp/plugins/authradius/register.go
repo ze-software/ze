@@ -210,24 +210,46 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 		activeCoA = nil
 	}
 	if cfg.CoAPort > 0 && len(cfg.Servers) > 0 {
-		cl, coaErr := newCoAListener(coaListenerConfig{
-			Port:                        cfg.CoAPort,
-			Secrets:                     serverSecrets(cfg.Servers),
-			DefaultSecret:               cfg.Servers[0].SharedKey,
-			Bus:                         bus,
-			AllowedSources:              serverIPs(cfg.Servers),
-			RequireMessageAuthenticator: cfg.RequireMessageAuthenticator,
-		})
-		if coaErr != nil {
-			logger().Warn("l2tp-auth-radius: CoA listener failed to start", "error", coaErr)
-		} else {
-			activeCoA = cl
-			logger().Info("l2tp-auth-radius: CoA listener started",
-				"port", cfg.CoAPort,
-				"require-message-authenticator", cfg.RequireMessageAuthenticator)
-		}
+		startCoAListener(cfg, bus)
 	}
 	return nil
+}
+
+// startCoAListener starts the RFC 5176 CoA/Disconnect listener and records it in
+// activeCoA. The caller holds the same lock every other writer of activeCoA
+// holds.
+func startCoAListener(cfg *radiusConfig, bus ze.EventBus) {
+	// RFC 5176 Section 6.1: "A Dynamic Authorization Server MUST silently discard
+	// Disconnect-Request or CoA-Request packets from untrusted sources." The
+	// trusted sources are the configured RADIUS servers. When not one of their
+	// addresses resolves there is no trusted client, so isAllowedSource (coa.go)
+	// would answer no to every packet. Binding the port anyway would give the
+	// operator a listener that can never serve anybody, with nothing above Debug
+	// to say why, so the reason is named here instead.
+	allowed := serverIPs(cfg.Servers)
+	if len(allowed) == 0 {
+		logger().Warn("l2tp-auth-radius: CoA listener not started: no RADIUS server address resolved, so no dynamic authorization client is trusted",
+			"servers", len(cfg.Servers), "port", cfg.CoAPort)
+		return
+	}
+
+	cl, coaErr := newCoAListener(coaListenerConfig{
+		Port:                        cfg.CoAPort,
+		Secrets:                     serverSecrets(cfg.Servers),
+		DefaultSecret:               cfg.Servers[0].SharedKey,
+		Bus:                         bus,
+		AllowedSources:              allowed,
+		RequireMessageAuthenticator: cfg.RequireMessageAuthenticator,
+	})
+	if coaErr != nil {
+		logger().Warn("l2tp-auth-radius: CoA listener failed to start", "error", coaErr)
+		return
+	}
+	activeCoA = cl
+	logger().Info("l2tp-auth-radius: CoA listener started",
+		"port", cfg.CoAPort,
+		"trusted-sources", len(allowed),
+		"require-message-authenticator", cfg.RequireMessageAuthenticator)
 }
 
 func closeCoAListener() {

@@ -96,9 +96,12 @@ func TestExtractRadiusConfigDefaults(t *testing.T) {
 	assert.Equal(t, uint8(AttrFilterID), cfg.ProfileAttr, "default profile attr Filter-Id")
 }
 
-// VALIDATES: profile-attribute "class" maps to the RADIUS Class attribute (25).
-// PREVENTS: silently ignoring an operator's non-default profile carrier (AC-6).
-func TestExtractRadiusConfigProfileAttrClass(t *testing.T) {
+// VALIDATES: profile-attribute resolves to Filter-Id whatever the tree names.
+// PREVENTS: a profile carrier RFC 2865 Section 5.25 forbids the client to read.
+// RFC requirement: RFC2865-5.25-1 negative -- "class" in the tree is the value
+// the enum used to carry, and it resolves to Filter-Id (11), so no configuration
+// route reaches the Class attribute (25) as a locally interpreted profile name.
+func TestExtractRadiusConfigProfileAttrNeverClass(t *testing.T) {
 	inner := config.NewTree()
 	srv := config.NewTree()
 	srv.Set("key", "k")
@@ -107,7 +110,7 @@ func TestExtractRadiusConfigProfileAttrClass(t *testing.T) {
 
 	cfg, err := ExtractConfig(radiusTree(inner))
 	require.NoError(t, err)
-	assert.Equal(t, uint8(attrClass), cfg.ProfileAttr)
+	assert.Equal(t, uint8(AttrFilterID), cfg.ProfileAttr)
 }
 
 // VALIDATES: ExtractConfig extracts the last-valid boundary values verbatim.

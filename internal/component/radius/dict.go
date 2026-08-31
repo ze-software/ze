@@ -42,11 +42,14 @@ const (
 	AttrFilterID             = 11
 	AttrFramedRoute          = 22 // RFC 2865 Section 5.22
 	AttrReplyMessage         = 18
+	AttrState                = 24 // RFC 2865 Section 5.24
+	AttrClass                = 25 // RFC 2865 Section 5.25
 	AttrSessionTimeout       = 27
 	AttrIdleTimeout          = 28
 	AttrCalledStationID      = 30
 	AttrCallingStationID     = 31
 	AttrNASIdentifier        = 32
+	AttrProxyState           = 33 // RFC 2865 Section 5.33
 	AttrAcctStatusType       = 40
 	AttrAcctDelayTime        = 41
 	AttrAcctInputOctets      = 42
@@ -55,6 +58,8 @@ const (
 	AttrAcctSessionTime      = 46
 	AttrAcctInputPackets     = 47
 	AttrAcctOutputPackets    = 48
+	AttrAcctTerminateCause   = 49 // RFC 2866 Section 5.10
+	AttrAcctMultiSessionID   = 50 // RFC 2866 Section 5.11
 	AttrAcctInputGigawords   = 52
 	AttrAcctOutputGigawords  = 53
 	AttrEventTimestamp       = 55
@@ -64,8 +69,12 @@ const (
 	AttrAcctInterimInterval  = 85
 	AttrNASPortID            = 87 // RFC 2869 Section 5.17: UTF-8 text, Length >= 3
 	AttrFramedPool           = 88
+	AttrChargeableUserID     = 89  // RFC 4372 Section 2.1
+	AttrNASIPv6Address       = 95  // RFC 3162 Section 2.1
+	AttrFramedInterfaceID    = 96  // RFC 3162 Section 2.2
+	AttrFramedIPv6Prefix     = 97  // RFC 3162 Section 2.3
 	AttrFramedIPv6Route      = 99  // RFC 6911 Section 3.2
-	AttrErrorCause           = 101 // RFC 5176 Section 3.6
+	AttrErrorCause           = 101 // RFC 5176 Section 3.5 defines it; 3.6 only tables it
 	AttrVendorSpecific       = 26
 )
 
@@ -146,6 +155,12 @@ const (
 	ErrorCauseUnsupportedService   = 405
 	ErrorCauseUnsupportedExtension = 406
 	ErrorCauseSessionNotFound      = 503
+	// ErrorCauseResourcesUnavailable (506) and
+	// ErrorCauseMultiSessionUnsupported (508) are the two 500-series values ze
+	// emits: the NAS could not carry out the authorization change, and the
+	// identification attributes selected more than one session.
+	ErrorCauseResourcesUnavailable    = 506
+	ErrorCauseMultiSessionUnsupported = 508
 )
 
 // Wire constants.
