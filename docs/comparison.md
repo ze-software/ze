@@ -9,7 +9,7 @@ A feature comparison of open-source BGP daemon implementations.
 > project's own documentation before making decisions. Corrections and updates are welcome
 > via the [issue tracker](https://github.com/ze-software/ze/issues).
 
-Last updated: 2026-08-16
+Last updated: 2026-08-31
 
 ## Overview
 
@@ -430,7 +430,7 @@ processes and injects routes from them. It is a route injector/receiver, not a r
 | ORIGINATOR_ID | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | No | Yes | Yes |
 | Stale route demotion (GR) | Yes | Yes | Yes | Yes | Yes | Yes | No | N/A | No | Yes | Yes |
 | RPKI preference | Yes | Yes | Yes | Yes | Yes | Yes | No | N/A | Yes | Yes | Yes |
-| AIGP | No | No | No | Yes | No | Yes | No | N/A | No | No | Yes |
+| AIGP | Partial | No | No | Yes | No | Yes | No | N/A | No | No | Yes |
 | IGP cost to next-hop | Yes | Yes | Yes | Yes | Yes | No | No | N/A | No | No | Yes |
 | Recursive next-hop | Yes | Yes | Yes | Yes | Yes | No | No | N/A | No | No | Yes |
 | Multipath/ECMP | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | No | Partial | Yes |
