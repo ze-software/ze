@@ -39,14 +39,25 @@ import (
 // order does not matter and no reader has to know it.
 func init() {
 	_, err := lockexe.OnFault()
+	outcome, reason := setupOutcome(err)
+	registry.RecordSetup(pluginName, outcome, reason)
+}
+
+// setupOutcome answers the outcome and the reason one locking call earns.
+//
+// It is a function rather than a branch inside init() so the soft-failure
+// reason can be driven from a test. Which branch init() takes is decided by
+// the host's RLIMIT_MEMLOCK, so a test that reads the recorded row asserts
+// whichever branch that host happened to take, and on a host that can lock,
+// the reason text below is never read at all.
+func setupOutcome(err error) (registry.SetupOutcome, string) {
 	if err == nil {
-		registry.RecordSetup(pluginName, registry.SetupSucceeded, "")
-		return
+		return registry.SetupSucceeded, ""
 	}
 
 	var reason textbuf.Buffer
 	reason.Str("the executable is not locked in memory, so its pages can be evicted under memory pressure: ").
 		Err(err).
 		Str("; raise RLIMIT_MEMLOCK above the size of the ze binary, which the ze.service unit does with LimitMEMLOCK=infinity")
-	registry.RecordSetup(pluginName, registry.SetupFailedSoft, reason.String())
+	return registry.SetupFailedSoft, reason.String()
 }

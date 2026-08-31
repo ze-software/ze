@@ -22,6 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // gatePlugin is the plugin these tests record against. A name no real plugin
@@ -134,6 +135,57 @@ func TestRunRefusesOnHardSetupFailure(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(configDir, stateStoreName)); err == nil {
 		t.Errorf("run created %s, so the refusal came after the first irreversible act", stateStoreName)
+	}
+}
+
+// TestTheRefusalReachesTheLogAndNotOnlyStderr proves the clause of AC-3 the
+// test above cannot: `logStartupFailure` records the same failure, so the
+// refusal survives in the log ring `show log` reads rather than only on a
+// stderr an appliance console may have scrolled past.
+//
+// The two producers are told apart deliberately. `fmt.Fprintln` writes
+// `error: plugin setup: ...`; the slog text handler writes `stage="plugin
+// setup"`, which nothing else in this path produces. Asserting the stderr
+// string "plugin setup" alone would pass with logStartupFailure deleted,
+// because the Fprintln carries those same two words.
+//
+// VALIDATES: the hub log ring carries the startup failure, and the slog
+// rendering names the stage.
+//
+// PREVENTS: a daemon that refuses to start and leaves nothing in the log an
+// operator can read afterwards. Seven of the startup failures surveyed for
+// this spec were invisible in `show log` for exactly this reason: they were
+// written with fmt.Fprintf to stderr and never reached the ring.
+func TestTheRefusalReachesTheLogAndNotOnlyStderr(t *testing.T) {
+	isolateRegistry(t)
+	registerGatePlugin(t, gatePlugin)
+	registry.RecordSetup(gatePlugin, registry.SetupFailedHard, "the kernel does not support it")
+	configDir := pinConfigDir(t)
+
+	before := len(slogutil.GlobalLogRing().Snapshot(0, "", "hub"))
+
+	_, written := stderrDuringRun(t, func() int {
+		return run(storage.NewFilesystem(), filepath.Join(configDir, "hub.conf"), nil,
+			0, -1, false, "", false, "", "", false, nil)
+	})
+
+	if !strings.Contains(written, `stage="plugin setup"`) {
+		t.Errorf(`the slog record does not name the stage, so logStartupFailure did not run: %s`, written)
+	}
+
+	entries := slogutil.GlobalLogRing().Snapshot(0, "", "hub")
+	if len(entries) <= before {
+		t.Fatalf("the hub log ring gained no entry: %d before, %d after", before, len(entries))
+	}
+	logged := false
+	for _, entry := range entries[before:] {
+		if entry.Message == "startup failed" && entry.Level == "ERROR" {
+			logged = true
+			break
+		}
+	}
+	if !logged {
+		t.Errorf("no ERROR 'startup failed' entry reached the ring: %+v", entries[before:])
 	}
 }
 

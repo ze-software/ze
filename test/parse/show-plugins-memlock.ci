@@ -1,0 +1,48 @@
+# Test: the memlock plugin's own row carries the outcome its init() recorded
+#
+# VALIDATES: AC-1 and AC-2 for the one plugin that records. memlock's row
+#   carries a real outcome rather than unknown, because its init() calls
+#   RecordSetup before main().
+# PREVENTS: recording that stops happening while the list keeps rendering.
+#   `show plugins` would still answer, every row would read unknown, and no
+#   assertion over the list alone can tell that apart from a plugin set that
+#   simply records nothing.
+#
+# PLATFORM: memlock is linux-only. register.go and memlock_linux.go both carry
+# `//go:build linux`, and the platform-neutral memlock.go declares no init(),
+# so on darwin the plugin never registers and `show plugins` has no memlock
+# row. The assertion would fail rather than skip. Skip on darwin per
+# rules/os-specific-tests.md.
+option=skip-os:value=darwin
+stdin=config:terminator=EOF_CONF
+# The runner requires a config on stdin. This command reads none.
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze cli -c "show plugins | match memlock | json":exit=0
+expect=exit:code=0
+expect=stdout:contains=memlock
+expect=stdout:contains=outcome
+expect=stdout:not:contains=unknown
+expect=stdout:not:contains="invalid"
+
+cmd=foreground:seq=2:exec=ze cli -c "show plugins | table":exit=0
+expect=exit:code=0
+expect=stdout:contains=memlock

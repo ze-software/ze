@@ -1,9 +1,8 @@
 # Test: show plugins carries the setup outcome each plugin recorded
 #
 # VALIDATES: AC-1, AC-2, AC-4 and AC-7. Every registered plugin is listed, a
-#   plugin that recorded nothing is listed as unknown rather than dropped, the
-#   plugin that does record carries its own outcome, and `| json`, `| yaml` and
-#   `| table` each render the same rows.
+#   plugin that recorded nothing is listed as unknown rather than dropped, and
+#   `| json`, `| yaml` and `| table` each render the same rows.
 # PREVENTS: a feature that is absent for an environment reason with nowhere to
 #   say so. Before the outcome joined these rows, a plugin whose setup failed
 #   was invisible: it left no row anywhere, and absence reads as "not built
@@ -12,6 +11,11 @@
 # No daemon runs here. The outcomes are recorded by plugin init() functions
 # before main(), so any ze process answers, and `ze cli -c` serves the command
 # in its own process before it asks for credentials.
+#
+# Every row asserted here is one that each platform has. memlock is the plugin
+# that RECORDS an outcome, and it is linux-only (`//go:build linux` on
+# register.go), so on darwin it never registers and has no row at all. Its
+# assertions are in show-plugins-memlock.ci, which carries the skip.
 #
 # The suite is `parse` rather than `ui` or `plugin` because only this suite's
 # parser splits an exec line on quotes (splitCommand, internal/test/runner/
@@ -44,7 +48,6 @@ cmd=foreground:seq=1:exec=ze cli -c "show plugins | json":exit=0
 expect=exit:code=0
 expect=stdout:contains="name"
 expect=stdout:contains="outcome"
-expect=stdout:contains="memlock"
 expect=stdout:contains="routing-table"
 expect=stdout:contains="unknown"
 expect=stdout:not:contains="invalid"
@@ -52,18 +55,10 @@ expect=stdout:not:contains="invalid"
 cmd=foreground:seq=2:exec=ze cli -c "show plugins | yaml":exit=0
 expect=exit:code=0
 expect=stdout:contains=outcome
-expect=stdout:contains=memlock
+expect=stdout:contains=routing-table
 expect=stdout:contains=unknown
 
 cmd=foreground:seq=3:exec=ze cli -c "show plugins | table":exit=0
 expect=exit:code=0
 expect=stdout:contains=outcome
-expect=stdout:contains=memlock
-
-# The memlock plugin records its own outcome from init(), so its row is never
-# unknown. This is the assertion that goes red if recording stops happening
-# while the list itself keeps rendering.
-cmd=foreground:seq=4:exec=ze cli -c "show plugins | match memlock | json":exit=0
-expect=exit:code=0
-expect=stdout:contains=memlock
-expect=stdout:not:contains=unknown
+expect=stdout:contains=routing-table

@@ -114,10 +114,10 @@ row.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin → registry | A direct call at `init()`, in-process, no serialization | No |
-| Registry → hub | A direct read at the first statement of `run` | No |
-| Registry → CLI | Local-data handler, rendered through `ProcessPipes` | No |
-| Host → doctor | `unix.Getrlimit`, `/proc/self/exe` and `/proc/self/status`, read at check time | No |
+| Plugin → registry | A direct call at `init()`, in-process, no serialization | Yes -- `memlock_linux.go -- init` calls `RecordSetup`; `TestMemlockRecordsItsOutcome` reads the row back out of the registry rather than a package variable |
+| Registry → hub | A direct read at the first statement of `run` | Yes -- `hardSetupFailure()` is the first statement of `run` (`cmd/ze/hub/main.go`), ahead of `storage.BlobStoreFrom` at `:147` and `openStateOnlyStore` at `:176`; `TestRunRefusesOnHardSetupFailure` asserts no `database.zefs` exists after the refusal |
+| Registry → CLI | Local-data handler, rendered through `ProcessPipes` | Yes -- `test/parse/show-plugins.ci` drives `ze cli -c "show plugins | json"` in a real process, PASS at 268/319 |
+| Host → doctor | `unix.Getrlimit`, `/proc/self/exe` and `/proc/self/status`, read at check time | Yes -- `TestReadMemlockEnvironmentReadsThisHost` drives the real reader; the four verdict cases drive `memlockLimitDiagnostics` with an injected reader |
 
 ### Integration Points
 - `internal/component/plugin/registry` - the result map lives beside the plugin map, sharing `mu`.
@@ -128,22 +128,22 @@ row.
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
-| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| No bypassed layers (data flows through the intended path) | Yes | `TestTheSetupGateHasOneCallerAndItIsRun` parses every non-test file in the hub package with `go/ast`, so a build tag cannot hide a second caller, and asserts the one caller is `run`. `hardSetupFailure` is unexported. |
+| No unintended coupling (components stay isolated) | Yes | The registry gains a map beside the one it already holds and shares its `mu`. No package imports memlock; memlock imports the registry, which is the direction the tier rule requires. |
+| No duplicated functionality (extends existing, does not recreate) | Yes | `show plugins setup` existed for one commit and was DELETED in `a9c584c40` rather than kept beside `show plugins`; the outcome is a column on the rows that command already answered. |
+| Zero-copy preserved where applicable (refs, not copies) | N/A | Nothing here touches wire encoding or a pool buffer. `SetupResults` returns a slice built once per command invocation, which is a control-plane read, not a per-event path. |
+| Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | The row set is DERIVED from the registry union, so a plugin appears by recording, not by an edit to a list. `RecordSetup` is keyed by name, so no field is added to `Registration` and no plugin is spelled in a shared package. |
 
 ## Risks & Assumptions
 
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every daemon path reaches `hub.run`, and no CLI verb does | Read of `cmd/ze/hub/main.go -- Run`, `RunWithManagedClient`, and `cmd/ze/dispatch.go -- dispatchMain` | A hard failure either fails to stop a daemon or wrongly stops a CLI verb | AC-5 functional test invoking a CLI verb with a hard failure recorded | unvalidated |
-| A-2 | `RunWebOnly` bypasses `run` and therefore skips the check | Read of `cmd/ze/hub/main.go -- RunWebOnly`, which calls `webBuildStandalone` directly | `ze start --web-only` runs with a hard failure unreported | A deliberate decision row, not a defect: recorded in Known Limitations | unvalidated |
-| A-3 | Recording from `init()` is order-independent of `Register` | Name-keyed map; neither write reads the other | A plugin whose files sort the other way records against nothing | AC-1 with the record written from a file sorting after `register.go` | unvalidated |
-| A-4 | No existing plugin records a hard failure in the functional test environment | No call sites exist yet; only `memlock` (soft) migrates in this spec | The suite goes red wholesale | Run the functional suite after the memlock migration | unvalidated |
-| A-5 | The size of `/proc/self/exe` is a FLOOR for the mapped size charged against `RLIMIT_MEMLOCK` | The loader maps at least the whole file, and adds bss and page padding the file does not carry | The pre-flight check warns on a host that could in fact lock | The check claims only the floor: a limit BELOW it cannot hold the executable, and a limit above it is left unjudged | unvalidated |
+| A-1 | Every daemon path reaches `hub.run`, and no CLI verb does | Read of `cmd/ze/hub/main.go -- Run`, `RunWithManagedClient`, and `cmd/ze/dispatch.go -- dispatchMain` | A hard failure either fails to stop a daemon or wrongly stops a CLI verb | AC-5 functional test invoking a CLI verb with a hard failure recorded | confirmed -- `TestTheSetupGateHasOneCallerAndItIsRun` (AST over the whole package) and `TestCLIVerbUnaffectedByHardSetupFailure`, which drives `command.ServeLocal` |
+| A-2 | `RunWebOnly` bypasses `run` and therefore skips the check | Read of `cmd/ze/hub/main.go -- RunWebOnly`, which calls `webBuildStandalone` directly | `ze start --web-only` runs with a hard failure unreported | A deliberate decision row, not a defect: recorded in Known Limitations | confirmed -- `RunWebOnly` calls `webBuildStandalone` directly and never reaches `run`; it is the one of eight `hub.Run*` call sites that bypasses the gate, and it is recorded in Known Limitations |
+| A-3 | Recording from `init()` is order-independent of `Register` | Name-keyed map; neither write reads the other | A plugin whose files sort the other way records against nothing | AC-1 with the record written from a file sorting after `register.go` | confirmed -- `TestRecordSetupIsOrderIndependent` (`internal/component/plugin/registry/setup_test.go`) |
+| A-4 | No existing plugin records a hard failure in the functional test environment | No call sites exist yet; only `memlock` (soft) migrates in this spec | The suite goes red wholesale | Run the functional suite after the memlock migration | confirmed -- `./le functional parse` at 319 tests: `show-plugins` and `show-plugins-memlock` both PASS, and the seven failures are pre-existing and unrelated (`bcrypt-placeholder-rejected`, `cli-validate-config`, `config-dump-masks-bcrypt`, `geodns-config`, `iface-router-advertisement`, `ntp-config`, `prefix-per-family-parse`) |
+| A-5 | The size of `/proc/self/exe` is a FLOOR for the mapped size charged against `RLIMIT_MEMLOCK` | The loader maps at least the whole file, and adds bss and page padding the file does not carry | The pre-flight check warns on a host that could in fact lock | The check claims only the floor: a limit BELOW it cannot hold the executable, and a limit above it is left unjudged | confirmed -- `TestMemlockCheckWarnsWhenTheLimitCannotHoldTheBinary` and its three sibling cases drive `memlockLimitDiagnostics` with an injected environment, so each verdict is forced rather than read off this host |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

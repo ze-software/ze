@@ -7,6 +7,7 @@
 package memlock
 
 import (
+	"errors"
 	"os"
 	"slices"
 	"strconv"
@@ -58,6 +59,40 @@ func TestMemlockRecordsItsOutcome(t *testing.T) {
 		}
 	default:
 		t.Fatalf("memlock recorded outcome %v, want succeeded or soft-failure", result.Outcome)
+	}
+}
+
+// TestSetupOutcomeAnswersBothBranches proves the half of AC-6 that the test
+// above cannot reach. That one reads whichever branch this host took, and a
+// host that can lock never evaluates the soft-failure reason at all, so the
+// remedy an operator is given would go unasserted on every machine that has a
+// high enough RLIMIT_MEMLOCK -- which is every machine the suite has run on.
+//
+// VALIDATES: a locking error becomes a SOFT failure whose reason carries the
+// underlying error, the limit to raise, and the unit setting that raises it.
+// A nil error becomes SetupSucceeded with no reason.
+//
+// PREVENTS: a soft failure that says nothing an operator can act on. The
+// recorded reason is the only place the remedy appears: init() runs before
+// the daemon has a logger, so there is no log line to fall back on.
+func TestSetupOutcomeAnswersBothBranches(t *testing.T) {
+	outcome, reason := setupOutcome(nil)
+	if outcome != registry.SetupSucceeded {
+		t.Errorf("a nil error recorded %v, want succeeded", outcome)
+	}
+	if reason != "" {
+		t.Errorf("a successful lock carries reason %q, want none", reason)
+	}
+
+	lockErr := errors.New("mlock2: cannot allocate memory")
+	outcome, reason = setupOutcome(lockErr)
+	if outcome != registry.SetupFailedSoft {
+		t.Fatalf("a locking error recorded %v, want a soft failure", outcome)
+	}
+	for _, want := range []string{lockErr.Error(), "RLIMIT_MEMLOCK", "LimitMEMLOCK=infinity"} {
+		if !strings.Contains(reason, want) {
+			t.Errorf("the soft-failure reason does not carry %q: %s", want, reason)
+		}
 	}
 }
 
