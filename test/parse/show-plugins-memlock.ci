@@ -36,13 +36,30 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze cli -c "show plugins | match memlock | json":exit=0
+# The three renderings the split moved out of show-plugins.ci, verbatim. The
+# json assertion keeps its quotes: expect=stdout:contains= takes the literal
+# rest of the line, so `"memlock"` and `memlock` are different assertions and
+# only the quoted one proves the name is a JSON string value.
+cmd=foreground:seq=1:exec=ze cli -c "show plugins | json":exit=0
+expect=exit:code=0
+expect=stdout:contains="memlock"
+expect=stdout:contains="outcome"
+
+cmd=foreground:seq=2:exec=ze cli -c "show plugins | yaml":exit=0
+expect=exit:code=0
+expect=stdout:contains=memlock
+expect=stdout:contains=outcome
+
+cmd=foreground:seq=3:exec=ze cli -c "show plugins | table":exit=0
+expect=exit:code=0
+expect=stdout:contains=memlock
+expect=stdout:contains=outcome
+
+# memlock records from its own init(), so its row is never unknown. This is the
+# assertion that reds the moment recording stops while the list keeps rendering.
+cmd=foreground:seq=4:exec=ze cli -c "show plugins | match memlock | json":exit=0
 expect=exit:code=0
 expect=stdout:contains=memlock
 expect=stdout:contains=outcome
 expect=stdout:not:contains=unknown
 expect=stdout:not:contains="invalid"
-
-cmd=foreground:seq=2:exec=ze cli -c "show plugins | table":exit=0
-expect=exit:code=0
-expect=stdout:contains=memlock

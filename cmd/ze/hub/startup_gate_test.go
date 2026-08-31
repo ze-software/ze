@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -162,7 +163,11 @@ func TestTheRefusalReachesTheLogAndNotOnlyStderr(t *testing.T) {
 	registry.RecordSetup(gatePlugin, registry.SetupFailedHard, "the kernel does not support it")
 	configDir := pinConfigDir(t)
 
-	before := len(slogutil.GlobalLogRing().Snapshot(0, "", "hub"))
+	// The ring is global and every test in this binary appends to it, so the
+	// entry is selected by TIME rather than by position. Snapshot answers
+	// newest-first, and slicing by a before-count would read the oldest
+	// entries instead of the new ones.
+	start := time.Now()
 
 	_, written := stderrDuringRun(t, func() int {
 		return run(storage.NewFilesystem(), filepath.Join(configDir, "hub.conf"), nil,
@@ -173,19 +178,26 @@ func TestTheRefusalReachesTheLogAndNotOnlyStderr(t *testing.T) {
 		t.Errorf(`the slog record does not name the stage, so logStartupFailure did not run: %s`, written)
 	}
 
-	entries := slogutil.GlobalLogRing().Snapshot(0, "", "hub")
-	if len(entries) <= before {
-		t.Fatalf("the hub log ring gained no entry: %d before, %d after", before, len(entries))
+	// Both producers name the plugin, so the count separates them: one from
+	// the Fprintln, one from the slog record's err attribute. AC-3 owes the
+	// plugin name on the logged half too, not only on stderr.
+	if named := strings.Count(written, gatePlugin); named < 2 {
+		t.Errorf("the plugin is named %d times, want 2, one per producer: %s", named, written)
 	}
+
+	entries := slogutil.GlobalLogRing().Snapshot(0, "", "hub")
 	logged := false
-	for _, entry := range entries[before:] {
+	for _, entry := range entries {
+		if entry.Timestamp.Before(start) {
+			continue
+		}
 		if entry.Message == "startup failed" && entry.Level == "ERROR" {
 			logged = true
 			break
 		}
 	}
 	if !logged {
-		t.Errorf("no ERROR 'startup failed' entry reached the ring: %+v", entries[before:])
+		t.Fatalf("this run left no ERROR 'startup failed' entry in the hub ring: %+v", entries)
 	}
 }
 

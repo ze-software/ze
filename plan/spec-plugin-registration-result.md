@@ -115,7 +115,7 @@ row.
 | Boundary | How | Verified |
 |----------|-----|----------|
 | Plugin → registry | A direct call at `init()`, in-process, no serialization | Yes -- `memlock_linux.go -- init` calls `RecordSetup`; `TestMemlockRecordsItsOutcome` reads the row back out of the registry rather than a package variable |
-| Registry → hub | A direct read at the first statement of `run` | Yes -- `hardSetupFailure()` is the first statement of `run` (`cmd/ze/hub/main.go`), ahead of `storage.BlobStoreFrom` at `:147` and `openStateOnlyStore` at `:176`; `TestRunRefusesOnHardSetupFailure` asserts no `database.zefs` exists after the refusal |
+| Registry → hub | A direct read at the first statement of `run` | Yes -- `hardSetupFailure()` is the first statement of `run` (`cmd/ze/hub/main.go`), ahead of both `storage.BlobStoreFrom` and `openStateOnlyStore`; `TestRunRefusesOnHardSetupFailure` asserts no `database.zefs` exists after the refusal |
 | Registry → CLI | Local-data handler, rendered through `ProcessPipes` | Yes -- `test/parse/show-plugins.ci` drives `ze cli -c "show plugins | json"` in a real process, PASS at 268/319 |
 | Host → doctor | `unix.Getrlimit`, `/proc/self/exe` and `/proc/self/status`, read at check time | Yes -- `TestReadMemlockEnvironmentReadsThisHost` drives the real reader; the four verdict cases drive `memlockLimitDiagnostics` with an injected reader |
 
@@ -129,7 +129,7 @@ row.
 | Check | Holds? | Evidence |
 |-------|--------|----------|
 | No bypassed layers (data flows through the intended path) | Yes | `TestTheSetupGateHasOneCallerAndItIsRun` parses every non-test file in the hub package with `go/ast`, so a build tag cannot hide a second caller, and asserts the one caller is `run`. `hardSetupFailure` is unexported. |
-| No unintended coupling (components stay isolated) | Yes | The registry gains a map beside the one it already holds and shares its `mu`. No package imports memlock; memlock imports the registry, which is the direction the tier rule requires. |
+| No unintended coupling (components stay isolated) | Yes | The registry gains a map beside the one it already holds and shares its `mu`. No package imports memlock for a symbol; the composition root blank-imports it, which is the registration pattern, and memlock imports the registry, which is the direction the tier rule requires. |
 | No duplicated functionality (extends existing, does not recreate) | Yes | `show plugins setup` existed for one commit and was DELETED in `a9c584c40` rather than kept beside `show plugins`; the outcome is a column on the rows that command already answered. |
 | Zero-copy preserved where applicable (refs, not copies) | N/A | Nothing here touches wire encoding or a pool buffer. `SetupResults` returns a slice built once per command invocation, which is a control-plane read, not a per-event path. |
 | Registration over hardcoding: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | Yes | The row set is DERIVED from the registry union, so a plugin appears by recording, not by an edit to a list. `RecordSetup` is keyed by name, so no field is added to `Registration` and no plugin is spelled in a shared package. |
@@ -457,9 +457,28 @@ names a page, so each is judged here rather than at closure.
 ## Review Gate
 
 ### Round 1
+Independent context, Opus 5, over the whole diff at `878c086b6`, `f8cb8eb3b`, `6ff7353d7`, `a9c584c40`. Eight lenses.
+
 | Scope | Lens | Findings | Severity |
 |-------|------|----------|----------|
+| `memlock_linux_test.go -- TestMemlockRecordsItsOutcome` | test discrimination | AC-6 had no deterministic test: the assertion switched on whichever branch the host took, so on any host that can lock, the soft-failure reason went unasserted and would have passed against an `init()` recording only success | ISSUE, fixed in `ad1dfee03` |
+| `test/parse/show-plugins.ci` | platform correctness | Four of five blocks asserted `contains=memlock`, but memlock is `//go:build linux`, so on darwin the test failed rather than skipping | ISSUE, fixed in `ad1dfee03` |
+| Spec tables | spec conformance | Boundaries Crossed, Architectural Verification and A-1..A-5 all read `No`/`unvalidated` with empty evidence, though the evidence existed | ISSUE, fixed in `ad1dfee03` |
+| `plan/verification-debt/64948495.md` | verification | Three rows say no full native verification covers this commit's Go | ISSUE, `./le verify worktree` run at closure |
+| `startup_gate_test.go -- TestRunRefusesOnHardSetupFailure` | test discrimination | AC-3's `logStartupFailure` clause was unasserted, and the stderr assertion could not reach it: `fmt.Fprintln` carries the same two words | NIT, fixed in `ad1dfee03` |
+| `ai/INDEX.md` | discoverability | No keyword routed "setup outcome", "plugin setup" or "show plugins" to the doctor page | NIT, fixed in `ad1dfee03` |
+| Registry concurrency, startup gate, wiring, simplicity, naming, documentation | five lenses | Nothing. Every read and write under `mu` including the union walk; the gate is the first statement of `run` with an AST test pinning its one caller; every exported symbol has a non-test caller; no `module`/`plugin` drift; no page names a retired command | none |
+| `SetupOutcome.String()` fifth return | simplicity, judged on request | KEEP. Not dead machinery: `localdatacoverage` fails the walk on `invalid` and `show-plugins.ci` asserts `not:contains` it, so it is a fail-closed guard with two consumers | none |
 
 ### Round 2
+Independent context, Opus 5, scoped to `ad1dfee03` and the call sites its fixes touch. Two of the three findings are defects in the round 1 FIXES, which is what a second round exists to catch.
+
 | Scope | Lens | Findings | Severity |
 |-------|------|----------|----------|
+| `startup_gate_test.go -- TestTheRefusalReachesTheLogAndNotOnlyStderr` | correctness of the fix | `LogRing.Snapshot` answers NEWEST-first, so slicing `entries[before:]` read the OLDEST entries, not this run's. It passed only because another test in the package leaves an `ERROR "startup failed"` as the oldest hub entry; a hub WARN there would have reddened it for the wrong reason | ISSUE, fixed |
+| `show-plugins-memlock.ci`, `test/weakened.md` | losslessness of the split | The split dropped two expectations rather than moving them: the `yaml` block's `contains=memlock`, and the plain-json `contains="memlock"` whose QUOTES are load-bearing, since `expect=stdout:contains=` takes the literal rest of the line. The ledger row's claim that every expectation moved verbatim was false | ISSUE, fixed |
+| Spec, Boundaries Crossed | evidence discipline | The round 1 fix introduced hand-typed line numbers (`:147`, `:176`). `ai/rules/evidence.md` bans a line number no generator maintains, and the bare form evades `writeLineCitation` | ISSUE, fixed |
+| `show-plugins.ci` header | stale comment | `VALIDATES: AC-1, AC-2, AC-4 and AC-7` outlived the split; AC-1 and AC-2 moved with the memlock rows | NIT, fixed |
+| Spec, No unintended coupling | accuracy | "No package imports memlock" is false as written: the composition root blank-imports it, which is the registration pattern the same cell praises | NOTE, fixed |
+| Extraction behaviour, `.ci` idiom and discovery, sibling call sites, spec table citations, introduced defects | five checks | Nothing. `setupOutcome`'s reason text is byte-identical across the extraction; the new file's `option=` placement matches 34 siblings and needs no registration; `setupOutcome` has two callers; memlock is the only linux-only plugin any `.ci` asserts; every other filled cell is true at the producer | none |
+| `TestSetupOutcomeAnswersBothBranches`, `TestTheRefusalReachesTheLogAndNotOnlyStderr` | test discrimination | Both discriminate. The log test does tell the two producers apart: `logStartupFailure` resolves its logger at call time, so it renders `stage="plugin setup"` into the test's replaced stderr, which `fmt.Fprintln` cannot produce | none |

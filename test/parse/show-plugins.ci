@@ -1,8 +1,9 @@
 # Test: show plugins carries the setup outcome each plugin recorded
 #
-# VALIDATES: AC-1, AC-2, AC-4 and AC-7. Every registered plugin is listed, a
-#   plugin that recorded nothing is listed as unknown rather than dropped, and
-#   `| json`, `| yaml` and `| table` each render the same rows.
+# VALIDATES: AC-4 and AC-7. Every registered plugin is listed, a plugin that
+#   recorded nothing is listed as unknown rather than dropped, and `| json`,
+#   `| yaml` and `| table` each render the same rows. AC-1 and AC-2 need the
+#   plugin that RECORDS, so they are proven in show-plugins-memlock.ci.
 # PREVENTS: a feature that is absent for an environment reason with nowhere to
 #   say so. Before the outcome joined these rows, a plugin whose setup failed
 #   was invisible: it left no row anywhere, and absence reads as "not built
