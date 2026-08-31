@@ -40,3 +40,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-08-31 | 5fed2ed5 | fix(bgp): carry the producer the peer identifier test already tests | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-08-31 | 5fed2ed5 | fix(le): a journal row is evidence about a spec, never its closure | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | 5fed2ed5 | fix(le): a journal row is evidence about a spec, never its closure | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-08-31 | 5fed2ed5 | fix(bmp): say what the peer bounce does, and record what it cannot do | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-31 | 5fed2ed5 | fix(bmp): say what the peer bounce does, and record what it cannot do | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

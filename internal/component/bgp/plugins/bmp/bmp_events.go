@@ -229,9 +229,18 @@ func (bp *BMPPlugin) primeSender(ss *senderSession) {
 // of behavior of an existing BMP session (i.e., changes to filtering and table
 // names), the session MUST be bounced with a Peer Down/Peer Up sequence." What
 // is bounced is each peer, not the transport: the BMP session stays up, so the
-// collector keeps its connection and re-learns each peer under the new
+// collector keeps its connection and re-reads each peer's state under the new
 // configuration. Ending the session instead would cost every collector a full
 // re-dump of everything, including the state the change did not touch.
+//
+// What the bounce does NOT do is hand the routes back. Nothing replays the
+// Adj-RIB-In after a Peer Up, here or anywhere: the only Route Monitoring
+// producer for an Adj-RIB is the live update path (handleStructuredEvent ->
+// senderSession.writeRouteMonitoring), and primeSender sends a Peer Up and no
+// routes. So the collector holds nothing for a bounced peer until that peer
+// sends its next UPDATE. That predates this function -- the transport drop it
+// replaces ended in the same empty state -- and it is recorded in
+// plan/journal/announced-state-never-replayed.md rather than fixed here.
 //
 // The reason code is PeerDownDeconfigured (RFC 7854 Section 4.9 reason 5,
 // "Information for this peer will no longer be sent to the monitoring station

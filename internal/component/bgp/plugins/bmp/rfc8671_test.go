@@ -680,7 +680,10 @@ func establishedPeer(address string, asn uint16) *peerUpState {
 // table names), the session MUST be bounced with a Peer Down/Peer Up sequence." Changing
 // the route-monitoring policy under two established peers puts a Peer Down and then a
 // Peer Up on the wire for EACH of them, and leaves the BMP session up: the collector
-// keeps its connection and re-learns both peers under the new policy.
+// keeps its connection and re-reads both peers under the new policy. It does not get
+// the routes back with them -- no Adj-RIB-In replay follows a Peer Up -- so what is
+// asserted below is the Peer Down/Peer Up pair and the session's survival, never a
+// route count.
 //
 // What this must not do is end the session. A Termination and a TCP close discard every
 // peer's state on the collector, including the state the change did not touch, and cost
