@@ -36,7 +36,8 @@ bgp {
 }
 EOF_CONF
 
-# The three renderings the split moved out of show-plugins.ci, verbatim. The
+# The memlock expectations the split moved out of show-plugins.ci, verbatim,
+# each block with a `contains=outcome` the original did not carry. The
 # json assertion keeps its quotes: expect=stdout:contains= takes the literal
 # rest of the line, so `"memlock"` and `memlock` are different assertions and
 # only the quoted one proves the name is a JSON string value.

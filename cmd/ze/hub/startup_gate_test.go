@@ -54,6 +54,32 @@ func registerGatePlugin(t *testing.T, name string) {
 	}
 }
 
+// pinLogEnv pins the three logging variables the refusal's log assertions
+// depend on, so the test judges the product rather than the shell it was
+// started from.
+//
+// `ze.log.hub` and `ze.log` each reach `getLogEnv` (`internal/core/slogutil`),
+// and a value that parses as disabled makes `Logger` answer with
+// `discardHandler`, which produces no record at all. `ze.log.color` set to a
+// true value makes `UseColor` pick the color handler, which wraps the rendered
+// attribute in escape codes, so the `stage="plugin setup"` substring is no
+// longer contiguous. Both are false REDs: the product is correct and the
+// assertion cannot see it.
+func pinLogEnv(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{"ze.log", "ze.log.hub", "ze.log.color"} {
+		previous := env.Get(key)
+		if err := env.Set(key, ""); err != nil {
+			t.Fatalf("set %s: %v", key, err)
+		}
+		t.Cleanup(func() {
+			if err := env.Set(key, previous); err != nil {
+				t.Fatalf("restore %s: %v", key, err)
+			}
+		})
+	}
+}
+
 // pinConfigDir points ze.config.dir at a fresh directory and returns it. The
 // daemon opens {dir}/database.zefs there once it is past the gate, so an empty
 // directory is evidence that it never got that far.
@@ -162,6 +188,7 @@ func TestTheRefusalReachesTheLogAndNotOnlyStderr(t *testing.T) {
 	registerGatePlugin(t, gatePlugin)
 	registry.RecordSetup(gatePlugin, registry.SetupFailedHard, "the kernel does not support it")
 	configDir := pinConfigDir(t)
+	pinLogEnv(t)
 
 	// The ring is global and every test in this binary appends to it, so the
 	// entry is selected by TIME rather than by position. Snapshot answers

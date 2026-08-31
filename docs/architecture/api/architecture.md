@@ -373,16 +373,16 @@ No other wiring is needed. The engine discovers it through registry queries, the
 | `ResolveDependencies()` | Engine startup | Expand dependency graph (with cycle detection) |
 | `TopologicalTiers()` | Engine startup | Order plugins for startup (Kahn's algorithm) |
 | `SetupResults()` | `show plugins` | Every plugin and the setup outcome it recorded |
-| `HardSetupFailures()` | `hub.run` first statement | The modules whose recorded failure stops the daemon |
+| `HardSetupFailures()` | `hub.run` first statement | The plugins whose recorded failure stops the daemon |
 <!-- source: internal/component/plugin/registry/registry.go -- FamilyMap, CapabilityMap, YANGSchemas, ResolveDependencies, TopologicalTiers -->
 
-**The setup record is a SECOND map, keyed by module name, under the same
-mutex.** `RecordSetup(module, outcome, reason)` is a plugin's other declaration
+**The setup record is a SECOND map, keyed by plugin name, under the same
+mutex.** `RecordSetup(plugin, outcome, reason)` is a plugin's other declaration
 from `init()`, beside `Register`. Neither write reads the other, so a plugin
 author never has to know that Go initializes the files of one package in
-filename order. `SetupResults` returns every registered module UNION every
-module that recorded, so a module that recorded nothing is `unknown` rather
-than missing, and a module that recorded and then failed to register keeps its
+filename order. `SetupResults` returns every registered plugin UNION every
+plugin that recorded, so a plugin that recorded nothing is `unknown` rather
+than missing, and a plugin that recorded and then failed to register keeps its
 row. `Reset`, `Snapshot` and `Restore` carry the record with the registry it
 belongs to.
 <!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupResults, HardSetupFailures -->
