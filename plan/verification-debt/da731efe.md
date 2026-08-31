@@ -17,3 +17,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-08-31 | da731efe | fix(ppp): follow RFC 1661 on a malformed configuration option | discovery-index freshness | ran ./le discovery-index update: ai/PACKAGE-MAP.md is byte-identical, no package added or moved | open |
 | 2026-08-31 | da731efe | chore(rfc): regenerate the ledgers the RFC 1661 and 7313 work derives | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | da731efe | docs(rfc): record the trigger that arms the extraction drain quota | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-31 | da731efe | docs(journal): record what this session's shared-checkout friction cost | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
