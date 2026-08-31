@@ -18,7 +18,7 @@
       "id": "1",
       "sites": 3,
       "disposition": "walked",
-      "reason": "Introduction. Scope, the shared-port rationale, the two mode-support sentences, the zero-SPI ban, the IPv6 and AH notes, and the RFC 2119 key-words paragraph. Its three sites are classified below."
+      "reason": "Introduction. Scope, the shared-port rationale, the two mode-support sentences, the zero-SPI ban, the IPv6 note, the exclusion of AH and of manual keying, and the RFC 2119 key-words paragraph. Its three sites are classified below."
     },
     {
       "id": "2",
@@ -41,7 +41,7 @@
       "id": "2.2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "IKE Header Format for Port 4500. The marker is stated in the indicative, 'A Non-ESP Marker is 4 zero-valued bytes aligning with the SPI field of an ESP packet', so the keyword scan sees no site. The obligation to prepend it is real and is listed below.",
+      "reason": "IKE Header Format for Port 4500. The marker is stated in the indicative, 'A Non-ESP Marker is 4 zero-valued bytes aligning with the SPI field of an ESP packet', so the keyword scan sees no site. The obligation to prepend it is real and is listed below. The section states no checksum rule of its own and defers the checksum to RFC 3947.",
       "unsourced-ids": [
         "RFC3948-2.2-1"
       ]
@@ -50,7 +50,7 @@
       "id": "2.3",
       "sites": 2,
       "disposition": "walked",
-      "reason": "NAT-Keepalive Packet Format. The diagram, the three UDP-header bullets repeated from 2.1, the sender payload rule and the receiver's SHOULD. The SHOULD sentence carries no MUST-level keyword, so it makes no site and is listed below.",
+      "reason": "NAT-Keepalive Packet Format. The diagram, the three UDP-header bullets repeated from 2.1, the sender payload rule and the receiver's SHOULD. The SHOULD sentence carries no MUST-level keyword, so it makes no site and is listed below as RFC3948-2.3-1, which is advisory and gates nothing.",
       "unsourced-ids": [
         "RFC3948-2.3-1"
       ]
@@ -77,7 +77,7 @@
       "id": "3.1.2",
       "sites": 2,
       "disposition": "walked",
-      "reason": "Transport Mode Decapsulation NAT Procedure. Two sites, both mapped. The third choice carries a MAY about skipping the TCP checksum, which makes no site and is listed below.",
+      "reason": "Transport Mode Decapsulation NAT Procedure. Two sites, both mapped. The third choice carries a MAY about skipping the TCP checksum, and the section closes with 'an implementation MAY fix any contained protocols'. Both are advisory, make no site, and are listed below as RFC3948-3.1.2-3.",
       "unsourced-ids": [
         "RFC3948-3.1.2-3"
       ]
@@ -86,31 +86,31 @@
       "id": "3.2",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Transport Mode ESP Encapsulation. A before-and-after diagram and three numbered steps written in the indicative. No keyword, and no obligation the mapped sections do not already carry."
+      "reason": "Transport Mode ESP Encapsulation. A before-and-after diagram and three numbered steps written in the indicative (ordinary ESP, insert the UDP header, edit Total Length, Protocol and Header Checksum). No keyword, and no obligation the mapped sections do not already carry."
     },
     {
       "id": "3.3",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Transport Mode ESP Decapsulation. Four numbered steps in the indicative, the last of which invokes the Section 3.1.2 procedure."
+      "reason": "Transport Mode ESP Decapsulation. Four numbered steps in the indicative, the last of which invokes the Section 3.1.2 procedure. No keyword, and no requirement id is read from it."
     },
     {
       "id": "3.4",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Tunnel Mode ESP Encapsulation. A before-and-after diagram and three numbered steps in the indicative."
+      "reason": "Tunnel Mode ESP Encapsulation. A before-and-after diagram and three numbered steps in the indicative, the same shape as Section 3.2 with a new outer header. No keyword, and no requirement id is read from it."
     },
     {
       "id": "3.5",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Tunnel Mode ESP Decapsulation. Four numbered steps in the indicative, the last of which invokes the Section 3.1.1 procedure."
+      "reason": "Tunnel Mode ESP Decapsulation. Four numbered steps in the indicative, the last of which invokes the Section 3.1.1 procedure. No keyword, and no requirement id is read from it."
     },
     {
       "id": "4",
       "sites": 1,
       "disposition": "walked",
-      "reason": "NAT Keepalive Procedure. One MUST NOT site, mapped below. The sending rules are a MAY over N minutes and a SHOULD over M seconds, neither of which makes a site, so the two interval rows the summary reads from them are listed below.",
+      "reason": "NAT Keepalive Procedure. One MUST NOT site, mapped below. The sending rules are a MAY over N minutes and a SHOULD over M seconds, with locally configurable defaults of 5 minutes and 20 seconds, neither of which makes a site, so the two interval rows the summary reads from them are listed below: RFC3948-4-2 carries the intervals, and RFC3948-4-1 is read from the section's indicative opening.",
       "unsourced-ids": [
         "RFC3948-4-1",
         "RFC3948-4-2"
@@ -172,7 +172,7 @@
       "id": "A",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Appendix A, Clarification of Potential NAT Multiple Client Solutions. Non-normative by its own statement: the subject is 'not a matter of wire protocol, but a matter local implementation' and the mechanisms 'do not belong in the protocol specification itself'. It is walked rather than skipped because its one site is classified below."
+      "reason": "Appendix A, Clarification of Potential NAT Multiple Client Solutions. Non-normative by its own statement: the subject is 'not a matter of wire protocol, but a matter local implementation' and the mechanisms 'do not belong in the protocol specification itself'. It lists implementation options Tr1 to Tr5 and Tn1 to Tn4. It is walked rather than skipped because its one site is classified below."
     }
   ],
   "sites": [
@@ -181,7 +181,7 @@
       "quote": "L2TP/IPsec clients MUST support the modes as defined in [RFC3193].",
       "disposition": "excluded",
       "excluded-kind": "cross-document",
-      "reason": "The modes this sentence mandates are defined by RFC 3193, Securing L2TP using IPsec, which the sentence cites by name. RFC 3948 states none of them, so the obligation is owed against that document rather than against this summary."
+      "reason": "The modes this sentence mandates are defined by RFC 3193, Securing L2TP using IPsec, which the sentence cites by name. RFC 3948 states none of them, so the obligation is owed against that document rather than against this summary. Ze's L2TP component (internal/component/l2tp) is an LAC/LNS for PPP subscriber access and never runs a session inside IPsec, and no file in the tree implements RFC 3193."
     },
     {
       "id": "1:2",
@@ -196,7 +196,7 @@
       "disposition": "excluded",
       "mapped-to": "RFC3948-2.1-1",
       "excluded-kind": "duplicate-of",
-      "reason": "The Introduction restates the zero-SPI ban that Section 2.1 states in its own right. Site 2.1:2 is the sentence RFC3948-2.1-1 maps."
+      "reason": "The Introduction restates for the IKE implementation the zero-SPI ban that Section 2.1 states for the packet in its own right, because a zero SPI there is the non-ESP marker. Site 2.1:2 is the sentence RFC3948-2.1-1 maps."
     },
     {
       "id": "2.1:1",
@@ -210,7 +210,7 @@
       "quote": "The SPI field in the ESP header MUST NOT be a zero value.",
       "disposition": "mapped",
       "mapped-to": "RFC3948-2.1-1",
-      "reason": "The zero-SPI ban, stated in Section 2.1 as its own sentence. Captured as RFC3948-2.1-1 at [MUST NOT]."
+      "reason": "The zero-SPI ban, stated in Section 2.1 as its own sentence. Captured as RFC3948-2.1-1 at [MUST NOT]. Ze meets it: GenerateESPSPI loops until the value is non-zero (internal/component/ike/engine/child.go)."
     },
     {
       "id": "2.3:1",
@@ -225,7 +225,7 @@
       "quote": "The sender MUST use a one-octet-long payload with the value 0xFF.",
       "disposition": "mapped",
       "mapped-to": "RFC3948-2.3-2",
-      "reason": "The keepalive payload format. Ze meets it: Keepalive.Run writes one octet of the constant keepaliveByte, which is 0xFF (transport/keepalive.go). The summary carried the format only as prose in its Key Behavior table, so RFC3948-2.3-2 was added in this walk. It is single-polarity positive, because a fixed constant has no non-conforming sender input to drive."
+      "reason": "The keepalive payload format. Ze meets it: Keepalive.Run writes one octet of the constant keepaliveByte, which is 0xFF (transport/keepalive.go). The summary carried the format only as prose in its Key Behavior table, so RFC3948-2.3-2 was added in this walk. It is single-polarity positive, because a fixed constant has no non-conforming sender input to drive. A test in internal/component/ike/transport/keepalive_test.go already proved the byte under the unrelated id RFC3948-4-1."
     },
     {
       "id": "3.1.1:1",
@@ -253,7 +253,7 @@
       "quote": "Reception of NAT-keepalive packets MUST NOT be used to detect whether a connection is live.",
       "disposition": "mapped",
       "mapped-to": "RFC3948-4-3",
-      "reason": "Ze meets it. UDPTransport.Run refuses any datagram shorter than an IKE header, so the one-octet keepalive never reaches Recv (transport/udp.go), and dispatchNATTInbound discards a keepalive before any SA lookup (engine/register.go). DPD liveness is decided only by a reply that matches an outstanding probe (engine/dpd.go, matchesProbe). The summary declared no id for it, so RFC3948-4-3 was added in this walk with positive and negative tags in engine/rfc7296_natt_test.go."
+      "reason": "Ze meets it. UDPTransport.Run refuses any datagram shorter than the 28-byte IKE header, so the one-octet keepalive never reaches Recv (transport/udp.go), and dispatchNATTInbound discards a keepalive before any SA lookup (engine/register.go). DPD liveness is decided only by a reply that matches an outstanding probe (engine/dpd.go, matchesProbe). The summary declared no id for it, so RFC3948-4-3 was added in this walk with positive and negative tags in engine/rfc7296_natt_test.go."
     },
     {
       "id": "5.1:1",
@@ -265,9 +265,9 @@
     {
       "id": "5.2:1",
       "quote": "Implementations MUST handle this situation, either by disallowing conflicting connections, or by other means.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "The same role in transport mode: a server admitting two distinct unconfigured clients that arrive from one NAT address. Ze does not implement it. matchResponderPeer resolves one source address to at most one configured peer session (engine/register.go), and traffic selectors come from that peer's configuration rather than from the client, so the two SAs with different traffic descriptors to one address that this sentence exists to arbitrate cannot arise."
+      "disposition": "mapped",
+      "mapped-to": "RFC3948-5.2-1",
+      "reason": "The sentence offers two ways to meet it, and Ze takes the first: disallowing conflicting connections. (*policyOwners).claim keys on the full kernel selector and answers *PolicyOwnedError when a different SPParams.Owner already holds that selector (dataplane/policy_owner.go). It is reached from the policy install in xfrm_linux.go before the netlink call, so a second peer whose traffic descriptor conflicts with an installed one is refused rather than reaching the kernel. A second constraint narrows the scenario further: matchResponderPeer resolves one source address to at most one configured peer session (engine/register.go), and traffic selectors come from that peer's configuration rather than from the client. The earlier walk read that second constraint alone and concluded the situation could not arise, so it recorded this site as binding another role; the claim guard is the actual producer and makes the obligation provable rather than argued away."
     },
     {
       "id": "5.2:2",

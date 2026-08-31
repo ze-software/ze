@@ -1,0 +1,1033 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2865",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc2865.txt",
+  "source-sha": "5082eacae1b57b82",
+  "signed-off": "2026-08-30",
+  "reviewer": "ze-implement walk agent, spec-rfcgate-6-supported-extraction-signoff phase 2 (Tier 1, rfc2865)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates section 1 and states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Introduction: what RADIUS is, its client/server model, its network security model and its extensibility. It states no obligation of its own. Its one derived site is the Section 5.44 table legend, which the section parser attached here because the legend line begins with '1'."
+    },
+    {
+      "id": "1.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Specification of Requirements. It carries the RFC 2119 key-words paragraph the site scan correctly refuses to count, the definition of unconditional and conditional compliance, and three NAS obligations about services a NAS does not implement (sites 1.1:1 to 1.1:3)."
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Terminology: service, session and 'silently discard'. The two keywords in the 'silently discard' entry are SHOULDs about logging and counting a discarded packet, so the scan derives no site."
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Operation. It narrates one authentication exchange end to end. Its two sites are both server obligations. The client-side sentences here are indicative or MAY-level and are stated normatively in sections 3, 4.1 and 4.4."
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Challenge/Response. Descriptive: what a challenge is, what the user does with it, and a worked example. It states no obligation, and the NAS obligation for a challenge is in section 4.4."
+    },
+    {
+      "id": "2.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Interoperation with PAP and CHAP. It describes how a NAS maps PAP and CHAP credentials onto User-Password and CHAP-Password, in indicative prose, and then states two server obligations (sites 2.2:1 and 2.2:2)."
+    },
+    {
+      "id": "2.3",
+      "sites": 10,
+      "disposition": "walked",
+      "reason": "Proxy. Ten sites, every one binding a forwarding server or a remote server. Ze forwards no RADIUS request and answers none, so the whole section is excluded by role."
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Why UDP? Design rationale for the transport choice. It uses 'must' in lowercase throughout to describe consequences, and states no obligation."
+    },
+    {
+      "id": "2.5",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Retransmission Hints. Its two sites are the same-server retransmission rule (site 2.5:1) and the changed-attributes rule (site 2.5:2), which Section 4.1 states in full. The exponential-backoff row RFC2865-2.5-2 is a ze implementation constraint at SHOULD level, not a sentence of this section, and a SHOULD row never gates."
+    },
+    {
+      "id": "2.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Keep-Alives Considered Harmful. Advice against probing a server, phrased as 'strongly discouraged'. No capitalised keyword and no obligation."
+    },
+    {
+      "id": "3",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Packet Format. The header layout, the Code, Identifier, Length and Authenticator fields, the Request and Response Authenticator definitions, and the Administrative Note on the shared secret. Five sites: three bind any receiver or both ends and are mapped, two bind a server or a proxy.",
+      "unsourced-ids": [
+        "RFC2865-3-1",
+        "RFC2865-3-2",
+        "RFC2865-3-3",
+        "RFC2865-3-5"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Packet Types. One sentence saying the Code field decides the type. The four types are 4.1 to 4.4."
+    },
+    {
+      "id": "4.1",
+      "sites": 8,
+      "disposition": "walked",
+      "reason": "Access-Request. Eight sites. Six bind the sender and are mapped or duplicated onto Section 2.5; one binds the server that must reply; one is the retransmission half of the Identifier rule."
+    },
+    {
+      "id": "4.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Access-Accept. Two sites: the server's obligation to transmit it, and the receiver's obligation to check the Response Authenticator against the pending request."
+    },
+    {
+      "id": "4.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Access-Reject. One site, binding the server that transmits it. The Reply-Message sentence is MAY-level and is the summary's RFC2865-5-3."
+    },
+    {
+      "id": "4.4",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Access-Challenge. Four sites: two bind the server, and two state what a NAS without challenge/response support owes, which is RFC2865-4.4-1."
+    },
+    {
+      "id": "5",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "Attributes. The attribute format, the Type, Length and Value fields, and the five data types. Seven sites: five bind a client and are mapped, one binds a proxy, one repeats the zero-length rule for String.",
+      "unsourced-ids": [
+        "RFC2865-5-2"
+      ]
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "User-Name. One site: the attribute MUST be sent in an Access-Request if available."
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "User-Password. The hiding algorithm, stated entirely in indicative prose and as a set of equations, so the scan derives no site. The two obligations the summary declares from it are listed below.",
+      "unsourced-ids": [
+        "RFC2865-5.2-1",
+        "RFC2865-5.2-2"
+      ]
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "CHAP-Password. Format and the rule that the challenge is in CHAP-Challenge if present and the Request Authenticator otherwise. Indicative prose, no site."
+    },
+    {
+      "id": "5.4",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "NAS-IP-Address. Three sites: the Section 4.1 identification rule restated, and the two shared-secret-selection sentences that bind the server."
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NAS-Port. Attribute format and a note on 16-bit port values. No obligation."
+    },
+    {
+      "id": "5.6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Service-Type. One site: a NAS MUST treat an unknown or unsupported Service-Type as an Access-Reject. The rest is the value table."
+    },
+    {
+      "id": "5.7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-Protocol. Value table for PPP, SLIP, ARAP, Gandalf, Xylogics and X.75. No obligation."
+    },
+    {
+      "id": "5.8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-IP-Address. Format and the two special values 0xFFFFFFFF and 0xFFFFFFFE. No obligation."
+    },
+    {
+      "id": "5.9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-IP-Netmask. Format. No obligation."
+    },
+    {
+      "id": "5.10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-Routing. Value table. No obligation."
+    },
+    {
+      "id": "5.11",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Filter-Id. One site: the attribute is human readable and MUST NOT affect operation of the protocol."
+    },
+    {
+      "id": "5.12",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-MTU. Format and range. No obligation."
+    },
+    {
+      "id": "5.13",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-Compression. Value table. No obligation."
+    },
+    {
+      "id": "5.14",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Login-IP-Host. Format and the two special values. No obligation."
+    },
+    {
+      "id": "5.15",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Login-Service. Value table. No obligation."
+    },
+    {
+      "id": "5.16",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Login-TCP-Port. Format. No obligation."
+    },
+    {
+      "id": "5.17",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Unassigned attribute type 17. A heading and a note. No obligation."
+    },
+    {
+      "id": "5.18",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Reply-Message. Two sites: the display-order rule for several messages, and the human-readable sentence the other carrier attributes repeat."
+    },
+    {
+      "id": "5.19",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Callback-Number. Format. No obligation."
+    },
+    {
+      "id": "5.20",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Callback-Id. Format and a note that the id is NAS specific. No obligation."
+    },
+    {
+      "id": "5.21",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Unassigned attribute type 21. A heading and a note. No obligation."
+    },
+    {
+      "id": "5.22",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Framed-Route. One site: the human-readable sentence. The route text format is stated in indicative prose."
+    },
+    {
+      "id": "5.23",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-IPX-Network. Format and the special value 0xFFFFFFFE. No obligation."
+    },
+    {
+      "id": "5.24",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "State. Three sites: the challenge-reply carry rule, the Termination-Action carry rule, and the prohibition on interpreting the attribute locally."
+    },
+    {
+      "id": "5.25",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Class. One site: the client MUST NOT interpret the attribute locally. The accounting-echo sentence beside it is a SHOULD."
+    },
+    {
+      "id": "5.26",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Vendor-Specific. Two sites: the attribute MUST NOT affect protocol operation, and a server not equipped to interpret vendor information MUST ignore it."
+    },
+    {
+      "id": "5.27",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Session-Timeout. Format and meaning. No obligation."
+    },
+    {
+      "id": "5.28",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Idle-Timeout. Format and meaning. No obligation."
+    },
+    {
+      "id": "5.29",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Termination-Action. Value table. No obligation."
+    },
+    {
+      "id": "5.30",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Called-Station-Id. Format and a note on dialed-number identification. No obligation."
+    },
+    {
+      "id": "5.31",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Calling-Station-Id. Format and a note on automatic number identification. No obligation."
+    },
+    {
+      "id": "5.32",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "NAS-Identifier. Three sites, the same three sentences Section 5.4 carries for NAS-IP-Address."
+    },
+    {
+      "id": "5.33",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Proxy-State. Four sites, every one binding a proxy server or a server that adds a Proxy-State."
+    },
+    {
+      "id": "5.34",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Login-LAT-Service. Format and a note on LAT string handling. No obligation, and ze offers no LAT service."
+    },
+    {
+      "id": "5.35",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Login-LAT-Node. Format. No obligation, and ze offers no LAT service."
+    },
+    {
+      "id": "5.36",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Login-LAT-Group. Format of the 32-octet group code bitmap. No obligation, and ze offers no LAT service."
+    },
+    {
+      "id": "5.37",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-AppleTalk-Link. Format. No obligation, and ze offers no AppleTalk service."
+    },
+    {
+      "id": "5.38",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-AppleTalk-Network. Format. No obligation, and ze offers no AppleTalk service."
+    },
+    {
+      "id": "5.39",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-AppleTalk-Zone. Format. No obligation, and ze offers no AppleTalk service."
+    },
+    {
+      "id": "5.40",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "CHAP-Challenge. Format and the rule that a 16-octet challenge may travel in the Request Authenticator instead. Indicative prose, no site."
+    },
+    {
+      "id": "5.41",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NAS-Port-Type. Value table. No obligation."
+    },
+    {
+      "id": "5.42",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Port-Limit. Format and meaning. No obligation."
+    },
+    {
+      "id": "5.43",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Login-LAT-Port. Format. No obligation, and ze offers no LAT service."
+    },
+    {
+      "id": "5.44",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Table of Attributes. Three sites, all in Note 1 and Note 2, restating Section 4.1's credential and identification rules. The table's own cells and its legend are covered by the two legend sites the section parser split off into sections '1' and '0'."
+    },
+    {
+      "id": "0",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "The trailing legend block of the Section 5.44 Table of Attributes, which the section parser split into a section of its own because its first line begins with '0'. Its one site is the '0' legend entry."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. It names the registries and the assignment process for RADIUS packet type codes, attribute types and attribute values. Binds IANA, not a speaker."
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Definition of Terms for the IANA section: Private Use, Specification Required, Designated Expert and so on."
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Recommended Registration Policies. It tells IANA which policy governs each RADIUS namespace."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Examples. Three worked exchanges shown as attribute dumps. Non-normative illustration of sections 4 and 5, and it states no obligation."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Example: user Telnet to a specified host. An attribute dump of one Access-Request and its Access-Accept."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Example: framed user authenticating with CHAP. An attribute dump of one exchange."
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Example: user with a challenge-response card. An attribute dump of an Access-Request, an Access-Challenge and a second Access-Request."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. It discusses one authentication method per user name, secret storage, secret distribution and the known weakness of the Section 5.2 hiding mechanism. Its two keywords are SHOULDs, so the scan derives no site."
+    },
+    {
+      "id": "9",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Change Log. It lists what changed from RFC 2138. Its one site quotes the Section 5 proxy ordering sentence while describing that change."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References, normative and informative."
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements."
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Chair's Address. A contact block, the same boilerplate class as the title block at the head of the document."
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Authors' Addresses. A contact block."
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Full Copyright Statement. The RFC boilerplate closing the document."
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "Exactly one instance of this attribute MUST be present in packet.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The legend of the Section 5.44 Table of Attributes, which the section parser attached to section 1 because the line begins with '1'. It defines what the table entry '1' means and binds no speaker: 'this attribute' names none. No column of that table carries '1' for any RFC 2865 attribute, so the case it defines is never exercised."
+    },
+    {
+      "id": "1.1:1",
+      "quote": "A NAS that does not implement a given service MUST NOT implement the RADIUS attributes for that service.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-1.1-1",
+      "reason": "Binds a NAS, which is the role ze plays. Ze offers operator login and framed PPP access, and its dictionary (internal/component/radius/dict.go) declares no attribute for LAT, AppleTalk, IPX, callback or character-mode login. Captured as RFC2865-1.1-1."
+    },
+    {
+      "id": "1.1:2",
+      "quote": "For example, a NAS that is unable to offer ARAP service MUST NOT implement the RADIUS attributes for ARAP.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-1.1-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "The ARAP example restating the sentence before it. RFC2865-1.1-1 carries the obligation and site 1.1:1 maps it."
+    },
+    {
+      "id": "1.1:3",
+      "quote": "A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-1.1-2",
+      "reason": "Binds a NAS reading an Access-Accept, which is ze on both RADIUS paths. Captured as RFC2865-1.1-2 and enforced by serviceTypeOffered in internal/component/radius/authenticator.go and internal/component/l2tp/plugins/authradius/handler.go."
+    },
+    {
+      "id": "2:1",
+      "quote": "A request from a client for which the RADIUS server does not have a shared secret MUST be silently discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176."
+    },
+    {
+      "id": "2:2",
+      "quote": "If any Proxy-State attributes were present in the Access-Request, they MUST be copied unmodified and in order into the response packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. The obligation is to copy Proxy-State into the response it builds."
+    },
+    {
+      "id": "2.2:1",
+      "quote": "If the RADIUS server is unable to perform the requested authentication it MUST return an Access-Reject.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. The obligation is to answer with an Access-Reject when it cannot perform the authentication."
+    },
+    {
+      "id": "2.2:2",
+      "quote": "If the password is not available in cleartext to the RADIUS server then the server MUST send an Access-Reject to the client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. The obligation turns on whether the server holds the password in cleartext, which is a server-side database question."
+    },
+    {
+      "id": "2.3:1",
+      "quote": "The forwarding server MUST treat any Proxy-State attributes already in the packet as opaque data.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none."
+    },
+    {
+      "id": "2.3:2",
+      "quote": "Its operation MUST NOT depend on the content of Proxy-State attributes added by previous servers.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none."
+    },
+    {
+      "id": "2.3:3",
+      "quote": "If there are any Proxy-State attributes in the request received from the client, the forwarding server MUST include those Proxy-State attributes in its reply to the client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none."
+    },
+    {
+      "id": "2.3:4",
+      "quote": "If the forwarding server omits the Proxy-State attributes in the forwarded access-request, it MUST attach them to the response before sending it to the client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none."
+    },
+    {
+      "id": "2.3:5",
+      "quote": "If a CHAP-Password attribute is present in the packet and no CHAP-Challenge attribute is present, the forwarding server MUST leave the Request- Authenticator untouched or copy it to a CHAP-Challenge attribute.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none. The Request-Authenticator-to-CHAP-Challenge copy is a forwarding act."
+    },
+    {
+      "id": "2.3:6",
+      "quote": "(It MUST NOT add more than one.) If it adds a Proxy- State, the Proxy-State MUST appear after any other Proxy-States in the packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none. It bounds the Proxy-State a forwarder may add."
+    },
+    {
+      "id": "2.3:7",
+      "quote": "The forwarding server MUST NOT modify any other Proxy-States that were in the packet (it may choose not to forward them, but it MUST NOT change their contents).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none."
+    },
+    {
+      "id": "2.3:8",
+      "quote": "The forwarding server MUST NOT change the order of any attributes of the same type, including Proxy-State.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none."
+    },
+    {
+      "id": "2.3:9",
+      "quote": "The remote server MUST copy all Proxy-State attributes (and only the Proxy-State attributes) in order from the access-request to the response packet, without modifying them.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the REMOTE SERVER at the end of a proxy chain, which builds the response. Ze implements no RADIUS server role at all, remote or forwarding."
+    },
+    {
+      "id": "2.3:10",
+      "quote": "A forwarding server MUST not modify existing Proxy-State, State, or Class attributes present in the packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none. It bounds what local policy may rewrite in a packet passing through."
+    },
+    {
+      "id": "2.5:1",
+      "quote": "If the NAS is retransmitting a RADIUS request to the same server as before, and the attributes haven't changed, you MUST use the same Request Authenticator, ID, and source port.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-2.5-1",
+      "reason": "Binds the NAS retransmitting to the same server, which is ze. Captured as RFC2865-2.5-1: Exchange resends the identical pre-encoded buffer to the same address (internal/component/radius/client.go), so the Identifier, the Request Authenticator and the source port are unchanged by construction."
+    },
+    {
+      "id": "2.5:2",
+      "quote": "If any attributes have changed, you MUST use a new Request Authenticator and ID.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-4.1-5",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates in the retransmission-hints section what Section 4.1 states for the Identifier field and for the Request Authenticator. RFC2865-4.1-5 carries the Identifier half and site 4.1:6 maps it; RFC2865-4.1-6 carries the Request Authenticator half and site 4.1:8 maps that."
+    },
+    {
+      "id": "3:1",
+      "quote": "Octets outside the range of the Length field MUST be treated as padding and ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-3-6",
+      "reason": "Binds any receiver, which is ze reading a reply. Captured as RFC2865-3-6: Decode walks attributes only to pktLen and readLoop truncates the datagram to pktLen (internal/component/radius/packet.go, client.go)."
+    },
+    {
+      "id": "3:2",
+      "quote": "If the packet is shorter than the Length field indicates, it MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-3-7",
+      "reason": "Binds any receiver. Captured as RFC2865-3-7: Decode refuses a Length field larger than the datagram, and readLoop drops such a datagram before dispatch."
+    },
+    {
+      "id": "3:3",
+      "quote": "The secret MUST NOT be empty (length 0) since this would allow packets to be trivially forged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-3-8",
+      "reason": "Binds both ends of a shared secret, ze included. Captured as RFC2865-3-8. Found unmet by this walk and fixed: Exchange (internal/component/radius/client.go) now refuses an empty secret, which the YANG key leaf still permits."
+    },
+    {
+      "id": "3:4",
+      "quote": "A RADIUS server MUST use the source IP address of the RADIUS UDP packet to decide which shared secret to use, so that RADIUS requests can be proxied.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. Selecting a shared secret from the source address of a received Access-Request is a server act."
+    },
+    {
+      "id": "3:5",
+      "quote": "When using a forwarding proxy, the proxy must be able to alter the packet as it passes through in each direction - when the proxy forwards the request, the proxy MAY add a Proxy-State Attribute, and when the proxy forwards a response, it MUST remove its Proxy- State Attribute if it added one.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none. The obligation is to strip the Proxy-State the proxy itself added."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "An implementation wishing to authenticate a user MUST transmit a RADIUS packet with the Code field set to 1 (Access-Request).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-4.1-1",
+      "reason": "Binds the implementation authenticating a user, which is ze. Captured as RFC2865-4.1-1: both Access-Request builders name CodeAccessRequest."
+    },
+    {
+      "id": "4.1:2",
+      "quote": "Upon receipt of an Access-Request from a valid client, an appropriate reply MUST be transmitted.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. The obligation is to transmit a reply on receipt of an Access-Request."
+    },
+    {
+      "id": "4.1:3",
+      "quote": "It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-4.1-2",
+      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-4.1-2. Found unmet on the L2TP path by this walk and fixed: buildAuthAttrs emitted neither attribute when nas-identifier was unset and no IPv4 source address was configured (internal/component/l2tp/plugins/authradius/handler.go)."
+    },
+    {
+      "id": "4.1:4",
+      "quote": "An Access-Request MUST contain either a User-Password or a CHAP- Password or a State.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-4.1-3",
+      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-4.1-3: the admin path always carries User-Password and the subscriber path carries User-Password for PAP, CHAP-Password for CHAP and the MS-CHAPv2 vendor attributes that Section 4.1's future-extensions sentence permits in their place."
+    },
+    {
+      "id": "4.1:5",
+      "quote": "An Access-Request MUST NOT contain both a User-Password and a CHAP-Password.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-4.1-4",
+      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-4.1-4: the credential is a switch with one arm per method, so no builder adds both."
+    },
+    {
+      "id": "4.1:6",
+      "quote": "The Identifier field MUST be changed whenever the content of the Attributes field changes, and whenever a valid reply has been received for a previous request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-4.1-5",
+      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-4.1-5: SendToServers takes NextID for each attempt (internal/component/radius/client.go)."
+    },
+    {
+      "id": "4.1:7",
+      "quote": "For retransmissions, the Identifier MUST remain unchanged.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-2.5-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "The retransmission half of the Identifier rule, which Section 2.5 states in full. RFC2865-2.5-1 carries it and site 2.5:1 maps it."
+    },
+    {
+      "id": "4.1:8",
+      "quote": "The Request Authenticator value MUST be changed each time a new Identifier is used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-4.1-6",
+      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-4.1-6. Found unmet by this walk and fixed: SendToServers assigned a new Identifier per server and carried the old Request Authenticator across, which repeats a request value under a secret two servers often share."
+    },
+    {
+      "id": "4.2:1",
+      "quote": "If all Attribute values received in an Access-Request are acceptable then the RADIUS implementation MUST transmit a packet with the Code field set to 2 (Access-Accept).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. The obligation is to transmit the Access-Accept."
+    },
+    {
+      "id": "4.2:2",
+      "quote": "The Response Authenticator field MUST contain the correct response for the pending Access-Request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-3-4",
+      "reason": "Read at the receiver: Section 4.2 states it under 'On reception of an Access-Accept'. That is the NAS obligation the summary declares as RFC2865-3-4, and dispatchResponse enforces it with VerifyResponseAuth before a reply reaches any waiter (internal/component/radius/client.go, packet.go)."
+    },
+    {
+      "id": "4.3:1",
+      "quote": "If any value of the received Attributes is not acceptable, then the RADIUS server MUST transmit a packet with the Code field set to 3 (Access-Reject).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. The obligation is to transmit the Access-Reject."
+    },
+    {
+      "id": "4.4:1",
+      "quote": "If the RADIUS server desires to send the user a challenge requiring a response, then the RADIUS server MUST respond to the Access-Request by transmitting a packet with the Code field set to 11 (Access-Challenge).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. The obligation is to transmit the Access-Challenge."
+    },
+    {
+      "id": "4.4:2",
+      "quote": "Additionally, the Response Authenticator field MUST contain the correct response for the pending Access-Request.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-3-4",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats for an Access-Challenge what Section 4.2 states for an Access-Accept. RFC2865-3-4 carries it and site 4.2:2 maps it."
+    },
+    {
+      "id": "4.4:3",
+      "quote": "If the NAS does not support challenge/response, it MUST treat an Access-Challenge as though it had received an Access-Reject instead.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-4.4-1",
+      "reason": "Binds a NAS with no challenge/response support, which is ze. Captured as RFC2865-4.4-1. Found unmet by this walk and fixed: the admin authenticator returned a generic error for an Access-Challenge, and ChainAuthenticator reads a non-rejection error as an infra failure and asks the next backend, so a server demanding a second factor handed the login to the local password database."
+    },
+    {
+      "id": "4.4:4",
+      "quote": "If the NAS cannot do so, it MUST treat the Access-Challenge as though it had received an Access-Reject instead.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-4.4-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "The PAP-forwarding variant of the same sentence: a NAS that cannot forward the Reply-Message treats the challenge as a reject. RFC2865-4.4-1 carries it and site 4.4:3 maps it."
+    },
+    {
+      "id": "5:1",
+      "quote": "If multiple Attributes with the same Type are present, the order of Attributes with the same Type MUST be preserved by any proxies.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a PROXY: the sentence names the speaker, 'MUST be preserved by any proxies'. the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none."
+    },
+    {
+      "id": "5:2",
+      "quote": "A RADIUS server or client MUST NOT have any dependencies on the order of attributes of different types.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5-4",
+      "reason": "Binds a RADIUS client, which is ze. Captured as RFC2865-5-4: attribute lookup is a type scan over the decoded list (FindAttr, FindAllAttr)."
+    },
+    {
+      "id": "5:3",
+      "quote": "A RADIUS server or client MUST NOT require attributes of the same type to be contiguous.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5-5",
+      "reason": "Binds a RADIUS client. Captured as RFC2865-5-5: FindAllAttr walks the whole list, so same-type attributes need not sit together."
+    },
+    {
+      "id": "5:4",
+      "quote": "If an Attribute is received in an Access-Accept, Access-Reject or Access-Challenge packet with an invalid length, the packet MUST either be treated as an Access-Reject or else silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5-6",
+      "reason": "Binds the receiver of an Access-Accept, Access-Reject or Access-Challenge, which is ze. Captured as RFC2865-5-6: Decode refuses an invalid attribute length and Exchange discards a response that fails to decode."
+    },
+    {
+      "id": "5:5",
+      "quote": "Servers and servers and clients MUST be able to deal with embedded nulls.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5-7",
+      "reason": "Binds servers and clients, ze among them. Captured as RFC2865-5-7: an attribute value is a length-counted byte slice throughout, never a C string."
+    },
+    {
+      "id": "5:6",
+      "quote": "Text of length zero (0) MUST NOT be sent; omit the entire attribute instead.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5-8",
+      "reason": "Binds the sender. Captured as RFC2865-5-8. Found unmet by this walk and fixed: EncodeTo now omits an attribute whose value is empty (internal/component/radius/packet.go), which is what the sentence asks for."
+    },
+    {
+      "id": "5:7",
+      "quote": "Strings of length zero (0) MUST NOT be sent; omit the entire attribute instead.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-5-8",
+      "excluded-kind": "duplicate-of",
+      "reason": "The String paragraph repeating the Text paragraph's sentence word for word. RFC2865-5-8 covers both and site 5:6 maps it."
+    },
+    {
+      "id": "5.1:1",
+      "quote": "It MUST be sent in Access-Request packets if available.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5-1",
+      "reason": "Binds the sender of the Access-Request. Captured as RFC2865-5-1: every Access-Request builder adds User-Name unconditionally."
+    },
+    {
+      "id": "5.4:1",
+      "quote": "Either NAS-IP- Address or NAS-Identifier MUST be present in an Access-Request packet.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-4.1-2",
+      "excluded-kind": "duplicate-of",
+      "reason": "The NAS-IP-Address section restating the Section 4.1 rule. RFC2865-4.1-2 carries it and site 4.1:3 maps it."
+    },
+    {
+      "id": "5.4:2",
+      "quote": "Note that NAS-IP-Address MUST NOT be used to select the shared secret used to authenticate the request.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. Choosing which shared secret authenticates a received request is a server act, and this sentence forbids one input to that choice."
+    },
+    {
+      "id": "5.4:3",
+      "quote": "The source IP address of the Access-Request packet MUST be used to select the shared secret.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. It names the input the server must use instead, and repeats Section 3's sentence at site 3:4."
+    },
+    {
+      "id": "5.6:1",
+      "quote": "A NAS is not required to implement all of these service types, and MUST treat unknown or unsupported Service-Types as though an Access-Reject had been received instead.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-1.1-2",
+      "excluded-kind": "duplicate-of",
+      "reason": "The Service-Type section stating for one attribute what Section 1.1 states in general. RFC2865-1.1-2 names both sections and site 1.1:3 maps it."
+    },
+    {
+      "id": "5.11:1",
+      "quote": "It is intended to be human readable and MUST NOT affect operation of the protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5.11-1",
+      "reason": "Binds any implementation reading Filter-Id. Captured as RFC2865-5.11-1, which names the five sections carrying the same sentence. Ze reads Filter-Id as an authorization profile name, which is the filter-list naming Section 5.11 defines, and never as a protocol-level decision."
+    },
+    {
+      "id": "5.18:1",
+      "quote": "Multiple Reply-Message's MAY be included and if any are displayed, they MUST be displayed in the same order as they appear in the packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS that DISPLAYS several Reply-Messages to a user, a role ze does not implement. Both RADIUS paths surface at most one: FindAttr returns the first (internal/component/radius/authenticator.go, internal/component/l2tp/plugins/authradius/handler.go), so no display order exists to get wrong."
+    },
+    {
+      "id": "5.18:2",
+      "quote": "It is intended to be human readable, and MUST NOT affect operation of the protocol.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-5.11-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "Reply-Message repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.18 and site 5.11:1 maps it."
+    },
+    {
+      "id": "5.22:1",
+      "quote": "It is intended to be human readable and MUST NOT affect operation of the protocol.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-5.11-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "Framed-Route repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.22 and site 5.11:1 maps it."
+    },
+    {
+      "id": "5.24:1",
+      "quote": "This Attribute is available to be sent by the server to the client in an Access-Challenge and MUST be sent unmodified from the client to the server in the new Access-Request reply to that challenge, if any.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS that SUPPORTS challenge/response, a role ze does not implement. Section 4.4 provides for a NAS without it and states what it owes instead, which is RFC2865-4.4-1: treat the Access-Challenge as an Access-Reject. There is therefore no 'new Access-Request reply to that challenge' for ze to carry State in."
+    },
+    {
+      "id": "5.24:2",
+      "quote": "If the NAS performs the Termination-Action by sending a new Access-Request upon termination of the current session, it MUST include the State attribute unchanged in that Access-Request.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS that performs the Termination-Action by sending a new Access-Request, a role ze does not implement: neither RADIUS path reads Termination-Action (attribute 29) and neither re-authenticates on session termination."
+    },
+    {
+      "id": "5.24:3",
+      "quote": "In either usage, the client MUST NOT interpret the attribute locally.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-5.25-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "State stating what Section 5.25 states for Class in the same words. RFC2865-5.25-1 names both sections and site 5.25:1 maps it."
+    },
+    {
+      "id": "5.25:1",
+      "quote": "The client MUST NOT interpret the attribute locally.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2865-5.25-1",
+      "reason": "Binds the client, which is ze. Captured as RFC2865-5.25-1. Found unmet by this walk and fixed: the profile-attribute leaf offered a 'class' value that read a ze authorization profile name out of the Class attribute, and the enum now carries filter-id alone."
+    },
+    {
+      "id": "5.26:1",
+      "quote": "It MUST not affect the operation of the RADIUS protocol.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-5.11-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "Vendor-Specific repeating the Filter-Id sentence. RFC2865-5.11-1 names Section 5.26 and site 5.11:1 maps it."
+    },
+    {
+      "id": "5.26:2",
+      "quote": "Servers not equipped to interpret the vendor-specific information sent by a client MUST ignore it (although it may be reported).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. The sentence names its speaker: 'Servers not equipped to interpret the vendor-specific information sent by a client'."
+    },
+    {
+      "id": "5.32:1",
+      "quote": "Either NAS-IP-Address or NAS-Identifier MUST be present in an Access-Request packet.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-4.1-2",
+      "excluded-kind": "duplicate-of",
+      "reason": "The NAS-Identifier section restating the Section 4.1 rule. RFC2865-4.1-2 carries it and site 4.1:3 maps it."
+    },
+    {
+      "id": "5.32:2",
+      "quote": "Note that NAS-Identifier MUST NOT be used to select the shared secret used to authenticate the request.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. It forbids one input to the server's shared-secret choice, as site 5.4:2 does for NAS-IP-Address."
+    },
+    {
+      "id": "5.32:3",
+      "quote": "The source IP address of the Access-Request packet MUST be used to select the shared secret.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS SERVER. Ze is a RADIUS CLIENT (a NAS): it sends Access-Requests and reads the reply. No file in the tree implements a RADIUS authentication server, and the only RADIUS listener ze runs is the RFC 5176 CoA/Disconnect port (internal/component/l2tp/plugins/authradius/coa.go), whose obligations belong to RFC 5176. It names the input the server must use instead."
+    },
+    {
+      "id": "5.33:1",
+      "quote": "This Attribute is available to be sent by a proxy server to another server when forwarding an Access-Request and MUST be returned unmodified in the Access-Accept, Access-Reject or Access-Challenge.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a PROXY SERVER adding Proxy-State and the server returning it. the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none."
+    },
+    {
+      "id": "5.33:2",
+      "quote": "When the proxy server receives the response to its request, it MUST remove its own Proxy-State (the last Proxy- State in the packet) before forwarding the response to the NAS.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a PROXY SERVER stripping its own Proxy-State from a response. the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none."
+    },
+    {
+      "id": "5.33:3",
+      "quote": "If a Proxy-State Attribute is added to a packet when forwarding the packet, the Proxy-State Attribute MUST be added after any existing Proxy-State attributes.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds whichever speaker ADDS a Proxy-State when forwarding a packet. the FORWARDING SERVER of proxy RADIUS. Ze never forwards a RADIUS request: internal/component/radius/client.go sends its own Access-Requests and internal/component/l2tp/plugins/authradius does the same for subscribers. Ze adds no Proxy-State and reads none."
+    },
+    {
+      "id": "5.33:4",
+      "quote": "The content of any Proxy-State other than the one added by the current server should be treated as opaque octets and MUST NOT affect operation of the protocol.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-5.11-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "Proxy-State repeating the Filter-Id sentence for the Proxy-States a speaker did not add. RFC2865-5.11-1 names Section 5.33 and site 5.11:1 maps it."
+    },
+    {
+      "id": "5.44:1",
+      "quote": "[Note 1] An Access-Request MUST contain either a User-Password or a CHAP-Password or State.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-4.1-3",
+      "excluded-kind": "duplicate-of",
+      "reason": "Note 1 of the Table of Attributes restating Section 4.1's credential rule. RFC2865-4.1-3 carries it and site 4.1:4 maps it."
+    },
+    {
+      "id": "5.44:2",
+      "quote": "An Access-Request MUST NOT contain both a User-Password and a CHAP-Password.",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-4.1-4",
+      "excluded-kind": "duplicate-of",
+      "reason": "The second sentence of Note 1, restating Section 4.1's both-credentials prohibition. RFC2865-4.1-4 carries it and site 4.1:5 maps it."
+    },
+    {
+      "id": "5.44:3",
+      "quote": "[Note 2] An Access-Request MUST contain either a NAS-IP-Address or a NAS-Identifier (or both).",
+      "disposition": "excluded",
+      "mapped-to": "RFC2865-4.1-2",
+      "excluded-kind": "duplicate-of",
+      "reason": "Note 2 of the Table of Attributes restating Section 4.1's NAS identification rule. RFC2865-4.1-2 carries it and site 4.1:3 maps it."
+    },
+    {
+      "id": "0:1",
+      "quote": "This attribute MUST NOT be present in packet.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The legend of the Section 5.44 Table of Attributes, which the section parser split into a section of its own because the line begins with '0'. It defines what a '0' cell means and binds no speaker: 'this attribute' names none. The obligations it expands to are the table's per-attribute rows, and both ze Access-Request builders send only attributes the Request column permits."
+    },
+    {
+      "id": "9:1",
+      "quote": "If multiple Attributes with the same Type are present, the order of Attributes with the same Type MUST be preserved by any proxies.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A Change Log entry describing a change made between RFC 2138 and this document. It quotes the Section 5 sentence at site 5:1, whose speaker is a proxy, and binds nobody itself."
+    }
+  ],
+  "register-reason": "Standards Track, with an RFC 2119 key-words paragraph at section 1.1 and capitalised MUST-level keywords across sections 1.1 to 9. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}

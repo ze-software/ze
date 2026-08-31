@@ -9,6 +9,16 @@ One file per RFC, `rfc/extraction/<stem>.json`. Derived as a skeleton by
 disposition, which happens on a refresh whose decisions all carry forward. The
 command prints the `mv` that ends the walk.
 
+**A refresh carries decisions forward from the LANDED artifact and from nothing
+else.** `createExtraction` reads its previous document from
+`rfc/extraction/<stem>.json` alone, and `newExtractionDocument` keeps a site's
+disposition only when that document holds the same site id with an unchanged
+quote. A first walk has no landed artifact, so every run writes a fresh,
+fully unclassified skeleton OVER the scratch file. Classify the scratch file
+once and then move it; re-running the command mid-walk destroys the
+classification. A re-walk of an already signed stem is the case where a refresh
+carries the walk forward.
+
 Spec: `plan/spec-rfcgate-1-extraction.md`. Rule: `ai/rules/rfc-compliance.md`,
 "Extraction Completeness".
 

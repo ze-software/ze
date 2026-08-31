@@ -12,6 +12,44 @@
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
+## Session progress, 2026-08-30 (resume here)
+
+`./le rfc extraction-status` reads `signed: 15`, `backlog: 156`, against `signed: 6`
+and `backlog: 165` when the session opened.
+
+**Landed this session (9):** `rfc2759`, `rfc2865`, `rfc3948`, `rfc4760`, `rfc5492`,
+`rfc6811`, `rfc8203`, `rfc8671`, `rfc9234`.
+
+**Walked but deliberately NOT landed (4).** Each has unclassified sites that need an
+owner decision, so the artifact sits in the session scratch rather than reddening the
+corpus for other sessions. Each carries a replayable classification script beside it.
+
+| Stem | Why it is held | Where the decision lives |
+|---|---|---|
+| `rfc4301` | 30 sites unclassified: 12 met-and-undeclared, 18 unmet | `plan/spec-rfc4301-architecture-gaps.md`, and the owner held the 12 |
+| `rfc3748` | 6 sites reclassified off a circular exclusion; Types 2 and 3 unimplemented | the EAP Notification and NAK spec |
+| `rfc7947` | site `2.1:1` awaited the Adj-RIB-In ruling, now given | the route-server Adj-RIB-In spec |
+| `rfc9069` | 24 sites unclassified; two summary rows state the OPPOSITE of the RFC | the BMP conformance fixit spec |
+
+**Scope moved under the spec.** The support-claiming set is now 47 rows, not 53. RFC 4301
+was lowered to `Partial` by owner decision; RFC 2759's duplicate support row was deleted;
+and commit `675d07e59` deleted the RFC 8516 row and lowered RFC 7607 and RFC 4762 to
+`Unsupported`. `supportClaimingScope` in `internal/le/rfc/check_test.go` is the ratchet that
+caught each move and carries the reasons.
+
+**Product defects found by walks and FIXED this session:** the RADIUS Access-Challenge
+chain fallthrough (`ChainAuthenticator` fell through to the local password database when a
+server asked for a second factor), the RADIUS Request Authenticator reused across servers,
+an empty RADIUS shared secret accepted, Class read as an authorization profile against
+RFC 2865 Section 5.25, Service-Type never read, a missing NAS identifier, the BMP O flag
+left set on a Statistics Report, and the MS-CHAPv2 peer never verifying the authenticator
+response.
+
+**What a resuming session does first:** re-derive the in-scope set from
+`docs/features/rfc-status.md` rather than trusting the tables below, because other sessions
+correct public rows continuously. `TestSupportedRowsHaveDerivableScope` is the mechanical
+check for that.
+
 ## Task
 
 `./le rfc check` verifies that every requirement **listed** in `rfc/short/<stem>.md`
@@ -366,6 +404,27 @@ text, or `checkUnprovenSupport` refuses it.
 | A-11 | The seventh planned unit test would be a third copy of a fact the package already declares twice | `TestCreditIsScopedToTheEnrolledSet` (`internal/le/rfc/extraction_test.go`) drives `credited` with hand-built maps and asserts an enrolled stem counts while an unenrolled one does not; `TestACompletedSignOffIsNeverSilentlyUncounted` (`internal/le/rfc/extraction_create_test.go`) pins the six-versus-seven discrepancy by name and asserts `credited` and `uncredited` partition the valid set. Both verified present 2026-08-31 | a third declaration of one fact, which `ai/rules/principles.md` bans: every fact is declared once and every other surface derives from it | the TDD row now points at the two existing tests instead of naming a new one | **confirmed; TDD plan corrected** |
 | A-9 | `rate 0` holds in `rfc/drain-budget.txt` for the life of this spec | AC-9 asserts it | `plan/spec-fixit-rfc-drain-quota-never-armed.md` exists to ARM that rate and is awaiting Thomas's answer. If he arms it, AC-9 becomes false through no act of this spec | AC-9 is rewritten to say this spec does not CHANGE the rate, rather than that the rate is 0 | **at risk from the concurrent spec** |
 
+**A-1 as re-derived in phase 1 (2026-08-30).** The 53-row scope table is confirmed: the
+eight RFC tables carry 39 rows reading exactly `Supported`, 13 scope-qualified
+`Supported ...` rows, and RFC 1997's `Yes`. `statusPromisesConformance` over
+`loadStatusLedger` answers 51 of those 53, and `TestSupportedRowsHaveDerivableScope`
+(`internal/le/rfc/check_test.go`) asserts the set both ways. The two it does not answer
+each have a recorded cause, and the same test pins each one so the delta cannot be lost:
+
+| Stem | Why it is outside the derived set | What returns it |
+|---|---|---|
+| `rfc1997` | its Status cell reads `Yes`, a word the page's own vocabulary paragraph does not define | AC-5, in phase 5 |
+| `rfc2759` | the page carries TWO rows for it, `Supported within PPP and IPsec EAP` in the access table and `Partial` in the IPsec table. `parseStatusLedger` keeps the last of a repeated key with no complaint, so every ledger check reads `Partial` and the support claim is invisible | an owner decision on which row is right (`plan/journal/gate-excludes-part-of-its-population.md`, 2026-08-30). Until then the Tier 1 walk of `rfc2759` is a walk over a stem the gate does not count |
+| `rfc4301` | its Status cell was lowered from `Supported` to `Partial` on 2026-08-30, by owner decision, after the Tier 1 walk found architecture obligations Ze does not meet across ICMP processing, BYPASS and DISCARD fragments, DF and PMTU, PAD matching, SPD ordering and the outer-header DSCP | `plan/spec-rfc4301-architecture-gaps.md`, whose closing phase implements the obligations, raises the row and lands the sign-off |
+
+The page carries 153 RFC-keyed rows and 152 distinct keys, so RFC 2759 is the only stem in
+that state.
+
+The `rfc4301` correction moves the arithmetic: on the 2026-08-30 derivation the in-scope
+set is 48 rather than 49, and the AC-1 floor is 54 rather than 55. Both numbers are
+re-derived at closure from `docs/features/rfc-status.md` rather than carried from the
+tables above, so this note records the delta and changes no count in place.
+
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
@@ -460,6 +519,10 @@ text, or `checkUnprovenSupport` refuses it.
 - `internal/le/rfc/check.go` - call it from `Answer` alongside the other status checks
 - `internal/le/rfc/check_test.go` - the seven unit cases above
 - `internal/le/rfc/extraction_test.go` - extend the ratchet cases with an in-scope stem
+- `internal/le/rfc/native_fixture_test.go` - `TestNativeImplementationFixture` digests
+  every non-test file in the package, so each phase that edits one re-seals it with a note
+  saying what moved. Phase 1 re-sealed it for `check_status.go`; phase 8 re-seals it again
+  for `check.go`
 - `rfc/short/rfc1997.md`, and every Class A summary a walk adds a requirement to
 - `rfc/enrolled.txt` - one row per Class B stem that enrols
 - `rfc/not-enrolled.txt` - a disposition for any Class B stem that does not

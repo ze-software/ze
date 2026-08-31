@@ -42,7 +42,7 @@
       "id": "4",
       "sites": 3,
       "disposition": "walked",
-      "reason": "Capabilities Optional Parameter (Parameter Type 2). Assigns parameter type 2 and defines the <Capability Code, Capability Length, Capability Value> triple, which are value definitions carried by the Wire Formats and Constants tables of rfc/short/rfc5492.md. Three sites, mapped below to RFC5492-4-1, RFC5492-4-3 and RFC5492-4-2. Its three advisory sentences carry no MUST-level keyword and are the unsourced ids below: the SHOULD NOT against duplicate identical instances (RFC5492-4-4), the SHOULD to include the Capabilities Optional Parameter once (RFC5492-4-5), the SHOULD to list every capability as a TLV inside that one parameter (RFC5492-4-6), and the MAY to include several instances of one code with different values (RFC5492-4-7). The closing sentence, that the set of capabilities should be processed the same way whether it arrives in one parameter or several, is the lowercase 'should' the document's own section 2 gives no normative level.",
+      "reason": "Capabilities Optional Parameter (Parameter Type 2). Assigns parameter type 2 and defines the <Capability Code, Capability Length, Capability Value> triple, which are value definitions carried by the Wire Formats and Constants tables of rfc/short/rfc5492.md. Three sites, mapped below to RFC5492-4-1, RFC5492-4-3 and RFC5492-4-2. Its three advisory sentences carry no MUST-level keyword and are the unsourced ids below: the SHOULD NOT against duplicate identical instances (RFC5492-4-4), the SHOULD to include the Capabilities Optional Parameter once (RFC5492-4-5), the SHOULD to list every capability as a TLV inside that one parameter (RFC5492-4-6), and the MAY to include several instances of one code with different values (RFC5492-4-7). The closing sentence, that the set of capabilities should be processed the same way whether it arrives in one parameter or several, is the lowercase 'should' the document's own section 2 gives no normative level; it restates the MUST at site 4:3 and the summary captures it under RFC5492-4-2 in its Decoding Rules.",
       "unsourced-ids": [
         "RFC5492-4-4",
         "RFC5492-4-5",
@@ -61,7 +61,7 @@
       "sites": 0,
       "disposition": "skipped",
       "skip-kind": "iana",
-      "reason": "IANA Considerations. Records the Capability Code registry and its three assignment policies, the reserved code 0, and the 'BGP OPEN Optional Parameter Types' registry with parameter types 1 and 2. Binds IANA, not a speaker."
+      "reason": "IANA Considerations. Records the Capability Code registry and its three assignment policies over codes 1-63, 64-127 and 128-255, the reserved code 0, and the 'BGP OPEN Optional Parameter Types' registry with parameter types 1 and 2. Binds IANA, not a speaker."
     },
     {
       "id": "7",
@@ -125,7 +125,7 @@
       "quote": "A pair of BGP speakers that supports this specification can establish the peering even when presented with unrecognized capabilities, so long as all capabilities required to support the peering are supported.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
-      "reason": "Indicative: it states what a pair of speakers supporting this document can do, not what either of them owes. The word the scan raised is 'required' in 'all capabilities required to support the peering', which is descriptive English rather than the RFC 2119 keyword. Section 2 binds the key words only in upper case, and the prose-register scan is case-insensitive."
+      "reason": "Indicative: it states what a pair of speakers supporting this document can do, not what either of them owes. The word the scan raised is 'required' in 'all capabilities required to support the peering', which is descriptive English rather than the RFC 2119 keyword. Section 2 binds the key words only in upper case, and the prose-register scan is case-insensitive. The behavior the sentence describes is stated normatively at site 3:2 and is captured as RFC5492-3-2."
     },
     {
       "id": "3:1",
@@ -146,7 +146,7 @@
       "quote": "In particular, the Unsupported Capability NOTIFICATION message MUST NOT be generated and the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker.",
       "disposition": "mapped",
       "mapped-to": "RFC5492-3-3",
-      "reason": "One derived sentence stating two distinct MUST NOT obligations. It is mapped to RFC5492-3-3, 'the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker'. Its other conjunct, 'the Unsupported Capability NOTIFICATION message MUST NOT be generated', is RFC5492-3-4, which one mapped-to target cannot also name, so section 3 declares it in unsourced-ids. Both bind the unrecognized-capability case only, and neither touches the required-capability case that site 3:1 and the section's MAY govern. Produced by handleOpen in internal/component/bgp/reactor: an unrecognized code is already an Unknown capability by then, so no path from it reaches rejectOpenCapabilityError, which sends subcode 7 only for capability.ErrInvalidLength, a malformed TLV of a KNOWN capability."
+      "reason": "One derived sentence stating two distinct MUST NOT obligations. It is mapped to RFC5492-3-3, 'the BGP session MUST NOT be terminated in response to reception of a capability that is not supported by the local speaker'. Its other conjunct, 'the Unsupported Capability NOTIFICATION message MUST NOT be generated', is RFC5492-3-4, which one mapped-to target cannot also name, so section 3 declares it in unsourced-ids. This sentence is the only source of RFC5492-3-3 anywhere in the document, and section 5 restates the NOTIFICATION prohibition at site 5:3. Both bind the unrecognized-capability case only, and neither touches the required-capability case that site 3:1 and the section's MAY govern. Produced by handleOpen in internal/component/bgp/reactor: an unrecognized code is already an Unknown capability by then, so no path from it reaches rejectOpenCapabilityError, which sends subcode 7 only for capability.ErrInvalidLength, a malformed TLV of a KNOWN capability."
     },
     {
       "id": "4:1",
@@ -181,7 +181,7 @@
       "quote": "As explained in the \"Overview of Operations\" section, the Unsupported Capability NOTIFICATION is a way for a BGP speaker to complain that its peer does not support a required capability without which the peering cannot proceed.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
-      "reason": "Indicative: it recapitulates what section 3 already established, that the Unsupported Capability NOTIFICATION is how a speaker complains about a missing capability the peering requires. The word the scan raised is 'required' in 'a required capability', which is descriptive English rather than the RFC 2119 keyword; section 2 binds the key words only in upper case. The obligation of this paragraph is the next sentence, site 5:3."
+      "reason": "Indicative: it recapitulates what section 3 already established, that the Unsupported Capability NOTIFICATION is how a speaker complains about a missing capability the peering requires. The sentence says so itself: 'As explained in the \"Overview of Operations\" section'. The word the scan raised is 'required' in 'a required capability', which is descriptive English rather than the RFC 2119 keyword; section 2 binds the key words only in upper case. The same sentence's lowercase 'cannot', in 'without which the peering cannot proceed', describes the peer's situation rather than stating an obligation. The obligation of this paragraph is the next sentence, site 5:3."
     },
     {
       "id": "5:3",
@@ -191,5 +191,5 @@
       "reason": "The prohibition on using the Unsupported Capability NOTIFICATION for a capability the speaker does not understand, captured verbatim as RFC5492-5-2 at [MUST NOT]. This is section 5's statement of the same rule section 3 states at site 3:3, written from the message's side rather than the session's, and it is mapped rather than excluded duplicate-of because the summary declares it as its own row."
     }
   ],
-  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3, 4 and 5. The derivation still grades the source 'prose', because it compares capitalised keyword sites against the gated rows the summary declares: eight sites quote a capitalised MUST or MUST NOT (3:1 through 5:3) against nine gated rows, since RFC5492-3-3 and RFC5492-3-4 are two obligations stated in the one sentence at site 3:3. The other three sites (1:1, 1:2 and 5:2) are raised by the case-insensitive modal scan the prose register uses. The sign-off claims the derived grade and nothing stronger."
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3, 4 and 5. The derivation still grades the source 'prose', because DeriveRegister (internal/le/rfc/inventory.go) compares capitalised keyword sites against the gated rows rfc/short/rfc5492.md declares: eight sites quote a capitalised MUST or MUST NOT (3:1 through 5:3) against nine gated rows, since RFC5492-3-3 and RFC5492-3-4 are two obligations stated in the one sentence at site 3:3. The other three sites (1:1, 1:2 and 5:2) are raised by the case-insensitive modal scan the prose register uses, for eleven sites in total. The sign-off claims the derived grade and nothing stronger."
 }

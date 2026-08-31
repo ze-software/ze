@@ -18,13 +18,13 @@
       "id": "1",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Introduction. Indicative prose: the threat the document addresses, the three components of the RPKI architecture, that the cache retrieval protocol is out of scope (RFC 6810), that full AS_PATH attestation is out of scope, and that the global RPKI is only loosely consistent across caches. No sentence directs a speaker."
+      "reason": "Introduction. Indicative prose: the threat the document addresses, the three components of the RPKI architecture, that the cache retrieval protocol is out of scope (RFC 6810), that full AS_PATH attestation is out of scope, and that the global RPKI is only loosely consistent across caches. Its only modal is the lowercase 'The cache must also be refreshed periodically', which section 1.1 gives no special meaning. No sentence directs a speaker."
     },
     {
       "id": "1.1",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Requirements Language. The RFC 2119 key-words paragraph, which also states that the key words bind only when they appear in all upper case. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+      "reason": "Requirements Language. The RFC 2119 key-words paragraph, which also states that the key words bind only when they appear in all upper case, and that is what disqualifies the lowercase modals in sections 1, 5 and 6. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
     },
     {
       "id": "2",
@@ -60,13 +60,13 @@
       "id": "5",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Deployment Considerations. Names policies an operator can implement, filtering Invalid routes and adjusting LOCAL_PREF among them, and observes that propagating the validation state to an IBGP peer through a community can be necessary for routing correctness. Its only modal is the lowercase \"should be done with utmost care\", which section 1.1 gives no special meaning. No sentence directs a speaker."
+      "reason": "Deployment Considerations. Names policies an operator can implement, filtering Invalid routes and adjusting LOCAL_PREF among them, and observes that propagating the validation state to an IBGP peer through a community can be necessary for routing correctness. Its modals are all lowercase, \"should be done with utmost care\" and \"it could be necessary\", which section 1.1 gives no special meaning. No sentence directs a speaker."
     },
     {
       "id": "6",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Security Considerations. States that the security of the whole rests on the database, that blocking \"invalid\" routes opens a denial-of-service vector when an attacker can inject or remove validation records, that an attacker defeats the mechanism by prepending the authorized origin AS to a forged announcement, and that no path validation is provided. No countermeasure is directed at a speaker."
+      "reason": "Security Considerations. States that the security of the whole rests on the database, that blocking \"invalid\" routes opens a denial-of-service vector when an attacker can inject or remove validation records, that an attacker defeats the mechanism by prepending the authorized origin AS to a forged announcement, and that no path validation is provided. Its one lowercase \"must be considered\" addresses the reader assessing the overall solution rather than a speaker, and no countermeasure is directed at a speaker."
     },
     {
       "id": "7",

@@ -1,0 +1,366 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2759",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2759.txt",
+  "source-sha": "0b123d1db323bc28",
+  "signed-off": "2026-08-30",
+  "reviewer": "ze-implement walk agent, spec-rfcgate-6-supported-extraction-signoff phase 2 (Tier 1)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, Copyright Notice, Abstract and Table of Contents. The Abstract names the document as a description of MS-CHAP-V2 and states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. A bulleted list of the six differences from MS-CHAP-V1: CHAP Algorithm 0x81, mutual authentication by piggybacking a peer challenge and an authenticator response, the changed NT-Response calculation, the Peer-Challenge replacing the LAN Manager response, the changed Failure Message format, and the single Change-Password packet. Every sentence is indicative, and each obligation it previews is stated normatively in sections 3 to 7."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "LCP Configuration. Assigns the CHAP Algorithm field the value 0x81 and observes that a PPP implementation which answers with LCP Config-Rej has no problem. A value assignment is not a directive, which is the reading the RFC 4486 sign-off took of its own subcode table. The obligation to USE the value would belong to a PPP speaker, and the ledger scopes this summary to MS-CHAPv2 carried in EAP inside IKEv2, where no LCP option is negotiated at all."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Challenge Packet. Two sentences carry content: 'MS-CHAP-V2 authenticators send an 16-octet challenge Value field', which is indicative, and 'the standard guidelines on randomness [1,2,7] SHOULD be observed', which is advisory. The site scan reads no site from either, and RFC2759-x-8 is read from the pair.",
+      "unsourced-ids": [
+        "RFC2759-x-8"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Response Packet. The Value sub-format list is site 4:1 and the Flag rule is site 4:2. Three further ids are read from prose here. RFC2759-x-3 states the Value-Size as 49, which the RFC never writes as a number: it is the sum of the sub-format list, 16 + 8 + 24 + 1. RFC2759-x-9 is read from 'The Peer-Challenge field is a 16-octet random number' together with the same randomness advisory as section 3. RFC2759-x-11 is the receiver-side counterpart of the two sender rules the sites carry: the RFC states that Reserved and Flags must be zero and never states the duty to reject a packet in which they are not. The domain-stripping rule is stated here too, in 'only the user name is used, without any associated Windows NT domain name'; it is attributed to section 8.2, where the pseudocode states it as a constraint on the hash input.",
+      "unsourced-ids": [
+        "RFC2759-x-3",
+        "RFC2759-x-9",
+        "RFC2759-x-11"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Success Packet. Three sites: the uppercase-hex rule (5:1), the peer's duty to verify the authenticator response (5:2), and the peer's duty to end the session when that response is missing or incorrect (5:3). The summary carries one row for the verify-and-disconnect duty, RFC2759-x-7, so site 5:3 maps it and site 5:2 is excluded as its duplicate. The method the section points at is section 8.8."
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Failure Packet. The C= field rule is site 6:1. The error-code table, the retry flag and the <msg> text are indicative. One lowercase advisory sits here that the summary does not declare, 'implementations should deal with codes not on this list gracefully', and it binds a reader of a Failure packet; ze's IKEv2 EAP path never parses one. RFC2759-x-12 is read from the 691 ERROR_AUTHENTICATION_FAILURE entry together with the flow in section 9.1.3, and RFC2759-x-13 from 'For MS-CHAP-V2, this value SHOULD always be 3'.",
+      "unsourced-ids": [
+        "RFC2759-x-12",
+        "RFC2759-x-13"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Change-Password Packet. The packet is 586 octets and is sent by a peer whose password the authenticator reported expired. Its Reserved field rule is site 7:1, excluded below: ze implements the password-change exchange in neither direction. The Peer-Challenge and NT-Response fields are defined by reference to the Response packet and add no obligation of their own, and the Flags field is 'Reserved, always clear (0)', an indicative bit-field description."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Pseudocode. One sentence naming what the subsections describe. No obligation."
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "GenerateNTResponse(). Pseudocode composing ChallengeHash, NtPasswordHash and ChallengeResponse into the 24-octet NT-Response. Indicative throughout. GenerateNTResponse (internal/component/ike/eap/mschapv2.go) is the same composition in the same order."
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "ChallengeHash(). SHA-1 over PeerChallenge, AuthenticatorChallenge and UserName, truncated to 8 octets. Its comment states the constraint RFC2759-x-4 renders: 'Only the user name (as presented by the peer and excluding any prepended domain name) is used as input to SHAUpdate()'. A pseudocode comment carries no capitalised keyword, so the scan reads no site from it.",
+      "unsourced-ids": [
+        "RFC2759-x-4"
+      ]
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NtPasswordHash(). MD4 over the password, with the comment 'Only the password is hashed without including any terminating 0'. RFC2759-x-4's sibling RFC2759-x-10 is read here: the UTF-16LE encoding is stated by the declared input type '0-to-256-unicode-char Password' and pinned by the worked vector in section 9.2, where the password 'clientPass' appears as 63 00 6C 00 69 00 ... with no terminator. Neither statement is a keyword site.",
+      "unsourced-ids": [
+        "RFC2759-x-10"
+      ]
+    },
+    {
+      "id": "8.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "HashNtPasswordHash(). MD4 over the 16-octet PasswordHash. Indicative."
+    },
+    {
+      "id": "8.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "ChallengeResponse(). Zero-pads the PasswordHash to 21 octets, splits it into three 7-octet DES keys and encrypts the 8-octet Challenge under each. Indicative; the summary renders it in its Crypto Operations table."
+    },
+    {
+      "id": "8.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "DesEncrypt(). DES in ECB mode, with the note that the caller inserts the parity bits itself because the algorithm ignores them. Indicative."
+    },
+    {
+      "id": "8.7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "GenerateAuthenticatorResponse(). The Magic1 and Magic2 constants and the two SHA-1 passes that produce the 20-octet value the S= field carries. Indicative. GenerateAuthenticatorResponse (internal/component/ike/eap/mschapv2.go) implements it and the authenticator calls it in handleResponse."
+    },
+    {
+      "id": "8.8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "CheckAuthenticatorResponse(). The procedure section 5 points at: recompute the authenticator response from the peer's own inputs and compare. Pseudocode, so no site; the obligation to RUN it is stated in section 5 and mapped there as RFC2759-x-7. Ze has no implementation of this routine: the peer's handleMSCHAPv2Success (internal/component/ike/eap/peer.go) hex-decodes the S= field and never calls GenerateAuthenticatorResponse."
+    },
+    {
+      "id": "8.9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NewPasswordEncryptedWithOldNtPasswordHash(). Change-Password crypto, building the PWBLOCK. Indicative pseudocode for the exchange section 7 defines and ze does not implement."
+    },
+    {
+      "id": "8.10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "EncryptPwBlockWithPasswordHash(). Change-Password crypto. Indicative pseudocode for the exchange ze does not implement."
+    },
+    {
+      "id": "8.11",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Rc4Encrypt(). Change-Password crypto, naming RC4 as a licensed proprietary algorithm. Indicative pseudocode for the exchange ze does not implement."
+    },
+    {
+      "id": "8.12",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "OldNtPasswordHashEncryptedWithNewNtPasswordHash(). Change-Password crypto. Indicative pseudocode for the exchange ze does not implement."
+    },
+    {
+      "id": "8.13",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NtPasswordHashEncryptedWithBlock(). Change-Password crypto, two DES blocks over the password hash. Indicative pseudocode for the exchange ze does not implement."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Examples. One sentence naming what the subsections show. No obligation."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Negotiation Examples. States indicatively that the packet sequence ID increments on each retry response and on the change-password response, that retry is never allowed after a password change, and that a password change may follow a retry. Descriptions of the flows below, not directives."
+    },
+    {
+      "id": "9.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Successful authentication. A three-message flow diagram. Non-normative."
+    },
+    {
+      "id": "9.1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Authenticator authentication failure. The flow diagram for the case RFC2759-x-7 governs: 'Authenticator Response verification fails, peer disconnects'. A worked example of the section 5 obligation, not a second statement of it."
+    },
+    {
+      "id": "9.1.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Failed authentication with no retry allowed. The flow diagram showing Failure (E=691 R=0) followed by an authenticator disconnect. RFC2759-x-12 is read from it together with the section 6 error table."
+    },
+    {
+      "id": "9.1.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Successful authentication after retry. A flow diagram. Non-normative."
+    },
+    {
+      "id": "9.1.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Failed hack attack with 3 attempts allowed. A flow diagram illustrating the retry limit that section 10 states as an advisory. Non-normative."
+    },
+    {
+      "id": "9.1.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Successful authentication with password change. A flow diagram for the exchange section 7 defines. Non-normative."
+    },
+    {
+      "id": "9.1.7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Successful authentication with retry and password change. A flow diagram. Non-normative."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Hash Example. The known-answer vectors for user name 'User' and password 'clientPass', from the UTF-16LE password bytes through to 'S=407A5589115FD0D6209F510FE9C04566932CDA56'. No obligation; these are the vectors the RFC2759-x-10 and RFC2759-x-4 tests drive (internal/component/ike/eap/mschapv2_test.go). Its column-0 lines are what the section splitter reads as the seven numeric pseudo-sections below."
+    },
+    {
+      "id": "55",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Not a section of RFC 2759. The section splitter reads a column-0 line beginning with digits as a heading, and section 9.2 prints its vectors at column 0. This id comes from '55 73 65 72', the UserName vector. No text and no obligation."
+    },
+    {
+      "id": "63",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Not a section of RFC 2759: the splitter artifact of '63 00 6C 00 69 00 65 00 6E 00 74 00 50 00 61 00 73 00 73 00', the UTF-16LE Password vector in section 9.2. No text and no obligation."
+    },
+    {
+      "id": "21",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Not a section of RFC 2759: the splitter artifact of '21 40 23 24 25 5E 26 2A 28 29 5F 2B 3A 33 7C 7E', the PeerChallenge vector in section 9.2. No text and no obligation."
+    },
+    {
+      "id": "44",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Not a section of RFC 2759: the splitter artifact of '44 EB BA 8D 53 12 B8 D6 11 47 44 11 F5 69 89 AE', the PasswordHash vector in section 9.2. No text and no obligation."
+    },
+    {
+      "id": "24",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Not a section of RFC 2759: the splitter artifact of the label line '24 octet NT-Response:' in section 9.2. No text and no obligation."
+    },
+    {
+      "id": "82",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Not a section of RFC 2759: the splitter artifact of '82 30 9E CD 8D 70 8B 5E A0 8F AA 39 81 CD 83 54 42 33 11 4A 3D 85 D6 DF', the NT-Response vector in section 9.2. No text and no obligation."
+    },
+    {
+      "id": "41",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Not a section of RFC 2759: the splitter artifact of '41 C0 0C 58 4B D2 D9 1C 40 17 A2 A1 2F A5 9F 3F', the PasswordHashHash vector in section 9.2. No text and no obligation."
+    },
+    {
+      "id": "9.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Example of DES Key Generation. Shows the two parity-corrected DES keys derived from the password 'MyPw', and notes that many DES engines strip the parity bits rather than check them. A worked example of section 8.6, with no obligation of its own."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. One sentence, an advisory: 'As an implementation detail, the authenticator SHOULD limit the number of password retries allowed to make brute-force password guessing attacks more difficult.' RFC2759-x-14 renders it. The scan reads no site because the sentence is SHOULD-level.",
+      "unsourced-ids": [
+        "RFC2759-x-14"
+      ]
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. Twelve citations, including RFC 2119 at [3]. No obligation of this document."
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements. Credits the reviewers of the document."
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Author's Address. Document furniture: postal address, telephone number and e-mail address for the author."
+    },
+    {
+      "id": "14",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Full Copyright Statement. Walked rather than skipped because the prose scan attributes its one site here; that site is the Internet Society boilerplate and is excluded below."
+    }
+  ],
+  "sites": [
+    {
+      "id": "4:1",
+      "quote": "16 octets: Peer-Challenge 8 octets: Reserved, must be zero 24 octets: NT-Response 1 octet : Flags",
+      "disposition": "mapped",
+      "mapped-to": "RFC2759-x-1",
+      "reason": "The Response packet's Value sub-format list, which the splitter fuses into one site. Its only obligation is 'Reserved, must be zero' on the 8 octets between Peer-Challenge and NT-Response, which is RFC2759-x-1. The three remaining entries are field lengths: the 16-octet Peer-Challenge is RFC2759-x-9, the 24-octet NT-Response has no separate row, and the 1-octet Flags field carries its own rule in site 4:2. The authenticator enforces the zero-Reserved rule in handleResponse (internal/component/ike/eap/eap_mschapv2.go), which walks td[21:29] and fails on any non-zero octet; both polarities are tagged in internal/component/ike/eap/eap_mschapv2_test.go."
+    },
+    {
+      "id": "4:2",
+      "quote": "The Flag field is reserved for future use and MUST be zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2759-x-2",
+      "reason": "The Flags rule, stated at MUST level and captured as RFC2759-x-2. handleResponse (internal/component/ike/eap/eap_mschapv2.go) rejects a Response whose td[53] is non-zero, and both polarities are tagged in internal/component/ike/eap/eap_mschapv2_test.go."
+    },
+    {
+      "id": "5:1",
+      "quote": "The hexadecimal digits A-F (if present) MUST be uppercase.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2759-x-5",
+      "reason": "The case rule on the 40 hexadecimal digits of the S= field, captured as RFC2759-x-5. sendSuccess (internal/component/ike/eap/eap_mschapv2.go) builds the field through strings.ToUpper, so no code path can emit lowercase; the summary records that as a single-polarity annotation and the positive assertion is tagged in internal/component/ike/eap/eap_mschapv2_test.go."
+    },
+    {
+      "id": "5:2",
+      "quote": "The authenticating peer MUST verify the authenticator response when a Success packet is received.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC2759-x-7",
+      "reason": "The Success-packet verification duty is stated in two sentences: this one names the act and site 5:3 names the consequence. rfc/short/rfc2759.md carries them as one row, RFC2759-x-7, whose declared text is the consequence sentence and whose annotation covers both halves ('never computes the expected Authenticator Response to compare or disconnect on mismatch'). Site 5:3 maps that row. Ze meets neither half: handleMSCHAPv2Success (internal/component/ike/eap/peer.go) hex-decodes the S= field and never calls GenerateAuthenticatorResponse. Raised as an ask under AC-8 of plan/spec-rfcgate-6-supported-extraction-signoff.md, not annotated here."
+    },
+    {
+      "id": "5:3",
+      "quote": "If the authenticator response is either missing or incorrect, the peer MUST end the session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2759-x-7",
+      "reason": "The peer's duty to end the session when the authenticator response is missing or incorrect, captured as RFC2759-x-7. Ze plays this peer role in production: internal/component/ike/engine/fsm.go builds an eap.NewPeerSession(eap.TypeMSCHAPv2, ...) when it authenticates with EAP. handleMSCHAPv2Success (internal/component/ike/eap/peer.go) is the producer and it does not implement the obligation, so the summary carries a gap annotation and no test tag. That gap is a void answer under ai/rules/rfc-compliance.md and is re-raised as an ask rather than cited."
+    },
+    {
+      "id": "6:1",
+      "quote": "This field MUST be exactly 32 octets long and MUST be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2759-x-6",
+      "reason": "The C= field rule of the Failure packet, captured as RFC2759-x-6. Ze emits no MS-CHAPv2 Failure packet at all: sendFailure (internal/component/ike/eap/eap_mschapv2.go) returns ErrMethodFailed and the session ends with an EAP-Failure, so the field this sentence constrains is never built. The summary carries a gap annotation and no test tag, and that gap is a void answer re-raised as an ask."
+    },
+    {
+      "id": "7:1",
+      "quote": "Reserved 8 octets, must be zero.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the peer that performs the MS-CHAPv2 password change, a role ze plays in neither direction. Section 7 makes the role optional in its own text: 'This packet type is supported by recent versions of Windows NT 4.0, Windows 95 and Windows 98. It is not supported by Windows NT 3.5, Windows NT 3.51, or early versions', and the packet 'should be sent only if the authenticator reports ERROR_PASSWD_EXPIRED (E=648)'. Ze never reports E=648, because sendFailure (internal/component/ike/eap/eap_mschapv2.go) ends the method with ErrMethodFailed and builds no MS-CHAPv2 Failure packet. Ze never sends or accepts Code 7 either: the authenticator's Process and the peer's handleMSCHAPv2Request (internal/component/ike/eap/peer.go) each switch on Challenge, Response and Success alone and refuse every other opcode, and the PPP path states the same scope at internal/component/l2tp/ppp/mschapv2.go:25. Nothing in ze builds or parses the packet whose Reserved field this sentence constrains."
+    },
+    {
+      "id": "14:1",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate the site scan does not strip: the Internet Society Full Copyright Statement. Its 'must be followed' governs whoever republishes or translates the document under the Internet Standards process, not a speaker of MS-CHAPv2."
+    }
+  ],
+  "register-reason": "RFC 2759 is Informational and carries no RFC 2119 key-words paragraph, so its obligations are stated in a mix of capitalised MUSTs and lowercase 'must be zero' field rules. The derivation grades the source 'prose' and this sign-off claims exactly that grade."
+}

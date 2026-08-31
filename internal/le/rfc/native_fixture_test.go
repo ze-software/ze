@@ -13,41 +13,26 @@ import (
 // The digest pins every production byte that supplied its tables and edge-case
 // decisions, while the behavioral tests in this package pin their outcomes.
 func TestNativeImplementationFixture(t *testing.T) {
-	// Re-sealed 2026-08-28, for a lint pass over this package that changed no
-	// verdict. It deleted five superseded helpers no caller reached
-	// (workflowIsScheduled, featureTags, functionNameAt, functionText, and the
-	// three *Names accessors in audit.go), named the repeated string literals
-	// the closed key sets and the selftest fixture share, restated one refusal
-	// in reseal.go without inverting it, and corrected two UK spellings to US
-	// English. Every deletion has a live equivalent named in its own commit
-	// message.
-	// Re-sealed 2026-08-29: gatedLevels gained an exported predicate,
-	// IsGatedLevel, so internal/le/testhealth could delete its own copy of the
-	// same five keywords. No verdict changed; the map and its membership are
-	// untouched.
-	// Re-sealed 2026-08-30, for the extraction-create destination guard: an
-	// unclassified skeleton now goes to the session scratch instead of into
-	// rfc/extraction/, the check leads with an unclassified census, and the
-	// check summary names the valid sign-offs its counts leave out. Five files
-	// moved: actions.go, artifact.go, check.go, extraction_create.go and
-	// signoff.go.
-	// Re-sealed 2026-08-31, for phase 1 of spec-rfcgate-6-supported-extraction-signoff.
-	// check_status.go gains statusPromisesSupport and checkSupportedSignoff: a
-	// narrower support predicate and the check that refuses a public promise of
-	// conformance no extraction sign-off bounds. No verdict moved, because
-	// nothing calls the new check. check() does not reach it, and it is armed in
-	// the spec's final phase once the sign-offs land, so that the gate does not
-	// red for every session in this checkout while the data is still arriving.
-	// carriers.go moved one import out of the stdlib group to satisfy goimports,
-	// which is the HEAD red recorded in plan/journal/lint-contract-not-applied.md
-	// whose 2026-08-29 row already names that file by path. gofmt does not check
-	// grouping under the local prefix, which is how it survived.
+	// The digest changes on EVERY non-test byte of this package, so each edit owes
+	// a re-seal. What the re-seal owes back is one line saying whether any VERDICT
+	// moved, which is the only thing this test cannot see for itself. The change
+	// itself is in its commit message, and repeating it here made this comment a
+	// changelog nobody reads.
 	//
-	// Computed over the COMMITTED file set, not the working tree. This digest
-	// covers every non-test file in the package, and a second session has
-	// carriers.go, check_compile.go, inventory.go and render.go modified here,
-	// so the working-tree value describes a tree this commit does not make.
-	const want = "3b16889ad913dbf1d3899c140e76d873f45f49b9c967dc2d2dbd32ae17eb3ae4"
+	// Re-sealed 2026-08-31, for the review-gate fixes of
+	// spec-rfc-tag-claim-discrimination. Two verdicts moved, both deliberately.
+	// An escape is now tied to the CLAIM it discharges and not only to a file an
+	// author names, so a `no-break` record that named any declaration-only file,
+	// or any interop carrier, is refused where it was accepted. And a record
+	// staled by an edit NOBODY HAS COMMITTED is reported rather than refused
+	// (owner decision, 2026-08-31), so a session editing a producer no longer reds
+	// the gate for every other session sharing this checkout.
+	//
+	// Over this tree the violation count is unchanged. The 24 it reports are 2
+	// pre-existing stale rfc7606 audit verdicts and 22 new-tag violations from
+	// another session's three UNTRACKED files, and no record in this repository
+	// carries an escape, so the tightened escape refuses nothing here.
+	const want = "3514714978236e94eaba591a381d92666c1481a377337be5e93d000d58b1b42d"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)

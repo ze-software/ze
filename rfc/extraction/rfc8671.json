@@ -152,7 +152,7 @@
       "sites": 0,
       "disposition": "skipped",
       "skip-kind": "references",
-      "reason": "Normative References: RFC 2119, RFC 4271, RFC 7854, RFC 8174."
+      "reason": "Normative References: RFC 2119, RFC 4271, RFC 7854, RFC 8174. The section also absorbs the Acknowledgements, Contributors and Authors' Addresses blocks, none of which states an obligation."
     }
   ],
   "sites": [
@@ -190,7 +190,7 @@
       "quote": "All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The role is a BMP sender that emits pre-policy Adj-RIB-Out, and ze does not implement it. peerHeaderFromEvent sets PeerFlagO and PeerFlagL in one statement, so O=1 with L=0 is unreachable, and the route-monitoring-policy leaf offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice. ze therefore never reaches a pre-policy phase completion at which a mandatory attribute could be unknown, and holds no route for which it would have to zero the next hop. The permission this obligation is conditional on is RFC8671-x-5 [MAY], which ze does not exercise."
+      "reason": "The role is a BMP sender that emits pre-policy Adj-RIB-Out, and ze does not implement it. RFC 7854 Section 5 makes the choice optional, 'A BMP speaker may send pre-policy routes, post-policy routes, or both', and ze sends post-policy Adj-RIB-Out only. peerHeaderFromEvent sets PeerFlagO and PeerFlagL in one statement, so O=1 with L=0 is unreachable, and the route-monitoring-policy leaf offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice. ze therefore never reaches a pre-policy phase completion at which a mandatory attribute could be unknown, and holds no route for which it would have to zero the next hop. The permission this obligation is conditional on is RFC8671-x-5 [MAY], which ze does not exercise. The alternative to the exclusion is to implement pre-policy Adj-RIB-Out export, which is feature work with no data source in ze today."
     },
     {
       "id": "5.2:2",
@@ -218,7 +218,7 @@
       "quote": "When multiple Admin Labels are included, the BMP receiver MUST preserve their order.",
       "disposition": "mapped",
       "mapped-to": "RFC8671-6.3.1-1",
-      "reason": "A receiver keeps multiple Admin Labels in wire order. Added as RFC8671-6.3.1-1 at [MUST] by this walk; the summary declared no id for it. ze meets it: decodePeerUp (msg.go) hands the trailing bytes to DecodeTLVs (tlv.go), which appends each TLV as it reads it, so PeerUp.InfoTLVs holds the wire order, and writePeerUp re-emits that slice in the same order. DecodeMsg is the receiver's real entry point, reached from BMPPlugin.processMessage. Proven by TestRFC8671AdminLabelOrderPreserved (positive) and TestRFC8671AdminLabelReversedOrderPreserved (negative), which sends the same two labels in the opposite order and requires the opposite order back."
+      "reason": "A receiver keeps multiple Admin Labels in wire order. Added as RFC8671-6.3.1-1 at [MUST] by this walk; the summary declared no id for it. ze meets it: decodePeerUp (msg.go) hands the trailing bytes to DecodeTLVs (tlv.go), which appends each TLV as it reads it, so PeerUp.InfoTLVs holds the wire order, and writePeerUp re-emits that slice in the same order. DecodeMsg is the receiver's real entry point, reached from BMPPlugin.processMessage, and ze runs that receiver from acceptLoop (bmp.go). Proven by TestRFC8671AdminLabelOrderPreserved (positive) and TestRFC8671AdminLabelReversedOrderPreserved (negative), which sends the same two labels in the opposite order and requires the opposite order back."
     },
     {
       "id": "7.2:1",

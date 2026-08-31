@@ -2,7 +2,7 @@
   "schema-version": 1,
   "stem": "rfc4760",
   "register": "rfc2119",
-  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3, 4, 7 and 8. The derivation grades the source 'rfc2119' and this sign-off claims exactly that grade.",
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3, 4, 7 and 8. The derivation grades the source 'rfc2119' over 9 keyword sites against 6 gated rows, and this sign-off claims exactly that grade.",
   "source-path": "rfc/full/rfc4760.txt",
   "source-sha": "7b28975d269770a5",
   "signed-off": "2026-08-31",
@@ -13,13 +13,13 @@
       "sites": 0,
       "disposition": "skipped",
       "skip-kind": "front-matter",
-      "reason": "Title block, Status of This Memo, Copyright Notice and Abstract. The Abstract states what the document defines and that the extensions are backward compatible. It binds no speaker."
+      "reason": "Title block, Status of This Memo, Copyright Notice and Abstract. The Abstract states that the document extends BGP-4 to carry routing information for multiple Network Layer protocols and that the extensions are backward compatible. It binds no speaker."
     },
     {
       "id": "1",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Introduction. Indicative prose naming the three IPv4-specific pieces of BGP-4 and the two attributes this document adds. Its only modal is the lowercase 'should' of 'the advertisement of reachable destinations should be grouped with ... the next hop', which describes the design rationale for MP_REACH_NLRI rather than directing a speaker. Every obligation it foreshadows is stated normatively in section 3."
+      "reason": "Introduction. Indicative prose naming the three IPv4-specific pieces of BGP-4 (NEXT_HOP, AGGREGATOR and NLRI) and the two attributes this document adds, both optional and non-transitive so a speaker without the extension ignores them. Its only modal is the lowercase 'should' of 'the advertisement of reachable destinations should be grouped with ... the next hop', which describes the design rationale for MP_REACH_NLRI rather than directing a speaker. Every obligation it foreshadows is stated normatively in sections 3, 7 and 8."
     },
     {
       "id": "2",
@@ -44,7 +44,7 @@
       "id": "4",
       "sites": 2,
       "disposition": "walked",
-      "reason": "Multiprotocol Unreachable NLRI - MP_UNREACH_NLRI (Type Code 15). Both derived sites are the AFI and SAFI field paragraphs copied from section 3, Next Hop sentence included, which is the copy verified errata 1573 reports: MP_UNREACH_NLRI has no Next Hop field. The section adds one sentence of its own, 'An UPDATE message that contains the MP_UNREACH_NLRI is not required to carry any other path attributes', which relaxes section 3 rather than obliging anyone."
+      "reason": "Multiprotocol Unreachable NLRI - MP_UNREACH_NLRI (Type Code 15). The attribute carries AFI, SAFI and Withdrawn Routes only. Both derived sites are the AFI and SAFI field paragraphs copied from section 3, Next Hop sentence included, which is the copy verified errata 1573 reports: MP_UNREACH_NLRI has no Next Hop field. The section adds one sentence of its own, 'An UPDATE message that contains the MP_UNREACH_NLRI is not required to carry any other path attributes', which relaxes section 3 rather than obliging anyone. The summary declares no id from this section."
     },
     {
       "id": "5",
@@ -119,7 +119,7 @@
       "sites": 0,
       "disposition": "skipped",
       "skip-kind": "references",
-      "reason": "Normative References: RFC 3392, RFC 4271, IANA Address Family Numbers, RFC 2119, RFC 2434, RFC 4020."
+      "reason": "Normative References: RFC 3392, RFC 4271, IANA Address Family Numbers, RFC 2119, RFC 2434, RFC 4020. The section also absorbs the Authors' Addresses block, the Full Copyright Statement and the Intellectual Property notice, none of which binds a speaker."
     }
   ],
   "sites": [
@@ -180,7 +180,7 @@
       "quote": "If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute.",
       "disposition": "mapped",
       "mapped-to": "RFC4760-7-1",
-      "reason": "The per-AFI/SAFI route deletion on an incorrect MP_REACH_NLRI or MP_UNREACH_NLRI. Captured verbatim as RFC4760-7-1 at [MUST]. The row carried a {not-applicable} annotation claiming RFC 7606 superseded the behavior; the owner voided it on 2026-08-31 and the row is now gated and proven. RFC 7606 Section 3 clause (j) keeps the RFC 4760 procedures in force when the MP attribute cannot be parsed, and ze follows session reset, which drops every route from that neighbor."
+      "reason": "The per-AFI/SAFI route deletion on an incorrect MP_REACH_NLRI or MP_UNREACH_NLRI. Captured verbatim as RFC4760-7-1 at [MUST]. The row carried a {not-applicable} annotation claiming RFC 7606 superseded the behavior; the owner voided it on 2026-08-31 and the row is now gated and proven. RFC 7606 UPDATES this handling: its Section 2 names the RFC 4760 Section 7 behavior 'AFI/SAFI disable', and its Section 3 clause (j) and Section 7.11 require either that approach or 'session reset' when the MP attribute cannot be parsed. Ze follows session reset, which drops every route from that neighbor, so the obligation is met by a stronger action the updating RFC authorizes rather than by a distinct per-AFI/SAFI delete."
     },
     {
       "id": "8:1",

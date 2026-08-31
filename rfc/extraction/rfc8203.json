@@ -63,7 +63,7 @@
       "id": "6",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Security Considerations. Carries one capitalised site, the REQUIRED UTF-8 \"Shortest Form\" encoding, mapped below to RFC8203-6-1. This is the ONLY place RFC 8203 states shortest form; its section 2 does not, which is a real difference from RFC 9003, where the same sentence appears in both sections. The rest is risk narration: the Unicode issues of UTR36, the syslog-injection risk the 128-octet limit is said to limit, forgery and snooping without an integrity or confidentiality transport, and the RFC 6973 data-minimization advice. Each is stated as advice to implementers and operators, with no keyword."
+      "reason": "Security Considerations. Carries one capitalised site, the REQUIRED UTF-8 \"Shortest Form\" encoding, mapped below to RFC8203-6-1. This is the ONLY place RFC 8203 states shortest form; its section 2 does not, which is a real difference from RFC 9003, where the same sentence appears in both sections. The rest is risk narration: the Unicode issues of UTR36, the syslog-injection risk the 128-octet limit is said to limit, forgery and snooping without an integrity or confidentiality transport, and the RFC 6973 section 6.1 data-minimization advice. Each is stated as advice to implementers and operators, with no keyword."
     },
     {
       "id": "7",
@@ -93,14 +93,14 @@
       "quote": "Subcode: the Error Subcode value MUST be one of the following values: 2 (\"Administrative Shutdown\") or 4 (\"Administrative Reset\").",
       "disposition": "mapped",
       "mapped-to": "RFC8203-2-1",
-      "reason": "The sender's subcode constraint, captured verbatim as RFC8203-2-1 at [MUST]. Ze's receiver enforces the same pair from the other side: Notification.ShutdownMessage returns an empty string for any Cease subcode other than NotifyCeaseAdminShutdown or NotifyCeaseAdminReset (internal/component/bgp/message/notification.go)."
+      "reason": "The sender's subcode constraint, captured verbatim as RFC8203-2-1 at [MUST]. Ze's send path attaches shutdown data only for those two subcodes ((*Session).teardown, internal/component/bgp/reactor/session_connection.go), and its receiver enforces the same pair from the other side: Notification.ShutdownMessage returns an empty string for any Cease subcode other than NotifyCeaseAdminShutdown or NotifyCeaseAdminReset (internal/component/bgp/message/notification.go)."
     },
     {
       "id": "2:2",
       "quote": "The length value MUST range from 0 to 128 inclusive.",
       "disposition": "mapped",
       "mapped-to": "RFC8203-2-2",
-      "reason": "The 0-to-128 length bound, captured verbatim as RFC8203-2-2 at [MUST]. This is the sentence RFC 9003 DELETES, so the obligation is owned by RFC 8203 alone and has no RFC 9003 counterpart at MUST level. Ze's sender holds it: MaxShutdownMessageLen is 128 and BuildShutdownData truncates a longer message back to a UTF-8 character boundary (notification.go)."
+      "reason": "The 0-to-128 length bound, captured verbatim as RFC8203-2-2 at [MUST]. This is the sentence RFC 9003 DELETES, so the obligation is owned by RFC 8203 alone and has no RFC 9003 counterpart at MUST level. Ze's sender holds it: MaxShutdownMessageLen is 128 and BuildShutdownData truncates a longer message back to a UTF-8 character boundary (notification.go). The summary row carries a {single-polarity: positive} annotation, because RFC 9003 raises the maximum to 255 and Ze's receiver deliberately accepts a 129 to 255 length, so there is no over-128 rejection on receive to assert."
     },
     {
       "id": "2:3",
@@ -121,7 +121,7 @@
       "quote": "UTF-8 \"Shortest Form\" encoding is REQUIRED to guard against the technical issues outlined in [UTR36].",
       "disposition": "mapped",
       "mapped-to": "RFC8203-6-1",
-      "reason": "The REQUIRED UTF-8 \"Shortest Form\" encoding, captured verbatim as RFC8203-6-1 at [MUST] and read from section 6, which is the only section of RFC 8203 that states it."
+      "reason": "The REQUIRED UTF-8 \"Shortest Form\" encoding. REQUIRED is an RFC 2119 MUST-level keyword, so the sentence states an obligation rather than a security note. Captured verbatim as RFC8203-6-1 at [MUST] and read from section 6, which is the only section of RFC 8203 that states it."
     }
   ],
   "register-reason": "Standards Track, with the BCP 14 key-words paragraph at section 1.1 and capitalised MUST-level keywords in sections 2 and 6. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."

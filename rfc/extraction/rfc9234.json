@@ -18,7 +18,7 @@
       "id": "1",
       "sites": 0,
       "disposition": "walked",
-      "reason": "Introduction. Indicative prose: what a route leak is, why configuration-based prevention is unchecked, and what this document adds. Its one modal, \"An eBGP speaker may require the use of this capability and confirmation of the BGP Role with a neighbor for the BGP OPEN to succeed\", is lowercase, so under this document's own section 2 it carries no RFC 2119 level; it previews the strict mode that section 4.2 states and that rfc/short/rfc9234.md carries as RFC9234-4.2-5."
+      "reason": "Introduction. Indicative prose: what a route leak is, with RFC 7908 named for the taxonomy, why configuration-based prevention is unchecked, and what this document adds. Its one modal, \"An eBGP speaker may require the use of this capability and confirmation of the BGP Role with a neighbor for the BGP OPEN to succeed\", is lowercase, so under this document's own section 2 it carries no RFC 2119 level; it previews the strict mode that section 4.2 states and that rfc/short/rfc9234.md carries as RFC9234-4.2-5."
     },
     {
       "id": "2",
@@ -130,7 +130,7 @@
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
       "mapped-to": "RFC9234-3.1-1",
-      "reason": "The same sentence closing the RS-Client bullet. It restates for the RS-Client Role the prohibition RFC9234-3.1-1 already carries for all three Roles, and site 3.1:1 maps that id."
+      "reason": "The same sentence closing the RS-Client bullet. It restates for the RS-Client Role the prohibition RFC9234-3.1-1 already carries for all three Roles, and site 3.1:1 maps that id. OTCEgressFilter (internal/component/bgp/plugins/role/otc.go) enforces all three in one expression: a destination resolving to Provider, Peer or RS is refused a route whose source resolves to Customer, Peer or RS-Client."
     },
     {
       "id": "3.1:3",
