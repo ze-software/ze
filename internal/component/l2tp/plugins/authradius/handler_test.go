@@ -399,6 +399,13 @@ func TestRADIUSHandledSentinel(t *testing.T) {
 	}
 }
 
+// TestRADIUSAuthNASIPAddress drives the subscriber auth handler against a real
+// UDP socket and reads back the packet ze put on the wire.
+//
+// RFC requirement: RFC2865-4.1-1 positive -- the packet ze transmits to
+// authenticate a subscriber carries 1 (Access-Request) in its Code field.
+// RFC requirement: RFC2865-4.1-2 positive -- that same packet carries a
+// NAS-IP-Address attribute holding the configured source address.
 func TestRADIUSAuthNASIPAddress(t *testing.T) {
 	sharedKey := []byte("testing123")
 	var capturedReq []byte
@@ -474,6 +481,10 @@ func TestRADIUSAuthNASIPAddress(t *testing.T) {
 	pkt, err := radius.Decode(raw)
 	if err != nil {
 		t.Fatalf("decode captured request: %v", err)
+	}
+
+	if pkt.Code != radius.CodeAccessRequest {
+		t.Errorf("Code field: got %d, want %d (Access-Request)", pkt.Code, radius.CodeAccessRequest)
 	}
 
 	nasIP := pkt.FindAttr(radius.AttrNASIPAddress)

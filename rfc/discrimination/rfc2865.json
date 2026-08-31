@@ -1,0 +1,82 @@
+{
+  "rfc": "rfc2865",
+  "records": [
+    {
+      "rid": "RFC2865-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/handler_test.go::TestRADIUSAuthNASIPAddress",
+      "unit-sha": "f4686491f7ce9574",
+      "claim-sha": "f6770f90a03fc65d",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::EncodeTo",
+      "producer-sha": "f3ae6f2f965f618e",
+      "break": "body of EncodeTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccountingRequestDoesNotCarryTheAccessRequestCode",
+      "unit-sha": "151d58fa6540afe7",
+      "claim-sha": "007bc18e48854af5",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket",
+      "producer-sha": "4ee8347e2766fe79",
+      "break": "body of buildAcctPacket replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-4.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/handler_test.go::TestRADIUSAuthNASIPAddress",
+      "unit-sha": "f4686491f7ce9574",
+      "claim-sha": "d2bbc0b284bfaa12",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/nasidentity.go::appendNASIdentity",
+      "producer-sha": "77d7d14f888ed5aa",
+      "break": "body of appendNASIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-4.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured",
+      "unit-sha": "107b30505ab1fa30",
+      "claim-sha": "3107bfb063909c90",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/nasidentity.go::appendNASIdentity",
+      "producer-sha": "77d7d14f888ed5aa",
+      "break": "body of appendNASIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-5-1",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go::TestRFC2865AccessRequestOmitsAnUnavailableUserName",
+      "unit-sha": "2b5bbf618f9c89c7",
+      "claim-sha": "032699ecf371fdd9",
+      "route": "revert",
+      "producer": "internal/component/radius/attr.go::AppendTextAttr",
+      "producer-sha": "306d8e7a038b2034",
+      "break": "body of AppendTextAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-5-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go::TestRFC2865AccessAcceptExtractionIsOrderIndependent",
+      "unit-sha": "0e02a7de196da28d",
+      "claim-sha": "0f86550cac876c9f",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::FindAttr",
+      "producer-sha": "946ecabc18ddd68d",
+      "break": "body of FindAttr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2865-5-4",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go::TestRFC2865AttributeOrderIsObservableByPosition",
+      "unit-sha": "24c60fb588b26400",
+      "claim-sha": "476eb37a19b8c2ba",
+      "route": "revert",
+      "producer": "internal/component/radius/packet.go::Decode",
+      "producer-sha": "1cfcbbae411360f3",
+      "break": "body of Decode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
