@@ -423,7 +423,14 @@ func writeArtifactAt(t *testing.T, root, path string, files ...string) {
 	}
 }
 
-func TestClosureStemUsesOnlyNewJournalEvidence(t *testing.T) {
+// TestClosureStemReadsRemovalsAndNotJournalRows pins the one signal. A removed
+// spec file is the closure. A journal row names the spec a defect was found
+// under and says nothing about whether that spec is closing, so a row NEVER
+// contributes a stem -- not a fresh one, not one naming the session's own
+// claimed spec. The middle case is the one that used to fire: CLAUDE.md
+// requires a row for every defect walked into, so the ordinary in-progress
+// commit carries one.
+func TestClosureStemReadsRemovalsAndNotJournalRows(t *testing.T) {
 	root := newCommitRepository(t)
 	journalPath := "plan/journal/native.md"
 	header := "| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"
@@ -436,11 +443,30 @@ func TestClosureStemUsesOnlyNewJournalEvidence(t *testing.T) {
 	writeCommitFixture(t, root, journalPath, header+
 		"| 2026-08-01 | old-spec | cli | old | fixed |\n"+
 		"| 2026-08-27 | new-spec | cli | new | fixed |\n")
-	if stem, err := closureStem(root, []string{journalPath}, nil); err != nil || stem != "new-spec" {
-		t.Fatalf("new journal closure = %q, %v", stem, err)
+	if stem, err := closureStem(root, []string{journalPath}, nil); err != nil || stem != "" {
+		t.Fatalf("added journal row closure = %q, %v: a row is evidence about a spec, never its closure", stem, err)
 	}
 	if stem, err := closureStem(root, nil, []string{"plan/spec-removed.md"}); err != nil || stem != "removed" {
 		t.Fatalf("removed spec closure = %q, %v", stem, err)
+	}
+	// The removal still wins when both are present, and it names the removed
+	// spec rather than the one the row happens to mention.
+	if stem, err := closureStem(root, []string{journalPath}, []string{"plan/spec-removed.md"}); err != nil || stem != "removed" {
+		t.Fatalf("removal beside a journal row = %q, %v", stem, err)
+	}
+}
+
+// TestClosureStemStillRefusesAMalformedJournalRow pins what survives the change.
+// Journal paths are read for their SHAPE, so a row that is not five cells
+// refuses the commit while the file is in hand, whether or not any spec closes.
+func TestClosureStemStillRefusesAMalformedJournalRow(t *testing.T) {
+	root := newCommitRepository(t)
+	journalPath := "plan/journal/native.md"
+	writeCommitFixture(t, root, journalPath,
+		"| Date | Spec | Surface | Symptom | Fix |\n|------|------|---------|---------|-----|\n"+
+			"| 2026-08-27 | some-spec | cli | missing two cells |\n")
+	if _, err := closureStem(root, []string{journalPath}, nil); err == nil {
+		t.Fatal("closureStem accepted a malformed journal row; the shape check must outlive the closure inference")
 	}
 }
 

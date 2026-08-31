@@ -69,12 +69,24 @@ closure candidate.
 | Stop-hook block | `hookStop` (the `block-premature-stop` action) | The session's claimed spec. It calls `specstatus.CheckClosure`, and refuses the stop when the report is blocked |
 | Review artifact | `CheckReview` at `./le commit create` | The one spec this commit closes, which `closureStem` answers |
 
-`closureStem` reads a REMOVED `plan/spec-*.md` as the closure. A spec removed
-from `plan/` and added under `plan/future/` in the same commit is a RELOCATION,
-not a closure, and `relocatedSpecs` excludes it. A journal row is read only when
-the commit removes no spec at all, and only when every added row agrees on one
-stem: five sessions share this checkout, so a class file carries rows nobody in
-this commit wrote. One commit closes one spec, and `oneStem` refuses a second.
+`closureStem` reads a REMOVED `plan/spec-*.md` as the closure, and that removal
+is the ONLY signal. A spec removed from `plan/` and added under `plan/future/`
+in the same commit is a RELOCATION, not a closure, and `relocatedSpecs` excludes
+it. One commit closes one spec, and `oneStem` refuses a second.
+
+A journal row NEVER makes a commit a closure. A row names the spec a defect was
+found under and says nothing about whether that spec is closing, and CLAUDE.md
+requires a row for every defect walked into, so the ordinary `in-progress`
+commit carries one. Reading rows as closures charged those commits with a review
+artifact their spec could not yet produce, and charged a session with other
+sessions' specs where a class file is shared. Journal paths are still read for
+their SHAPE: a row that is not five cells refuses the commit.
+
+What this gives up: commit A of the two-commit closure below lands its code
+before the artifact is read, because nothing in its content distinguishes it
+from an ordinary `in-progress` commit. There is no closed status in the
+vocabulary above, since closure IS the removal. Commit B carries that removal,
+so no spec closes without a clean independent review.
 
 The review gate then requires a CLEAN `./le spec session review record` artifact
 that covers every reviewable file in the commit and whose hashes still match, so

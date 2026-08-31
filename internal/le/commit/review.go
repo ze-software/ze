@@ -64,19 +64,54 @@ func relocatedSpecs(paths []string) map[string]bool {
 
 // closureStem answers the one spec this commit closes, or the empty string.
 //
-// A REMOVED spec file is the closure. A journal row is evidence about it, and
-// it decides nothing on its own: five sessions share this checkout, so a class
-// file under plan/journal/ carries rows nobody in this commit wrote, and the
-// commit stages the file whole. Reading those rows as closures charged a
-// session with other people's specs, and several of them refused the commit
-// outright. Nothing could clear that: the rows land only by committing the
-// file, and the file could not be committed. A shared log that no session may
-// commit is a log that loses work.
+// A REMOVED spec file is the closure, and it is the only signal. Removals still
+// refuse a second one: one commit closes one spec.
 //
-// So a row is read only when the commit removes NO spec, which is the case the
-// single-session evidence was written for, and only when the rows agree on one
-// stem. Removals still refuse a second closure: one commit closes one spec.
+// A journal row is evidence ABOUT a spec and never says the spec is closing.
+// Reading a row as a closure fired outside its own population for a year, in
+// two shapes with the same cost. A class file under plan/journal/ is shared, so
+// it carries rows nobody in this commit wrote and the commit stages it whole:
+// that charged a session with other people's specs, and the rows could land
+// only by committing the file the charge refused. Six rows in
+// plan/journal/gate-fires-outside-its-population.md record it and three
+// overrides were spent on it. Commit 80c0133c1 filtered a FOREIGN session's row
+// and named the second shape as still open, because attribution cannot reach
+// it: a session's own row naming its own claimed spec reads as a closure in the
+// middle of the spec, when CLAUDE.md requires a row for every defect walked
+// into. That is the ordinary commit, not the rare one.
+//
+// Status cannot separate the two. There is no closed status: the vocabulary in
+// docs/contributing/spec-workflow.md ends at in-progress and verification, and
+// closure IS the removal. So commit A of a two-commit closure (code plus spec,
+// ai/rules/planning.md "Spec Closure") is byte-for-byte an ordinary in-progress
+// commit, and no content signal tells them apart.
+//
+// What this gives up is real and bounded: commit A now lands its code before
+// the review artifact is read. Commit B cannot, so no spec closes without a
+// clean independent review. Trading a gate that misfires on the common case for
+// one that fires on the exact case is the whole of the change (Thomas,
+// 2026-08-31).
+//
+// Journal paths are still READ, for their shape alone. A malformed row refuses
+// the commit here, where the file is in hand.
 func closureStem(root string, paths, removed []string) (string, error) {
+	journalPaths := make([]string, 0)
+	for _, path := range paths {
+		if strings.HasPrefix(path, "plan/journal/") &&
+			strings.HasSuffix(path, ".md") && filepath.Base(path) != "README.md" {
+			journalPaths = append(journalPaths, path)
+		}
+	}
+	if len(journalPaths) != 0 {
+		_, malformed, err := journal.AddedSpecEvidence(root, journalPaths)
+		if err != nil {
+			return "", fmt.Errorf("read added journal evidence: %w", err)
+		}
+		if len(malformed) != 0 {
+			return "", fmt.Errorf("journal has malformed row(s): %s", strings.Join(malformed, ", "))
+		}
+	}
+
 	moved := relocatedSpecs(paths)
 	stems := make(map[string]bool)
 	for _, path := range removed {
@@ -90,34 +125,8 @@ func closureStem(root string, paths, removed []string) (string, error) {
 	if len(stems) != 0 {
 		return oneStem(stems)
 	}
-
-	journalPaths := make([]string, 0)
-	for _, path := range paths {
-		if strings.HasPrefix(path, "plan/journal/") &&
-			strings.HasSuffix(path, ".md") && filepath.Base(path) != "README.md" {
-			journalPaths = append(journalPaths, path)
-		}
-	}
-	if len(journalPaths) != 0 {
-		found, malformed, err := journal.AddedSpecEvidence(root, journalPaths)
-		if err != nil {
-			return "", fmt.Errorf("read added journal evidence: %w", err)
-		}
-		if len(malformed) != 0 {
-			return "", fmt.Errorf("journal has malformed row(s): %s", strings.Join(malformed, ", "))
-		}
-		for _, stem := range found {
-			stems[stem] = true
-		}
-	}
-	if len(stems) != 1 {
-		// Rows from several specs, and no spec removed. This commit closes
-		// nothing, so it owes no review artifact, and the rows ride along.
-		return "", nil
-	}
-	for stem := range stems {
-		return stem, nil
-	}
+	// No spec removed: this commit closes nothing, so it owes no review
+	// artifact, and any journal rows it carries ride along.
 	return "", nil
 }
 
