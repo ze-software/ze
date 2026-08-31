@@ -58,3 +58,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-08-31 | 5fed2ed5 | plan(rfc): record what the four walks found and what each needs | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | 5fed2ed5 | feat(rfc): enrol RFC 4302 and 5282, and stop proposing AEAD integrity | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | 5fed2ed5 | feat(rfc): enrol RFC 4302 and 5282, and stop proposing AEAD integrity | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-08-31 | 5fed2ed5 | feat(rfc): enrol RFC 5082 and RFC 5798, and prove the GTSM three | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-31 | 5fed2ed5 | feat(rfc): enrol RFC 5082 and RFC 5798, and prove the GTSM three | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

@@ -1,0 +1,71 @@
+{
+  "rfc": "rfc5082",
+  "records": [
+    {
+      "rid": "RFC5082-3-1",
+      "polarity": "positive",
+      "unit": "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMDialerSetsOutgoingTTLTo255",
+      "unit-sha": "2d6ec157178e6d41",
+      "claim-sha": "52d91c831707ddb8",
+      "route": "revert",
+      "producer": "internal/core/network/ttl_linux.go::setIPTTL",
+      "producer-sha": "46e81fbdb8c0773f",
+      "break": "body of setIPTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-1",
+      "polarity": "negative",
+      "unit": "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMDialerWithoutOutTTLLeavesTheDefault",
+      "unit-sha": "d5c7f6b7b76305e1",
+      "claim-sha": "f78f5d3778f5bd9e",
+      "route": "revert",
+      "producer": "internal/core/network/network.go::DialContext",
+      "producer-sha": "f4d5539ec1520bbf",
+      "break": "body of DialContext replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-3",
+      "polarity": "positive",
+      "unit": "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLArrivesUndecremented",
+      "unit-sha": "09f0bd8792709a14",
+      "claim-sha": "13fb1bfac396ec77",
+      "route": "revert",
+      "producer": "internal/core/network/ttl_linux.go::setIPTTL",
+      "producer-sha": "46e81fbdb8c0773f",
+      "break": "body of setIPTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-3",
+      "polarity": "negative",
+      "unit": "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMTransmittedTTLReportsTheValueSet",
+      "unit-sha": "f979897950d14eae",
+      "claim-sha": "76c5b95836b902f8",
+      "route": "revert",
+      "producer": "internal/core/network/ttl_linux.go::setIPTTL",
+      "producer-sha": "46e81fbdb8c0773f",
+      "break": "body of setIPTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-4",
+      "polarity": "positive",
+      "unit": "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMFloorDeliversATrustedPacket",
+      "unit-sha": "902369bf8e5f7fcc",
+      "claim-sha": "042102514bd25eb8",
+      "route": "revert",
+      "producer": "internal/core/network/ttl_linux.go::setIPMinTTL",
+      "producer-sha": "eb0c54d8b4ca66c2",
+      "break": "body of setIPMinTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5082-3-4",
+      "polarity": "negative",
+      "unit": "internal/core/network/ttl_gtsm_linux_test.go::TestGTSMNoFloorDeliversAnUnknownPacket",
+      "unit-sha": "3189dd934626d8d9",
+      "claim-sha": "8b8a2d5f9a4cea3c",
+      "route": "revert",
+      "producer": "internal/core/network/ttl_linux.go::setIPMinTTL",
+      "producer-sha": "eb0c54d8b4ca66c2",
+      "break": "body of setIPMinTTL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

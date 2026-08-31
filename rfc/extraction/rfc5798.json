@@ -1,0 +1,840 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5798",
+  "register": "prose",
+  "source-path": "rfc/full/rfc5798.txt",
+  "source-sha": "e28505fbe523b3a8",
+  "signed-off": "2026-09-01",
+  "reviewer": "claude-opus-5 (rfcgate-6 phase, rfc5798 walk)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 2,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, abstract, status of this memo, copyright notice and table of contents. No obligation is stated before Section 1."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.9",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4.2",
+      "sites": 6,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5798-6.4.2-6",
+        "RFC5798-6.4.2-7",
+        "RFC5798-6.4.2-8",
+        "RFC5798-6.4.2-9",
+        "RFC5798-6.4.2-10"
+      ]
+    },
+    {
+      "id": "6.4.3",
+      "sites": 9,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5798-6.4.3-8",
+        "RFC5798-6.4.3-9",
+        "RFC5798-6.4.3-10",
+        "RFC5798-6.4.3-11",
+        "RFC5798-6.4.3-12"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5798-7.2-2",
+        "RFC5798-7.2-3",
+        "RFC5798-7.2-4"
+      ]
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.2",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Section 10, Contributors and Acknowledgments. It names the people who wrote the merged source documents."
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Section 11, IANA Considerations. It records the IPv4 and IPv6 multicast assignments and the protocol number already made for VRRP, and binds IANA rather than a speaker."
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Section 12, References, its heading only."
+    },
+    {
+      "id": "12.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative reference list."
+    },
+    {
+      "id": "12.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative reference list."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.3",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The sentence is the IETF Trust Legal Provisions boilerplate that opens every RFC. It binds a party redistributing the document text, states no protocol behaviour, and the extractor did not strip it."
+    },
+    {
+      "id": "front:2",
+      "quote": "Required Features ...............................................8 2.1.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The site is a Table of Contents line, \"Required Features ... 8 2.1.\", captured by the prose scan because the heading it names contains the word Required. A contents line states nothing."
+    },
+    {
+      "id": "2:1",
+      "quote": "Required Features",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The site is the section heading \"Required Features\" itself, matched on the word Required. A heading states no obligation; every feature it introduces is stated in Sections 2.1 to 2.5 and, normatively, in Sections 5 to 8."
+    },
+    {
+      "id": "3:1",
+      "quote": "The mapping between the VRID and its IPvX address(es) must be coordinated among all VRRP routers on a LAN.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 3 is the protocol overview and the sentence states a deployment precondition, that an operator gives every VRRP router on the LAN the same VRID-to-address mapping. It is not a behaviour a speaker performs on a packet: no VRRP message carries or negotiates the mapping, and ze reads its own VRID and virtual addresses from operator configuration (applyGroupLeaves, internal/plugins/vrrp/groups.go, reading the vrid and virtual-address leaves of ze-vrrp-conf.yang). No normative section of RFC 5798 restates it."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "In order to back up IPvX B, a second virtual router must be configured.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 4.1 is a worked sample configuration. The sentence describes what that example needs, \"In order to back up IPvX B, a second virtual router must be configured\", and states no obligation on an implementation."
+    },
+    {
+      "id": "5.1.1.2:1",
+      "quote": "Routers MUST NOT forward a datagram with this destination address, regardless of its TTL.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.1.1.2-1"
+    },
+    {
+      "id": "5.1.1.3:1",
+      "quote": "The TTL MUST be set to 255.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.1.1.3-1"
+    },
+    {
+      "id": "5.1.1.3:2",
+      "quote": "A VRRP router receiving a packet with the TTL not equal to 255 MUST discard the packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.1.1.3-2"
+    },
+    {
+      "id": "5.1.2.2:1",
+      "quote": "Routers MUST NOT forward a datagram with this destination address, regardless of its Hop Limit.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.1.2.2-1"
+    },
+    {
+      "id": "5.1.2.3:1",
+      "quote": "The Hop Limit MUST be set to 255.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.1.2.3-1"
+    },
+    {
+      "id": "5.1.2.3:2",
+      "quote": "A VRRP router receiving a packet with the Hop Limit not equal to 255 MUST discard the packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.1.2.3-2"
+    },
+    {
+      "id": "5.2.2:1",
+      "quote": "A packet with unknown type MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.2.2-1"
+    },
+    {
+      "id": "5.2.4:1",
+      "quote": "The priority value for the VRRP router that owns the IPvX address associated with the virtual router MUST be 255 (decimal).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.2.4-1"
+    },
+    {
+      "id": "5.2.4:2",
+      "quote": "VRRP routers backing up a virtual router MUST use priority values between 1-254 (decimal).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.2.4-2"
+    },
+    {
+      "id": "5.2.6:1",
+      "quote": "This field MUST be set to zero on transmission and ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.2.6-1"
+    },
+    {
+      "id": "5.2.9:1",
+      "quote": "For IPv6, the first address must be the IPv6 link-local address associated with the virtual router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.2.9-1"
+    },
+    {
+      "id": "5.2.9:2",
+      "quote": "This field contains either one or more IPv4 addresses, or one or more IPv6 addresses, that is, IPv4 and IPv6 MUST NOT both be carried in one IPvX Address field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.2.9-2"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "The first address must be the Link-Local address associated with the virtual router.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The IPv6_Addresses parameter description restates the address-ordering rule of Section 5.2.9, which site 5.2.9:1 maps.",
+      "mapped-to": "RFC5798-5.2.9-1"
+    },
+    {
+      "id": "6.1:2",
+      "quote": "Note: IPv6 Neighbor Solicitations and Neighbor Advertisements MUST NOT be dropped when Accept_Mode is False.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.1-1"
+    },
+    {
+      "id": "6.4.2:1",
+      "quote": "(300) While in this state, a VRRP router MUST do the following:",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The sentence is the head of the Backup state list, \"(300) While in this state, a VRRP router MUST do the following:\". It states no behaviour of its own: it sets the obligation level for the bullets under it, each of which repeats MUST or MUST NOT and is a site of its own at 6.4.2:2 to 6.4.2:6. The steps it also binds that carry no keyword, (345) to (475), are declared in this section unsourced-ids.",
+      "mapped-to": "RFC5798-6.4.2-1"
+    },
+    {
+      "id": "6.4.2:2",
+      "quote": "(310) + MUST NOT respond to ARP requests for the IPv4 address(es) associated with the virtual router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.2-1"
+    },
+    {
+      "id": "6.4.2:3",
+      "quote": "(320) + MUST NOT respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.2-2"
+    },
+    {
+      "id": "6.4.2:4",
+      "quote": "(325) + MUST NOT send ND Router Advertisement messages for the virtual router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.2-3"
+    },
+    {
+      "id": "6.4.2:5",
+      "quote": "(335) - MUST discard packets with a destination link-layer MAC address equal to the virtual router MAC address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.2-4"
+    },
+    {
+      "id": "6.4.2:6",
+      "quote": "(340) - MUST NOT accept packets addressed to the IPvX address(es) associated with the virtual router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.2-5"
+    },
+    {
+      "id": "6.4.3:1",
+      "quote": "(600) While in this state, a VRRP router MUST do the following:",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The sentence is the head of the Master state list, \"(600) While in this state, a VRRP router MUST do the following:\", and states no behaviour of its own, exactly as 6.4.2:1 does for Backup. Its keyworded bullets are sites 6.4.3:2 to 6.4.3:9, and the steps it binds that carry no keyword, (655) to (780), are declared in this section unsourced-ids.",
+      "mapped-to": "RFC5798-6.4.3-1"
+    },
+    {
+      "id": "6.4.3:2",
+      "quote": "(610) + MUST respond to ARP requests for the IPv4 address(es) associated with the virtual router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.3-1"
+    },
+    {
+      "id": "6.4.3:3",
+      "quote": "(620) + MUST be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.3-2"
+    },
+    {
+      "id": "6.4.3:4",
+      "quote": "(625) + MUST respond to ND Neighbor Solicitation message for the IPv6 address(es) associated with the virtual router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.3-3"
+    },
+    {
+      "id": "6.4.3:5",
+      "quote": "(630) ++ MUST send ND Router Advertisements for the virtual router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.3-4"
+    },
+    {
+      "id": "6.4.3:6",
+      "quote": "(635) ++ If Accept_Mode is False: MUST NOT drop IPv6 Neighbor Solicitations and Neighbor Advertisements.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Step (635) restates the Accept_Mode note of Section 6.1, which site 6.1:2 maps.",
+      "mapped-to": "RFC5798-6.1-1"
+    },
+    {
+      "id": "6.4.3:7",
+      "quote": "(645) - MUST forward packets with a destination link-layer MAC address equal to the virtual router MAC address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.3-5"
+    },
+    {
+      "id": "6.4.3:8",
+      "quote": "(650) - MUST accept packets addressed to the IPvX address(es) associated with the virtual router if it is the IPvX address owner or if Accept_Mode is True.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.3-6"
+    },
+    {
+      "id": "6.4.3:9",
+      "quote": "Otherwise, MUST NOT accept these packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-6.4.3-7"
+    },
+    {
+      "id": "7.1:1",
+      "quote": "+ MUST verify that the IPv4 TTL is 255.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.1.1.3-2"
+    },
+    {
+      "id": "7.1:2",
+      "quote": "+ MUST verify that the IPv6 Hop Limit is 255. -endif",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.1.2.3-2"
+    },
+    {
+      "id": "7.1:3",
+      "quote": "- MUST verify that the VRRP version is 3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-7.1-1"
+    },
+    {
+      "id": "7.1:4",
+      "quote": "- MUST verify that the received packet contains the complete VRRP packet (including fixed fields, and IPvX address).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-7.1-2"
+    },
+    {
+      "id": "7.1:5",
+      "quote": "- MUST verify the VRRP checksum.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-5.2.8-1"
+    },
+    {
+      "id": "7.1:6",
+      "quote": "- MUST verify that the VRID is configured on the receiving interface and the local router is not the IPvX address owner (Priority = 255 (decimal)).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-7.1-3"
+    },
+    {
+      "id": "7.1:7",
+      "quote": "If any one of the above checks fails, the receiver MUST discard the packet, SHOULD log the event, and MAY indicate via network management that an error occurred.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-7.1-4"
+    },
+    {
+      "id": "7.2:1",
+      "quote": "The following operations MUST be performed when transmitting a VRRP packet:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-7.2-1"
+    },
+    {
+      "id": "7.4:1",
+      "quote": "IPv6 routers running VRRP MUST create their Interface Identifiers in the normal manner (e.g., \"Transmission of IPv6 Packets over Ethernet Networks\" [RFC2464]).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-7.4-1"
+    },
+    {
+      "id": "7.4:2",
+      "quote": "They MUST NOT use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-7.4-2"
+    },
+    {
+      "id": "8.1.1:1",
+      "quote": "If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.1.1-1"
+    },
+    {
+      "id": "8.1.2:1",
+      "quote": "When a host sends an ARP request for one of the virtual router IPv4 addresses, the Virtual Router Master MUST respond to the ARP request with an ARP response that indicates the virtual MAC address for the virtual router.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 8.1.2 restates the Master ARP obligation of Section 6.4.3 step (610), which site 6.4.3:2 maps. The half that is NEW here, the prohibition on answering with the physical MAC, is the separate site 8.1.2:2.",
+      "mapped-to": "RFC5798-6.4.3-1"
+    },
+    {
+      "id": "8.1.2:2",
+      "quote": "The Virtual Router Master MUST NOT respond with its physical MAC address in the ARP response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.1.2-1"
+    },
+    {
+      "id": "8.1.2:3",
+      "quote": "o At system boot, when initializing interfaces for VRRP operation, delay gratuitous ARP requests and ARP responses until both the IPv4 address and the virtual router MAC address are configured. o When, for example, ssh access to a particular VRRP router is required, an IP address known to belong to that router must be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.1.2-4"
+    },
+    {
+      "id": "8.1.3:1",
+      "quote": "If Proxy ARP is to be used on a VRRP router, then the VRRP router must advertise the virtual router MAC address in the Proxy ARP message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.1.3-1"
+    },
+    {
+      "id": "8.2.1:1",
+      "quote": "If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.2.1-1"
+    },
+    {
+      "id": "8.2.2:1",
+      "quote": "When a host sends an ND Neighbor Solicitation message for the virtual router IPv6 address, the Virtual Router Master MUST respond to the ND Neighbor Solicitation message with the virtual MAC address for the virtual router.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 8.2.2 restates the Master Neighbor Solicitation obligation of Section 6.4.3 step (625), which site 6.4.3:4 maps. The half that is NEW here, the prohibition on answering with the physical MAC, is the separate site 8.2.2:2.",
+      "mapped-to": "RFC5798-6.4.3-3"
+    },
+    {
+      "id": "8.2.2:2",
+      "quote": "The Virtual Router Master MUST NOT respond with its physical MAC address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.2.2-1"
+    },
+    {
+      "id": "8.2.2:3",
+      "quote": "When a Virtual Router Master sends an ND Neighbor Solicitation message for a host's IPv6 address, the Virtual Router Master MUST include the virtual MAC address for the virtual router if it sends a source link-layer address option in the neighbor solicitation message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.2.2-2"
+    },
+    {
+      "id": "8.2.2:4",
+      "quote": "It MUST NOT use its physical MAC address in the source link-layer address option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.2.2-3"
+    },
+    {
+      "id": "8.2.2:5",
+      "quote": "o At system boot, when initializing interfaces for VRRP operation, all ND Router and Neighbor Advertisements and Solicitation messages must be delayed until both the IPv6 address and the virtual router MAC address are configured.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.2.2-4"
+    },
+    {
+      "id": "8.2.3:1",
+      "quote": "The Backup routers must be configured to send the same Router Advertisement options as the address owner.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.2.3-1"
+    },
+    {
+      "id": "8.3.2:1",
+      "quote": "Care must be taken not to configure more than one router on the link in this way for a single VRID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.3.2-1"
+    },
+    {
+      "id": "8.4.2:1",
+      "quote": "When a virtual router is configured this way and is the Master, it MUST send both types at the configured rate, even if sub-second.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.4.2-1"
+    },
+    {
+      "id": "8.4.2:2",
+      "quote": "When a virtual router is configured this way and is the Backup, it should time out based on the rate advertised by the Master; in the case of a VRRPv2 Master, this means it must translate the timeout value it receives (in seconds) into centiseconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-8.4.2-3"
+    },
+    {
+      "id": "9:1",
+      "quote": "Confidentiality is not necessary for the correct operation of VRRP, and there is no information in the VRRP messages that must be kept secret from other nodes on the LAN.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 9 states that VRRP needs no confidentiality: \"there is no information in the VRRP messages that must be kept secret from other nodes on the LAN\". The word sits inside a negative existential describing the absence of a need, not an obligation on a speaker."
+    },
+    {
+      "id": "A.2:1",
+      "quote": "o In order to switch to a new Master located on a different bridge Token-Ring segment from the previous Master when using source- route bridges, a mechanism is required to update cached source- route information.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The bullet explains why VRRP over Token Ring is difficult, that source-route bridges need cached source-route information updated when the Master moves. It describes a property of that medium and states no obligation on a VRRP implementation; the one Token Ring obligation is site A.2:2."
+    },
+    {
+      "id": "A.2:2",
+      "quote": "The functional-address mode of operation MUST be implemented by routers supporting VRRP on Token Ring.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5798-A.2-1"
+    }
+  ]
+}

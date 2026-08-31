@@ -1,0 +1,207 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5082",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5082.txt",
+  "source-sha": "b863c08d35ee141c",
+  "signed-off": "2026-09-01",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase, rfc5082",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Abstract and Table of Contents. The Abstract says the document generalizes the use of a packet's TTL or Hop Limit to verify that the packet came from an adjacent node, and that it obsoletes RFC 3682. It directs no implementation."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. States what GTSM protects against, the assumption that most protocol peerings are between adjacent routers, and that GTSM is not a substitute for authentication. It also fixes the term 'TTL' to mean both the IPv4 TTL and the IPv6 Hop Limit, which rfc/short/rfc5082.md carries in its TTL Semantics table. The section closes with the RFC 2119 key-words paragraph, which binds nobody and which the site derivation excludes. No site."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Assumptions Underlying GTSM. Five numbered assumptions, all indicative. Assumption 3, 'Use of GTSM is OPTIONAL, and can be configured on a per-peer (group) basis', is the only one carrying an RFC 2119 keyword; OPTIONAL is advisory, so the derivation raises no MUST-level site for it and the summary records it as RFC5082-2-1. The closing paragraphs state that the document does not prescribe what a router does with non-matching packets and does not choose a resource-separation mechanism.",
+      "unsourced-ids": [
+        "RFC5082-2-1"
+      ]
+    },
+    {
+      "id": "2.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "GTSM Negotiation. One site, 2.1:1, excluded below as feature-out-of-scope: it is conditional on dynamic GTSM negotiation, which this document neither assumes nor defines. The section's other sentences are indicative: that GTSM is manually configured between peers, and that a new protocol designed with built-in GTSM support is recommended to always run the send and validate procedures."
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Assumptions on Attack Sophistication. States the attacker model: control traffic that looks valid, every router on the path decrementing TTL properly, ingress filtering applied before the scarce resource, and four alternative assumptions about tunnels. It closes with the sentence the whole mechanism rests on, that a receiver can set TTL 255 on transmit and reject packets from configured peers whose inbound TTL is not 255. All indicative. No site."
+    },
+    {
+      "id": "3",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "GTSM Procedure. The document's only normative section. Three sites, mapped below to RFC5082-3-1, RFC5082-3-3 and RFC5082-3-4. The sentence that extends the transmit rule to the related ICMP error messages, 'This also applies to the related ICMP error handling messages', carries no RFC 2119 keyword, so the site scan cannot see it; Section 6.1 restates it as 'This specification mandates setting and verifying TTL=255 of those as well as the main protocol packets', and Appendix B lists it as a change since RFC 3682. It is declared unsourced here as RFC5082-3-2. The section's advisory sentences also carry no MUST-level keyword and are the remaining unsourced ids: the SHOULD NOT against enabling GTSM by default when it is added to an existing protocol (RFC5082-3-5), the SHOULD that Dangerous packets not compete for resources with Trusted or Unknown ones (RFC5082-3-6), the MAY to drop Dangerous packets (RFC5082-3-7), and the MAY for a peer to suggest GTSM where the protocol defines a built-in dynamic capability negotiation (RFC5082-3-8). The three trustworthiness categories, Unknown, Trusted and Dangerous, are definitions and rfc/short/rfc5082.md carries them in its TTL Semantics table.",
+      "unsourced-ids": [
+        "RFC5082-3-2",
+        "RFC5082-3-5",
+        "RFC5082-3-6",
+        "RFC5082-3-7",
+        "RFC5082-3-8"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations, opening. States that GTSM protects single-hop protocol sessions except where the peer is compromised, and that it does not protect against on-the-wire attacks. No site."
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "TTL (Hop Limit) Spoofing. Explains why 255 is the value chosen: the TTL is decremented once per router, so a value of 255 cannot be engineered from a location that is not directly connected. Indicative throughout. No site."
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Tunneled Packets. States that a tunnel that is not integrity-protected is the exception to the observation that TTL 255 is hard to spoof, and describes what GTSM still buys over a tunnel. Indicative. No site."
+    },
+    {
+      "id": "5.2.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "IP Tunneled over IP. Two sites, 5.2.1:1 and 5.2.1:2, both excluded below as cross-document: each is a block quotation of another RFC's decapsulator rule, RFC 2003 and RFC 2784 respectively, cited by number in the sentence that introduces it. The section's own text is an analysis of what the inner TTL can be at the protocol peer in each of the two tunnel topologies. It binds no GTSM implementation."
+    },
+    {
+      "id": "5.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "IP Tunneled over MPLS. Analyses TTL handling under the RFC 3443 Uniform, Pipe and Short Pipe models, and concludes that a GTSM check is possible over Pipe model LSPs and not over Uniform model LSPs of more than one hop. Every quoted rule is RFC 3443's and none carries an RFC 2119 keyword here. No site."
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Onlink Attackers. Restates Section 2.2: an attacker on a directly connected interface can disturb a GTSM-protected session unless ingress filtering is applied, so such interfaces have to be trusted. Indicative. No site."
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Fragmentation Considerations. Explains that a non-initial fragment carries no Layer 4 information, so it classifies as Unknown, and that a reassembled packet inherits that. Its one RFC 2119 keyword is the advisory 'it is highly RECOMMENDED for GTSM-protected protocols to avoid fragmentation and reassembly', which is not MUST-level, so the derivation raises no site; the summary records it as RFC5082-5.4-1.",
+      "unsourced-ids": [
+        "RFC5082-5.4-1"
+      ]
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Multi-Hop Protocol Sessions. States that the document describes only the single-hop case, and that the protection multi-hop GTSM offers is difficult to quantify. No obligation. No site."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Applicability Statement. Limits GTSM to environments with inherently limited topologies and to directly connected peers, and states that GTSM does not protect against an attacker as close as the legitimate peer. Its modals are lowercase 'should'. No site."
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Backwards Compatibility. Records what changed against RFC 3682: this specification mandates setting and verifying TTL=255 on related ICMP error messages as well as on the main protocol packets. That is the restatement of the Section 3 sentence declared unsourced above as RFC5082-3-2, so no id is allocated here. The rest weighs the interoperability cost against RFC 3682 senders that emit related messages with TTL 64. No site."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References, the container heading."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References. RFC 791, RFC 2003, RFC 2119, RFC 2461, RFC 2784, RFC 3392, RFC 3443, RFC 4213, RFC 4271 and RFC 4301."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References, and the BITW mailing-list thread."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix A, Multi-Hop GTSM. Its first line reads 'NOTE: This is a non-normative part of the specification.' It sketches a receiver that checks the TTL is within a configured number of hops from 255 and states that such deployment is not specified in this document."
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix B, Changes Since RFC 3682. A change list. Its fourth entry names the related-messages rule that Section 3 states and that RFC5082-3-2 carries."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1:1",
+      "quote": "If, however, dynamic negotiation of GTSM support is necessary, protocol messages used for such negotiation MUST be authenticated using other security mechanisms to prevent DoS attacks.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "The feature is OPTIONAL and ze decided not to offer it. RFC 5082 Section 2.1: 'This document assumes that, when used with existing protocols, GTSM will be manually configured between protocol peers. That is, no automatic GTSM capability negotiation, such as is provided by RFC 3392 [RFC3392], is assumed or defined.' The same section adds that 'this specification does not offer a generic GTSM capability negotiation mechanism'. This obligation is conditional on running such a negotiation, and ze runs none: parseTTLSettings (internal/component/bgp/reactor/config.go) is the only producer of a peer's GTSM TTL values and it reads the static `connection { ttl }` configuration map alone, and tuneTCPConnectionForSettings (internal/component/bgp/reactor/session_connection.go) installs IP_TTL and IP_MINTTL on the TCP socket at connectionEstablished time, before any OPEN is exchanged, so no message of ze's could carry a GTSM negotiation. The BFD and VRRP paths are the same shape: transport.applySocketOptions (internal/component/bfd/transport/udp_linux.go) sets IP_TTL=255 unconditionally at socket setup, and gtsmTTL (internal/plugins/vrrp/packet/validate.go) is a constant. There is no GTSM capability code and no GTSM negotiation message anywhere in ze. This is a SCOPE DECISION and not outstanding work. The absent feature is recorded as an implementation gap in docs/features/rfc-status.md, which a later scope decision can revisit; it is not a conformance gap."
+    },
+    {
+      "id": "3:1",
+      "quote": "The TTL field in all IP packets used for transmission of messages associated with GTSM-enabled protocol sessions MUST be set to 255.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5082-3-1",
+      "reason": "The transmit obligation. ze sets it through the kernel: setIPTTL (internal/core/network/ttl_linux.go) sets IP_TTL for an IPv4 peer and IPV6_UNICAST_HOPS for an IPv6 peer, tuneTCPConnectionForSettings (internal/component/bgp/reactor/session_connection.go) calls it with PeerSettings.OutTTL, parseTTLSettings (internal/component/bgp/reactor/config.go) derives OutTTL=255 from `ttl max N`, setListenIPTTL (internal/core/network/ttl_linux.go) carries the same value onto the listen socket so the kernel's SYN-ACK is not dropped by a GTSM peer, and applySocketOptions / applySocketOptionsV6 (internal/component/bfd/transport/udp_linux.go) set IP_TTL=255 and IPV6_UNICAST_HOPS=255 on the BFD sockets."
+    },
+    {
+      "id": "3:2",
+      "quote": "The TTL of GTSM-enabled sessions MUST NOT be decremented.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5082-3-3",
+      "reason": "The no-decrement obligation, addressed to an architecture that decrements the TTL of control-plane originated traffic in the forwarding plane. ze runs on Linux, which does not decrement a locally originated packet, and ze adds no forwarding-plane rule that would: no producer under internal/ writes an nftables, tc or XDP rule that touches TTL. The observable proof at the boundary ze owns is that a peer socket carrying IP_MINTTL=255 accepts a connection ze dialed with OutTTL=255, which is only reachable if the packet arrived still at 255."
+    },
+    {
+      "id": "3:3",
+      "quote": "+ MUST NOT drop (as part of GTSM processing) packets classified as Trusted or Unknown.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5082-3-4",
+      "reason": "The receive obligation not to drop Trusted or Unknown packets. ze installs a TTL floor only where a GTSM session asked for one: tuneTCPConnectionForSettings (internal/component/bgp/reactor/session_connection.go) calls setIPMinTTL only when PeerSettings.MinTTL is non-zero, so a packet no GTSM-enabled session claims meets no TTL gate and is delivered, and setIPMinTTL (internal/core/network/ttl_linux.go) installs IP_MINTTL or IPV6_MINHOPCOUNT, which the kernel applies as a floor rather than an equality, so a Trusted packet inside the range is delivered. passesTTLGate (internal/component/bfd/engine/loop.go) is the same shape for BFD: it admits TTL >= MinTTL for a multi-hop session and TTL == 255 for a single-hop one, and it runs after the session lookup, so a packet belonging to no session never reaches it."
+    },
+    {
+      "id": "5.2.1:1",
+      "quote": "If, after decapsulation, the inner datagram has TTL = 0, the decapsulator MUST discard the datagram.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 2003, which the sentence that introduces the block quotation cites by number: 'For IP-in-IP tunnels, RFC 2003 specifies the following decapsulator behavior'. It binds an IP-in-IP decapsulator to discard an inner datagram whose TTL is 0 after decapsulation. RFC 5082 quotes it to show what the inner TTL can be at the protocol peer, and states no obligation of its own here."
+    },
+    {
+      "id": "5.2.1:2",
+      "quote": "When a tunnel endpoint decapsulates a GRE packet which has an IPv4 packet as the payload, the destination address in the IPv4 payload packet header MUST be used to forward the packet and the TTL of the payload packet MUST be decremented.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 2784, which the sentence that introduces the block quotation cites by number: 'And similarly, for GRE tunnels, RFC 2784 specifies the following decapsulator behavior'. It binds a GRE tunnel endpoint to forward on the inner destination address and to decrement the payload TTL. RFC 5082 quotes it for the same reason as site 5.2.1:1 and states no obligation of its own here."
+    }
+  ]
+}
