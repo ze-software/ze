@@ -505,14 +505,14 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 				routesLogger().Debug("send error for a queued route", "peer", addr, "error", sendErr)
 				p.mu.Lock()
 				finalProcessed++
-				// The break leaves the SWITCH, not the loop, so a connection
-				// error does not stop this drain. That is what the gate needs:
-				// the remaining operations are attempted, fail the same way, and
-				// leave the queue empty, where an operation left behind is one
-				// nothing will ever drain.
-				if !isRouteScopedSendError(sendErr) {
-					break
-				}
+				// Every remaining operation is attempted, a connection error
+				// included, so this is the one drain that does not sort the two
+				// kinds of send error apart (isRouteScopedSendError,
+				// peer_send.go). The gate below closes on an EMPTY queue and this
+				// goroutine is the only drainer, so an operation left behind is
+				// one nothing will ever drain. The main drain loop stops on a
+				// connection error instead, because the session still owns the
+				// wire there.
 				continue
 			}
 			p.mu.Lock()
@@ -530,9 +530,8 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 				routesLogger().Debug("send error for a queued withdrawal", "peer", addr, "error", sendErr)
 				p.mu.Lock()
 				finalProcessed++
-				if !isRouteScopedSendError(sendErr) {
-					break
-				}
+				// Attempted to the end, for the reason the announce case above
+				// states.
 				continue
 			}
 			p.mu.Lock()

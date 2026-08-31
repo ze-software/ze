@@ -700,6 +700,10 @@ func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
 // the event arrives, and a barrier cannot tell "finished with nothing to send"
 // from "still working" unless the plugin says so.
 func (r *AdjRIBInManager) signalSessionReady(peerAddress string) {
+	// runAdjRIBInPlugin always builds the manager with its SDK handle, so a nil
+	// one means a unit test constructed the manager directly. The sibling replay
+	// path needs no such guard: relayRoutes returns before it dereferences the
+	// handle when the peer holds no route, which is every such test.
 	if r.plugin == nil {
 		return
 	}

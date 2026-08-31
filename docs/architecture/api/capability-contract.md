@@ -141,21 +141,26 @@ See `docs/architecture/config/syntax.md` for full plugin config options.
 If a peer has `graceful-restart` or `route-refresh` and attaches no process:
 
 ```
-peer 192.168.1.1: route-refresh requires an attached process with send [ update ]
+peer 192.168.1.1: route-refresh requires an attached process with send [ update ] or send [ raw ]
   the peer attaches no process
 ```
 
-Or if it attaches processes and none of them carries `send [ update ]`:
+Or if it attaches processes and none of them carries either word:
 
 ```
-peer 192.168.1.1: route-refresh requires an attached process with send [ update ]
-  configured: attach process logger, attach process monitor - none have send [ update ]
+peer 192.168.1.1: route-refresh requires an attached process with send [ update ] or send [ raw ]
+  configured: attach process logger, attach process monitor - none carry either word
 ```
 
 The capability needs a program that can re-advertise the routes a refresh asks
-for, and `send [ update ]` is the permission to do it. It is the same
-permission the reactor enforces at the peer-selector resolver, so a config that
-passes this check is a config whose announce will not be refused.
+for. Either rail is that program: ze builds the UPDATE from the process's own
+route operation (`send [ update ]`), or the process hands over a whole message
+it built itself (`send [ raw ]`). The check reads
+`ProcessBinding.MayPushRoutes`, which is the same predicate the initial-sync
+barrier counts, so a config that passes this check is a config whose announce
+will not be refused.
+<!-- source: internal/component/bgp/config/peers.go -- validatePeerProcessCaps -->
+<!-- source: internal/component/bgp/reactor/peer_settings.go -- ProcessBinding.MayPushRoutes -->
 
 ---
 

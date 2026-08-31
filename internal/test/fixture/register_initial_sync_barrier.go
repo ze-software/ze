@@ -1,4 +1,4 @@
-// Design: plan/spec-fixit-peer-pending-sync-settles-too-early.md -- the initial-sync End-of-RIB barrier
+// Design: docs/architecture/api/architecture.md -- the initial-sync End-of-RIB barrier
 // Related: plugin_fixture_09.go -- announceWithdraw09, the announce/withdraw observers for the same peer shape
 // Related: plugin_fixture_01.go -- plugin01PeerCounter, plugin01RequireDone, the dispatch helpers used here
 //
