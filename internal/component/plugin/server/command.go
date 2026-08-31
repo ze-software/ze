@@ -687,9 +687,15 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 		}
 
 		// Generic implicit selectors: a single unmatched selector-like leaf may
-		// appear between a resource token and a later action token.
+		// appear between a resource token and a later action token. A leaf the
+		// MODEL anchored to this key token is preferred, because the anchor is
+		// the model's own answer to the question implicitSelectorDef guesses at.
 		if keyIdx+1 < len(keyTokens) && inIdx+1 < len(tokens) && !strings.EqualFold(tokens[inIdx+1], keyTokens[keyIdx+1]) {
-			if def := implicitSelectorDef(keyTokens, defs, selectors); def != nil {
+			def := anchoredDef(keyTok, defs, selectors)
+			if def == nil {
+				def = implicitSelectorDef(keyTokens, defs, selectors)
+			}
+			if def != nil {
 				value := tokens[inIdx+1]
 				if err := command.ValidateArgString(value, def); err != nil {
 					return nil, nil, false
@@ -723,6 +729,41 @@ func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]s
 // Ambiguity is still refused. Two pattern-less candidates, or two patterned ones
 // with no pattern-less leaf, answer nil as before, so this preference can only
 // resolve a case that used to resolve to nothing.
+// anchoredDef answers the leaf the model ANCHORED to this key token. It answers
+// nil when no leaf names the token, and nil when two do.
+//
+// An anchor is the model's own statement of which value follows which keyword.
+// A leaf declared on a grouping container carries that container's name
+// (appendAnchored, internal/component/config/yang/command.go). That name is the
+// word the operator types the value after. Reading that answer is not the same
+// as deriving a second one from the leaf shapes, which is what the caller falls
+// back to (ai/rules/evidence.md).
+//
+// It is what resolves `peer <selector> announce unicast <prefix>`. That command
+// carries two mandatory pattern-less strings, selector and prefix, so
+// implicitSelectorDef sees two candidates and answers nil, and the command reads
+// as unknown. Only the selector is anchored to `peer`.
+//
+// Two leaves anchored to one keyword answer nil for the same reason
+// implicitSelectorDef does: the model has not said which.
+func anchoredDef(keyTok string, defs []command.ArgDef, matched map[string]string) *command.ArgDef {
+	var found *command.ArgDef
+	for i := range defs {
+		def := &defs[i]
+		if _, ok := matched[def.Name]; ok {
+			continue
+		}
+		if def.Anchor == "" || !strings.EqualFold(def.Anchor, keyTok) {
+			continue
+		}
+		if found != nil {
+			return nil
+		}
+		found = def
+	}
+	return found
+}
+
 func implicitSelectorDef(keyTokens []string, defs []command.ArgDef, matched map[string]string) *command.ArgDef {
 	var loose, patterned *command.ArgDef
 	looseCount, patternedCount := 0, 0

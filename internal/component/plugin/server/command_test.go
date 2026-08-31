@@ -2612,3 +2612,67 @@ func TestPositionalDefKeepsTheMandatoryTierFirst(t *testing.T) {
 		t.Fatalf("a required leaf was not offered the token first: %v", def)
 	}
 }
+
+// TestAnchoredSelectorResolvesThePeerScopedPath proves a value sitting between
+// two key tokens reaches the leaf the model anchored to the first of them.
+//
+// The shape is `announce`. The same wire method is declared at two paths, bare
+// and under `peer <selector>`. The peer-scoped one carries two mandatory
+// pattern-less strings. The dispatcher is built here rather than from the YANG
+// loader so the case runs in every build, including one with ze_bgp off. The
+// operator path over the real model is `test/plugin/api-announce-unicast.ci`.
+//
+// VALIDATES: the selector is lifted out of the arguments, the command is not
+// shifted by it, and the handler receives the tail it parses.
+//
+// PREVENTS: the model rendering a grammar the dispatcher cannot match.
+// implicitSelectorDef sees two candidate leaves here and answers nil, so
+// without the anchor the operator who copies the generated usage line is told
+// `unknown command`.
+func TestAnchoredSelectorResolvesThePeerScopedPath(t *testing.T) {
+	defs := []command.ArgDef{
+		{Name: selectorLeaf, Kind: command.ArgString, Mandatory: true, Anchor: "peer"},
+		{Name: "prefix", Kind: command.ArgString, Mandatory: true},
+	}
+
+	args, selectors, ok := matchCommandTokens(
+		[]string{"peer", "192.0.2.9", "announce", "unicast", "198.51.100.0/24", "next-hop", "self"},
+		"peer announce unicast", defs)
+	require.True(t, ok, "the peer-scoped path resolves")
+	assert.Equal(t, "192.0.2.9", selectors[selectorLeaf], "the selector is lifted out of the arguments")
+	assert.Equal(t, []string{"198.51.100.0/24", "next-hop", "self"}, args, "the handler receives the tail it parses")
+
+	// The bare path is the same command with no peer named, which reads as
+	// every peer. Its own defs carry no selector, so none is bound.
+	bareArgs, bareSelectors, ok := matchCommandTokens(
+		[]string{"announce", "unicast", "198.51.100.0/24", "next-hop", "self"},
+		"announce unicast", defs[1:])
+	require.True(t, ok, "the bare path resolves")
+	assert.Empty(t, bareSelectors, "a bare announce names no peer")
+	assert.Equal(t, []string{"198.51.100.0/24", "next-hop", "self"}, bareArgs)
+}
+
+// TestAnchoredDefAnswersNilWhenTheModelDoesNotSayWhich proves the anchor lookup
+// has an outside: it names one leaf, or it names none.
+//
+// VALIDATES: two unmatched leaves anchored to one keyword answer nil, and an
+// already-matched leaf is not offered a second value.
+//
+// PREVENTS: a silent pick between two candidates, which would bind an
+// operator's value to whichever leaf the slice happened to list first.
+func TestAnchoredDefAnswersNilWhenTheModelDoesNotSayWhich(t *testing.T) {
+	two := []command.ArgDef{
+		{Name: "selector", Kind: command.ArgString, Mandatory: true, Anchor: "peer"},
+		{Name: "other", Kind: command.ArgString, Mandatory: true, Anchor: "peer"},
+	}
+	assert.Nil(t, anchoredDef("peer", two, nil), "two leaves on one keyword name none")
+
+	one := []command.ArgDef{
+		{Name: "selector", Kind: command.ArgString, Mandatory: true, Anchor: "peer"},
+		{Name: "prefix", Kind: command.ArgString, Mandatory: true},
+	}
+	require.NotNil(t, anchoredDef("peer", one, nil))
+	assert.Equal(t, "selector", anchoredDef("peer", one, nil).Name, "the anchored leaf wins over an unanchored one")
+	assert.Nil(t, anchoredDef("announce", one, nil), "a keyword no leaf names answers nil")
+	assert.Nil(t, anchoredDef("peer", one, map[string]string{"selector": "192.0.2.9"}), "a matched leaf takes no second value")
+}
