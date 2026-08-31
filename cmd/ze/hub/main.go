@@ -127,6 +127,19 @@ func RunWithManagedClient(store storage.Storage, configPath string, plugins []st
 }
 
 func run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr, mcpToken string, cliAttach bool, managedClient *managed.ClientConfig) int {
+	// A module that could not set itself up recorded that from its own init(),
+	// before main(). Read it here, ahead of every irreversible act in this
+	// function, so a daemon the operator cannot rely on says why and stops
+	// rather than running short of the feature.
+	//
+	// This is the only reader of the setup registry in the startup path, and
+	// run is reached by the daemon alone, so no CLI verb can be refused by it.
+	if err := hardSetupFailure(); err != nil {
+		fmt.Fprintln(os.Stderr, "error: module setup: "+err.Error())
+		logStartupFailure("module setup", err)
+		return 1
+	}
+
 	// Register the daemon's blob store so in-core state persisters
 	// (internal/core/statestore) write into the SAME in-memory tree as config,
 	// not a separate transient instance whose keys the config store's next flush

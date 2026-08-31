@@ -1,9 +1,11 @@
-// Design: docs/guide/command-reference.md — show plugins
-// Related: register.go — the registration these tests exercise
+// Design: docs/guide/command-reference.md — show plugins, show module list
+// Related: register.go — the registrations these tests exercise
 //
 // register_test.go proves three things about `show plugins`: it answers, it
 // answers with DATA rather than with text a renderer already formatted, and it
-// refuses by name the operators its answer's shape cannot carry.
+// refuses by name the operators its answer's shape cannot carry. It proves the
+// same of `show module list`, and that the rows it answers with come from the
+// setup record rather than from a list this package keeps.
 
 package plugin
 
@@ -195,6 +197,180 @@ func TestShowPluginsDeclaresItsShapeAndColumns(t *testing.T) {
 		t.Fatalf("show plugins declares %d column orders, want 1", len(orders))
 	}
 	if strings.Join(orders[0], ",") != "name,description,families,rfcs,capabilities" {
+		t.Errorf("declared columns = %v", orders[0])
+	}
+}
+
+// commandShowModuleList is the path an operator types for the setup record, as
+// register.go publishes it.
+const commandShowModuleList = "show module list"
+
+// recordingModuleName is the module these tests record against. A name no real
+// module uses keeps the assertion readable when it fails.
+const recordingModuleName = "show-module-list-probe"
+
+// silentModuleName is a module that registers and records nothing, which is the
+// case AC-4 exists for.
+const silentModuleName = "show-module-list-silent"
+
+// isolateRegistry empties the plugin registry and the setup record for one
+// test, and puts both back. Every test in this package shares one binary and
+// one process-wide registry.
+func isolateRegistry(t *testing.T) {
+	t.Helper()
+	saved := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(saved) })
+	registry.Reset()
+}
+
+// registerModule puts one module in the registry under the given name.
+func registerModule(t *testing.T, name string) {
+	t.Helper()
+	err := registry.Register(registry.Registration{
+		Name:        name,
+		Description: "Probe module for the show module list tests",
+		RunEngine:   func(net.Conn) int { return 0 },
+		CLIHandler:  func([]string) int { return 0 },
+	})
+	if err != nil {
+		t.Fatalf("register %q: %v", name, err)
+	}
+}
+
+// TestShowModuleListReachesTheRegistry is the wiring test for the command: what
+// a module records from its init() is what the handler answers.
+//
+// VALIDATES: dataModules answers from registry.SetupResults, with the outcome
+// and the reason intact, and its payload satisfies ResponseData.
+//
+// PREVENTS: a command that answers a list this package keeps for itself, which
+// would stay green while the registry the daemon reads says something else.
+func TestShowModuleListReachesTheRegistry(t *testing.T) {
+	isolateRegistry(t)
+	registerModule(t, recordingModuleName)
+	registry.RecordSetup(recordingModuleName, registry.SetupFailedSoft, "RLIMIT_MEMLOCK is too small")
+
+	payload, code := dataModules(nil)
+	if code != 0 {
+		t.Fatalf("show module list exit code = %d, want 0", code)
+	}
+	if _, ok := payload.(ResponseData); !ok {
+		t.Fatalf("show module list answered %T, which is not ResponseData", payload)
+	}
+
+	answer, ok := payload.(Map)
+	if !ok {
+		t.Fatalf("show module list answered %T, want plugin.Map", payload)
+	}
+	rows, ok := answer[keyModules].([]registry.SetupResult)
+	if !ok {
+		t.Fatalf("answer key %q holds %T, want []registry.SetupResult", keyModules, answer[keyModules])
+	}
+	if len(rows) != 1 {
+		t.Fatalf("answer has %d rows, the registry holds one module: %+v", len(rows), rows)
+	}
+	if rows[0].Module != recordingModuleName {
+		t.Errorf("row names %q, want %q", rows[0].Module, recordingModuleName)
+	}
+	if rows[0].Outcome != registry.SetupFailedSoft {
+		t.Errorf("row outcome = %v, want soft-failure", rows[0].Outcome)
+	}
+	if rows[0].Reason != "RLIMIT_MEMLOCK is too small" {
+		t.Errorf("row reason = %q, want the recorded text", rows[0].Reason)
+	}
+}
+
+// TestShowModuleListNamesAModuleThatRecordedNothing proves AC-4 at the command.
+//
+// VALIDATES: a registered module that recorded nothing is listed with the
+// unknown outcome.
+//
+// PREVENTS: the failure this command exists to remove. An absent row reads as
+// "not built in", so the module that owes a record is the one nobody sees.
+func TestShowModuleListNamesAModuleThatRecordedNothing(t *testing.T) {
+	isolateRegistry(t)
+	registerModule(t, silentModuleName)
+
+	answer, code, served := command.ServeLocal(commandShowModuleList+" | json", "")
+	if !served {
+		t.Fatal("show module list was not served in this process")
+	}
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0 (answer: %q)", code, answer)
+	}
+
+	var rows []struct {
+		Module  string `json:"module"`
+		Outcome string `json:"outcome"`
+		Reason  string `json:"reason"`
+	}
+	if err := json.Unmarshal([]byte(answer), &rows); err != nil {
+		t.Fatalf("| json answered something no JSON decoder takes: %v (answer: %q)", err, answer)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("| json answered %d rows, the registry holds one module: %q", len(rows), answer)
+	}
+	if rows[0].Module != silentModuleName {
+		t.Errorf("row names %q, want %q", rows[0].Module, silentModuleName)
+	}
+	if rows[0].Outcome != "unknown" {
+		t.Errorf("a module that recorded nothing has outcome %q, want unknown", rows[0].Outcome)
+	}
+	if rows[0].Reason != "" {
+		t.Errorf("a module that recorded nothing carries reason %q, want none", rows[0].Reason)
+	}
+}
+
+// TestShowModuleListRendersInEveryFormat proves AC-7.
+//
+// VALIDATES: `| json`, `| yaml` and `| table` each render the same rows.
+//
+// PREVENTS: a handler that returns finished text, which one renderer would
+// hand back unchanged while the other two produce something a parser cannot
+// read.
+func TestShowModuleListRendersInEveryFormat(t *testing.T) {
+	isolateRegistry(t)
+	registerModule(t, recordingModuleName)
+	registry.RecordSetup(recordingModuleName, registry.SetupFailedSoft, "RLIMIT_MEMLOCK is too small")
+
+	for _, format := range []string{"json", "yaml", "table"} {
+		t.Run(format, func(t *testing.T) {
+			answer, code, served := command.ServeLocal(commandShowModuleList+" | "+format, "")
+			if !served {
+				t.Fatalf("show module list | %s was not served in this process", format)
+			}
+			if code != 0 {
+				t.Fatalf("exit code = %d, want 0 (answer: %q)", code, answer)
+			}
+			for _, want := range []string{recordingModuleName, "soft-failure", "RLIMIT_MEMLOCK is too small"} {
+				if !strings.Contains(answer, want) {
+					t.Errorf("| %s lost %q: %s", format, want, answer)
+				}
+			}
+		})
+	}
+}
+
+// TestShowModuleListDeclaresItsShapeAndColumns proves the published catalog can
+// say what the command supports before the command runs.
+//
+// VALIDATES: the command declares the tab shape and its three columns in order.
+//
+// PREVENTS: a table whose columns come out alphabetical, which puts the reason
+// before the outcome that explains it.
+func TestShowModuleListDeclaresItsShapeAndColumns(t *testing.T) {
+	shape, declared := command.ShapeForCommand(commandShowModuleList)
+	if !declared {
+		t.Fatal("show module list declares no answer shape")
+	}
+	if shape != command.ShapeTab {
+		t.Errorf("declared shape = %v, want tab", shape)
+	}
+	orders := command.ColumnsForCommand(commandShowModuleList)
+	if len(orders) != 1 {
+		t.Fatalf("show module list declares %d column orders, want 1", len(orders))
+	}
+	if strings.Join(orders[0], ",") != "module,outcome,reason" {
 		t.Errorf("declared columns = %v", orders[0])
 	}
 }

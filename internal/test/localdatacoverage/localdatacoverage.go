@@ -25,7 +25,7 @@ const (
 // envKeyCLIFormat is the env row this walk reads, sets and clears.
 const envKeyCLIFormat = "ze.cli.format"
 
-const CompletionMarker = "OK: 18/18 local-data commands and local one-shot save"
+const CompletionMarker = "OK: 19/19 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -62,6 +62,7 @@ func Evidence() []Invocation {
 		{Command: "show env get ze.cli.format | json compact", Evidence: "show env get"},
 		{Command: "show env registered | json compact", Evidence: "show env registered"},
 		{Command: "show plugins | json compact", Evidence: "show plugins"},
+		{Command: "show module list | json compact", Evidence: "show module list"},
 	}
 }
 
@@ -659,6 +660,54 @@ func runScenario(output io.Writer, work string) error {
 		return row["name"] == "rib" && ok && description != ""
 	}, "show plugins lost the system RIB row or its description"); err != nil {
 		return err
+	}
+	pluginNames := make([]string, 0, len(values))
+	for _, value := range values {
+		row, rowErr := rowObject(value)
+		if rowErr != nil {
+			return rowErr
+		}
+		name, ok := row["name"].(string)
+		if err := require(ok && name != "", "show plugins row has no name: %#v", value); err != nil {
+			return err
+		}
+		pluginNames = append(pluginNames, name)
+	}
+
+	payload, err = localJSON("show module list | json compact", "show module list", output)
+	if err != nil {
+		return err
+	}
+	values, err = rows(payload, "modules")
+	if err != nil {
+		return err
+	}
+	// The module list is DERIVED from the plugin registry, so every plugin the
+	// previous command named owes a row here. A module that recorded nothing is
+	// listed as unknown; one that is missing altogether reads as "not built in",
+	// which is the silence this command exists to remove.
+	outcomes := make(map[string]string, len(values))
+	for _, value := range values {
+		row, rowErr := rowObject(value)
+		if rowErr != nil {
+			return rowErr
+		}
+		module, hasModule := row["module"].(string)
+		outcome, hasOutcome := row["outcome"].(string)
+		if err := require(hasModule && hasOutcome, "show module list row is not module/outcome: %#v", value); err != nil {
+			return err
+		}
+		outcomes[module] = outcome
+	}
+	for _, name := range pluginNames {
+		outcome, listed := outcomes[name]
+		if err := require(listed, "show module list omits the registered module %q", name); err != nil {
+			return err
+		}
+		if err := require(outcome != "" && outcome != "invalid",
+			"module %q has outcome %q", name, outcome); err != nil {
+			return err
+		}
 	}
 
 	savePath := filepath.Join(work, "local-save.ndjson")

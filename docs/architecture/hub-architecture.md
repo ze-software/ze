@@ -148,6 +148,28 @@ Configuration changes go through two phases:
 
 ## Startup Sequence
 
+### Before Anything: the module setup gate
+
+The first statement of `hub.run` reads the module setup registry and refuses to
+start when any module recorded a HARD setup failure in its own `init()`. It
+precedes `openStateOnlyStore`, which is the first irreversible act in `run`, so
+a refused start leaves no state store behind.
+
+The refusal names EVERY failing module and its reason, not the first, because
+an operator who repairs one fault and restarts to meet the next pays a whole
+boot for each fault after the first. It uses the same shape as the other 27
+startup refusals in the file: one stderr line, one `logStartupFailure` (the
+kmsg-visible half, which is what an appliance console sees), and `return 1`.
+
+`RunWebOnly` does not go through `run`, so `ze start --web-only` does not
+consult the registry. It runs no protocol and programs nothing.
+
+A CLI verb never reaches `run` either, which is deliberate: `show module list`
+is the command that reports the fault, and it has to keep working on a host
+where the daemon will not boot.
+<!-- source: cmd/ze/hub/main.go -- run, the gate at its first statement -->
+<!-- source: cmd/ze/hub/startup_gate.go -- hardSetupFailure -->
+
 ### Current 5-Stage Protocol (Already Implemented)
 
 The existing subsystem infrastructure uses this protocol (see `internal/component/plugin/subsystem.go`):

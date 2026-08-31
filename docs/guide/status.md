@@ -75,6 +75,7 @@ The current binary reports 97 registered plugins and schemas covering protocol f
 | ExaBGP config migration | Working -- auto-detect and convert |
 | ExaBGP plugin bridge | Partial -- compatibility bridge exists, but not all ExaBGP behavior is equivalent |
 | Chaos testing (ze-chaos) | Working -- deterministic replay, property validation |
+| Module setup results | Working -- each module records what its own `init()` achieved, `show module list` replays it, and the daemon refuses to start on a recorded hard failure. `memlock` is the migrated example; the other modules record nothing yet and list as `unknown` |
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- YANG config; internal/component/config/cli/ -- config CLI; internal/component/cli/ -- interactive CLI; internal/core/slogutil/ -- hierarchical logging; internal/exabgp/ -- ExaBGP migration -->
 
 ### Test Suite

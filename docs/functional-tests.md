@@ -2141,6 +2141,25 @@ ze bgp decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02...
 
 ## Adding New Tests
 
+### Adding a local-data command
+
+A command registered with `cmdregistry.MustRegisterLocalData` owes runtime
+evidence, and `TestEveryLocalDataRegistrationHasAFunctionalCase`
+(`internal/component/command/registry`) enforces it: the test derives every
+production registration from the Go AST and fails when one has no row. Four
+places move together, and three of them carry a count.
+
+| Place | What to add |
+|-------|-------------|
+| `internal/test/localdatacoverage.Evidence()` | One `{Command, Evidence}` row. The command MUST carry a real pipe, and `Evidence` MUST be the exact registered path |
+| The walk in the same file | An assertion over what the command answered. A row with no assertion proves the command ran, not that it answered anything |
+| `localdatacoverage.CompletionMarker` and the two totals in `TestLocalDataCoverageEvidenceIsNonVacuousAndComplete` | The new counts |
+| `test/ui/pipe-local-command.ci` | The new `COVERED: <evidence> [done]` line, in sorted order, before the completion marker |
+
+The command owes no `wire-methods.snapshot` row, because it registers no RPC.
+<!-- source: internal/test/localdatacoverage/localdatacoverage.go -- Evidence, CompletionMarker -->
+<!-- source: internal/component/command/registry/local_data_functional_coverage_test.go -- TestEveryLocalDataRegistrationHasAFunctionalCase -->
+
 ### Option 1: Tmpfs (Recommended)
 
 Single self-contained `.ci` file with embedded config:

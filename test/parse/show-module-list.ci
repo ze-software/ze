@@ -1,0 +1,68 @@
+# Test: show module list replays the setup outcome each module recorded
+#
+# VALIDATES: AC-1, AC-2, AC-4 and AC-7. Every registered module is listed, a
+#   module that recorded nothing is listed as unknown rather than dropped, the
+#   module that does record carries its own outcome, and `| json`, `| yaml` and
+#   `| table` each render the same rows.
+# PREVENTS: a feature that is absent for an environment reason with nowhere to
+#   say so. Before this command, a module whose setup failed was invisible: it
+#   left no row anywhere, and absence reads as "not built into this binary".
+#
+# No daemon runs here. The outcomes are recorded by module init() functions
+# before main(), so any ze process answers, and `ze cli -c` serves the command
+# in its own process before it asks for credentials.
+#
+# The suite is `parse` rather than `ui` or `plugin` because only this suite's
+# parser splits an exec line on quotes (splitCommand, internal/test/runner/
+# parsing.go). The other suites use strings.Fields, which tears
+# `-c "show module list | json"` into six arguments.
+
+stdin=config:terminator=EOF_CONF
+# The runner requires a config on stdin. This command reads none.
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze cli -c "show module list | json":exit=0
+expect=exit:code=0
+expect=stdout:contains="module"
+expect=stdout:contains="outcome"
+expect=stdout:contains="memlock"
+expect=stdout:contains="routing-table"
+expect=stdout:contains="unknown"
+expect=stdout:not:contains="invalid"
+
+cmd=foreground:seq=2:exec=ze cli -c "show module list | yaml":exit=0
+expect=exit:code=0
+expect=stdout:contains=modules
+expect=stdout:contains=memlock
+expect=stdout:contains=unknown
+
+cmd=foreground:seq=3:exec=ze cli -c "show module list | table":exit=0
+expect=exit:code=0
+expect=stdout:contains=outcome
+expect=stdout:contains=memlock
+
+# The memlock module records its own outcome from init(), so its row is never
+# unknown. This is the assertion that goes red if recording stops happening
+# while the list itself keeps rendering.
+cmd=foreground:seq=4:exec=ze cli -c "show module list | match memlock | json":exit=0
+expect=exit:code=0
+expect=stdout:contains=memlock
+expect=stdout:not:contains=unknown

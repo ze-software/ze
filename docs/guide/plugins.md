@@ -322,6 +322,39 @@ List available plugins:
 ze show plugins
 ```
 
+## Reporting a Setup Outcome
+
+A plugin that sets something up in its own `init()` records what happened, so
+an operator can ask why a feature is absent:
+
+```
+ze show module list
+```
+
+The record is one call, made from the plugin's `init()` beside its
+registration:
+
+| Outcome | Meaning | Effect on the daemon |
+|---------|---------|----------------------|
+| `registry.SetupSucceeded` | The setup completed | None |
+| `registry.SetupFailedSoft` | The feature is absent and the daemon runs correctly without it | The daemon starts |
+| `registry.SetupFailedHard` | The daemon cannot run without it | The daemon refuses to start, naming every failing module |
+
+The two writes a plugin makes from `init()`, `registry.Register` and
+`registry.RecordSetup`, are keyed by the plugin name and neither reads the
+other, so their order does not matter. Go initializes the files of one package
+in filename order and no plugin author has to know it.
+
+Recording is optional at the call site, and a plugin that records nothing is
+listed as `unknown`. That is the signal that the plugin owes a record, not that
+it is absent. `memlock` is the worked example: it locks the executable in
+`init()` and records a soft failure carrying the cause and the remedy when
+`RLIMIT_MEMLOCK` is too small.
+
+A reason string reaches CLI output as data, so never put a secret in one.
+<!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupOutcome -->
+<!-- source: internal/plugins/memlock/memlock_linux.go -- init, the worked example -->
+
 ### Storage and Policy
 
 | Plugin | Purpose | Typical Binding |

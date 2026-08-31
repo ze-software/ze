@@ -132,6 +132,27 @@ reachable. Output is identical to the daemon RPC (both read the same detection l
 <!-- source: cmd/ze/internal/cmdutil/cmdutil.go -- RunCommand offline-fallback routing -->
 <!-- source: internal/component/cli/client/main.go -- runOfflineFallback (invoked on daemon-unreachable) -->
 
+### Local-data commands (answered in the caller's own process)
+
+A local-data command never asks a daemon. Its handler reads a registry that
+`init()` filled in this process, so the answer exists before `main()` does. It
+registers with `cmdregistry.MustRegisterLocalData(path, handler, meta,
+command.RenderLocalAnswer)` and returns DATA, which is what lets `| json`,
+`| yaml` and `| table` be three renderings of one payload.
+
+This differs from the offline fallback above: a fallback is a second answer for
+a command the daemon normally serves, tried only after the connection fails. A
+local-data command has no daemon side at all, registers no RPC, and therefore
+owes no `wire-methods.snapshot` row.
+
+`internal/component/plugin/register.go` serves two of them, and they are the
+template: `show plugins` answers which plugins this binary carries, and
+`show module list` answers what each module's own `init()` recorded about its
+setup. Both are owned by the package that owns the registry they read, so
+removing the plugin host removes the commands with it.
+<!-- source: internal/component/plugin/register.go -- dataPlugins, dataModules -->
+<!-- source: internal/component/command/local_data.go -- RenderLocalAnswer -->
+
 ---
 
 ## Operational Report Bus (ze-show:warnings, ze-show:errors)

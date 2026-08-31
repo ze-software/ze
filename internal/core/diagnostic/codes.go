@@ -795,12 +795,6 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{exampleDoctorJSON, "ze explain doctor-copp-missing"},
 	},
 	{
-		Code:        "doctor-memlock-not-locked",
-		Title:       "Executable not locked in memory",
-		Description: "The memlock plugin could not lock the running ze executable in memory, so the kernel can evict its pages under memory pressure and fault them back in from disk. A daemon that waits on the disk holding its own binary drops sessions at the moment it must keep them. The usual cause is RLIMIT_MEMLOCK: the whole mapped size of the binary is charged against it, and the systemd default of 8 MiB is far smaller than a ze binary. Raise the limit, which the generated ze.service unit does with LimitMEMLOCK=infinity.",
-		Examples:    []string{exampleDoctorJSON, "ze explain doctor-memlock-not-locked"},
-	},
-	{
 		Code:         codeDoctorConfigRootUnclaimed,
 		Title:        "Config subtree delivered to nobody",
 		Description:  "A config subtree is stored but no plugin and no handler receives it, so it has no effect. The daemon selects plugins for a config change by matching the changed path against the config roots each plugin declares; a path that matches nothing is accepted and logged at Info level only. Either the owning plugin is not built into this binary, or it did not load, or its config root declaration is missing. Check `ze plugin list` for the owning plugin.",

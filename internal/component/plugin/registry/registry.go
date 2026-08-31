@@ -920,6 +920,10 @@ func Reset() {
 	// plugin that genuinely needs configuring.
 	clear(metricsPending)
 	clear(metricsConfigured)
+	// Cleared with the registry it belongs to: a setup record surviving Reset
+	// names a module the registry no longer holds, so `show module list` would
+	// answer for a module this binary cannot run.
+	clear(setupResults)
 	eventBusInstance = nil
 	ntpSyncProvider = nil
 }
@@ -927,6 +931,7 @@ func Reset() {
 // RegistrySnapshot holds a complete copy of the registry state for test save/restore.
 type RegistrySnapshot struct {
 	plugins          map[string]*Registration
+	setupResults     map[string]SetupResult
 	rpcHandlers      map[string]func(json.RawMessage) (any, error)
 	eventBusInstance ze.EventBus
 	ntpSyncProvider  func() map[string]any
@@ -940,9 +945,11 @@ func Snapshot() RegistrySnapshot {
 
 	ps := make(map[string]*Registration, len(plugins))
 	maps.Copy(ps, plugins)
+	sr := make(map[string]SetupResult, len(setupResults))
+	maps.Copy(sr, setupResults)
 	rh := make(map[string]func(json.RawMessage) (any, error), len(rpcHandlers))
 	maps.Copy(rh, rpcHandlers)
-	return RegistrySnapshot{plugins: ps, rpcHandlers: rh, eventBusInstance: eventBusInstance, ntpSyncProvider: ntpSyncProvider}
+	return RegistrySnapshot{plugins: ps, setupResults: sr, rpcHandlers: rh, eventBusInstance: eventBusInstance, ntpSyncProvider: ntpSyncProvider}
 }
 
 // Restore replaces the registry with a previously saved snapshot. Only for use in tests.
@@ -950,6 +957,7 @@ func Restore(snap RegistrySnapshot) {
 	mu.Lock()
 	defer mu.Unlock()
 	plugins = snap.plugins
+	setupResults = snap.setupResults
 	rpcHandlers = snap.rpcHandlers
 	eventBusInstance = snap.eventBusInstance
 	ntpSyncProvider = snap.ntpSyncProvider

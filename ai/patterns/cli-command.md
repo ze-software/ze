@@ -419,7 +419,8 @@ See `ai/patterns/registration.md` "Binary Personality Registration" section.
 | `registry.RegisterRoot(name, meta)` | **No-owner / process-global** `ze <name>` metadata only; dispatch stays in `cmd/ze/main.go` (start, version, help, ...) |
 | `registry.RootHandler` = `func(rctx *RuntimeContext, args []string) int` | Owner root handler signature; ignore `rctx` if no process deps needed |
 | `registry.RuntimeContext` / `StorageAs[T](rctx)` | Process-entry deps built by `main.go` (storage resolver, plugin list, version printer, web/MCP flags). `StorageAs` type-asserts the storage value |
-| `registry.RegisterLocal` / `MustRegisterLocal` / `RegisterLocalMeta` / `MustRegisterLocalMeta` | Path-keyed local handler (`"show bgp decode"`) for offline shortcuts |
+| `registry.RegisterLocal` / `MustRegisterLocal` / `RegisterLocalMeta` / `MustRegisterLocalMeta` | Path-keyed local handler (`"show bgp decode"`) for offline shortcuts. The handler returns an exit code and prints for itself |
+| `registry.RegisterLocalData` / `MustRegisterLocalData` | Path-keyed local handler that returns DATA (`func(args []string) (any, int)`) and a renderer, normally `command.RenderLocalAnswer`. Use it whenever the command answers rows or an object, because the pipe layer then renders `\| json`, `\| yaml` and `\| table` from one payload |
 | `registry.SetRuntimeStorage(fn)` / `RuntimeStorage()` | Storage resolver for local shortcuts (their `func(args)int` signature gets no context). `main.go` installs it; shortcuts read it lazily |
 | `registry.LookupRoot(name)` / `LookupLocal(words)` | Dispatch lookups used by `main.go` |
 | `registry.ListLocal()` / `ListRoot()` / `ListRootBySection()` | Enumerate everything; used by `help ai` |
@@ -432,7 +433,29 @@ See `ai/patterns/registration.md` "Binary Personality Registration" section.
 | Root `ze <name> ...` (owner-backed) | `ze bgp decode` | `MustRegisterRootHandler("bgp", wrap(Run), Meta)` in `internal/component/bgp/cli/register.go`; **registry-dispatched** |
 | Root `ze <name> ...` (no-owner) | `ze start`, `ze version` | `RegisterRoot("start", Meta)` from `cmd/ze`; dispatched by `main.go` static switch (allowlisted) |
 | `show X` offline shortcut | `ze show bgp decode` | `MustRegisterLocal("show bgp decode", wrapper)` in the owner package; reached via YANG tree or `LookupLocal` |
+| `show X` offline shortcut answering DATA | `ze show plugins`, `ze show module list` | `MustRegisterLocalData("show plugins", handler, Meta{Mode: "offline"}, command.RenderLocalAnswer)`, plus `command.RegisterShape` and `command.RegisterColumns`, in the owner package. Template: `internal/component/plugin/register.go` |
 | Online RPC | `show interface name <name> detail` | `pluginserver.RegisterRPCs(...)` in the plugin's `init()` (see Online Command section). Independent of the command registry |
+
+### Local-data commands: what the route owes
+
+A local-data command is served in any `ze` process with no daemon, because its
+handler reads a registry that `init()` already filled. Four declarations go
+together, and the last one is enforced by a gate.
+
+| Declaration | Call | Why |
+|-------------|------|-----|
+| The command and its handler | `cmdregistry.MustRegisterLocalData(path, handler, meta, command.RenderLocalAnswer)` | The path MUST be a string literal at the call: `./le docvalid command-contract` parses this file and reads literals, so a `const` identifier reaches it as no path at all |
+| The answer shape | `command.RegisterShape([]string{path}, command.ShapeTab)` | The published pipe catalog can then say which operators apply before the command runs |
+| The column order | `command.RegisterColumns([]string{path}, command.ColumnOrder{...})` | Without it `\| table` orders columns alphabetically |
+| The runtime evidence | One row in `internal/test/localdatacoverage.Evidence()`, plus an assertion in the same package's walk | `TestEveryLocalDataRegistrationHasAFunctionalCase` (`internal/component/command/registry`) derives production registrations from the Go AST and fails when one has no row. The row's command MUST carry a real pipe |
+
+Adding a row also moves three counts that are declared beside it: the two
+totals in `TestLocalDataCoverageEvidenceIsNonVacuousAndComplete`,
+`localdatacoverage.CompletionMarker`, and the ordered marker list in
+`test/ui/pipe-local-command.ci`.
+
+A local-data command registers no RPC, so it owes NO `wire-methods.snapshot`
+row and no `RequiresSelector`.
 
 ### Storage-dependent commands
 
@@ -503,4 +526,7 @@ automatically.
 [ ] If online: WireMethod in kebab-case matching YANG
 [ ] If online: RequiresSelector set correctly
 [ ] Functional tests (test/parse/ for offline, test/plugin/ for online)
+[ ] If local-data: MustRegisterLocalData + RegisterShape + RegisterColumns
+[ ] If local-data: an Evidence row and a walk assertion in internal/test/localdatacoverage,
+    and the three counts that move with it (see "Local-data commands: what the route owes")
 ```

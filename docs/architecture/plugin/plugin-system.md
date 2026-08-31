@@ -79,6 +79,32 @@ importing its package:
 
 <!-- source: internal/component/plugin/registry/registry.go -- Registration -->
 
+## The setup record: a plugin's second declaration
+
+`registry.Register` says what a plugin IS. `registry.RecordSetup(name, outcome,
+reason)` says what its setup ACHIEVED. Both are called from the plugin's own
+`init()`, both are keyed by the plugin name, and neither reads the other, so a
+plugin author never has to know that Go initializes the files of one package in
+filename order.
+
+| Outcome | Meaning | Effect on the daemon |
+|---------|---------|----------------------|
+| `SetupSucceeded` | The setup completed | None |
+| `SetupFailedSoft` | The feature is absent and the daemon runs correctly without it | The daemon starts |
+| `SetupFailedHard` | The daemon cannot run without it | `hub.run` refuses to start, naming every failing module |
+| `SetupUnknown` | Recorded nothing. A stored state, never a valid ARGUMENT to `RecordSetup` | None |
+
+The record is optional at the call site, so no existing registration changes.
+`show module list` derives its rows from the registry, so a plugin that
+recorded nothing is listed as `unknown` rather than dropped: absence would read
+as "not built into this binary", which is precisely the silence this record
+exists to remove.
+
+The reason reaches CLI output as data, so a recording site MUST NOT put a
+secret in one.
+<!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupOutcome, SetupResults -->
+<!-- source: internal/plugins/memlock/memlock_linux.go -- init, the worked example -->
+
 ## Dependencies
 
 | Field | Semantics |

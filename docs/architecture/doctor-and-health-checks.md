@@ -1,11 +1,31 @@
 # Doctor and Runtime Health Checks
 
-Ze has two tiers of self-diagnosis. `ze doctor` runs offline against config and
-the environment. The health registry runs inside the daemon and turns runtime
-anomalies into warnings and a `/health` verdict.
+Ze has three tiers of self-diagnosis, and they differ by WHEN they answer.
+
+| Tier | Command | When the fact is produced |
+|------|---------|---------------------------|
+| Offline readiness | `ze doctor` | At read time, in the operator's own process, by re-probing config and the environment |
+| Live health | `show health` | At read time, inside the daemon, by running a registered probe now |
+| Recorded setup outcome | `show module list` | Once, in a module's own `init()`, before `main()`. The command replays it |
+
+The third tier is the only one that remembers. A module that failed to set
+itself up is often a module that never reached the line where it would have
+registered a probe, so the first two tiers answer for it with silence, and
+absence reads as "not built into this binary". The setup registry answers
+because the record is written by the module and keyed by its name, and the list
+is derived from the plugin registry, so a module that recorded nothing is
+listed as `unknown` rather than dropped.
+
+The daemon consults that registry once, at the first statement of `hub.run`,
+and refuses to start when a module recorded a HARD failure. A CLI verb never
+reaches `run`, so no `ze` invocation is refused by it: the command that tells
+the operator what is wrong keeps working on a host where the daemon will not
+boot.
 
 <!-- source: internal/component/doctor/doctor.go -- offline checks and listener collection -->
 <!-- source: internal/core/health/registry.go -- runtime health registry -->
+<!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupResults, HardSetupFailures -->
+<!-- source: cmd/ze/hub/startup_gate.go -- hardSetupFailure, the refusal run applies -->
 
 ## Discovery beats enumeration
 

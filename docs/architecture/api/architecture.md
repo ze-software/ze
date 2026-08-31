@@ -292,6 +292,7 @@ internal/component/plugin/
 ├── resolve.go             # Config-to-plugin resolution helpers
 ├── inprocess.go           # Internal plugin runner lookup
 ├── registry/registry.go   # Compile-time plugin registry
+├── registry/setup.go      # What each module's init() recorded about its setup
 ├── process/process.go     # Internal and external process lifecycle
 ├── process/delivery.go    # Event queue and batch delivery
 ├── server/server.go       # Plugin server lifecycle
@@ -371,7 +372,20 @@ No other wiring is needed. The engine discovers it through registry queries, the
 | `YANGSchemas()` | YANG loader | All YANG schemas for CLI generation |
 | `ResolveDependencies()` | Engine startup | Expand dependency graph (with cycle detection) |
 | `TopologicalTiers()` | Engine startup | Order plugins for startup (Kahn's algorithm) |
+| `SetupResults()` | `show module list` | Every module and the setup outcome it recorded |
+| `HardSetupFailures()` | `hub.run` first statement | The modules whose recorded failure stops the daemon |
 <!-- source: internal/component/plugin/registry/registry.go -- FamilyMap, CapabilityMap, YANGSchemas, ResolveDependencies, TopologicalTiers -->
+
+**The setup record is a SECOND map, keyed by module name, under the same
+mutex.** `RecordSetup(module, outcome, reason)` is a plugin's other declaration
+from `init()`, beside `Register`. Neither write reads the other, so a plugin
+author never has to know that Go initializes the files of one package in
+filename order. `SetupResults` returns every registered module UNION every
+module that recorded, so a module that recorded nothing is `unknown` rather
+than missing, and a module that recorded and then failed to register keeps its
+row. `Reset`, `Snapshot` and `Restore` carry the record with the registry it
+belongs to.
+<!-- source: internal/component/plugin/registry/setup.go -- RecordSetup, SetupResults, HardSetupFailures -->
 
 ### YANG API Modules
 

@@ -412,6 +412,44 @@ IP address.
 
 <!-- source: internal/component/plugin/register.go -- dataPlugins, show plugins registration -->
 
+### show module list
+
+Every module with the setup outcome its own `init()` recorded. Answered in the
+operator's own process from the plugin registry, so it needs no daemon and no
+configuration.
+
+```
+ze show module list                          # every module, one row each
+ze show module list | ze pipe match memlock  # narrow the list from a shell
+```
+
+In the interactive CLI and through `ze cli -c`, the whole operator language
+applies to the answer: `show module list | json`, `| yaml`, `| table`,
+`| count`, `| match <text>`, `| first <n>`. The rows carry these keys:
+
+| Key | Value |
+|-----|-------|
+| `module` | The module name, as `show plugins` and `plugin { internal ... }` spell it |
+| `outcome` | `succeeded`, `soft-failure`, `hard-failure`, or `unknown` |
+| `reason` | What the module said about a failure. Absent when the module gave none |
+
+`unknown` means the module registered and recorded nothing. It is not an
+error, and it is not a success: it is the module owing a record.
+
+A `soft-failure` names a feature the daemon runs correctly without, so the
+daemon starts. A `hard-failure` stops the daemon at its first statement, with
+the module name and the reason on stderr and in the log. A CLI verb never
+reaches that gate, so this command still answers on a host where the daemon
+refuses to boot.
+
+This is not `show health`. `show health` runs a probe NOW and reports what the
+daemon is doing at this moment. This command replays a past event: an outcome
+recorded once, before `main()`, which is why it can answer for a module that
+failed before it had anything to probe.
+
+<!-- source: internal/component/plugin/register.go -- dataModules, show module list registration -->
+<!-- source: internal/component/plugin/registry/setup.go -- SetupResults, the rows it answers with -->
+
 ### show host
 
 Host hardware inventory. Read-only. Walks sysfs/procfs (and issues best-effort
