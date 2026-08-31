@@ -1,11 +1,16 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS attribute dictionary
+// RFC: rfc/short/rfc2865.md -- base packet codes and attribute types
+// RFC: rfc/short/rfc2866.md -- accounting packet codes and attribute types
+// RFC: rfc/short/rfc5176.md -- CoA/Disconnect packet codes and Error-Cause values
 // Related: packet.go -- packet encode/decode consuming these codes
 // Related: client.go -- client transport using packet codes
 // Related: attr.go -- attribute encode/decode helpers
 
 package radius
 
-// RADIUS packet codes (RFC 2865 Section 3, RFC 2866 Section 3, RFC 5176 Section 3).
+// RADIUS packet codes (RFC 2865 Section 3, RFC 2866 Section 3, RFC 5176 Section
+// 2.3). RFC 5176 assigns codes 40 to 45 in its Code field description; its
+// Section 3 is Attributes.
 const (
 	CodeAccessRequest   = 1
 	CodeAccessAccept    = 2
@@ -129,7 +134,8 @@ const (
 	NASPortTypeVirtual = 5
 )
 
-// Error-Cause values (RFC 5176 Section 3.6).
+// Error-Cause values (RFC 5176 Section 3.5). Section 3.6 is the table of
+// attributes; Section 3.5 defines the Error-Cause attribute and its values.
 const (
 	ErrorCauseResidualSession      = 201
 	ErrorCauseInvalidEAPPacket     = 202

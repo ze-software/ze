@@ -221,11 +221,14 @@ func VerifyCoARequestAuth(data, secret []byte) bool {
 // (type 80) of a CoA-Request or Disconnect-Request. It reports whether a
 // Dynamic Authorization Server may act on the datagram.
 //
-// A datagram carrying no Message-Authenticator fails: the Ze listener requires
-// the attribute on every CoA-Request and Disconnect-Request it accepts
-// (internal/component/l2tp/plugins/authradius/coa.go, handlePacket), so an
-// absent attribute is a refusal rather than an exemption. A datagram whose
-// attribute list cannot be walked fails too.
+// A datagram carrying no Message-Authenticator fails, because this function
+// answers one question only: does a present attribute verify. RFC 5176 Section
+// 3.4 makes the attribute a MAY, so absence is not a refusal, and the caller
+// decides. coaListener.handlePacket
+// (internal/component/l2tp/plugins/authradius/coa.go) reads presence itself and
+// calls this function only when the attribute is there; the absent case is the
+// `require-message-authenticator` leaf's business. A datagram whose attribute
+// list cannot be walked fails too.
 //
 // RFC 5176 Section 3.4: "A Dynamic Authorization Server receiving a CoA-Request
 // or Disconnect-Request with a Message-Authenticator Attribute present MUST
