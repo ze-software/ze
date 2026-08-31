@@ -34,6 +34,16 @@ The repository builds `ze` and `le` from the one `cmd/ze` codebase. The root
 `./ze` and `./le` launchers execute the cached `bin/ze` and `bin/le`
 personalities and build only when that cache is absent.
 
+`./le --name <name>` takes one session out of that cache. The launcher consumes
+the option, builds `bin/le-<name>/le` with the same tags and toolchain pin as
+the shared build, and rebuilds it on every call. The file keeps the name `le`
+because `defaultDispatch` selects the personality with
+`registry.LookupRoot(binaryName())`, so the session name goes on the directory.
+The launcher carries the name into the process, and `refuseWrongBuildName`
+refuses to answer when the running binary is a different build.
+<!-- source: le -- the --name option; cmd/ze/le_build_name.go -- refuseWrongBuildName -->
+
+
 Both personalities use the command registry and pipe engine. Their composition
 roots remain separate: a normal `ze` build imports no `internal/le` package,
 while the non-default `ze_le` build companion imports `internal/le/register.go`

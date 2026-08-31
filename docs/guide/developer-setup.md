@@ -22,11 +22,34 @@ Setup behavior lives in `internal/le/setup.Answer`.
 The cache is an existence test, never a freshness test, so a change under
 `internal/le/` does not reach `./le` on its own.
 <!-- source: le -- the binary existence cache -->
-Delete the binary to pick the change up, and the next `./le` call rebuilds it:
+
+Do not delete `bin/le`. Several sessions share one checkout and one of them can
+be executing that file right now. Ask for a build of your own instead:
 
 ```bash
-rm bin/le
+./le --name mywork verify current mode full
 ```
+
+`--name` comes first, before the command, and the launcher consumes it. Every
+argument after it reaches the binary unchanged. The build lands in
+`bin/le-mywork/le`, which `bin/` already keeps out of git, and it runs on every
+call, so the toolchain decides what to recompile and the binary carries your
+edits. The shared `bin/le` is never written and never waits for a peer.
+<!-- source: le -- the --name option -->
+
+A name accepts letters, digits, dot, underscore and hyphen. A name carrying `/`
+or `..` is refused with a message and exit 2, never repaired into something safe.
+
+The launcher exports the name to the process it runs and to that process's
+children, so a script that calls `./le` inside a named session reaches the same
+build without repeating the option. A binary that is not the one you named
+refuses to answer and reports both names:
+
+```
+le: --name asked for 'mywork' and this process is 'le' (/home/you/ze/bin/le).
+    Reach the named build through ./le --name mywork, never through a hardcoded binary path.
+```
+<!-- source: cmd/ze/le_build_name.go -- refuseWrongBuildName -->
 
 ## Check Mode
 
@@ -85,7 +108,7 @@ Regenerate the checked-in protobuf Go files after you change
 
 The action builds both protoc plugins from the vendored module versions, runs
 `protoc`, and applies explicit `json_name` options to Go struct tags.
-<!-- source: internal/le/setup/proto_generate.go -- ProtoGenerator.Run -->
+<!-- source: internal/le/setup/proto_generate.go -- protoGenerator.run -->
 
 Run the installed checker through the repository gate:
 

@@ -162,6 +162,12 @@ func dispatchMain(args []string) int {
 	crashlog.Init()
 	zeversion.Stamp(version, buildDate)
 
+	// A binary that is not the build the caller named answers nothing. See
+	// le_build_name.go for what the root launcher's --name option promises.
+	if code := refuseWrongBuildName(); code != 0 {
+		return code
+	}
+
 	// Handle universal flags before personality setup.
 	if len(args) > 0 {
 		switch args[0] {

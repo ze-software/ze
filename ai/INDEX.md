@@ -202,6 +202,13 @@ artifact type. Check them whenever your work touches the described concern.
 launcher executes `bin/le` and builds that personality only when the cached
 binary is absent. The root `./ze` launcher does the same for `bin/ze`.
 
+That cache is an existence test, never a freshness test, and `rm bin/le` is
+banned because peer sessions execute the same file. When you need a binary that
+carries your edits, put `./le --name <name>` first: it builds `bin/le-<name>/le`
+on every call, leaves the shared binary alone, and refuses to answer if some
+other binary is reached instead (`ai/rules/commands.md`,
+`docs/guide/developer-setup.md`).
+
 Both personalities use `internal/component/command`, but their composition roots
 are deliberately different. A normal `ze` build imports no `internal/le`
 package. A build with the non-default `ze_le` tag imports

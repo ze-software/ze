@@ -2,11 +2,13 @@
 set -eu
 
 root=$(CDPATH= cd "$(dirname "$0")" && pwd)
-binary=$root/bin/le
 
-# This is an existence cache, not a freshness check. An existing binary is
-# deliberately executed without asking the toolchain whether sources changed.
-if [ ! -x "$binary" ]; then
+# Builds the le personality into $1. Every caller shares this one block, so the
+# feature tags, the caches and the toolchain pin cannot drift between the shared
+# binary and a session-private one.
+build_le() {
+	out=$1
+
 	feature_tags=$(awk 'NF && $1 !~ /^#/ && !seen[$1]++ { printf "%s%s", sep, $1; sep="," }' "$root/feature-gates.txt")
 	tags=ze_le
 	if [ -n "$feature_tags" ]; then
@@ -29,8 +31,72 @@ if [ ! -x "$binary" ]; then
 		export GOTOOLCHAIN
 	fi
 
-	mkdir -p "$root/bin"
-	(cd "$root" && go build -tags "$tags" -o "$binary" ./cmd/ze)
+	mkdir -p "$(dirname "$out")"
+	(cd "$root" && go build -tags "$tags" -o "$out" ./cmd/ze)
+}
+
+# A build name becomes one path component, so it accepts letters, digits, dot,
+# underscore and hyphen, it is never empty, and `..` is refused on top of that.
+# A rejected name is never repaired into something safe.
+check_name() {
+	case $1 in
+	'' | *[!A-Za-z0-9._-]* | *..*)
+		echo "le: --name accepts letters, digits, dot, underscore and hyphen, and refuses '..': got '$1'" >&2
+		exit 2
+		;;
+	esac
+}
+
+# `./le --name <name> <command>...` builds bin/le-<name>/le and runs it. The
+# option is consumed here and only here, so everything after it reaches the
+# binary untouched. It has to come first, which is unambiguous because every le
+# command starts with a keyword and no keyword starts with a hyphen.
+#
+# ZE_LE_BUILD_NAME carries the choice to the process and to its children. It is
+# the launcher's own channel rather than an interface: cmd/ze/le_build_name.go
+# reads it and refuses to answer when the running binary is not the one the
+# caller named, which is what turns a stale or hardcoded binary into an error.
+name=
+case ${1:-} in
+--name)
+	name=${2:-}
+	check_name "$name"
+	shift 2
+	;;
+--name=*)
+	name=${1#--name=}
+	check_name "$name"
+	shift
+	;;
+*)
+	if [ -n "${ZE_LE_BUILD_NAME:-}" ]; then
+		name=$ZE_LE_BUILD_NAME
+		check_name "$name"
+	fi
+	;;
+esac
+
+if [ -n "$name" ]; then
+	# The file name stays `le`, so the name goes on the DIRECTORY. defaultDispatch
+	# in cmd/ze/dispatch.go picks the personality with LookupRoot(binaryName()),
+	# and a binary called le-probe answers `le session ...` with "unknown
+	# command: session" and prints the ze tree instead.
+	binary=$root/bin/le-$name/le
+	ZE_LE_BUILD_NAME=$name
+	export ZE_LE_BUILD_NAME
+	# Built on EVERY call, so the toolchain decides what is stale and the session
+	# reads its own edits. Sessions share this checkout, so this never writes
+	# bin/le and never waits for a peer to stop using it.
+	build_le "$binary"
+else
+	binary=$root/bin/le
+	# This is an existence cache, not a freshness check. An existing binary is
+	# deliberately executed without asking the toolchain whether sources changed.
+	# Deleting it is not the way to pick a change up, because peer sessions
+	# execute this same path. Pass --name instead.
+	if [ ! -x "$binary" ]; then
+		build_le "$binary"
+	fi
 fi
 
 exec "$binary" "$@"
