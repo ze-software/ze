@@ -1,0 +1,152 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2385",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2385.txt",
+  "source-sha": "d4667cc1ab9fd8ab",
+  "signed-off": "2026-09-01",
+  "reviewer": "ze-implement walk agent, spec-rfcgate-6-supported-extraction-signoff phase 7 (Class B, rfc2385)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, Copyright Notice, IESG Note and Abstract. The IESG Note records that the mechanism is weak against a concerted attack and the Abstract restates section 1; neither states an obligation."
+    },
+    {
+      "id": "1.0",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative throughout: what an attacker would have to guess, that the password never appears in the connection stream, that its form is up to the application, and that there is no negotiation for the option because its use is site policy. The last of these is the ground the section 2 sentence at site 2.0:5 states normatively, so nothing is left unmapped here."
+    },
+    {
+      "id": "2.0",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Proposal. The core of the document: what is signed, in what order, what a receiver does with the digest, and who controls signing. Five derived sites, all mapped. Its first sentence, 'Every segment sent on a TCP connection to be protected against spoofing will contain the 16-byte MD5 digest produced by applying the MD5 algorithm to these items in the following order', carries the whole computation and no modal, so the site scan cannot see it; it is captured as RFC2385-2.0-6.",
+      "unsourced-ids": [
+        "RFC2385-2.0-6"
+      ]
+    },
+    {
+      "id": "3.0",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Syntax. The option diagram and the sentence 'The MD5 digest is always 16 bytes in length, and the option would appear in every segment of a connection'. Both are written in the indicative, so the scan derives no site, and the encoding they fix is captured as RFC2385-3.0-1.",
+      "unsourced-ids": [
+        "RFC2385-3.0-1"
+      ]
+    },
+    {
+      "id": "4.0",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "'Some Implications' is a heading with no body of its own; its four subsections follow."
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Connectionless Resets. A consequence, not an obligation: a reset from a party without the key is ignored, so a connect to a port with no listener times out instead of being refused and a stale-connection reset no longer clears the session quickly."
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Performance. Two measured digest timings on a 100 MHz R4600 and the note that the cost is paid on both paths. No obligation."
+    },
+    {
+      "id": "4.3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "TCP Header Size. Two derived sites, both mapped: the option's 18 octets have to be allowed for in the MSS offered at setup, and the whole header including options has to fit the 60 bytes the data-offset field can express. The 4.4BSD worked example that follows is arithmetic over those two, and states nothing further."
+    },
+    {
+      "id": "4.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MD5 as a Hashing Algorithm. Why the memo keeps MD5 despite the collision-search result: the option is already deployed and carries no algorithm-type field. It states what a FUTURE document could do and binds nobody here."
+    },
+    {
+      "id": "4.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Key configuration. One obligation, written as 'It is strongly recommended that an implementation be able to support at minimum a key composed of a string of printable ASCII of 80 bytes or less, as this is current practice'. 'strongly recommended' is SHOULD-level and carries no modal the scan counts, so it is captured as RFC2385-4.5-1.",
+      "unsourced-ids": [
+        "RFC2385-4.5-1"
+      ]
+    },
+    {
+      "id": "5.0",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that this is a weak but currently practiced mechanism and that stronger ones are expected later. No obligation."
+    },
+    {
+      "id": "6.0",
+      "sites": 1,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References, the author's address and the Full Copyright Statement, which the section parser attached to the last numbered heading. Its one derived site is the copyright licence sentence."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.0:1",
+      "quote": "The nature of the key is deliberately left unspecified, but it must be known by both ends of the connection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2385-2.0-1",
+      "reason": "The key-sharing obligation. Ze installs one operator-configured key for the peer on BOTH ends of its own side: the outbound socket (NewSession and mergedRealDialer fill network.RealDialer.MD5Key and PeerAddr, internal/component/bgp/reactor/session.go) and the listening socket (Reactor.md5PeersForListener fills network.RealListenerFactory.MD5Peers, internal/component/bgp/reactor/reactor.go), so a session Ze answers is keyed as well as one it dials."
+    },
+    {
+      "id": "2.0:2",
+      "quote": "Upon receiving a signed segment, the receiver must validate it by calculating its own digest from the same data (using its own key) and comparing the two digest.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2385-2.0-2",
+      "reason": "The receive-side validation. Ze runs no digest of its own: the kernel validates, because setTCPMD5Sig installed the key for the peer address before connect and before bind (internal/core/network/network.go, internal/core/network/md5_linux.go). Conformance is judged on what the whole stack produces (ai/rules/rfc-compliance.md, owner directive 2026-08-31), so this is met through the kernel and proven at the boundary ze owns."
+    },
+    {
+      "id": "2.0:3",
+      "quote": "A failing comparison must result in the segment being dropped and must not produce any response back to the sender.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2385-2.0-3",
+      "reason": "Drop, and answer nothing. Same producer as site 2.0:2: the drop is the kernel's, reached because ze installed the key. The observable ze can be held to is that a peer whose digest does not verify gets no answer at all, which is a timeout rather than a reset."
+    },
+    {
+      "id": "2.0:4",
+      "quote": "Unlike other TCP extensions (e.g., the Window Scale option [RFC1323]), the absence of the option in the SYN,ACK segment must not cause the sender to disable its sending of signatures.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2385-2.0-4",
+      "reason": "No downgrade on a missing option. Ze holds no path that stops signing: the dialer is rebuilt from PeerSettings.MD5Key on every connection attempt (mergedRealDialer, internal/component/bgp/reactor/session.go) and nothing the remote host does clears it."
+    },
+    {
+      "id": "2.0:5",
+      "quote": "More importantly, the sending of signatures must be under the complete control of the application, not at the mercy of the remote host not understanding the option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2385-2.0-5",
+      "reason": "Signing is the application's decision. In ze it is the operator's config: parsePeer reads connection > md5 > password into PeerSettings.MD5Key (internal/component/bgp/reactor/config.go) and only a configured peer gets a key installed. On a platform whose kernel has no TCP_MD5SIG the dial and the listen FAIL (md5_darwin.go, md5_other.go) rather than falling back to an unsigned session, which is the same rule read in the other direction."
+    },
+    {
+      "id": "4.3:1",
+      "quote": "As with other options that are added to every segment, the size of the MD5 option must be factored into the MSS offered to the other side during connection negotiation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2385-4.3-1",
+      "reason": "The MSS has to allow for the option. The MSS is chosen by the kernel that signs the segments, which knows the option is installed on the socket; ze contributes no MSS and no TCP option. Met through the kernel, and asserted at ze's boundary by a payload larger than one segment crossing a keyed connection intact."
+    },
+    {
+      "id": "4.3:2",
+      "quote": "This means that the total size of the header plus option must be less than or equal to 60 bytes -- this leaves 40 bytes for options.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2385-4.3-2",
+      "reason": "The 60-byte header ceiling. Same producer: the option list is assembled by the kernel, ze adds no TCP option of its own, and a keyed connection that completes its handshake is one whose option list fit."
+    },
+    {
+      "id": "6.0:1",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate the extractor did not strip: the Full Copyright Statement's licence condition on modifying and republishing THIS DOCUMENT. It binds a party redistributing the memo, not a TCP implementation, and states nothing about a segment, a digest or a key."
+    }
+  ]
+}

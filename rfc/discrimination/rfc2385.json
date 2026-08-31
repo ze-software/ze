@@ -1,0 +1,170 @@
+{
+  "rfc": "rfc2385",
+  "records": [
+    {
+      "rid": "RFC2385-2.0-1",
+      "polarity": "negative",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385KeyOnOneEndOnlyCarriesNoSession",
+      "unit-sha": "88c97d4dd0e1bff0",
+      "claim-sha": "6b7d55ac903bad34",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-2.0-1",
+      "polarity": "positive",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession",
+      "unit-sha": "8dfb5c49bcc67d8d",
+      "claim-sha": "544d8c864e73a47c",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-2.0-2",
+      "polarity": "positive",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession",
+      "unit-sha": "8dfb5c49bcc67d8d",
+      "claim-sha": "7762e6fc7064fea8",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-2.0-2",
+      "polarity": "negative",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse",
+      "unit-sha": "bdf9a6938c144ce8",
+      "claim-sha": "f819c374c4d76021",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-2.0-3",
+      "polarity": "negative",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession",
+      "unit-sha": "8dfb5c49bcc67d8d",
+      "claim-sha": "f72f0fdfae421343",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-2.0-3",
+      "polarity": "positive",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse",
+      "unit-sha": "bdf9a6938c144ce8",
+      "claim-sha": "78a5ae46326b71f1",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-2.0-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385FailedConnectDoesNotDisableSigning",
+      "unit-sha": "f24df675f05a8200",
+      "claim-sha": "c8c703fb7f032997",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/session.go::NewSession",
+      "producer-sha": "c2a463916661e47e",
+      "break": "body of NewSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-2.0-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385ConfiguredKeyReachesBothSockets",
+      "unit-sha": "d4d55cd3b33e99db",
+      "claim-sha": "c58b63c8660c3074",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor.go::md5PeersForListener",
+      "producer-sha": "907d424b31b03af3",
+      "break": "body of md5PeersForListener replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-2.0-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc2385_test.go::TestRFC2385NoKeyWithoutConfiguration",
+      "unit-sha": "2f28ad7090c8566d",
+      "claim-sha": "d64f462c3471cb87",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/reactor.go::md5PeersForListener",
+      "producer-sha": "907d424b31b03af3",
+      "break": "body of md5PeersForListener replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-2.0-6",
+      "polarity": "positive",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession",
+      "unit-sha": "8dfb5c49bcc67d8d",
+      "claim-sha": "f4b3360c238b5df9",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-2.0-6",
+      "polarity": "negative",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse",
+      "unit-sha": "bdf9a6938c144ce8",
+      "claim-sha": "a3232e82d612f6fe",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-3.0-1",
+      "polarity": "positive",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession",
+      "unit-sha": "8dfb5c49bcc67d8d",
+      "claim-sha": "63bb735ca51f1d30",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-3.0-1",
+      "polarity": "negative",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MismatchedKeyIsDroppedWithNoResponse",
+      "unit-sha": "bdf9a6938c144ce8",
+      "claim-sha": "c50c14871be12589",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-4.3-1",
+      "polarity": "positive",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession",
+      "unit-sha": "8dfb5c49bcc67d8d",
+      "claim-sha": "441f3cb792d1ca4f",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2385-4.3-2",
+      "polarity": "positive",
+      "unit": "internal/core/network/md5_rfc2385_linux_test.go::TestRFC2385MatchingKeysCarryASignedSession",
+      "unit-sha": "8dfb5c49bcc67d8d",
+      "claim-sha": "875b73240396d743",
+      "route": "revert",
+      "producer": "internal/core/network/md5_linux.go::setTCPMD5Sig",
+      "producer-sha": "1259fa61f40ba41e",
+      "break": "body of setTCPMD5Sig replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
