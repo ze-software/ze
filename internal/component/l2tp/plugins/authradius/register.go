@@ -282,9 +282,15 @@ func serverIPs(servers []radius.Server) []net.IP {
 
 // resolveCoAHost resolves a hostname RADIUS server address to IPs for the CoA
 // source-address allow list under the caller's shared deadline. An unresolved
-// (or timed-out) hostname is logged and skipped: the allow list degrades to the
-// resolvable subset (fail-closed for CoA source filtering) and apply is never
-// blocked on a dead resolver.
+// (or timed-out) hostname is logged and skipped, so the allow list degrades to
+// the resolvable subset and apply is never blocked on a dead resolver.
+//
+// That degradation is fail-closed at every size INCLUDING zero, which is a
+// property of isAllowedSource (coa.go) rather than of this function. Until
+// 2026-08-31 this comment claimed fail-closed while the guard read an empty
+// list as "allow every source", so an outage that left no hostname resolvable
+// opened the CoA port instead of shutting it. The claim is true now because
+// the guard was corrected, not because the wording was.
 func resolveCoAHost(ctx context.Context, host string) []net.IP {
 	addrs, err := lookupIPAddr(ctx, host)
 	if err != nil {

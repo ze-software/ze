@@ -29,7 +29,7 @@ import (
 // (coa.go coaListener.handlePacket).
 func TestRFC5176ListenerAcceptsConformantMessageAuthenticator(t *testing.T) {
 	secret := []byte("test-coa-ma-conformant")
-	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestRFC5176ListenerAcceptsConformantMessageAuthenticator(t *testing.T) {
 // Request Authenticator verifies (coa.go coaListener.handlePacket).
 func TestRFC5176ListenerDiscardsWrongMessageAuthenticator(t *testing.T) {
 	secret := []byte("test-coa-ma-wrong")
-	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}

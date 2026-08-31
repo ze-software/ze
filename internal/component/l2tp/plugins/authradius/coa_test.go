@@ -13,6 +13,19 @@ import (
 	"github.com/ze-software/ze/internal/component/radius"
 )
 
+// coaLoopbackSources is the allow list every fixture in this package needs,
+// because every fixture sends from the loopback address.
+//
+// It is stated rather than left empty on purpose. Until 2026-08-31
+// isAllowedSource read an EMPTY list as "allow every source", so each of these
+// fixtures reached the listener without ever crossing the source filter, and no
+// test in the package pinned that filter at all. Naming the sources here is what
+// lets TestCoAListenerDiscardsAnUntrustedSource be the only test that answers
+// for it.
+func coaLoopbackSources() []net.IP {
+	return []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback}
+}
+
 func sendCoAPacket(t *testing.T, addr string, code uint8, secret []byte, attrs []radius.Attr) *radius.Packet {
 	t.Helper()
 	return sendRawCoAPacket(t, addr, buildCoAPacket(t, code, secret, attrs, time.Now()))
@@ -232,7 +245,7 @@ func mustResolveUDP(t *testing.T, addr string) *net.UDPAddr {
 // silently discarded, producing no response datagram.
 func TestCoAListenerInvalidAuth(t *testing.T) {
 	secret := []byte("test-coa-secret")
-	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -293,7 +306,7 @@ func TestCoAListenerInvalidAuth(t *testing.T) {
 // proves the leaf, and not the code, decides.
 func TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired(t *testing.T) {
 	secret := []byte("test-coa-secret-missing-ma")
-	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret, RequireMessageAuthenticator: true})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret, RequireMessageAuthenticator: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -319,7 +332,7 @@ func TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired(t *testing.T)
 // discarded; it receives a response, so the silent discard is specific to invalid auth.
 func TestCoAListenerUnknownSession(t *testing.T) {
 	secret := []byte("test-coa-secret-2")
-	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,7 +363,7 @@ func TestCoAListenerUnknownSession(t *testing.T) {
 
 func TestCoAListenerMissingEventTimestamp(t *testing.T) {
 	secret := []byte("test-coa-secret-missing-ts")
-	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,7 +408,7 @@ func TestDisconnectReplayReturnsCachedResponse(t *testing.T) {
 	l2tp.PublishService(fake)
 	defer l2tp.PublishService(nil)
 
-	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -425,7 +438,7 @@ func TestDisconnectReplayReturnsCachedResponse(t *testing.T) {
 // VALIDATES: AC-7 -- DM for unknown session returns Disconnect-NAK.
 func TestDisconnectListenerUnknownSession(t *testing.T) {
 	secret := []byte("test-dm-secret")
-	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}

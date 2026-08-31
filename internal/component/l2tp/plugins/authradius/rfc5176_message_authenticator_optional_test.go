@@ -45,7 +45,7 @@ func TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault(t *testing.T) {
 	l2tp.PublishService(fake)
 	defer l2tp.PublishService(nil)
 
-	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault(t *testing.T) {
 // (coa.go coaListener.handlePacket).
 func TestRFC5176WrongMessageAuthenticatorDiscardedWhenNotRequired(t *testing.T) {
 	secret := []byte("test-coa-ma-wrong-not-required")
-	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
+	cl, err := newCoAListener(coaListenerConfig{AllowedSources: coaLoopbackSources(), DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}

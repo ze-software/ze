@@ -184,10 +184,23 @@ func (cl *coaListener) secretForSource(ip net.IP) []byte {
 	return cl.cfg.DefaultSecret
 }
 
+// isAllowedSource answers whether a packet's source is a configured Dynamic
+// Authorization Client.
+//
+// RFC 5176 Section 6.1: "A Dynamic Authorization Server MUST silently discard
+// Disconnect-Request or CoA-Request packets from untrusted sources."
+//
+// An EMPTY list answers no, and that is the whole of this function's care. The
+// list is `serverIPs(cfg.Servers)` and the listener starts only when
+// `len(cfg.Servers) > 0` (registerCallbacks, register.go), so empty never means
+// "the operator configured nothing". It means every configured server is a
+// hostname and none of them resolved: `resolveCoAHost` logs the failure and
+// returns nil. Reading that empty list as "allow everyone" turned a DNS outage
+// into an open CoA port, where `secretForSource` then hands `DefaultSecret` to
+// any source that asks. A zero value that reads as a valid answer is the defect
+// class in plan/journal/zero-value-as-valid-answer.md, and a guard whose empty
+// input means yes is the one ai/rules/evidence.md names.
 func (cl *coaListener) isAllowedSource(ip net.IP) bool {
-	if len(cl.cfg.AllowedSources) == 0 {
-		return true
-	}
 	for _, allowed := range cl.cfg.AllowedSources {
 		if allowed.Equal(ip) {
 			return true
