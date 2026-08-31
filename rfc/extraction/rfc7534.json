@@ -1,0 +1,281 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7534",
+  "register": "prose",
+  "source-path": "rfc/full/rfc7534.txt",
+  "source-sha": "e49b3f8cd69c5bc3",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc7534",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. Walked rather than skipped because the site scan attributes two sites here, both excluded below: the Abstract's last paragraph and the IETF Trust Legal Provisions boilerplate. The Abstract restates section 1 and states that the document obsoletes RFC 6304. Nothing before section 1 binds a nameserver or its operator."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative throughout: private-use addresses are not globally unique, devices originate reverse lookups for them, those queries are answered by nobody usefully, and the AS112 project is a distributed sink for them. Its one guidance sentence, 'it is good practice for site administrators to ensure that such queries are answered locally [RFC6303]', binds the site administrator whose resolver leaks the query, not the AS112 node; rfc/short/rfc7534.md carries it under Security Considerations and RFC 6303 owns it. The last paragraph states the project's operating shape, which the AS112 plugin implements: a nameserver configured to answer authoritatively for a nominated zone set, one node in an anycast cloud."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "AS112 DNS Service, the parent heading. No text of its own."
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Approach, the parent heading of 2.1.1 and 2.1.2. No text of its own."
+    },
+    {
+      "id": "2.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Direct Delegation. Indicative: zones whose traffic should be sunk are delegated directly to AS112 nameservers, and each node is manually configured to answer for them. The delegation half binds the parent zone's operator and IANA, not the node. The node half is the same obligation as RFC7534-3.5-1, declared unsourced on 3.5."
+    },
+    {
+      "id": "2.1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "DNAME Redirection. Reports that RFC 7535 defines a different approach, in which queries are redirected to an empty zone also hosted on AS112 servers using DNAME [RFC6672], and that this document introduces the capability. The obligations of that approach belong to RFC 7535, which has its own summary and its own sign-off; nothing here directs a node beyond serving EMPTY.AS112.ARPA, which 2.2 lists and RFC7534-3.5-1 covers."
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Zones. The zone list an AS112 nameserver answers authoritatively for: 10.IN-ADDR.ARPA, the sixteen 172.16/12 zones, 168.192.IN-ADDR.ARPA, 254.169.IN-ADDR.ARPA, EMPTY.AS112.ARPA, and the two identification zones HOSTNAME.AS112.NET and HOSTNAME.AS112.ARPA. It is a list of names, not a directive; the obligation to answer authoritatively for each of them is RFC7534-3.5-1, declared unsourced on 3.5. The section closes by pointing at 3.5 for the recommended contents. Ze's table is buildServedZones in internal/plugins/as112/zones.go, twenty-two zones with the same membership."
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Nameservers. States which nameserver names and anycast addresses the zones are delegated to (BLACKHOLE-1 and BLACKHOLE-2.IANA.ORG, PRISONER.IANA.ORG as the SOA MNAME, BLACKHOLE.AS112.ARPA for DNAME redirection), and which prefixes cover them. The delegation binds IANA and the parent zone operators. The addresses a node configures are the subject of 3.3 and 3.4 and of RFC7534-3.4-3; the names a node puts in its own SOA and NS records are the subject of 3.5. Nothing is directed at a speaker here that is not directed again there. Ze's constants are anycastV4DirectDelegationAddr and its three siblings in internal/plugins/as112/register.go."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Installation of a New Node, the parent heading. No text of its own."
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Useful Background Knowledge. Says installation is straightforward and that experience in BGP, DNS authoritative server operations and anycast distribution may prove useful. Advice to a person, directing no software behavior."
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Topological Location. Says a node may be located anywhere, that an Internet Exchange Point is often advantageous, and that a node may advertise its service prefix for local or for global use. Its one guidance sentence, 'It is good operational practice to notify the community of users that may fall within the reach of a new AS112 node before it is installed', with 'coordination with other AS112 operators is highly recommended' for globally reachable nodes, binds the operator installing the node and is repeated in section 5. rfc/short/rfc7534.md declares it as RFC7534-3.2-1 at [SHOULD] and cites both sections; it is declared unsourced here because the modal is the lowercase 'recommended' inside 'is highly recommended', which the site scan does not attribute to this section.",
+      "unsourced-ids": [
+        "RFC7534-3.2-1"
+      ]
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Operating System and Host Considerations. Four lowercase-'should' sentences, all four declared unsourced here because the site scan attributes no site to this section: the chosen platform 'should include either support for cloned loopback interfaces or the capability to bind multiple addresses to a single loopback interface' (RFC7534-3.3-1); a host acting as an AS112 node 'should be dedicated to that purpose and should not be used to simultaneously provide other services' (RFC7534-3.3-2); startup order 'should be arranged such that routing software startup follows DNS software startup, and DNS software startup follows loopback interface configuration' (RFC7534-3.3-3); and 'Wrapper scripts or other arrangements should be employed to ensure that the anycast service prefix for AS112 is not advertised while either the anycast addresses are not configured or the DNS software is not running' (RFC7534-3.3-4). The first three bind the operator choosing and building the host. The fourth lands on ze, which is both the DNS server and the BGP speaker: as112Producer.onServingChanged and withdraw (internal/plugins/as112/redistribute.go) hold the covering prefixes back until the listeners are serving and withdraw them when they stop, so the wrapper the RFC asks an operator to write is inside the product.",
+      "unsourced-ids": [
+        "RFC7534-3.3-1",
+        "RFC7534-3.3-2",
+        "RFC7534-3.3-3",
+        "RFC7534-3.3-4"
+      ]
+    },
+    {
+      "id": "3.4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Routing Software. States that each AS112 node is a BGP speaker announcing 192.175.48.0/24 and 2620:4f:8000::/48 with origin AS 112, that the examples are based on the Quagga Routing Suite, and that an IPv4-only node need not configure the IPv6 elements and an IPv6-only node need not configure the IPv4 ones (RFC7534-3.4-3, [MAY]). Most of the section is an annotated bgpd.conf, and the guidance it carries is stated in the paragraph after it: 'two restrictions on what the AS112 should advertise to its BGP neighbours: a prefix filter that permits only the service prefixes, and an AS_PATH filter that matches only locally originated routes', which rfc/short/rfc7534.md declares as RFC7534-3.4-1 and RFC7534-3.4-2. All three ids are declared unsourced here: the one site the scan attributes to this section is the zebra.conf sentence, which is about Quagga and is excluded below. Ze's covering prefixes and origin AS are coveringPrefixesFor and as112DefaultASN (internal/plugins/as112/redistribute.go, config.go).",
+      "unsourced-ids": [
+        "RFC7534-3.4-1",
+        "RFC7534-3.4-2",
+        "RFC7534-3.4-3"
+      ]
+    },
+    {
+      "id": "3.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "DNS Software. The section that carries every MUST-level id this summary declares, and not one of them is stated with a modal the site scan can see, so all five ids read from here are declared unsourced. 'AS112 nodes operate as fully functional and standards-compliant DNS authoritative servers [RFC1034]' is RFC7534-3.5-1, with the named.conf note 'the nameserver is configured to act as an authoritative-only server (i.e., recursion is disabled)' as RFC7534-3.5-4. The zone content rules are comments inside db.dd-empty and db.dr-empty: 'There should be no other resource records included in this zone' is RFC7534-3.5-2, and 'Records that relate to RFC 1918-numbered resources within the site hosting this AS112 node should not be hosted on this nameserver' is RFC7534-3.5-3. 'the responses to the queries \"HOSTNAME.AS112.NET IN TXT\" and \"HOSTNAME.AS112.ARPA IN TXT\" should fit within a 512-octet DNS/UDP datagram: i.e., it should be available over UDP transport without requiring EDNS0 support by the client' is RFC7534-3.5-5. The SOA field values, the NS targets and the $TTL of 1W are sample zone data rather than sentences, and rfc/short/rfc7534.md carries them in its DNS Software Requirements prose; ze's constants are soaRefresh, soaRetry, soaExpire, soaMinTTL and zoneTTL in internal/plugins/as112/zones.go, and the answer synthesis is zoneAnswer in the same file. Two further sentences state no obligation ze is left owing. 'The optional LOC record [RFC1876] included in each zone apex provides information about the geospatial location of the node' is offered as optional and no id declares it; ze synthesizes SOA, NS and TXT at the apex and no LOC. 'Where software implementations support it, operational data should also be carried using NSID [RFC5001]' is conditioned on the DNS software supporting NSID, and ze's DNS harness (internal/core/dnsserver) reads the EDNS0 OPT record for client-subnet (RFC 7871) and implements no NSID option, so the condition does not hold and the sentence binds nothing here.",
+      "unsourced-ids": [
+        "RFC7534-3.5-1",
+        "RFC7534-3.5-2",
+        "RFC7534-3.5-3",
+        "RFC7534-3.5-4",
+        "RFC7534-3.5-5"
+      ]
+    },
+    {
+      "id": "3.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Testing a Newly Installed Node. A worked 'dig' invocation against hostname.as112.net TXT, how to read a response that names a different node, and the note that a proper test set queries from many places over both UDP and TCP against all three anycast addresses. Instructions to the person commissioning the node, directing no behavior of the node itself. Ze's equivalent is the operator-facing as112 health command, handleAS112Health in internal/plugins/as112/health.go."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Operations, the parent heading. No text of its own."
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Monitoring. One lowercase-'should' sentence, declared unsourced here: 'AS112 nodes should be monitored to ensure that they are functioning correctly, just as with any other production service.' It binds the node's operator, and the rest of the section says why: a node that answers wrongly causes failures and timeouts in dependent systems that are hard to diagnose.",
+      "unsourced-ids": [
+        "RFC7534-4.1-1"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Downtime. One lowercase-'should' sentence, declared unsourced here: 'An AS112 node that needs to go off-line (e.g., for planned maintenance or as part of the diagnosis of some problem) should stop advertising the AS112 service prefixes to its BGP peers', by shutting the routing software down or by withdrawing the route. The second paragraph gives the reason: an announced prefix with a dead nameserver blackholes the query traffic. The obligation binds the operator taking the node down, and ze gives them the mechanism: as112Producer.withdraw (internal/plugins/as112/redistribute.go) withdraws the covering prefixes when the listeners stop serving.",
+      "unsourced-ids": [
+        "RFC7534-4.2-1"
+      ]
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Statistics and Measurement. One lowercase-'should' sentence, declared unsourced here: 'Use of the AS112 node should be measured in order to track long-term trends, identify anomalous conditions, and ensure that the configuration of the AS112 node is sufficient to handle the query load.' It binds the operator. The rest names free monitoring tools (bindgraph, dnstop, DSC) and suggests joining DNS-OARC collection events, which is a recommendation about a community activity and directs no software. Ze publishes the counters an operator measures with: buildMetrics in internal/plugins/as112/metrics.go.",
+      "unsourced-ids": [
+        "RFC7534-4.3-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Communications. Repeats 3.2's notify-the-community guidance, names the as112-ops@lists.dns-oarc.net mailing list and www.as112.net, says information about a node should also be published in the DNS through the HOSTNAME.AS112.* zones (which is 3.5's TXT content, RFC7534-3.5-5), and says operators should be aware of RFC 6305 and direct site administrators appropriately. Every obligation binds the node's operator and is already declared: RFC7534-3.2-1 cites this section beside 3.2, and it is declared unsourced on 3.2 rather than twice."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "On the Future of AS112 Nodes. Indicative and predictive: recursive-nameserver operators are recommended by RFC 6303 to answer these zones locally, no trend toward that compliance is observable, vendors are expected to ship such defaults, the query load will not fall to zero, and the community might one day recommend retiring Direct Delegation service -- which the section says explicitly this document does not recommend. The one recommendation named belongs to RFC 6303 and binds a recursive resolver, not an AS112 node."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations, the parent heading."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations, General. Records who assigned the AS number and the four prefixes (ARIN for 112, 192.175.48.0/24 and 2620:4f:8000::/48; IANA for 192.31.196.0/24 and 2001:4:112::/48) and that the anycast infrastructure itself is not an IANA function. Binds IANA and the registries."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Actions, the parent heading."
+    },
+    {
+      "id": "7.2.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "The AAAA records IANA has added for PRISONER, BLACKHOLE-1 and BLACKHOLE-2.IANA.ORG. An IANA action on the IANA.ORG zone."
+    },
+    {
+      "id": "7.2.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "The registration of AS 112 in the Special-Purpose AS Numbers registry [RFC7249]. An IANA action."
+    },
+    {
+      "id": "7.2.3",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "The registration of 192.175.48.0/24 in the IANA IPv4 Special-Purpose Address Registry [RFC6890]. An IANA action."
+    },
+    {
+      "id": "7.2.4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "The registration of 2620:4f:8000::/48 in the IANA IPv6 Special-Purpose Address Registry [RFC6890]. An IANA action."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Five paragraphs, none of which directs the node's DNS or BGP behavior. Hosts should never normally send these queries and should answer them locally, which binds the querying site. Responses are unexpected and can trigger intrusion detection, so AS112 operators should expect to be contacted, with RFC 6305 as the advice to give. A loosely coordinated deployment makes a compromised node hard to detect, so operators should protect their nodes as they would any production nameserver, with RFC 2870 named as instructive: that binds the operator. The last paragraph states as fact that AS112 zones are not DNSSEC-signed, because the key material would have to be effectively public; it is a statement of what the service does not do, not an obligation. rfc/short/rfc7534.md carries all five under Security Considerations and declares no id for them."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References, the parent heading."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 1034, RFC 1918, RFC 2870, RFC 4033, RFC 4271, RFC 4786 and RFC 7535."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 1876, RFC 5001, RFC 5855, RFC 6303, RFC 6304, RFC 6305, RFC 6672, RFC 6890 and RFC 7249."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix A, A Brief History of AS112. Narrative: RFC 1918 use spread from 1996, offloading IN-ADDR.ARPA from the root servers was proposed by Bill Manning and John Brown, ARIN provided the prefix and AS 112, the first nodes were deployed in 2002, and IN-ADDR.ARPA was redelegated in 2011. It directs nobody."
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix B, Changes since RFC 6304: IPv6 transport, DNAME-based delegation of additional zones, the consequent configuration guidance, clarified information-leak text, and the direction to IANA to register the prefixes. A change list over the obsoleted document. The derivation attributes the trailing Acknowledgements and Authors' Addresses to this section, and neither binds anybody either."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "This document describes the steps required to install a new AS112 node and offers advice relating to such a node's operation.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The Abstract's closing paragraph, non-normative by RFC convention. Its lowercase 'required' is inside 'the steps required to install a new AS112 node', which names what the document is about rather than obliging anybody to do anything. The installation guidance itself is section 3, and every id read from it is declared unsourced on the section that states it."
+    },
+    {
+      "id": "front:2",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate the extractor did not strip: the IETF Trust Legal Provisions paragraph of the Copyright Notice. Its lowercase 'must' binds a party extracting Code Components from the document text, and directs no DNS or BGP behavior. The document's sample bgpd.conf, named.conf and zone files are Quagga and BIND9 configuration, not code components ze reuses: internal/plugins/as112 synthesizes the same zone contents in Go."
+    },
+    {
+      "id": "3.4:1",
+      "quote": "The \"zebra.conf\" file is required to provide integration between protocol daemons (bgpd, in this case) and the kernel.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A description of another system, and the extractor cannot see which: 'zebra.conf' is a file of the Quagga Routing Suite, which the same section names as the basis of its examples while saying 'other software packages exist that also provide suitable BGP support for AS112 nodes'. The sentence states that Quagga needs a zebra daemon to reach the kernel FIB, so its lowercase 'required' is a fact about that package's architecture and not an obligation on an AS112 node. Ze is a single daemon with its own FIB path and no zebra; the two restrictions this section does place on an AS112 node's BGP advertisement are RFC7534-3.4-1 and RFC7534-3.4-2, declared unsourced on 3.4."
+    }
+  ],
+  "register-reason": "Informational, May 2015, obsoleting RFC 6304. It carries no RFC 2119 key-words section and states no RFC 2119 keyword: the document is an installation and operations guide written in the indicative and in the lowercase 'should', and most of its guidance is carried by annotated sample configuration files (bgpd.conf, named.conf, db.dd-empty, db.dr-empty) rather than by sentences. DeriveRegister grades the source 'prose' and this sign-off claims exactly that grade. The case-insensitive modal scan finds three sentences, all excluded below: two non-normative descriptions (the Abstract's summary of what the document does, and a statement about the Quagga Routing Suite's zebra.conf) and the IETF Trust Legal Provisions boilerplate. Every one of the sixteen ids rfc/short/rfc7534.md declares is therefore read from indicative prose or from a zone-file comment, and each is declared in unsourced-ids on the section it was read from."
+}

@@ -1,0 +1,204 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7535",
+  "register": "prose",
+  "source-path": "rfc/full/rfc7535.txt",
+  "source-sha": "c4c8927061eec869",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc7535",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. Walked rather than skipped because the site scan attributes one site here, the IETF Trust Legal Provisions boilerplate, excluded below. The Abstract states that the document describes a way to redirect queries to AS112 servers using DNAME. Nothing before section 1 binds a nameserver or its operator."
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Introduction. The first three paragraphs are RFC 7534's introduction repeated word for word. The rest states the problem this document solves: AS112 operators are only loosely coordinated, so adding or removing a directly delegated zone is hard to do accurately and hard to test remotely across an anycast cloud, and a zone delegated to nameservers not yet configured for it is a lame delegation. Its one site, 1:1, is the existing Direct Delegation obligation quoted from RFC 7534 and is excluded cross-document below. The closing paragraphs state what this document defines: DNAME redirection deployable alongside unmodified AS112 nodes, usable by any zone administrator without coordinating with AS112 operators."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Design Overview. States the design as fact: EMPTY.AS112.ARPA is delegated to the single nameserver BLACKHOLE.AS112.ARPA at 192.31.196.1 and 2001:4:112::1, and each address was chosen so a single covering prefix (a /24 and a /48) carries it with no other address in use inside that prefix, which is what makes the anycast distribution work. Two lowercase-'should' sentences follow and both are declared elsewhere: 'Some or all of the existing AS112 nodes should be extended to support these new nameserver addresses and to host the EMPTY.AS112.ARPA zone' is section 3.1's guidance, declared unsourced there as RFC7535-3.1-1 and RFC7535-3.1-2; and 'Each part of the DNS namespace for which it is desirable to sink queries at AS112 nameservers should be redirected to the EMPTY.AS112.ARPA zone using DNAME' binds the redirecting zone's administrator, which the section itself says by pointing at 3.2 for that guidance. Ze's constants for the two addresses are anycastV4DNAMERedirectionAddr and anycastV6DNAMERedirectionAddr in internal/plugins/as112/register.go."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "AS112 Operations, the parent heading. No text of its own."
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Extensions to Support DNAME Redirection. The section that carries every id binding an AS112 node, and no site: 'Guidance to operators of AS112 nodes is extended to include configuration of the 192.31.196.1 and 2001:4:112::1 addresses, and the corresponding announcement of covering routes for those addresses, and to host the EMPTY.AS112.ARPA zone' is indicative and is declared here as RFC7535-3.1-1 and RFC7535-3.1-2. 'IPv4-only AS112 nodes should only configure the 192.31.196.1 nameserver address; IPv6-only AS112 nodes should only configure the 2001:4:112::1 nameserver address' is RFC7535-3.1-3 and RFC7535-3.1-4. The last paragraph states that one operator implementing the extension is enough for the mechanism to work, that more is better for capacity and distribution, and that not all operators need to change: an observation about the deployment, obliging nobody. Ze implements the whole of it: serverEndpoints (internal/plugins/as112/register.go) binds the two addresses, coveringPrefixesFor (internal/plugins/as112/redistribute.go) announces 192.31.196.0/24 and 2001:4:112::/48, buildServedZones (internal/plugins/as112/zones.go) holds empty.as112.arpa, and familiesFor together with the address-family config leaf gives the single-stack cases.",
+      "unsourced-ids": [
+        "RFC7535-3.1-1",
+        "RFC7535-3.1-2",
+        "RFC7535-3.1-3",
+        "RFC7535-3.1-4"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Redirection of Query Traffic to AS112 Servers. Guidance to the administrator of a redirecting zone, not to an AS112 node: install a DNAME at the redirection point, with the worked example of 2.0 IN DNAME EMPTY.AS112.ARPA. in 192.IN-ADDR.ARPA for TEST-NET-1. States that there is no practical limit on the number of redirections and that any of them can be removed at any time by that administrator. Its one site, 3.2:1, is the sentence saying deployed AS112 nodes need no change to support further redirections, excluded below. The closing sentence, 'DNAME resource records deployed for this purpose can be signed with DNSSEC [RFC4033], providing a secure means of authenticating the legitimacy of each redirection', is declared here as RFC7535-3.2-1 at [MAY]; it binds the same zone administrator, and ze hosts no redirecting zone.",
+      "unsourced-ids": [
+        "RFC7535-3.2-1"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Continuity of AS112 Operations. One lowercase-'should' sentence, declared unsourced here as RFC7535-4-1: 'Existing guidance to AS112 server operators to accept and respond to queries directed at the PRISONER.IANA.ORG, BLACKHOLE-1.IANA.ORG, and BLACKHOLE-2.IANA.ORG nameservers should continue to be followed, and no changes to the delegation of existing zones hosted on AS112 servers should occur.' The second paragraph speculates that the RFC 1918 delegations might one day be replaced by DNAME redirection and the three nameservers retired, then says explicitly that this document gives the IANA no such direction. Ze keeps both services: buildServedZones (internal/plugins/as112/zones.go) holds the nineteen Direct Delegation reverse zones beside empty.as112.arpa, and hostAddresses (internal/plugins/as112/register.go) binds the Direct Delegation anycast addresses beside the DNAME-redirection ones.",
+      "unsourced-ids": [
+        "RFC7535-4-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Candidate Zones for AS112 Redirection. States that every zone listed in RFC 6303 is a candidate, and closes by saying the document 'is simply concerned with provision of the AS112 redirection service and does not specify that any particular AS112 redirection be put in place'. Its one site, 5:1, is the sentence explaining why any zone owner can use the mechanism, excluded below. Choosing a zone to redirect binds that zone's owner, and the candidate list belongs to RFC 6303."
+    },
+    {
+      "id": "6",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "DNAME Deployment Considerations. Reviews whether DNAME is deployed widely enough for the mechanism to work, with Appendix A as the measurement. States that DNAME support on the AUTHORITATIVE server is a prerequisite for DNAME redirection, that a resolver without DNAME accepts and caches the synthesised CNAME RFC 6672 supplies, and that negative caching of the CNAME target follows EMPTY.AS112.ARPA's own parameters (RFC 2308), so every redirected name is negatively cached alike. Two sites: 6:1 binds a DNSSEC-validating resolver and is excluded below; 6:2 is the section's last sentence and is mapped to RFC7535-6-1, the only MUST-level id this summary declares."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "IAB Statement Regarding This .ARPA Request. Records that the IAB approves the delegation of AS112 in the ARPA domain and has asked IANA to provision AS112.ARPA under RFC 3172, while taking no architectural or technical position on the specification. It binds the IAB and the IANA, and states no protocol behavior."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations, the parent heading."
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Address Assignment. The IANA registrations of 192.31.196.0/24 as AS112-v4 and 2001:4:112::/48 as AS112-v6 in the IPv4 and IPv6 Special-Purpose Address Registries [RFC6890]. IANA actions. The two prefixes themselves are what an AS112 node announces, which is RFC7535-3.1-1 on section 3.1."
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Hosting of AS112.ARPA. States that the IANA hosts and signs the AS112.ARPA zone with infrastructure of its choosing and may adjust the SOA RDATA, and gives the zone content: the IANA-SERVERS.NET NS set, the A and AAAA of BLACKHOLE, and the NS delegations of HOSTNAME and EMPTY to BLACKHOLE. It binds the IANA. An AS112 node operator hosts the delegated EMPTY.AS112.ARPA zone, never this parent."
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Delegation of AS112.ARPA. Records that the IANA has arranged the delegation from the ARPA zone by normal procedure and that the whois contact is specified by the IAB under RFC 3172. An IANA action."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Two sentences: this document presents no known additional security concerns to the Internet, and RFC 7534 holds the security considerations for AS112 service in general. No countermeasure is directed at a nameserver, and the considerations it points at are walked in rfc/extraction/rfc7534.json section 8."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References, the parent heading."
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 1918, RFC 2308, RFC 3172, RFC 4033, RFC 4786, RFC 6303, RFC 6672, RFC 6890 and RFC 7534."
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 1035, RFC 2860 and RFC 5737."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix A, Assessing Support for DNAME in the Real World. The heading of the measurement that backs section 6's claim about DNAME deployment. It reports an experiment and directs nobody."
+    },
+    {
+      "id": "A.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Methodology. Describes the four URLs loaded into a browser by an advertisement-borne script, the zone contents behind them, the 10-second timer, and how the results were reported. A description of an experiment, not of AS112 service."
+    },
+    {
+      "id": "A.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Results. 338,478 recorded results from 2013-10-10 and 2013-10-11: at most 1.9% of tested clients failed to resolve a name behind a DNAME, against a 2.8% failure rate on the control URL, so the authors conclude there is no evidence of consistent DNAME resolution failure. A measurement, obliging nobody. The derivation attributes the trailing Acknowledgements and Authors' Addresses to this section, and neither binds anybody either."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate the extractor did not strip: the IETF Trust Legal Provisions paragraph of the Copyright Notice. Its lowercase 'must' binds a party extracting Code Components from the document text, and directs no DNS or BGP behavior. RFC 7535's figures are zone-file fragments and an experiment's URL list, not code components ze reuses."
+    },
+    {
+      "id": "1:1",
+      "quote": "The AS112 nameservers (PRISONER.IANA.ORG, BLACKHOLE-1.IANA.ORG, and BLACKHOLE-2.IANA.ORG) are required to answer authoritatively for each and every zone that is delegated to them.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 7534, which the paragraph directly above this sentence cites: 'The AS112 project is described in detail in [RFC7534].' The sentence repeats RFC 7534 section 3.5's requirement so that the next two paragraphs can state the problem this document solves -- a zone delegated to nameservers that were not configured for it in advance is a lame delegation, and coordinating that configuration across loosely coupled AS112 operators is hard. rfc/short/rfc7534.md declares it as RFC7534-3.5-1 and its own text names this restatement: '(section 3.5, also restated in RFC 7535 section 1)'. rfc/extraction/rfc7534.json declares it unsourced on section 3.5, so the obligation is bound there and is not left to this document."
+    },
+    {
+      "id": "3.2:1",
+      "quote": "No changes to deployed AS112 nodes incorporating the extensions described in this document are required to support additional redirections.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The keyword is in a NEGATION: the sentence says nothing is required. 'No changes to deployed AS112 nodes incorporating the extensions described in this document are required to support additional redirections' states a property of the mechanism -- the DNAME lives in the redirecting zone, so adding or dropping a redirection touches that zone and never the sink -- and it directs no node to do anything. It is not a duplicate of RFC7535-6-1 either: that id says DNAME PROCESSING is never required on the node, while this says no RECONFIGURATION is required per redirection. Two different absences, neither of them an obligation."
+    },
+    {
+      "id": "5:1",
+      "quote": "Since no pre-provisioning is required on the part of AS112 operators to facilitate sinking of any name in the DNS namespace by AS112 infrastructure, this mechanism supports AS112 redirection by any zone owner in the DNS.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The keyword is in a NEGATION again, and it is the subordinate clause of a sentence whose main clause states reach rather than obligation: 'Since no pre-provisioning is required on the part of AS112 operators ..., this mechanism supports AS112 redirection by any zone owner in the DNS.' It explains why any zone owner can use the mechanism. The section's own closing sentence confirms that nobody is directed here: the document 'does not specify that any particular AS112 redirection be put in place'."
+    },
+    {
+      "id": "6:1",
+      "quote": "Validating resolvers (i.e., those requesting and processing DNSSEC [RFC4033] metadata) are required to implement DNAME and hence should not make use of synthesised CNAME RRs.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the DNSSEC-validating recursive resolver, a role ze does not implement. The sentence says such a resolver is required to implement DNAME and should therefore not use a synthesised CNAME RR, which is an obligation RFC 6672 and RFC 4035 place on the validator, quoted here to show that signing the redirection point stays useful. Ze's AS112 node is authoritative-only with recursion disabled (RFC7534-3.5-4) and answers for EMPTY.AS112.ARPA rather than for a redirecting zone, so it neither validates nor emits a DNAME. Ze's own resolver is a STUB: dnssecDecision (internal/component/resolve/dns/resolver.go) sets the EDNS0 DO bit and reads an upstream SERVFAIL as the failure signal, relying on a validating upstream rather than validating a chain itself."
+    },
+    {
+      "id": "6:2",
+      "quote": "DNAME support on AS112 nodes themselves is never required under this proposal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7535-6-1",
+      "reason": "The document's one MUST-level id, captured as RFC7535-6-1: 'DNAME support on AS112 nodes themselves is never required under this proposal.' The section's own reasoning is why -- DNAME support is a prerequisite on the AUTHORITATIVE server for the REDIRECTING zone, and the AS112 node is the DNAME's target rather than its emitter, so it only answers authoritatively for EMPTY.AS112.ARPA. Ze does exactly that and implements no DNAME record processing, which is what the id's {not-applicable} annotation records. The quote carries no capitalised keyword, so the site's level asserts nothing against the row's."
+    }
+  ],
+  "register-reason": "Informational, May 2015, the companion to RFC 7534. It carries no RFC 2119 key-words section and states no RFC 2119 keyword: the guidance it gives AS112 node operators is written in the lowercase 'should' and the rest is indicative. DeriveRegister grades the source 'prose' and this sign-off claims exactly that grade. The case-insensitive modal scan finds six sentences and one of them, 6:2, states the only MUST-level id the summary declares and is mapped below. Of the other five, one is the IETF Trust Legal Provisions boilerplate, one restates RFC 7534's own obligation and is excluded cross-document, one binds a DNSSEC-validating resolver, and two use 'required' inside a NEGATION -- they state that nothing is required of an AS112 node. The six SHOULD- and MAY-level ids are read from indicative or lowercase-'should' sentences the scan does not attribute to a site, and each is declared in unsourced-ids on the section it was read from."
+}

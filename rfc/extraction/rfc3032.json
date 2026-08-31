@@ -1,0 +1,495 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3032",
+  "register": "prose",
+  "source-path": "rfc/full/rfc3032.txt",
+  "source-sha": "4907c7ce709476f7",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc3032",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Title block, Status of this Memo, Copyright Notice, Abstract and Table of Contents. Walked rather than skipped because the site scan attributes two sites here: both are Abstract sentences, and both are classified below. The Abstract restates section 1 -- MPLS needs procedures for augmenting network layer packets with label stacks, and this document specifies the encoding on PPP and LAN data links."
+    },
+    {
+      "id": "1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Introduction. States why the encoding is needed, what the document specifies (the encoding on PPP and LAN links, plus protocol-independent and IPv4/IPv6-dependent field-processing rules), and closes with the one obligation this section places on an implementation: an LSR using a different encoding for the top one or two entries, as an ATM switch does, still uses this encoding for the additional entries. Site 1:2 carries that obligation and is mapped to RFC3032-1-1; site 1:1 is the indicative premise sentence and is excluded below."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Specification of Requirements. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The Label Stack. A heading with no body text of its own; sections 2.1 to 2.4 carry the content."
+    },
+    {
+      "id": "2.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Encoding the Label Stack. The document's wire-format section: the 4-octet label stack entry with its 20-bit Label, 3-bit Exp, 1-bit S and 8-bit TTL fields, the ordering rule that the top of the stack appears earliest and the network layer packet follows the entry with S set, what a successful top-label lookup yields, and the reserved label values 0 to 15. Written entirely in the indicative, and the layout, the ordering and the reserved values are carried by the Wire Formats, Encoding Rules and Constants tables of rfc/short/rfc3032.md. Its two sites both state the disposition of an Explicit NULL label and are excluded below. Ze's shim encoder is the 3-octet BGP NLRI form of internal/core/bgp/nlri.WriteLabelStack, which carries the Label and the S bit and no TTL; the 4-octet on-wire entry is built by the kernel or by VPP."
+    },
+    {
+      "id": "2.2",
+      "sites": 6,
+      "disposition": "walked",
+      "reason": "Determining the Network Layer Protocol. The document's protocol-identification rules: the LSR that pops the last label must be able to identify the network layer protocol, the identity must be inferable from the bottom label and possibly the network layer header, a first-pushed label and every label that replaces it must meet that criterion, and a packet that cannot be forwarded whose protocol cannot be identified is silently discarded. Sites 2.2:2, 2.2:3 and 2.2:6 carry the three obligations rfc/short/rfc3032.md declares as RFC3032-2.2-1, RFC3032-2.2-2 and RFC3032-2.2-3 and are mapped below; 2.2:1 and 2.2:4 restate two of them and 2.2:5 sits inside a desirability construction."
+    },
+    {
+      "id": "2.3",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Generating ICMP Messages for Labeled IP Packets. States the two conditions that must hold for an LSR to send an ICMP packet to the source of a labeled IP packet, points at section 2.2 for the first, at 2.3.1 and 2.3.2 for the second, and records that in some cases the second does not hold at all and no ICMP message can be generated. All three sites bind the LSR that originates ICMP for a labeled packet and are excluded below."
+    },
+    {
+      "id": "2.3.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Tunneling through a Transit Routing Domain. A deployment discussion: when external routes are not leaked into a transit domain's interior routers, only an ASBR knows how to route to an arbitrary source, and injecting default into the IGP lets an unlabeled ICMP packet reach a router with full routing information. It offers a network design, not an implementation rule; its one site is excluded below."
+    },
+    {
+      "id": "2.3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Tunneling Private Addresses through a Public Backbone. The alternative when the source address cannot be routed at all: copy the label stack from the original packet onto the ICMP message and label switch it, so the message leaves the MPLS domain where the source is routable. Its one site directs the LSR that builds such an ICMP message and is excluded below."
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Processing the Time to Live Field. A heading with no body text of its own; sections 2.4.1 to 2.4.4 carry the content."
+    },
+    {
+      "id": "2.4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Definitions. Defines the incoming TTL as the TTL field of the top label stack entry on receipt, and the outgoing TTL as the larger of one less than the incoming TTL and zero. Definitions, not directives."
+    },
+    {
+      "id": "2.4.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Protocol-independent rules. Two capitalised MUST-level sites, mapped below to RFC3032-2.4.2-1 and RFC3032-2.4.2-3. Two further declared rows are read from the same paragraphs and are listed as unsourced ids: RFC3032-2.4.2-2 is the second clause of the sentence site 2.4.2:1 quotes, 'nor may the label stack be stripped off and the packet forwarded as an unlabeled packet', which the splitter keeps in one site because it is one sentence; RFC3032-2.4.2-4 is the MAY that follows, 'the packet MAY be simply discarded, or it may be passed to the appropriate \"ordinary\" network layer for error processing'. The closing paragraph, that the outgoing TTL is a function solely of the incoming TTL and that a non-top entry's TTL has no significance, is indicative.",
+      "unsourced-ids": [
+        "RFC3032-2.4.2-2",
+        "RFC3032-2.4.2-4"
+      ]
+    },
+    {
+      "id": "2.4.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "IP-dependent rules. Defines the IP TTL as the IPv4 TTL or the IPv6 Hop Limit, states the one capitalised MUST mapped below to RFC3032-2.4.3-1, and then the SHOULD listed as an unsourced id: 'the value of the IP TTL field SHOULD BE replaced with the outgoing TTL value' when a pop empties the stack, which in IPv4 also requires modifying the header checksum. It closes by recognizing that an administration may prefer a single IPv4 TTL decrement across an MPLS domain, which is an observation and not a directive.",
+      "unsourced-ids": [
+        "RFC3032-2.4.3-2"
+      ]
+    },
+    {
+      "id": "2.4.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Translating Between Different Encapsulations. States where the incoming and outgoing TTL values come from when one side of the LSR uses a different encapsulation, such as LC-ATM, and defers to that encapsulation's own procedures. Indicative throughout, and no site."
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Fragmentation and Path MTU Discovery. Introduces the problem: a received packet can be too large for its output link, and pushing labels can make a packet that fitted no longer fit. It then states what the section provides, namely rules that let Path MTU Discovery hosts and IPv6 hosts avoid fragmentation, and discusses which hosts are at risk. Its one site is a parenthetical remark about likelihood and is excluded below."
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Terminology. Defines Frame Payload, Conventional Maximum Frame Payload Size, True Maximum Frame Payload Size, Effective Maximum Frame Payload Size for Labeled Packets, Initially Labeled IP Datagram and Previously Labeled IP Datagram. Definitions, not directives, and no site."
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Maximum Initially Labeled IP Datagram Size. One SHOULD, listed as the unsourced id below: an LSR that can receive an unlabeled IP datagram, add a label stack and forward the result 'SHOULD support a configuration parameter known as the \"Maximum Initially Labeled IP Datagram Size\"'. The rest of the section states what a zero and a positive setting do, and its one site is the positive setting's fragment-before-labeling behavior, which sits inside that SHOULD and is excluded below.",
+      "unsourced-ids": [
+        "RFC3032-3.2-1"
+      ]
+    },
+    {
+      "id": "3.3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "When are Labeled IP Datagrams Too Big? Two capitalised MUST-level sites, mapped below to RFC3032-3.3-2 and RFC3032-3.3-1. Its MAY, 'A labeled IP datagram whose size exceeds the Conventional Maximum Frame Payload Size ... MAY be considered to be \"too big\"', is the unsourced id below.",
+      "unsourced-ids": [
+        "RFC3032-3.3-3"
+      ]
+    },
+    {
+      "id": "3.4",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Processing Labeled IPv4 Datagrams which are Too Big. The five-step algorithm an LSR runs on a too-big labeled IPv4 datagram: strip the stack, compute N, fragment and relabel when DF is clear, and when DF is set do not forward, build an ICMP Destination Unreachable with the Fragmentation Required code and a Next-Hop MTU of the Effective Maximum Frame Payload Size less N, and transmit it if possible. Sites 3.4:1, 3.4:2 and 3.4:3 carry the three MUSTs and are mapped below to RFC3032-3.4-1, RFC3032-3.4-2 and RFC3032-3.4-3. Site 3.4:4 is the ICMP Code field value and is excluded below. The opening MAY, 'the LSR MAY silently discard the datagram' when DF is not set, is the unsourced id.",
+      "unsourced-ids": [
+        "RFC3032-3.4-4"
+      ]
+    },
+    {
+      "id": "3.5",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Processing Labeled IPv6 Datagrams which are Too Big. The IPv6 algorithm: strip the stack, compute N, send an ICMP Packet Too Big and discard when the datagram exceeds 1280 bytes or has no fragment header, otherwise fragment, relabel and forward. Its two capitalised MUST-level sites are mapped below to RFC3032-3.5-1 and RFC3032-3.5-2, and every remaining step is an unnumbered clause of the algorithm those two ids gate."
+    },
+    {
+      "id": "3.6",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Implications with respect to Path MTU Discovery. States what the too-big rules mean for RFC 1191 Path MTU Discovery, then the tunnel case: when an ICMP message cannot be forwarded out of an MPLS tunnel to the source, the transmitting endpoint must know the tunnel MTU and must send the ICMP Destination Unreachable itself. Sites 3.6:2 and 3.6:3 carry those two obligations and are mapped below to RFC3032-3.6-1 and RFC3032-3.6-2; site 3.6:1 is the conditional lead-in and is excluded. The MAY that offers Path MTU Discovery through the tunnel as the way to learn the tunnel MTU is the unsourced id.",
+      "unsourced-ids": [
+        "RFC3032-3.6-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Transporting Labeled Packets over PPP. One paragraph naming what section 4 defines: the PPP Network Control Protocol for establishing and configuring label switching over PPP. No directive and no site."
+    },
+    {
+      "id": "4.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Introduction. Names PPP's three components and states the link-establishment sequence: LCP first, then the MPLS Control Protocol, then labeled packets once MPLSCP reaches the Opened state. Its two sites are excluded below, the first to RFC 1661 and the second to the MPLS-over-PPP role."
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "A PPP Network Control Protocol for MPLS. Defines MPLSCP as LCP with five exceptions: negotiated frame modifications, PPP Protocol field 0x8281, only Codes 1 through 7, the timeout advice, and no configuration option types. Its directives are lowercase 'should' recommendations about discarding early packets and Code-Rejecting other codes, which the site scan does not read as MUST-level and rfc/short/rfc3032.md does not declare; the values are carried by its Transport Encapsulations table. Ze runs no MPLSCP: no source file names the protocol or the 0x8281 PPP type."
+    },
+    {
+      "id": "4.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Sending Labeled Packets. States the precondition for sending labeled packets over PPP, the PPP Protocol field values 0x0281 for unicast and 0x0283 for multicast, the maximum length, and that the Information field format is the one from section 2. Its one site is the precondition and is excluded below; the values are carried by the Transport Encapsulations table of rfc/short/rfc3032.md."
+    },
+    {
+      "id": "4.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Label Switching Control Protocol Configuration Options. One sentence: there are no configuration options. No site."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Transporting Labeled Packets over LAN Media. Value assignment: one labeled packet per frame, the label stack entries immediately precede the network layer header and follow every data link header including 802.1Q, ethertype 0x8847 for unicast and 0x8848 for multicast, usable with either the ethernet or the 802.3 LLC/SNAP encapsulation. Indicative throughout, and the values are carried by the Transport Encapsulations and Constants tables of rfc/short/rfc3032.md."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records that label values 0-15 have special meaning, that 0-3 are specified in section 2.1, and that 4-15 may be assigned by IANA on IETF Consensus. Binds IANA, not a speaker."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that the encapsulation raises no security issue not already present in the MPLS architecture or in the encapsulated network layer protocol, then names two inherited considerations: a fixed-offset security check fails against a variable-size encapsulation, and the label stack carries no identity of the label writer, so accepting labels from untrusted sources can route packets illegitimately. No countermeasure is directed at a speaker and no site."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Intellectual Property. The IETF's standard statement about intellectual property rights covering the technology: the IETF takes no position on validity or scope, and points a reader at BCP 11 and the IETF Executive Director. No obligation on an implementation and no site."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Authors' Addresses. Postal and electronic addresses for the eight authors. No site."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References: RFC 3031, RFC 2119, RFC 792, RFC 1191, RFC 2113, RFC 1661, RFC 2460, RFC 1885, and the ATM and Frame Relay label switching documents."
+    },
+    {
+      "id": "11",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Full Copyright Statement. The Internet Society boilerplate governing copying and translation of the document, and, because no numbered heading follows it, the Acknowledgement block that closes the document. Walked rather than skipped because the prose scan attributes one site here; that site is boilerplate and is excluded below."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "In order to transmit a labeled packet on a particular data link, an LSR must support an encoding technique which, given a label stack and a network layer packet, produces a labeled packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the LSR data-link transmit path: the sentence says an LSR must support an encoding technique that, given a label stack and a network layer packet, PRODUCES a labeled packet on a data link. Ze produces no labeled packet on a wire. It is an MPLS control plane: it programs AF_MPLS swap and pop entries and label-imposing routes through fibkernel.handleMPLSEntry (internal/plugins/fib/kernel/mpls.go), reads the kernel forwarding table for `show mpls forwarding` (internal/component/mpls.dumpMPLSRoutes), and its only label encoder is the 3-octet BGP NLRI form of internal/core/bgp/nlri.WriteLabelStack, which is RFC 8277 and carries no TTL. The 4-octet on-wire entry this sentence demands is built by the kernel AF_MPLS datapath or by VPP. This is the Abstract's copy of the sentence that reappears as site 1:1."
+    },
+    {
+      "id": "front:2",
+      "quote": "On some data links, the label at the top of the stack may be encoded in a different manner, but the techniques described here MUST be used to encode the remainder of the label stack.",
+      "disposition": "excluded",
+      "mapped-to": "RFC3032-1-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "The Abstract's copy of the section 1 obligation that additional label stack entries use this encoding when the top entries use another. Site 1:2 maps the section 1 sentence to RFC3032-1-1; this one restates it in the Abstract with no new obligation."
+    },
+    {
+      "id": "1:1",
+      "quote": "In order to transmit a labeled packet on a particular data link, an LSR must support an encoding technique which, given a label stack and a network layer packet, produces a labeled packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the LSR data-link transmit path, the same role as site front:1: the LSR must support an encoding technique that produces a labeled packet from a label stack and a network layer packet. Ze builds no labeled packet for transmission; the kernel AF_MPLS datapath or VPP does, and ze only programs the entries that drive it (internal/plugins/fib/kernel/mpls.go, addMPLSSwap and the rich-route push path)."
+    },
+    {
+      "id": "1:2",
+      "quote": "When the label stack has additional entries, however, the encoding technique described in this document MUST be used for the additional label stack entries.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-1-1",
+      "reason": "The obligation that an LSR using a different encoding for the top one or two entries, as an LC-ATM switch does, still uses this document's encoding for the additional entries. Captured verbatim as RFC3032-1-1 at [MUST]."
+    },
+    {
+      "id": "2.1:1",
+      "quote": "It indicates that the label stack must be popped, and the forwarding of the packet must then be based on the IPv4 header.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the LSR label-disposition role: the sentence says what an IPv4 Explicit NULL label at the bottom of the stack INDICATES to the LSR that receives it, namely that the stack is popped and forwarding then follows the IPv4 header. Popping a stack and forwarding on the exposed IP header is a per-packet action of the kernel AF_MPLS datapath or VPP; no ze function forwards a labeled packet. Ze's own use of label 0 is control-plane signaling of the value (internal/plugins/ospf/sr.ExplicitNullV4, internal/plugins/ldp/wire.ExplicitNull), and the value assignment itself is carried by the Constants table of rfc/short/rfc3032.md rather than by any gated row."
+    },
+    {
+      "id": "2.1:2",
+      "quote": "It indicates that the label stack must be popped, and the forwarding of the packet must then be based on the IPv6 header.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The IPv6 Explicit NULL counterpart of site 2.1:1, binding the same LSR label-disposition role: pop the stack, forward on the IPv6 header. That disposition is performed by the kernel AF_MPLS datapath or VPP. Ze signals the value from its control plane (internal/plugins/ospf/sr.ExplicitNullV6) and forwards no labeled packet."
+    },
+    {
+      "id": "2.2:1",
+      "quote": "The LSR which pops the last label off the stack must therefore be able to identify the packet's network layer protocol.",
+      "disposition": "excluded",
+      "mapped-to": "RFC3032-2.2-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the protocol-identification obligation as a consequence: the LSR that pops the last label must be able to identify the network layer protocol. The document then says how, in the sentence site 2.2:2 quotes, which is mapped to RFC3032-2.2-1. Same obligation, stated once as the need and once as the mechanism."
+    },
+    {
+      "id": "2.2:2",
+      "quote": "This means that the identity of the network layer protocol must be inferable from the value of the label which is popped from the bottom of the stack, possibly along with the contents of the network layer header itself.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-2.2-1",
+      "reason": "The obligation that the network layer protocol be inferable from the label popped from the bottom of the stack, possibly together with the network layer header. Captured as RFC3032-2.2-1 at [MUST]."
+    },
+    {
+      "id": "2.2:3",
+      "quote": "Therefore, when the first label is pushed onto a network layer packet, either the label must be one which is used ONLY for packets of a particular network layer, or the label must be one which is used ONLY for a specified set of network layer protocols, where packets of the specified network layers can be distinguished by inspection of the network layer header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-2.2-2",
+      "reason": "The obligation on the first label pushed onto a network layer packet: it is used ONLY for one network layer, or ONLY for a set distinguishable by header inspection. Captured as RFC3032-2.2-2 at [MUST]."
+    },
+    {
+      "id": "2.2:4",
+      "quote": "Furthermore, whenever that label is replaced by another label value during a packet's transit, the new value must also be one which meets the same criteria.",
+      "disposition": "excluded",
+      "mapped-to": "RFC3032-2.2-2",
+      "excluded-kind": "duplicate-of",
+      "reason": "Extends the first-label criterion of site 2.2:3 to every label that replaces it in transit: 'the new value must also be one which meets the same criteria'. It restates RFC3032-2.2-2, which site 2.2:3 maps, for the swap case and adds no separate obligation."
+    },
+    {
+      "id": "2.2:5",
+      "quote": "So if intermediate nodes are to be able to generate protocol-specific error messages for labeled packets, all labels in the stack must meet the criteria specified above for labels which appear at the bottom of the stack.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "The enclosing construction makes it advisory: 'Adherence to these conditions does not necessarily enable intermediate nodes to identify a packet's network layer protocol. Under ordinary conditions, this is not necessary, but there are error conditions under which it is desirable. For instance, if an intermediate LSR determines that a labeled packet is undeliverable, it may be desirable for that LSR to generate error messages which are specific to the packet's network layer.' The site's own sentence keeps that frame ('So if intermediate nodes are to be able to generate protocol-specific error messages'), so the lowercase 'must' states what follows from a desirable capability rather than an obligation on every speaker, and rfc/short/rfc3032.md declares no row for it."
+    },
+    {
+      "id": "2.2:6",
+      "quote": "If a packet cannot be forwarded for some reason (e.g., it exceeds the data link MTU), and either its network layer protocol cannot be identified, or there are no specified protocol-dependent rules for handling the error condition, then the packet MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-2.2-3",
+      "reason": "The silent-discard obligation for a packet that cannot be forwarded whose network layer protocol cannot be identified or has no protocol-dependent error rules. Captured verbatim as RFC3032-2.2-3 at [MUST]."
+    },
+    {
+      "id": "2.3:1",
+      "quote": "In order for a particular LSR to be able to generate an ICMP packet and have that packet sent to the source of the IP packet, two conditions must hold:",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the LSR that ORIGINATES an ICMP message for a labeled IP packet: the sentence states the two conditions that must hold for that LSR to build the ICMP packet and have it reach the IP source, and sites 2.3:2 and 2.3:3 are those two conditions. Ze originates no ICMP for a forwarded packet: TTL expiry and too-big handling for labeled packets are per-packet actions of the kernel AF_MPLS datapath or VPP, and no ze function builds an ICMP message on a forwarding path."
+    },
+    {
+      "id": "2.3:2",
+      "quote": "1. it must be possible for that LSR to determine that a particular labeled packet is an IP packet;",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The first of the two conditions on the ICMP-originating LSR named by site 2.3:1: it must be possible for that LSR to determine that a particular labeled packet is an IP packet. Ze inspects no labeled packet and originates no ICMP; the kernel AF_MPLS datapath or VPP does both."
+    },
+    {
+      "id": "2.3:3",
+      "quote": "2. it must be possible for that LSR to route to the packet's IP source address.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The second condition on the same ICMP-originating LSR: it must be possible for that LSR to route to the packet's IP source address. Ze originates no ICMP for a forwarded packet, so it never plays the role this condition qualifies."
+    },
+    {
+      "id": "2.3.1:1",
+      "quote": "(N.B.: this does NOT require that there be a \"default\" carried by BGP.) This would then ensure that any unlabeled packet which must leave the domain (such as an ICMP packet) gets sent to a router which has full routing information.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative use: the sentence describes what a deployment choice would ACHIEVE, not what an implementation does. Its subject is the ASBRs injecting default into the IGP, and the lowercase 'must' sits in a relative clause qualifying which packets are affected ('any unlabeled packet which must leave the domain (such as an ICMP packet)'), so it describes a packet rather than directing a speaker. The paragraph offers one network design and the next paragraph names its limits."
+    },
+    {
+      "id": "2.3.2:1",
+      "quote": "When copying the label stack from the original packet to the ICMP message, the label values must be copied exactly, but the TTL values in the label stack should be set to the TTL value that is placed in the IP header of the ICMP message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the LSR that builds an ICMP message for a labeled packet and label switches it: the sentence says how to copy the label stack, exactly for the label values and with the ICMP header's TTL for the TTL fields. Ze builds no such message. ICMP origination on the MPLS forwarding path belongs to the kernel AF_MPLS datapath or VPP, and no ze function copies a label stack onto an ICMP message."
+    },
+    {
+      "id": "2.4.2:1",
+      "quote": "If the outgoing TTL of a labeled packet is 0, then the labeled packet MUST NOT be further forwarded; nor may the label stack be stripped off and the packet forwarded as an unlabeled packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-2.4.2-1",
+      "reason": "The obligation not to forward a labeled packet whose outgoing TTL is 0. Captured as RFC3032-2.4.2-1 at [MUST]. The same sentence's second clause, that the stack may not instead be stripped and the packet forwarded unlabeled, is declared by rfc/short/rfc3032.md as RFC3032-2.4.2-2 and is listed in this section's unsourced ids, because the splitter keeps one sentence as one site."
+    },
+    {
+      "id": "2.4.2:2",
+      "quote": "When a labeled packet is forwarded, the TTL field of the label stack entry at the top of the label stack MUST be set to the outgoing TTL value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-2.4.2-3",
+      "reason": "The obligation to set the top label stack entry's TTL field to the outgoing TTL when a labeled packet is forwarded. Captured verbatim as RFC3032-2.4.2-3 at [MUST]."
+    },
+    {
+      "id": "2.4.3:1",
+      "quote": "When an IP packet is first labeled, the TTL field of the label stack entry MUST BE set to the value of the IP TTL field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-2.4.3-1",
+      "reason": "The obligation to set the label stack entry's TTL field to the IP TTL value when an IP packet is first labeled. Captured verbatim as RFC3032-2.4.3-1 at [MUST]."
+    },
+    {
+      "id": "3:1",
+      "quote": "(Even so, fragmentation is not likely unless the packet must traverse an ethernet of some sort between the time it first gets labeled and the time it gets unlabeled.)",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative use: the sentence is a parenthetical estimate of LIKELIHOOD, '(Even so, fragmentation is not likely unless the packet must traverse an ethernet of some sort between the time it first gets labeled and the time it gets unlabeled.)', closing a paragraph about hosts that send 1500-byte datagrams within a classful network number. The lowercase 'must' qualifies the path a packet takes, and the sentence directs nobody."
+    },
+    {
+      "id": "3.2:1",
+      "quote": "a) an unlabeled IP datagram is received, and b) that datagram does not have the DF bit set in its IP header, and c) that datagram needs to be labeled before being forwarded, and d) the size of the datagram (before labeling) exceeds the value of the parameter, then a) the datagram must be broken into fragments, each of whose size is no greater than the value of the parameter, and b) each fragment must be labeled and then forwarded.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "The enclosing construction is a SHOULD: 'Every LSR which is capable of a) receiving an unlabeled IP datagram, b) adding a label stack to the datagram, and c) forwarding the resulting labeled packet, SHOULD support a configuration parameter known as the \"Maximum Initially Labeled IP Datagram Size\", which can be set to a non-negative value.' This site is the parameter's effect when it is set to a positive value ('If it is set to a positive value, it is used in the following way'), so its lowercase 'must' describes the behavior of an optional parameter rather than an independent obligation. rfc/short/rfc3032.md declares the enclosing SHOULD as RFC3032-3.2-1, listed in this section's unsourced ids."
+    },
+    {
+      "id": "3.3:1",
+      "quote": "A labeled IP datagram whose size exceeds the True Maximum Frame Payload Size of the data link over which it is to be forwarded MUST be considered to be \"too big\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-3.3-2",
+      "reason": "The obligation to classify a labeled IP datagram exceeding the True Maximum Frame Payload Size as 'too big'. Captured verbatim as RFC3032-3.3-2 at [MUST]."
+    },
+    {
+      "id": "3.3:2",
+      "quote": "A labeled IP datagram which is not \"too big\" MUST be transmitted without fragmentation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-3.3-1",
+      "reason": "The obligation to transmit a labeled IP datagram that is not 'too big' without fragmentation. Captured verbatim as RFC3032-3.3-1 at [MUST]."
+    },
+    {
+      "id": "3.4:1",
+      "quote": "If the LSR chooses not to discard a labeled IPv4 datagram which is too big, or if the DF bit is set in that datagram, then it MUST execute the following algorithm:",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-3.4-1",
+      "reason": "The obligation to execute the strip, fragment and ICMP algorithm on a too-big labeled IPv4 datagram the LSR does not discard, or whose DF bit is set. Captured as RFC3032-3.4-1 at [MUST]."
+    },
+    {
+      "id": "3.4:2",
+      "quote": "a. convert it into fragments, each of which MUST be at least N bytes less than the Effective Maximum Frame Payload Size.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-3.4-2",
+      "reason": "The fragment-sizing obligation inside that algorithm: each fragment is at least N bytes less than the Effective Maximum Frame Payload Size, N being the stripped label stack's byte count. Captured verbatim as RFC3032-3.4-2 at [MUST]."
+    },
+    {
+      "id": "3.4:3",
+      "quote": "a. the datagram MUST NOT be forwarded",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-3.4-3",
+      "reason": "The obligation not to forward a too-big labeled IPv4 datagram whose DF bit is set. Captured verbatim as RFC3032-3.4-3 at [MUST NOT]."
+    },
+    {
+      "id": "3.4:4",
+      "quote": "i. set its Code field [3] to \"Fragmentation Required and DF Set\",",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative use: the keyword is inside a quoted VALUE NAME, not a directive. The step reads 'set its Code field [3] to \"Fragmentation Required and DF Set\"', and 'Fragmentation Required and DF Set' is the name of ICMP Destination Unreachable code 4 as RFC 792 and RFC 1191 spell it. The case-insensitive prose scan sees 'Required' inside that quoted name. The step itself is one clause of the algorithm gated by RFC3032-3.4-1, which site 3.4:1 maps."
+    },
+    {
+      "id": "3.5:1",
+      "quote": "To process a labeled IPv6 datagram which is too big, an LSR MUST execute the following algorithm:",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-3.5-1",
+      "reason": "The obligation to execute the specified algorithm on a too-big labeled IPv6 datagram. Captured verbatim as RFC3032-3.5-1 at [MUST]."
+    },
+    {
+      "id": "3.5:2",
+      "quote": "Convert it into fragments, each of which MUST be at least N bytes less than the Effective Maximum Frame Payload Size.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-3.5-2",
+      "reason": "The IPv6 fragment-sizing obligation inside that algorithm: each fragment is at least N bytes less than the Effective Maximum Frame Payload Size. Captured verbatim as RFC3032-3.5-2 at [MUST]."
+    },
+    {
+      "id": "3.6:1",
+      "quote": "If it is not possible to forward an ICMP message from within an MPLS \"tunnel\" to a packet's source address, but the network configuration makes it possible for the LSR at the transmitting end of the tunnel to receive packets that must go through the tunnel, but are too large to pass through the tunnel unfragmented, then:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative use: the sentence is the conditional lead-in that scopes the two bulleted obligations, and it ends in a colon rather than stating one. Its lowercase 'must' sits in a relative clause describing the packets ('packets that must go through the tunnel, but are too large to pass through the tunnel unfragmented'), and the obligations it introduces are sites 3.6:2 and 3.6:3, mapped below."
+    },
+    {
+      "id": "3.6:2",
+      "quote": "- The LSR at the transmitting end of the tunnel MUST be able to determine the MTU of the tunnel as a whole.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-3.6-1",
+      "reason": "The obligation on the LSR at the transmitting end of an MPLS tunnel to be able to determine the tunnel MTU as a whole. Captured verbatim as RFC3032-3.6-1 at [MUST]."
+    },
+    {
+      "id": "3.6:3",
+      "quote": "- Any time the transmitting endpoint of the tunnel needs to send a packet into the tunnel, and that packet has the DF bit set, and it exceeds the tunnel MTU, the transmitting endpoint of the tunnel MUST send the ICMP Destination Unreachable message to the source, with code \"Fragmentation Required and DF Set\", and the Next-Hop MTU Field set as described above.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3032-3.6-2",
+      "reason": "The obligation on that same transmitting endpoint to send an ICMP Destination Unreachable, code 'Fragmentation Required and DF Set', with the Next-Hop MTU field set, when a DF-set packet exceeds the tunnel MTU. Captured verbatim as RFC3032-3.6-2 at [MUST]."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "In order to establish communications over a point-to-point link, each end of the PPP link must first send LCP packets to configure and test the data link.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 1661, the Point-to-Point Protocol, which this section cites as [6] and whose link-establishment procedure the sentence restates as background: each end sends LCP packets to configure and test the data link before communications are established. It is not an MPLS rule, and rfc/short/rfc3032.md declares no row for it. Ze does implement LCP under RFC 1661, in internal/component/l2tp/ppp, for L2TP and PPPoE subscriber access; what it does not implement is this section's MPLSCP, which sites 4.1:2 and 4.3:1 govern."
+    },
+    {
+      "id": "4.1:2",
+      "quote": "After the link has been established and optional facilities have been negotiated as needed by the LCP, PPP must send \"MPLS Control Protocol\" packets to enable the transmission of labeled packets.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the MPLS-over-PPP LSR role, the PPP endpoint that runs the MPLS Control Protocol so labeled packets can be transmitted on the link. Ze does not play it: no source file names MPLSCP or the 0x8281 PPP protocol type, and ze's PPP implementation (internal/component/l2tp/ppp) carries L2TP and PPPoE subscriber sessions, never labeled packets. Its MPLS forwarding entries are programmed into the kernel AF_MPLS datapath or VPP, which owns whatever link encapsulation the packets then take."
+    },
+    {
+      "id": "4.3:1",
+      "quote": "Before any labeled packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the MPLS Control Protocol must reach the Opened state.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the same MPLS-over-PPP LSR role as site 4.1:2: before labeled packets are communicated, PPP must reach the Network-Layer Protocol phase and MPLSCP must reach the Opened state. Ze negotiates no MPLSCP and sends no labeled packet over a PPP link."
+    },
+    {
+      "id": "11:1",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative use: this is the Internet Society's Full Copyright Statement, which the derivation attributes to section 11. The sentence governs how the DOCUMENT may be copied and translated, saying it may not be modified except as needed for developing Internet standards or for translation. It states nothing about an implementation."
+    }
+  ],
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 1.1. The source carries capitalised MUST-level sites, but fewer of them than rfc/short/rfc3032.md declares gated rows, because several of its obligations are written with a lowercase modal and because one sentence carries two declared ids. DeriveRegister therefore grades it 'prose' and the site inventory is the case-insensitive modal scan, which is what puts the quoted ICMP code name at 3.4:4 and the boilerplate at 11:1 in front of the reviewer. The sign-off claims exactly the derived grade."
+}

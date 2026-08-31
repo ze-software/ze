@@ -1,0 +1,233 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8671",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8671.txt",
+  "source-sha": "aed5ce37b74c3a4d",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 4, rfc8671",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates section 1 and states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: what BMP monitors today, why an operator cannot see what it advertises, and that this document updates the per-peer header of RFC 7854 Section 4.2 with a new flag. No sentence directs a speaker."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Terminology. The BCP 14 key-words paragraph, which binds the key words only when they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Definitions. Three terms: Adj-RIB-Out quoted from RFC 4271, pre-policy Adj-RIB-Out and post-policy Adj-RIB-Out. The one capitalised keyword sits in the post-policy definition and repeats section 5.1 word for word, so it is excluded below as a duplicate."
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Per-Peer Header. Adds the O flag to the RFC 7854 Section 4.2 flags field and redefines Peer Address, Peer AS, Peer BGP ID and Timestamp for O=1. The bit position and the meaning of the flag are stated indicatively ('The O flag indicates Adj-RIB-In if set to 0 and Adj-RIB-Out if set to 1') and in the bit diagram, so section 2 gives them no RFC 2119 level and the site scan cannot see them; RFC8671-x-1 is read from there and is listed as unsourced. The one site is the reserved-bits sentence, mapped below. The four redefined fields are value definitions carried by the O Flag table of rfc/short/rfc8671.md, not directives.",
+      "unsourced-ids": [
+        "RFC8671-x-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Adj-RIB-Out. A heading with no body text: 5.1 and 5.2 carry the whole section."
+    },
+    {
+      "id": "5.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Post-policy. States the primary use case, then two capitalised MUSTs, both mapped below. The rest is indicative: which attributes are set at transmission time, and what post-policy reflects."
+    },
+    {
+      "id": "5.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Pre-policy. Two capitalised MUSTs, both excluded below as binding a role ze does not implement. The remaining prose is indicative: what the candidate route set holds for each peering session type, and that a null or loopback next hop is common before transmission. RFC8671-x-5 records that pre-policy Adj-RIB-Out is permitted and uncommon; that is read from this section's indicative prose, so it is listed as unsourced.",
+      "unsourced-ids": [
+        "RFC8671-x-5"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "BMP Messages. Two sentences. The first says some messages carrying a per-peer header are not applicable to the Adj-RIB-In or Adj-RIB-Out distinction, and names Peer Up and Peer Down. The second, 'Unless otherwise defined, the O flag should be set to 0 in the per-peer header in BMP messages', uses a lowercase 'should', so under section 2 it carries no RFC 2119 level and the site scan does not see it. ze meets it anyway: peerHeaderFromEvent sets the O flag only for a sent-direction event, so a Peer Up, a Peer Down and a Loc-RIB message all carry O=0."
+    },
+    {
+      "id": "6.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Route Monitoring and Route Mirroring. One sentence, one capitalised MUST, mapped below."
+    },
+    {
+      "id": "6.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Statistics Report. One capitalised MUST, excluded below, then the four new Stat Types 14 to 17 as value definitions. Its second sentence, 'The O flag SHOULD be ignored by the BMP receiver', is a SHOULD and never gates; ze's receiver meets it, because decodeStatisticsReport reads the per-peer header and processStatisticsReport stores the entries without consulting the O flag."
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Peer Up and Down Notifications. No capitalised MUST-level keyword. Two indicative sentences and one SHOULD: the peering state a Peer Up or Peer Down conveys 'is independent of whether or not route monitoring or route mirroring messages will be sent for Adj-RIB-In, Adj-RIB-Out, or both', and a receiver SHOULD ignore the O flag on these two messages. RFC8671-x-3, which records that an Adj-RIB-Out Peer Up carries the same sent and received OPEN messages as an Adj-RIB-In one, is read from that independence sentence, so it is listed as unsourced. RFC8671-x-4 is NOT listed: it records that one BGP session MAY produce two Peer Up messages, and no sentence of RFC 8671 says that. It is a MAY, so it gates nothing and the reverse arithmetic asks no home for it.",
+      "unsourced-ids": [
+        "RFC8671-x-3"
+      ]
+    },
+    {
+      "id": "6.3.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Peer Up Information. Defines Peer Up Information TLV type 4, Admin Label: a free-form UTF-8 string, administratively assigned, with no terminator required. One capitalised MUST on the order of multiple labels, mapped below. The type number is a value definition and the last sentence, 'The Admin Label is optional', removes any obligation to send one."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Other Considerations. A heading with no body text."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Peer and Update Groups. Indicative prose on why a BMP sender cannot publish a simple peer group name, and why the Admin Label of section 6.3.1 answers the same need. Its last sentence puts label configuration and assignment outside the document. No directive."
+    },
+    {
+      "id": "7.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Changes to Existing BMP Session. One sentence, one capitalised MUST, mapped below to RFC8671-7.2-1."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Imports Section 11 of RFC 7854, states that an implementation SHOULD require sessions with authorized and trusted monitoring devices, and states that this document adds no further consideration. The SHOULD is advisory and never gates."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Names the registry the three subsections write to."
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Addition to the BMP Peer Flags registry: flag 3, the O flag. Binds IANA, not a speaker."
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Additions to the BMP Statistics Types registry: types 14 to 17. Binds IANA, not a speaker."
+    },
+    {
+      "id": "9.3",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "Addition to the BMP Initiation Message TLVs registry: type 4, Admin Label. Binds IANA, not a speaker."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 4271, RFC 7854, RFC 8174."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "This MUST convey to the BMP receiver what is actually transmitted to the peer.",
+      "disposition": "excluded",
+      "mapped-to": "RFC8671-5.1-1",
+      "excluded-kind": "duplicate-of",
+      "reason": "The Definitions entry for post-policy Adj-RIB-Out closes with the same sentence section 5.1 states: 'This MUST convey to the BMP receiver what is actually transmitted to the peer.' Site 5.1:1 maps that obligation to RFC8671-5.1-1. One obligation, written twice."
+    },
+    {
+      "id": "4:1",
+      "quote": "They MUST be transmitted as 0, and their values MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8671-4-1",
+      "reason": "The reserved bits of the per-peer header Flags field, both halves in one sentence: transmit them as 0, and ignore their values on receipt. Added as RFC8671-4-1 at [MUST] by this walk; the summary declared no id for it. ze meets both halves. On transmit, peerHeaderFromEvent (bmp_events.go) and locRIBPeerHeader (bmp_locrib.go) are the only two producers of a PeerHeader ze sends, and each sets only V, L and O, so bits 3 to 0 stay clear; writePeerHeader copies the byte to the wire unchanged. On receipt, decodePeerHeader stores the byte and validates nothing, and the four accessors IsIPv6, isPostPolicy, is2ByteAS and isAdjRIBOut each mask one defined bit, so a reserved bit changes no reading and refuses no message. Proven by TestRFC8671ReservedPeerFlagsTransmittedAsZero (positive) and TestRFC8671ReservedPeerFlagsIgnoredOnReceipt (negative)."
+    },
+    {
+      "id": "5.1:1",
+      "quote": "Post-policy Adj-RIB-Out MUST convey to the BMP receiver what is actually transmitted to the peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8671-5.1-1",
+      "reason": "The fidelity obligation on the post-policy Adj-RIB-Out feed. Added as RFC8671-5.1-1 at [MUST] by this walk; the summary declared no id for it. ze meets it: handleSenderUpdate (bmp_events.go) takes the transmitted UPDATE body from rawUpdateBytes, which returns bgptypes.RawMessage.RawBytes as session_write.go wrote it to the peer, and senderSession.writeRouteMonitoring (sender.go) copies those bytes into the BMP message behind a synthesized BGP header. No parse, no re-encode. Proven by TestRFC8671PostPolicyConveysTransmittedBytes (positive) and TestRFC8671PostPolicyConveysUnknownAttributeUnchanged (negative), which sends an attribute type ze has no codec for and requires it back byte for byte."
+    },
+    {
+      "id": "5.1:2",
+      "quote": "The L flag MUST be set to 1 to indicate post-policy.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8671-x-2",
+      "reason": "The L flag is set to 1 to indicate post-policy, captured as RFC8671-x-2 at [MUST]. peerHeaderFromEvent sets PeerFlagO and PeerFlagL together for a sent-direction event, so ze's Adj-RIB-Out feed is always post-policy. Proven by TestPeerHeaderFromEventAdjRIBOut and TestPeerHeaderFromEventAdjRIBIn."
+    },
+    {
+      "id": "5.2:1",
+      "quote": "All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The role is a BMP sender that emits pre-policy Adj-RIB-Out, and ze does not implement it. peerHeaderFromEvent sets PeerFlagO and PeerFlagL in one statement, so O=1 with L=0 is unreachable, and the route-monitoring-policy leaf offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice. ze therefore never reaches a pre-policy phase completion at which a mandatory attribute could be unknown, and holds no route for which it would have to zero the next hop. The permission this obligation is conditional on is RFC8671-x-5 [MAY], which ze does not exercise."
+    },
+    {
+      "id": "5.2:2",
+      "quote": "The L flag MUST be set to 0 to indicate pre-policy.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The same role as site 5.2:1: a BMP sender that emits pre-policy Adj-RIB-Out must clear the L flag. ze does not implement that mode, because peerHeaderFromEvent sets PeerFlagO and PeerFlagL together and never sets O alone. The post-policy half of the same rule, which ze does exercise, is site 5.1:2 mapping RFC8671-x-2."
+    },
+    {
+      "id": "6.1:1",
+      "quote": "The O flag MUST be set accordingly to indicate if the route monitor or route mirroring message conveys Adj-RIB-In or Adj-RIB-Out.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8671-6.1-1",
+      "reason": "The O flag says which RIB a Route Monitoring or Route Mirroring message carries. Added as RFC8671-6.1-1 at [MUST] by this walk; the summary declared no id for it, and RFC8671-x-1 records only the bit position. ze meets it for both message types from one producer: handleSenderUpdate and handleSenderMirror (bmp_events.go) each build their per-peer header with peerHeaderFromEvent, which sets PeerFlagO for a sent-direction event and leaves it clear for a received one. Proven at the wire level by TestRFC8671OFlagSetOnAdjRIBOutMessages (positive) and TestRFC8671OFlagClearOnAdjRIBInMessages (negative), which read the flags byte off both message types in both directions."
+    },
+    {
+      "id": "6.2:1",
+      "quote": "Statistics report messages are not specific to Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The role is a BMP sender that emits Statistics Report messages, and ze does not implement it. senderSession.writeStatisticsReport (sender.go) and makeStatGauge have no caller outside sender_test.go, and the statistics-timeout leaf is parsed into senderConfig.StatisticsTimeout (bmp.go) and read by nothing, so no timer drives a report. ze therefore transmits no Statistics Report on which it could set the O flag wrongly. The receiving half of this section is a SHOULD and is answered in the section 6.2 walk. The unwired leaf is recorded in plan/journal/unwired-feature.md."
+    },
+    {
+      "id": "6.3.1:1",
+      "quote": "When multiple Admin Labels are included, the BMP receiver MUST preserve their order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8671-6.3.1-1",
+      "reason": "A receiver keeps multiple Admin Labels in wire order. Added as RFC8671-6.3.1-1 at [MUST] by this walk; the summary declared no id for it. ze meets it: decodePeerUp (msg.go) hands the trailing bytes to DecodeTLVs (tlv.go), which appends each TLV as it reads it, so PeerUp.InfoTLVs holds the wire order, and writePeerUp re-emits that slice in the same order. DecodeMsg is the receiver's real entry point, reached from BMPPlugin.processMessage. Proven by TestRFC8671AdminLabelOrderPreserved (positive) and TestRFC8671AdminLabelReversedOrderPreserved (negative), which sends the same two labels in the opposite order and requires the opposite order back."
+    },
+    {
+      "id": "7.2:1",
+      "quote": "In case of any change that results in the alteration of behavior of an existing BMP session (i.e., changes to filtering and table names), the session MUST be bounced with a Peer Down/Peer Up sequence.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8671-7.2-1",
+      "reason": "A configuration change that alters the behavior of an existing BMP session bounces that session. Added as RFC8671-7.2-1 at [MUST] by this walk; the summary declared no id for it. ze meets it with the Peer Down and Peer Up pair the section names: the BMP session stays up, and every established BGP peer reported on it gets a Peer Down carrying reason 5 (PeerDownDeconfigured, RFC 7854 Section 4.9, the only defined reason that reports a local configuration decision and disclaims that the peer went down) followed by a Peer Up. The trigger is the section's own condition rather than any delivery: applySenderConfig (sender_config.go) compares the parsed senderConfig against the one in force, behaviorOf decides whether the bounce is owed, syncSenders reconciles which sessions exist, and bounceMonitoredPeers (bmp_events.go) emits the pair. An unrelated change under the bgp root now costs a collector nothing. Proven by TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession positive, with TestRFC8671UnrelatedBGPChangeBouncesNothing and TestRFC8671RemovingEveryCollectorBouncesTheSession negative; all three drive the plugin config-verify and config-apply callbacks rather than the function behind them. Removing a collector still ends that session with a Termination, which RFC 7854 Section 4.5 governs: Section 7.2 governs a session that CONTINUES under altered behavior, and the two cases are deliberately distinct. Corrected 2026-08-31, second correction to this site and the first to change the VERDICT rather than the record. The reason previously described a whole-session reset and named startSender, a function that no longer exists. That reset was ruled non-conformant by the owner: a session teardown and a per-peer pair are different rather than more-versus-less, and the reset forces every collector into a full re-dump, which is materially worse for a monitoring station than the sequence the RFC names."
+    }
+  ],
+  "register-reason": "Standards Track, with the RFC 8174 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3, 4, 5.1, 5.2, 6.1, 6.2, 6.3.1 and 7.2. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade.",
+  "resign-reason": "Second resign. The first recorded a false reason: applySenderConfig was named as the whole reload path while nothing reached it, so the obligation was signed as met against an unreachable function. This one records a changed VERDICT. The owner ruled on 2026-08-31 that ze implement a real per-peer Peer Down/Peer Up instead of the whole-session reset the main thread had self-authorised as equivalent, overturning that judgement: the two are different rather than more-versus-less. The mechanism, the trigger and the tests all changed, so site 7.2:1's reason is rewritten to the behavior that now exists. No disposition changed and no site was re-classified; the exclusion count is identical."
+}

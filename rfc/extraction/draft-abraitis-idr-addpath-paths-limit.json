@@ -1,0 +1,92 @@
+{
+  "schema-version": 1,
+  "stem": "draft-abraitis-idr-addpath-paths-limit",
+  "register": "rfc2119",
+  "source-path": "rfc/drafts/draft-abraitis-idr-addpath-paths-limit.txt",
+  "source-sha": "87330146d8f7b5c0",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, draft-abraitis-idr-addpath-paths-limit",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates section 1 and directs no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: ADD-PATH lets a speaker advertise several paths for one prefix, a large number of such paths can exhaust the receiver's memory, and this document defines a capability that tells the sender the receiver's ceiling. No sentence directs a speaker."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Specification of Requirements. The BCP 14 key-words paragraph, which binds no speaker and states how to read the other sections. The derivation excludes it from the site inventory for that reason."
+    },
+    {
+      "id": "3",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "PATHS-LIMIT Capability. The document's only normative section: Capability Code 76, the 5-octet AFI/SAFI/Paths-Limit tuple, and four capitalised MUST-level sites mapped below to DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1 through -3-4. Its three remaining directives are advisory and carry no site: ignore a tuple whose Paths Limit is zero, send no more than the advertised maximum, and offer a configuration knob. Those are the unsourced ids below. Two indicative sentences state no obligation: the Paths Limit field description, and \"If the PATHS-LIMIT capability is empty (i.e. the Capability Length field is set to 0), it means that the sender doesn't have any specific limits to communicate\", which defines what an empty capability means rather than directing a speaker.",
+      "unsourced-ids": [
+        "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-5",
+        "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-6",
+        "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-7"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records capability number 76 in the BGP Capability Codes registry. Binds IANA, not a speaker."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations, and with it the unnumbered Acknowledgements, References and Authors' Addresses blocks, which carry no section number and so stay in this body under the heading derivation. The security text states that PATHS-LIMIT mitigates some RFC 7911 concerns and that a rogue or misconfigured node can advertise a limit too low for the application. Its one direction, \"Users of the PATHS-LIMIT Capability are encouraged to examine the behavior and potential impact\", is an encouragement with no RFC 2119 keyword and binds no speaker."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Implementation Report. An RFC 7942 note naming the FRRouting commit that implements the draft. It reports on another implementation and states no obligation."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "A BGP speaker that wishes to indicate support for multiple AFI/SAFIs MUST do so by including the information in a single instance of the PATHS-LIMIT capability.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1",
+      "reason": "The single-instance obligation on a speaker advertising several AFI/SAFIs, captured verbatim as DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-1 at [MUST]."
+    },
+    {
+      "id": "3:2",
+      "quote": "The PATHS-LIMIT capability MUST be ignored if the ADD-PATH capability is not present.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2",
+      "reason": "The obligation to ignore the whole PATHS-LIMIT capability when the peer sent no ADD-PATH capability, captured verbatim as DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-2 at [MUST]."
+    },
+    {
+      "id": "3:3",
+      "quote": "An AFI/SAFI tuple MUST be ignored if the same tuple was not received in the ADD-PATH capability.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3",
+      "reason": "The obligation to ignore a tuple whose AFI/SAFI was not in the peer's ADD-PATH capability, captured verbatim as DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-3 at [MUST]."
+    },
+    {
+      "id": "3:4",
+      "quote": "All others MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4",
+      "reason": "The duplicate-tuple obligation: the first tuple for an AFI/SAFI pair is considered and every other one is ignored. Captured verbatim as DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT-3-4 at [MUST]. The derived site is the second half of the pair of sentences; its first half, \"If more than one tuple is received for the same AFI/SAFI pair, only the first tuple should be considered\", carries a lowercase modal and no site of its own."
+    }
+  ],
+  "register-reason": "Internet-Draft on the Standards Track, with the BCP 14 key-words paragraph at section 2 and four capitalised MUST-level keyword sites in section 3. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}

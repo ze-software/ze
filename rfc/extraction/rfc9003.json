@@ -1,0 +1,141 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9003",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9003.txt",
+  "source-sha": "cf060177c8f68e0c",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc9003",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract records that the document updates RFC 4486 and obsoletes RFC 8203 by defining a Shutdown Communication of up to 255 octets. It directs no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose, near-identical to RFC 8203 section 1, plus the sentence \"This document obsoletes [RFC8203]; the specific differences and rationale are discussed in detail in Appendix A\". Obsoleting is a relationship between documents, not an obligation on a speaker."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The BCP 14 key-words paragraph, identical in force to RFC 8203 section 1.1 and excluded from the site inventory for the same reason."
+    },
+    {
+      "id": "2",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Shutdown Communication. Four capitalised MUST-level sites, mapped below to RFC9003-2-3 (subcode), RFC9003-2-1 (UTF-8), RFC9003-2-4 (invalid UTF-8) and RFC9003-2-2 (shortest form). Each is stated in this document's own voice and cites no other RFC for its force, so each is owned here and not read across from RFC 8203. Two differences from RFC 8203 section 2 are load-bearing and both are REMOVALS or ADDITIONS, not restatements: RFC 8203's \"The length value MUST range from 0 to 128 inclusive\" is DELETED here, leaving RFC 9003 with no MUST-level length bound anywhere (what replaces it is the MAY/SHOULD NOT pair in section 3), and the UTF-8 \"Shortest Form\" sentence is ADDED here, where RFC 8203 stated it only in section 6. The remaining directives are the opening MAY and the closing syslog SHOULD, the unsourced ids below. \"This field is not NUL terminated\" is descriptive here as in RFC 8203.",
+      "unsourced-ids": [
+        "RFC9003-2-5",
+        "RFC9003-2-6"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Operational Considerations. Carries the length policy RFC 8203 stated as a MUST in its section 2, restated here at a lower level and in a different section: \"If it is known that the peer BGP speaker supports this specification, then a Shutdown Communication that is not longer than 255 octets MAY be sent. Otherwise, a Shutdown Communication MAY be sent, but it SHOULD NOT be longer than 128 octets.\" The three ids below carry it. The site scan sees no site because the sentence is MAY/SHOULD NOT rather than MUST-level, which is the substantive finding of this walk: the 128-octet bound is an obligation under RFC 8203 and advice under RFC 9003. The rest of the section is the ticket-reference example inherited from RFC 8203, plus indicative statements about how an RFC 8203 speaker and a speaker implementing neither document will treat an over-long message, and the observation that a receiver cannot acknowledge a Shutdown Communication.",
+      "unsourced-ids": [
+        "RFC9003-3-1",
+        "RFC9003-3-2",
+        "RFC9003-3-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Error Handling. The SHOULD to log an invalid UTF-8 sequence for the attention of the operator and the MAY to log the malformed Shutdown Communication in hexdump format, both the unsourced ids below. Narrower than RFC 8203 section 4, which also named an invalid Length value as a logging trigger; RFC 9003 drops that clause, consistent with its section 2 dropping the length MUST.",
+      "unsourced-ids": [
+        "RFC9003-4-1",
+        "RFC9003-4-2"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records that IANA has referenced this document, in addition to RFC 4486, at subcodes \"Administrative Shutdown\" and \"Administrative Reset\" in the \"BGP Cease NOTIFICATION message subcodes\" registry. Binds IANA."
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Security Considerations. Its one capitalised site repeats the shortest-form sentence verbatim from section 2 and is excluded below as a duplicate of RFC9003-2-2, which site 2:4 maps. The remaining prose mirrors RFC 8203 section 6 with one change of substance: where RFC 8203 said the syslog-injection attack is limited because the Shutdown Communication \"is limited to 128 octets in length\", this document says \"The 255-octet length limit ... may help limit\" it. Advice, with no keyword."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. Section header for the two reference lists below."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 3629, RFC 4271, RFC 4486, RFC 8174."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 4272, RFC 5424, RFC 6973, RFC 8203, UTR36."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix A, Changes to RFC 8203. Records that the maximum permitted length was changed from 128 to 255, gives the operator feedback that motivated it (a 65-byte English phrase is 139 bytes in Russian), and states indicatively that an RFC 8203 speaker receiving a message longer than 128 octets will bring it to an operator's attention but otherwise process the NOTIFICATION as normal. A change log with no keyword and no directive."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "Subcode: The Error Subcode value MUST be one of the following values: 2 (\"Administrative Shutdown\") or 4 (\"Administrative Reset\").",
+      "disposition": "mapped",
+      "mapped-to": "RFC9003-2-3",
+      "reason": "The sender's subcode constraint, captured verbatim as RFC9003-2-3 at [MUST]. Stated in this document's own voice with no citation of RFC 8203, so it is owned here rather than read across."
+    },
+    {
+      "id": "2:2",
+      "quote": "Shutdown Communication: To support international characters, the Shutdown Communication field MUST be encoded using UTF-8.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9003-2-1",
+      "reason": "The UTF-8 encoding obligation on the Shutdown Communication field, captured verbatim as RFC9003-2-1 at [MUST]."
+    },
+    {
+      "id": "2:3",
+      "quote": "A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9003-2-4",
+      "reason": "The receiver's prohibition on interpreting invalid UTF-8, captured verbatim as RFC9003-2-4 at [MUST NOT]."
+    },
+    {
+      "id": "2:4",
+      "quote": "UTF-8 \"Shortest Form\" encoding is REQUIRED to guard against the technical issues outlined in [UTR36].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9003-2-2",
+      "reason": "The REQUIRED UTF-8 \"Shortest Form\" encoding, captured verbatim as RFC9003-2-2 at [MUST]. RFC 9003 ADDS this sentence to section 2, where RFC 8203 carried it only in section 6; the summary row cites both sections, and this site is the section 2 occurrence."
+    },
+    {
+      "id": "6:1",
+      "quote": "UTF-8 \"Shortest Form\" encoding is REQUIRED to guard against the technical issues outlined in [UTR36].",
+      "disposition": "excluded",
+      "mapped-to": "RFC9003-2-2",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 6 repeats the section 2 sentence word for word, so it restates an obligation site 2:4 already maps to RFC9003-2-2 rather than adding one. Not cross-document: the sentence names UTR36, a Unicode technical report, and cites no RFC for its force."
+    }
+  ],
+  "register-reason": "Standards Track, with the BCP 14 key-words paragraph at section 1.1 and capitalised MUST-level keywords in sections 2 and 6. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}

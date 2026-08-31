@@ -1,0 +1,125 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4578",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4578.txt",
+  "source-sha": "0c9586ab5658d5ee",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc4578",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Status of This Memo states the document specifies no Internet standard, and the Abstract restates section 1. Neither directs a DHCP speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Explains why the MAC address in the chaddr field was deemed insufficient to identify a booting machine (shared docking stations reusing a MAC, one machine holding several interfaces) and says the three options were defined by Intel in the PXE and EFI specifications and are documented here for completeness. Entirely indicative. No gated requirement of rfc/short/rfc4578.md is read from this section."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Option Definitions. One sentence: 'There are three DHCP options [5] defined for use by PXE clients.' It counts the subsections that follow and directs nobody."
+    },
+    {
+      "id": "2.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Client System Architecture Type Option Definition, option 93. Holds two of the document's five sites, both mapped below: the Len constraint (2.1:1) and the presence obligation (2.1:2). The rest of the section is the option figure, the architecture type table (types 0 to 9), the statement that octets n1 and n2 encode a 16-bit architecture type identifier, and two MAY sentences that are advisory and never gate: a client supporting more than one architecture type MAY list them (RFC4578-2.1-3) and the list MAY be reduced in any packet exchange (RFC4578-2.1-4). Ze reads the first type from a received option 93 in parsePXEArch (internal/plugins/dhcpserver/handler.go), which is why a multi-type list is parsed rather than refused."
+    },
+    {
+      "id": "2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Client Network Interface Identifier Option Definition, option 94. The figure, the statement that octet t encodes an interface type whose only supported value is 1 (UNDI), the M and m revision encoding, and the UNDI revision table are indicative. The one normative sentence is site 2.2:1, mapped below."
+    },
+    {
+      "id": "2.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Client Machine Identifier Option Definition, option 97. The figure, the statement that type 0 is the only defined value and describes the remaining octets as a 16-octet GUID, and the note that octet n is 17 for type 0 are indicative. The one normative sentence is site 2.3:1, mapped below."
+    },
+    {
+      "id": "2.4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Options Requested by PXE Clients. Its one MUST is site 2.4:1, mapped below. The rest states that the format and contents of options 128 to 135 are not defined by the PXE specification, that they MAY be present in replies (RFC4578-2.4-2, advisory and never gated), that they are not used by the PXE boot ROMs, and that because they were site-specific options before November 2004 their use for PXE may conflict with other uses on the same network."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements. One sentence thanking Bernie Volz."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records that IANA updated the public DHCP option numbering space with references to this document for options 93, 94 and 97, and marked options 128 to 135 as used by PXE. Binds IANA, not a DHCP speaker, and is written in the past tense."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Two observations and no countermeasure: a client specifying incorrect option values may reach code intended for another platform, and the options reveal a client's system architecture and pre-OS runtime environment to anyone listening to its DHCP messages. Neither sentence directs a speaker to do or refuse anything, so the section states no requirement. rfc/short/rfc4578.md carries both as its Security Considerations table."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 2131, the Intel PXE and EFI specifications, RFC 2132, RFC 3942, RFC 2939 and RFC 3679. The derivation folds the trailing matter under this heading as well -- the Authors' Addresses, the Full Copyright Statement, the Intellectual Property notice and the RFC Editor funding acknowledgement. None of it binds a DHCP speaker, and the site scan derives no site here."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1:1",
+      "quote": "It MUST be an even number greater than zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4578-2.1-2",
+      "reason": "The option 93 Len constraint, captured verbatim as RFC4578-2.1-2 at [MUST]. The antecedent of 'It' is the preceding sentence's octet 'n', which 'gives the number of octets containing \"architecture types\" (not including the code and len fields)'. Ze enforces it on receive in parsePXEArch (internal/plugins/dhcpserver/handler.go), which returns the BIOS default of 0 when the option payload is shorter than two octets or of odd length, so a malformed option 93 never selects a bootfile. The row carries positive and negative tags on TestParsePXEArch (internal/plugins/dhcpserver/handler_test.go): an even Len of 2 is parsed, an odd Len of 3 is rejected."
+    },
+    {
+      "id": "2.1:2",
+      "quote": "This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4578-2.1-1",
+      "reason": "The option 93 presence obligation, captured verbatim as RFC4578-2.1-1 at [MUST]. The row is annotated {not-applicable}: ze is a DHCP server that READS a received option 93 in parsePXEArch to choose between the BIOS and UEFI bootfile, and emits none of its own -- appendPXEOptions (internal/plugins/dhcpserver/handler.go) writes options 60, 66, 67 and 43 into an OFFER or ACK and never option 93 -- and it has no PXE Boot Server Discovery exchange, because the option 43 sub-option 6 it sends sets PXE_DISCOVERY_CONTROL bit 3 to skip it. The site is mapped rather than excluded because the sentence is the source of a declared gated row and the annotation is a statement about ze rather than about the RFC."
+    },
+    {
+      "id": "2.2:1",
+      "quote": "This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4578-2.2-1",
+      "reason": "The option 94 presence obligation, captured verbatim as RFC4578-2.2-1 at [MUST]. The sentence is word for word the one at site 2.1:2, but it is not a duplicate of it: each subsection repeats the sentence about ITS OWN option, so this one binds option 94 and rfc/short/rfc4578.md declares a separate gated row for it. The row is annotated {not-applicable}: ze has no option 94 code path at all, neither reading the UNDI interface type and revision nor emitting them, anywhere under internal/plugins/dhcpserver/."
+    },
+    {
+      "id": "2.3:1",
+      "quote": "This option MUST be present in all DHCP and PXE packets sent by PXE- compliant clients and servers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4578-2.3-1",
+      "reason": "The option 97 presence obligation, captured verbatim as RFC4578-2.3-1 at [MUST]. As at site 2.2:1 the wording repeats and the binding does not: this sentence binds option 97, the client machine identifier, and carries its own gated row. The row is annotated {not-applicable}: ze neither reads nor emits the 16-octet client GUID anywhere under internal/plugins/dhcpserver/, and keys every lease by chaddr instead."
+    },
+    {
+      "id": "2.4:1",
+      "quote": "All compliant PXE clients MUST include a request for DHCP options 128 through 135 in all DHCP and PXE packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4578-2.4-1",
+      "reason": "The obligation on a PXE client to request options 128 to 135, captured verbatim as RFC4578-2.4-1 at [MUST]. The row is annotated {not-applicable}: the sentence binds the PXE client, and ze ships a DHCP server only. Ze identifies such a client by its vendor class in isPXEClient (internal/plugins/dhcpserver/handler.go) and never sends a DHCP request of its own from this plugin."
+    }
+  ],
+  "register-reason": "Informational, November 2006, with an RFC 2119 key-words paragraph at section 1.1 and capitalised keywords throughout section 2. The derivation grades the source 'rfc2119' on five capitalised MUST-level sites against the five gated rows rfc/short/rfc4578.md declares, and the sign-off claims exactly that grade. Every gated row is mapped to a site, so no id is declared unsourced and no site is excluded."
+}

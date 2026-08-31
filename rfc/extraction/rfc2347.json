@@ -1,0 +1,51 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2347",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2347.txt",
+  "source-sha": "15ce2b209b116c40",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc2347",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "The whole document. RFC 2347 carries no numbered section headings, so the derivation returns one section spanning the title block to the Full Copyright Statement, and a skip of it would hide every gated id behind a skip kind. Walked heading by heading. Status of this Memo, the Copyright Notice and the Abstract are indicative. The Introduction says the mechanism is a backward-compatible extension enforcing a request-respond-acknowledge sequence and names RFC 2348 and RFC 2349 as the options it was created to carry; it directs nobody. Packet Formats is the wire-format section, written entirely in the indicative: options are appended to the Read Request or Write Request as NUL-terminated name/value pairs, a new opcode 6 (OACK) acknowledges them, a new error code 8 terminates a transfer over option negotiation, the order of options is not significant, and 'The maximum size of a request packet is 512 octets.' Ze reads those bytes in parseRRQ and writes them in buildOACK (internal/plugins/tftpserver/handler.go), and rfc/short/rfc2347.md carries the two figures and the constants; no gated row is read from this material. Packet Formats also defers three fields to RFC 1350 in the indicative ('as defined in [1]' for opc, filename and mode), which cites the base document rather than restating an obligation of it, so no site here is a cross-document exclusion. Negotiation Protocol is the only normative section and holds three of the four sites, front:1 to front:3, all classified below; its remaining normative sentences are advisory and ungated -- options the server does not support 'should be omitted from the OACK; they should not cause an ERROR packet to be generated' (RFC2347-x-5), and a client receiving an unrequested option in an OACK 'should respond with an ERROR packet, with error code 8' (RFC2347-x-6). Its three-response tables for RRQ and WRQ, the fallback narrative for a server that does not implement options, and the two ways a client confirms an OACK are indicative. The Examples section is two packet traces. Security Considerations says the document adds no security to TFTP and no additional risk, so it states no countermeasure. The References, Authors' Addresses and the Full Copyright Statement bind no TFTP speaker; the copyright statement's one modal sentence is site front:4, excluded below. RFC2347-x-4 is declared unsourced here: it is the second half of site front:3, which the sentence splitter returns whole, so the obligation has no site locator of its own.",
+      "unsourced-ids": [
+        "RFC2347-x-4"
+      ]
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "The server must not include in the OACK any option which had not been specifically requested by the client; that is, only the client may initiate option negotiation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2347-x-1",
+      "reason": "The server-side prohibition on volunteering an option, captured verbatim as RFC2347-x-1 at [MUST NOT], including the clause that gives its reason ('only the client may initiate option negotiation'). Ze meets it in sendOACKAndWait (internal/plugins/tftpserver/handler.go), which appends blksize to oackOpts only when opts.blksize is non-zero and tsize only when opts.tsize is set, and both flags are set by parseRRQ from the client's own option list. The row carries positive and negative tags on TestRFC2347ServerOACKOnlyRequestedOptions, whose negative requests only blksize and asserts the OACK carries no tsize."
+    },
+    {
+      "id": "front:2",
+      "quote": "An option not acknowledged by the server must be ignored by the client and server as if it were never requested.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2347-x-3",
+      "reason": "The obligation to treat an unacknowledged option as never requested, captured verbatim as RFC2347-x-3 at [MUST]. Ze meets it on the server side in handleRRQ and sendOACKAndWait (internal/plugins/tftpserver/handler.go): a requested windowsize is recorded by parseRRQ, never reaches oackOpts, and the transfer proceeds in lockstep as though it had not been asked for, with no ERROR packet. The row carries positive and negative tags on TestRFC2347ServerIgnoresUnacknowledgedOption."
+    },
+    {
+      "id": "front:3",
+      "quote": "If multiple options were requested, the client must use those options which were acknowledged by the server and must not use those options which were not acknowledged by the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2347-x-2",
+      "reason": "One sentence stating two client-side obligations, which rfc/short/rfc2347.md splits into two rows: RFC2347-x-2 at [MUST] for the options the server acknowledged, and RFC2347-x-4 at [MUST NOT] for those it did not. The sentence splitter returns the two halves as one site, and mapped-to names one id, so the site maps RFC2347-x-2 and RFC2347-x-4 is declared in unsourced-ids on this document's single section. Both rows are annotated {not-applicable}: the sentence binds the TFTP client, and ze ships a server only (internal/plugins/tftpserver/handler.go), with no client that could consume or ignore an acknowledged option. The site is mapped rather than excluded because the sentence is the source of two declared gated rows and the annotation is a statement about ze rather than about the RFC."
+    },
+    {
+      "id": "front:4",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate the extractor did not strip: the RFC Editor's Full Copyright Statement, which the site scan reaches because the sentence carries 'may not be modified' and 'must be followed'. It binds whoever copies or translates the document, under the Internet Society's copyright terms, and says nothing about TFTP option negotiation or about any byte on the wire. rfc/short/rfc2347.md declares no requirement for it."
+    }
+  ],
+  "register-reason": "Standards Track, May 1998, carrying no RFC 2119 key-words paragraph and no capitalised MUST-level keyword anywhere in rfc/full/rfc2347.txt. DeriveRegister therefore grades the source 'prose' and the inventory is the case-insensitive modal scan, which returns the four lowercase sentences classified below. The sign-off claims exactly the derived grade. Four gated rows are declared by rfc/short/rfc2347.md against three obligation-bearing sites, because site front:3 is one sentence stating two obligations and the summary splits it into RFC2347-x-2 and RFC2347-x-4."
+}

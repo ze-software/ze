@@ -1,0 +1,637 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2869",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc2869.txt",
+  "source-sha": "5b468f2205956613",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 2, rfc2869",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, copyright notice, Abstract and table of contents. The Abstract states what the memo adds to RADIUS and binds no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Says what RFC 2865 and RFC 2866 describe, that the new attributes are experimental, and that attributes are Type-Length-Value triples. No obligation."
+    },
+    {
+      "id": "1.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Specification of Requirements. The RFC 2119 key-words paragraph, the compliant / unconditionally compliant / conditionally compliant definitions, and one normative paragraph that scopes the document's other requirements to the services a NAS offers. The three sites below come from that last paragraph."
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Terminology. Defines service, session and 'silently discard'. The 'silently discard' entry carries two SHOULD clauses about logging the error and counting the event; neither is gated and neither is declared in rfc/short/rfc2869.md."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Operation. One sentence: operation is identical to RFC 2865 and RFC 2866. No obligation of its own."
+    },
+    {
+      "id": "2.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "RADIUS support for Interim Accounting Updates. Two capitalised MUSTs, both binding the NAS, both classified below."
+    },
+    {
+      "id": "2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "RADIUS support for Apple Remote Access Protocol. Describes ARAP's two-way DES exchange and the ARAP attribute set. Ze implements no ARAP: internal/component/radius/dict.go declares no attribute in the 70-74 or 84 range, and internal/component/l2tp/ppp offers PAP, CHAP and MS-CHAPv2 only."
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "RADIUS Support for Extensible Authentication Protocol. Introduces EAP-Message and Message-Authenticator. No capitalised keyword."
+    },
+    {
+      "id": "2.3.1",
+      "sites": 12,
+      "disposition": "walked",
+      "reason": "Protocol Overview. Twelve capitalised MUSTs describing an EAP conversation carried over RADIUS. Ze carries no EAP over RADIUS: internal/component/radius/dict.go declares no EAP-Message attribute (type 79), and internal/component/l2tp/ppp has no EAP module, so LCP never negotiates EAP. Ze's IKEv2 EAP (internal/component/ike/eap) terminates EAP locally and imports no RADIUS package."
+    },
+    {
+      "id": "2.3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Retransmission. Says the NAS retransmits between peer and NAS and the RADIUS client retransmits between client and server, and that Session-Timeout in an Access-Challenge bounds the wait for an EAP-Response. Indicative prose, no capitalised keyword."
+    },
+    {
+      "id": "2.3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Fragmentation. Says Framed-MTU may be included in an Access-Request carrying an EAP-Message. Permissive, no capitalised keyword."
+    },
+    {
+      "id": "2.3.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Examples. Two message-sequence diagrams of an OTP authentication. Illustration only."
+    },
+    {
+      "id": "2.3.5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Alternative uses. One capitalised MUST binding a RADIUS server that proxies RADIUS-encapsulated EAP to a backend security server."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Packet Format. One sentence: identical to RFC 2865 and RFC 2866."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Packet Types. Identical to RFC 2865 and RFC 2866, and points at the Table of Attributes."
+    },
+    {
+      "id": "5",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Attributes. The attribute type list and the five data types. The section states that 'A summary of the attribute format is the same as in RFC 2865 [1] but is included here for ease of reference', so its three capitalised MUSTs restate RFC 2865 Section 5."
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Input-Gigawords. Defines type 52 and says the attribute 'indicates how many times the Acct-Input-Octets counter has wrapped around 2^32 over the course of this service being provided, and can only be present in Accounting-Request records where the Acct-Status-Type is set to Stop or Interim-Update'. Indicative prose with no capitalised keyword, which is why the site scan sees nothing here. The five gated Gigawords rows in rfc/short/rfc2869.md were all read from this sentence and its identically worded twin in Section 5.2, so they are declared unsourced here.",
+      "unsourced-ids": [
+        "RFC2869-x-1",
+        "RFC2869-x-2",
+        "RFC2869-x-3",
+        "RFC2869-x-4",
+        "RFC2869-x-5"
+      ]
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Acct-Output-Gigawords. Defines type 53 in wording identical to Section 5.1 with Acct-Output-Octets substituted. The five gated rows it shares with Section 5.1 are declared unsourced on Section 5.1 rather than twice."
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Event-Timestamp. Defines type 55 as the time the event occurred. No obligation."
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "ARAP-Password. Defines type 70. Ze implements no ARAP."
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "ARAP-Features. Defines type 71. Ze implements no ARAP."
+    },
+    {
+      "id": "5.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "ARAP-Zone-Access. Defines type 72. Ze implements no ARAP."
+    },
+    {
+      "id": "5.7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "ARAP-Security. Defines type 73. Ze implements no ARAP."
+    },
+    {
+      "id": "5.8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "ARAP-Security-Data. Defines type 74. Ze implements no ARAP."
+    },
+    {
+      "id": "5.9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Password-Retry. Defines type 75, how many attempts a user is allowed. Ze declares no such attribute constant."
+    },
+    {
+      "id": "5.10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Prompt. Defines type 76, whether the NAS echoes the user's response. Ze declares no such attribute constant."
+    },
+    {
+      "id": "5.11",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Connect-Info. Defines type 77, the connect speed the NAS reports. Ze declares no such attribute constant."
+    },
+    {
+      "id": "5.12",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Configuration-Token. Defines type 78, for a RADIUS proxy. Ze is no RADIUS proxy."
+    },
+    {
+      "id": "5.13",
+      "sites": 6,
+      "disposition": "walked",
+      "reason": "EAP-Message. Defines type 79 and six capitalised MUSTs over its handling. Ze declares no EAP-Message attribute constant and sends and receives none."
+    },
+    {
+      "id": "5.14",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Message-Authenticator. Defines type 80, its two HMAC-MD5 formulas, and three capitalised MUSTs. The third binds a RADIUS client, which is the role Ze plays (internal/component/radius/client.go), and is captured as RFC2869-5.14-1."
+    },
+    {
+      "id": "5.15",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "ARAP-Challenge-Response. Defines type 84. Ze implements no ARAP."
+    },
+    {
+      "id": "5.16",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Acct-Interim-Interval. Defines type 85 and one capitalised MUST NOT over the value the sender puts in it. The section states the attribute 'can only appear in the Access-Accept message', so the obligation binds the RADIUS server."
+    },
+    {
+      "id": "5.17",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NAS-Port-Id. Defines type 87 as UTF-8 text of length 3 or more naming the physical port. Its one obligation is a SHOULD read from indicative prose, which the site scan does not surface and which rfc/short/rfc2869.md declares as RFC2869-5.17-1."
+    },
+    {
+      "id": "5.18",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Framed-Pool. Defines type 88, the address pool name. No obligation."
+    },
+    {
+      "id": "5.19",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Table of Attributes heading and its opening paragraph. The table body, Note 1 and the notation legend fall outside the numbered-section split and are carried by the derived section '0'."
+    },
+    {
+      "id": "0",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "The tail of Section 5.19: the packet-versus-attribute table, Note 1, and the legend defining 0, 0+, 0-1 and 1. The section splitter cannot attribute this block to a numbered heading, so it derives as section '0'."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Registers the packet type codes, attribute types and attribute values from the RADIUS name spaces per BCP 26. Binds IANA, not a speaker."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. One sentence: the attributes other than Message-Authenticator and EAP-Message add nothing beyond RFC 2865."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Message-Authenticator Security. Explains why an Access-Request without a User-Password should carry a Message-Authenticator. Lowercase 'should', no capitalised keyword."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "EAP Security. Lists the five threats the subsections address. No obligation."
+    },
+    {
+      "id": "7.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Separation of EAP server and PPP authenticator. Describes key transport between the EAP server and the PPP authenticator. No capitalised keyword."
+    },
+    {
+      "id": "7.2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Connection hijacking. One capitalised MUST requiring every EAP/RADIUS packet to be authenticated with the Message-Authenticator attribute."
+    },
+    {
+      "id": "7.2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Man in the middle attacks. States that a compromised RADIUS proxy can modify EAP packets. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "7.2.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Multiple databases. Recommends consolidating the RADIUS and backend security databases. Advice to a deployer, no capitalised keyword."
+    },
+    {
+      "id": "7.2.5",
+      "sites": 8,
+      "disposition": "walked",
+      "reason": "Negotiation attacks. Eight capitalised keywords across the authenticating peer, an EAP-capable NAS, and the RADIUS server or proxy."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References: RFC 2865, RFC 2866, RFC 2284, RFC 2119, RFC 1700, RFC 2868, RFC 2867, RFC 2279, RFC 2104, RFC 2434 and one informative citation."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Chair's Address. A postal and mail address block, matching how rfc/extraction/rfc3765.json skips its Author's Address section."
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Authors' Addresses. Address blocks only."
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Full Copyright Statement. The ISOC boilerplate and its disclaimer."
+    }
+  ],
+  "sites": [
+    {
+      "id": "1.1:1",
+      "quote": "A NAS that does not implement a given service MUST NOT implement the RADIUS attributes for that service.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2869-1.1-1",
+      "reason": "Binds the NAS, which is the role Ze plays (internal/component/l2tp is the LNS and NAS side). Captured as RFC2869-1.1-1 at [MUST NOT]. Ze's NAS offers PPP with PAP, CHAP-MD5 or MS-CHAPv2 and nothing else, and internal/component/radius/dict.go declares no attribute in the 70-74 or 84 ARAP range and none for EAP-Message (type 79)."
+    },
+    {
+      "id": "1.1:2",
+      "quote": "For example, a NAS that is unable to offer ARAP service MUST NOT implement the RADIUS attributes for ARAP.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC2869-1.1-1",
+      "reason": "The sentence opens 'For example' and names ARAP as an instance of the rule site 1.1:1 states. It adds no obligation site 1.1:1 does not already carry."
+    },
+    {
+      "id": "1.1:3",
+      "quote": "A NAS MUST treat a RADIUS access-request requesting an unavailable service as an access-reject instead.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2869-1.1-2",
+      "reason": "Binds the NAS. Captured as RFC2869-1.1-2 at [MUST]. buildAuthAttrs (internal/component/l2tp/plugins/authradius/handler.go) names Service-Type Framed and Framed-Protocol PPP in every Access-Request it builds, for every authentication method, so the NAS never requests a service it cannot then provide."
+    },
+    {
+      "id": "2.1:1",
+      "quote": "Note that a locally configured value on the NAS MUST override the value found in an Access-Accept.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2869-2.1-2",
+      "reason": "Binds the NAS, which is the role ze plays. Captured as RFC2869-2.1-2 at [MUST]. acctInterval (internal/component/l2tp/plugins/authradius/acct.go) answers the acct-interval config leaf whenever the operator set one and reads the Access-Accept's Acct-Interim-Interval only when the leaf is absent; the leaf carries no YANG default (yang/ze-l2tp-auth-radius-conf.yang) so the absent case stays representable. The site was left unclassified on the first walk because ze then took the Access-Accept value over the configured one, which is the reverse of this sentence."
+    },
+    {
+      "id": "2.1:2",
+      "quote": "Since all the information is cumulative, a NAS MUST ensure that only a single generation of an interim Accounting message for a given session is present in the retransmission queue at any given time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2869-2.1-1",
+      "reason": "Binds the NAS. Captured as RFC2869-2.1-1 at [MUST]. interimLoop (internal/component/l2tp/plugins/authradius/acct.go) calls sendAcctInterimUpdate inline on each tick, so a tick that arrives while the previous generation is still retransmitting starts no second generation."
+    },
+    {
+      "id": "2.2:1",
+      "quote": "If the user's password is greater than 8 octets in length, an Access-Reject MUST be sent instead.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. The sentence sits inside the list of attributes the server returns in an ARAP Access-Accept, and the actor is the party that computes ARAP-Challenge-Response by DES-encrypting the dial-in client's challenge with the user's password. Ze is a RADIUS client only (internal/component/radius/client.go opens a UDP socket to send requests and match replies) and implements no ARAP."
+    },
+    {
+      "id": "2.3.1:1",
+      "quote": "Once EAP has been negotiated, the NAS MUST send an EAP-Request/Identity message to the authenticating peer, unless identity is determined via some other means such as Called-Station-Id or Calling-Station-Id.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze's IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package."
+    },
+    {
+      "id": "2.3.1:2",
+      "quote": "In order to permit non-EAP aware RADIUS proxies to forward the Access-Request packet, if the NAS sends the EAP-Request/Identity, the NAS MUST copy the contents of the EAP-Response/Identity into the User-Name attribute and MUST include the EAP-Response/Identity in the User-Name attribute in every subsequent Access-Request.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze's IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package."
+    },
+    {
+      "id": "2.3.1:3",
+      "quote": "NAS-Port or NAS-Port-Id SHOULD be included in the attributes issued by the NAS in the Access-Request packet, and either NAS-Identifier or NAS-IP- Address MUST be included.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze's IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package."
+    },
+    {
+      "id": "2.3.1:4",
+      "quote": "In order to permit forwarding of the Access-Reply by EAP-unaware proxies, if a User-Name attribute was included in an Access-Request, the RADIUS Server MUST include the User-Name attribute in subsequent Access-Accept packets.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "2.3.1:5",
+      "quote": "If identity is determined via another means such as Called-Station-Id or Calling-Station-Id, the NAS MUST include these identifying attributes in every Access-Request.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze's IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package."
+    },
+    {
+      "id": "2.3.1:6",
+      "quote": "If the RADIUS server supports EAP, it MUST respond with an Access- Challenge packet containing an EAP-Message attribute.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "2.3.1:7",
+      "quote": "If the RADIUS server does not support EAP, it MUST respond with an Access-Reject.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "2.3.1:8",
+      "quote": "Reception of a RADIUS Access-Reject packet, with or without an EAP- Message attribute encapsulating EAP-Failure, MUST result in the NAS issuing an LCP Terminate Request to the authenticating peer.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze's IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package."
+    },
+    {
+      "id": "2.3.1:9",
+      "quote": "The RADIUS Access-Accept/EAP-Message/EAP-Success packet MUST contain all of the expected attributes which are currently returned in an Access-Accept packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "2.3.1:10",
+      "quote": "If the domain is determined based on the user's identity, the local RADIUS Server MUST respond with a RADIUS Access-Challenge/EAP-Identity packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "2.3.1:11",
+      "quote": "The response from the authenticating peer MUST be proxied to the final authentication server.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "2.3.1:12",
+      "quote": "On receiving an Access-Reject, the NAS MUST send an LCP Terminate Request to the authenticating peer, and disconnect.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze's IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package."
+    },
+    {
+      "id": "2.3.5:1",
+      "quote": "This means that the RADIUS server MUST add these attributes prior to sending an Access-Accept/EAP-Success message to the NAS.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "5:1",
+      "quote": "Servers and servers and clients MUST be able to deal with embedded nulls.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 2865 Section 5, 'servers and clients MUST be able to deal with embedded nulls'. Section 5 states 'A summary of the attribute format is the same as in RFC 2865 [1] but is included here for ease of reference', and the sentence appears verbatim in RFC 2865 Section 5. The obligation belongs to RFC 2865, which carries its own summary at rfc/short/rfc2865.md."
+    },
+    {
+      "id": "5:2",
+      "quote": "Text of length zero (0) MUST NOT be sent; omit the entire attribute instead. string 1-253 octets containing binary data (values 0 through 255 decimal, inclusive).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 2865 Section 5, 'Text of length zero (0) MUST NOT be sent; omit the entire attribute instead'. Section 5 states 'A summary of the attribute format is the same as in RFC 2865 [1] but is included here for ease of reference', and the sentence appears verbatim in RFC 2865 Section 5. The obligation belongs to RFC 2865, which carries its own summary at rfc/short/rfc2865.md."
+    },
+    {
+      "id": "5:3",
+      "quote": "Strings of length zero (0) MUST NOT be sent; omit the entire attribute instead.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 2865 Section 5, 'Strings of length zero (0) MUST NOT be sent; omit the entire attribute instead'. Section 5 states 'A summary of the attribute format is the same as in RFC 2865 [1] but is included here for ease of reference', and the sentence appears verbatim in RFC 2865 Section 5. The obligation belongs to RFC 2865, which carries its own summary at rfc/short/rfc2865.md."
+    },
+    {
+      "id": "5.13:1",
+      "quote": "If multiple EAP- Messages are contained within an Access-Request or Access- Challenge packet, they MUST be in order and they MUST be consecutive attributes in the Access-Request or Access-Challenge packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a RADIUS speaker that puts EAP-Message attributes in a packet. internal/component/radius/dict.go declares no EAP-Message attribute (type 79) and no encoder emits one, so Ze never builds a packet the ordering rule can govern."
+    },
+    {
+      "id": "5.13:2",
+      "quote": "Therefore the Message-Authenticator attribute MUST be used to protect all Access-Request, Access-Challenge, Access-Accept, and Access-Reject packets containing an EAP-Message attribute.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the sender of a packet carrying an EAP-Message attribute. Ze sends none: internal/component/radius/dict.go declares no type 79."
+    },
+    {
+      "id": "5.13:3",
+      "quote": "A RADIUS Server supporting EAP-Message MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "5.13:4",
+      "quote": "A RADIUS Server not supporting EAP-Message MUST return an Access- Reject if it receives an Access-Request containing an EAP-Message attribute.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "5.13:5",
+      "quote": "A RADIUS Server receiving an EAP-Message attribute that it does not understand MUST return an Access-Reject.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "5.13:6",
+      "quote": "A NAS supporting EAP-Message MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds 'A NAS supporting EAP-Message'. Ze supports none: internal/component/radius/dict.go declares no type 79, so no Access-Challenge, Access-Accept or Access-Reject Ze reads can carry the attribute this rule conditions on. The unconditional client-side rule in the same section, site 5.14:3, is the one that binds Ze, and it is mapped."
+    },
+    {
+      "id": "5.14:1",
+      "quote": "It MUST be used in any Access-Request, Access-Accept, Access-Reject or Access- Challenge that includes an EAP-Message attribute.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the sender of a packet that includes an EAP-Message attribute. Ze includes none in the Access-Request it builds (internal/component/l2tp/plugins/authradius/handler.go, buildAuthAttrs) and declares no type 79 in internal/component/radius/dict.go, so the condition never holds for a packet Ze sends. Ze does add a Message-Authenticator when reading one: the receive-side obligation is site 5.14:3."
+    },
+    {
+      "id": "5.14:2",
+      "quote": "A RADIUS Server receiving an Access-Request with a Message- Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "5.14:3",
+      "quote": "A RADIUS Client receiving an Access-Accept, Access-Reject or Access-Challenge with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2869-5.14-1",
+      "reason": "Binds a RADIUS client, the role internal/component/radius/client.go plays. Captured as RFC2869-5.14-1 at [MUST] and enforced in dispatchResponse, which calls VerifyResponseMessageAuthenticator before it hands a reply to the waiter."
+    },
+    {
+      "id": "5.16:1",
+      "quote": "The value MUST NOT be smaller than 60.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Section 5.16 states the attribute 'can only appear in the Access-Accept message', and Section 5.19's table gives Acct-Interim-Interval 0-1 instances in an Accept and 0 in a Request, so the value the MUST NOT constrains is the one the server writes. Ze never sends the attribute; it reads it (internal/component/l2tp/plugins/authradius/extract.go) and clamps a received value into [60, 3600] (clampAcctInterval, acct.go), which is a defence against a non-conformant server rather than the obligation this sentence states."
+    },
+    {
+      "id": "0:1",
+      "quote": "Request Accept Reject Challenge # Attribute [Note 1] An Access-Request that contains either a User-Password or CHAP-Password or ARAP-Password or one or more EAP-Message attributes MUST NOT contain more than one type of those four attributes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2869-5.19-1",
+      "reason": "Section 5.19 Note 1, which the section splitter fused with the table's column header, so the derived quote opens with 'Request Accept Reject Challenge # Attribute'. The obligation is the sentence after '[Note 1]' and it binds the sender of an Access-Request, which Ze is. Captured as RFC2869-5.19-1 at [MUST NOT]: buildAuthAttrs picks the credential attribute in a switch over the negotiated method, so exactly one of the four kinds can appear."
+    },
+    {
+      "id": "0:2",
+      "quote": "If any packet type contains an EAP-Message attribute it MUST also contain a Message-Authenticator.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the sender of any packet type carrying an EAP-Message attribute. Ze sends no EAP-Message: internal/component/radius/dict.go declares no type 79."
+    },
+    {
+      "id": "0:3",
+      "quote": "0 This attribute MUST NOT be present 0+ Zero or more instances of this attribute MAY be present. 0-1 Zero or one instance of this attribute MAY be present. 1 Exactly one instance of this attribute MUST be present.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The legend of the Section 5.19 table, quoted from the four lines that define what the cells 0, 0+, 0-1 and 1 mean. The keywords describe the notation, not a speaker's behaviour; the obligations the table expresses are carried by the individual attribute sections and by Note 1."
+    },
+    {
+      "id": "7.2.2:1",
+      "quote": "In order to provide for authentication of all packets in the EAP exchange, all EAP/RADIUS packets MUST be authenticated using the Message-Authenticator attribute, as described previously.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a speaker of EAP over RADIUS: the sentence's subject is 'all EAP/RADIUS packets'. Ze exchanges none, because internal/component/radius/dict.go declares no EAP-Message attribute and internal/component/l2tp/ppp never negotiates EAP."
+    },
+    {
+      "id": "7.2.5:1",
+      "quote": "Should the NAS not be able to negotiate EAP, or should the EAP-Request sent by the NAS be of a different EAP type than what is expected, the authenticating peer MUST disconnect.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the authenticating peer, the dial-in client at the far end of the PPP link. Ze is the NAS and LNS side (internal/component/l2tp), never the dial-in client."
+    },
+    {
+      "id": "7.2.5:2",
+      "quote": "An authenticating peer expecting EAP to be negotiated for a session MUST NOT negotiate CHAP or PAP.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the authenticating peer, the dial-in client at the far end of the PPP link. Ze is the NAS and LNS side (internal/component/l2tp), never the dial-in client."
+    },
+    {
+      "id": "7.2.5:3",
+      "quote": "In such cases, if any users of the NAS MUST do EAP, then the NAS MUST attempt to negotiate EAP for every call.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS some of whose users are required to authenticate with EAP. Ze offers no EAP at all (internal/component/l2tp/ppp has no EAP module), so it has no such users. The first 'MUST' in the sentence is indicative ('if any users of the NAS MUST do EAP') and states the condition rather than an obligation."
+    },
+    {
+      "id": "7.2.5:4",
+      "quote": "However, if CHAP has been negotiated but EAP is required, the RADIUS server MUST respond with an Access-Reject, rather than an Access- Challenge/EAP-Message/EAP-Request packet.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "7.2.5:5",
+      "quote": "The authenticating peer MUST refuse to renegotiate authentication, even if the renegotiation is from CHAP to EAP.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the authenticating peer, the dial-in client at the far end of the PPP link. Ze is the NAS and LNS side (internal/component/l2tp), never the dial-in client."
+    },
+    {
+      "id": "7.2.5:6",
+      "quote": "If EAP is negotiated but is not supported by the RADIUS proxy or server, then the server or proxy MUST respond with an Access-Reject.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the RADIUS server. Ze runs no RADIUS server: internal/component/radius/client.go binds a socket only to receive replies to its own requests, and the one listener Ze does run (internal/component/l2tp/plugins/authradius/coa.go) accepts CoA-Request and Disconnect-Request under RFC 5176, never an Access-Request."
+    },
+    {
+      "id": "7.2.5:7",
+      "quote": "In these cases, the NAS MUST send an LCP-Terminate and disconnect the user.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds a NAS that has negotiated EAP within PPP LCP. Ze never plays that role: internal/component/l2tp/ppp carries pap.go, chap.go and mschapv2.go and no EAP module, so LCP never offers EAP, and internal/component/radius/dict.go declares no EAP-Message attribute (type 79). Ze's IKEv2 EAP (internal/component/ike/eap) is a separate protocol terminated locally and imports no RADIUS package."
+    },
+    {
+      "id": "7.2.5:8",
+      "quote": "An EAP-capable authenticating peer MUST refuse to renegotiate the authentication protocol if EAP had initially been negotiated.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the authenticating peer, the dial-in client at the far end of the PPP link. Ze is the NAS and LNS side (internal/component/l2tp), never the dial-in client."
+    }
+  ],
+  "register-reason": "Informational, with an RFC 2119 key-words paragraph at section 1.1 and capitalised keywords through sections 1.1, 2.1, 2.2, 2.3.1, 5, 5.13, 5.14, 5.16, 5.19 and 7.2.5. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}

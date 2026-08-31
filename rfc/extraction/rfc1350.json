@@ -1,0 +1,151 @@
+{
+  "schema-version": 1,
+  "stem": "rfc1350",
+  "register": "prose",
+  "source-path": "rfc/full/rfc1350.txt",
+  "source-sha": "37aca32d5dfaf1a8",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc1350",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, Summary and Acknowlegements. The Summary restates the protocol in one paragraph and the Acknowlegements name the authors of the 1992 revision and the Sorcerer's Apprentice fix. Neither directs a TFTP speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Purpose. Says what TFTP is, that it runs over UDP, that it lacks directory listing and user authentication, and that it passes 8-bit bytes. It names the three transfer modes: netascii, octet and mail. The one directive-shaped sentence is 'The mail mode is obsolete and should not be implemented or used', which is advisory and states no gated obligation; the mail-mode obligation itself is site 5:3, excluded below. Ze accepts only octet mode (parseRRQ callers reject any other mode in handleRRQ, internal/plugins/tftpserver/handler.go). No gated requirement of rfc/short/rfc1350.md is read from this section."
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Overview of the Protocol. Its one modal sentence is site 2:1, the lockstep obligation, mapped below. The rest is indicative and states two obligations rfc/short/rfc1350.md gates with no modal behind them. 'the connection is opened and the file is sent in fixed length blocks of 512 bytes' is where RFC1350-2-1 is read from, declared unsourced below. 'A data packet of less than 512 bytes signals termination of a transfer' is the framing rule RFC1350-5-3 turns into the exact-multiple terminator; the id names section 5, so it is declared there. The paragraph on error handling ('Most errors cause termination of the connection', 'TFTP recognizes only one error condition that does not cause termination, the source port of a received packet being incorrect') is indicative and its two obligations are stated normatively in sections 4 and 7. The duplicate-ACK exception this section's retransmission paragraph implies is stated in section 5 and RFC1350-2-3 is declared there.",
+      "unsourced-ids": [
+        "RFC1350-2-1"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Relation to other Protocols. Describes the header stack (local medium, Internet, Datagram, TFTP) and says TFTP specifies no value in the Internet header while the Datagram source and destination ports carry the TIDs. Its one modal sentence is site 3:1, excluded below as a description of the datagram layer's port range. No gated requirement of rfc/short/rfc1350.md is read from this section."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Initial Connection Protocol. The section that carries the most gated obligations of the document and states every one of them in the indicative, so the modal scan sees none and derives zero sites here. 'Each data packet has associated with it a block number; block numbers are consecutive and begin with one' is RFC1350-4-1. 'Since the positive response to a write request is an acknowledgment packet, in this special case the block number will be zero' is RFC1350-4-2. 'In order to create a connection, each end of the connection chooses a TID for itself, to be used for the duration of that connection' is RFC1350-4-3. All three are declared unsourced below. The remaining normative material is advisory and ungated: the TIDs 'should be randomly chosen' (RFC1350-4-5) and a packet whose source TID does not match 'should be discarded' with an error packet sent to the wrong source 'while not disturbing the transfer' (RFC1350-4-4). The write-establishment example and the duplicated-request narrative that closes the section are worked examples and direct nobody.",
+      "unsourced-ids": [
+        "RFC1350-4-1",
+        "RFC1350-4-2",
+        "RFC1350-4-3"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "TFTP Packets. The wire-format section and the largest site cluster: five of the document's ten modal sentences sit here. Two are mapped (5:1 netascii translation, 5:2 octet round-trip identity) and three are excluded (5:3 mail mode, 5:4 the DEC-20 special-mode example, 5:5 the caution on defining new modes). Two further gated rows are read from indicative sentences of this section and declared unsourced below. RFC1350-5-3, the zero-length final DATA block, is read from 'The data field is from zero to 512 bytes long. If it is 512 bytes long, the block is not the last block of data; if it is from zero to 511 bytes long, it signals the end of the transfer.' RFC1350-2-3, the Sorcerer's Apprentice fix, is read from 'All packets other than duplicate ACK's and those used for termination are acknowledged unless a timeout occurs [4].' That sentence is the only place RFC 1350 states the duplicate-ACK exception the 1992 revision was written to add, and it carries no modal; the id names section 2 because rfc/short/rfc1350.md cites the overview and RFC 1123 Section 4.2, so the row is homed here on the section the sentence is in rather than on the section its id spells. The opcode table, the four packet figures, the case-insensitive mode string, the block-number and data-length rules of the DATA figure, and the ERROR packet's human-readable message (advisory, RFC1350-5-4) complete the section.",
+      "unsourced-ids": [
+        "RFC1350-2-3",
+        "RFC1350-5-3"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Normal Termination. Its one modal sentence is site 6:1, the last-DATA retransmission obligation, mapped below. The rest is the dallying paragraph, advisory and carried by RFC1350-6-2, plus the indicative statement that the end of a transfer is marked by a DATA packet of 0 to 511 bytes, which corroborates RFC1350-5-3 declared on section 5."
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Premature Termination. Two sentences. The ERROR packet is 'only a courtesy since it will not be retransmitted or acknowledged', which is indicative, and 'Timeouts must also be used to detect errors', which is site 7:1, mapped below."
+    },
+    {
+      "id": "I",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Appendix, and everything the derivation folds under it: the header order figure, the four packet format figures, the read-establishment example, the error code table (values 0 to 7), the UDP header reproduced for convenience, the References, Security Considerations and the Author's Address. The figures and tables restate section 5's formats and section 4's establishment steps and direct nobody; the UDP header is reproduced with the RFC's own note that 'TFTP need not be implemented on top of the Internet User Datagram Protocol'. The one modal sentence is site I:1, in Security Considerations, excluded below as binding the administrator who grants rights to the server process. No gated requirement of rfc/short/rfc1350.md is read from this section."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "Each data packet contains one block of data, and must be acknowledged by an acknowledgment packet before the next packet can be sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1350-2-2",
+      "reason": "The lockstep obligation, captured verbatim as RFC1350-2-2 at [MUST]. Ze meets it in sendAndWaitACK (internal/plugins/tftpserver/handler.go), which returns to serveFile only on an ACK whose opcode is opACK and whose block number equals the block just sent, so the next DATA is never written before the previous one is acknowledged. The row carries positive and negative tags."
+    },
+    {
+      "id": "3:1",
+      "quote": "The transfer identifiers (TID's) used by TFTP are passed to the Datagram layer to be used as ports; therefore they must be between 0 and 65,535.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A description of the datagram layer, not a directive to a TFTP speaker. The sentence derives a range from a property of the protocol underneath it: TIDs are handed to UDP to be used as ports, 'therefore they must be between 0 and 65,535'. The bound is the width of the UDP port field, so no TFTP implementation can violate it and none can be tested against it. Ze obtains its transfer TID from net.DialUDP in handleRRQ (internal/plugins/tftpserver/handler.go) and never chooses a port number itself. rfc/short/rfc1350.md declares no requirement for this sentence, and the TID obligation it does declare, RFC1350-4-3, is read from section 4 and declared unsourced there."
+    },
+    {
+      "id": "5:1",
+      "quote": "A host which receives netascii mode data must translate the data to its own format.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1350-5-1",
+      "reason": "The netascii translation obligation, captured verbatim as RFC1350-5-1 at [MUST]. The row is annotated {not-applicable}: ze is a read-only TFTP server that rejects WRQ with an illegal-operation ERROR and accepts only octet mode (serve and handleRRQ, internal/plugins/tftpserver/handler.go), so it never receives file data to translate. The site is nonetheless mapped rather than excluded, because the sentence is the source of a declared gated row and the annotation is a statement about ze rather than about the RFC."
+    },
+    {
+      "id": "5:2",
+      "quote": "If a host receives a octet file and then returns it, the returned file must be identical to the original.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1350-5-2",
+      "reason": "The octet round-trip identity obligation, captured verbatim as RFC1350-5-2 at [MUST]. Ze meets it in serveFile (internal/plugins/tftpserver/handler.go), which reads the file into a blksize buffer and hands those bytes to buildData unchanged, so no octet path transforms a byte."
+    },
+    {
+      "id": "5:3",
+      "quote": "Mail mode uses the name of a mail recipient in place of a file and must begin with a WRQ.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the mail-mode role, which RFC 1350 retires in its own section 1: 'mail, netascii characters sent to a user rather than a file. (The mail mode is obsolete and should not be implemented or used.)' The sentence tells a host that offers mail mode that such a transfer begins with a WRQ and names a recipient in place of a file. Ze plays no mail-mode role at all: handleRRQ accepts only 'octet' and the server rejects WRQ outright in serve (internal/plugins/tftpserver/handler.go). rfc/short/rfc1350.md declares no requirement for mail mode."
+    },
+    {
+      "id": "5:4",
+      "quote": "When such a file is retrieved from the storage site, it must be restored to its original form to be useful, so the reverse mode must also be implemented.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A worked example, not a directive. The sentence sits inside the DEC-20 narrative the section opens with 'One might create a special mode for such a machine which read all the bits in a word, but in which the receiver stored the information in 8-bit format', and the RFC closes the narrative by saying 'No such machine or application specific modes have been specified in TFTP'. The 'must' describes what such a hypothetical mode would need in order to be useful, and binds no speaker of the protocol as specified. rfc/short/rfc1350.md declares no requirement for it."
+    },
+    {
+      "id": "5:5",
+      "quote": "It is also possible to define other modes for cooperating pairs of hosts, although this must be done with care.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A caution attached to a permission, naming no observable behavior. The enclosing construction is 'It is also possible to define other modes for cooperating pairs of hosts, although this must be done with care', and the two sentences after it say 'There is no requirement that any other hosts implement these. There is no central authority that will define these modes or assign them names.' Care is not a wire behavior a test can assert or a decoder can violate, and the RFC itself says the sentence creates no requirement. rfc/short/rfc1350.md declares none for it."
+    },
+    {
+      "id": "6:1",
+      "quote": "The host sending the last DATA must retransmit it until the packet is acknowledged or the sending host times out.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1350-6-1",
+      "reason": "The last-DATA retransmission obligation, captured verbatim as RFC1350-6-1 at [MUST]. Ze meets it in sendAndWaitACK (internal/plugins/tftpserver/handler.go), whose loop rewrites the same DATA on every ackTimeout expiry up to maxRetransmit before giving up, and the final DATA reaches that loop through the same serveFile call as every other block. The row is annotated {single-polarity: positive}."
+    },
+    {
+      "id": "7:1",
+      "quote": "Timeouts must also be used to detect errors.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1350-7-1",
+      "reason": "The timeout obligation, captured verbatim as RFC1350-7-1 at [MUST]. Ze meets it in sendAndWaitACK (internal/plugins/tftpserver/handler.go), which arms a read deadline of ackTimeout before every ACK read and abandons the transfer after maxRetransmit expiries, so a lost ERROR packet or a vanished client is detected by timeout rather than by an acknowledgment that never comes. The row is annotated {single-polarity: positive}."
+    },
+    {
+      "id": "I:1",
+      "quote": "Since TFTP includes no login or access control mechanisms, care must be taken in the rights granted to a TFTP server process so as not to violate the security of the server hosts file system.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds the system administrator who grants file system rights to the TFTP server process, a role RFC 1350 names in the sentence itself: 'care must be taken in the rights granted to a TFTP server process'. The obligation is a deployment decision made outside the protocol and outside ze, and the sentence after it describes the common deployment rather than requiring one: 'TFTP is often installed with controls such that only files that have public read access are available via TFTP and writing files via TFTP is disallowed.' Ze confines every transfer to the configured root through resolvePath (internal/plugins/tftpserver/handler.go) and serves reads only, which is the posture the sentence recommends to that administrator, but the rights on the files themselves are not ze's to grant. rfc/short/rfc1350.md declares no requirement for it."
+    }
+  ],
+  "register-reason": "Standards Track, July 1992, written before RFC 2119 existed and carrying no key-words paragraph. A capitalised MUST/SHALL/REQUIRED scan over rfc/full/rfc1350.txt returns nothing, so DeriveRegister grades the source 'prose' and the site inventory is the case-insensitive modal scan, which returns the ten lowercase 'must' sentences classified below. The sign-off claims exactly the derived grade. Six of the eleven gated rows rfc/short/rfc1350.md declares carry no modal at all in the source and are declared as unsourced ids on the section each was read from."
+}

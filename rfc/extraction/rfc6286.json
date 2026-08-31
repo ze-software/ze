@@ -1,0 +1,108 @@
+{
+  "schema-version": 1,
+  "stem": "rfc6286",
+  "register": "prose",
+  "source-path": "rfc/full/rfc6286.txt",
+  "source-sha": "c09b7508ad62e214",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc6286",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Title block, Abstract, Status of This Memo and Copyright Notice. Walked rather than skipped because the site scan attributes two sites here, both excluded below: the Abstract's restatement of what the document does to RFC 4271, and the IETF Trust Legal Provisions boilerplate. Nothing before section 1 binds a BGP speaker."
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Introduction. Reports that RFC 4271 specifies the BGP Identifier as a valid IPv4 host address assigned to the speaker, that deployed code requires two speakers to carry distinct Identifiers, and that this document relaxes both so an IPv6-only network can comply. Its one site, 1:1, is that report and is excluded below. The relaxed definition itself is stated in section 2.1."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Protocol Revisions, the parent heading. One sentence naming what the revisions cover: the definition of the BGP Identifier and the procedures for a speaker that supports the AS-wide Unique BGP Identifier. It directs nobody; 2.1, 2.2 and 2.3 carry the obligations."
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Definition of the BGP Identifier. The obligation is the indented replacement text: 'The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer.' It is written in the indicative with a lowercase 'should', so neither the capitalised scan nor the modal scan attributes a site to this section, and both ids read from it are declared unsourced here. RFC6286-2.1-1 is the 4-octet, unsigned, NON-ZERO definition, whose non-zero half ze enforces on reception through Open.ValidateBGPIdentifier and refuses to originate through parseRouterID (internal/component/bgp/reactor/config.go). RFC6286-2.1-2 is the lowercase 'should' of AS-wide uniqueness, enforced by default through the claim registry in internal/component/bgp/reactor/routerid_unique.go, which keys routerIDKey on (peer AS, identifier), with bgp/session/allow-shared-router-id as the operator opt-out the advisory level permits.",
+      "unsourced-ids": [
+        "RFC6286-2.1-1",
+        "RFC6286-2.1-2"
+      ]
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Open Message Error Handling. The obligation is the indented replacement text for RFC 4271 section 6.2: 'If the BGP Identifier field of the OPEN message is zero, or if it is the same as the BGP Identifier of the local BGP speaker and the message is from an internal peer, then the Error Subcode is set to \"Bad BGP Identifier\".' Written in the indicative with no modal at all, so no scan attributes a site to this section. It states two rejection conditions and the second is gated on the peer being internal, which is why the summary declares two ids and both are declared unsourced here. Session.validateOpenIdentifier (internal/component/bgp/reactor/session_open_validation.go) is the producer for both, on the handleOpen and processOpen rails.",
+      "unsourced-ids": [
+        "RFC6286-2.2-1",
+        "RFC6286-2.2-2"
+      ]
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Connection Collision Resolution. The obligation is the indented extension to RFC 4271 section 6.8: 'If the BGP Identifiers of the peers involved in the connection collision are identical, then the connection initiated by the BGP speaker with the larger AS number is preserved.' Indicative, no modal, no site. Declared unsourced here as RFC6286-2.3-1. The lead-in scopes it to an external peer, because an internal peer presenting this speaker's identifier is already rejected by 2.2, and the closing sentence says the extension covers 4-octet AS numbers [RFC4893]. Both facts qualify the same single obligation and neither adds one.",
+      "unsourced-ids": [
+        "RFC6286-2.3-1"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Remarks. Five indicative observations, none of which directs a speaker: an Identifier allocated per RFC 4271 already fits the revised definition; a confederation counts as one AS for the purpose of AS-wide uniqueness; a speaker supporting this cannot share an Identifier with an external neighbor until that neighbor is upgraded, which is a consequence of the un-upgraded neighbor still applying RFC 4271's stricter test; and the Identifier is also used in AGGREGATOR, in the route-reflection attributes and in route selection. The section's own closing sentence states its purpose: to conclude that the revisions introduce no backward compatibility issue. The confederation observation scopes the lowercase 'should' of 2.1 and adds no obligation of its own, so it earns no id; rfc/short/rfc6286.md carries all five observations under Remarks."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Two sentences: this extension introduces no new security considerations, and BGP's are discussed in RFC 4271. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 4271 and RFC 4893."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "To accommodate situations where the current requirements for the BGP Identifier are not met, this document relaxes the definition of the BGP Identifier to be a 4-octet, unsigned, non-zero integer and relaxes the \"uniqueness\" requirement so that only Autonomous-System- wide (AS-wide) uniqueness of the BGP Identifiers is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The Abstract, non-normative by RFC convention and word-for-word the second paragraph of section 1. Its lowercase 'required' is inside a report of the document's own editorial effect on RFC 4271 -- it 'relaxes the \"uniqueness\" requirement so that only Autonomous-System-wide (AS-wide) uniqueness of the BGP Identifiers is required' -- which states what scope the revised requirement has, not an obligation on a speaker. The obligation itself is the indented replacement text of section 2.1, invisible to both scans and declared as unsourced RFC6286-2.1-1 and RFC6286-2.1-2 there."
+    },
+    {
+      "id": "front:2",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate the extractor did not strip: the IETF Trust Legal Provisions paragraph of the Copyright Notice. Its lowercase 'must' binds a party extracting Code Components from the document text, and directs no protocol behavior at a BGP speaker. RFC 6286 contains no code component: it revises three prose paragraphs of RFC 4271 and defines no syntax."
+    },
+    {
+      "id": "1:1",
+      "quote": "To accommodate situations where the current requirements for the BGP Identifier are not met (such as in the case of an IPv6-only network), this document relaxes the definition of the BGP Identifier to be a 4-octet, unsigned, non-zero integer and relaxes the \"uniqueness\" requirement so that only AS-wide uniqueness of the BGP Identifiers is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The Introduction's second paragraph, the same report as front:1 with the IPv6-only network named as the motivating case. It says what this document does to RFC 4271's text, so its lowercase 'required' describes the new scope of the uniqueness requirement rather than imposing one. Classified not-a-requirement rather than duplicate-of because a duplicate must name an id another site MAPS, and no site of this document maps anything: every obligation is stated in the indicative and is declared unsourced on 2.1, 2.2 and 2.3."
+    }
+  ],
+  "register-reason": "Standards Track, June 2011, and it carries no RFC 2119 key-words section because it states no RFC 2119 keyword: every obligation it adds to RFC 4271 is written in the indicative, inside an indented paragraph that quotes the replacement text for RFC 4271's own prose ('the BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS'; 'then the Error Subcode is set to \"Bad BGP Identifier\"'; 'the connection initiated by the BGP speaker with the larger AS number is preserved'). DeriveRegister grades the source 'prose', and the sign-off claims exactly that grade. The case-insensitive modal scan sees three sentences, all of them non-normative: two restatements of the document's own editorial effect (front:1 in the Abstract, 1:1 in the Introduction) and the IETF Trust Legal Provisions boilerplate (front:2). Every one of the five ids rfc/short/rfc6286.md declares is therefore read from an indented indicative paragraph the scan cannot see, and each is declared in unsourced-ids on the section it was read from: 2.1, 2.2 and 2.3."
+}

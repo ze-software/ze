@@ -1,0 +1,160 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9687",
+  "register": "prose",
+  "source-path": "rfc/full/rfc9687.txt",
+  "source-sha": "4d3d8fc283139135",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6 phase 7 pilot, rfc9687",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. Walked rather than skipped because the site scan attributes one site here, the IETF Trust Legal Provisions boilerplate, excluded below. The Abstract restates section 1: the document defines the SendHoldTimer and the SendHoldTimer_Expires event for the BGP FSM and updates RFC 4271. Nothing before section 1 binds a BGP speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: what the document defines, why a blocked connection harms the inter-domain routing system, and that speakers following the specification close blocked connections locally instead of relying on the remote system. Its one near-directive, 'This specification intends to improve this situation by requiring that BGP connections be terminated', announces the obligation that sections 4.3 and 5 state; it adds none of its own."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The BCP 14 key-words paragraph, which also states that the key words bind only when they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Example of a Problematic Scenario. Describes the fault this document addresses: a remote speaker advertising a TCP Receive Window of zero, BGP's lack of visibility into the socket, and the stale routing information that results. Every sentence is descriptive and none directs a speaker."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Changes to RFC 4271 - SendHoldTimer. One paragraph naming what the four subsections add: a BGP timer, SendHoldTimer, and updates to the BGP FSM. No directive."
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Session Attributes. Adds SendHoldTimer and SendHoldTime as optional session attributes 14 and 15 of RFC 4271 section 8, then defines SendHoldTime: it 'determines how long a BGP speaker will stay in the Established state before the TCP connection is dropped because no BGP messages can be transmitted to its peer', and 'A BGP speaker can configure the value of the SendHoldTime for each peer independently'. Both are definitions of the attribute rather than directives; the permission to make it configurable is the section 6 MAY, RFC9687-6-3, and the constraint on its value is the section 4.4 MUST, RFC9687-4.4-1. The attribute is carried by the Timers table of rfc/short/rfc9687.md."
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Timer Event: SendHoldTimer_Expires. Adds Event 29 to RFC 4271 section 8.1.3 with a definition ('An event generated when the SendHoldTimer expires') and a status ('Optional'). A registry entry for the FSM's event list, not a directive: what a speaker DOES on Event 29 is section 4.3. The word Optional is title case, so section 2 gives it no RFC 2119 meaning; it marks the event as one an implementation need not have, and ze has it."
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Changes to the FSM. The document's main normative section, and the reason the register derives 'prose': every obligation it states sits inside a quoted NEW block that replaces text in RFC 4271 section 8.2.2, written in the indicative with no modal at all, so no scan attributes a site here. All ten gated ids are declared unsourced. RFC 4271 section 8 is what makes them MUST-level -- an implementation 'MUST support the described functionality and exhibit the same externally visible behavior' -- and rfc/short/rfc4271.md already gates eighteen rows of section 8.2.2 on that ground. RFC9687-4.3-1 is the revised OpenConfirm KeepAliveMsg (Event 26) action list, 'starts the SendHoldTimer if the SendHoldTime is non-zero', produced by handleKeepalive calling startSendHoldTimer (internal/component/bgp/reactor/session_handlers.go). RFC9687-4.3-2 through RFC9687-4.3-7 are the six non-optional items of the Event 29 action list added to the Established state, in the order the RFC lists them: log the error, release all BGP resources, set the ConnectRetryTimer to zero, drop the TCP connection, increment the ConnectRetryCounter by 1, change state to Idle. Their producer is sendHoldTimerExpired (session_write.go), which logs, sends the optional NOTIFICATION, fires the FSM event that increments the counter and moves to Idle (internal/component/bgp/fsm/fsm.go), and closes the connection, with Run's exit StopAll releasing the timers. RFC9687-4.3-8 and RFC9687-4.3-9 split the restart sentence: every message sent restarts the timer (resetSendHoldTimer, called after each successful flush), and a zero SendHoldTime or a zero negotiated HoldTime stops it instead (startSendHoldTimer reads Timers.HoldTime). RFC9687-4.3-10 is the closing sentence, the stop on any transition out of Established, produced by closeConn. Two sentences the scans cannot see are not obligations: the OLD block quotes the RFC 4271 text being replaced, and the two optional items of the action list are the MAY rows RFC9687-4.3-11 and RFC9687-4.3-12, which are not gated.",
+      "unsourced-ids": [
+        "RFC9687-4.3-1",
+        "RFC9687-4.3-2",
+        "RFC9687-4.3-3",
+        "RFC9687-4.3-4",
+        "RFC9687-4.3-5",
+        "RFC9687-4.3-6",
+        "RFC9687-4.3-7",
+        "RFC9687-4.3-8",
+        "RFC9687-4.3-9",
+        "RFC9687-4.3-10"
+      ]
+    },
+    {
+      "id": "4.4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Changes to BGP Timers. Adds SendHoldTimer to the RFC 4271 section 10 timer summary. Its one site carries the section's only capitalised keyword and is mapped below to RFC9687-4.4-1. The surrounding sentence, 'SendHoldTime is an FSM attribute that stores the initial value for the SendHoldTimer', is a definition already carried by section 4.1 and by the Timers table of rfc/short/rfc9687.md."
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Send Hold Timer Expired Error Handling. Two sites, both mapped below. The first sentence carries a MAY and a MUST: the MUST is RFC9687-5-1 and the MAY is the ungated RFC9687-5-3, which restates the optional NOTIFICATION of section 4.3. The second is RFC9687-5-2, the log obligation. Both restate items of the section 4.3 Event 29 action list at capitalised strength, which is why the summary declares them as their own ids rather than folding them into the 4.3 rows: they are separately quotable obligations at a level the scans can see, and both carry their own tags."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Implementation Considerations. Three advisory statements and one value definition, none gated. The RECOMMENDED default-on is RFC9687-6-1, the 'greater of 8 minutes or 2 times the negotiated HoldTime' default is the SHOULD of RFC9687-6-2, and the permission to make the value configurable is RFC9687-6-3. The closing paragraph fixes the NOTIFICATION subcode at 0 with no Data; it is a value assignment, carried by the Wire Formats and Constants sections of rfc/short/rfc9687.md and asserted by the Event 29 test rather than declared as a requirement of its own."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Operational Considerations. Explains why the NOTIFICATION usually cannot be delivered and asks that the attempt still be made, which is the section 4.3 MAY. Its one capitalised keyword is the SHOULD of RFC9687-7-1, that a speaker provide the reason as part of its operational state; not gated. The modal scan attributes no site to this section."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. States that the specification does not change BGP's security characteristics and that terminating connections with malfunctioning peers enhances resilience. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records the registration of value 8, 'Send Hold Timer Expired', in the BGP Error (Notification) Codes registry. Binds IANA, not a speaker. The value is carried by the Constants table of rfc/short/rfc9687.md."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References, the heading of 10.1 and 10.2."
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 4271, RFC 8174, RFC 9293."
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: the RIPE Labs BGP Zombies article and RFC 4273."
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Revised BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Revised BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The IETF Trust Legal Provisions boilerplate of the Copyright Notice. Its 'must' is lower case, which section 2 puts outside the normative set, and it binds a person who reuses Code Components from the document, never a BGP speaker on the wire."
+    },
+    {
+      "id": "4.4:1",
+      "quote": "If SendHoldTime is non-zero, then it MUST be | greater than the value of HoldTime; see Section 6 of [RFC9687] for | suggested default values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9687-4.4-1",
+      "reason": "The constraint on the SendHoldTime attribute, captured verbatim as RFC9687-4.4-1 at [MUST]. The pipe characters in the derived quote are the RFC's own left margin for a quoted NEW block, not part of the sentence."
+    },
+    {
+      "id": "5:1",
+      "quote": "If the local system does not send any BGP messages within the period specified in SendHoldTime, then a NOTIFICATION message with the \"Send Hold Timer Expired\" Error Code MAY be sent and the BGP connection MUST be closed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9687-5-1",
+      "reason": "The obligation to close the BGP connection when nothing has been sent within the SendHoldTime, captured as RFC9687-5-1 at [MUST]. The same sentence's MAY, that a NOTIFICATION with the 'Send Hold Timer Expired' Error Code may be sent, is the ungated RFC9687-5-3; a sentence stating two obligations at two levels is split into two ids rather than mapped once."
+    },
+    {
+      "id": "5:2",
+      "quote": "Additionally, an error MUST be logged in the local system, indicating the \"Send Hold Timer Expired\" Error Code.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9687-5-2",
+      "reason": "The obligation to log an error indicating the 'Send Hold Timer Expired' Error Code, captured verbatim as RFC9687-5-2 at [MUST]."
+    }
+  ],
+  "register-reason": "Standards Track, November 2024, with the BCP 14 key-words paragraph at section 2. The source carries capitalised MUST-level keywords in sections 4.4 and 5, but DeriveRegister grades a source 'prose' when it derives fewer sites than the summary declares gated rows: rfc/short/rfc9687.md declares thirteen and the source derives four, one of which is Trust Legal Provisions boilerplate. The whole difference is section 4.3, which states ten obligations in the indicative inside quoted NEW blocks replacing text in RFC 4271 section 8.2.2 -- 'starts the SendHoldTimer', 'releases all BGP resources', 'changes its state to Idle' -- with no modal in any of them, so neither the capitalised scan nor the case-insensitive modal scan attributes a site there. All ten are declared unsourced on section 4.3. The sign-off claims exactly the derived grade."
+}

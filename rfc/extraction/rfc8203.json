@@ -1,0 +1,128 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8203",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8203.txt",
+  "source-sha": "f4dedca562743ae1",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-rfcgate-6, rfc8203",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates the Introduction and directs no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose: correlating a session teardown with an offline notice is troublesome, and this document updates RFC 4486 by specifying a mechanism to carry a short freeform UTF-8 message in a Cease NOTIFICATION. It states what the document does, never what a speaker must do."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements Language. The BCP 14 key-words paragraph, which also states that the key words bind only when they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "2",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Shutdown Communication. The document's whole normative surface for the wire format: four capitalised MUST-level sites, mapped below to RFC8203-2-1 through RFC8203-2-4. Its remaining directives are the opening MAY (a speaker MAY include a UTF-8 string) and the closing SHOULD (reporting mechanisms SHOULD include methods such as Syslog); both are the unsourced ids below. Three sentences the site scan cannot see are descriptive, not obligations: the Figure 1 field diagram and its Error Code 6, the note that a multibyte Shutdown Communication holds fewer characters than the length value, and \"This field is not NUL terminated\", which describes the field rather than directing a receiver. Ze's receiver already reads exactly the length-prefixed extent and never scans for a terminator (Notification.ShutdownMessage, internal/component/bgp/message/notification.go).",
+      "unsourced-ids": [
+        "RFC8203-2-5",
+        "RFC8203-2-6"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Operational Considerations. Encourages operators to describe the reason for the shutdown and works through the \"[TICKET-1-1438367390] software upgrade\" example. Advice to an operator writing a message, with no RFC 2119 keyword and no directive to an implementation."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Error Handling. Two directives, neither MUST-level and neither visible to the site scan: an invalid Length value or an invalid UTF-8 sequence SHOULD be logged for the attention of the operator, and the malformed Shutdown Communication MAY be logged in a hexdump format. Both are the unsourced ids below.",
+      "unsourced-ids": [
+        "RFC8203-4-1",
+        "RFC8203-4-2"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Records that IANA references this document, in addition to RFC 4486, for subcodes 2 and 4 in the \"Cease NOTIFICATION message subcodes\" registry. Binds IANA, not a speaker."
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Security Considerations. Carries one capitalised site, the REQUIRED UTF-8 \"Shortest Form\" encoding, mapped below to RFC8203-6-1. This is the ONLY place RFC 8203 states shortest form; its section 2 does not, which is a real difference from RFC 9003, where the same sentence appears in both sections. The rest is risk narration: the Unicode issues of UTR36, the syslog-injection risk the 128-octet limit is said to limit, forgery and snooping without an integrity or confidentiality transport, and the RFC 6973 data-minimization advice. Each is stated as advice to implementers and operators, with no keyword."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References. Section header for the two reference lists below."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 3629, RFC 4271, RFC 4486, RFC 8174."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 4272, RFC 5424, RFC 6973, UTR36."
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "Subcode: the Error Subcode value MUST be one of the following values: 2 (\"Administrative Shutdown\") or 4 (\"Administrative Reset\").",
+      "disposition": "mapped",
+      "mapped-to": "RFC8203-2-1",
+      "reason": "The sender's subcode constraint, captured verbatim as RFC8203-2-1 at [MUST]. Ze's receiver enforces the same pair from the other side: Notification.ShutdownMessage returns an empty string for any Cease subcode other than NotifyCeaseAdminShutdown or NotifyCeaseAdminReset (internal/component/bgp/message/notification.go)."
+    },
+    {
+      "id": "2:2",
+      "quote": "The length value MUST range from 0 to 128 inclusive.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8203-2-2",
+      "reason": "The 0-to-128 length bound, captured verbatim as RFC8203-2-2 at [MUST]. This is the sentence RFC 9003 DELETES, so the obligation is owned by RFC 8203 alone and has no RFC 9003 counterpart at MUST level. Ze's sender holds it: MaxShutdownMessageLen is 128 and BuildShutdownData truncates a longer message back to a UTF-8 character boundary (notification.go)."
+    },
+    {
+      "id": "2:3",
+      "quote": "Shutdown Communication: to support international characters, the Shutdown Communication field MUST be encoded using UTF-8.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8203-2-3",
+      "reason": "The UTF-8 encoding obligation on the Shutdown Communication field, captured verbatim as RFC8203-2-3 at [MUST]."
+    },
+    {
+      "id": "2:4",
+      "quote": "A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8203-2-4",
+      "reason": "The receiver's prohibition on interpreting invalid UTF-8, captured verbatim as RFC8203-2-4 at [MUST NOT]. ShutdownMessage returns errShutdownMessageContainsInvalidUtf8 and an empty string rather than the decoded bytes, so nothing invalid reaches an interpreter."
+    },
+    {
+      "id": "6:1",
+      "quote": "UTF-8 \"Shortest Form\" encoding is REQUIRED to guard against the technical issues outlined in [UTR36].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8203-6-1",
+      "reason": "The REQUIRED UTF-8 \"Shortest Form\" encoding, captured verbatim as RFC8203-6-1 at [MUST] and read from section 6, which is the only section of RFC 8203 that states it."
+    }
+  ],
+  "register-reason": "Standards Track, with the BCP 14 key-words paragraph at section 1.1 and capitalised MUST-level keywords in sections 2 and 6. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}
