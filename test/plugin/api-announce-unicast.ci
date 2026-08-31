@@ -1,0 +1,70 @@
+# Test: the operator's `announce unicast` command originates the route on the wire
+# VALIDATES: announce unicast dispatches through the engine to the announce
+#            command plugin, and the UPDATE the peer receives carries the
+#            prefix, the next hop and the community the operator typed
+# PREVENTS: a form that answers "done" and originates nothing, which every
+#           existing announce test would still pass -- they drive the plugin
+#           text API, not this command
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0037020000001C400101004002004003040A0001FE40050400000064C00804FDE9029A18C63364
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE4005040000006418CB0071
+EOF_PEER
+
+# Native test plugin: dispatches announce unicast once the session is quiet
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external announce-unicast-test {
+		run "ze-test fixture plugin/api-announce-unicast"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		# AnnounceNLRIBatch gates the sender on `send [ update ]`: this rail
+		# originates routes, which is the permission an operator grants when
+		# they write that word.
+		attach process announce-unicast-test {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

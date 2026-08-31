@@ -1,0 +1,53 @@
+# Test: `announce` is three commands, one per form, each stating its own grammar
+# VALIDATES: announce unicast, announce blackhole and announce flowspec each
+#            carry their own usage line, and announce alone lists them as
+#            subcommands
+# PREVENTS: three tail grammars behind one handler, which the model could state
+#           at most one of, so the generated line named a selector no operator
+#           types and spelled the rest <args>
+#
+# Each form is reachable at two paths: bare, which reaches every peer, and
+# under `peer <selector>`, which reaches the peers the selector matches. The
+# second path is the same wire method, so the peer-scoped lines prove the
+# selector is anchored to the keyword the operator types it after.
+#
+# The line each form states is the one the MODEL renders. announce flowspec is
+# the form whose components another plugin owns: they arrive through the augment
+# ze-flowspec-cmd puts on this container, so the line proves the augment reached
+# the tree as well as that the form states its own grammar.
+
+cmd=foreground:seq=1:exec=ze announce help
+expect=exit:code=0
+expect=stderr:contains=ze announce <command> [options]
+expect=stderr:contains=Commands
+expect=stderr:pattern=(?m)^  unicast\s
+expect=stderr:pattern=(?m)^  blackhole\s
+expect=stderr:pattern=(?m)^  flowspec\s
+reject=stderr:pattern=ze announce <selector>
+
+cmd=foreground:seq=2:exec=ze announce unicast help
+expect=exit:code=0
+expect=stderr:contains=ze announce unicast <prefix> [next-hop <address>] [community <value> ...] [tag <key> <value>] [for <duration>]
+
+cmd=foreground:seq=3:exec=ze announce blackhole help
+expect=exit:code=0
+expect=stderr:contains=ze announce blackhole <prefix> [tag <key> <value>] [for <duration>]
+
+cmd=foreground:seq=4:exec=ze announce flowspec help
+expect=exit:code=0
+expect=stderr:contains=ze announce flowspec [destination <prefix> ...]
+expect=stderr:contains=[tcp-flags <value> ...] [community <value>] [rate-limit <bytes-per-second>] [discard] [tag <key> <value>] [for <duration>]
+reject=stderr:pattern=announce flowspec <args>
+
+cmd=foreground:seq=5:exec=ze peer announce unicast help
+expect=exit:code=0
+expect=stderr:contains=ze peer <selector> announce unicast <prefix> [next-hop <address>] [community <value> ...] [tag <key> <value>] [for <duration>]
+
+cmd=foreground:seq=6:exec=ze peer announce blackhole help
+expect=exit:code=0
+expect=stderr:contains=ze peer <selector> announce blackhole <prefix> [tag <key> <value>] [for <duration>]
+
+cmd=foreground:seq=7:exec=ze peer announce flowspec help
+expect=exit:code=0
+expect=stderr:contains=ze peer <selector> announce flowspec [destination <prefix> ...]
+expect=stderr:contains=[tcp-flags <value> ...] [community <value>] [rate-limit <bytes-per-second>] [discard] [tag <key> <value>] [for <duration>]

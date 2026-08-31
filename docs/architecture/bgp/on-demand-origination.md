@@ -9,6 +9,45 @@ what had been announced, so nothing could withdraw it by reference.
 
 ## The decisions
 
+**Announce is wire only. It reaches peers and it touches no RIB (owner
+directive, 2026-08-31).** The route is not inserted in the Loc-RIB, so it does
+not compete in cross-source best path and it does not reach the kernel FIB. That
+is deliberate: the verb exists for DDoS mitigation and maintenance, where the
+operator states what a peer must hear.
+
+Every other rail that reaches a peer works the same way.
+`(*BGPConsumer).InjectRoute` formats `update text ... nlri <family> add <prefix>`
+and dispatches it, so a redistributed static or OSPF route re-enters through this
+same announce rail. Export policy still applies: `exportFilterForBody` runs the
+destination peer's export chain at the session write gate for every originated
+route.
+
+**A bare announce reaches every peer, so no form states
+`RequiresSelector`.** `selector.ParseDefault` reads an empty selector as
+`All()`. That is what an operator asks for when they name no peer. The flag
+belongs to a command whose model carries a selector leaf to satisfy it.
+
+`announce` carried such a leaf until 2026-08-30. Each form then became its own
+command, and the leaf went with the split. The flag stayed. For that day every
+form refused every invocation with `announce <form> requires a selector`. The
+error named a token the model gave the operator no way to type.
+
+**A peer selector is typed before the verb, in the ExaBGP order.**
+`peer <selector> announce unicast <prefix>` reaches the peers the selector
+matches. The forms are one `grouping`, instantiated at `announce` and at
+`peer > announce`, so the second path restates no grammar.
+
+The selector is declared on the `peer` container. `appendAnchored` then anchors
+it to that keyword, which is the word the operator types it after. `anchoredDef`
+binds it at dispatch. The peer-scoped command carries two mandatory pattern-less
+strings, selector and prefix, so `implicitSelectorDef` sees two candidates and
+answers nil.
+
+<!-- source: internal/component/bgp/plugins/cmd/announce/announce.go -- the RPCRegistration block -->
+<!-- source: internal/core/selector/selector.go -- ParseDefault -->
+<!-- source: internal/component/bgp/reactor/egress_inject_filter.go -- exportFilterForBody -->
+<!-- source: internal/component/bgp/redistribute/consumer.go -- formatAnnounce, InjectRoute -->
+
 **The verb covers every BGP family, not FlowSpec only.** `AnnounceNLRIBatch` is
 family-agnostic, so a FlowSpec-only CLI verb would have been an artificial
 limit. `blackhole` is sugar for `unicast ... community blackhole`. It is not a

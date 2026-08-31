@@ -18,9 +18,14 @@ Each container states `config false` itself. mergeYANGEntry skips a child whose
 own Config is not false, and goyang sets Config from the node's own statement
 with no propagation from the parent, so an augmented container that omits it is
 dropped from the command tree without a word.";
+    revision 2026-08-31 { description "announce flowspec is reachable at two paths, bare and under peer <selector>, so the components are a grouping and each augment instantiates it. An augment names one target, and a second target repeating the vocabulary would be a second declaration of it."; }
     revision 2026-08-30 { description "Initial revision: state the match components announce flowspec takes, so the model rather than a description states the grammar."; }
 
-    augment "/cliannouncecmd:announce/cliannouncecmd:flowspec" {
+    grouping flowspec-components {
+        description "The match components, declared once. announce flowspec is
+reachable at two paths -- bare, and under peer <selector> -- and each augment
+below instantiates this one grouping rather than restating the vocabulary.";
+
 
         container destination {
             config false;
@@ -154,5 +159,13 @@ dropped from the command tree without a word.";
             description "Route Distinguisher, for a VPN FlowSpec family only.";
             leaf value { type string { length "1..32"; } mandatory true; description "Route Distinguisher, as ASN:value or address:value"; }
         }
+    }
+
+    augment "/cliannouncecmd:announce/cliannouncecmd:flowspec" {
+        uses flowspec-components;
+    }
+
+    augment "/cliannouncecmd:peer/cliannouncecmd:announce/cliannouncecmd:flowspec" {
+        uses flowspec-components;
     }
 }

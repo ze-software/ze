@@ -412,6 +412,29 @@ func plugin01APIRIBInClear(ctx context.Context, plugin *sdk.Plugin) error {
 	return nil
 }
 
+// plugin01APIAnnounceUnicast dispatches the operator's own `announce unicast`
+// command and lets the peer block judge what reached the wire.
+//
+// The command answers before the UPDATE is encoded, so the dispatch status only
+// proves the handler accepted the words. The proof that the route was
+// originated is the peer's expectation of the UPDATE that follows the EOR.
+func plugin01APIAnnounceUnicast(ctx context.Context, plugin *sdk.Plugin) error {
+	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
+		return err
+	}
+	if _, err := plugin01RequireDone(ctx, plugin, "announce unicast 198.51.100.0/24 next-hop 10.0.1.254 community 65001:666"); err != nil {
+		return err
+	}
+	// The peer-scoped form is the same wire method at a second command path. It
+	// proves the dispatcher fills the selector slot the model declares on the
+	// peer container.
+	if _, err := plugin01RequireDone(ctx, plugin, "peer 127.0.0.1 announce unicast 203.0.113.0/24 next-hop 10.0.1.254"); err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stderr, "OK: announce unicast dispatched, bare and peer-scoped")
+	return nil
+}
+
 func plugin01APIRIBInShow(ctx context.Context, plugin *sdk.Plugin) error {
 	if err := plugin01WaitEORAndQuiesce(ctx, plugin); err != nil {
 		return err
