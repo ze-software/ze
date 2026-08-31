@@ -1,4 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — BGP event parsing
+// RFC: rfc/short/rfc4271.md — Section 4.2, the BGP Identifier carried as remote.router-id
+// RFC: rfc/short/rfc6286.md — Section 2.2, a BGP Identifier is never zero
 // Related: route.go — Route struct used by event consumers
 // Related: format.go — route command formatting
 // Related: nlri.go — NLRI value parsing
@@ -7,6 +9,7 @@ package bgp
 import (
 	"encoding/hex"
 	"encoding/json"
+	"net/netip"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
@@ -461,6 +464,13 @@ func (e *Event) GetDirection() string {
 type PeerRemoteInfo struct {
 	Address string `json:"address,omitempty"`
 	AS      uint32 `json:"as"`
+	// RouterID is the PEER's BGP Identifier, as its OPEN carried it, in the
+	// dotted-quad spelling RFC 4271 Section 4.2 gives a 32-bit identifier.
+	// It sits in the remote container beside the address and the AS because it
+	// is a third fact about the same peer, and because the top-level
+	// `router-id` key of this object already names THIS speaker's identifier
+	// (appendPeerJSON, format/text.go). Absent when the OPEN has not been read.
+	RouterID string `json:"router-id,omitempty"`
 }
 
 // PeerLocalInfo holds local peer identity (YANG: container local).
@@ -505,6 +515,36 @@ func (e *Event) GetPeerASN() uint32 {
 	}
 
 	return 0
+}
+
+// GetPeerRouterID extracts the peer's BGP Identifier (YANG: remote.router-id)
+// as the 32-bit unsigned integer RFC 4271 Section 4.2 defines it to be. The
+// dotted quad is the spelling on the wire of this contract, so it is parsed
+// here, at the boundary, and every caller inside ze reads the number.
+//
+// Zero means "this event states no identifier", which is what RFC 4271
+// Section 9.1.2.2 step f) needs to know: a peer whose OPEN has not been read
+// has no identifier to compare, and it does not have the address 0.0.0.0.
+// RFC 6286 Section 2.2 forbids a real identifier of zero, so no peer loses a
+// comparison to this. A value that does not parse as an IPv4 address is
+// reported the same way rather than as a number invented from part of it.
+func (e *Event) GetPeerRouterID() uint32 {
+	if len(e.Peer) == 0 {
+		return 0
+	}
+
+	var info PeerInfoJSON
+	if err := json.Unmarshal(e.Peer, &info); err != nil || info.Remote.RouterID == "" {
+		return 0
+	}
+
+	addr, err := netip.ParseAddr(info.Remote.RouterID)
+	if err != nil || !addr.Is4() {
+		eventLogger().Warn("peer router-id not an IPv4 address", "router-id", info.Remote.RouterID)
+		return 0
+	}
+	octets := addr.As4()
+	return uint32(octets[0])<<24 | uint32(octets[1])<<16 | uint32(octets[2])<<8 | uint32(octets[3])
 }
 
 // GetPeerName extracts the peer name (YANG: name leaf).

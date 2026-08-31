@@ -66,11 +66,19 @@ type PeerInfo struct {
 	AddressStr      string // Cached Address.String(); avoids per-event allocation
 	LocalAddressStr string // Cached LocalAddress.String(); avoids per-event allocation
 
-	Name            string // Human-readable peer name for CLI selector
-	GroupName       string // Peer-group this peer belongs to
-	LocalAS         uint32
-	PeerAS          uint32
-	RouterID        uint32
+	Name      string // Human-readable peer name for CLI selector
+	GroupName string // Peer-group this peer belongs to
+	LocalAS   uint32
+	PeerAS    uint32
+	// RouterID is THIS speaker's BGP Identifier for the session, as the peer's
+	// configuration states it. It is not the peer's, and a comparison that owes
+	// the peer's identifier MUST read RemoteRouterID below.
+	RouterID uint32
+	// RemoteRouterID is the peer's BGP Identifier, as its OPEN carried it
+	// (reactor.Peer.RemoteRouterID). Zero until the OPEN is read and again
+	// after teardown, which is why RFC 4271 Section 9.1.2.2 step f) treats a
+	// zero as "no identifier" rather than as the address 0.0.0.0.
+	RemoteRouterID  uint32
 	ReceiveHoldTime time.Duration // Configured receive hold time (RFC 4271)
 	SendHoldTime    time.Duration // Configured send hold time (RFC 9687, 0=auto)
 	KeepaliveTime   time.Duration // Configured keepalive interval (RFC 4271, 0=hold/3)

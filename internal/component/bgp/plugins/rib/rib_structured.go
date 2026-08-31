@@ -141,11 +141,11 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	// skip both the heap alloc AND the map write. Only when the struct
 	// changes do we take the address (triggering the escape).
 	candidate := peerMetadata{
-		PeerASN:   se.PeerAS,
-		LocalASN:  se.LocalAS,
-		RouterID:  se.RouterID,
-		ContextID: wu.SourceCtxID(),
-		GroupName: se.PeerGroup,
+		PeerASN:        se.PeerAS,
+		LocalASN:       se.LocalAS,
+		RemoteRouterID: se.RemoteRouterID,
+		ContextID:      wu.SourceCtxID(),
+		GroupName:      se.PeerGroup,
 		// This speaker's end of the session. Parsed here, on the same
 		// changed-only path as the fields above, because it is what "itself"
 		// means to RFC 4271 Section 5.1.3 (isSelfNextHop, rib_self_nexthop.go).

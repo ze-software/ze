@@ -267,7 +267,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 			// goroutine, where the accessor is merely redundant, not wrong.)
 			PeerAS:   peer.PeerAS(),
 			RouterID: s.RouterID,
-			State:    peer.State().PluginState(),
+			// The peer's own BGP Identifier, which RouterID above is NOT: that
+			// one is this speaker's. RFC 4271 Section 9.1.2.2 step f) compares
+			// this one, and it reaches best-path selection only through the
+			// UPDATE events built here (rib.peerMetadata.RemoteRouterID).
+			// An atomic load, so it is safe on every goroutine this runs on.
+			RemoteRouterID: peer.RemoteRouterID(),
+			State:          peer.State().PluginState(),
 		}
 		// Increment per-peer counters (lock-free atomics).
 		// Engine counts updates, keepalives, and EOR. NLRI-level counters

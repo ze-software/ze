@@ -87,6 +87,7 @@ func getStructuredEvent(peer *plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.St
 	se.PeerAS = peer.PeerAS
 	se.LocalAS = peer.LocalAS
 	se.RouterID = peer.RouterID
+	se.RemoteRouterID = peer.RemoteRouterID
 	se.LocalAddress = peer.LocalAddrStr()
 	se.EventType = messageTypeToEventKind(msg.Type)
 	se.Direction = msg.Direction
@@ -107,6 +108,7 @@ func getStructuredStateEvent(peer *plugin.PeerInfo, state rpc.SessionState, reas
 	se.PeerAS = peer.PeerAS
 	se.LocalAS = peer.LocalAS
 	se.RouterID = peer.RouterID
+	se.RemoteRouterID = peer.RemoteRouterID
 	se.LocalAddress = peer.LocalAddrStr()
 	se.EventType = rpc.EventKindState
 	se.State = state

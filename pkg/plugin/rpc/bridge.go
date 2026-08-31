@@ -877,21 +877,29 @@ func (b *DirectBridge) DispatchRPC(method string, params json.RawMessage) (json.
 // Pooled via GetStructuredEvent/PutStructuredEvent — callers MUST return via
 // PutStructuredEvent after all consumers have processed the event.
 type StructuredEvent struct {
-	PeerAddress   string           // Source peer address string
-	PeerName      string           // Peer name from config
-	PeerGroup     string           // Peer group name from config
-	PeerAS        uint32           // Remote peer AS number
-	LocalAS       uint32           // Local AS number
-	RouterID      uint32           // Remote peer's BGP Identifier (from OPEN)
-	LocalAddress  string           // Local address string
-	EventType     EventKind        // EventKindUpdate, EventKindOpen, etc.
-	Direction     MessageDirection // DirectionSent / DirectionReceived
-	MessageID     uint64           // Unique message ID (0 for non-message events)
-	State         SessionState     // For state events: SessionStateUp, SessionStateDown
-	Reason        string           // For state events: close reason
-	RawMessage    any              // *types.RawMessage for wire messages, nil for synthetic events
-	Meta          map[string]any   // Route metadata (sent events only)
-	SourcePeerStr string           // Source peer address for ribOut stale-scoping (sent events only)
+	PeerAddress string // Source peer address string
+	PeerName    string // Peer name from config
+	PeerGroup   string // Peer group name from config
+	PeerAS      uint32 // Remote peer AS number
+	LocalAS     uint32 // Local AS number
+	// RouterID is THIS speaker's BGP Identifier for the session, taken from the
+	// peer's configuration (plugin.PeerInfo.RouterID). It said "Remote peer's
+	// BGP Identifier (from OPEN)" until 2026-08-31 and never carried one, which
+	// is how RFC 4271 Section 9.1.2.2 step f) came to compare the same number
+	// against itself on every candidate.
+	RouterID uint32
+	// RemoteRouterID is the peer's BGP Identifier, as its OPEN carried it.
+	// Zero before the OPEN is read and after teardown.
+	RemoteRouterID uint32
+	LocalAddress   string           // Local address string
+	EventType      EventKind        // EventKindUpdate, EventKindOpen, etc.
+	Direction      MessageDirection // DirectionSent / DirectionReceived
+	MessageID      uint64           // Unique message ID (0 for non-message events)
+	State          SessionState     // For state events: SessionStateUp, SessionStateDown
+	Reason         string           // For state events: close reason
+	RawMessage     any              // *types.RawMessage for wire messages, nil for synthetic events
+	Meta           map[string]any   // Route metadata (sent events only)
+	SourcePeerStr  string           // Source peer address for ribOut stale-scoping (sent events only)
 	// UnheldRoles names the exclusive roles this plugin was told are claimed
 	// (ConfigureInput.Claims) that NO other process taking delivery of this
 	// event holds. A plugin that stood its own default behavior down for one of
@@ -919,6 +927,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.PeerAS = 0
 	se.LocalAS = 0
 	se.RouterID = 0
+	se.RemoteRouterID = 0
 	se.LocalAddress = ""
 	se.EventType = EventKindUnspecified
 	se.Direction = DirectionUnspecified

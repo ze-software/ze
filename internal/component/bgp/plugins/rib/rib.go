@@ -226,10 +226,14 @@ const metricsUpdateInterval = 10 * time.Second
 // peerMetadata stores per-peer metadata for best-path comparison and capability lookup.
 // Extracted from received UPDATE events (nested peer format) and structured events.
 type peerMetadata struct {
-	PeerASN   uint32           // peer's AS number
-	LocalASN  uint32           // local AS number (for eBGP/iBGP detection)
-	RouterID  uint32           // remote peer's BGP Identifier (for best-path step 7)
-	ContextID bgpctx.ContextID // encoding context from last received event (0 = unknown)
+	PeerASN  uint32 // peer's AS number
+	LocalASN uint32 // local AS number (for eBGP/iBGP detection)
+	// RemoteRouterID is the peer's BGP Identifier from its OPEN. It is the
+	// ORIGINATOR_ID fallback of RFC 4271 Section 9.1.2.2 step f)
+	// (extractCandidate) and the per-peer BGP ID of a TABLE_DUMP_V2 dump
+	// (rib_mrt.go). Zero when the event states none.
+	RemoteRouterID uint32
+	ContextID      bgpctx.ContextID // encoding context from last received event (0 = unknown)
 	// GroupName is the peer-group this session belongs to, empty for a
 	// standalone peer. It is the only identity a session created from a dynamic
 	// group shares with the operator's config document: such a session's address
@@ -1249,21 +1253,37 @@ func (r *RIBManager) handleState(event *Event) {
 //
 // The group is kept for the same reason the ASNs are: a decision made later in
 // this plugin needs it and the event is where it arrives. An event carrying
-// none of the three says nothing about the peer, so it stores nothing rather
-// than replacing what an earlier event recorded.
+// none of the facts below says nothing about the peer, so it stores nothing
+// rather than replacing what an earlier event recorded.
+//
+// This is the JSON rail. handleReceivedStructured (rib_structured.go) builds
+// the same struct from a StructuredEvent, and the two MUST carry the same
+// fields: a fact one rail reads and the other drops is a peer whose best-path
+// selection depends on how its events were delivered.
 func (r *RIBManager) updatePeerMetadata(event *Event, peerAddr netip.Addr) {
 	peerASN := event.GetPeerASN()
 	localASN := getLocalASN(event)
 	group := event.GetPeerGroup()
 	localAddr := getLocalAddress(event)
-	if peerASN == 0 && localASN == 0 && group == "" && !localAddr.IsValid() {
+	// The PEER's BGP Identifier, which RFC 4271 Section 9.1.2.2 step f)
+	// compares (extractCandidate, rib_commands.go) and which every peer of a
+	// TABLE_DUMP_V2 dump is keyed by (rib_mrt.go).
+	//
+	// It is in the guard below because the guard asks whether the event said
+	// anything about the peer, and this is one of the things an event can say.
+	// Leaving it out would drop an identifier that arrived alone, and would
+	// leave the guard reading a struct it cannot see all of, which is the shape
+	// of the defect this field exists to repair.
+	remoteRouterID := event.GetPeerRouterID()
+	if peerASN == 0 && localASN == 0 && group == "" && !localAddr.IsValid() && remoteRouterID == 0 {
 		return
 	}
 	r.peerMeta[peerAddr] = &peerMetadata{
-		PeerASN:      peerASN,
-		LocalASN:     localASN,
-		GroupName:    group,
-		LocalAddress: localAddr,
+		PeerASN:        peerASN,
+		LocalASN:       localASN,
+		RemoteRouterID: remoteRouterID,
+		GroupName:      group,
+		LocalAddress:   localAddr,
 	}
 	r.refreshSelfNextHopsLocked()
 }

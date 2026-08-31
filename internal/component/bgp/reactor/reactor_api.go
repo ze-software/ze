@@ -52,9 +52,13 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 		LocalAS:         s.LocalAS,
 		PeerAS:          s.PeerAS,
 		RouterID:        s.RouterID,
-		Connect:         s.Connection.Connect,
-		Accept:          s.Connection.Accept,
-		State:           peer.State().PluginState(),
+		// The OPEN has been read by the time a peer is Established, so this is
+		// the identifier RFC 4271 Section 9.1.2.2 step f) compares. It is a
+		// different number from RouterID above, which is this speaker's own.
+		RemoteRouterID: peer.RemoteRouterID(),
+		Connect:        s.Connection.Connect,
+		Accept:         s.Connection.Accept,
+		State:          peer.State().PluginState(),
 	}
 	o.dispatcher.OnPeerStateChange(&peerInfo, rpc.SessionStateUp, "")
 }

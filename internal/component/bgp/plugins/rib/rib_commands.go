@@ -1156,9 +1156,15 @@ func (r *RIBManager) extractCandidate(peerAddr netip.Addr, peerStr string, entry
 			}
 		}
 	}
+	// RFC 4271 Section 9.1.2.2 (f): "prefer the route received from the peer
+	// with the lowest BGP Identifier", which RFC 4456 Section 9 (a) replaces
+	// with ORIGINATOR_ID when the route carries one. The fallback is therefore
+	// the PEER's identifier, RemoteRouterID, and never RouterID: that one is
+	// this speaker's own, so every candidate carried it, the step tied on every
+	// comparison, and selection fell through to step g).
 	if !c.OriginatorIP.IsValid() {
-		if meta := r.peerMeta[peerAddr]; meta != nil && meta.RouterID != 0 {
-			id := meta.RouterID
+		if meta := r.peerMeta[peerAddr]; meta != nil && meta.RemoteRouterID != 0 {
+			id := meta.RemoteRouterID
 			c.OriginatorIP = netip.AddrFrom4([4]byte{byte(id >> 24), byte(id >> 16), byte(id >> 8), byte(id)})
 		}
 	}

@@ -112,6 +112,15 @@ All BGP events have the same structure: type in `message`, `peer` and event-spec
 | bgp.message.direction | string | "received" or "sent" (omitted if empty) |
 | bgp.peer.address | string | Peer IP address |
 | bgp.peer.remote.as | int | Peer AS number |
+| bgp.peer.remote.router-id | string | The PEER's BGP Identifier, dotted quad. Omitted before the peer's OPEN is read |
+| bgp.peer.router-id | string | THIS speaker's BGP Identifier for the session, dotted quad. Omitted when the peer sets none |
+
+The two `router-id` keys name two different speakers, and a consumer that
+compares BGP Identifiers MUST read `remote.router-id`. RFC 4271 Section 9.1.2.2
+step f) prefers the route from the peer with the lowest BGP Identifier, so a
+consumer that reads the top-level key compares this speaker's identifier against
+itself, ties on every pair, and falls through to step g).
+<!-- source: internal/component/bgp/format/text.go -- appendPeerJSON -->
 
 ### Event Types
 

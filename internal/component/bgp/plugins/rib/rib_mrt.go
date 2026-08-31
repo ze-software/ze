@@ -46,7 +46,10 @@ func (r *RIBManager) dumpRIBForMRT(visitor registry.RIBDumpVisitor) {
 		s := peerSnapshot{addr: peerRIB.PeerAddr(), rib: peerRIB}
 		if meta := r.peerMeta[addr]; meta != nil {
 			s.asn = meta.PeerASN
-			binary.BigEndian.PutUint32(s.bgpID[:], meta.RouterID)
+			// RFC 6396 Section 4.3.1: a PEER_INDEX_TABLE entry carries the
+			// PEER's BGP Identifier. RouterID is this speaker's, so every entry
+			// of every dump used to name the collector instead of the peer.
+			binary.BigEndian.PutUint32(s.bgpID[:], meta.RemoteRouterID)
 		}
 		s.ipv6 = !addr.Unmap().Is4()
 		snaps = append(snaps, s)
