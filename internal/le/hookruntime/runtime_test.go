@@ -144,3 +144,78 @@ func TestSessionIDHookStatusContract(t *testing.T) {
 		t.Fatalf("malformed code = %d, want 2", code)
 	}
 }
+
+func TestStopWarningIsOneLineNamingTheOpenSpec(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "tmp", "session"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	spec := "# Spec\n\n| Field | Value |\n|-------|-------|\n| Status | in-progress |\n"
+	if err := os.WriteFile(filepath.Join(root, "plan", "spec-open.md"), []byte(spec), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	claim := filepath.Join(root, "tmp", "session", ".session-sess-stop")
+	if err := os.WriteFile(claim, []byte("spec-open.md\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, _, message := runHook(t, root, "block-premature-stop", map[string]any{
+		"session_id": "sess-stop", "last_assistant_message": "The commit landed.",
+	})
+	if code != 1 {
+		t.Fatalf("code = %d, want 1: %q", code, message)
+	}
+	if lines := strings.Count(strings.TrimSpace(message), "\n"); lines != 0 {
+		t.Errorf("warning spans %d extra line(s): %q", lines, message)
+	}
+	for _, want := range []string{"spec-open.md", "in-progress", "Delegation:"} {
+		if !strings.Contains(message, want) {
+			t.Errorf("warning missing %q: %q", want, message)
+		}
+	}
+}
+
+func TestRuleCoverageNeverExitsNonZeroWithoutSaying(t *testing.T) {
+	root := t.TempDir()
+	rulesDir := filepath.Join(root, "ai", "rules")
+	if err := os.MkdirAll(rulesDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	rule := "# performance.md\n**When:** writing any wire-encoding path\n**Severity:** blocking\n\n## Directives\n- do it\n"
+	if err := os.WriteFile(filepath.Join(rulesDir, "performance.md"), []byte(rule), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	core := "# Ze Rules -- Always-On Core\n\n## principles.md\n`ai/rules/principles.md`\n**When:** always\n"
+	if err := os.WriteFile(filepath.Join(rulesDir, "CORE.md"), []byte(core), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	row := map[string]any{
+		"type": "assistant",
+		"message": map[string]any{
+			"role": "assistant",
+			"content": []any{map[string]any{
+				"type": "tool_use", "name": "Write",
+				"input": map[string]any{"file_path": filepath.Join(root, "internal", "wire.go")},
+			}},
+		},
+	}
+	encoded, err := json.Marshal(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transcript := filepath.Join(root, "session.jsonl")
+	if err := os.WriteFile(transcript, append(encoded, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	payload := map[string]any{"session_id": "sess-cov", "transcript_path": transcript}
+	code, _, message := runHook(t, root, "rule-coverage-report", payload)
+	if code != 1 || !strings.Contains(message, "1 of 1 matched blocking rule(s) unread") {
+		t.Fatalf("first run: code=%d message=%q", code, message)
+	}
+	code, _, message = runHook(t, root, "rule-coverage-report", payload)
+	if code != 0 || strings.TrimSpace(message) != "" {
+		t.Fatalf("repeated run: code=%d message=%q, want a silent 0", code, message)
+	}
+}

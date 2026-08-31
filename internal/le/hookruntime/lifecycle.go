@@ -334,10 +334,10 @@ func hookStop(ctx context, errOut io.Writer) int {
 		specBody, err := os.ReadFile(filepath.Join(ctx.root, "plan", claim)) //nolint:gosec // the claimed spec lives under the checkout plan directory
 		if err == nil && regexp.MustCompile(`(?m)^\|[ \t]*Status[ \t]*\|.*in-progress`).Match(specBody) {
 			openWork = true
-			reasons = append(reasons, "Spec '"+claim+"' still in-progress")
+			reasons = append(reasons, "Spec '"+claim+"' in-progress")
 		}
 		if _, err := os.Stat(filepath.Join(ctx.root, "tmp", "session", ".agent-spawned-"+id)); err != nil {
-			reasons = append(reasons, "Delegation: spec '"+claim+"' worked with no subagent spawned")
+			reasons = append(reasons, "Delegation: no subagent spawned")
 		}
 	}
 	if !ctx.payload.StopHookActive {
@@ -366,10 +366,9 @@ func hookStop(ctx context, errOut io.Writer) int {
 		return 2
 	}
 	if len(reasons) != 0 {
-		fmt.Fprintln(errOut, "Warning: stopping with open session state.") //nolint:errcheck // hook protocol
-		for _, reason := range reasons {
-			fmt.Fprintln(errOut, "  - "+reason) //nolint:errcheck // hook protocol
-		}
+		// One line. The transcript renders a non-blocking hook exit verbatim, so a
+		// header plus one bullet per reason spends three lines to say what one says.
+		fmt.Fprintln(errOut, "Warning: open session state -- "+strings.Join(reasons, "; ")) //nolint:errcheck // hook protocol
 		return 1
 	}
 	return 0
@@ -383,9 +382,14 @@ func hookRuleCoverage(ctx context, errOut io.Writer) int {
 	if report == nil {
 		return min(code, 1)
 	}
-	if text := report.Text(); text != "" {
-		fmt.Fprintln(errOut, text) //nolint:errcheck // hook protocol
+	// A quiet report repeats nothing, so an unchanged miss set renders no text. A
+	// non-zero exit behind that silence reaches the transcript as a bare hook
+	// failure with no stderr, which names no rule and asks for nothing.
+	text := report.Text()
+	if text == "" {
+		return 0
 	}
+	fmt.Fprintln(errOut, text) //nolint:errcheck // hook protocol
 	if len(report.Missed) != 0 {
 		return 1
 	}
