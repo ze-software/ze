@@ -630,7 +630,7 @@ func TestAnnounceFlowspecUsageStatesTheComponents(t *testing.T) {
 		"[next-header <value> ...] [packet-length <value> ...] [port <value> ...] " +
 		"[protocol <value> ...] [rd <value>] [source-ipv4 <prefix> ...] " +
 		"[source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] " +
-		"[community <value>] [rate-limit <bytes-per-second>] [discard] " +
+		"(community <value>|rate-limit <bytes-per-second>|discard) " +
 		"[tag <key> <value>] [for <duration>]"
 
 	first := command.UsageLine(command.Usage(strings.Fields(path), commandNode(t, path)))

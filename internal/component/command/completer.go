@@ -326,6 +326,34 @@ func choiceSuggestions(node *Node, prefix string) []Suggestion {
 	return out
 }
 
+// oneOfSuggestions offers the KEYWORDS a one-of group's members declare, sorted
+// by name. The group holds a closed set of member containers, so the loop is
+// bounded by the model.
+//
+// The member's own name is what the operator types, and its values follow it,
+// so a member is offered exactly as a plain trailing group would be. The group
+// container's name is offered by nothing, here or in help.
+func (c *TreeCompleter) oneOfSuggestions(node *Node, prefix string) []Suggestion {
+	names := make([]string, 0, len(node.Children))
+	for name := range node.Children {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	out := make([]Suggestion, 0, len(names))
+	for _, name := range names {
+		member := node.Children[name]
+		if member == nil || !c.backendAllowed(member) {
+			continue
+		}
+		if prefix != "" && !strings.HasPrefix(name, prefix) {
+			continue
+		}
+		out = append(out, Suggestion{Text: name, Description: member.Description, Type: SuggestionCommand})
+	}
+	return out
+}
+
 // matchChildren returns sorted completions for children matching prefix.
 // Includes both static children and dynamic suggestions from DynamicChildren callback.
 func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
@@ -353,6 +381,13 @@ func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
 			// container would complete a token the handler rejects.
 			if child.Modifier == ModifierChoice {
 				completions = append(completions, choiceSuggestions(child, prefix)...)
+				continue
+			}
+			// A one-of group's own name is never typed either. Its MEMBERS are
+			// the keywords, so the operator is offered those (usage.go,
+			// ModifierOneOf).
+			if child.Modifier == ModifierOneOf {
+				completions = append(completions, c.oneOfSuggestions(child, prefix)...)
 				continue
 			}
 			if prefix == "" || strings.HasPrefix(name, prefix) {

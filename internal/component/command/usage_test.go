@@ -244,7 +244,7 @@ func TestUsageGrammarRoundTripsEveryKind(t *testing.T) {
 func TestUsageKindReadsBackFromItsWord(t *testing.T) {
 	for _, kind := range []UsageKind{
 		UsageUnspecified, UsageKeyword, UsageValue, UsageOption,
-		UsageGroup, UsageGroupRepeat, UsageChoice,
+		UsageGroup, UsageGroupRepeat, UsageChoice, UsageGroupOneOf,
 	} {
 		encoded, err := json.Marshal(kind)
 		if err != nil {
@@ -289,6 +289,7 @@ func TestUsageKindNamesItself(t *testing.T) {
 		UsageGroup:       "group",
 		UsageGroupRepeat: "group-repeat",
 		UsageChoice:      "choice",
+		UsageGroupOneOf:  "group-one-of",
 	} {
 		if got := kind.String(); got != want {
 			t.Errorf("the kind %d names itself %q, want %q", kind, got, want)
@@ -572,6 +573,133 @@ func TestUsagePlacesInheritedValueAfterItsContainer(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			node := &Node{Name: tc.path[len(tc.path)-1], WireMethod: "ze-test:command", ArgDefs: tc.defs}
 			if got := UsageLine(Usage(tc.path, node)); got != tc.want {
+				t.Errorf("the line reads %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// VALIDATES: `ze:modifier "one-of"` round-trips through ParseModifier, and a
+// word the table does not hold answers false rather than a valid-looking group.
+// PREVENTS: a module writing a modifier nobody declared and getting
+// ModifierNone, which turns a required alternation into a plain subcommand and
+// says so nowhere (ai/rules/evidence.md).
+func TestParseModifierReadsTheOneOfWord(t *testing.T) {
+	for word, want := range map[string]Modifier{
+		"once":     ModifierOnce,
+		"repeat":   ModifierRepeat,
+		"required": ModifierRequired,
+		"choice":   ModifierChoice,
+		"one-of":   ModifierOneOf,
+	} {
+		got, ok := ParseModifier(word)
+		if !ok {
+			t.Errorf("the declared word %q is not read", word)
+			continue
+		}
+		if got != want {
+			t.Errorf("%q reads as %s, want %s", word, got, want)
+		}
+		if named := got.String(); named != word {
+			t.Errorf("%s names itself %q, want %q", got, named, word)
+		}
+	}
+	for _, word := range []string{"", "oneof", "one_of", "any-of", "ONE-OF"} {
+		if got, ok := ParseModifier(word); ok {
+			t.Errorf("the undeclared word %q read as %s", word, got)
+		}
+	}
+}
+
+// VALIDATES: a wrapper carrying `ze:modifier "one-of"` renders its member
+// groups as a required alternation, each member keeping its own keyword and its
+// own values, and the wrapper's own name never reaching the line.
+// PREVENTS: `announce flowspec ... [community <value>] [rate-limit <bytes>]
+// [discard]`, which says the command runs without an action while
+// splitFlowspecArgs (internal/component/bgp/plugins/cmd/announce/announce.go)
+// answers errFlowspecRequiresAction for exactly that input.
+func TestUsageRendersARequiredOneOfGroup(t *testing.T) {
+	node := &Node{
+		Name:       "flowspec",
+		WireMethod: "ze-bgp:announce-flowspec",
+		Children: map[string]*Node{
+			"action": {
+				Name: "action", Modifier: ModifierOneOf, ModifierOrder: 1,
+				Children: map[string]*Node{
+					"community": {
+						Name: "community", Modifier: ModifierOnce, ModifierOrder: 1,
+						ArgDefs: []ArgDef{{Name: "value", Kind: ArgString, Mandatory: true}},
+					},
+					"rate-limit": {
+						Name: "rate-limit", Modifier: ModifierOnce, ModifierOrder: 2,
+						ArgDefs: []ArgDef{{Name: "bytes-per-second", Kind: ArgString, Mandatory: true}},
+					},
+					"discard": {Name: "discard", Modifier: ModifierOnce, ModifierOrder: 3},
+				},
+			},
+			"tag": {
+				Name: "tag", Modifier: ModifierOnce, ModifierOrder: 2,
+				ArgDefs: []ArgDef{
+					{Name: "key", Kind: ArgString, Mandatory: true},
+					{Name: "value", Kind: ArgString, Mandatory: true},
+				},
+			},
+		},
+	}
+	const want = "announce flowspec (community <value>|rate-limit <bytes-per-second>|discard) [tag <key> <value>]"
+	if got := UsageLine(Usage([]string{"announce", "flowspec"}, node)); got != want {
+		t.Errorf("the line reads %q, want %q", got, want)
+	}
+}
+
+// VALIDATES: a one-of that holds no member falls back to its own name rather
+// than rendering an empty bracket pair.
+// PREVENTS: `()` reaching an operator, which names nothing and cannot be typed.
+func TestUsageOneOfWithoutMembersRendersItsKeyword(t *testing.T) {
+	node := &Node{
+		Name:       "flowspec",
+		WireMethod: "ze-bgp:announce-flowspec",
+		Children:   map[string]*Node{"action": {Name: "action", Modifier: ModifierOneOf, ModifierOrder: 1}},
+	}
+	const want = "announce flowspec (action)"
+	if got := UsageLine(Usage([]string{"announce", "flowspec"}, node)); got != want {
+		t.Errorf("the line reads %q, want %q", got, want)
+	}
+}
+
+// VALIDATES: only a one-of group is read one level deeper. A `once` or `repeat`
+// group holding containers of its own still renders as its own keyword and its
+// own values, exactly as it did before the one-of existed.
+// PREVENTS: R-2, the recursion reaching every group and moving the published
+// line of a command that has nothing to do with this change.
+func TestModifierChildrenRecursesOnlyIntoTheOneOf(t *testing.T) {
+	nested := map[string]*Node{
+		"inner": {
+			Name: "inner", Modifier: ModifierOnce, ModifierOrder: 1,
+			ArgDefs: []ArgDef{{Name: "value", Kind: ArgString, Mandatory: true}},
+		},
+	}
+	for _, tc := range []struct {
+		modifier Modifier
+		want     string
+	}{
+		{ModifierOnce, "show thing [outer <name>]"},
+		{ModifierRepeat, "show thing [outer <name> ...]"},
+		{ModifierRequired, "show thing outer <name>"},
+	} {
+		t.Run(tc.modifier.String(), func(t *testing.T) {
+			node := &Node{
+				Name:       "thing",
+				WireMethod: "ze-show:thing",
+				Children: map[string]*Node{
+					"outer": {
+						Name: "outer", Modifier: tc.modifier, ModifierOrder: 1,
+						ArgDefs:  []ArgDef{{Name: "name", Kind: ArgString, Mandatory: true}},
+						Children: nested,
+					},
+				},
+			}
+			if got := UsageLine(Usage([]string{"show", "thing"}, node)); got != tc.want {
 				t.Errorf("the line reads %q, want %q", got, tc.want)
 			}
 		})

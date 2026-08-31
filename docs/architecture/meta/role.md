@@ -42,14 +42,34 @@ role, not an unanswered question.
 Absent and NEVER RECORDED are different states, and only the export set can
 tell them apart. `applyValidateOpen` records what each OPEN declared,
 INCLUDING declaring none, so a present-and-empty entry means the peer was
-validated and sent no role. A MISSING entry means no OPEN was ever recorded,
-which happens when `broadcastValidateOpen` skips the plugin -- a nil process
-manager, a nil plugin conn, or a validate-open RPC error -- and lets the
-session establish anyway. Both resolve to the configured complement for
-Section 5 gates, so the RFC procedures cannot tell them apart and do not need
-to. The export set can, and reports a suppression it could not evaluate under
-its own reason (`role-unrecorded`) rather than as an export-set decision
-against role `unknown`.
+validated and sent no role. A MISSING entry means no OPEN was ever recorded.
+Both resolve to the configured complement for Section 5 gates, so the RFC
+procedures cannot tell them apart and do not need to. The export set can, and
+reports a suppression it could not evaluate under its own reason
+(`role-unrecorded`) rather than as an export-set decision against role
+`unknown`.
+
+A role-configured peer no longer reaches that missing state through an
+unanswered validator. `broadcastValidateOpen` still skips a plugin it cannot
+ask -- a nil plugin conn or a validate-open RPC error -- but it now carries the
+skip forward as `OpenValidationUnavailableError` and the session is refused with
+NOTIFICATION 2/11 (`unansweredOpenValidation`, `askOpenValidators`). Skipping
+used to read as consent, so the session established with the Section 5 leak
+guard absent.
+
+The refusal is scoped by the plugin's own per-peer capability declaration. The
+reactor lists the plugins that declared a capability for THIS peer rather than
+for every peer (`openPolicyPlugins`) and passes that list down, so bgp-role owes
+an answer for exactly the peers `extractRoleCapabilities` published a Role
+capability for. A peer with no role configuration has no such declaration, holds
+no unanswered policy, and establishes as it did before.
+
+RFC 9234 Section 4.2 requires the connection to be rejected when the Roles do
+not correspond. An unreachable validator leaves ze unable to say that they do,
+so it rejects rather than assume (owner decision, 2026-08-30).
+
+<!-- source: internal/component/bgp/server/validate.go -- broadcastValidateOpen, askOpenValidators, unansweredOpenValidation, OpenValidationUnavailableError -->
+<!-- source: internal/component/bgp/reactor/peer.go -- openPolicyPlugins, capabilitySelectors -->
 
 Learned roles survive a config reload for every peer the new config still
 names. A learned role is a property of the session, and an established peer

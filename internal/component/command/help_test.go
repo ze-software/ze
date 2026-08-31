@@ -441,3 +441,48 @@ func TestHelpEntriesKeepTheWholeSummary(t *testing.T) {
 		t.Errorf("the entry lost the tail of its summary: %q", got)
 	}
 }
+
+// VALIDATES: a `ze:modifier "one-of"` child is not listed, and its members are
+// listed in its place with their own descriptions.
+// PREVENTS: `ze announce flowspec help` naming `action`, a word the handler
+// rejects, while hiding `community`, `rate-limit` and `discard`, the three it
+// accepts. HelpEntries is what the page builder reads
+// (commandHelpPage, cmd/ze/command_help_page.go), so the listing is asserted here
+// and the rendered page in cmd/ze/command_help_page_test.go.
+func TestHelpListsTheOneOfMembersNotTheWrapper(t *testing.T) {
+	node := &Node{
+		Name:        "flowspec",
+		WireMethod:  "ze-bgp:announce-flowspec",
+		Description: "Originate a FlowSpec rule on demand.",
+		Children: map[string]*Node{
+			"action": {
+				Name:        "action",
+				Modifier:    ModifierOneOf,
+				Description: "The traffic action.",
+				Children: map[string]*Node{
+					"community":  {Name: "community", Modifier: ModifierOnce, Description: "The action community."},
+					"rate-limit": {Name: "rate-limit", Modifier: ModifierOnce, Description: "Rate-limit the matched traffic."},
+					"discard":    {Name: "discard", Modifier: ModifierOnce, Description: "Discard the matched traffic."},
+				},
+			},
+			"tag": {Name: "tag", Modifier: ModifierOnce, Description: "A key and a value."},
+		},
+	}
+	root := &Node{Name: "root", Children: map[string]*Node{"announce": {Name: "announce", Children: map[string]*Node{"flowspec": node}}}}
+
+	listed := make(map[string]string, 4)
+	for _, entry := range HelpEntries(root, []string{"announce", "flowspec"}) {
+		listed[entry.Name] = entry.Desc
+	}
+	if _, ok := listed["action"]; ok {
+		t.Errorf("the entries list the one-of container: %+v", listed)
+	}
+	for _, member := range []string{"community", "rate-limit", "discard", "tag"} {
+		if _, ok := listed[member]; !ok {
+			t.Errorf("the entries do not list %q: %+v", member, listed)
+		}
+	}
+	if listed["rate-limit"] != "Rate-limit the matched traffic." {
+		t.Errorf("a member lost its own description: %+v", listed)
+	}
+}

@@ -863,3 +863,66 @@ func TestCompleterSuggestsSummaryNotWholeDescription(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: a `ze:modifier "one-of"` child offers its MEMBERS' keywords, never
+// the container's own name, and leaves every other child of the command where
+// it was.
+// PREVENTS: R-4. `announce flowspec destination 1.1.1.1/32 action`, which
+// splitFlowspecArgs (internal/component/bgp/plugins/cmd/announce/announce.go)
+// reads as a match component and no codec accepts. The wrapper names the
+// alternation for a machine reader; its members are the tokens.
+func TestCompletionOffersTheActionsNotTheWrapper(t *testing.T) {
+	root := &Node{
+		Name: "root",
+		Children: map[string]*Node{
+			"flowspec": {
+				Name:       "flowspec",
+				WireMethod: "ze-bgp:announce-flowspec",
+				Children: map[string]*Node{
+					"action": {
+						Name:     "action",
+						Modifier: ModifierOneOf,
+						Children: map[string]*Node{
+							"community":  {Name: "community", Modifier: ModifierOnce},
+							"rate-limit": {Name: "rate-limit", Modifier: ModifierOnce},
+							"discard":    {Name: "discard", Modifier: ModifierOnce},
+						},
+					},
+					"tag":         {Name: "tag", Modifier: ModifierOnce},
+					"destination": {Name: "destination", Modifier: ModifierRepeat},
+				},
+			},
+		},
+	}
+	completer := NewTreeCompleter(root)
+
+	got := make(map[string]string, 8)
+	for _, s := range completer.Complete("flowspec ") {
+		got[s.Text] = s.Type
+	}
+	if _, ok := got["action"]; ok {
+		t.Errorf("completion offered the wrapper name: %v", got)
+	}
+	for _, member := range []string{"community", "rate-limit", "discard"} {
+		if got[member] != SuggestionCommand {
+			t.Errorf("completion does not offer the action %q: %v", member, got)
+		}
+	}
+	for _, sibling := range []string{"tag", "destination"} {
+		if got[sibling] != SuggestionCommand {
+			t.Errorf("completion dropped the sibling group %q: %v", sibling, got)
+		}
+	}
+
+	// A prefix selects among the members, and still never names the wrapper.
+	prefixed := make(map[string]struct{}, 2)
+	for _, s := range completer.Complete("flowspec disc") {
+		prefixed[s.Text] = struct{}{}
+	}
+	if _, ok := prefixed["discard"]; !ok {
+		t.Errorf("a member prefix offers nothing: %v", prefixed)
+	}
+	if len(prefixed) != 1 {
+		t.Errorf("a member prefix offered more than the one member: %v", prefixed)
+	}
+}

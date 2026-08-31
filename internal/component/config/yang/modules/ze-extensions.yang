@@ -162,12 +162,13 @@ module ze-extensions {
     // command rather than a subcommand of its own: the operator supplies the
     // container's name and every leaf it declares together.
     //
-    // Four occurrences, and each states one rendering:
+    // Five occurrences, and each states one rendering:
     //
     //   once     [keyword <value>...]        supplied at most once
     //   repeat   [keyword <value>... ...]    supplied any number of times
     //   required keyword <value>...          supplied exactly once, no brackets
     //   choice   [word|word|word]            one of a closed set, or none
+    //   one-of   (kw <value>|kw <value>)     exactly one of a closed set of GROUPS
     //
     // 'once' with NO leaf is a presence-only flag and renders `[keyword]`. That
     // is the form for a word the handler reads and reads no value after, such
@@ -181,6 +182,15 @@ module ze-extensions {
     // operator types one of those WORDS. The container's name is never typed;
     // it names the choice for a machine reader. `[import|export]` is that form.
     //
+    // 'one-of' declares NO leaf and holds sibling containers instead, and the
+    // operator supplies exactly one of them. It is what 'choice' cannot state:
+    // a member carries its own keyword AND its own values, so a single word is
+    // not enough to say it. `(community <value>|rate-limit <bytes-per-second>
+    // |discard)` is that form. Round brackets say the group is required, since
+    // square brackets say optional everywhere else on the line. Its own name is
+    // never typed either, and neither completion nor help offers it: the
+    // members take its place.
+    //
     // A group with one value whose keyword IS the value's name earns no
     // extension at all: the renderer writes an optional leaf as `[name <name>]`
     // already.
@@ -193,8 +203,10 @@ module ze-extensions {
                      of its parent command. 'once' = at most once. 'repeat' =
                      any number of times. 'required' = exactly once, rendered
                      without brackets. 'choice' = one word from the closed set
-                     its single leaf declares, or none. Any other argument is
-                     refused and the container stays a plain grouping node.";
+                     its single leaf declares, or none. 'one-of' = exactly one
+                     of the sibling groups it holds, each with its own keyword
+                     and values. Any other argument is refused and the container
+                     stays a plain grouping node.";
     }
 
     // Extension: inherit

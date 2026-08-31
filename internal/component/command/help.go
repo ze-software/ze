@@ -43,23 +43,51 @@ func FindNode(root *Node, path []string) *Node {
 	return current
 }
 
-// listedChildNames names the children a help page lists, sorted.
+// listedChildren names the children a help page lists, with the description
+// each one shows, sorted by name.
 //
 // A `ze:modifier "choice"` child is left out: its name is never typed, so it is
 // not a subcommand and not a token. The words its leaf declares reach the
 // operator through the generated usage line and through completion
 // (usage.go, completer.go). Every other child is listed, including a modifier
 // group whose keyword the operator does type.
-func listedChildNames(node *Node) []string {
-	names := make([]string, 0, len(node.Children))
+//
+// A `ze:modifier "one-of"` child is left out for the same reason, and its
+// MEMBERS take its place: each member's keyword IS a token the operator types.
+// Listing the group would name a word the handler rejects and hide the words it
+// accepts.
+func listedChildren(node *Node) []HelpEntry {
+	entries := make([]HelpEntry, 0, len(node.Children))
 	for name, child := range node.Children {
-		if child != nil && child.Modifier == ModifierChoice {
+		if child == nil {
 			continue
 		}
-		names = append(names, name)
+		if child.Modifier == ModifierChoice {
+			continue
+		}
+		if child.Modifier == ModifierOneOf {
+			for memberName, member := range child.Children {
+				entries = append(entries, helpEntryFor(memberName, member))
+			}
+			continue
+		}
+		entries = append(entries, helpEntryFor(name, child))
 	}
-	sort.Strings(names)
-	return names
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name < entries[j].Name })
+	return entries
+}
+
+// helpEntryFor answers the line one child shows: its own description, or a
+// summary of its children when it states none.
+func helpEntryFor(name string, node *Node) HelpEntry {
+	if node == nil {
+		return HelpEntry{Name: name}
+	}
+	desc := node.Description
+	if desc == "" && len(node.Children) > 0 {
+		desc = describeChildren(node)
+	}
+	return HelpEntry{Name: name, Desc: desc}
 }
 
 // HelpEntry is a name + summary pair for a help section row.
@@ -81,19 +109,9 @@ func HelpEntries(root *Node, path []string) []HelpEntry {
 			return nil
 		}
 	}
-	names := listedChildNames(node)
-	if len(names) == 0 {
+	entries := listedChildren(node)
+	if len(entries) == 0 {
 		return nil
-	}
-
-	entries := make([]HelpEntry, 0, len(names))
-	for _, name := range names {
-		child := node.Children[name]
-		desc := child.Description
-		if desc == "" && len(child.Children) > 0 {
-			desc = describeChildren(child)
-		}
-		entries = append(entries, HelpEntry{Name: name, Desc: desc})
 	}
 	return entries
 }

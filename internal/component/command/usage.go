@@ -45,6 +45,16 @@ const (
 	// UsageChoice is a closed set of words the operator types one of, or none
 	// at all. The words ARE the tokens, so nothing follows the one chosen.
 	UsageChoice
+	// UsageGroupOneOf is a closed set of GROUPS the operator types exactly one
+	// of. Each member carries its own keyword and its own values, which is what
+	// separates it from UsageChoice: `rate-limit <bytes-per-second>` is a
+	// member, and a bare word is not enough to say it.
+	//
+	// Each member is carried as a UsageGroup, and this kind is what says the
+	// operator supplies exactly one of them. A member is never optional on its
+	// own, so a reader takes the obligation from this token rather than from
+	// the member's kind.
+	UsageGroupOneOf
 )
 
 // usageKindNames names each kind for a reader and for the published catalog.
@@ -58,6 +68,7 @@ var usageKindNames = [...]string{
 	UsageGroup:       "group",
 	UsageGroupRepeat: "group-repeat",
 	UsageChoice:      "choice",
+	UsageGroupOneOf:  "group-one-of",
 }
 
 // String names the kind. A value outside the declared set names itself as
@@ -116,6 +127,12 @@ const (
 	// none. The container names the choice for a machine reader; the operator
 	// never types that name.
 	ModifierChoice
+	// ModifierOneOf is a closed set of sibling GROUPS the operator MUST supply
+	// exactly one of. The container holds those groups and declares no leaf of
+	// its own; the operator never types its name. It is what states an
+	// obligation ModifierChoice cannot, because each member carries its own
+	// keyword and its own values rather than being a single word.
+	ModifierOneOf
 )
 
 // modifierNames names each kind for a reader and for the YANG argument that
@@ -127,6 +144,7 @@ var modifierNames = [...]string{
 	ModifierRepeat:   "repeat",
 	ModifierRequired: "required",
 	ModifierChoice:   "choice",
+	ModifierOneOf:    "one-of",
 }
 
 // ParseModifier answers the modifier a ze:modifier argument names, and false
@@ -164,9 +182,10 @@ type UsageToken struct {
 	// Values is the closed set the leaf's type states, and it is empty when
 	// the type states none.
 	Values []string `json:"values,omitempty"`
-	// Group is what a UsageGroup or UsageGroupRepeat token holds: the values
-	// that belong to Text, in declaration order. It is empty for every other
-	// kind.
+	// Group is the tokens that belong to Text, in declaration order, and Kind
+	// says what they are. A UsageGroup or UsageGroupRepeat holds its own
+	// VALUES. A UsageGroupOneOf holds its MEMBER GROUPS, each a UsageGroup with
+	// values of its own. It is empty for every other kind.
 	Group []UsageToken `json:"group,omitempty"`
 	// Kind says whether the operator types Text or supplies a value for it.
 	Kind UsageKind `json:"kind"`
@@ -240,6 +259,9 @@ func appendLeafTokens(tokens []UsageToken, node *Node, anchored map[string]bool,
 // its keyword and then every value it declares, which is the same shape a path
 // keyword and its anchored leaf already produce. Only a group the command runs
 // without needs a bracket to say so.
+//
+// A ONE-OF group is required too, and it is one token: its members are
+// alternatives, so the line has to say where the alternation ends.
 func appendGroupTokens(tokens []UsageToken, node *Node) []UsageToken {
 	if node.Modifier == ModifierRequired {
 		tokens = append(tokens, UsageToken{Text: node.Name, Kind: UsageKeyword})
@@ -250,6 +272,9 @@ func appendGroupTokens(tokens []UsageToken, node *Node) []UsageToken {
 	}
 	if node.Modifier == ModifierChoice {
 		return append(tokens, usageChoiceToken(node))
+	}
+	if node.Modifier == ModifierOneOf {
+		return append(tokens, usageOneOfToken(node))
 	}
 	return append(tokens, usageGroupToken(node))
 }
@@ -320,6 +345,24 @@ func usageChoiceToken(node *Node) UsageToken {
 	return UsageToken{Text: node.Name, Values: values, Kind: UsageChoice}
 }
 
+// usageOneOfToken builds one required-alternation token: the member groups the
+// operator types exactly one of, in the order the module declares them. The
+// container's name is carried for a machine reader and never reaches the line,
+// because the members are what the operator types.
+//
+// The members are the container's own modifier children, so this is the only
+// place the renderer reads a level below the command's own groups. A group
+// carrying any other modifier is still read one level deep and no deeper, which
+// is what keeps every other command's line where it was.
+func usageOneOfToken(node *Node) UsageToken {
+	members := modifierChildren(node)
+	group := make([]UsageToken, 0, len(members))
+	for _, member := range members {
+		group = append(group, usageGroupToken(member))
+	}
+	return UsageToken{Text: node.Name, Group: group, Kind: UsageGroupOneOf}
+}
+
 // UsageLine renders a token list as the line an operator types. It answers ""
 // for an empty list.
 func UsageLine(tokens []UsageToken) string {
@@ -367,6 +410,15 @@ func writeUsageToken(tb *textbuf.Buffer, token *UsageToken) {
 		tb.Byte('[')
 		writeChoiceMembers(tb, token)
 		tb.Byte(']')
+	case UsageGroupOneOf:
+		// Round brackets, because square brackets say optional everywhere else
+		// on this line and this group is required. They are owed either way: a
+		// member carries values of its own, so without them the line cannot say
+		// whether the token after the last member belongs to that member or
+		// follows the alternation.
+		tb.Byte('(')
+		writeOneOfMembers(tb, token)
+		tb.Byte(')')
 	case UsageUnspecified:
 		panic("BUG: usage token with no kind")
 	default:
@@ -383,6 +435,28 @@ func writeChoiceMembers(tb *textbuf.Buffer, token *UsageToken) {
 		return
 	}
 	tb.Join(token.Values, "|")
+}
+
+// writeOneOfMembers writes the member groups an operator types exactly one of,
+// each as its own keyword and values. A one-of that carries no member names
+// itself, so a token decoded from a published catalog can never render as an
+// empty bracket pair.
+func writeOneOfMembers(tb *textbuf.Buffer, token *UsageToken) {
+	if len(token.Group) == 0 {
+		tb.Str(token.Text)
+		return
+	}
+	for i := range token.Group {
+		if i > 0 {
+			tb.Byte('|')
+		}
+		member := &token.Group[i]
+		tb.Str(member.Text)
+		for j := range member.Group {
+			tb.Byte(' ')
+			writeUsageToken(tb, &member.Group[j])
+		}
+	}
 }
 
 // writeUsageValue writes what the operator supplies: the closed value set when
