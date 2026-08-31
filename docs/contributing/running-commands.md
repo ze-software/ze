@@ -268,17 +268,28 @@ verify run runs.
 
 ## Testing one package while you develop it
 
-`./le job run label unit-pkg command go test PKG=<pattern>` is the supported route.
-It carries the pinned toolchain, the repository build cache, the module cache, the
-feature tags, the timeout and the process ceiling that `internal/le/gotoolchain`
-derives. Add `RUN=<regexp>` to narrow it, and `RACE=0` to drop `-race` while
-iterating. A package tested without `-race` has not been tested the way the gate
-tests it, so put it back before the end.
+`./le job run label unit-pkg command <argv...>` is the supported route. It takes
+the admission slot, so one heavy job runs while the peers queue, and it tees the
+child's merged output to the job log.
+
+Everything after the `command` keyword is the child's argv, passed through
+unchanged (`parseRun`, `internal/le/job/answer.go`; `Admission.Run`,
+`internal/le/job/job.go`). The command adds no build tags, no `-race`, no
+package pattern and no timeout of its own, so write each of them yourself. The
+`PKG=` and `RUN=` spellings belong to `./le fuzz`, which declares them as
+argument aliases; `go test` reads `PKG=./x` as an import path and refuses it.
+
+Carry the feature tags from the recipe at the top of this page, or the run
+judges a tree in which no gated plugin registers.
 
 ```
-./le job run label unit-pkg command go test PKG=./internal/component/ike/eap
-./le job run label unit-pkg command go test PKG=./internal/component/ike/... RUN=TestEAPTLS
+tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
+./le job run label unit-pkg command go test -race -tags "$tags" ./internal/component/ike/eap
+./le job run label unit-pkg command go test -race -tags "$tags" -run TestEAPTLS ./internal/component/ike/...
 ```
+
+Drop `-race` while iterating if you must. A package tested without `-race` has
+not been tested the way the gate tests it, so put it back before the end.
 
 ## Which native action owns the documentation gate
 
