@@ -341,14 +341,16 @@ func TestRFC8671OFlagClearOnAdjRIBInMessages(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC8671-6.2-1 positive -- a Statistics Report goes out with the O flag
-// clear even when the per-peer header it was built from is the Adj-RIB-Out one, because
-// the report counts neither RIB.
+// TestRFC8671StatisticsReportClearsTheOFlag checks the ENCODER only: given an
+// Adj-RIB-Out per-peer header, writeStatisticsReport puts the O flag on the wire
+// as zero.
 //
-// VALIDATES: RFC 8671 Section 6.2 -- "Statistics report messages are not specific to
-// Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero."
-// PREVENTS: a receiver reading a per-peer counter as an Adj-RIB-Out-only figure because
-// the header it arrived under was built for a sent UPDATE.
+// It carries no RFC requirement tag, and it is not evidence that ze conforms to
+// RFC 8671 Section 6.2. Nothing in production calls writeStatisticsReport, so ze
+// transmits no Statistics Report and the obligation is never exercised.
+// RFC8671-6.2-1 is a {gap} in rfc/short/rfc8671.md and the missing piece is the
+// timer behind the statistics-timeout leaf (Thomas, 2026-08-31: an emission path
+// added later that produced a non-zero O flag would leave this test green).
 func TestRFC8671StatisticsReportClearsTheOFlag(t *testing.T) {
 	server, client := net.Pipe()
 	defer closeLog(server, "server")
@@ -375,14 +377,14 @@ func TestRFC8671StatisticsReportClearsTheOFlag(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC8671-6.2-1 negative -- the O flag is cleared for the Statistics
-// Report ONLY. The same Adj-RIB-Out header on a Route Monitoring message keeps the flag,
-// so the clearing is not a sender-wide loss of the direction.
+// TestRFC8671RouteMonitoringKeepsTheOFlag is the companion of the test above: the
+// same Adj-RIB-Out header on a Route Monitoring message keeps the O flag, so
+// clearing it in writeStatisticsReport is not a sender-wide loss of the direction.
 //
-// VALIDATES: RFC 8671 Section 6.2 read against Section 6.1 -- the O flag is zero on a
-// Statistics Report and set on an Adj-RIB-Out Route Monitoring.
-// PREVENTS: a fix for Section 6.2 that clears the flag for every message and silently
-// turns Adj-RIB-Out monitoring back into Adj-RIB-In.
+// It carries no RFC requirement tag either. RFC8671-6.1-1 is proven at the wire
+// level by TestRFC8671OFlagSetOnAdjRIBOutMessages and
+// TestRFC8671OFlagClearOnAdjRIBInMessages, which drive the event path rather than
+// the encoder.
 func TestRFC8671RouteMonitoringKeepsTheOFlag(t *testing.T) {
 	server, client := net.Pipe()
 	defer closeLog(server, "server")

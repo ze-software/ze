@@ -209,9 +209,9 @@
     {
       "id": "6.2:1",
       "quote": "Statistics report messages are not specific to Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "The role is a BMP sender that emits Statistics Report messages, and ze does not implement it. senderSession.writeStatisticsReport (sender.go) and makeStatGauge have no caller outside sender_test.go, and the statistics-timeout leaf is parsed into senderConfig.StatisticsTimeout (bmp.go) and read by nothing, so no timer drives a report. ze therefore transmits no Statistics Report on which it could set the O flag wrongly. The receiving half of this section is a SHOULD and is answered in the section 6.2 walk. The unwired leaf is recorded in plan/journal/unwired-feature.md."
+      "disposition": "mapped",
+      "mapped-to": "RFC8671-6.2-1",
+      "reason": "The O flag on a Statistics Report. Ze IS the BMP sender, so the role binds ze and the requirement is mapped rather than excluded; this site read binds-another-role until 2026-08-31, which the count-conformance-on-the-whole-stack directive bans for a role ze fills. The encoder is correct and unreached. senderSession.writeStatisticsReport (sender.go) is the only production encoder of a Statistics Report and it clears PeerFlagO on the header the caller hands in, so any report it wrote would carry the flag as zero. It has no non-test caller: sender_test.go, rfc8671_test.go and msg_test.go are the only ones. Nothing schedules a report, because the statistics-timeout leaf (yang/ze-bmp-conf.yang) reaches senderConfig.StatisticsTimeout and senderBehavior.statistics through behaviorOf (sender_config.go) and no ticker reads it. So no ze BMP session puts a Statistics Report on the wire, the obligation is never exercised, and rfc/short/rfc8671.md records that as a {gap} on RFC8671-6.2-1 (owner ruling, 2026-08-31). This site records that the requirement binds ze and where its producer is; the {gap} records the non-conformance. The receiving half of this section is a SHOULD and is answered in the section 6.2 walk. The unwired leaf is recorded in plan/journal/unwired-feature.md."
     },
     {
       "id": "6.3.1:1",
