@@ -134,6 +134,40 @@ whose owners are provably gone. Artifacts that are already session-keyed, and th
 shared-by-design ones (`tmp/ze-verify.*`, and the durable Go build cache
 `internal/le/gotoolchain` assigns), stay where they are.
 
+## When the storage stalls
+
+The Linux development VM keeps the checkout on a network drive that can freeze
+for several seconds at a time (owner, 2026-08-31). A stall is not a code defect
+and it is not the full-disk case below. It arrives as a test that talks to a
+local socket failing on a timeout, several at once, each at exactly its
+deadline: a RADIUS CoA run showed eight together at `no response: read udp4
+...: i/o timeout`, all at 2.00s. A stage that takes minutes longer than its
+neighbours for no visible reason is the same cause.
+
+The tell that separates a stall from a defect is REPRODUCIBILITY, and it costs
+one re-run to read. A stall does not survive one: the same command, unchanged,
+comes back green. The full-disk case does survive, and `stat -f cache/go-cache`
+answers it. A real defect survives every run.
+
+Two things follow. A timeout red measured while another session held a lint run
+or a job is evidence about the machine, not about the code, so re-run it once
+before you write anything down. And a failure you tried to reproduce and could
+not is the one kind `ai/rules/completion.md` lets you RECORD instead of fix, so
+its journal row carries the reproduction attempt and says the storage stalled.
+
+## When another session cleans the cache under you
+
+`cache/go-cache/...: no such file or directory`, on files that are there, is a
+CONCURRENT `./le scratch cache-clean` (owner, 2026-08-31). Sessions share this
+checkout and they share one build cache, so a clean run by one session empties
+the cache the others are mid-build against. It clears by itself on a retry,
+because the next build repopulates what it needs.
+
+Do not read it as a full disk: that case says `no space left on device` and
+survives a retry. Do not read it as a code defect either. Retry the command
+once, and if you are the session about to run `cache-clean`, remember that every
+other session in this checkout pays for it.
+
 ## When the disk is full
 
 A full cache disk has been read as a code defect four times
