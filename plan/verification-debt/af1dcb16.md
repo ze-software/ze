@@ -24,3 +24,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-08-31 | af1dcb16 | le: --name builds a session's own binary and refuses a wrong one | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | af1dcb16 | le: --name builds a session's own binary and refuses a wrong one | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-08-31 | af1dcb16 | plan,docs: close the restored bespoke interop checkers and their page | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-31 | af1dcb16 | plan: close spec-restore-bespoke-interop-assertions | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
