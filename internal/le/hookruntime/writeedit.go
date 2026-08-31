@@ -295,7 +295,7 @@ func writeGoPatterns(ctx context) *verdict {
 		}},
 		{regexp.MustCompile(`(^|[^A-Za-z0-9_])panic[ \t]*\(`), 2, red + "❌ Return error, don't panic()" + reset, nil},
 		{regexp.MustCompile(`(?m)(^|[^A-Za-z0-9_])log\.(Print|Printf|Println|Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)`), 2, red + "❌ Use slog, not log package" + reset, nil},
-		{regexp.MustCompile(`fmt\.(Sprintf|Fprintf|Printf)\(|strconv\.Format(Uint|Int)\(`), 2, red + bold + "✘ BLOCKED: allocation-heavy string formatting" + reset, nil},
+		{regexp.MustCompile(`fmt\.(Sprintf|Fprintf|Printf)\(|strconv\.Format(Uint|Int)\(`), 2, red + bold + "✘ BLOCKED: allocation-heavy string formatting" + reset + "\n  Build the text with textbuf.Buffer, then print it with .StdOut() or .StdErr().\n  Neither .String() nor .Slice() is needed: the write consumes the buffer.", nil},
 		// Two bad shapes, matched positively because RE2 has no negative lookahead.
 		// First: a BARE nolint, with or without prose after it, which suppresses
 		// every linter. Second: a nolint that names its linters and then states no

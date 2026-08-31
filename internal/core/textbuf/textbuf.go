@@ -5,6 +5,7 @@ package textbuf
 import (
 	"encoding/hex"
 	"net/netip"
+	"os"
 	"strconv"
 	"sync"
 	"unicode/utf8"
@@ -88,6 +89,10 @@ func StringHexUpper(data []byte) string {
 //
 // Bytes: returns raw []byte sharing buffer memory. For w.Write() or
 // string(b.Bytes()) in map/switch (compiler elides alloc).
+//
+// StdOut / StdErr: print the buffer to a standard stream without extracting
+// it. The write consumes the bytes, so no string is built and the buffer is
+// not frozen.
 //
 // Go compiler review gate: noescape mirrors strings.Builder. On every
 // Go update, compare against $(go env GOROOT)/src/strings/builder.go.
@@ -406,6 +411,25 @@ func (b *Buffer) String() string {
 	s := unsafe.String(unsafe.SliceData(b.b), len(b.b)) //nolint:gosec // heap-backed: zero-copy, string owns the slice
 	b.b = b.inlineSlice()
 	return s
+}
+
+// StdOut writes the buffer contents to standard output.
+//
+// Nothing is copied and nothing is extracted: os.Stdout.Write consumes the
+// bytes before it returns, so neither String nor Slice is needed. The buffer
+// is not frozen, so it can be Reset and reused for the next line.
+//
+// No newline is added. Write one into the buffer when the output needs it.
+func (b *Buffer) StdOut() error {
+	_, err := os.Stdout.Write(b.b)
+	return err
+}
+
+// StdErr writes the buffer contents to standard error, on the same terms as
+// StdOut: no copy, no freeze, and no newline of its own.
+func (b *Buffer) StdErr() error {
+	_, err := os.Stderr.Write(b.b)
+	return err
 }
 
 // Slice freezes the buffer and returns its contents zero-copy at any size.

@@ -2,8 +2,10 @@ package textbuf
 
 import (
 	"errors"
+	"io"
 	"math"
 	"net/netip"
+	"os"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -824,4 +826,62 @@ func TestBareAppendNoAllocWithCapacity(t *testing.T) {
 		_ = buf
 	})
 	assert.Equal(t, 0.0, allocs)
+}
+
+// capture redirects one of the process's standard files for the duration of
+// write, and returns what the file received. The redirect is process-wide, so
+// a test that calls it must not run in parallel.
+func capture(t *testing.T, file **os.File, write func()) string {
+	t.Helper()
+	reader, writer, err := os.Pipe()
+	assert.NoError(t, err)
+
+	previous := *file
+	*file = writer
+	write()
+	*file = previous
+
+	assert.NoError(t, writer.Close())
+	out, err := io.ReadAll(reader)
+	assert.NoError(t, err)
+	assert.NoError(t, reader.Close())
+	return string(out)
+}
+
+// TestStdOut checks that StdOut writes the buffer contents to standard output
+// and leaves the buffer writable, by redirecting os.Stdout through a pipe.
+func TestStdOut(t *testing.T) {
+	var b Buffer
+	b.Reset().Str("peer ").Addr(netip.MustParseAddr("192.0.2.1")).Byte('\n')
+
+	assert.Equal(t, "peer 192.0.2.1\n", capture(t, &os.Stdout, func() {
+		assert.NoError(t, b.StdOut())
+	}))
+
+	// StdOut does not freeze: the buffer is reusable for the next line.
+	assert.Equal(t, "up\n", capture(t, &os.Stdout, func() {
+		assert.NoError(t, b.Reset().Str("up\n").StdOut())
+	}))
+}
+
+// TestStdErr checks that StdErr writes to standard error, not standard output.
+func TestStdErr(t *testing.T) {
+	var b Buffer
+	b.Reset().Str("failed: ").Err(errors.New("no route"))
+
+	out := capture(t, &os.Stdout, func() {
+		assert.Equal(t, "failed: no route", capture(t, &os.Stderr, func() {
+			assert.NoError(t, b.StdErr())
+		}))
+	})
+	assert.Empty(t, out)
+}
+
+// TestStdOutEmptyBuffer checks that printing an empty buffer writes nothing and
+// reports no error.
+func TestStdOutEmptyBuffer(t *testing.T) {
+	var b Buffer
+	assert.Empty(t, capture(t, &os.Stdout, func() {
+		assert.NoError(t, b.Reset().StdOut())
+	}))
 }

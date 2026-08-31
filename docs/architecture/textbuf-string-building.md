@@ -87,8 +87,8 @@ or dangles. `ai/rules/performance.md` bans it.
 ## Buffer methods
 
 An appending method returns `*Buffer` so calls chain. An extractor (`String`,
-`Slice`, `Bytes`, `Len`), the `io` methods, and `Release` return their own
-result instead, so a chain ends on one of them.
+`Slice`, `Bytes`, `Len`), the printers (`StdOut`, `StdErr`), the `io` methods,
+and `Release` return their own result instead, so a chain ends on one of them.
 
 | Method | Use |
 |--------|-----|
@@ -117,6 +117,8 @@ result instead, so a chain ends on one of them.
 | `String()` | Return built string (single alloc for inline, zero-copy for heap). Does NOT freeze: writes continue safely |
 | `Slice()` | Return string **zero-copy at any size**. Freezes buffer: writes panic until `Reset()` |
 | `Bytes()` | Return raw `[]byte` (shares buffer memory). For `w.Write()` or `string()` in map/switch (compiler elides alloc) |
+| `StdOut()` | Write the contents to standard output. No copy and no extraction: the write consumes the buffer, so neither `String()` nor `Slice()` is needed. Does NOT freeze. Adds no newline. Returns `error` |
+| `StdErr()` | Write the contents to standard error, on the same terms as `StdOut()` |
 | `Reset()` | Clear the buffer for reuse. Resets to inline array. Chainable |
 | `Release()` | Return a pooled buffer for reuse. A no-op on a stack buffer or after a prior `Release`. Safe after `String` |
 | `SetColor(enabled)` | Enable or disable ANSI color output on this buffer |
@@ -232,6 +234,9 @@ instead.
 | `var buf [N]byte; b := append(buf[:0]...); return string(b)` | `var b textbuf.Buffer; return b.Str(...).String()` |
 | `addr.String() + "/" + strconv.Itoa(n)` | `b.Addr(addr).Byte('/').Int(n).String()` |
 | `uint64(v)` cast at call site | Use typed method: `Uint16(v)`, `Uint32(v)` |
+| `fmt.Printf("%s: %d\n", name, n)` | `var b textbuf.Buffer; b.Str(name).Str(": ").Int(int64(n)).Byte('\n').StdOut()` |
+| `os.Stdout.Write([]byte(b.String()))` | `b.StdOut()` |
+| `fmt.Fprintln(os.Stderr, msg)` | `var b textbuf.Buffer; b.Str(msg).Byte('\n').StdErr()` |
 
 ## Replacing fmt, strings and `+`
 
@@ -298,6 +303,14 @@ it and nothing is allocated.
 | `fmt.Sprintf("%6s", s)` | `var b textbuf.Buffer; b.PadLeft(s, 6).String()` |
 | `fmt.Sprintf("127.0.0.1:%d", port)` | `textbuf.HostPort("127.0.0.1", port)` with a `uint16` port |
 | `fmt.Errorf("constant string")` | `var ErrFoo = errors.New("constant string")` at package level |
+| `fmt.Printf("%s\n", s)` | `var b textbuf.Buffer; b.Str(s).Byte('\n').StdOut()` |
+| `fmt.Println(s)` | Same |
+| `fmt.Fprintf(os.Stderr, "%s\n", s)` | `var b textbuf.Buffer; b.Str(s).Byte('\n').StdErr()` |
+
+`StdOut()` and `StdErr()` print the buffer without extracting it. The write
+consumes the bytes before it returns, so the string is never built and the
+buffer is not frozen: `Reset()` it and print the next line. Neither adds a
+newline, so write one into the buffer when the output needs it.
 | `fmt.Fprintf(w, "%s", s)` | `io.WriteString(w, s)` |
 | `fmt.Fprintf(w, "%d", n)` | `io.WriteString(w, textbuf.StringInt(int64(n)))` |
 | A `Sprintf` whose result is discarded | Split into a no-alloc variant and a with-string variant |
