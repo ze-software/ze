@@ -56,7 +56,7 @@ Do not do grammar cleanup before this ownership pass.
 ze config set --dry-run config.conf bgp local-as 65000
 ze bgp decode FFFF...
 ze yang tree bgp
-ze data ls
+ze data list
 ```
 
 ### Online Commands (daemon)

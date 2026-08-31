@@ -111,7 +111,7 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 		if _, err := commandOutput(ctx, "", os.Environ(), "", "ze", "data", "--path", db, "import", path); err != nil {
 			return err
 		}
-		listing, err := commandOutput(ctx, "", os.Environ(), "", "ze", "data", "--path", db, "ls")
+		listing, err := commandOutput(ctx, "", os.Environ(), "", "ze", "data", "--path", db, "list")
 		if err != nil || !strings.Contains(string(listing), "edge-01.conf") {
 			return fmt.Errorf("cached config not found: %w", err)
 		}
@@ -158,7 +158,7 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 		if _, err := commandOutput(ctx, "", os.Environ(), "", "ze", "data", "--path", db, "import", path); err != nil {
 			return err
 		}
-		out, err := commandOutput(ctx, "", os.Environ(), "", "ze", "data", "--path", db, "ls")
+		out, err := commandOutput(ctx, "", os.Environ(), "", "ze", "data", "--path", db, "list")
 		fmt.Fprint(os.Stderr, string(out))
 		if err != nil || !strings.Contains(string(out), "file/active/") {
 			return errors.New("no file/active key found")
@@ -170,7 +170,7 @@ func managedLegacyScenario(ctx context.Context, scenario string, args []string) 
 		}
 		fmt.Fprintln(os.Stderr, "OK: ze init --managed sets meta/instance/managed=true")
 	case "init-meta-keys":
-		out, err := commandOutput(ctx, "", os.Environ(), "", "ze", "data", "--path", db, "ls", "meta/ssh")
+		out, err := commandOutput(ctx, "", os.Environ(), "", "ze", "data", "--path", db, "list", "meta/ssh")
 		if err != nil {
 			return err
 		}

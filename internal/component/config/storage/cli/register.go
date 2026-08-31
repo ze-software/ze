@@ -22,7 +22,7 @@ func init() {
 		Description: "ZeFS blob store management",
 		Mode:        modeOffline,
 		Section:     registry.SectionConfiguration,
-		Subs:        "import, rm, ls, cat",
+		Subs:        "import, rm, list, cat",
 	})
 	// list and registered answer with DATA, so their answers reach the pipe
 	// layer. They printed a table and returned an exit code, while YANG

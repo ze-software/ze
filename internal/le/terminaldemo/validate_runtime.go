@@ -114,7 +114,7 @@ func validateZeFSConfig() error {
 	if err := initializeStore(id, input); err != nil {
 		return err
 	}
-	listed, err := runZe([]string{commandConfig, "ls"}, env, nil)
+	listed, err := runZe([]string{commandConfig, "list"}, env, nil)
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,7 @@
 # PREVENTS: config files stored in flat namespace colliding with metadata.
 
 # This test uses ze data import to store a config file, then verifies the
-# blob key has the file/active/ prefix via ze data ls.
+# blob key has the file/active/ prefix via ze data list.
 
 
 cmd=foreground:seq=1:exec=ze-test fixture managed/file-namespace:timeout=10s

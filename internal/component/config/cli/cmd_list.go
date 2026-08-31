@@ -1,4 +1,4 @@
-// Design: docs/architecture/config/syntax.md — config ls/cat commands
+// Design: docs/architecture/config/syntax.md — config list/cat commands
 
 package cli
 
@@ -12,8 +12,8 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
-// cmdLsWithStorage lists config files from both blob storage and filesystem.
-func cmdLsWithStorage(store storage.Storage, _ []string) int {
+// cmdListWithStorage lists config files from both blob storage and filesystem.
+func cmdListWithStorage(store storage.Storage, _ []string) int {
 	found := false
 
 	// List from blob storage

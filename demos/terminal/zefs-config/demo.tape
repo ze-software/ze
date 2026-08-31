@@ -24,7 +24,7 @@ Sleep 5s
 Type "ze init < $ZE_INIT_INPUT"
 Enter
 Sleep 4s
-Type "ze config ls"
+Type "ze config list"
 Enter
 Wait+Screen /ze.conf/
 Sleep 4s

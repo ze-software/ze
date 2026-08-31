@@ -27,7 +27,7 @@ var subcommandHandlers = map[string]func(string, []string) int{
 	"import":     cmdImport,
 	"write":      cmdWrite,
 	"rm":         cmdRm,
-	"ls":         cmdLs,
+	"list":       cmdList,
 	"cat":        cmdCat,
 	"registered": cmdRegistered,
 	"check":      cmdCheck,
@@ -250,7 +250,7 @@ func cmdRm(storePath string, args []string) int {
 	return 0
 }
 
-func cmdLs(storePath string, args []string) int {
+func cmdList(storePath string, args []string) int {
 	s, err := openStore(storePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -344,7 +344,7 @@ func usage() {
 				{Name: "write <key> <file>", Desc: "Write a file to an explicit key"},
 				{Name: "import <file>...", Desc: "Import files into the blob store"},
 				{Name: "rm <key>...", Desc: "Remove entries from the blob store"},
-				{Name: "ls [prefix]", Desc: "List entries in the blob store"},
+				{Name: "list [prefix]", Desc: "List entries in the blob store"},
 				{Name: "cat <key>", Desc: "Print entry content to stdout"},
 				{Name: "registered", Desc: "List all registered key patterns"},
 				{Name: "check", Desc: "Verify store integrity (CRC32c)"},
@@ -357,9 +357,9 @@ func usage() {
 		},
 		Examples: []string{
 			"ze data import /etc/ze/router.conf /etc/ze/site-b.conf",
-			"ze data ls",
-			"ze data ls file/active/",
-			"ze data ls meta/",
+			"ze data list",
+			"ze data list file/active/",
+			"ze data list meta/",
 			"ze data cat file/active/etc/ze/router.conf",
 			"ze data rm file/active/etc/ze/old-router.conf",
 			"ze data registered",

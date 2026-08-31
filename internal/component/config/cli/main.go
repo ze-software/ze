@@ -58,7 +58,7 @@ var storageHandlers = map[string]func(storage.Storage, []string) int{
 	"rollback":   cmdRollbackWithStorage,
 	"archive":    cmdArchiveWithStorage,
 	"diff":       cmdDiffWithStorage,
-	"ls":         cmdLsWithStorage,
+	"list":       cmdListWithStorage,
 	"cat":        cmdCatWithStorage,
 	"import":     cmdImportWithStorage,
 	"rename":     cmdRenameWithStorage,
@@ -142,7 +142,7 @@ func usage() {
 			{Title: "Storage", Entries: []helpfmt.HelpEntry{
 				{Name: "import [--name n] <file>...", Desc: "Import files into the database"},
 				{Name: "rename <old> <new>", Desc: "Rename a config in the database"},
-				{Name: "ls [prefix]", Desc: "List configs in the database"},
+				{Name: "list [prefix]", Desc: "List configs in the database"},
 				{Name: "cat <key>", Desc: "Print a database entry"},
 			}},
 			{Title: "Inspection", Entries: []helpfmt.HelpEntry{

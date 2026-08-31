@@ -28,12 +28,12 @@ func setConfigDirEnv(t *testing.T, value string) {
 }
 
 func TestExtractPathFlag(t *testing.T) {
-	path, rem := extractPathFlag([]string{"--path", "/var/db.zefs", "ls", "meta"})
+	path, rem := extractPathFlag([]string{"--path", "/var/db.zefs", "list", "meta"})
 	if path != "/var/db.zefs" {
 		t.Errorf("path = %q, want /var/db.zefs", path)
 	}
-	if len(rem) != 2 || rem[0] != "ls" || rem[1] != "meta" {
-		t.Errorf("remaining = %v, want [ls meta]", rem)
+	if len(rem) != 2 || rem[0] != "list" || rem[1] != "meta" {
+		t.Errorf("remaining = %v, want [list meta]", rem)
 	}
 
 	path, rem = extractPathFlag([]string{"cat", "--path=/x/y.zefs", "key"})

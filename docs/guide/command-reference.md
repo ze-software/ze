@@ -131,7 +131,7 @@ skipped at apply time. See `docs/guide/config-deactivate.md`.
 ze config import <file>...       # Import files into the database
 ze config import --name <n> <file>  # Import under a different name
 ze config rename <old> <new>     # Rename a config in the database
-ze config ls [prefix]            # List files in database
+ze config list [prefix]          # List files in database
 ze config cat <key>              # Print database entry
 ```
 
@@ -1789,7 +1789,7 @@ Low-level blob store management.
 ```
 ze data import <file>...           # Import files into blob
 ze data rm <key>...                # Remove entries
-ze data ls [prefix]                # List entries
+ze data list [prefix]              # List entries
 ze data cat <key>                  # Print entry content
 ze data registered                 # List all registered key patterns
 ze data registered <pattern>       # Show details for a key pattern

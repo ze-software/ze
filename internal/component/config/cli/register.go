@@ -5,7 +5,7 @@
 // owner package: the offline configuration CLI lives with
 // internal/component/config, not under cmd/ze.
 //
-// The root command and the snapshot shortcuts (history, ls, cat) need the blob
+// The root command and the snapshot shortcuts (history, list, cat) need the blob
 // store, which is opened only after global flag parsing. The root handler
 // receives it through the RuntimeContext; the local shortcuts (which have the
 // func(args)int signature and so get no context) resolve it lazily through the

@@ -152,7 +152,7 @@ EOF
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
 sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
-sudo /usr/local/bin/ze config ls
+sudo /usr/local/bin/ze config list
 ```
 
 Expected validation output:

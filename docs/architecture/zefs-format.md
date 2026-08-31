@@ -143,7 +143,7 @@ On unix, the backing file is memory-mapped (`PROT_READ`, `MAP_PRIVATE`). Tree no
 
 ### Single-process ownership
 
-Only one process opens a ZeFS blob at a time. In ze, the daemon (`ze start router.conf`) owns the blob. SSH editor sessions run as goroutines within the daemon process (via Wish). Terminal commands (`ze config edit`, `ze data ls`) detect the running daemon by dialing the SSH port and become SSH clients, sending commands through the daemon rather than opening the blob directly. When no daemon is running, the editor starts an ephemeral daemon, connects via SSH, and stops it when done.
+Only one process opens a ZeFS blob at a time. In ze, the daemon (`ze start router.conf`) owns the blob. SSH editor sessions run as goroutines within the daemon process (via Wish). Terminal commands (`ze config edit`, `ze data list`) detect the running daemon by dialing the SSH port and become SSH clients, sending commands through the daemon rather than opening the blob directly. When no daemon is running, the editor starts an ephemeral daemon, connects via SSH, and stops it when done.
 
 ### In-process locking
 

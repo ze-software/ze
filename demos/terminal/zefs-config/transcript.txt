@@ -5,7 +5,7 @@ secret123
 2222
 ze-demo
 $ ze init < $ZE_INIT_INPUT
-$ ze config ls
+$ ze config list
 ze.conf
 $ ze data check
 
