@@ -254,16 +254,28 @@ func TestRFC7607ReachesTheAttributeWalk(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7607-2-3 positive -- the attribute walk reaches the AS4_PATH
-// validator, so the registered code-17 validator is not dead code.
+// TestRFC7607AS4PathReachesTheAttributeWalk proves the walk dispatches to the code-17
+// validator this package registers, so that validator is not dead code.
+//
+// The UPDATE declares no NLRI and carries the AS4_PATH alone. RFC 7606 Section 3.d then
+// asks for no well-known mandatory attribute, and Section 5.2 escalates only an action
+// STRONGER than attribute discard, so the AS 0 is the only verdict the walk can reach.
+// TestRFC7607CompleteUpdateAS4PathZero above covers the same rule inside a complete
+// UPDATE that does carry NLRI.
+//
+// RFC requirement: RFC7607-2-3 positive -- an UPDATE whose only path attribute is an
+// AS4_PATH carrying AS 0 has that attribute discarded by the whole-UPDATE attribute walk.
 func TestRFC7607AS4PathReachesTheAttributeWalk(t *testing.T) {
 	value := []byte{asPathTypeASSequence, 1, 0x00, 0x00, 0x00, 0x00}
 	attrs := append([]byte{0xC0, attrCodeAS4Path, byte(len(value))}, value...)
-	result := ValidateUpdateRFC7606(attrs, true, false, false)
+	result := ValidateUpdateRFC7606(attrs, false, false, false)
 	if result == nil {
 		t.Fatal("the attribute walk accepted an UPDATE whose AS4_PATH holds AS 0")
 	}
 	if result.Action != RFC7606ActionAttributeDiscard {
-		t.Errorf("action is %v, want attribute-discard", result.Action)
+		t.Fatalf("action is %v (%s), want attribute-discard", result.Action, result.Description)
+	}
+	if result.AttrCode != attrCodeAS4Path {
+		t.Errorf("attribute code is %d, want %d", result.AttrCode, attrCodeAS4Path)
 	}
 }
