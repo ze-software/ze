@@ -28,6 +28,11 @@ type radiusConfig struct {
 	SourceAddress   net.IP // bind outbound RADIUS socket to this IP; nil = any
 	CoAPort         int    // RFC 5176 CoA/DM listener port; 0 = disabled
 	NASPortIDFormat string // RFC 2869 Section 5.17 template; "" = no attribute
+
+	// RequireMessageAuthenticator discards a CoA/Disconnect-Request that
+	// carries no Message-Authenticator attribute. RFC 5176 Section 3.4 makes
+	// the attribute optional, so the default is false.
+	RequireMessageAuthenticator bool
 }
 
 // errNoRADIUSConfig is returned when the config tree has no auth.radius block.
@@ -121,6 +126,12 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 		cfg.CoAPort = v
 	}
 
+	requireMA, err := boolFromAny(radiusBlock["require-message-authenticator"])
+	if err != nil {
+		return nil, fmt.Errorf("%s: require-message-authenticator: %w", Name, err)
+	}
+	cfg.RequireMessageAuthenticator = requireMA
+
 	// The `server` list is `ordered-by user` (yang/ze-l2tp-auth-radius-conf.yang)
 	// because the configured order IS the failover order: Servers[0] is tried
 	// first. configorder.Entries carries that order across the JSON boundary.
@@ -183,5 +194,27 @@ func intFromAny(raw any) (int, bool, error) {
 		return n, true, nil
 	default:
 		return 0, false, fmt.Errorf("unexpected type %T", raw)
+	}
+}
+
+// boolFromAny coerces a config scalar to a bool. Tree.ToMap() emits scalars as
+// strings; JSON-delivered config and unit tests use a real bool. An absent
+// field reads as false, which is the YANG default of every boolean leaf this
+// plugin declares. A value that is neither form is an error rather than a
+// silent false, so an operator who writes one learns it at commit time.
+func boolFromAny(raw any) (bool, error) {
+	switch v := raw.(type) {
+	case nil:
+		return false, nil
+	case bool:
+		return v, nil
+	case string:
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return false, fmt.Errorf("invalid boolean %q", v)
+		}
+		return b, nil
+	default:
+		return false, fmt.Errorf("unexpected type %T", raw)
 	}
 }

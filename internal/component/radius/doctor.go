@@ -19,6 +19,11 @@ import (
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
+// doctorCodeAdminUnreachable names the one diagnostic this check emits: RADIUS
+// admin authentication is not usable, whether because no server answers or
+// because the configuration cannot produce a usable client.
+const doctorCodeAdminUnreachable = "doctor-radius-admin-unreachable"
+
 // radiusAdminDoctorCheck is the readiness check registered from register.go.
 var radiusAdminDoctorCheck = diagnostic.DoctorCheck{
 	Name:         "radius-admin-unreachable",
@@ -27,7 +32,7 @@ var radiusAdminDoctorCheck = diagnostic.DoctorCheck{
 	Component:    "radius",
 	Dependencies: []string{"radius-server"},
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
-	Codes:        []string{"doctor-radius-admin-unreachable"},
+	Codes:        []string{doctorCodeAdminUnreachable},
 	Check:        checkRadiusAdminServers,
 }
 
@@ -44,7 +49,18 @@ func checkRadiusAdminServers(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 	if !ok || tree == nil {
 		return nil
 	}
-	cfg := ExtractConfig(tree)
+	cfg, err := ExtractConfig(tree)
+	if err != nil {
+		// An unusable configuration reaches the operator the same way an
+		// unanswering server does: RADIUS admin auth is not available and login
+		// falls through to local. Saying nothing here would hide the one case
+		// the operator can fix from the config file.
+		return []diagnostic.Diagnostic{{
+			Code:     doctorCodeAdminUnreachable,
+			Severity: diagnostic.SeverityWarning,
+			Message:  "RADIUS admin authentication is misconfigured: " + err.Error(),
+		}}
+	}
 	if !cfg.HasServers() {
 		return nil
 	}
@@ -54,7 +70,7 @@ func checkRadiusAdminServers(ctx diagnostic.DoctorCheckContext) []diagnostic.Dia
 		}
 	}
 	return []diagnostic.Diagnostic{{
-		Code:     "doctor-radius-admin-unreachable",
+		Code:     doctorCodeAdminUnreachable,
 		Severity: diagnostic.SeverityWarning,
 		Message:  "none of the configured RADIUS admin servers are reachable",
 	}}

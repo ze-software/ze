@@ -90,7 +90,10 @@ func TestValidateNASPortIDFormatRejects(t *testing.T) {
 func TestAccessRequestCarriesNASPortID(t *testing.T) {
 	req := ppp.EventAuthRequest{TunnelID: 1027, SessionID: 42, Username: "alice", Method: ppp.AuthMethodPAP}
 
-	attrs := buildAccessRequestAttrs(req, "lns1", nil, "{nas-id}:{tunnel-id}.{session-id}")
+	attrs, ok := buildAccessRequestAttrs(req, "lns1", nil, "{nas-id}:{tunnel-id}.{session-id}")
+	if !ok {
+		t.Fatal("a PAP request MUST build an Access-Request")
+	}
 	pkt := &radius.Packet{Code: radius.CodeAccessRequest, Attrs: attrs}
 	vals := pkt.FindAllAttr(radius.AttrNASPortID)
 	if len(vals) != 1 {
@@ -105,7 +108,10 @@ func TestAccessRequestCarriesNASPortID(t *testing.T) {
 func TestAccessRequestOmitsNASPortIDWhenUnset(t *testing.T) {
 	req := ppp.EventAuthRequest{TunnelID: 1027, SessionID: 42, Username: "alice", Method: ppp.AuthMethodPAP}
 
-	attrs := buildAccessRequestAttrs(req, "lns1", nil, "")
+	attrs, ok := buildAccessRequestAttrs(req, "lns1", nil, "")
+	if !ok {
+		t.Fatal("a PAP request MUST build an Access-Request")
+	}
 	pkt := &radius.Packet{Code: radius.CodeAccessRequest, Attrs: attrs}
 	if vals := pkt.FindAllAttr(radius.AttrNASPortID); len(vals) != 0 {
 		t.Fatalf("NAS-Port-Id present with no format configured: %q", vals)
@@ -134,7 +140,11 @@ func TestNASPortIDSameInAuthAndAcct(t *testing.T) {
 	const format = "{nas-id}:{tunnel-id}.{session-id}"
 
 	req := ppp.EventAuthRequest{TunnelID: 7, SessionID: 9, Username: "bob", Method: ppp.AuthMethodPAP}
-	authPkt := &radius.Packet{Attrs: buildAccessRequestAttrs(req, "lns1", nil, format)}
+	authAttrs, ok := buildAccessRequestAttrs(req, "lns1", nil, format)
+	if !ok {
+		t.Fatal("a PAP request MUST build an Access-Request")
+	}
+	authPkt := &radius.Packet{Attrs: authAttrs}
 
 	acct := newRADIUSAcct()
 	sess := &acctSession{

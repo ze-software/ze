@@ -1,6 +1,9 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS client transport
 // Related: packet.go -- packet encode/decode
 // Related: dict.go -- packet codes
+// RFC: rfc/short/rfc2865.md -- Request Authenticator (Section 4.1), retransmission (Section 2.5)
+// RFC: rfc/short/rfc2866.md -- Accounting-Request authenticator (Section 3)
+// RFC: rfc/short/rfc2869.md -- Message-Authenticator on a response (Section 5.14)
 
 package radius
 
@@ -247,6 +250,15 @@ func (c *Client) dispatchResponse(key responseKey, data []byte) {
 		if !VerifyResponseAuth(data, w.auth, w.secret) {
 			continue
 		}
+		// RFC 2869 Section 5.14: "A RADIUS Client receiving an Access-Accept,
+		// Access-Reject or Access-Challenge with a Message-Authenticator
+		// Attribute present MUST calculate the correct value of the
+		// Message-Authenticator and silently discard the packet if it does not
+		// match the value sent."
+		if !verifyResponseMessageAuthenticator(data, w.auth, w.secret) {
+			c.logger.Warn("radius: bad Message-Authenticator, discarding", "server", key.server)
+			continue
+		}
 		copyData := make([]byte, len(data))
 		copy(copyData, data)
 		select {
@@ -304,6 +316,23 @@ func prepareWirePacket(pkt *Packet, secret []byte) *Packet {
 func (c *Client) SendToServers(ctx context.Context, pkt *Packet) (*Packet, error) {
 	for _, srv := range c.config.Servers {
 		pkt.Identifier = c.NextID()
+
+		// RFC 2865 Section 4.1: "The Request Authenticator value MUST be changed
+		// each time a new Identifier is used."
+		// RFC 2865 Section 2.5: "If any attributes have changed, you MUST use a
+		// new Request Authenticator and ID."
+		//
+		// Failover is not a retransmission: the next server gets a new Identifier
+		// on the line above, and the User-Password is re-encoded under that
+		// server's own secret, so both sentences apply. prepareWirePacket reads
+		// this field inside Exchange, so writing it here also re-derives the
+		// User-Password keystream, which is MD5(secret + Request Authenticator).
+		auth, err := RandomAuthenticator()
+		if err != nil {
+			return nil, err
+		}
+		pkt.Authenticator = auth
+
 		resp, err := c.Exchange(ctx, pkt, srv.SharedKey, srv.Address)
 		if err != nil {
 			c.logger.Warn("radius: server unreachable",

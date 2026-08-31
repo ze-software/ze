@@ -29,7 +29,7 @@ type FramedRoute struct {
 //
 // RFC 2865 Section 5.8 (Framed-IP-Address), 5.9 (Framed-IP-Netmask),
 // 5.11 (Filter-Id), 5.27 (Session-Timeout), 5.28 (Idle-Timeout).
-// RFC 2866 Section 5.18 (Acct-Interim-Interval).
+// RFC 2869 Section 5.16 (Acct-Interim-Interval).
 // Framed-Pool: RFC 2865 attribute type 88.
 type AuthMetadata struct {
 	FramedIP            netip.Addr

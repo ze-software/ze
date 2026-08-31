@@ -92,10 +92,24 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 		return
 	}
 
+	attrs, ok := buildAccessRequestAttrs(req, nasID, sourceAddr, nasPortIDFormat)
+	if !ok {
+		// RFC 2865 Section 4.1: "An Access-Request MUST contain either a
+		// User-Password or a CHAP-Password or a State." The peer supplied no
+		// credential this LNS can carry, so there is no conformant Access-Request
+		// to send and no server to ask. Deny the session.
+		logger().Warn("l2tp-auth-radius: no credential attribute for this method; rejecting",
+			"tunnel", req.TunnelID, "session", req.SessionID, "method", req.Method)
+		if respErr := respond(false, "no usable credential", nil); respErr != nil {
+			logger().Warn("l2tp-auth-radius: respond failed", "error", respErr)
+		}
+		return
+	}
+
 	pkt := &radius.Packet{
 		Code:          radius.CodeAccessRequest,
 		Authenticator: auth,
-		Attrs:         buildAccessRequestAttrs(req, nasID, sourceAddr, nasPortIDFormat),
+		Attrs:         attrs,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -119,6 +133,25 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 
 	switch resp.Code {
 	case radius.CodeAccessAccept:
+		// RFC 2865 Section 5.6: "A NAS is not required to implement all of these
+		// service types, and MUST treat unknown or unsupported Service-Types as
+		// though an Access-Reject had been received instead."
+		// RFC 2865 Section 1.1: "A NAS MUST treat a RADIUS access-accept
+		// authorizing an unavailable service as an access-reject instead."
+		//
+		// The LNS provides framed PPP access and asks for Framed-User, so an
+		// Accept naming any other service authorizes something this NAS cannot
+		// bring up. Denying is what the RFC requires, and it also stops a session
+		// coming up under an authorization ze cannot honor.
+		if !radius.AcceptedServiceType(resp, radius.ServiceTypeFramed) {
+			logger().Warn("l2tp-auth-radius: Access-Accept names an unsupported Service-Type; rejecting",
+				"tunnel", req.TunnelID, "session", req.SessionID, "username", req.Username)
+			if respErr := respond(false, "unsupported Service-Type", nil); respErr != nil {
+				logger().Warn("l2tp-auth-radius: respond failed", "error", respErr)
+			}
+			return
+		}
+
 		// RFC 2865: extract subscriber profile attributes from Access-Accept.
 		if meta := extractAuthMetadata(resp); meta != nil {
 			l2tp.StoreSessionMetadata(req.TunnelID, req.SessionID, meta)
@@ -163,8 +196,11 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 // buildAuthAttrs carries what the RFC and the credential method require, and
 // nasPortIDFormat carries what the operator configured. An empty format adds
 // nothing, so an unconfigured deployment sends exactly today's attributes.
-func buildAccessRequestAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP, nasPortIDFormat string) []radius.Attr {
-	attrs := buildAuthAttrs(req, nasID, sourceAddr)
+func buildAccessRequestAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP, nasPortIDFormat string) ([]radius.Attr, bool) {
+	attrs, ok := buildAuthAttrs(req, nasID, sourceAddr)
+	if !ok {
+		return nil, false
+	}
 
 	// RFC 2869 Section 5.17: NAS-Port-Id names the access port in text, for a
 	// NAS that cannot conveniently number its ports. An LNS port is the tunnel
@@ -176,28 +212,39 @@ func buildAccessRequestAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr 
 	}); ok {
 		attrs = append(attrs, attr)
 	}
-	return attrs
+	return attrs, true
 }
 
+// buildAuthAttrs builds the RFC 2865 attribute set for one Access-Request, and
+// reports false when the peer's credential cannot produce one of the three
+// credential attributes RFC 2865 Section 4.1 admits. A false result means no
+// Access-Request is sent at all.
+//
 // RFC 2865 Section 5.2: User-Password stored as cleartext here;
 // the client XOR-encodes it per-server in Exchange().
-func buildAuthAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP) []radius.Attr {
+func buildAuthAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP) ([]radius.Attr, bool) {
 	attrs := []radius.Attr{
-		{Type: radius.AttrUserName, Value: radius.AttrString(req.Username)},
 		{Type: radius.AttrServiceType, Value: radius.AttrUint32(radius.ServiceTypeFramed)},
 		{Type: radius.AttrFramedProtocol, Value: radius.AttrUint32(radius.FramedProtocolPPP)},
 		{Type: radius.AttrNASPortType, Value: radius.AttrUint32(radius.NASPortTypeVirtual)},
 		{Type: radius.AttrNASPort, Value: radius.AttrUint32(uint32(req.SessionID))},
 	}
 
+	// RFC 2865 Section 5: "Text of length zero (0) MUST NOT be sent; omit the
+	// entire attribute instead." A PAP peer may send Peer-ID-Length 0 and a
+	// CHAP peer an empty Name, so User-Name is text whose length the peer picks.
+	attrs = radius.AppendTextAttr(attrs, radius.AttrUserName, req.Username)
+
 	if v4 := sourceAddr.To4(); v4 != nil {
 		attrs = append(attrs, radius.Attr{Type: radius.AttrNASIPAddress, Value: v4})
 	}
 
-	if nasID != "" {
-		attrs = append(attrs, radius.Attr{Type: radius.AttrNASIdentifier, Value: radius.AttrString(nasID)})
-	}
+	attrs = radius.AppendTextAttr(attrs, radius.AttrNASIdentifier, nasID)
 
+	// RFC 2865 Section 4.1: "An Access-Request MUST contain either a
+	// User-Password or a CHAP-Password or a State." Ze holds no State for a
+	// subscriber, so each method below either produces one of the other two or
+	// reports that no Access-Request can be built.
 	switch req.Method {
 	case ppp.AuthMethodPAP:
 		attrs = append(attrs, radius.Attr{Type: radius.AttrUserPassword, Value: req.Response})
@@ -215,21 +262,33 @@ func buildAuthAttrs(req ppp.EventAuthRequest, nasID string, sourceAddr net.IP) [
 		)
 
 	case ppp.AuthMethodMSCHAPv2:
-		if len(req.Response) >= 40 {
-			peerChallenge := req.Response[:16]
-			ntResponse := req.Response[16:40]
-			if vsaResp, err := radius.EncodeMSCHAP2Response(req.Identifier, peerChallenge, ntResponse); err == nil {
-				attrs = append(attrs, radius.Attr{Type: radius.AttrVendorSpecific, Value: vsaResp[2:]})
-			}
-			if vsaChal, err := radius.EncodeMSCHAPChallenge(req.Challenge); err == nil {
-				attrs = append(attrs, radius.Attr{Type: radius.AttrVendorSpecific, Value: vsaChal[2:]})
-			}
+		// The MS-CHAPv2 response carries the credential in a vendor-specific
+		// attribute, which stands in for CHAP-Password. A response shorter than
+		// the 16-octet peer challenge plus the 24-octet NT response yields
+		// neither, and so yields no credential at all.
+		if len(req.Response) < 40 {
+			return nil, false
 		}
+		vsaResp, err := radius.EncodeMSCHAP2Response(req.Identifier, req.Response[:16], req.Response[16:40])
+		if err != nil {
+			return nil, false
+		}
+		vsaChal, err := radius.EncodeMSCHAPChallenge(req.Challenge)
+		if err != nil {
+			return nil, false
+		}
+		attrs = append(attrs,
+			radius.Attr{Type: radius.AttrVendorSpecific, Value: vsaResp[2:]},
+			radius.Attr{Type: radius.AttrVendorSpecific, Value: vsaChal[2:]},
+		)
 
 	case ppp.AuthMethodNone:
+		// The peer authenticated with nothing, so there is no credential to put
+		// in an Access-Request and no request to send.
+		return nil, false
 	}
 
-	return attrs
+	return attrs, true
 }
 
 func extractMSCHAP2Success(resp *radius.Packet) []byte {

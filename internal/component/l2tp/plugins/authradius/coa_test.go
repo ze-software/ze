@@ -18,17 +18,43 @@ func sendCoAPacket(t *testing.T, addr string, code uint8, secret []byte, attrs [
 	return sendRawCoAPacket(t, addr, buildCoAPacket(t, code, secret, attrs, time.Now()))
 }
 
+// buildCoAPacket signs a CoA-Request or Disconnect-Request the way a conformant
+// Dynamic Authorization Client does, so a listener that inverts the two
+// signatures cannot read this fixture.
+//
+// RFC 5176 Section 3.4: "When the HMAC-MD5 message integrity check is
+// calculated the Request Authenticator field and Message-Authenticator
+// Attribute MUST each be considered to be sixteen octets of zero.  The
+// Message-Authenticator Attribute is calculated and inserted in the packet
+// before the Request Authenticator is calculated."
+//
+// So the order is: encode with both fields zero, HMAC over that and insert the
+// Message-Authenticator, then compute the Request Authenticator over the
+// finished packet.
 func buildCoAPacket(t *testing.T, code uint8, secret []byte, attrs []radius.Attr, ts time.Time) []byte {
+	t.Helper()
 	attrs = append(attrs, radius.Attr{Type: radius.AttrMessageAuthenticator, Value: make([]byte, radius.AuthenticatorLen)})
-	wire := buildCoAPacketWithoutMessageAuthenticator(t, code, secret, attrs, ts)
+	wire := encodeCoAPacket(t, code, attrs, ts)
+
 	maOff := messageAuthenticatorOffsetForTest(t, wire)
-	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 3579 mandates HMAC-MD5.
+	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 5176 Section 3.4 mandates HMAC-MD5.
 	mac.Write(wire)
 	copy(wire[maOff:maOff+radius.AuthenticatorLen], mac.Sum(nil))
+
+	signCoARequestAuthenticator(wire, secret)
 	return wire
 }
 
 func buildCoAPacketWithoutMessageAuthenticator(t *testing.T, code uint8, secret []byte, attrs []radius.Attr, ts time.Time) []byte {
+	t.Helper()
+	wire := encodeCoAPacket(t, code, attrs, ts)
+	signCoARequestAuthenticator(wire, secret)
+	return wire
+}
+
+// encodeCoAPacket returns the wire bytes with the Request Authenticator field
+// left as sixteen octets of zero.
+func encodeCoAPacket(t *testing.T, code uint8, attrs []radius.Attr, ts time.Time) []byte {
 	t.Helper()
 	if !ts.IsZero() {
 		tsAttr := make([]byte, 4)
@@ -46,10 +72,18 @@ func buildCoAPacketWithoutMessageAuthenticator(t *testing.T, code uint8, secret 
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	auth := radius.AccountingRequestAuth(buf, n, secret)
-	copy(buf[4:4+radius.AuthenticatorLen], auth[:])
 	return append([]byte(nil), buf[:n]...)
+}
+
+// signCoARequestAuthenticator writes the Request Authenticator over the finished
+// packet, attributes as they stand.
+//
+// RFC 5176 Section 2.3: "The Request Authenticator is calculated the same way as
+// for an Accounting-Request, specified in [RFC2866]". That formula is
+// radius.AccountingRequestAuth.
+func signCoARequestAuthenticator(wire, secret []byte) {
+	auth := radius.AccountingRequestAuth(wire, len(wire), secret)
+	copy(wire[4:4+radius.AuthenticatorLen], auth[:])
 }
 
 func messageAuthenticatorOffsetForTest(t *testing.T, wire []byte) int {
@@ -198,7 +232,7 @@ func mustResolveUDP(t *testing.T, addr string) *net.UDPAddr {
 // silently discarded, producing no response datagram.
 func TestCoAListenerInvalidAuth(t *testing.T) {
 	secret := []byte("test-coa-secret")
-	cl, err := newCoAListener(0, nil, secret, nil, nil)
+	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,9 +283,17 @@ func TestCoAListenerInvalidAuth(t *testing.T) {
 	}
 }
 
-func TestCoAListenerMissingMessageAuthenticatorDropped(t *testing.T) {
+// RFC requirement: RFC5176-3.4-4 negative -- an operator who sets
+// require-message-authenticator gets the strictness RFC 5176 Section 3.4 leaves
+// optional: a CoA-Request carrying no Message-Authenticator is discarded with no
+// reply (coa.go coaListener.handlePacket).
+//
+// The same packet is accepted with the leaf at its default, which is
+// TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault. The pair is what
+// proves the leaf, and not the code, decides.
+func TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired(t *testing.T) {
 	secret := []byte("test-coa-secret-missing-ma")
-	cl, err := newCoAListener(0, nil, secret, nil, nil)
+	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret, RequireMessageAuthenticator: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,7 +319,7 @@ func TestCoAListenerMissingMessageAuthenticatorDropped(t *testing.T) {
 // discarded; it receives a response, so the silent discard is specific to invalid auth.
 func TestCoAListenerUnknownSession(t *testing.T) {
 	secret := []byte("test-coa-secret-2")
-	cl, err := newCoAListener(0, nil, secret, nil, nil)
+	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,7 +350,7 @@ func TestCoAListenerUnknownSession(t *testing.T) {
 
 func TestCoAListenerMissingEventTimestamp(t *testing.T) {
 	secret := []byte("test-coa-secret-missing-ts")
-	cl, err := newCoAListener(0, nil, secret, nil, nil)
+	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -353,7 +395,7 @@ func TestDisconnectReplayReturnsCachedResponse(t *testing.T) {
 	l2tp.PublishService(fake)
 	defer l2tp.PublishService(nil)
 
-	cl, err := newCoAListener(0, nil, secret, nil, nil)
+	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +425,7 @@ func TestDisconnectReplayReturnsCachedResponse(t *testing.T) {
 // VALIDATES: AC-7 -- DM for unknown session returns Disconnect-NAK.
 func TestDisconnectListenerUnknownSession(t *testing.T) {
 	secret := []byte("test-dm-secret")
-	cl, err := newCoAListener(0, nil, secret, nil, nil)
+	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,6 +8,7 @@
 package radius
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"time"
@@ -41,26 +42,31 @@ func (c *ExtractedConfig) HasServers() bool { return len(c.Servers) > 0 }
 // ExtractConfig reads system/authentication/radius from the config tree.
 // Safe with a nil tree (returns zero config). Defaults mirror the YANG
 // defaults so an operator who omits a leaf gets the schema's advertised value.
-func ExtractConfig(tree *config.Tree) ExtractedConfig {
+//
+// It returns an error, and no config, when a server row carries no shared
+// secret. RFC 2865 forbids the empty secret outright, so there is no partial
+// answer to give: a Server built from such a row would sign nothing, and a
+// caller cannot tell that Server from a good one.
+func ExtractConfig(tree *config.Tree) (ExtractedConfig, error) {
 	cfg := ExtractedConfig{
 		Timeout:     defaultTimeout,
 		Retries:     defaultRetries,
 		ProfileAttr: AttrFilterID,
 	}
 	if tree == nil {
-		return cfg
+		return cfg, nil
 	}
 	sys := tree.GetContainer("system")
 	if sys == nil {
-		return cfg
+		return cfg, nil
 	}
 	auth := sys.GetContainer("authentication")
 	if auth == nil {
-		return cfg
+		return cfg, nil
 	}
 	radiusTree := auth.GetContainer("radius")
 	if radiusTree == nil {
-		return cfg
+		return cfg, nil
 	}
 
 	// GetListOrdered preserves configured failover order (YANG ordered-by user).
@@ -78,9 +84,20 @@ func ExtractConfig(tree *config.Tree) ExtractedConfig {
 		// doctor-radius-admin-unreachable flags it). RADIUS admin auth is IPv4
 		// only; see the YANG address leaf and docs/guide/radius.md.
 		srv := Server{Address: net.JoinHostPort(item.Key, strconv.Itoa(int(port)))}
-		if v, ok := item.Value.Get("key"); ok {
-			srv.SharedKey = []byte(v)
+		v, ok := item.Value.Get("key")
+		// RFC 2865 Section 3: "The secret MUST NOT be empty (length 0) since this
+		// would allow packets to be trivially forged."
+		//
+		// The YANG `key` leaf carries length "1..max", so a config that reaches
+		// here with an empty secret already failed schema validation. This is the
+		// paired check on the other side of that boundary, and it fails the whole
+		// extraction rather than dropping one row: a silently shorter server list
+		// reads to the caller exactly like a correct one.
+		if !ok || v == "" {
+			return ExtractedConfig{}, fmt.Errorf(
+				"radius: server %s has no shared secret; RFC 2865 Section 3 forbids an empty secret", item.Key)
 		}
+		srv.SharedKey = []byte(v)
 		cfg.Servers = append(cfg.Servers, srv)
 	}
 
@@ -102,7 +119,7 @@ func ExtractConfig(tree *config.Tree) ExtractedConfig {
 	}
 	cfg.DefaultProfiles = radiusTree.GetSlice("default-profile")
 
-	return cfg
+	return cfg, nil
 }
 
 // profileAttrType maps the YANG profile-attribute enum to a RADIUS attribute

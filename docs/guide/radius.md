@@ -47,7 +47,7 @@ system {
 |------|------|---------|-------|
 | `radius.server <ip>` | list, ordered-by-user | - | IPv4 only (shared udp4 client); tried in declaration order on failure |
 | `radius.server <ip>.port` | uint16 (1-65535) | 1812 | UDP authentication port |
-| `radius.server <ip>.key` | string (`ze:sensitive`) | required | Shared secret, stored as `$9$` ciphertext |
+| `radius.server <ip>.key` | string, length 1..max (`ze:sensitive`) | required | Shared secret, stored as `$9$` ciphertext. RFC 2865 §3 forbids an empty secret, so a zero-length key is refused at config load and the RADIUS backend is not built |
 | `radius.timeout` | uint16 (1-60) | 3 | Per-server request timeout in seconds |
 | `radius.retries` | uint8 (0-10) | 3 | Transmit attempts per server before failover |
 | `radius.source-address` | ip-address | none | Local source IP for outbound RADIUS UDP |
@@ -64,15 +64,25 @@ system {
    is priority 100, local bcrypt is priority 200).
 3. The backend builds an Access-Request with User-Name, the hidden
    User-Password, Service-Type=Login, NAS-Identifier (hostname), and (when a
-   source-address is set) NAS-IP-Address. It sends to the first configured
-   server, retransmitting with exponential backoff and failing over to the next
-   server (RFC 2865 §2.5).
-4. **Access-Accept** -- the login succeeds. Profiles come from the configured
-   reply attribute (see below); the session is tagged `source=radius`.
+   source-address is set) NAS-IP-Address. A login that carries no username
+   sends no User-Name attribute, because RFC 2865 §5 forbids sending text of
+   length zero. It sends to the first configured server, retransmitting with
+   exponential backoff and failing over to the next server (RFC 2865 §2.5).
+   Each server gets a new Identifier and, with it, a new Request Authenticator
+   and a re-encoded User-Password (RFC 2865 §4.1).
+4. **Access-Accept** -- the login succeeds, unless the reply names a
+   Service-Type other than Login-User. Admin login is the one service this path
+   provides, so any other Service-Type is treated as an Access-Reject (RFC 2865
+   §5.6 and §1.1). Profiles come from the configured reply attribute (see
+   below); the session is tagged `source=radius`.
 5. **Access-Reject** -- explicit rejection. The chain stops here; local bcrypt
    is NOT tried. This prevents a wrong password against RADIUS from succeeding
    via a stale local hash.
-6. **Timeout / all servers unreachable** -- treated as an infrastructure error,
+6. **Access-Challenge** -- treated as an Access-Reject, and the chain stops.
+   Admin login sends one Access-Request and has no path back to the operator
+   for a second one, so ze does not support challenge/response here (RFC 2865
+   §4.4).
+7. **Timeout / all servers unreachable** -- treated as an infrastructure error,
    so the chain falls through to the next backend (local bcrypt). An
    unreachable RADIUS server never locks the operator out.
 

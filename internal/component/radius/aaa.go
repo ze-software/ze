@@ -27,7 +27,17 @@ func (radiusBackend) Priority() int { return aaaPriority }
 // unaffected. This is entirely separate from the L2TP subscriber RADIUS path,
 // which owns its own client under the l2tp config root.
 func (radiusBackend) Build(params aaa.BuildParams) (aaa.Contribution, error) {
-	cfg := ExtractConfig(params.ConfigTree)
+	cfg, err := ExtractConfig(params.ConfigTree)
+	if err != nil {
+		// Degrade, do NOT abort, for the same reason the client-init failure
+		// below degrades: a bundle error locks the operator out entirely. A
+		// RADIUS backend that cannot be built means login falls through to
+		// local, which is the fail-closed answer for a forgeable secret.
+		if params.Logger != nil {
+			params.Logger.Error("radius: admin backend disabled, invalid configuration", "error", err)
+		}
+		return aaa.Contribution{}, nil
+	}
 	if !cfg.HasServers() {
 		return aaa.Contribution{}, nil
 	}

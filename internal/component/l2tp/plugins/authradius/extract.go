@@ -26,7 +26,7 @@ const maxFramedRoutesPerSession = 64
 // RFC 2865 Section 5.11: Filter-Id is a UTF-8 string.
 // RFC 2865 Section 5.27: Session-Timeout is 4 octets, network order.
 // RFC 2865 Section 5.28: Idle-Timeout is 4 octets, network order.
-// RFC 2866 Section 5.18: Acct-Interim-Interval is 4 octets, network order.
+// RFC 2869 Section 5.16: Acct-Interim-Interval is 4 octets, network order.
 // Framed-Pool (type 88) is a UTF-8 string.
 func extractAuthMetadata(resp *radius.Packet) *l2tp.AuthMetadata {
 	var meta l2tp.AuthMetadata

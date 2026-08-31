@@ -145,6 +145,47 @@ func AttrString(s string) []byte {
 	return []byte(s)
 }
 
+// AppendTextAttr appends a text attribute carrying value, and appends nothing
+// when value is empty.
+//
+// RFC 2865 Section 5: "Text of length zero (0) MUST NOT be sent; omit the
+// entire attribute instead."
+//
+// Every Access-Request builder routes a text attribute through here, so the
+// rule is stated once for User-Name, NAS-Identifier and every other text type.
+func AppendTextAttr(attrs []Attr, attrType uint8, value string) []Attr {
+	if value == "" {
+		return attrs
+	}
+	return append(attrs, Attr{Type: attrType, Value: AttrString(value)})
+}
+
+// AcceptedServiceType reports whether an Access-Accept authorizes a service
+// this NAS provides. offered names the one Service-Type the caller implements,
+// which is the value its Access-Request asked for.
+//
+// RFC 2865 Section 5.6: "A NAS is not required to implement all of these
+// service types, and MUST treat unknown or unsupported Service-Types as though
+// an Access-Reject had been received instead."
+// RFC 2865 Section 1.1: "A NAS MUST treat a RADIUS access-accept authorizing an
+// unavailable service as an access-reject instead."
+//
+// An Access-Accept carrying no Service-Type authorizes the service the
+// Access-Request named, so it is accepted. A Service-Type that is not four
+// octets names no service the NAS can identify, so it is unsupported and the
+// Access-Accept is refused.
+func AcceptedServiceType(resp *Packet, offered uint32) bool {
+	value := resp.FindAttr(AttrServiceType)
+	if value == nil {
+		return true
+	}
+	serviceType, err := decodeUint32(value)
+	if err != nil {
+		return false
+	}
+	return serviceType == offered
+}
+
 // decodeUint32 decodes a 4-byte attribute value as uint32.
 func decodeUint32(data []byte) (uint32, error) {
 	if len(data) != 4 {

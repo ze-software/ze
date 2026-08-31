@@ -19,7 +19,7 @@ package radius
 
 import (
 	"bytes"
-	"crypto/md5" //nolint:gosec // RFC 2865 Section 3 and RFC 5176 Section 3.5 mandate MD5
+	"crypto/md5" //nolint:gosec // RFC 2865 Section 3 and RFC 5176 Section 2.3 mandate MD5
 	"encoding/binary"
 	"testing"
 )
@@ -169,7 +169,7 @@ func TestRFC2865ResponseAuthenticatorCoversEveryNamedField(t *testing.T) {
 // TestRFC5176CoARequestAuthenticatorMatchesTheFormula pins the CoA-Request and
 // Disconnect-Request authenticator to the octet stream RFC 5176 names.
 //
-// RFC 5176 Section 3.5: "In Request packets, the Authenticator value is a
+// RFC 5176 Section 2.3: "In Request packets, the Authenticator value is a
 // 16-octet MD5 [RFC1321] checksum, called the Request Authenticator. The Request
 // Authenticator is calculated the same way as for an Accounting-Request,
 // specified in [RFC2866]."
@@ -195,7 +195,7 @@ func TestRFC5176CoARequestAuthenticatorMatchesTheFormula(t *testing.T) {
 
 	got := AccountingRequestAuth(buf, n, secret)
 
-	h := md5.New() //nolint:gosec // RFC 5176 Section 3.5 mandates the RFC 2866 MD5 formula
+	h := md5.New()                          //nolint:gosec // RFC 5176 Section 2.3 mandates the RFC 2866 MD5 formula
 	h.Write(buf[:4])                        // Code + Identifier + Length
 	h.Write(make([]byte, AuthenticatorLen)) // sixteen zero octets
 	h.Write(buf[HeaderLen:n])               // Attributes

@@ -1,4 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- CoA/DM listener
+// RFC: rfc/short/rfc5176.md -- Section 2.3 Request Authenticator, Section 3.4 Message-Authenticator, Section 3.5 Error-Cause
 // Related: register.go -- plugin lifecycle starts/stops the listener
 // Related: config.go -- CoAPort configuration
 
@@ -28,14 +29,27 @@ import (
 // secret, identifies the matching L2TP session, and either emits a
 // rate-change event (CoA) or tears down the session (DM).
 type coaListener struct {
-	conn           *net.UDPConn
-	secrets        map[string][]byte // source IP -> shared secret
-	defaultSecret  []byte
-	bus            ze.EventBus
-	allowedSources []net.IP
-	done           chan struct{}
-	replayMu       sync.Mutex
-	replay         map[coaReplayKey]coaReplayEntry
+	conn     *net.UDPConn
+	cfg      coaListenerConfig
+	done     chan struct{}
+	replayMu sync.Mutex
+	replay   map[coaReplayKey]coaReplayEntry
+}
+
+// coaListenerConfig is what an operator's configuration decides about the
+// listener. It is passed as one value so each call site names what it sets.
+type coaListenerConfig struct {
+	Port           int
+	Secrets        map[string][]byte // source IP -> shared secret
+	DefaultSecret  []byte
+	Bus            ze.EventBus
+	AllowedSources []net.IP
+
+	// RequireMessageAuthenticator is the `require-message-authenticator` leaf
+	// (yang/ze-l2tp-auth-radius-conf.yang). False is the RFC 5176 Section 3.4
+	// behavior: the attribute is optional and its absence is not a reason to
+	// discard.
+	RequireMessageAuthenticator bool
 }
 
 type coaReplayKey struct {
@@ -52,9 +66,9 @@ type coaReplayEntry struct {
 
 const coaReplayWindow = 5 * time.Minute
 
-func newCoAListener(port int, secrets map[string][]byte, defaultSecret []byte, bus ze.EventBus, allowedSources []net.IP) (*coaListener, error) {
+func newCoAListener(cfg coaListenerConfig) (*coaListener, error) {
 	var bAddr textbuf.Buffer
-	addr, err := net.ResolveUDPAddr("udp4", bAddr.Reset().Byte(':').Int(int64(port)).String())
+	addr, err := net.ResolveUDPAddr("udp4", bAddr.Reset().Byte(':').Int(int64(cfg.Port)).String())
 	if err != nil {
 		return nil, fmt.Errorf("coa: resolve: %w", err)
 	}
@@ -63,13 +77,10 @@ func newCoAListener(port int, secrets map[string][]byte, defaultSecret []byte, b
 		return nil, fmt.Errorf("coa: listen: %w", err)
 	}
 	cl := &coaListener{
-		conn:           conn,
-		secrets:        secrets,
-		defaultSecret:  defaultSecret,
-		bus:            bus,
-		allowedSources: allowedSources,
-		done:           make(chan struct{}),
-		replay:         make(map[coaReplayKey]coaReplayEntry),
+		conn:   conn,
+		cfg:    cfg,
+		done:   make(chan struct{}),
+		replay: make(map[coaReplayKey]coaReplayEntry),
 	}
 	go cl.serve()
 	return cl, nil
@@ -98,13 +109,18 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 		return
 	}
 
-	// RFC 5176 Section 3.5: accept only from configured RADIUS servers.
+	// RFC 5176 Section 2.3: "The Dynamic Authorization Server MUST use the source
+	// IP address of the RADIUS UDP packet to decide which shared secret to use,
+	// so that requests can be proxied." Ze narrows that to the configured Dynamic
+	// Authorization Clients: a source with no secret has no way to authenticate.
 	if !cl.isAllowedSource(from.IP) {
 		logger().Debug("coa: source not in allowed list, discarding", "from", from)
 		return
 	}
 
-	// RFC 5176 Section 3.5: verify request authenticator before processing.
+	// RFC 5176 Section 2.3: "The Request Authenticator is calculated the same way
+	// as for an Accounting-Request, specified in [RFC2866]." Verify it before any
+	// attribute is read.
 	secret := cl.secretForSource(from.IP)
 	if !radius.VerifyCoARequestAuth(data, secret) {
 		logger().Debug("coa: invalid authenticator, discarding", "from", from)
@@ -120,11 +136,25 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 		logger().Warn("coa: unexpected code", "code", pkt.Code, "from", from)
 		return
 	}
-	if pkt.FindAttr(radius.AttrMessageAuthenticator) == nil {
+	// RFC 5176 Section 3.4: "The Message-Authenticator Attribute MAY be used to
+	// authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK,
+	// Disconnect-Request, Disconnect-ACK, and Disconnect-NAK packets in order to
+	// prevent spoofing." A MAY, so a request that carries none is answered, and
+	// only the `require-message-authenticator` leaf makes its absence a discard.
+	hasMessageAuthenticator := pkt.FindAttr(radius.AttrMessageAuthenticator) != nil
+	if !hasMessageAuthenticator && cl.cfg.RequireMessageAuthenticator {
 		logger().Debug("coa: missing message-authenticator, discarding", "from", from)
 		return
 	}
-	if !radius.VerifyMessageAuthenticator(data, secret) {
+
+	// RFC 5176 Section 3.4: "A Dynamic Authorization Server receiving a
+	// CoA-Request or Disconnect-Request with a Message-Authenticator Attribute
+	// present MUST calculate the correct value of the Message-Authenticator and
+	// silently discard the packet if it does not match the value sent."
+	// VerifyCoAMessageAuthenticator answers false for an ABSENT attribute, which
+	// is right for a guard and wrong for this question, so presence is read here
+	// rather than inferred from the verdict.
+	if hasMessageAuthenticator && !radius.VerifyCoAMessageAuthenticator(data, secret) {
 		logger().Debug("coa: invalid message-authenticator, discarding", "from", from)
 		return
 	}
@@ -148,17 +178,17 @@ func (cl *coaListener) handlePacket(data []byte, from *net.UDPAddr) {
 // secretForSource returns the shared secret for the given source IP.
 // Falls back to the default secret if no per-source secret is configured.
 func (cl *coaListener) secretForSource(ip net.IP) []byte {
-	if s, ok := cl.secrets[ip.String()]; ok {
+	if s, ok := cl.cfg.Secrets[ip.String()]; ok {
 		return s
 	}
-	return cl.defaultSecret
+	return cl.cfg.DefaultSecret
 }
 
 func (cl *coaListener) isAllowedSource(ip net.IP) bool {
-	if len(cl.allowedSources) == 0 {
+	if len(cl.cfg.AllowedSources) == 0 {
 		return true
 	}
-	for _, allowed := range cl.allowedSources {
+	for _, allowed := range cl.cfg.AllowedSources {
 		if allowed.Equal(ip) {
 			return true
 		}
@@ -177,8 +207,8 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 
 	// Try subscriber registry first (works for both PPPoE and L2TP).
 	if subSess, ok := cl.findSubscriberSession(pkt); ok {
-		if downloadRate > 0 && cl.bus != nil {
-			if _, emitErr := subevents.SessionRateChange.Emit(cl.bus, &subevents.SessionRateChangePayload{
+		if downloadRate > 0 && cl.cfg.Bus != nil {
+			if _, emitErr := subevents.SessionRateChange.Emit(cl.cfg.Bus, &subevents.SessionRateChangePayload{
 				SessionID:    subSess.ID,
 				DownloadRate: downloadRate,
 				UploadRate:   downloadRate,
@@ -188,8 +218,8 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 		}
 		// For L2TP sessions, also emit the L2TP-specific event so the
 		// existing shaper plugin picks it up.
-		if downloadRate > 0 && subSess.AccessType == subscriber.AccessL2TP && cl.bus != nil {
-			if _, emitErr := l2tpevents.SessionRateChange.Emit(cl.bus, &l2tpevents.SessionRateChangePayload{
+		if downloadRate > 0 && subSess.AccessType == subscriber.AccessL2TP && cl.cfg.Bus != nil {
+			if _, emitErr := l2tpevents.SessionRateChange.Emit(cl.cfg.Bus, &l2tpevents.SessionRateChangePayload{
 				TunnelID:     subSess.TunnelID,
 				SessionID:    subSess.SessionID,
 				DownloadRate: downloadRate,
@@ -198,8 +228,8 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 				logger().Warn("coa: emit l2tp rate-change failed", "error", emitErr)
 			}
 		}
-		if cosProfile != "" && cl.bus != nil {
-			if _, emitErr := l2tpevents.SessionCoSChange.Emit(cl.bus, &l2tpevents.SessionCoSChangePayload{
+		if cosProfile != "" && cl.cfg.Bus != nil {
+			if _, emitErr := l2tpevents.SessionCoSChange.Emit(cl.cfg.Bus, &l2tpevents.SessionCoSChangePayload{
 				TunnelID:        subSess.TunnelID,
 				SessionID:       subSess.SessionID,
 				AccessInterface: subSess.AccessInterface,
@@ -233,9 +263,9 @@ func (cl *coaListener) handleCoA(pkt *radius.Packet, from *net.UDPAddr) {
 		return
 	}
 
-	if cl.bus != nil {
+	if cl.cfg.Bus != nil {
 		if downloadRate > 0 {
-			if _, emitErr := l2tpevents.SessionRateChange.Emit(cl.bus, &l2tpevents.SessionRateChangePayload{
+			if _, emitErr := l2tpevents.SessionRateChange.Emit(cl.cfg.Bus, &l2tpevents.SessionRateChangePayload{
 				TunnelID:     sess.TunnelLocalTID,
 				SessionID:    sid,
 				DownloadRate: downloadRate,
@@ -394,7 +424,11 @@ func (cl *coaListener) sendResponse(to *net.UDPAddr, req *radius.Packet, code ui
 		return
 	}
 
-	// RFC 5176 Section 3.5: response authenticator = MD5(Code+ID+Length+RequestAuth+Attrs+Secret).
+	// RFC 5176 Section 2.3: the Response Authenticator "contains a one-way MD5
+	// hash calculated over a stream of octets consisting of the Code,
+	// Identifier, Length, the Request Authenticator field from the packet being
+	// replied to, and the response attributes if any, followed by the shared
+	// secret".
 	respAuth := radius.ResponseAuthenticator(code, req.Identifier,
 		binary.BigEndian.Uint16(wireBuf[2:4]),
 		req.Authenticator, wireBuf[radius.HeaderLen:n], cl.secretForSource(to.IP))

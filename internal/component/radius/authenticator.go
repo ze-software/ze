@@ -104,11 +104,16 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 	// XOR-hides it per-server (Section 5.2) inside Exchange, so it never
 	// reaches the wire in the clear.
 	attrs := []Attr{
-		{Type: AttrUserName, Value: AttrString(request.Username)},
 		{Type: AttrUserPassword, Value: []byte(request.Password)},
 		{Type: AttrServiceType, Value: AttrUint32(serviceTypeLogin)},
 		{Type: AttrNASIdentifier, Value: AttrString(a.nasID)},
 	}
+	// RFC 2865 Section 5: "Text of length zero (0) MUST NOT be sent; omit the
+	// entire attribute instead." A login carrying no name would otherwise put a
+	// zero-length User-Name on the wire. Section 4.1 makes User-Name a SHOULD,
+	// and NAS-Identifier above already meets the MUST that Section 4.1 states,
+	// so omitting it leaves the request conformant.
+	attrs = AppendTextAttr(attrs, AttrUserName, request.Username)
 	if v4 := a.sourceIP.To4(); v4 != nil {
 		attrs = append(attrs, Attr{Type: AttrNASIPAddress, Value: v4})
 	}
@@ -154,6 +159,22 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		// resolving to zero is the CONTENT of that answer, not the absence of one.
 		// Falling through would let a local account shadow the server's verdict, so
 		// this rejects like Access-Reject does -- the chain stops.
+		// RFC 2865 Section 5.6: "A NAS is not required to implement all of these
+		// service types, and MUST treat unknown or unsupported Service-Types as
+		// though an Access-Reject had been received instead."
+		// RFC 2865 Section 1.1: "A NAS MUST treat a RADIUS access-accept
+		// authorizing an unavailable service as an access-reject instead."
+		//
+		// Admin login is the one service this path provides, and its
+		// Access-Request asks for Login-User. An Accept naming anything else
+		// authorizes a service ze cannot give the operator, so it is a rejection
+		// and the chain stops, exactly as for the empty profile set below.
+		if !AcceptedServiceType(resp, serviceTypeLogin) {
+			a.logger.Warn("RADIUS admin auth rejected: Access-Accept names an unsupported Service-Type",
+				"username", request.Username)
+			return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
+		}
+
 		profiles := a.mapProfiles(resp)
 		if len(profiles) == 0 {
 			a.logger.Warn("RADIUS admin auth rejected: no profiles resolved",
@@ -170,6 +191,18 @@ func (a *radiusAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		}, nil
 	case CodeAccessReject:
 		a.logger.Info("RADIUS admin auth rejected", "username", request.Username)
+		return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
+	case CodeAccessChallenge:
+		// RFC 2865 Section 4.4: "If the NAS does not support challenge/response,
+		// it MUST treat an Access-Challenge as though it had received an
+		// Access-Reject instead."
+		//
+		// Admin login sends one Access-Request and has no path back to the
+		// operator for a second one, so ze does not support challenge/response
+		// here. Returning a plain error would leave the challenge looking like an
+		// infrastructure failure, and the chain would try TACACS+ and local next.
+		a.logger.Info("RADIUS admin auth rejected: Access-Challenge and no challenge/response support",
+			"username", request.Username)
 		return aaa.AuthResult{Source: aaaName}, aaa.ErrAuthRejected
 	default:
 		return aaa.AuthResult{}, fmt.Errorf("radius: unexpected response code %d", resp.Code)

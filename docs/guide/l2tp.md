@@ -262,6 +262,22 @@ RADIUS client plugin providing:
 - **CoA/DM** -- Change of Authorization and Disconnect-Message listener
   (RFC 5176) for RADIUS-initiated session changes and disconnects
 
+RFC 2865 Section 4.1 admits exactly three credential attributes in an
+Access-Request: User-Password, CHAP-Password, or State. A peer that supplied
+none of them supplies nothing to authenticate, so no Access-Request is built and
+the session is denied with `no usable credential`. This covers `auth-method
+none` while a RADIUS server is configured, and an MS-CHAPv2 response too short
+to carry a peer challenge and an NT response. Section 5 forbids sending text of
+length zero, so a peer that sends an empty PAP Peer-ID gets an Access-Request
+with no User-Name attribute rather than an empty one.
+
+An Access-Accept naming a Service-Type other than Framed-User is treated as an
+Access-Reject, and the session is denied with `unsupported Service-Type`. The
+LNS provides framed PPP access and asks for it by name, so an Accept authorizing
+anything else authorizes a service ze cannot bring up (RFC 2865 Sections 5.6
+and 1.1).
+<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS -->
+
 Every Accounting-Request carries User-Name, Acct-Status-Type, Acct-Session-Id,
 Service-Type (Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual) and
 NAS-Port. NAS-IP-Address, NAS-Identifier and NAS-Port-Id are added when they are
@@ -322,8 +338,23 @@ standard deployment choice. Ze accepts CoA/DM requests only from addresses
 listed under `server`; the authentication and accounting destination port on
 each server is configured separately.
 
+Every CoA-Request and Disconnect-Request Ze accepts MUST carry a
+Message-Authenticator attribute. RFC 5176 Section 3.4 makes the attribute
+optional, and Ze requires it: a request without one is discarded with no reply,
+because the Request Authenticator alone is an unkeyed MD5 an on-path party can
+recompute. Configure the Dynamic Authorization Client to send it. FreeRADIUS
+`radclient` and the `radiusd` CoA originator both do.
+
+Both authenticators are computed in the order RFC 5176 Section 3.4 fixes. The
+Message-Authenticator is the HMAC-MD5 over the packet with the Request
+Authenticator field and the Message-Authenticator value each replaced by sixteen
+octets of zero, and the Request Authenticator is computed afterwards, over the
+packet the finished Message-Authenticator is part of. A client that inverts the
+two is refused.
+
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- coa-port -->
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- source-address validation -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- source-address validation, handlePacket -->
+<!-- source: internal/component/radius/packet.go -- VerifyCoARequestAuth, VerifyCoAMessageAuthenticator -->
 
 
 Authentication timing is controlled via the `authentication` container under `l2tp`:

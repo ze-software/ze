@@ -45,9 +45,15 @@ module ze-radius-conf {
                     }
 
                     leaf key {
-                        type string;
+                        type string {
+                            length "1..max";
+                        }
                         ze:sensitive;
-                        description "RADIUS shared secret (RFC 2865)";
+                        description
+                            "RADIUS shared secret (RFC 2865). RFC 2865 Section 3
+                             states the secret MUST NOT be empty (length 0),
+                             since an empty secret allows packets to be
+                             trivially forged.";
                     }
                 }
 

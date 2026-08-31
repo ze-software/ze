@@ -55,7 +55,7 @@ func init() {
 			bindRADIUSMetrics(reg)
 		},
 		ConfigureEventBus: func(eb ze.EventBus) {
-			acctInstance.SubscribeEventBus(eb)
+			acctInstance.subscribeEventBus(eb)
 			eventBusMu.Lock()
 			storedBus = eb
 			eventBusMu.Unlock()
@@ -210,14 +210,21 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 		activeCoA = nil
 	}
 	if cfg.CoAPort > 0 && len(cfg.Servers) > 0 {
-		allowed := serverIPs(cfg.Servers)
-		secrets := serverSecrets(cfg.Servers)
-		cl, coaErr := newCoAListener(cfg.CoAPort, secrets, cfg.Servers[0].SharedKey, bus, allowed)
+		cl, coaErr := newCoAListener(coaListenerConfig{
+			Port:                        cfg.CoAPort,
+			Secrets:                     serverSecrets(cfg.Servers),
+			DefaultSecret:               cfg.Servers[0].SharedKey,
+			Bus:                         bus,
+			AllowedSources:              serverIPs(cfg.Servers),
+			RequireMessageAuthenticator: cfg.RequireMessageAuthenticator,
+		})
 		if coaErr != nil {
 			logger().Warn("l2tp-auth-radius: CoA listener failed to start", "error", coaErr)
 		} else {
 			activeCoA = cl
-			logger().Info("l2tp-auth-radius: CoA listener started", "port", cfg.CoAPort)
+			logger().Info("l2tp-auth-radius: CoA listener started",
+				"port", cfg.CoAPort,
+				"require-message-authenticator", cfg.RequireMessageAuthenticator)
 		}
 	}
 	return nil

@@ -52,6 +52,20 @@ sends no attribute.";
 the listener off, so an existing deployment does not start accepting CoA on
 upgrade. Requests are accepted only from the configured RADIUS server addresses.";
                 }
+                leaf require-message-authenticator {
+                    type boolean;
+                    default false;
+                    description "Discard a CoA-Request or a Disconnect-Request
+that carries no Message-Authenticator attribute. RFC 5176 Section 3.4 makes the
+attribute optional, so the default is false and a request without one is
+processed after its Request Authenticator verifies against the shared secret.
+Set this leaf to true when every Dynamic Authorization Client sends the
+attribute. The attribute is an HMAC-MD5 keyed with the shared secret, and it is
+the mitigation for the Blast-RADIUS class of attack (CVE-2024-3596), which
+forges a RADIUS/UDP packet with a chosen-prefix MD5 collision against the
+authenticator. A client that sends no attribute gets no answer while this leaf
+is true.";
+                }
                 list server {
                     key "name";
                     ordered-by user;
@@ -70,9 +84,14 @@ upgrade. Requests are accepted only from the configured RADIUS server addresses.
                         description "RADIUS server UDP port.";
                     }
                     leaf shared-key {
-                        type string;
+                        type string {
+                            length "1..max";
+                        }
                         ze:sensitive;
-                        description "RADIUS shared secret.";
+                        description
+                            "RADIUS shared secret. RFC 2865 Section 3 states the
+                             secret MUST NOT be empty (length 0), since an empty
+                             secret allows packets to be trivially forged.";
                     }
                 }
             }

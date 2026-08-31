@@ -1,3 +1,6 @@
+// RFC: rfc/short/rfc5176.md -- Section 2.3 Request Authenticator, Section 3.4 Message-Authenticator
+// RFC: rfc/short/rfc2866.md -- Section 3 Accounting-Request Authenticator
+
 package fixture
 
 import (
@@ -112,15 +115,27 @@ func tunnelRadiusCoA(ctx context.Context, args []string) error {
 	request[0], request[1] = 40, 7
 	binary.BigEndian.PutUint16(request[2:4], uint16(len(request)))
 	copy(request[20:], attrs)
-	hash := md5.New() //nolint:gosec // RFC 5176 request authenticator
-	hash.Write(request[:4])
-	hash.Write(make([]byte, 16))
-	hash.Write(attrs)
-	hash.Write(secret)
-	copy(request[4:20], hash.Sum(nil))
+	messageAuthenticator := len(request) - 16
+
+	// RFC 5176 Section 3.4: "When the HMAC-MD5 message integrity check is
+	// calculated the Request Authenticator field and Message-Authenticator
+	// Attribute MUST each be considered to be sixteen octets of zero.  The
+	// Message-Authenticator Attribute is calculated and inserted in the packet
+	// before the Request Authenticator is calculated." Both fields still hold
+	// their sixteen zeros here, so the HMAC runs over the packet as it stands.
 	mac := hmac.New(md5.New, secret)
 	mac.Write(request)
-	copy(request[len(request)-16:], mac.Sum(nil))
+	copy(request[messageAuthenticator:], mac.Sum(nil))
+
+	// RFC 5176 Section 2.3: "The Request Authenticator is calculated the same
+	// way as for an Accounting-Request, specified in [RFC2866]", over the
+	// attribute stream the Message-Authenticator is now part of.
+	hash := md5.New() //nolint:gosec // RFC 5176 Section 2.3 mandates the RFC 2866 MD5 formula
+	hash.Write(request[:4])
+	hash.Write(make([]byte, 16))
+	hash.Write(request[20:])
+	hash.Write(secret)
+	copy(request[4:20], hash.Sum(nil))
 	requestAuthenticator := append([]byte(nil), request[4:20]...)
 
 	conn, target, err := tunnelL2TPDial(port)

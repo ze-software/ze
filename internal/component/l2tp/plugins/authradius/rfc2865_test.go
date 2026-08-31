@@ -23,7 +23,10 @@ func TestRFC2865SubscriberAccessRequestUserName(t *testing.T) {
 		Username:  "subscriber@example.net",
 		Response:  []byte("secret-pw"),
 	}
-	attrs := buildAuthAttrs(req, "nas-1", net.IPv4(10, 0, 0, 1))
+	attrs, ok := buildAuthAttrs(req, "nas-1", net.IPv4(10, 0, 0, 1))
+	if !ok {
+		t.Fatal("a PAP request MUST build an Access-Request")
+	}
 
 	// RFC requirement: RFC2865-5-1 positive -- the subscriber Access-Request the L2TP RADIUS
 	// client builds carries a User-Name attribute (Section 5, required in Access-Request).

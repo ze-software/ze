@@ -40,7 +40,7 @@ func TestRFC5176NoSessionIdNotActedOn(t *testing.T) {
 	l2tp.PublishService(fake)
 	defer l2tp.PublishService(nil)
 
-	cl, err := newCoAListener(0, nil, secret, nil, nil)
+	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestRFC5176NoSessionIdNotActedOn(t *testing.T) {
 // radius.ResponseAuthenticator for the request authenticator and shared secret.
 func TestRFC5176ResponseAuthenticator(t *testing.T) {
 	secret := []byte("test-respauth-secret")
-	cl, err := newCoAListener(0, nil, secret, nil, nil)
+	cl, err := newCoAListener(coaListenerConfig{DefaultSecret: secret})
 	if err != nil {
 		t.Fatal(err)
 	}

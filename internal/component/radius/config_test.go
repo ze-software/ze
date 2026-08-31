@@ -27,14 +27,16 @@ func radiusTree(inner *config.Tree) *config.Tree {
 // VALIDATES: ExtractConfig returns zero config for a nil tree.
 // PREVENTS: nil pointer panic when the config tree is unavailable at Build.
 func TestExtractRadiusConfigNilTree(t *testing.T) {
-	cfg := ExtractConfig(nil)
+	cfg, err := ExtractConfig(nil)
+	require.NoError(t, err)
 	assert.False(t, cfg.HasServers())
 }
 
 // VALIDATES: ExtractConfig returns no servers for an empty tree.
 // PREVENTS: false-positive HasServers when RADIUS is not configured (AC-2).
 func TestExtractRadiusConfigEmptyTree(t *testing.T) {
-	cfg := ExtractConfig(config.NewTree())
+	cfg, err := ExtractConfig(config.NewTree())
+	require.NoError(t, err)
 	assert.False(t, cfg.HasServers())
 }
 
@@ -60,7 +62,8 @@ func TestExtractRadiusConfig(t *testing.T) {
 	inner.Set("profile-attribute", "filter-id")
 	inner.SetSlice("default-profile", []string{"read-only"})
 
-	cfg := ExtractConfig(radiusTree(inner))
+	cfg, err := ExtractConfig(radiusTree(inner))
+	require.NoError(t, err)
 
 	require.True(t, cfg.HasServers())
 	require.Len(t, cfg.Servers, 2)
@@ -83,7 +86,8 @@ func TestExtractRadiusConfigDefaults(t *testing.T) {
 	srv.Set("key", "k")
 	inner.AddListEntry("server", "10.0.0.1", srv)
 
-	cfg := ExtractConfig(radiusTree(inner))
+	cfg, err := ExtractConfig(radiusTree(inner))
+	require.NoError(t, err)
 
 	require.True(t, cfg.HasServers())
 	assert.Equal(t, "10.0.0.1:1812", cfg.Servers[0].Address, "default port 1812")
@@ -101,7 +105,8 @@ func TestExtractRadiusConfigProfileAttrClass(t *testing.T) {
 	inner.AddListEntry("server", "10.0.0.1", srv)
 	inner.Set("profile-attribute", "class")
 
-	cfg := ExtractConfig(radiusTree(inner))
+	cfg, err := ExtractConfig(radiusTree(inner))
+	require.NoError(t, err)
 	assert.Equal(t, uint8(attrClass), cfg.ProfileAttr)
 }
 
@@ -116,13 +121,15 @@ func TestExtractRadiusConfigBoundaryValues(t *testing.T) {
 	inner.Set("timeout", "60")
 	inner.Set("retries", "10")
 
-	cfg := ExtractConfig(radiusTree(inner))
+	cfg, err := ExtractConfig(radiusTree(inner))
+	require.NoError(t, err)
 	assert.Equal(t, "10.0.0.1:65535", cfg.Servers[0].Address)
 	assert.Equal(t, 60*time.Second, cfg.Timeout)
 	assert.Equal(t, 10, cfg.Retries)
 
 	inner.Set("retries", "0")
-	cfg = ExtractConfig(radiusTree(inner))
+	cfg, err = ExtractConfig(radiusTree(inner))
+	require.NoError(t, err)
 	assert.Equal(t, 0, cfg.Retries, "explicit retries 0 preserved by extraction")
 }
 

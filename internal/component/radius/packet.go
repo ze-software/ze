@@ -1,4 +1,8 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS wire format
+// RFC: rfc/short/rfc2865.md -- Section 3 packet format and Response Authenticator
+// RFC: rfc/short/rfc2866.md -- Section 3 Accounting-Request Authenticator
+// RFC: rfc/short/rfc2869.md -- Section 5.14 Message-Authenticator on a response
+// RFC: rfc/short/rfc5176.md -- Section 2.3 Request Authenticator, Section 3.4 Message-Authenticator
 // Related: dict.go -- packet codes and attribute type constants
 // Related: attr.go -- attribute encode/decode helpers
 
@@ -173,10 +177,34 @@ func VerifyResponseAuth(response []byte, requestAuth [AuthenticatorLen]byte, sec
 	return subtle.ConstantTimeCompare(response[4:4+AuthenticatorLen], expected[:]) == 1
 }
 
-// VerifyCoARequestAuth checks the authenticator of a CoA-Request or
-// Disconnect-Request. RFC 5176 Section 3.5: same formula as
-// Accounting-Request (MD5 over Code+ID+Length+16-zero-octets+Attrs+Secret).
-// Uses constant-time comparison.
+// VerifyCoARequestAuth checks the Request Authenticator of a CoA-Request or
+// Disconnect-Request. It reports whether a Dynamic Authorization Server may act
+// on the datagram. Uses constant-time comparison.
+//
+// RFC 5176 Section 2.3: "In Request packets, the Authenticator value is a
+// 16-octet MD5 [RFC1321] checksum, called the Request Authenticator.  The
+// Request Authenticator is calculated the same way as for an
+// Accounting-Request, specified in [RFC2866]." AccountingRequestAuth is that
+// formula.
+//
+// The octet stream the MD5 covers, with byte offsets:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|     Code      |  Identifier   |            Length             |  0..3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|      Request Authenticator (16 octets of zero, substituted)   |  4..19
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Attributes, Message-Authenticator value AS RECEIVED ...      |  20..Length-1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Shared secret ...                                            |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// RFC 5176 Section 3.4: "The Message-Authenticator Attribute is calculated and
+// inserted in the packet before the Request Authenticator is calculated." The
+// attribute therefore holds its real HMAC in the stream this MD5 covers, so it
+// is passed through unchanged rather than zeroed.
 func VerifyCoARequestAuth(data, secret []byte) bool {
 	if len(data) < MinPacketLen {
 		return false
@@ -185,23 +213,47 @@ func VerifyCoARequestAuth(data, secret []byte) bool {
 	if pktLen < MinPacketLen || pktLen > len(data) {
 		return false
 	}
-	authInput := data[:pktLen]
-	if maOff, hasMA, ok := messageAuthenticatorValueOffset(authInput); !ok {
-		return false
-	} else if hasMA {
-		buf := make([]byte, pktLen)
-		copy(buf, authInput)
-		clear(buf[maOff : maOff+AuthenticatorLen])
-		authInput = buf
-	}
-	expected := AccountingRequestAuth(authInput, pktLen, secret)
+	expected := AccountingRequestAuth(data[:pktLen], pktLen, secret)
 	return subtle.ConstantTimeCompare(data[4:4+AuthenticatorLen], expected[:]) == 1
 }
 
-// VerifyMessageAuthenticator checks the RADIUS Message-Authenticator
-// attribute (type 80) when present. RFC 3579 Section 3.2 computes the
-// HMAC-MD5 over the packet with the Message-Authenticator value zeroed.
-func VerifyMessageAuthenticator(data, secret []byte) bool {
+// VerifyCoAMessageAuthenticator checks the Message-Authenticator attribute
+// (type 80) of a CoA-Request or Disconnect-Request. It reports whether a
+// Dynamic Authorization Server may act on the datagram.
+//
+// A datagram carrying no Message-Authenticator fails: the Ze listener requires
+// the attribute on every CoA-Request and Disconnect-Request it accepts
+// (internal/component/l2tp/plugins/authradius/coa.go, handlePacket), so an
+// absent attribute is a refusal rather than an exemption. A datagram whose
+// attribute list cannot be walked fails too.
+//
+// RFC 5176 Section 3.4: "A Dynamic Authorization Server receiving a CoA-Request
+// or Disconnect-Request with a Message-Authenticator Attribute present MUST
+// calculate the correct value of the Message-Authenticator and silently discard
+// the packet if it does not match the value sent."
+//
+// RFC 5176 Section 3.4: "Message-Authenticator = HMAC-MD5 (Type, Identifier,
+// Length, Request Authenticator, Attributes)".
+//
+// The octet stream the HMAC covers, with byte offsets:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|     Code      |  Identifier   |            Length             |  0..3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|      Request Authenticator (16 octets of zero, substituted)   |  4..19
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Attributes, Message-Authenticator value zeroed ...           |  20..Length-1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// The wire datagram carries a computed Request Authenticator at offsets 4 to
+// 19, because RFC 5176 Section 3.4 computes the Message-Authenticator first and
+// the Request Authenticator over the finished packet. Sixteen zeros are
+// substituted there before the HMAC runs. An Access-Request differs and is not
+// this function's business: RFC 3579 Section 3.2 carries a random nonce in that
+// field and hashes it as it stands.
+func VerifyCoAMessageAuthenticator(data, secret []byte) bool {
 	if len(data) < MinPacketLen {
 		return false
 	}
@@ -212,16 +264,90 @@ func VerifyMessageAuthenticator(data, secret []byte) bool {
 
 	buf := make([]byte, pktLen)
 	copy(buf, data[:pktLen])
-	maOff, hasMA, ok := messageAuthenticatorValueOffset(buf)
-	if !ok || !hasMA {
+	maOff, present, ok := messageAuthenticatorValueOffset(buf)
+	if !ok || !present {
 		return false
 	}
-	received := data[maOff : maOff+AuthenticatorLen]
+	var received [AuthenticatorLen]byte
+	copy(received[:], buf[maOff:maOff+AuthenticatorLen])
+
+	// RFC 5176 Section 3.4: "When the HMAC-MD5 message integrity check is
+	// calculated the Request Authenticator field and Message-Authenticator
+	// Attribute MUST each be considered to be sixteen octets of zero."
+	clear(buf[4 : 4+AuthenticatorLen])
 	clear(buf[maOff : maOff+AuthenticatorLen])
-	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 3579 mandates HMAC-MD5.
+
+	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 5176 Section 3.4 mandates HMAC-MD5.
 	mac.Write(buf)
-	expected := mac.Sum(nil)
-	return hmac.Equal(received, expected)
+	return hmac.Equal(received[:], mac.Sum(nil))
+}
+
+// verifyResponseMessageAuthenticator checks the Message-Authenticator
+// attribute (type 80) of an Access-Accept, Access-Reject or Access-Challenge
+// against the Request Authenticator of the Access-Request it answers. It
+// reports whether a RADIUS client may accept the datagram.
+//
+// A datagram carrying no Message-Authenticator passes. RFC 2869 Section 5.14
+// conditions the obligation on the attribute being present, and RFC 2869
+// Section 5.19 Note 1 makes it mandatory only for a packet that also carries
+// an EAP-Message attribute. A datagram whose attribute list cannot be walked
+// fails.
+//
+// RFC 2869 Section 5.14: "A RADIUS Client receiving an Access-Accept,
+// Access-Reject or Access-Challenge with a Message-Authenticator Attribute
+// present MUST calculate the correct value of the Message-Authenticator and
+// silently discard the packet if it does not match the value sent."
+//
+// RFC 2869 Section 5.14: "For Access-Challenge, Access-Accept, and
+// Access-Reject packets, the Message-Authenticator is calculated as follows,
+// using the Request-Authenticator from the Access-Request this packet is in
+// reply to: Message-Authenticator = HMAC-MD5 (Type, Identifier, Length,
+// Request Authenticator, Attributes)". The same section adds "When the
+// checksum is calculated the signature string should be considered to be
+// sixteen octets of zero."
+//
+// The octet stream the HMAC covers, with byte offsets:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|     Code      |  Identifier   |            Length             |  0..3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|         Request Authenticator (16 octets, substituted)        |  4..19
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|    Attributes, Message-Authenticator value zeroed ...         |  20..Length-1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// The wire datagram carries the Response Authenticator at offsets 4 to 19,
+// because RFC 2869 Section 5.14 computes the Message-Authenticator first and
+// the Response Authenticator over the finished packet. The Request
+// Authenticator is substituted there before the HMAC runs.
+func verifyResponseMessageAuthenticator(data []byte, requestAuth [AuthenticatorLen]byte, secret []byte) bool {
+	if len(data) < MinPacketLen {
+		return false
+	}
+	pktLen := int(binary.BigEndian.Uint16(data[2:4]))
+	if pktLen < MinPacketLen || pktLen > len(data) {
+		return false
+	}
+
+	buf := make([]byte, pktLen)
+	copy(buf, data[:pktLen])
+	maOff, present, ok := messageAuthenticatorValueOffset(buf)
+	if !ok {
+		return false
+	}
+	if !present {
+		return true
+	}
+
+	var received [AuthenticatorLen]byte
+	copy(received[:], buf[maOff:maOff+AuthenticatorLen])
+	copy(buf[4:4+AuthenticatorLen], requestAuth[:])
+	clear(buf[maOff : maOff+AuthenticatorLen])
+	mac := hmac.New(md5.New, secret) //nolint:gosec // RFC 2869 Section 5.14 mandates HMAC-MD5.
+	mac.Write(buf)
+	return hmac.Equal(received[:], mac.Sum(nil))
 }
 
 func messageAuthenticatorValueOffset(data []byte) (offset int, present, ok bool) {
@@ -248,7 +374,7 @@ func messageAuthenticatorValueOffset(data []byte) (offset int, present, ok bool)
 
 // AccountingRequestAuth computes the authenticator for an Accounting-Request.
 // RFC 2866 Section 3: MD5(Code+ID+Length+16zero+Attributes+Secret).
-// RFC 5176 Section 3.5: same formula for CoA-Request and Disconnect-Request.
+// RFC 5176 Section 2.3: same formula for CoA-Request and Disconnect-Request.
 func AccountingRequestAuth(buf []byte, length int, secret []byte) [AuthenticatorLen]byte {
 	h := md5.New() //nolint:gosec // RFC 2866 mandates MD5
 	h.Write(buf[:4])

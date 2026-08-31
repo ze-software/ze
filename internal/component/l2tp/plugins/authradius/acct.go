@@ -118,8 +118,8 @@ func (a *radiusAcct) genSessionID(tunnelID, sessionID uint16) string {
 	return b.Reset().Int(int64(tunnelID)).Byte('-').Int(int64(sessionID)).Byte('-').Int(int64(n)).String()
 }
 
-// SubscribeEventBus subscribes to session lifecycle events for accounting.
-func (a *radiusAcct) SubscribeEventBus(bus ze.EventBus) {
+// subscribeEventBus subscribes to session lifecycle events for accounting.
+func (a *radiusAcct) subscribeEventBus(bus ze.EventBus) {
 	if bus == nil {
 		return
 	}
@@ -146,7 +146,7 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 		return
 	}
 
-	// RFC 2866 Section 5.18: per-session Acct-Interim-Interval override.
+	// RFC 2869 Section 5.16: per-session Acct-Interim-Interval override.
 	if meta := l2tp.LoadSessionMetadata(payload.TunnelID, payload.SessionID); meta != nil && meta.AcctInterimInterval > 0 {
 		interval = time.Duration(clampAcctInterval(meta.AcctInterimInterval)) * time.Second
 	}
