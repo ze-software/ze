@@ -517,12 +517,20 @@ func TestCheckSupportedSignoffRefusesTheGeneratedSkeleton(t *testing.T) {
 // PREVENTS: a scope carried forward from a table in a spec. The two denominators differ,
 // and every earlier count of this page reported one of them without saying which.
 //
-// They differ for two reasons, and the numbers below are 53 = 50 - 1 + 4:
-//   - RFC 2759 is stated TWICE, "Supported within PPP and IPsec EAP" in the access table
-//     and "Partial" in the IPsec table. parseStatusLedger keys by stem and the later row
-//     wins, so the support promise is invisible to every ledger check that reads the map.
-//   - the ninth table (drafts and non-RFC standards) is outside the spec's scope cut, and
-//     it carries four more rows that promise support.
+// They differ for one reason now, and the numbers below are 52 = 48 + 4: the ninth table
+// (drafts and non-RFC standards) is outside the spec's scope cut, and it carries four more
+// rows that promise support. That term is DERIVED from the page at the end of this test
+// rather than retyped, so the bridge between the two denominators is checked and not
+// merely described.
+//
+// A second term stood here until 2026-08-31, written `- 1` for a stem the page stated
+// TWICE: RFC 2759 read "Supported within PPP and IPsec EAP" in the access table and
+// "Partial" in the IPsec table, and parseStatusLedger keys by stem and keeps the LAST row,
+// so the promise was invisible to every ledger check that reads the map. Commit 460fdc0f8
+// closed the three MUST gaps the IPsec row disclosed and merged the two rows into one
+// "Supported" row, so no stem is stated twice and the term has nothing to subtract. Do not
+// restore it: a duplicate that hides a promise again makes the derived bridge below fail,
+// which is where a reader should meet it.
 //
 // A number that moves fails this test with both counts printed, which is the point: the
 // scope is re-derived at the start of a phase and at closure, and a delta is recorded in
@@ -550,8 +558,8 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	// vocabulary paragraph never defined the word, so it now reads 'Supported'.
 	// The shape is kept in the split rather than dropped, because the predicate
 	// still accepts it and a future row could reintroduce it.
-	if len(mapped) != 53 || exact != 42 || qualified != 11 || yes != 0 {
-		t.Errorf("the ledger keys %d support-promising stem(s) (%d exact, %d scope-qualified, %d 'Yes'), want 53 (42, 11, 0)",
+	if len(mapped) != 52 || exact != 41 || qualified != 11 || yes != 0 {
+		t.Errorf("the ledger keys %d support-promising stem(s) (%d exact, %d scope-qualified, %d 'Yes'), want 52 (41, 11, 0)",
 			len(mapped), exact, qualified, yes)
 	}
 	if exact+qualified+yes != len(mapped) {
@@ -561,7 +569,7 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 
 	// The eight RFC tables, row by row. The ninth table's heading ends them, and a row
 	// keyed by anything other than an RFC number is not one of theirs.
-	eightTables, _, _ := strings.Cut(page, "\n## Drafts")
+	eightTables, ninthTable, _ := strings.Cut(page, "\n## Drafts")
 	var rows []string
 	for line := range strings.SplitSeq(eightTables, "\n") {
 		if !strings.HasPrefix(line, "|") {
@@ -576,21 +584,39 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 		}
 	}
 	rowExact, rowQualified, rowYes := supportClaimSplit(rows)
-	if len(rows) != 50 || rowExact != 38 || rowQualified != 12 || rowYes != 0 {
-		t.Errorf("the eight RFC tables carry %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 50 (38, 12, 0)",
+	if len(rows) != 48 || rowExact != 37 || rowQualified != 11 || rowYes != 0 {
+		t.Errorf("the eight RFC tables carry %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 48 (37, 11, 0)",
 			len(rows), rowExact, rowQualified, rowYes)
 	}
 
-	// RFC 2759 is the single stem the two denominators disagree about, and the ledger is
-	// where the disagreement hides. The access table promises "Supported within PPP and
-	// IPsec EAP", the IPsec table says "Partial", and parseStatusLedger keeps the last of
-	// a repeated key, so every check reading the map sees the disclosure and never the
-	// promise. The row that survives is asserted here rather than only described above,
-	// because a page edit that lets the promise win moves both counts and leaves the
-	// reader no way to tell which of the two arithmetics broke.
-	if status := ledger["rfc2759"].Status; status != "Partial" {
-		t.Errorf("the RFC 2759 ledger row now reads %q rather than 'Partial', so the duplicate-row term in 53 = 50 - 1 + 4 no longer holds",
-			status)
+	// The ninth table, by the two key shapes parseStatusLedger accepts there: a draft stem
+	// and a non-RFC stem. It holds no RFC-keyed row, so its support promises are exactly
+	// the stems the eight-table count above cannot reach.
+	var draftRows []string
+	for line := range strings.SplitSeq(ninthTable, "\n") {
+		if !strings.HasPrefix(line, "|") {
+			continue
+		}
+		cells := splitTableRow(line)
+		if len(cells) < 3 {
+			continue
+		}
+		if !statusDraftRE.MatchString(cells[0]) && !statusStemRE.MatchString(cells[0]) {
+			continue
+		}
+		if statusPromisesSupport(cells[2]) {
+			draftRows = append(draftRows, cells[2])
+		}
+	}
+
+	// The bridge between the two denominators, asserted rather than described. Every
+	// support-promising row the page carries reaches the ledger under its own key, so the
+	// stem count is the eight-table count plus the ninth table's. A stem stated twice
+	// whose later row withdraws the promise drops the left side and leaves the right one
+	// standing, which is the shape RFC 2759 held until 460fdc0f8 merged its two rows.
+	if len(mapped) != len(rows)+len(draftRows) {
+		t.Errorf("the ledger keys %d support-promising stem(s) but the page carries %d row(s) (%d in the eight RFC tables, %d in the ninth), so a promised row is hidden by a repeated key",
+			len(mapped), len(rows)+len(draftRows), len(rows), len(draftRows))
 	}
 }
 
@@ -1194,5 +1220,53 @@ func TestCheckDiscriminationMeasuresChangedGrandfatheredUnits(t *testing.T) {
 	if code != 0 || commented.DiscriminationChanged != 0 {
 		t.Errorf("a comment-only edit measured %d changed unit(s) and answered %d, want 0 and 0",
 			commented.DiscriminationChanged, code)
+	}
+}
+
+// VALIDATES: owner decision B's measurement over the path 3,802 of the in-scope tags
+// take -- a unit key naming a FUNCTION, resolved through resolveKeyText and judged by
+// ChangedTags over the function body alone.
+// VALIDATES: a unit the walk cannot read at both revisions is counted apart and published,
+// never dropped into the changed count's zero.
+// METHOD: one Go function tagged at HEAD, then four working trees: unchanged, its body
+// inverted, a comment added inside it, and the function renamed away. Driven through
+// discriminationChangedUnits directly, because a Go tag inside the Check fixture would
+// send checkTagPackagesCompile to a `go vet` over a tree that carries no go.mod.
+// PREVENTS: a measurement that reports a clean corpus it never opened. Every failure on
+// this path was a silent continue, so a resolver answering nothing looked exactly like a
+// backlog of zero (ai/rules/principles.md).
+func TestDiscriminationMeasuresChangedGoFunctionUnits(t *testing.T) {
+	unit := selftestTestPath + "::TestWidget"
+	key := cover{rid: selftestRIDSend, polarity: polarityPositive, unit: unit}
+	head := map[string]string{selftestTestPath: selftestTestSource}
+	measure := func(working map[string]string) (int, int) {
+		return discriminationChangedUnits(discriminationInput{
+			Gated:      map[string]bool{selftestRIDSend: true},
+			Covers:     map[cover][]Tag{key: {{RID: selftestRIDSend, Polarity: polarityPositive}}},
+			HeadCovers: map[cover]bool{key: true},
+			Sources:    newTextReader(working), Index: newScopeIndex(), HeadTagBlobs: head})
+	}
+
+	for name, working := range map[string]map[string]string{
+		"an unchanged function": head,
+		"a comment added inside the function": {selftestTestPath: strings.Replace(selftestTestSource,
+			"func TestWidget() {\n", "func TestWidget() {\n\t// The widget count is one.\n", 1)},
+	} {
+		if changed, unresolved := measure(working); changed != 0 || unresolved != 0 {
+			t.Errorf("%s measured %d changed and %d unresolved, want 0 and 0", name, changed, unresolved)
+		}
+	}
+
+	inverted := map[string]string{selftestTestPath: strings.Replace(selftestTestSource, "!= 1", "== 1", 1)}
+	if changed, unresolved := measure(inverted); changed != 1 || unresolved != 0 {
+		t.Errorf("an inverted assertion measured %d changed and %d unresolved, want 1 and 0",
+			changed, unresolved)
+	}
+
+	renamed := map[string]string{selftestTestPath: strings.Replace(selftestTestSource,
+		"TestWidget", "TestGadget", 1)}
+	if changed, unresolved := measure(renamed); changed != 0 || unresolved != 1 {
+		t.Errorf("a unit the working tree no longer holds measured %d changed and %d unresolved, "+
+			"want 0 and 1: a unit nobody could read is not a unit nobody changed", changed, unresolved)
 	}
 }

@@ -56,8 +56,10 @@ func TestPeerHeaderFromEventIPv6(t *testing.T) {
 
 // RFC requirement: RFC8671-x-2 positive -- when the O flag (Adj-RIB-Out) is set, the L flag
 // (bit 6, post-policy) is also set: the sent direction sets both O and L.
-// RFC requirement: RFC8671-5.2-1 negative -- the L flag is 0 for pre-policy, so a post-policy
-// message is the case where it is 1: the sent direction carries L set, never clear.
+//
+// RFC 8671 Section 5.2 is NOT claimed here. It sits inside Section 5, Adj-RIB-Out, and binds
+// a speaker that sends the PRE-policy Adj-RIB-Out view. ze sends none, so its two sites are
+// excluded feature-out-of-scope in rfc/extraction/rfc8671.json.
 func TestPeerHeaderFromEventAdjRIBOut(t *testing.T) {
 	// VALIDATES: RFC 8671 -- sent direction sets O flag (Adj-RIB-Out) and L flag (post-policy)
 	se := &rpc.StructuredEvent{
@@ -77,8 +79,10 @@ func TestPeerHeaderFromEventAdjRIBOut(t *testing.T) {
 
 // RFC requirement: RFC8671-x-2 negative -- the O/L coupling is confined to the Adj-RIB-Out (sent)
 // direction: the received direction (Adj-RIB-In) sets neither the O flag nor the L flag.
-// RFC requirement: RFC8671-5.2-1 positive -- the pre-policy monitoring ze emits carries the L
-// flag set to 0, which is what tells the receiver the routes are pre-policy.
+//
+// The cleared L flag here is Adj-RIB-In pre-policy in the RFC 7854 Section 4.2 sense, which is
+// a different thing from the pre-policy Adj-RIB-Out of RFC 8671 Section 5.2. Section 5.2 is not
+// claimed here: ze emits no pre-policy Adj-RIB-Out.
 func TestPeerHeaderFromEventAdjRIBIn(t *testing.T) {
 	// VALIDATES: received direction does NOT set O or L flags (pre-policy Adj-RIB-In)
 	se := &rpc.StructuredEvent{
