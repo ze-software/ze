@@ -24,7 +24,8 @@ be a second declaration of one fact.";
             container next-hop {
                 config false;
                 ze:modifier "once";
-                description "The next hop to advertise. Defaults to this router.";
+                description "The next hop to advertise.";
+                ze:help "It defaults to this router.";
                 leaf address { type string { length "1..46"; } mandatory true; description "An address, or self for this router"; }
             }
 
@@ -54,9 +55,10 @@ be a second declaration of one fact.";
         container blackhole {
             config false;
             ze:command "ze-bgp:announce-blackhole";
-            description "Originate a blackhole route on demand.
-The BLACKHOLE community is attached by this command, so RFC 7999 Section 3.1
-narrows the fan-out to the sessions that recorded the agreement.";
+            description "Originate a blackhole route on demand.";
+            ze:help "This command attaches the BLACKHOLE community itself, so
+RFC 7999 Section 3.1 narrows the fan-out to the sessions that recorded the
+agreement.";
             leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix to blackhole, in CIDR form"; }
 
             container tag {
@@ -78,32 +80,35 @@ narrows the fan-out to the sessions that recorded the agreement.";
         container flowspec {
             config false;
             ze:command "ze-bgp:announce-flowspec";
-            description "Originate a FlowSpec rule on demand (RFC 8955).
-The match components come from ze-flowspec-cmd, which augments this container.
-They are the FlowSpec codec vocabulary and the plugin that owns it declares
-them, so this module never restates another plugin's words. An augmented
-container carries no declaration order, so the components sort by name and land
-in front of the action and the options declared here.";
+            description "Originate a FlowSpec rule on demand (RFC 8955).";
+            ze:help "The match components come from ze-flowspec-cmd, which
+augments this container. They are the FlowSpec codec vocabulary, and the plugin
+that owns it declares them, so this module never restates another plugin's
+words. An augmented container carries no declaration order, so the components
+sort by name and land in front of the action and the options declared here.";
 
             container community {
                 config false;
                 ze:modifier "once";
-                description "The traffic action, as the extended community RFC 8955
-Section 7 defines it. rate-limit and discard are spellings of one.";
+                description "The traffic action, as the extended community RFC 8955 Section 7 defines it.";
+                ze:help "rate-limit and discard are two spellings of this one
+action.";
                 leaf value { type string { length "1..64"; } mandatory true; description "Action community, such as traffic-rate or redirect"; }
             }
 
             container rate-limit {
                 config false;
                 ze:modifier "once";
-                description "Rate-limit the matched traffic. Sugar for a traffic-rate community.";
+                description "Rate-limit the matched traffic.";
+                ze:help "It is sugar for a traffic-rate community.";
                 leaf bytes-per-second { type string { pattern '[0-9]+'; length "1..20"; } mandatory true; description "Rate in bytes per second"; }
             }
 
             container discard {
                 config false;
                 ze:modifier "once";
-                description "Discard the matched traffic. Sugar for a traffic-rate of zero.";
+                description "Discard the matched traffic.";
+                ze:help "It is sugar for a traffic-rate of zero.";
             }
 
             container tag {
@@ -125,9 +130,9 @@ Section 7 defines it. rate-limit and discard are spellings of one.";
 
     container announce {
         config false;
-        description "Announce a route on demand to selected peers.
-Each form is a command of its own: the arguments after the form word differ
-between them, and one node cannot state three grammars.";
+        description "Announce a route on demand to selected peers.";
+        ze:help "Each form is a command of its own. The arguments after the form
+word differ between them, and one node cannot state three grammars.";
         uses announce-forms;
     }
 
@@ -145,9 +150,9 @@ between them, and one node cannot state three grammars.";
 
         container announce {
             config false;
-            description "Announce a route on demand to selected peers.
-Each form is a command of its own: the arguments after the form word differ
-between them, and one node cannot state three grammars.";
+            description "Announce a route on demand to selected peers.";
+            ze:help "Each form is a command of its own. The arguments after the form
+word differ between them, and one node cannot state three grammars.";
             uses announce-forms;
         }
 
@@ -168,7 +173,9 @@ peers that selector names.";
         container tag {
             config false;
             ze:command "ze-bgp:withdraw-tag";
-            description "Withdraw the announcements carrying a tag. A key of * withdraws every tagged announcement, and an absent value withdraws every value of the key.";
+            description "Withdraw the announcements carrying a tag.";
+            ze:help "A key of * withdraws every tagged announcement. An absent
+value withdraws every value of the key.";
             leaf key { type string; mandatory true; description "Tag key, or * for every tagged announcement"; }
             leaf value { type string; description "Tag value; every value of the key when absent"; }
         }
@@ -183,7 +190,9 @@ peers that selector names.";
         container all {
             config false;
             ze:command "ze-bgp:withdraw-all";
-            description "Withdraw every on-demand announcement. Type it after peer <selector> to withdraw only the announcements made to those peers.";
+            description "Withdraw every on-demand announcement.";
+            ze:help "Type it after peer <selector> to withdraw only the
+announcements made to those peers.";
         }
     }
 

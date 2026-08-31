@@ -45,7 +45,7 @@ var (
 
 // ParseFlowSpecArgs parses FlowSpec command arguments.
 // Format: match <spec> then <action>.
-// Example: match destination 10.0.0.0/24 destination-port 80 then discard.
+// Example: match destination-ipv4 10.0.0.0/24 destination-port 80 then discard.
 func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
 	var route bgptypes.FlowSpecRoute
 	route.Family = family.AFIIPv4 // default
