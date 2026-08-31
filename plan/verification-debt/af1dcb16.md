@@ -18,3 +18,6 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-08-31 | af1dcb16 | fix(interop): assert what the two-observer checkers claim | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-08-31 | af1dcb16 | fix(interop): assert what the GoBGP and strict-speaker checkers claim | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | af1dcb16 | fix(interop): assert what the GoBGP and strict-speaker checkers claim | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-08-31 | af1dcb16 | fix(interop): wire the relay in five scenarios that assert on it | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-31 | af1dcb16 | fix(interop): match FRR's own spelling of a neighbor in a decode line | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-08-31 | af1dcb16 | fix(interop): match FRR's own spelling of a neighbor in a decode line | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
