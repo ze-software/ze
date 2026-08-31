@@ -67,7 +67,19 @@ var exclusionKinds = map[string]bool{
 	exclusionDuplicate:    true,
 	"cross-document":      true,
 	"advisory-in-context": true,
-	relocatedToSpec:       true,
+	// feature-out-of-scope says the RFC makes a feature OPTIONAL, Ze decided
+	// not to offer that feature, and this obligation is conditional on
+	// offering it. The reason quotes the sentence that makes the feature
+	// optional and names the scope decision.
+	//
+	// It is a DECISION, and a gap is an ISSUE. A gap says Ze owes the
+	// behavior and does not produce it, so it stays on the ledger until the
+	// behavior exists. This says the obligation never bound Ze at all. The
+	// absent FEATURE is still recorded, as an implementation gap a later
+	// scope decision can revisit, and never as a conformance gap
+	// (ai/rules/rfc-compliance.md, owner directive 2026-08-31).
+	"feature-out-of-scope": true,
+	relocatedToSpec:        true,
 }
 
 // ExclusionKinds answers them sorted.

@@ -191,11 +191,30 @@ which sites are left.
 | `duplicate-of` | restates an obligation already captured | `mapped-to` must name an id that some OTHER site maps |
 | `cross-document` | the obligation belongs to another RFC the sentence cites | -- |
 | `advisory-in-context` | the capitalised keyword sits inside a SHOULD/MAY construction the splitter mis-cut | the reason quotes the enclosing construction |
+| `feature-out-of-scope` | the RFC makes a feature OPTIONAL, ze decided not to offer it, and the obligation is conditional on offering it | the reason quotes the sentence that makes the feature optional, names the producer showing ze does not offer it, and says the absent feature is disclosed in `docs/features/rfc-status.md` |
 | `relocated-to-spec` | the obligation IS owed, by a named spec, and it left this summary by an owner ruling | `relocated-to` names the spec, `reserved-id` names the id reserved for it there |
+
+### `feature-out-of-scope`: a DECISION, not a gap
+
+A gap is an ISSUE and an exclusion is a DECISION (owner directive, 2026-08-31). A `{gap}`
+says ze owes the behavior and does not produce it, so it stays on the ledger until the
+behavior exists. This kind says the obligation never bound ze: the RFC wrote "if you do X,
+do it this way", and ze does not do X.
+
+Conformance is not owed for an optional feature that is out of scope, so an obligation
+conditional on one is excluded here rather than recorded as a gap. `binds-another-role` is
+the wrong kind for it, because the role IS ze: ze is the speaker the sentence addresses,
+and it declines the option the sentence is conditional on.
+
+The absent FEATURE is still recorded. It goes in the RFC's row in
+`docs/features/rfc-status.md` as an implementation gap a later scope decision can revisit,
+and never as a conformance gap. RFC 8671 sites `5.2:1` and `5.2:2` are the worked example:
+RFC 7854 Section 5 says "A BMP speaker may send pre-policy routes, post-policy routes, or
+both", and ze offers the post-policy Adj-RIB-Out view only.
 
 ### `relocated-to-spec`: the kind that does not dismiss its sentence
 
-The other five say a sentence binds nobody. This one says the opposite: somebody is bound,
+The other six say a sentence does not bind ze. This one says the opposite: somebody is bound,
 over there. It exists because owner ruling D-1 (2026-07-31) moved twelve RFC 7296 sites out
 of `rfc/short/rfc7296.md` and into `plan/spec-ipsec-remote-access.md` and
 `plan/spec-ipsec-ipcomp.md`, where they stay gated. No other kind can say that. Forcing

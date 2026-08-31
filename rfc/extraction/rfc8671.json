@@ -189,15 +189,15 @@
       "id": "5.2:1",
       "quote": "All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "The role is a BMP sender that emits pre-policy Adj-RIB-Out, and ze does not implement it. RFC 7854 Section 5 makes the choice optional, 'A BMP speaker may send pre-policy routes, post-policy routes, or both', and ze sends post-policy Adj-RIB-Out only. peerHeaderFromEvent sets PeerFlagO and PeerFlagL in one statement, so O=1 with L=0 is unreachable, and the route-monitoring-policy leaf offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice. ze therefore never reaches a pre-policy phase completion at which a mandatory attribute could be unknown, and holds no route for which it would have to zero the next hop. The permission this obligation is conditional on is RFC8671-x-5 [MAY], which ze does not exercise. The alternative to the exclusion is to implement pre-policy Adj-RIB-Out export, which is feature work with no data source in ze today."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "The feature is OPTIONAL and ze decided not to offer it. RFC 7854 Section 5: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' ze offers the post-policy Adj-RIB-Out view only: peerHeaderFromEvent (internal/component/bgp/plugins/bmp/bmp_events.go) sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so O=1 with L=0 is unreachable, and the route-monitoring-policy leaf offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice. This obligation is conditional on offering that feature: ze never reaches a pre-policy phase completion at which a mandatory attribute could be unknown, and holds no route for which it would have to zero the next hop. The permission it hangs on is RFC8671-x-5 [MAY], which ze does not exercise. This is a SCOPE DECISION and not outstanding work. The absent feature is recorded as an implementation gap in docs/features/rfc-status.md, which a later scope decision can revisit; it is not a conformance gap."
     },
     {
       "id": "5.2:2",
       "quote": "The L flag MUST be set to 0 to indicate pre-policy.",
       "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "The same role as site 5.2:1: a BMP sender that emits pre-policy Adj-RIB-Out must clear the L flag. ze does not implement that mode, because peerHeaderFromEvent sets PeerFlagO and PeerFlagL together and never sets O alone. The post-policy half of the same rule, which ze does exercise, is site 5.1:2 mapping RFC8671-x-2."
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "The same optional feature as site 5.2:1. RFC 7854 Section 5: 'A BMP speaker may send pre-policy routes, post-policy routes, or both.' The pre-policy L flag rule binds a speaker that sends the pre-policy view, and ze does not send it: peerHeaderFromEvent (internal/component/bgp/plugins/bmp/bmp_events.go) sets PeerFlagO and PeerFlagL together for a sent-direction event and never sets O alone. The post-policy half of the same rule, which ze does exercise, is site 5.1:2 mapping RFC8671-x-2. This is a SCOPE DECISION and not outstanding work; the absent feature is recorded as an implementation gap in docs/features/rfc-status.md, not as a conformance gap."
     },
     {
       "id": "6.1:1",

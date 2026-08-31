@@ -19,20 +19,20 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// itself is in its commit message, and repeating it here made this comment a
 	// changelog nobody reads.
 	//
-	// Re-sealed 2026-08-31, for the review-gate fixes of
-	// spec-rfc-tag-claim-discrimination. Two verdicts moved, both deliberately.
-	// An escape is now tied to the CLAIM it discharges and not only to a file an
-	// author names, so a `no-break` record that named any declaration-only file,
-	// or any interop carrier, is refused where it was accepted. And a record
-	// staled by an edit NOBODY HAS COMMITTED is reported rather than refused
-	// (owner decision, 2026-08-31), so a session editing a producer no longer reds
-	// the gate for every other session sharing this checkout.
+	// Re-sealed 2026-08-31, for spec-rfc-tag-claim-discrimination. Three verdicts
+	// moved, all on the ESCAPE, and all deliberately: it is tied to the claim it
+	// discharges rather than to any file an author names, its producer must be
+	// code the tagged unit reaches, and a producer key naming a function its file
+	// does not declare is refused. A record staled by an edit nobody has committed
+	// is reported rather than refused (owner decision, 2026-08-31).
 	//
-	// Over this tree the violation count is unchanged. The 24 it reports are 2
-	// pre-existing stale rfc7606 audit verdicts and 22 new-tag violations from
-	// another session's three UNTRACKED files, and no record in this repository
-	// carries an escape, so the tightened escape refuses nothing here.
-	const want = "3514714978236e94eaba591a381d92666c1481a377337be5e93d000d58b1b42d"
+	// Over this tree no verdict moved: no record in it carries an escape, and the
+	// violations `./le rfc check` reports are other sessions' corpus and tag work.
+	//
+	// Re-sealed 2026-08-31 for the feature-out-of-scope exclusion kind. No verdict
+	// moved: the change adds one entry to the closed exclusion vocabulary that
+	// ParseExtractionArtifact accepts, and rfc/audit/ records no exclusion kind.
+	const want = "c2106d359d80efe61f833f1f74d6158000c6e8c448beaaddcbcbc8b088a48a2d"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)

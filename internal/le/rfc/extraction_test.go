@@ -281,6 +281,68 @@ func TestAnUnsignedSkeletonParsesAndStillFailsTheCheck(t *testing.T) {
 	}
 }
 
+// VALIDATES: the exclusion vocabulary is a CLOSED set that now holds
+// feature-out-of-scope. A site carrying it parses, and a kind nobody declared
+// is still refused with the legal set printed in the message.
+// PREVENTS: two failures at once. Without the kind, an obligation conditional
+// on an optional feature Ze does not offer is written as binds-another-role,
+// which asserts Ze plays no such role while Ze is exactly the role; or as a
+// {gap}, which puts work Ze never owed on the public ledger. Without the
+// refusal arm the set stops being closed, and every unmapped site becomes
+// excludable by inventing a word for it.
+func TestTheExclusionVocabularyTakesFeatureOutOfScopeAndRefusesAnInventedKind(t *testing.T) {
+	for _, testcase := range []struct {
+		name string
+		kind string
+		want string
+	}{
+		{"a feature Ze decided not to offer", "feature-out-of-scope", ""},
+		{"a kind the closed set does not hold", "out-of-scope", "'excluded-kind' from"},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			tree := fixtureTree(t, map[string]string{
+				"rfc/full/rfc9999.txt": derivedFixture,
+				"rfc/extraction/rfc9999.json": `{"schema-version": 1, "stem": "rfc9999",
+ "register": "rfc2119", "source-path": "rfc/full/rfc9999.txt",
+ "source-sha": "` + RequirementSHA(derivedFixture) + `",
+ "signed-off": "2026-08-31", "reviewer": "the vocabulary test",
+ "sections": [{"id": "front", "sites": 0, "disposition": "skipped",
+               "skip-kind": "front-matter", "reason": "the title block"},
+              {"id": "1", "sites": 0, "disposition": "walked"},
+              {"id": "2", "sites": 1, "disposition": "walked"}],
+ "sites": [{"id": "2:1", "quote": "A speaker MUST send the widget.",
+            "disposition": "excluded", "excluded-kind": "` + testcase.kind + `",
+            "reason": "the widget is optional and Ze does not offer it"}]}`,
+			})
+
+			art, err := ParseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
+			if testcase.want != "" {
+				if err == nil {
+					t.Fatalf("%q parsed, so the set is not closed: %+v", testcase.kind, art)
+				}
+				if !strings.Contains(err.Error(), testcase.want) {
+					t.Errorf("the refusal does not say %q: %v", testcase.want, err)
+				}
+				for _, kind := range ExclusionKinds() {
+					if !strings.Contains(err.Error(), kind) {
+						t.Errorf("the refusal does not name the legal kind %q: %v", kind, err)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("%q must parse: %v", testcase.kind, err)
+			}
+			if len(art.Sites) != 1 {
+				t.Fatalf("the artifact carries %d site(s), want 1", len(art.Sites))
+			}
+			if art.Sites[0].ExcludedKind != testcase.kind {
+				t.Errorf("the site kind is %q, want %q", art.Sites[0].ExcludedKind, testcase.kind)
+			}
+		})
+	}
+}
+
 func TestCreditIsScopedToTheEnrolledSet(t *testing.T) {
 	// The floor once compared every valid artifact against a backlog of
 	// enrolled ones, so a sign-off for a stem nobody enrolled raised the credit
@@ -442,15 +504,16 @@ func TestEveryActionOfTheAreaCarriesItsGateAndItsReason(t *testing.T) {
 			writes[row.Verb] = true
 		}
 	}
-	// Exactly three ported actions change the tree, and each one owns its
-	// output: extraction-create owns one rfc/extraction artifact, re-seal owns
-	// rfc/audit/, and the generator owns ai/RFC-REQUIREMENTS.md plus
-	// rfc/requirements/. Read-only is the default and the listing prints the
-	// exception, so a reader never has to look it up.
-	if len(writes) != 3 || !writes["extraction-create"] || !writes["reseal"] ||
-		!writes["index-update"] {
-		t.Errorf("the actions that write are %v, want exactly [extraction-create index-update reseal]",
-			sortedKeys(writes))
+	// Exactly four actions change the tree, and each one owns its output:
+	// extraction-create owns one rfc/extraction artifact, discriminate-record
+	// owns one rfc/discrimination artifact, re-seal owns rfc/audit/, and the
+	// generator owns ai/RFC-REQUIREMENTS.md plus rfc/requirements/. Read-only is
+	// the default and the listing prints the exception, so a reader never has to
+	// look it up.
+	if len(writes) != 4 || !writes["extraction-create"] || !writes["discriminate-record"] ||
+		!writes["reseal"] || !writes["index-update"] {
+		t.Errorf("the actions that write are %v, want exactly "+
+			"[discriminate-record extraction-create index-update reseal]", sortedKeys(writes))
 	}
 	if Subs() == "" {
 		t.Error("help renders no hint under the command")

@@ -21,12 +21,12 @@ names in snake_case. The Go names below are the current ones.
 | `rfc/discrimination/<stem>.json` | The recorded breaks under which a tagged unit goes red: one record per requirement, polarity and tagged unit |
 | `rfc/drain-budget.txt` | The extraction drain schedule: a start date and a rate, and nothing else |
 | `docs/features/rfc-status.md` | The PUBLIC support claim, one row per enrolled RFC |
-| `ai/RFC-REQUIREMENTS.md` | The generated backlog, including the extraction sign-off counts |
+| `ai/RFC-REQUIREMENTS.md` | The generated backlog: the coverage rollup, the audit coverage, the claim-discrimination counts and the extraction sign-off counts |
 
 ## The ratchets
 
 `./le rfc check` reads the WORKING TREE to judge coverage, and a tree cannot
-tell "never proven" from "stopped being proven". Eight comparisons against git
+tell "never proven" from "stopped being proven". Nine comparisons against git
 HEAD supply that difference. Each fires only on a real downgrade, so a green run
 means the evidence held rather than that nobody looked.
 
@@ -40,6 +40,7 @@ means the evidence held rather than that nobody looked.
 | Non-unit evidence is monotonic, per tier | `checkEvidenceRatchet` | a requirement loses an evidence KIND it had at HEAD: its `.ci` becomes a unit test, or a verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution leaving the tag COUNT unchanged still fires. A unit test proves the algorithm; only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | Extraction is monotonic | `checkExtractionRatchet` | a stem that carried a sign-off at HEAD carries none now, or a signed stem's exclusion count RISES without a `resign-reason` and a bumped `signed-off` date. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming a hatch where every unmapped site is excluded with a shrug |
 | Public disclosure is monotonic | `checkStatusCompleteness` | an RFC enrolled since HEAD has no row in `docs/features/rfc-status.md`, or a row that existed at HEAD is gone while its RFC stays enrolled. Enrolment gates that RFC's MUSTs, so the public page must say the RFC exists |
+| A claim keeps its proof, and a new claim owes one | `checkDiscriminationRatchet` | a tagged unit new since HEAD carries no discrimination record, a record committed at HEAD is deleted while its tag stands, or a recorded proof no longer verifies against the tree. This is the only ratchet that reads the PROSE half of a tag: `claim-sha` fires when the sentence is reworded, because a proof of the old claim is not a proof of the new one |
 
 `checkIDAllocation` and `checkAuditVerdictRatchet` (`internal/le/rfc/check_ratchets.go`,
 `check_audit.go`) compare against HEAD on the same footing, for requirement id
@@ -178,7 +179,7 @@ counted backlog. Grandfathering is implemented as SCOPE (new since HEAD), never
 as an allowlist file, so nothing is added to a list of exceptions when an RFC
 stops being one.
 
-The contract is `rfc/extraction/README.md`. Five properties are worth knowing
+The contract is `rfc/extraction/README.md`. Six properties are worth knowing
 before you meet one:
 
 - **Only dispositions are authored.** Sites, sections, quotes, the register and
@@ -198,6 +199,13 @@ before you meet one:
   compares a stem against its own HEAD row, so a stem signing off for the first
   time has no baseline and could exclude every site. The published per-RFC
   exclusion ratio is the control; read it before you approve one.
+- **A gap is an ISSUE and an exclusion is a DECISION.** A `{gap}` says Ze owes
+  the behavior and does not produce it, so it stays on the ledger until the
+  behavior exists. An excluded site says the obligation never bound Ze, and the
+  kind names which decision put it out of reach. `feature-out-of-scope` is the
+  kind for an OPTIONAL feature Ze declined to offer: the absent FEATURE is
+  disclosed in `docs/features/rfc-status.md` as an implementation gap a later
+  scope decision can revisit, and never as a conformance gap.
 
 ### Two signals that an extraction is missing
 
@@ -230,34 +238,59 @@ machine. "This break makes this unit red" is decidable and replayable.
 | `polarity` | `positive` or `negative`, the direction it proves |
 | `unit` | the tagged unit key, `<path>::<FuncName>` for a Go function and a bare `<path>` when the whole file is the unit, which is the scope `UnitAt` (`internal/le/rfc/goscope.go`) answers for a `.ci`. `fingerprintKey` parses it, so the retired `<path>:<line>` form is refused |
 | `unit-sha` | that unit's behavior hash when the red was observed |
+| `claim-sha` | the hash of what the TAG claims, which is a separate field because `behaviorBytes` strips comments and a claim IS a comment. Without it a sealed proof survives a reworded claim, and a widened sentence would be published as proven with no code edit at all |
 | `route` | `mutant` for a generated break, `revert` for a producer disabled by hand, `no-break` for the escape |
-| `producer` | the function the break was applied to, in the same key form. Required for a proof route, refused for the escape |
+| `producer` | the code the break was applied to, in the same key form. Required for a proof route. An escape names it too, unless its reason is `foreign-producer`, because the reason is a claim ABOUT that code |
 | `producer-sha` | that function's behavior hash when the break was applied |
-| `break` | what was done to the producer. No gate parses it; a reviewer reads it |
+| `break` | what was done to the producer, derived from what was applied. No gate parses it; a reviewer reads it |
+| `citation` | the assertion a proof or a `foreign-producer` escape rests on: a numbered `fail(N, ...)` site for an interop checker, a directive line for a `.ci`. Required for a functional or interop proof and for the `foreign-producer` escape, refused for a unit record and for the two escapes that name a producer |
+| `reason` | why no break exists, for the escape only, out of the closed vocabulary below |
 
 The full artifact contract is `rfc/discrimination/README.md`.
 
-`LoadDiscrimination` (`internal/le/rfc/discriminate.go`) reads the tree,
+`loadDiscrimination` (`internal/le/rfc/discriminate.go`) reads the tree,
 `verifyDiscrimination` re-checks each record's fingerprints against the working
-tree, and `checkDiscriminationRatchet` (`internal/le/rfc/check_ratchets.go`)
-judges what both answered. Six refusals exist today.
+tree, `baselineRecordBlobs` (`internal/le/rfc/check_baseline.go`) reads what HEAD
+holds for the same files, and `checkDiscriminationRatchet`
+(`internal/le/rfc/check_ratchets.go`) judges what all three answered. Eleven
+refusals exist today.
 
 | Refuses | Why |
 |---------|-----|
 | A file that cannot be parsed, an unknown JSON key, or a filename that disagrees with its own `rfc` field | A corrupt record must never read as a corpus with nothing proven |
 | A polarity, a route, a key or a fingerprint outside its closed form | A half-read record is the shape a false proof takes |
 | A record naming a requirement no summary declares | A proof of an obligation nobody wrote down proves nothing |
-| Two records claiming one requirement, polarity and carrier file | The proven count is published, and a duplicate inflates it |
-| A record whose `unit` or `producer` no longer resolves in the tree | The record died with what it named |
-| A record whose `unit-sha` or `producer-sha` no longer matches | Nothing observed the red over the code that is there now, so a hand-written record is refused by the same rule that catches a real drift |
+| Two records claiming one requirement, polarity and tagged unit | The proven count is published, and a duplicate inflates it |
+| A record whose `producer` no longer resolves in the tree | The break was applied to code that is gone |
+| A record whose `unit-sha`, `claim-sha` or `producer-sha` no longer matches COMMITTED code | Nothing observed the red over the code that was committed, or the red was observed about a different sentence, so a hand-written record is refused by the same rule that catches a real drift. The drift is judged against HEAD, never against the working tree (owner decision, 2026-08-31): several sessions share this checkout, so one session's uncommitted edit to a producer would otherwise red the gate for all of them, and clearing an interop record costs a 576-second re-record. A record staled by an edit nobody has committed is REPORTED on a `discrimination:` line of its own, counted as proven by nothing, and becomes a violation at the commit that carries the edit |
+| A tagged unit present in the tree, absent at HEAD, on an enrolled RFC's gated requirement, carrying no verified record | The obligation is what a CHANGE adds. A floor that starts at zero and only forbids going below zero proves nothing |
+| A record committed at HEAD, deleted from the tree, while the tag it proved is still there | The proven set only goes up. Deleting a record beside a standing tag takes a proof off the published ledger and leaves the claim behind it |
+| Nothing, when a record's TAG is gone | A record dies with the tag it proves, so an orphan has nothing left to be wrong about. It is REPORTED as removable, on a `discrimination:` line of its own, and counted as proven by nothing |
+| A functional or interop record citing an assertion its carrier does not contain, or citing none | No generated break reaches either carrier, so the citation is what ties the recorded red to one assertion rather than to the whole suite. An interop citation is checked against the numbers the checker WRITES OUT, so an assertion numbered by expression -- `fail(index+2, err)` inside a loop -- cannot be cited until its checker writes the number |
+| An escape whose reason is outside the closed vocabulary, whose precondition no longer holds, or that names code the tagged unit does not reach | An unconditioned reason is the blanket opt-out the escape exists to refuse, and a reason checked over any file an author picks is unconditioned in practice |
 
-The two fingerprints are minted by `sealDiscrimination`, the one place a hash is
-computed, and they hash `behaviorBytes` rather than the raw text. A reworded
-comment, a reflow, an inserted header and a blank line each leave a record
-verified; a changed assertion or a rewritten producer voids it. That is the same
-predicate `ChangedTags` uses, so a record goes stale exactly when the obligation
-says its unit moved, and the re-stamp burden `rfc/audit/rfc7606.json` records
-does not repeat here.
+The three fingerprints are minted by `sealDiscrimination`, the one place a hash
+is computed. `unit-sha` and `producer-sha` hash `behaviorBytes` rather than the
+raw text. An unrelated comment, a reflow, an inserted header and a blank line
+each leave a record verified; a changed assertion or a rewritten producer voids
+it. That is the same predicate `ChangedTags` uses, so a record goes stale
+exactly when the obligation says its unit moved, and the re-stamp burden
+`rfc/audit/rfc7606.json` records does not repeat here. Measured over this
+checkout's own records: a nine-line header prepended to every file they name,
+which is the edit that cost that artifact two paragraphs of re-stamping, leaves
+every one of them verified.
+
+`claim-sha` is the exception, and it is why the claim is a field of its own. The
+claim IS a comment, so `behaviorBytes` strips it, and a proof sealed against a
+modest sentence would otherwise survive that sentence being widened with no code
+edit at all. `claim-sha` hashes the comment PARAGRAPH the tag opens: the words
+after the polarity on the tag's own line, plus every comment line under it, up
+to the next tag, an empty comment line, or the first line that is not a comment.
+2,701 of this checkout's 3,900 tags carry a claim that runs past the tag's own
+line, so one line would leave two thirds of the corpus free to widen. Whitespace
+runs collapse to one space, so re-wrapping a sentence changes nothing and
+changing a word changes everything. The accepted cost is that rewording a claim,
+a typo fix included, stales the record and owes a re-record.
 
 An ABSENT record is not refused. Most tags have never been proven, and that is
 a backlog the summary line publishes:
@@ -266,16 +299,133 @@ a backlog the summary line publishes:
 
 `proven` counts the records taking a proof route and `escaped` counts the
 `no-break` records, which are debt rather than evidence. `owed` is
-change-scoped: a tag present in the tree and absent at HEAD owes its record in
-the change that adds it, and a tag older than HEAD is grandfathered, exactly as
-the extraction backlog is. Where git cannot answer, `owed` is 0, because a
-baseline that cannot be read accuses nobody.
+change-scoped and keyed on the tagged UNIT: a unit present in the tree and
+absent at HEAD owes its record in the change that adds it, and a unit older than
+HEAD is grandfathered, exactly as the extraction backlog is. Only a MUST-level
+requirement of an enrolled RFC obliges, because that is the population this gate
+exists for. Where git cannot answer, `owed` is 0, because a baseline that cannot
+be read accuses nobody, and every owed unit is also a violation, so a report
+that renders at all renders `0 owed`.
+
+A second figure sits beside it and enforces nothing:
+
+    discrimination: 0 grandfathered tagged unit(s) changed behavior since HEAD with no proof recorded.
+
+The spec answers "which tags owe a proof" twice. R-2 reads it wide -- a tag added
+since HEAD, OR a tagged unit whose behavior changed -- and AC-3 reads it narrow,
+because its violation names "the stale record", which only a unit that already
+has one can have. The narrow reading is what the ratchet enforces, so a
+grandfathered tagged test can be gutted today and nothing bills it. The owner's
+decision of 2026-08-31 is to DETECT the wide set and PUBLISH it, and to enforce
+nothing yet: the count is what says whether enforcing it is affordable, and a
+ratchet that reds the tree over a backlog nobody has measured gets removed rather
+than obeyed. `discriminationChangedUnits` consumes `ChangedTags`, so a
+comment-only, whitespace-only or Go import-only edit counts nothing, and the
+population is the narrow obligation's own: a gated requirement of an enrolled
+RFC, on a unit HEAD already carried.
+
+The unit rather than its file, since 2026-08-31. A file key bills nothing for a
+second tag on a requirement the file already proves elsewhere, which is one of
+the routes an over-claim takes.
+
+One further line is published beside those figures, and it is a REPORT rather
+than a refusal:
+
+    unscanned: 10 'RFC requirement:' comment(s) sit in production Go on no carrier
+
+Those are tag comments in non-test Go, where no carrier claims them: no gate
+resolves the id, no gate demands the polarity, and no gate asks whether anything
+runs them. They read as evidence to a person opening the file and are counted by
+nothing. Eight of the ten in this checkout carry no polarity at all and would be
+refused outright by `parseTagRest` if any scanner did read them. They are
+published rather than refused because they predate the check, and a rule that
+reds the tree over standing debt gets removed rather than obeyed.
 
 `./le rfc discriminate stem <stem>` and `./le rfc discriminate id <ID>` answer
 what one RFC or one requirement has proven, which of its records no longer
 verify, and which of its tags carry no record. The gate itself runs no test, no
 mutant and no scenario: it reads the recorded proof and compares its
 fingerprints, which is what `checkAuditFreshness` already does for a verdict.
+
+## Producing a record: the two proof routes
+
+`./le rfc discriminate-record` is the only writer of a record, and it writes one
+only after it has SEEN the red. It applies the break, runs the tagged unit,
+requires a failure that NAMES that unit, and refuses everything else. A run that
+stayed green records nothing, and a run that went red without naming the unit
+records nothing either: a build error, a sibling test and a flake each turn a
+run red, and none of them says the claim's own test discriminated the break.
+
+| Route | The break | The runner |
+|---|---|---|
+| `mutant` | one gomu mutant, substituted into its own line | `go test -run '^<Func>$'` over the tagged unit's package, under a Go `-overlay` |
+| `revert` on a `.ci` | the producing function's body replaced by a halt | `ze-test <suite> <name>`, ONE `.ci`, against the isolated set `functional.Prepare` builds under the same overlay |
+| `revert` on an interop checker | the same | `./le integration interop` with `INTEROP_SCENARIO` set to the scenario the checker's own `const name` declares |
+
+Adding `report <path>` to `./le rfc discriminate` turns it into a PROPOSER: it
+prints the candidate breaks for each unproven unit tag, best first. Two filters
+and one ranking. A candidate must be a mutant gomu recorded as KILLED, because
+NOT_VIABLE does not compile and SURVIVED is noticed by no test in the package.
+It must lie in code the tagged unit's own coverage profile executes, because a
+mutant the unit never reaches cannot redden it. The rank is the count of symbols
+the tag's own prose names that the break's text touches, which decides what is
+offered first and nothing else: the gate never judges whether a break is a GOOD
+break.
+
+The break travels in a Go overlay, so no file on disk is modified and a
+concurrent session in the same checkout sees nothing. The interop carrier is the
+one exception, and it is a fact about that lab rather than a choice: the image
+build compiles ze INSIDE Docker from the repository as its build context
+(`internal/le/interoplab/docker.go`), where a host-side overlay is a file the
+container never sees. There the break goes into the working tree and is put back
+byte for byte, which is what `docs/contributing/testing.md` has always said to
+do by hand.
+
+## The escape, and the precondition behind each reason
+
+`no-break` says no break exists. That is a claim about the tree, so the gate
+goes and checks it, in the shape `checkSuperseded`'s four dispositions already
+have. Without a checked precondition the escape would be cheaper than a proof,
+and the escaped count would climb faster than the proven one.
+
+Every reason also names what ties it to THIS claim. The fact each one states is
+about a FILE or a CARRIER KIND, and neither is about one tag: a declaration-only
+file exists in every package, and `interop` is a property of 37 tags at once, so
+a reason checked on its own discharges every tag equally. That is the blanket
+opt-out wearing a closed vocabulary, and both halves are checked.
+
+| Reason | Claims | The gate CHECKS | The tie to the claim |
+|---|---|---|---|
+| `foreign-producer` | the behavior is produced by an implementation this repository does not build, so no edit here can falsify the claim | the carrier kind is `interop`, and the record names no producer | the `citation` names a `fail(N, ...)` number the tagged checker WRITES OUT, read by the same `interopCitationState` an interop proof passes |
+| `declaration-only` | the code the claim rests on holds no function body: a table, an embed, a registration list | the named producer file declares no function | the tag's own claim names an identifier that file declares, matched whole-word and case-insensitively |
+| `generated-producer` | the producer is generated, so a break is undone by the next generator run | the named producer's file carries the `// Code generated ... DO NOT EDIT.` line | the same: the tag's claim names something that file declares |
+
+Both producer-naming reasons owe a third fact, about the FILE the record picked:
+the producer must be code the tagged unit REACHES. A Go unit reaches its own
+package and the packages its file imports; a `.ci` or an interop scenario runs
+the whole daemon, so it reaches every file the Go tool compiles and nothing
+under `testdata/`. Without that fact the two above are properties of a file
+rather than of this test, and 605 of the 4,020 claims in the tree carry a whole
+word that some function-free file somewhere declares (measured 2026-08-31), so
+an author who could not prove a claim could go and find the file that fits the
+words. A producer naming a function its own file does not declare is refused on
+the same ground: every fact here reads the whole file, so an unresolved symbol
+would sit in a published record read by nothing.
+
+Coverage cannot supply the tie for the two producer-naming reasons, and that is
+measured rather than assumed. A declaration-only file carries no statement, so
+`go test -coverprofile` emits no block for it and no profile can ever show the
+tagged unit reaching it. The claim is what is left, and `claim-sha` has already
+pinned its wording.
+
+One refusal comes before the reason is read: a `unit`-carrier tag whose producer
+resolves and sits in a file gomu mutates is REFUSED the escape whatever reason it
+offers, because a break can be generated for it and `mutant` is its route. The
+`.gomuignore` patterns are read from that file rather than restated. It runs
+inside `escapeCheck.verdict` (`internal/le/rfc/discriminate_escape.go`), which is
+the GATE's own path: a guard that ran only where records are written would be
+invisible to a record authored by hand, and to one whose producer became
+mutatable after it was sealed.
 
 So a verified record says the red WAS observed, and that the code it was
 observed over has not moved since. It does not say the red would happen again on
@@ -284,8 +434,11 @@ author runs deliberately.
 
 ## What the ratchets cannot see
 
-None of the eight catches a tagged test whose assertions are weakened IN PLACE
-while the shape stays the same. Three other mechanisms do:
+A tagged test whose assertions are weakened IN PLACE, while the shape stays the
+same, is caught by `checkDiscriminationRatchet` once that test carries a record:
+the weakened body changes `unit-sha`, the record stops verifying, and the gate
+refuses it. Until a test carries one it is grandfathered, so three other
+mechanisms carry the standing corpus:
 
 - `writeWeakening` (`internal/le/hookruntime/writeedit.go`) refuses the edit at
   write time, through `testweakened.Proposed`
@@ -298,6 +451,13 @@ while the shape stays the same. Three other mechanisms do:
 - `./le commit audit` checks the same at commit time.
 - `checkAuditFreshness` (`internal/le/rfc/check_audit.go`) is the SHA ratchet,
   armed only for an RFC that has an `rfc/audit/<stem>.json`.
+
+What none of them can see is the tag that OVER-CLAIMED from its first commit.
+Each of the three is a CHANGE detector, so a test that never asserted what its
+tag says has nothing for them to compare against. That is the hole
+`rfc/discrimination/` closes, and it closes it only where a record exists: the
+count of tags that carry one is published in `ai/RFC-REQUIREMENTS.md`, under
+"Claim discrimination", beside the backlog that does not.
 
 A `test/weakened.md` row is self-service, and it does NOT authorize weakening an
 RFC-tagged test.
