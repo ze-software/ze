@@ -1,0 +1,108 @@
+{
+ "schema-version": 1,
+ "stem": "rfc7607",
+ "register": "rfc2119",
+ "source-path": "rfc/full/rfc7607.txt",
+ "source-sha": "1d694dc81b42f157",
+ "signed-off": "2026-08-30",
+ "reviewer": "ze-implement agent, spec-rfcgate-6-supported-extraction-signoff",
+ "sections": [
+  {
+   "id": "front",
+   "sites": 0,
+   "disposition": "skipped",
+   "skip-kind": "front-matter",
+   "reason": "Title block, Status of This Memo, copyright notice, Abstract and Table of Contents. The Abstract states the document's scope and binds nobody."
+  },
+  {
+   "id": "1",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Introduction. Explains why AS 0 is proscribed, citing the RFC 6491 ROA signal, and states that this document updates the error handling of RFC 4271 sections 6.2 and 6.3. Its one obligation-shaped sentence, 'requires that BGP implementations not accept or propagate routes containing AS 0', is a rationale for section 2 and carries no RFC 2119 keyword; section 2 states it normatively as 2:1."
+  },
+  {
+   "id": "1.1",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Requirements Notation. The RFC 2119 key-words paragraph. It tells a reader how to read section 2 and binds no speaker, which is why the derivation excludes it from the site inventory."
+  },
+  {
+   "id": "2",
+   "sites": 5,
+   "disposition": "walked",
+   "reason": "Behavior. The whole normative content of the document: five sentences, all five mapped, none excluded. Its closing paragraph, encouraging authors of future protocol extensions to keep AS 0 in mind, binds a document author rather than an implementation and carries no keyword, so the derivation raises no site for it."
+  },
+  {
+   "id": "3",
+   "sites": 0,
+   "disposition": "skipped",
+   "skip-kind": "iana",
+   "reason": "IANA Considerations. Records that IANA changed the AS 0 entry in the 16-bit Autonomous System Numbers registry to read 'Reserved'. A completed registry action, not an obligation on a speaker."
+  },
+  {
+   "id": "4",
+   "sites": 0,
+   "disposition": "walked",
+   "reason": "Security Considerations. Explains what the section 2 rules buy: a resource holder can declare an address resource unused, and a malicious party cannot hijack it by announcing AS 0. Rationale for the obligations already captured, with no keyword and no obligation of its own."
+  },
+  {
+   "id": "5",
+   "sites": 0,
+   "disposition": "skipped",
+   "skip-kind": "references",
+   "reason": "References. The section heading only; its entries are in 5.1 and 5.2."
+  },
+  {
+   "id": "5.1",
+   "sites": 0,
+   "disposition": "skipped",
+   "skip-kind": "references",
+   "reason": "Normative References. Bibliography entries for IANA.AS_Numbers, RFC 2119, RFC 4271, RFC 6793 and RFC 7606."
+  },
+  {
+   "id": "5.2",
+   "sites": 0,
+   "disposition": "skipped",
+   "skip-kind": "references",
+   "reason": "Informative References. The bibliography entry for RFC 6491, plus the Acknowledgements and Authors' Addresses that follow it."
+  }
+ ],
+ "sites": [
+  {
+   "id": "2:1",
+   "quote": "A BGP speaker MUST NOT originate or propagate a route with an AS number of zero in the AS_PATH, AS4_PATH, AGGREGATOR, or AS4_AGGREGATOR attributes.",
+   "disposition": "mapped",
+   "mapped-to": "RFC7607-2-1",
+   "reason": "The document's headline prohibition, covering all four attributes at once. Captured verbatim as RFC7607-2-1 at [MUST NOT]. It is NOT a duplicate of 2:2 or 2:3: those two say what a RECEIVER does with such an UPDATE, and this one binds what this speaker puts on the wire, which is a separate obligation with separate code behind it."
+  },
+  {
+   "id": "2:2",
+   "quote": "An UPDATE message that contains the AS number of zero in the AS_PATH or AGGREGATOR attribute MUST be considered as malformed and be handled by the procedures specified in [RFC7606].",
+   "disposition": "mapped",
+   "mapped-to": "RFC7607-2-2",
+   "reason": "Captured verbatim as RFC7607-2-2 at [MUST]. The action is not stated here: RFC 7606 section 7.2 names treat-as-withdraw for AS_PATH and section 7.7 names attribute discard for AGGREGATOR, so the two halves of this one sentence land on different actions."
+  },
+  {
+   "id": "2:3",
+   "quote": "An UPDATE message that contains the AS number of zero in the AS4_PATH or AS4_AGGREGATOR attribute MUST be considered as malformed and be handled by the procedures specified in [RFC6793].",
+   "disposition": "mapped",
+   "mapped-to": "RFC7607-2-3",
+   "reason": "Captured verbatim as RFC7607-2-3 at [MUST]. RFC 6793 section 6 names the action for both attributes: 'the attribute discard approach is chosen'."
+  },
+  {
+   "id": "2:4",
+   "quote": "If a BGP speaker receives zero as the peer AS in an OPEN message, it MUST abort the connection and send a NOTIFICATION with Error Code \"OPEN Message Error\" and subcode \"Bad Peer AS\" (see Section 6 of [RFC4271]).",
+   "disposition": "mapped",
+   "mapped-to": "RFC7607-2-4",
+   "reason": "Captured verbatim as RFC7607-2-4 at [MUST]. The sentence names the error code and the subcode itself, so the requirement is checkable on the wire without reading RFC 4271."
+  },
+  {
+   "id": "2:5",
+   "quote": "A router MUST NOT initiate a connection claiming to be AS 0.",
+   "disposition": "mapped",
+   "mapped-to": "RFC7607-2-5",
+   "reason": "Captured verbatim as RFC7607-2-5 at [MUST NOT]. It binds the INITIATOR, where 2:4 binds the receiver of the same OPEN, so the two are a pair rather than a restatement."
+  }
+ ],
+ "register-reason": "Standards Track, with an RFC 2119 key-words section at 1.1 and capitalised MUST and MUST NOT keywords throughout section 2. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}
