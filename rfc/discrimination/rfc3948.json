@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc3948",
+  "records": [
+    {
+      "rid": "RFC3948-3.1.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc3948_inner_source_policy_test.go::TestChildInboundPolicyDefinesTheValidInnerSourceSpace",
+      "unit-sha": "32bb1d88d909e8b8",
+      "claim-sha": "95e474efb21caa9e",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
+      "producer-sha": "96cd5283ad39b417",
+      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

@@ -71,7 +71,7 @@
       "id": "3.1.1",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Tunnel Mode Decapsulation NAT Procedure. One MUST opening a three-way choice about the inner packet's addresses. Its site is excluded below as binding the decapsulator."
+      "reason": "Tunnel Mode Decapsulation NAT Procedure. One MUST opening a three-way choice about the inner packet's addresses. Its site is mapped below to RFC3948-3.1.1-1: ze takes the first choice by defining the valid source address space in the inbound Security Policy it installs, and the kernel checks each decapsulated packet against it."
     },
     {
       "id": "3.1.2",
@@ -126,7 +126,7 @@
       "id": "5.1",
       "sites": 1,
       "disposition": "walked",
-      "reason": "Tunnel Mode Conflict. The overlapping-inner-address hazard at a security gateway, one MUST and one RECOMMENDED remedy. Its site is excluded below as binding a role Ze does not implement."
+      "reason": "Tunnel Mode Conflict. The overlapping-inner-address hazard at a security gateway, one MUST and one RECOMMENDED remedy. Its site is mapped below to RFC3948-5.1-1, which the summary carries as a gap: ze is the security gateway of the diagram and assigns no inner address, so nothing it holds prevents the overlap."
     },
     {
       "id": "5.2",
@@ -230,9 +230,9 @@
     {
       "id": "3.1.1:1",
       "quote": "Depending on local policy, one of the following MUST be done:",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "The role is the ESP decapsulator. The sentence opens the tunnel-mode decapsulation NAT procedure, whose three choices all act on the inner packet after decryption: check its source against a policy, check it against an assigned address, or NAT it. Ze implements the keying daemon only. xfrmStateFromParams installs the SA into the kernel with XFRM_ENCAP_ESPINUDP (dataplane/xfrm_linux.go), the kernel decapsulates, and no Ze code path holds a decapsulated inner packet. The summary already records the same division of labour for Section 3.1.2."
+      "disposition": "mapped",
+      "mapped-to": "RFC3948-3.1.1-1",
+      "reason": "The sentence opens the tunnel-mode decapsulation NAT procedure and offers three choices. Ze takes the FIRST: it defines the valid source IP address space in the policy. childPolicyParams builds the inbound Security Policy with the negotiated remote traffic selector as its source selector and the local one as its destination (engine/child.go), and installChildSA hands that policy to the dataplane through dp.InstallPolicy for every Child SA. XFRM then performs the per-packet check, matching each decapsulated inner packet against that selector and dropping one whose source falls outside it. The obligation is met by the pair: ze defines the space, the kernel enforces it. Ze holds NO rejecting branch of its own, and no ze code path sees a decapsulated inner packet. Conformance is behaviour on the whole stack and delegation to the kernel is an implementation, not an exemption (owner ruling, 2026-08-31). The summary declares the id single-polarity positive for that reason, and TestChildInboundPolicyDefinesTheValidInnerSourceSpace (engine/rfc3948_inner_source_policy_test.go) proves the definition ze contributes."
     },
     {
       "id": "3.1.2:1",
@@ -258,9 +258,9 @@
     {
       "id": "5.1:1",
       "quote": "Implementors MUST devise ways of preventing this from occurring.",
-      "disposition": "excluded",
-      "excluded-kind": "binds-another-role",
-      "reason": "The role is a security gateway terminating remote-access clients that choose their own inner addresses, which is the SGW of the section's diagram. Ze does not implement it. matchResponderPeer admits an unsolicited IKE_SA_INIT only from a configured site-to-site peer whose literal remote-address equals the packet source (engine/register.go), and the virtual IP pool that would serve road-warrior clients is built and then discarded at `_ = ipPool` in the same file. Ze therefore never holds two remote peers whose self-chosen inner addresses can overlap. That role is the subject of plan/spec-ipsec-remote-access.md and is not implemented today."
+      "disposition": "mapped",
+      "mapped-to": "RFC3948-5.1-1",
+      "reason": "Ze fills the role. The security gateway of the section's diagram is a tunnel-mode responder terminating remote peers, and ze is one: it terminates tunnel-mode Child SAs, it carries the remote-access config surface that names an address pool, and it builds a real allocator from that surface. The earlier excluded-kind of binds-another-role was wrong on the 2026-08-31 owner directive in ai/rules/rfc-compliance.md, which bans that kind for a role ze fills. The producer exists and is unreached: Pool.Allocate (internal/component/ike/eap/pool.go) leases a unique address and has no non-test caller, and registerIKE (internal/component/ike/engine/register.go) discards the pool at a bare `_ = ipPool`. An unreached producer emits nothing, so no layer performs the requirement and it is a gap rather than a met obligation. The non-conformance is carried by the {gap} on RFC3948-5.1-1 in rfc/short/rfc3948.md, and plan/spec-ike-virtual-ip-assignment.md is the work that closes it."
     },
     {
       "id": "5.2:1",

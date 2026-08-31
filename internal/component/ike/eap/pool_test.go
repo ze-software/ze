@@ -73,11 +73,10 @@ func TestVirtualIPPoolRelease(t *testing.T) {
 	_ = r2
 }
 
-// RFC requirement: RFC3948-5.1-1 negative -- the security gateway refuses rather than hand
-// a second client an inner address that is already in use. RFC 3948 Section 5.1 warns that
-// two remote peers reaching one SGW on the same inner address leave it unable to tell which
-// SA a returning packet belongs to, so a pool that wrapped around under pressure would
-// recreate exactly that conflict.
+// The pool refuses when its range is exhausted rather than wrapping around and handing an
+// address out twice. This is the pool's own arithmetic and nothing more: no RFC requirement
+// tag sits on it, because Pool.Allocate has no non-test caller and registerIKE discards the
+// pool, so no security gateway behavior follows from it (owner ruling, 2026-08-31).
 func TestVirtualIPPoolExhausted(t *testing.T) {
 	pool, err := NewPool("10.10.0.0/30", "", nil, "")
 	if err != nil {
@@ -224,9 +223,10 @@ func TestVirtualIPPoolReleaseNotAllocated(t *testing.T) {
 // address, which leaves the gateway holding two SAs that lead to that address and no way
 // to choose between them for traffic coming back from the protected network.
 //
-// RFC requirement: RFC3948-5.1-1 positive -- ze prevents the RFC 3948 Section 5.1 conflict
-// the way the section recommends: the gateway assigns each client a locally unique address
-// instead of carrying the address the client brought with it.
+// This checks the pool, not the gateway. RFC 3948 Section 5.1 recommends that a gateway
+// assign each client a locally unique address, and ze assigns none: the pool is built and
+// discarded, so the recommendation is unreachable and RFC3948-5.1-1 is a gap rather than a
+// proven requirement (owner ruling, 2026-08-31; plan/spec-ike-virtual-ip-assignment.md).
 func TestVirtualIPPoolNeverHandsOneAddressTwice(t *testing.T) {
 	pool, err := NewPool("10.10.0.0/28", "", nil, "")
 	if err != nil {
