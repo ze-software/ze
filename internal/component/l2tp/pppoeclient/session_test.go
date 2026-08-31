@@ -11,6 +11,9 @@ package pppoeclient
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
+	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
@@ -115,7 +118,7 @@ func TestGenerateMagic(t *testing.T) {
 func TestLCPConfigRequestMRU(t *testing.T) {
 	var scratch [ppp.MaxFrameLen]byte
 	var w bytes.Buffer
-	sendLCPConfigRequest(&w, scratch[:], 1, 1492, 0x12345678)
+	sendLCPConfigRequest(&w, scratch[:], 1, 1492, 0x12345678, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	proto, payload, _, err := ppp.ParseFrame(w.Bytes())
 	if err != nil {
@@ -153,5 +156,46 @@ func TestLCPConfigRequestMRU(t *testing.T) {
 	}
 	if mru != 1492 {
 		t.Errorf("proposed MRU = %d, want 1492 (PPPoE default)", mru)
+	}
+}
+
+// VALIDATES: both client Configure-Request senders say so when their options
+//
+//	do not fit the buffer they were given, and write no frame.
+//
+// PREVENTS: a client that sends nothing and waits out lcpNegotiationTimeout
+// with no line in the log to explain it. The buffer negotiateLCP passes is one
+// PPP frame, so ten octets of options always fit and neither refusal is
+// reachable there; a refusal that cannot answer still has to say so
+// (`ai/rules/principles.md`).
+func TestLCPConfigRequestRefusalIsLogged(t *testing.T) {
+	senders := []struct {
+		name string
+		send func(w io.Writer, buf []byte, logger *slog.Logger)
+	}{
+		{"full", func(w io.Writer, buf []byte, logger *slog.Logger) {
+			sendLCPConfigRequest(w, buf, 1, 1492, 0x12345678, logger)
+		}},
+		{"minimal", func(w io.Writer, buf []byte, logger *slog.Logger) {
+			sendLCPConfigRequestMinimal(w, buf, 1, 0x12345678, logger)
+		}},
+	}
+	for _, sender := range senders {
+		t.Run(sender.name, func(t *testing.T) {
+			var w bytes.Buffer
+			var logged bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn}))
+
+			// Two octets for the protocol and four for the LCP header leave
+			// room for no option at all.
+			sender.send(&w, make([]byte, 6), logger)
+
+			if w.Len() != 0 {
+				t.Errorf("the client wrote % x; a Configure-Request carrying a prefix of its options offers terms it never chose", w.Bytes())
+			}
+			if !strings.Contains(logged.String(), "LCP Configure-Request not sent") {
+				t.Errorf("the refusal logged %q, want the line that names it", logged.String())
+			}
+		})
 	}
 }

@@ -156,7 +156,10 @@ func TestAdjustAuthOnNakOrReject(t *testing.T) {
 	// Helper: build an LCP options payload from the supplied options.
 	buildData := func(opts []LCPOption) []byte {
 		buf := make([]byte, 256)
-		n := WriteLCPOptions(buf, 0, opts)
+		n, fits := WriteLCPOptions(buf, 0, opts)
+		if !fits {
+			t.Fatalf("the case's %d options do not fit a 256-octet buffer", len(opts))
+		}
 		return buf[:n]
 	}
 

@@ -97,18 +97,34 @@ func TestIPCPParseRejects(t *testing.T) {
 	}
 }
 
-// VALIDATES: ipcpHasUnknownOption flags any option type not in the
+// VALIDATES: scanNCPOptions separates the four shapes an IPCP option
 //
-//	recognized set {3, 129, 131}. PREVENTS: Configure-Ack on
-//	options we cannot interpret (RFC 1661 §5.4).
-func TestIPCPUnknownOption(t *testing.T) {
-	known := []byte{3, 6, 1, 2, 3, 4}
-	if ipcpHasUnknownOption(known) {
-		t.Error("known options flagged as unknown")
+//	list can take -- clean, an unrecognized type outside {3, 129,
+//	131}, an invalid Length, and an option not contained in the
+//	packet. PREVENTS: Configure-Ack on options we cannot interpret
+//	(RFC 1661 §5.4), and the older bool helper's answer of "no
+//	unknown option" for a list it could not walk.
+func TestIPCPScanNCPOptions(t *testing.T) {
+	cases := []struct {
+		name string
+		buf  []byte
+		want ncpOptionScan
+	}{
+		{"empty list", nil, ncpOptionsOK},
+		{"known type", []byte{3, 6, 1, 2, 3, 4}, ncpOptionsOK},
+		{"known then unknown type", []byte{3, 6, 1, 2, 3, 4, 99, 4, 0xDE, 0xAD}, ncpOptionsUnknownType},
+		{"length below the two-octet header", []byte{3, 1, 0, 0}, ncpOptionsBadLength},
+		{"length zero", []byte{3, 0}, ncpOptionsBadLength},
+		{"data runs past the end", []byte{3, 6, 10, 0}, ncpOptionsTruncated},
+		{"header does not fit", []byte{3, 6, 1, 2, 3, 4, 99}, ncpOptionsTruncated},
+		{"truncation outranks an unknown type", []byte{99, 4, 0xDE, 0xAD, 3, 6, 10, 0}, ncpOptionsTruncated},
 	}
-	mixed := []byte{3, 6, 1, 2, 3, 4, 99, 4, 0xDE, 0xAD}
-	if !ipcpHasUnknownOption(mixed) {
-		t.Error("mixed options not flagged")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := scanNCPOptions(tc.buf, isKnownIPCPOption); got != tc.want {
+				t.Errorf("scanNCPOptions(% x) = %d, want %d", tc.buf, got, tc.want)
+			}
+		})
 	}
 }
 

@@ -268,7 +268,11 @@ func nakThenAckPeer(
 	off := WriteFrame(out, 0, ProtoLCP, nil)
 	dataOff := off + lcpHeaderLen
 	nakOpt := authProtoOpt(nakProto, nakAlgo...)
-	dataLen := WriteLCPOptions(out, dataOff, []LCPOption{nakOpt})
+	dataLen, fits := WriteLCPOptions(out, dataOff, []LCPOption{nakOpt})
+	if !fits {
+		t.Errorf("peer: one option does not fit a frame")
+		return
+	}
 	off += WriteLCPPacket(out, off, LCPConfigureNak, firstCR.Identifier, out[dataOff:dataOff+dataLen])
 	if _, err := conn.Write(out[:off]); err != nil {
 		t.Errorf("peer: write Nak: %v", err)

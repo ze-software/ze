@@ -706,6 +706,58 @@ func codeToEvent(code uint8, optsBad bool) lCPEvent {
 	return LCPEventRUC
 }
 
+// lcpRequestVerdict is what a received LCP Configure-Request earns. A bool
+// carries only the first two: RFC 1661 Section 6 has a third answer for a
+// packet whose options do not fit inside it, and that answer is no answer
+// at all.
+type lcpRequestVerdict uint8
+
+const (
+	// lcpRequestAcceptable feeds the FSM an RCR+, which Acks.
+	lcpRequestAcceptable lcpRequestVerdict = iota
+	// lcpRequestUnacceptable feeds the FSM an RCR-, which Naks or Rejects.
+	lcpRequestUnacceptable
+	// lcpRequestDiscard feeds the FSM nothing: the packet is invalid and is
+	// dropped without a reply and without a state change.
+	lcpRequestDiscard
+)
+
+// negPolicy is the policy ze judges a peer Configure-Request against. One
+// declaration serves both the verdict and the reply it leads to, so the two
+// can never disagree about what ze wants.
+func (s *pppSession) negPolicy() LCPNegPolicy {
+	return LCPNegPolicy{MaxMRU: s.maxMRU, LocalMagic: s.magic}
+}
+
+// evalLCPRequest judges the peer's LCP Configure-Request and returns the
+// options it carried. The option list is nil on anything but a clean walk,
+// because a caller that reads options out of a request ze could not parse
+// is reading the prefix that happened to precede the fault.
+func (s *pppSession) evalLCPRequest(pkt LCPPacket) (lcpRequestVerdict, []LCPOption) {
+	w := WalkLCPOptions(pkt.Data)
+	if w.Fault.Discards() {
+		// RFC 1661 Section 6: "When the Data field is indicated by the
+		// Length to extend beyond the end of the Information field, the
+		// entire packet is silently discarded without affecting the
+		// automaton."
+		return lcpRequestDiscard, nil
+	}
+	if w.Fault == LCPOptionsBadLength {
+		// The list is contained in the packet, so the fault is one option's
+		// own Length. RFC 1661 Section 6: "If a negotiable Configuration
+		// Option is received in a Configure-Request, but with an invalid or
+		// unrecognized Length, a Configure-Nak SHOULD be transmitted which
+		// includes the desired Configuration Option with an appropriate
+		// Length and Data."
+		return lcpRequestUnacceptable, nil
+	}
+	_, naks, rejects := NegotiatePeerOptions(w.Options, s.negPolicy())
+	if len(naks) > 0 || len(rejects) > 0 {
+		return lcpRequestUnacceptable, w.Options
+	}
+	return lcpRequestAcceptable, w.Options
+}
+
 // handleLCPPacket maps the received LCP code to an FSM event and
 // drives the resulting actions. Returns true if the session should
 // terminate.
@@ -726,20 +778,56 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		}
 	}
 
+	// RFC 1661 Section 6: "When the Data field is indicated by the Length to
+	// extend beyond the end of the Information field, the entire packet is
+	// silently discarded without affecting the automaton."
+	//
+	// The sentence sits under the Data field of the Configuration Option
+	// format, and names no Code, where the Configure-Nak sentence one
+	// paragraph above it is scoped to "received in a Configure-Request". So
+	// it binds every packet whose Data field carries Configuration Options,
+	// not the request alone. RFC 1661 Section 5.2 reaches the same answer for
+	// an Ack in its own words: "Invalid packets are silently discarded."
+	//
+	// The Configure-Request is held to it by evalLCPRequest below, which has
+	// to tell the fault apart from an unacceptable value to pick its verdict.
+	// The three reply codes need no verdict, so they are held to it here.
+	switch pkt.Code {
+	case LCPConfigureAck, LCPConfigureNak, LCPConfigureReject:
+		if WalkLCPOptions(pkt.Data).Fault.Discards() {
+			s.logger.Debug("ppp: LCP reply silently discarded, options do not fit the packet",
+				"state", cur.String(),
+				"code", LCPCodeName(pkt.Code),
+				"id", pkt.Identifier,
+				"len", len(pkt.Data))
+			return false
+		}
+	}
+
+	// optsBad chooses between RCR+ and RCR- and carries nothing else. The
+	// third answer RFC 1661 Section 6 has for a Configure-Request -- no
+	// answer at all -- returns below, before the automaton runs.
 	optsBad := false
 	var peerOpts []LCPOption
 	if pkt.Code == LCPConfigureRequest {
-		opts, perr := ParseLCPOptions(pkt.Data)
-		if perr != nil {
-			optsBad = true
-		} else {
-			peerOpts = opts
-			policy := lCPNegPolicy{MaxMRU: s.maxMRU}
-			_, naks, rejects := NegotiatePeerOptions(opts, policy)
-			if len(rejects) > 0 || len(naks) > 0 {
-				optsBad = true
-			}
+		verdict, opts := s.evalLCPRequest(pkt)
+		if verdict == lcpRequestDiscard {
+			// RFC 1661 Section 6: "When the Data field is indicated by the
+			// Length to extend beyond the end of the Information field, the
+			// entire packet is silently discarded without affecting the
+			// automaton."
+			//
+			// The silence is owed twice. Any reply to a packet an off-path
+			// sender can forge makes ze a reflector, and this packet is one
+			// no conforming peer emits.
+			s.logger.Debug("ppp: LCP Configure-Request silently discarded",
+				"state", cur.String(),
+				"id", pkt.Identifier,
+				"len", len(pkt.Data))
+			return false
 		}
+		peerOpts = opts
+		optsBad = verdict == lcpRequestUnacceptable
 	}
 
 	// RFC 1661 §5.3 (Configure-Nak) / §5.4 (Configure-Reject): when
@@ -913,7 +1001,17 @@ func (s *pppSession) sendConfigureRequest() bool {
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ProtoLCP, nil)
 	dataOff := off + lcpHeaderLen
-	dataLen := WriteLCPOptions(buf, dataOff, opts)
+	dataLen, fits := WriteLCPOptions(buf, dataOff, opts)
+	if !fits {
+		// Ze chose every one of these options, and BuildLocalConfigRequest
+		// emits at most six of them at seven octets each, so a frame cannot
+		// be too small for them. Saying so beats sending a Configure-Request
+		// that offers a prefix of what ze wants: the negotiation would then
+		// settle on terms ze never chose.
+		s.logger.Warn("ppp: LCP Configure-Request not sent, its options do not fit a frame",
+			"options", len(opts))
+		return true
+	}
 	off += WriteLCPPacket(buf, off, LCPConfigureRequest, 1, buf[dataOff:dataOff+dataLen])
 	return s.writeFrame(buf[:off])
 }
@@ -926,28 +1024,156 @@ func (s *pppSession) sendConfigureAck(req LCPPacket) bool {
 	return s.writeFrame(buf[:off])
 }
 
-func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
-	opts, perr := ParseLCPOptions(req.Data)
-	if perr != nil {
-		return s.sendCodeReject(req)
+// LCPNakOrReject picks the reply a Configure-Request ze judged unacceptable
+// earns, and the options that reply carries.
+//
+// RFC 1661 Section 5.4 orders Reject over Nak: "If some Configuration Options
+// received in a Configure-Request are not recognizable or are not acceptable
+// for negotiation (as configured by a network administrator), then the
+// implementation MUST transmit a Configure-Reject." That MUST outranks the
+// Configure-Nak Section 6 only says an invalid Length SHOULD draw, so a
+// request carrying one of each is answered with the Reject alone.
+//
+// The options read before an invalid Length are therefore judged first. They
+// are the whole list on a clean walk, and the prefix that precedes the fault
+// otherwise -- WalkLCPOptions cannot step over an option whose own Length is
+// impossible, so an unrecognized Type after the fault is one ze never sees.
+//
+// RFC 1661 Section 6: "(None of the Configuration Options in this
+// specification can be listed more than once.)" The prefix can carry an
+// earlier instance of the faulting option, so the entry the fault earns is
+// added only when the reply does not already name that Type.
+//
+// reply is false when the walk earned no entry at all. RFC 1661 Section 5.3:
+// "The Options field is filled with only the unacceptable Configuration
+// Options from the Configure-Request." A Configure-Nak with an empty Options
+// field carries no unacceptable option, so it is a packet neither Section 5.3
+// nor Section 5.4 describes, and the caller sends nothing instead. code and
+// opts are then the zero value and MUST NOT be transmitted.
+func LCPNakOrReject(w LCPOptionWalk, policy LCPNegPolicy) (code uint8, opts []LCPOption, reply bool) {
+	_, naks, rejects := NegotiatePeerOptions(w.Options, policy)
+
+	if w.Fault == LCPOptionsBadLength {
+		// RFC 1661 Section 6: "If a negotiable Configuration Option is
+		// received in a Configure-Request, but with an invalid or
+		// unrecognized Length, a Configure-Nak SHOULD be transmitted which
+		// includes the desired Configuration Option with an appropriate
+		// Length and Data."
+		want, ok := desiredLCPOption(w.FaultOpt, policy)
+		if ok {
+			naks = appendUnlessListed(naks, want)
+		}
+		if !ok {
+			// Ze negotiates no value for this Type, so it has nothing to put
+			// in a Nak. RFC 1661 Section 5.4 takes the option instead, and it
+			// travels exactly as it arrived, malformed Length octet included:
+			// "The Options field is filled with only the unacceptable
+			// Configuration Options from the Configure-Request. All
+			// recognizable and negotiable Configuration Options are filtered
+			// out of the Configure-Reject, but otherwise the Configuration
+			// Options MUST NOT be reordered or modified in any way."
+			//
+			// Naming the Type at the shortest well-formed Length instead
+			// would put an option in the reply that the peer never sent, for
+			// the one Length the peer cannot have meant. Section 5.4 answers
+			// that trade already, and the peer that chose the Length is the
+			// party that has to make sense of the reply.
+			//
+			// WalkLCPOptions sets FaultRaw on every LCPOptionsBadLength walk.
+			// A walk assembled without it can only produce the modified
+			// option Section 5.4 forbids, so it produces no entry at all.
+			if len(w.FaultRaw) >= lcpOptHeaderLen {
+				rejects = appendUnlessListed(rejects, LCPOption{Type: w.FaultOpt, Raw: w.FaultRaw})
+			}
+		}
 	}
-	policy := lCPNegPolicy{MaxMRU: s.maxMRU}
-	_, naks, rejects := NegotiatePeerOptions(opts, policy)
+
+	if len(rejects) > 0 {
+		return LCPConfigureReject, rejects, true
+	}
+	if len(naks) > 0 {
+		return LCPConfigureNak, naks, true
+	}
+	// Every option ze refused produced an entry above, so an empty pair means
+	// ze refused nothing it can name. That is reachable only from a walk
+	// assembled without FaultRaw, which the branch above leaves without an
+	// entry rather than modify the option Section 5.4 says it MUST NOT
+	// modify. The reply it would build is an empty Configure-Nak, and the
+	// answer to "nothing to say" is silence.
+	return 0, nil, false
+}
+
+// appendUnlessListed adds opt to the reply list, and returns the list
+// unchanged when it already carries opt's Type.
+//
+// RFC 1661 Section 6: "(None of the Configuration Options in this
+// specification can be listed more than once.)" That holds of the reply as
+// well as of the request, so a Configure-Nak or Configure-Reject ze builds
+// names each Type at most once.
+//
+// The entry already listed is the one kept. It came from an instance of the
+// option ze could read, so a Nak entry holds a value ze accepts and a Reject
+// entry holds the whole option that earned the refusal, where the entry the
+// fault would add carries only the two header octets its own Length left
+// readable.
+func appendUnlessListed(list []LCPOption, opt LCPOption) []LCPOption {
+	for _, listed := range list {
+		if listed.Type == opt.Type {
+			return list
+		}
+	}
+	return append(list, opt)
+}
+
+func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
+	w := WalkLCPOptions(req.Data)
+	if w.Fault.Discards() {
+		// Not reachable from handleLCPPacket, which returns on that verdict
+		// before the automaton fires this action. RFC 1661 Section 6 answers
+		// such a packet with silence, so the fail-closed answer here is the
+		// same silence rather than a reply built from options ze could not
+		// read.
+		s.logger.Debug("ppp: LCP reply suppressed, options do not fit the packet",
+			"id", req.Identifier,
+			"len", len(req.Data))
+		return true
+	}
+
+	code, opts, reply := LCPNakOrReject(w, s.negPolicy())
+	if !reply {
+		// Ze judged the request unacceptable and holds no option to name in
+		// the answer. RFC 1661 Section 5.3 fills the Options field with
+		// "only the unacceptable Configuration Options from the
+		// Configure-Request", so an empty Configure-Nak is a packet the
+		// section does not describe. Ze sends nothing and says so, and the
+		// peer's retransmission timer drives the negotiation.
+		s.logger.Warn("ppp: LCP reply suppressed, no option to carry in it",
+			"id", req.Identifier,
+			"len", len(req.Data))
+		return true
+	}
 
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ProtoLCP, nil)
 	dataOff := off + lcpHeaderLen
-	var (
-		code    uint8
-		dataLen int
-	)
-	if len(rejects) > 0 {
-		code = LCPConfigureReject
-		dataLen = WriteLCPOptions(buf, dataOff, rejects)
-	} else {
-		code = LCPConfigureNak
-		dataLen = WriteLCPOptions(buf, dataOff, naks)
+	dataLen, fits := WriteLCPOptions(buf, dataOff, opts)
+	if !fits {
+		// The peer sizes this reply, and one refused option can draw more
+		// octets than it occupied: a Magic-Number at Length 2 is answered by
+		// the six RFC 1661 Section 6.4 gives it. A frame filled with those
+		// asks for a reply three times its own size, which no frame holds.
+		//
+		// RFC 1661 Section 5.4 fills the Options field with "only the
+		// unacceptable Configuration Options from the Configure-Request", so
+		// a reply carrying the prefix that fit is a packet the section does
+		// not describe. Ze sends nothing and lets the peer's retransmission
+		// timer drive the negotiation, which ends at its own restart count.
+		s.logger.Warn("ppp: LCP reply suppressed, its options do not fit a frame",
+			"code", LCPCodeName(code),
+			"id", req.Identifier,
+			"options", len(opts))
+		return true
 	}
 	off += WriteLCPPacket(buf, off, code, req.Identifier, buf[dataOff:dataOff+dataLen])
 	return s.writeFrame(buf[:off])

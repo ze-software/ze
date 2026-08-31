@@ -1,4 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- IPv6CP codec + options
+// RFC: rfc/short/rfc5072.md -- RFC 5072 Section 4 (IPV6CP uses the LCP Configuration Option format), Section 4.1 (Interface-Identifier), Section 3.2 (identifier validity)
 // Related: ppp_fsm.go -- shared RFC 1661 FSM driving IPv6CP
 // Related: lcp.go -- shared packet shape (Code/Identifier/Length/Data)
 // Related: ipcp.go -- IPv4 sibling NCP
@@ -42,7 +43,7 @@ type iPv6CPOptions struct {
 }
 
 // parseIPv6CPOptions walks the option list and populates the struct.
-// Unknown options are skipped -- ipv6cpHasUnknownOption separately
+// Unknown options are skipped -- scanNCPOptions (ncp.go) separately
 // reports whether a Configure-Reject is required.
 func parseIPv6CPOptions(buf []byte) (iPv6CPOptions, error) {
 	var out iPv6CPOptions
@@ -84,28 +85,6 @@ func writeIPv6CPInterfaceID(buf []byte, off int, id [ipv6cpInterfaceIDLen]byte) 
 	buf[off+1] = ipv6cpInterfaceIDOptLen
 	copy(buf[off+2:off+ipv6cpInterfaceIDOptLen], id[:])
 	return ipv6cpInterfaceIDOptLen
-}
-
-// ipv6cpHasUnknownOption returns true if buf contains any option type
-// other than Interface-Identifier, signaling ze should reply with
-// Configure-Reject per RFC 1661 §5.4.
-func ipv6cpHasUnknownOption(buf []byte) bool {
-	off := 0
-	for off < len(buf) {
-		if len(buf)-off < 2 {
-			return false
-		}
-		t := buf[off]
-		l := int(buf[off+1])
-		if l < 2 || off+l > len(buf) {
-			return false
-		}
-		if t != IPv6CPOptInterfaceID {
-			return true
-		}
-		off += l
-	}
-	return false
 }
 
 // isValidIPv6CPInterfaceID reports whether id is a valid RFC 5072

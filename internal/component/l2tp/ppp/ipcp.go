@@ -1,4 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- IPCP codec + options
+// RFC: rfc/short/rfc1332.md -- RFC 1332 Section 3 (IPCP uses the LCP Configuration Option format), Section 3.3 (IP-Address); RFC 1877 Sections 1.1-1.2 (Primary/Secondary DNS)
 // Related: ppp_fsm.go -- shared RFC 1661 FSM driving IPCP
 // Related: lcp.go -- shared packet shape (Code/Identifier/Length/Data)
 
@@ -57,7 +58,7 @@ func isKnownIPCPOption(t uint8) bool {
 // ParseIPCPOptions walks an IPCP option list (the Data field of a
 // Configure-Request/Ack/Nak/Reject) into the struct. Unknown option
 // types are skipped -- the FSM layer decides whether to Reject them
-// via ipcpHasUnknownOption.
+// via scanNCPOptions (ncp.go).
 //
 // Returns an error only when the wire shape is structurally malformed.
 func ParseIPCPOptions(buf []byte) (iPCPOptions, error) {
@@ -134,26 +135,4 @@ func writeIPCPv4Option(buf []byte, off int, optType uint8, addr netip.Addr) int 
 	a4 := addr.As4()
 	copy(buf[off+2:off+ipcpIPv4OptLen], a4[:])
 	return ipcpIPv4OptLen
-}
-
-// ipcpHasUnknownOption returns true if buf contains at least one IPCP
-// option whose type is not recognized. Used when deciding whether to
-// Configure-Reject a peer's Request.
-func ipcpHasUnknownOption(buf []byte) bool {
-	off := 0
-	for off < len(buf) {
-		if len(buf)-off < 2 {
-			return false
-		}
-		t := buf[off]
-		l := int(buf[off+1])
-		if l < 2 || off+l > len(buf) {
-			return false
-		}
-		if !isKnownIPCPOption(t) {
-			return true
-		}
-		off += l
-	}
-	return false
 }

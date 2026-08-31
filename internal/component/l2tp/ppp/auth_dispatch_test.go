@@ -91,7 +91,11 @@ func authProtoReplyPeer(
 	} else {
 		replyOpt = authProtoOpt(nakProto, nakAlgo...)
 	}
-	dataLen := WriteLCPOptions(out, dataOff, []LCPOption{replyOpt})
+	dataLen, fits := WriteLCPOptions(out, dataOff, []LCPOption{replyOpt})
+	if !fits {
+		t.Errorf("peer: one option does not fit a frame")
+		return
+	}
 	off += WriteLCPPacket(out, off, code, firstCR.Identifier, out[dataOff:dataOff+dataLen])
 	if _, err := conn.Write(out[:off]); err != nil {
 		t.Errorf("peer: write reject/nak: %v", err)

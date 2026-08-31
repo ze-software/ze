@@ -173,3 +173,153 @@ func TestLCPCodeName(t *testing.T) {
 		}
 	}
 }
+
+// VALIDATES: WriteLCPOptions refuses a list that does not fit the buffer it
+//
+//	was given, rather than writing past the end of it, and it refuses the
+//	whole list rather than the prefix that fit.
+//
+// PREVENTS: the writer indexing past a MaxFrameLen frame buffer. Every option
+// it emits used to be written with no bound at all, on the caller's promise
+// that the buffer was large enough. The peer sizes a Configure-Nak, so that
+// promise was the peer's to keep.
+func TestWriteLCPOptionsRefusesAListThatDoesNotFit(t *testing.T) {
+	opts := []LCPOption{
+		{Type: LCPOptMagic, Data: []byte{0xDE, 0xAD, 0xBE, 0xEF}},
+		{Type: LCPOptMRU, Data: []byte{0x05, 0xDC}},
+	}
+
+	// Ten octets of options into a nine-octet buffer: the Magic-Number fits
+	// and the MRU does not.
+	buf := make([]byte, 9)
+	n, fits := WriteLCPOptions(buf, 0, opts)
+	if fits {
+		t.Fatalf("WriteLCPOptions reported that %d octets of options fit a %d-octet buffer", 10, len(buf))
+	}
+	if n != 6 {
+		t.Errorf("octets written = %d, want the 6 of the option that fit", n)
+	}
+
+	// The same list fits a buffer sized for it, so the refusal above follows
+	// from the room and not from the list.
+	buf = make([]byte, 10)
+	n, fits = WriteLCPOptions(buf, 0, opts)
+	if !fits {
+		t.Fatalf("WriteLCPOptions refused %d octets of options in a %d-octet buffer", 10, len(buf))
+	}
+	if n != 10 {
+		t.Errorf("octets written = %d, want 10", n)
+	}
+}
+
+// VALIDATES: LCPNakOrReject reports that there is nothing to send when the
+//
+//	walk it reads earned no reply entry, instead of naming a Configure-Nak
+//	with an empty Options field.
+//
+// PREVENTS: ze transmitting a Configure-Nak that carries no unacceptable
+// option. RFC 1661 Section 5.3: "The Options field is filled with only the
+// unacceptable Configuration Options from the Configure-Request." A walk that
+// reports an invalid option Length without the octets it read leaves ze
+// nothing to name, because Section 5.4 forbids modifying the option it would
+// have to rebuild instead. WalkLCPOptions sets FaultRaw on every such walk, so
+// only a Ze defect assembles this one, and the reply it used to draw is a
+// packet neither section describes.
+func TestLCPNakOrRejectSendsNothingWithoutAnEntry(t *testing.T) {
+	policy := LCPNegPolicy{MaxMRU: MaxFrameLen, LocalMagic: 0x01020304}
+
+	// Type 99 is unrecognized, so ze holds no desired value to Nak it with,
+	// and the walk carries no FaultRaw for a Reject to echo.
+	code, opts, reply := LCPNakOrReject(LCPOptionWalk{Fault: LCPOptionsBadLength, FaultOpt: 99}, policy)
+	if reply {
+		t.Errorf("LCPNakOrReject asked for a %s carrying %d options; a walk that earned no entry earns no reply", LCPCodeName(code), len(opts))
+	}
+
+	// The same walk with the octets it read earns a Configure-Reject, so the
+	// silence above follows from the missing entry and not from the fault.
+	code, opts, reply = LCPNakOrReject(LCPOptionWalk{Fault: LCPOptionsBadLength, FaultOpt: 99, FaultRaw: []byte{99, 0}}, policy)
+	if !reply {
+		t.Fatal("LCPNakOrReject sent nothing for a walk carrying the refused option")
+	}
+	if code != LCPConfigureReject {
+		t.Errorf("reply code = %s, want Configure-Reject", LCPCodeName(code))
+	}
+	if len(opts) != 1 {
+		t.Fatalf("reply carries %d options, want the 1 that earned it", len(opts))
+	}
+	if !bytes.Equal(opts[0].Raw, []byte{99, 0}) {
+		t.Errorf("Configure-Reject option = % x, want the % x that arrived", opts[0].Raw, []byte{99, 0})
+	}
+}
+
+// VALIDATES: a Configure-Request whose reply would not fit a PPP frame draws
+//
+//	no reply at all, and leaves ze running with its automaton usable.
+//
+// PREVENTS: the daemon panicking on a packet any unauthenticated peer can
+// send. A Magic-Number received at Length 2 is answered by the six octets RFC
+// 1661 Section 6.4 gives the option, so a frame filled with them asks for a
+// Configure-Nak three times the size of the request. WriteLCPOptions wrote
+// every one of those octets into a MaxFrameLen buffer with no bound, and the
+// index past the end of it took the session goroutine down.
+func TestLCPReplyLargerThanAFrameIsNotSent(t *testing.T) {
+	s, rec, _ := newRFC1661Session(LCPStateReqSent)
+
+	// 700 Magic-Number options at Length 2, 1400 octets, inside a frame. Each
+	// one is well formed as a header and invalid for its Type, so each earns
+	// a six-octet Nak entry.
+	const magicOptions = 700
+	request := make([]byte, 0, magicOptions*2)
+	for range magicOptions {
+		request = append(request, LCPOptMagic, 2)
+	}
+
+	if term := s.handleFrame(lcpReqFrame(0xD1, request)); term {
+		t.Fatal("session terminated on a Configure-Request whose reply does not fit a frame")
+	}
+
+	// Ze answered nothing. RFC 1661 Section 5.3: "The Options field is
+	// filled with only the unacceptable Configuration Options from the
+	// Configure-Request." A Configure-Nak carrying the prefix of them that
+	// fits is a packet that section does not describe, so the reply ze owes
+	// and cannot send is no reply at all, and sendConfigureNakOrReject
+	// returns before it writes a frame.
+	//
+	// The parse below is the counterfactual: if a frame ever does carry this
+	// Identifier, it is a whole option list, because the prefix that fit
+	// would not parse.
+	for _, frame := range rec.all() {
+		proto, payload, _, err := ParseFrame(frame)
+		if err != nil {
+			t.Fatalf("ParseFrame(% x): %v", frame, err)
+		}
+		if proto != ProtoLCP {
+			continue
+		}
+		pkt, err := ParseLCPPacket(payload)
+		if err != nil {
+			t.Fatalf("ParseLCPPacket(% x): %v", payload, err)
+		}
+		if pkt.Identifier != 0xD1 {
+			continue
+		}
+		t.Errorf("ze answered the oversized request with %s carrying %d octets of options; RFC 1661 Section 5.3 has no reply that carries some of the unacceptable options",
+			LCPCodeName(pkt.Code), len(pkt.Data))
+		if _, err := ParseLCPOptions(pkt.Data); err != nil {
+			t.Errorf("that reply's option list does not parse: % x: %v", pkt.Data, err)
+		}
+	}
+
+	// The automaton is where it was: a well-formed acceptable request is
+	// still acknowledged.
+	if term := s.handleFrame(lcpReqFrame(0xD2, optStream(mruOption(MaxFrameLen)))); term {
+		t.Fatal("session terminated on the well-formed request that followed")
+	}
+	ack, ok := findCode(t, rec, LCPConfigureAck)
+	if !ok {
+		t.Fatalf("no Configure-Ack for the well-formed request that followed; frames=%d", rec.count())
+	}
+	if ack.Identifier != 0xD2 {
+		t.Errorf("Configure-Ack Identifier = 0x%02x, want 0xD2", ack.Identifier)
+	}
+}

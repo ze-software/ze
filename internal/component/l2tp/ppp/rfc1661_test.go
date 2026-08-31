@@ -134,7 +134,10 @@ func newRFC1661Session(state LCPState) (*pppSession, *frameRecorder, chan Event)
 // packet.
 func optStream(opts ...LCPOption) []byte {
 	buf := make([]byte, 256)
-	n := WriteLCPOptions(buf, 0, opts)
+	n, fits := WriteLCPOptions(buf, 0, opts)
+	if !fits {
+		panic("BUG: a test option list does not fit 256 octets")
+	}
 	return buf[:n]
 }
 
@@ -838,7 +841,7 @@ func TestRFC1661ConfigureRejectDoesNotReorderOptions(t *testing.T) {
 	b := LCPOption{Type: 98, Data: []byte{0xBB, 0xCC}}
 	for _, order := range [][]LCPOption{{a, b}, {b, a}} {
 		opts := append([]LCPOption(nil), order...)
-		_, _, rejects := NegotiatePeerOptions(opts, lCPNegPolicy{})
+		_, _, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})
 		if len(rejects) != 2 {
 			t.Fatalf("rejects = %d, want 2", len(rejects))
 		}
@@ -937,7 +940,7 @@ func TestRFC1661BooleanOptionsUseRejectNotNak(t *testing.T) {
 		{Type: LCPOptPFC, Data: []byte{0xAA}},
 		{Type: LCPOptACFC, Data: []byte{0xBB, 0xCC}},
 	}
-	_, naks, rejects := NegotiatePeerOptions(opts, lCPNegPolicy{})
+	_, naks, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})
 	if len(naks) != 0 {
 		t.Fatalf("naks = %+v, want none for boolean options", naks)
 	}
@@ -954,7 +957,7 @@ func TestRFC1661BooleanOptionsUseRejectNotNak(t *testing.T) {
 // and negotiatePeerOption (lcp_options.go) answers an unacceptable MRU with a
 // Nak, so the Nak path exists and is deliberately not used for booleans.
 func TestRFC1661ValuedOptionUsesNak(t *testing.T) {
-	_, naks, rejects := NegotiatePeerOptions([]LCPOption{mruOption(2000)}, lCPNegPolicy{MaxMRU: 1500})
+	_, naks, rejects := NegotiatePeerOptions([]LCPOption{mruOption(2000)}, LCPNegPolicy{MaxMRU: 1500})
 	if len(rejects) != 0 {
 		t.Fatalf("rejects = %+v, want none", rejects)
 	}
@@ -971,7 +974,7 @@ func TestRFC1661ValuedOptionUsesNak(t *testing.T) {
 // (lcp_options.go) writes into the Nak passes its own acceptance check, so the
 // value field really does indicate a value acceptable to the Nak sender.
 func TestRFC1661NakValueIsAcceptable(t *testing.T) {
-	policy := lCPNegPolicy{MaxMRU: 1500}
+	policy := LCPNegPolicy{MaxMRU: 1500}
 	for _, bad := range []uint16{2000, 32} {
 		_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(bad)}, policy)
 		if len(naks) != 1 {
@@ -993,7 +996,7 @@ func TestRFC1661NakValueIsAcceptable(t *testing.T) {
 // asked for draws another Nak from negotiatePeerOption (lcp_options.go), which
 // is what makes the accepted suggestion above meaningful.
 func TestRFC1661RejectedValueStaysUnacceptable(t *testing.T) {
-	policy := lCPNegPolicy{MaxMRU: 1500}
+	policy := LCPNegPolicy{MaxMRU: 1500}
 	for range 2 {
 		_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(2000)}, policy)
 		if len(naks) != 1 {
@@ -1010,7 +1013,7 @@ func TestRFC1661RejectedValueStaysUnacceptable(t *testing.T) {
 // (lcp_options.go) appends one entry per received option in receive order, so
 // two Nak-worthy MRU options come back in the order they arrived.
 func TestRFC1661NakPreservesRequestOrder(t *testing.T) {
-	policy := lCPNegPolicy{MaxMRU: 1500}
+	policy := LCPNegPolicy{MaxMRU: 1500}
 	_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(2000), mruOption(32)}, policy)
 	if len(naks) != 2 {
 		t.Fatalf("naks = %d, want 2", len(naks))
@@ -1028,7 +1031,7 @@ func TestRFC1661NakPreservesRequestOrder(t *testing.T) {
 // RFC requirement: RFC1661-5.3-6 negative -- with the two MRU options swapped,
 // NegotiatePeerOptions (lcp_options.go) produces the swapped Nak list.
 func TestRFC1661NakOrderFollowsRequestNotAFixedOrder(t *testing.T) {
-	policy := lCPNegPolicy{MaxMRU: 1500}
+	policy := LCPNegPolicy{MaxMRU: 1500}
 	_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(32), mruOption(2000)}, policy)
 	if len(naks) != 2 {
 		t.Fatalf("naks = %d, want 2", len(naks))
@@ -1264,16 +1267,16 @@ func TestRFC1661SingleAuthProtocolOptionInRequest(t *testing.T) {
 //
 // ze always transmits a Magic-Number option (the session draws a non-zero magic at
 // start-up and sendConfigureRequest always includes it), and negotiatePeerOption
-// (lcp_options.go) answers a WELL-FORMED peer Magic-Number with negAck. That covers
-// only part of RFC1661-6.4-1, which forbids the Configure-Reject outright: a peer
-// Magic-Number option of the wrong Length still draws one (lcp_options.go:163-164),
-// so this test carries no RFC1661-6.4-1 tag and the requirement is annotated {gap}
-// in rfc/short/rfc1661.md.
+// (lcp_options.go) answers a WELL-FORMED peer Magic-Number with negAck. That is one
+// of the three peer Magic-Number shapes RFC1661-6.4-1 keeps out of the
+// Configure-Reject path; the other two are a wrong Length
+// (TestRFC1661LCPWrongLengthMagicIsNakedNotRejected) and a zero value
+// (TestRFC1661ZeroMagicNumberRefused, which carries the RFC1661-6.4-1 tag).
 //
 // RFC requirement: RFC1661-6.4-3 negative -- a non-zero Magic-Number is
 // accepted, which is what makes the mandatory refusal of zero meaningful.
 func TestRFC1661PeerMagicNumberAcked(t *testing.T) {
-	acks, naks, rejects := NegotiatePeerOptions([]LCPOption{magicOption(0xDEADBEEF)}, lCPNegPolicy{})
+	acks, naks, rejects := NegotiatePeerOptions([]LCPOption{magicOption(0xDEADBEEF)}, LCPNegPolicy{})
 	if len(rejects) != 0 {
 		t.Fatalf("rejects = %+v, want none for a well-formed Magic-Number", rejects)
 	}
@@ -1289,14 +1292,14 @@ func TestRFC1661PeerMagicNumberAcked(t *testing.T) {
 //
 //	acceptance of Magic-Number above is a deliberate exclusion.
 //
-// The Configure-Reject path is live in negotiatePeerOption (lcp_options.go) for
-// unrecognized option types; a well-formed Magic-Number option is kept out of it.
-// This asserts the same acceptance as TestRFC1661PeerMagicNumberAcked above and so
-// is no counter-pole for RFC1661-6.4-1; that requirement is annotated {gap} in
-// rfc/short/rfc1661.md.
+// RFC requirement: RFC1661-6.4-1 negative -- the Configure-Reject path is live in
+// negotiatePeerOption (lcp_options.go) for an unrecognized option Type, and the
+// SAME Configure-Request keeps its Magic-Number option out of it. The MUST NOT is
+// therefore a decision about the Magic-Number option rather than an implementation
+// that Configure-Rejects nothing at all.
 func TestRFC1661UnknownOptionRejectedWhileMagicIsNot(t *testing.T) {
 	opts := []LCPOption{{Type: 99, Data: []byte{0x01}}, magicOption(0xCAFEBABE)}
-	acks, _, rejects := NegotiatePeerOptions(opts, lCPNegPolicy{})
+	acks, _, rejects := NegotiatePeerOptions(opts, LCPNegPolicy{})
 	if len(rejects) != 1 || rejects[0].Type != 99 {
 		t.Fatalf("rejects = %+v, want only the unknown type 99", rejects)
 	}
@@ -1305,18 +1308,50 @@ func TestRFC1661UnknownOptionRejectedWhileMagicIsNot(t *testing.T) {
 	}
 }
 
-// VALIDATES: a Magic-Number of zero is refused outright.
+// VALIDATES: a Magic-Number of zero is refused with a Configure-Nak that
+//
+//	offers a legal Magic-Number, and never with a Configure-Reject.
 //
 // RFC requirement: RFC1661-6.4-3 positive -- negotiatePeerOption
-// (lcp_options.go) returns negReject when the four Magic-Number octets decode
-// to zero, so a zero Magic-Number is Rejected rather than accepted.
+// (lcp_options.go) returns negNak when the four Magic-Number octets decode to
+// zero, so a zero Magic-Number is refused rather than accepted. RFC 1661
+// Section 6.4 gives two ways to refuse it -- "A Magic-Number of zero is
+// illegal and MUST always be Nak'd, if it is not Rejected outright" -- and its
+// own MUST NOT withdraws the Reject from an implementation that transmits a
+// Magic-Number, as ze always does, so the Nak is the only one left.
+//
+// RFC requirement: RFC1661-6.4-1 positive -- the zero value was the last
+// Magic-Number option ze answered with a Configure-Reject, so this case is
+// where the MUST NOT is at risk.
+//
+// The offered value is checked twice over. Zero would be illegal by the
+// sentence above, and ze's own Magic-Number would be the collision Section 6.4
+// reads as a looped-back link.
 func TestRFC1661ZeroMagicNumberRefused(t *testing.T) {
-	acks, _, rejects := NegotiatePeerOptions([]LCPOption{magicOption(0)}, lCPNegPolicy{})
+	const localMagic uint32 = 0x01020304
+
+	acks, naks, rejects := NegotiatePeerOptions([]LCPOption{magicOption(0)}, LCPNegPolicy{LocalMagic: localMagic})
 	if len(acks) != 0 {
 		t.Fatalf("acks = %+v, want none for a zero Magic-Number", acks)
 	}
-	if len(rejects) != 1 {
-		t.Fatalf("rejects = %d, want 1", len(rejects))
+	if len(rejects) != 0 {
+		t.Fatalf("rejects = %+v, want none: ze transmits a Magic-Number, so RFC 1661 Section 6.4 forbids it Configure-Rejecting one", rejects)
+	}
+	if len(naks) != 1 {
+		t.Fatalf("naks = %d, want 1", len(naks))
+	}
+	if naks[0].Type != LCPOptMagic {
+		t.Fatalf("Nak'd option Type = %d, want the Magic-Number type %d", naks[0].Type, LCPOptMagic)
+	}
+	if len(naks[0].Data) != 4 {
+		t.Fatalf("Nak'd Magic-Number carries %d octets, want the 4 RFC 1661 Section 6.4 gives it", len(naks[0].Data))
+	}
+	got := binary.BigEndian.Uint32(naks[0].Data)
+	if got == 0 {
+		t.Error("Nak'd Magic-Number is zero, which RFC 1661 Section 6.4 calls illegal")
+	}
+	if got == localMagic {
+		t.Errorf("Nak'd Magic-Number = 0x%08x, which is ze's own; RFC 1661 Section 6.4 reads two equal Magic-Numbers as a looped-back link", got)
 	}
 }
 

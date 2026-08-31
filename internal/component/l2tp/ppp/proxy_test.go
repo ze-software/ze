@@ -10,7 +10,10 @@ import (
 // buildOptionStream serializes a small option list for proxy LCP tests.
 func buildOptionStream(opts []LCPOption) []byte {
 	buf := make([]byte, 256)
-	n := WriteLCPOptions(buf, 0, opts)
+	n, fits := WriteLCPOptions(buf, 0, opts)
+	if !fits {
+		panic("BUG: a proxy test option list does not fit 256 octets")
+	}
 	return buf[:n]
 }
 

@@ -128,7 +128,7 @@ type lcpResult struct {
 	authData  []byte
 }
 
-func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionConfig, magic uint32, stopCh <-chan struct{}, _ *slog.Logger) (lcpResult, error) {
+func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionConfig, magic uint32, stopCh <-chan struct{}, logger *slog.Logger) (lcpResult, error) {
 	var (
 		result    lcpResult
 		lcpID     uint8 = 1
@@ -137,7 +137,7 @@ func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionC
 	)
 
 	// RFC 1661: client sends CONFREQ with MRU + Magic (no Auth-Protocol).
-	sendLCPConfigRequest(w, buf, lcpID, cfg.mtu, magic)
+	sendLCPConfigRequest(w, buf, lcpID, cfg.mtu, magic, logger)
 
 	deadline := time.NewTimer(lcpNegotiationTimeout)
 	defer deadline.Stop()
@@ -153,7 +153,7 @@ func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionC
 		case <-restart.C:
 			if state == ppp.LCPStateReqSent || state == ppp.LCPStateAckSent {
 				lcpID++
-				sendLCPConfigRequest(w, buf, lcpID, cfg.mtu, magic)
+				sendLCPConfigRequest(w, buf, lcpID, cfg.mtu, magic, logger)
 			}
 		case frame, ok := <-frames:
 			if !ok || frame.err != nil {
@@ -170,12 +170,50 @@ func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionC
 
 			switch pkt.Code {
 			case ppp.LCPConfigureRequest:
-				opts, oErr := ppp.ParseLCPOptions(pkt.Data)
-				if oErr != nil {
-					sendLCPReject(w, buf, pkt)
+				walk := ppp.WalkLCPOptions(pkt.Data)
+				if walk.Fault.Discards() {
+					// RFC 1661 Section 6: "When the Data field is
+					// indicated by the Length to extend beyond the end
+					// of the Information field, the entire packet is
+					// silently discarded without affecting the
+					// automaton."
+					//
+					// The silence is owed twice. Any reply to a packet
+					// an off-path sender can forge makes ze a
+					// reflector, and echoing the sender's own octets
+					// back is the reflection it would perform.
+					logger.Debug("pppoe-client: LCP Configure-Request silently discarded",
+						"id", pkt.Identifier,
+						"len", len(pkt.Data))
 					continue
 				}
-				authProto, authData, mru := extractServerOptions(opts)
+				if walk.Fault == ppp.LCPOptionsBadLength {
+					// The options are contained in the packet, so the
+					// fault is one option's own Length. RFC 1661
+					// Section 6 answers that with a Configure-Nak
+					// carrying the desired option, and Section 5.4 with
+					// a Configure-Reject for a Type ze holds no value
+					// for. ppp.LCPNakOrReject picks between them, so
+					// the client and the LNS answer alike.
+					code, opts, reply := ppp.LCPNakOrReject(walk, clientLCPPolicy(cfg, magic))
+					if !reply {
+						// Nothing to name in the answer. RFC 1661
+						// Section 5.3 fills the Options field with
+						// "only the unacceptable Configuration
+						// Options from the Configure-Request", so an
+						// empty Configure-Nak is a packet the section
+						// does not describe. The client sends nothing
+						// and says so, and the server's own
+						// retransmission drives the negotiation.
+						logger.Warn("pppoe-client: LCP reply suppressed, no option to carry in it",
+							"id", pkt.Identifier,
+							"len", len(pkt.Data))
+						continue
+					}
+					sendLCPOptionReply(w, buf, code, pkt.Identifier, opts, logger)
+					continue
+				}
+				authProto, authData, mru := extractServerOptions(walk.Options)
 				if mru > 0 {
 					result.peerMRU = mru
 				}
@@ -199,11 +237,11 @@ func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionC
 
 			case ppp.LCPConfigureNak:
 				lcpID++
-				sendLCPConfigRequest(w, buf, lcpID, cfg.mtu, magic)
+				sendLCPConfigRequest(w, buf, lcpID, cfg.mtu, magic, logger)
 
 			case ppp.LCPConfigureReject:
 				lcpID++
-				sendLCPConfigRequestMinimal(w, buf, lcpID, magic)
+				sendLCPConfigRequestMinimal(w, buf, lcpID, magic, logger)
 
 			case ppp.LCPEchoRequest:
 				sendEchoReply(w, buf, pkt, magic)
@@ -483,25 +521,48 @@ func extractServerOptions(opts []ppp.LCPOption) (authProto uint16, authData []by
 	return
 }
 
-func sendLCPConfigRequest(w io.Writer, buf []byte, id uint8, mtu uint16, magic uint32) {
+func sendLCPConfigRequest(w io.Writer, buf []byte, id uint8, mtu uint16, magic uint32, logger *slog.Logger) {
 	opts := ppp.BuildLocalConfigRequest(ppp.LCPOptions{
 		MRU:   mtu,
 		Magic: magic,
 	})
 	off := ppp.WriteFrame(buf, 0, ppp.ProtoLCP, nil)
 	dataOff := off + 4 // lcpHeaderLen
-	dataLen := ppp.WriteLCPOptions(buf, dataOff, opts)
+	// The client chose both options and they occupy ten octets, so the
+	// refusal below reports a buf smaller than one LCP frame, which
+	// negotiateLCP never passes. A Configure-Request carrying a prefix of
+	// what the client wants would settle the link on terms it never offered,
+	// so nothing is sent when the options do not fit.
+	//
+	// Unreachable is not silent: a client that sent nothing here waits out
+	// lcpNegotiationTimeout, and the log line is what tells the operator why.
+	dataLen, fits := ppp.WriteLCPOptions(buf, dataOff, opts)
+	if !fits {
+		logger.Warn("pppoe-client: LCP Configure-Request not sent, its options do not fit a frame",
+			"id", id,
+			"options", len(opts))
+		return
+	}
 	off += ppp.WriteLCPPacket(buf, off, ppp.LCPConfigureRequest, id, buf[dataOff:dataOff+dataLen])
 	w.Write(buf[:off]) //nolint:errcheck // best effort
 }
 
-func sendLCPConfigRequestMinimal(w io.Writer, buf []byte, id uint8, magic uint32) {
+func sendLCPConfigRequestMinimal(w io.Writer, buf []byte, id uint8, magic uint32, logger *slog.Logger) {
 	opts := ppp.BuildLocalConfigRequest(ppp.LCPOptions{
 		Magic: magic,
 	})
 	off := ppp.WriteFrame(buf, 0, ppp.ProtoLCP, nil)
 	dataOff := off + 4
-	dataLen := ppp.WriteLCPOptions(buf, dataOff, opts)
+	// One Magic-Number option, six octets. The reasoning in
+	// sendLCPConfigRequest above holds here with one option fewer, and so
+	// does the reason the refusal speaks.
+	dataLen, fits := ppp.WriteLCPOptions(buf, dataOff, opts)
+	if !fits {
+		logger.Warn("pppoe-client: LCP Configure-Request not sent, its options do not fit a frame",
+			"id", id,
+			"options", len(opts))
+		return
+	}
 	off += ppp.WriteLCPPacket(buf, off, ppp.LCPConfigureRequest, id, buf[dataOff:dataOff+dataLen])
 	w.Write(buf[:off]) //nolint:errcheck // best effort
 }
@@ -512,9 +573,48 @@ func sendLCPAck(w io.Writer, buf []byte, req ppp.LCPPacket) {
 	w.Write(buf[:off]) //nolint:errcheck // best effort
 }
 
-func sendLCPReject(w io.Writer, buf []byte, req ppp.LCPPacket) {
+// clientLCPPolicy is what the client accepts from the server. It is read
+// only when a Configure-Request arrives with an option Length RFC 1661
+// Section 6 refuses, to build the reply that section asks for.
+//
+// AcceptAuthProto is true because the server picks the authentication
+// method and the client's next phase runs it, so a Configure-Reject of the
+// Auth-Protocol option would refuse the one option the client is here to
+// read. MaxMRU is the client's own MTU, which is the largest frame it can
+// receive.
+func clientLCPPolicy(cfg sessionConfig, magic uint32) ppp.LCPNegPolicy {
+	return ppp.LCPNegPolicy{
+		MaxMRU:          cfg.mtu,
+		AcceptAuthProto: true,
+		LocalMagic:      magic,
+	}
+}
+
+// sendLCPOptionReply writes a Configure-Nak or Configure-Reject carrying
+// opts. The reply carries only the options that earned it, never the
+// request's own Data: RFC 1661 Section 5.3 fills a Nak with the values ze
+// wants instead, and Section 5.4 fills a Reject with the refused options
+// alone. Echoing the whole request back would reflect octets an off-path
+// sender chose.
+//
+// The server sizes this reply, so it can be larger than the request that
+// produced it and larger than buf. RFC 1661 Section 5.4 fills the Options
+// field with "only the unacceptable Configuration Options from the
+// Configure-Request", so the prefix that fits is a different packet: the
+// client writes nothing and says so, and the server's own retransmission
+// drives the negotiation.
+func sendLCPOptionReply(w io.Writer, buf []byte, code, id uint8, opts []ppp.LCPOption, logger *slog.Logger) {
 	off := ppp.WriteFrame(buf, 0, ppp.ProtoLCP, nil)
-	off += ppp.WriteLCPPacket(buf, off, ppp.LCPConfigureReject, req.Identifier, req.Data)
+	dataOff := off + 4 // lcpHeaderLen
+	dataLen, fits := ppp.WriteLCPOptions(buf, dataOff, opts)
+	if !fits {
+		logger.Warn("pppoe-client: LCP reply suppressed, its options do not fit a frame",
+			"code", ppp.LCPCodeName(code),
+			"id", id,
+			"options", len(opts))
+		return
+	}
+	off += ppp.WriteLCPPacket(buf, off, code, id, buf[dataOff:dataOff+dataLen])
 	w.Write(buf[:off]) //nolint:errcheck // best effort
 }
 
