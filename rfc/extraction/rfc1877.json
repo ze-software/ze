@@ -1,0 +1,58 @@
+{
+  "schema-version": 1,
+  "stem": "rfc1877",
+  "register": "manual-walk",
+  "register-reason": "RFC 1877 is Informational, was published in December 1995, and states no MUST-level obligation of its own, so both site scans return an empty inventory: the capitalised scan and the case-insensitive prose scan over must / must not / shall / shall not / required each find nothing in rfc/full/rfc1877.txt. The document's only RFC 2119 keyword is one SHOULD in section 1, 'an attempt SHOULD be made to resolve names using the primary address before using the secondary address'. The word 'Recommended' occurs once, inside the quoted option-list name \"IPCP Recommended Options\", and 'May' once as a date in the reference list. The four gated rows rfc/short/rfc1877.md declares are therefore read from this document's indicative prose plus the base documents it extends (RFC 1332 IPCP, RFC 1661 PPP), which is where the Configure-Ack and Configure-Reject rules are actually stated. No mechanical inventory can source them, so each is declared unsourced-ids on the section it was read from and this sign-off rests on the section walk below.",
+  "source-path": "rfc/full/rfc1877.txt",
+  "source-sha": "868068cbe12bb56c",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-fixit-rfc-drain-quota-never-armed WP-1",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo ('This memo provides information for the Internet community. This memo does not specify an Internet standard of any kind.'), Abstract and Table of Contents. The Abstract says what the document extends and states no obligation. The table of contents lines are indented, so they open no section of their own."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Additional IPCP Configuration Options. It introduces options 129 to 132, says primary and secondary addresses are negotiated independently, says the options are 'designed to be identical in format and behavior to option 3 (IP-Address)', and suggests they not be included in the list of \"IPCP Recommended Options\". It carries the document's only RFC 2119 keyword, the SHOULD quoted in the register-reason; SHOULD is not a gated level and is not a site under either scan, and rfc/short/rfc1877.md declares no row for it. The section directs no MUST at any speaker. Three of the summary's four gated rows are read from its indicative prose: RFC1877-x-1 from the 'not ... Recommended Options' suggestion together with the per-option 'Default: No address is provided', and RFC1877-x-3 and RFC1877-x-4 from the 'identical in format and behavior to option 3' sentence, which imports the Configure-Ack and Configure-Reject echo rules of RFC 1661 instead of stating them here. All three are declared unsourced.",
+      "unsourced-ids": [
+        "RFC1877-x-1",
+        "RFC1877-x-3",
+        "RFC1877-x-4"
+      ]
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Primary DNS Server Address: Description, packet diagram, Type 129, Length 6, field meaning and Default. Every sentence is indicative. It describes the option's format and what the remote peer typically does ('the remote peer specifies the address by NAKing this option, and returning the IP address of a valid DNS server'), and directs no MUST at a speaker. RFC1877-x-2, the summary's 'Option with Length other than 6 must be Configure-Rejected', is read from the Length value stated here, which sections 1.2, 1.3 and 1.4 then repeat, together with RFC 1661's rule for an option a receiver will not accept. RFC 1877 states no such rule, so the id is declared unsourced once, here, rather than four times.",
+      "unsourced-ids": [
+        "RFC1877-x-2"
+      ]
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Primary NBNS Server Address: Type 130, Length 6, and the same Description, diagram, field meaning and Default shape as 1.1, with NBNS in place of DNS. No sentence states an obligation. Its Length statement is one of the three repetitions RFC1877-x-2 was read from, and that id is declared unsourced on 1.1."
+    },
+    {
+      "id": "1.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Secondary DNS Server Address: Type 131, Length 6, same shape again. No sentence states an obligation. The field paragraph carries a copy error in RFC 1877's own text, 'The four octet Secondary-DNS-Address is the address of the primary NBNS server to be used by the local peer', where every other field paragraph names its own option; it is a defect of the source, not an obligation, and it is recorded here so a later reader does not read it as one."
+    },
+    {
+      "id": "1.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Secondary NBNS Server Address: Type 132, Length 6, same shape, no obligation. This section also carries the whole unnumbered tail of the document, because 'References', 'Security Considerations', 'Chair's Address' and 'Author's Address' head no numbered heading and sectionHeadingRE matches none of them (internal/le/rfc/inventory.go, sectionBodies), so the derivation folds them in here. The tail was walked with the section: the reference list cites RFC 1661, RFC 1332, STD 19 and STD 13 and binds nobody; Security Considerations is one sentence, 'Security issues are not discussed in this memo.', so the document names no countermeasure and no threat; the two address blocks are contact details. Nothing in this section or its tail is MUST-level."
+    }
+  ],
+  "sites": []
+}

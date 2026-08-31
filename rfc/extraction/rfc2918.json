@@ -1,0 +1,127 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2918",
+  "register": "prose",
+  "register-reason": "Standards Track, September 2000, published before RFC 2119 keyword usage was routine in BGP extensions. The document has no 'Specification of Requirements' section, cites RFC 2119 nowhere, and contains no capitalised MUST-level keyword: every modal in the source is lowercase ('shall', 'should', 'may', 'must'). The derivation grades it 'prose' and the sign-off claims exactly that grade.",
+  "source-path": "rfc/full/rfc2918.txt",
+  "source-sha": "705e36a852d934fb",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-fixit-rfc-drain-quota-never-armed WP-1",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, Copyright Notice and Abstract. The Abstract says what the document defines, a capability and a message that let one speaker ask another to re-advertise its Adj-RIB-Out, and it binds no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Introduction. States the problem: BGP-4 has no way to ask a peer to re-advertise its Adj-RIB-Out, so the common answer is soft-reconfiguration, which keeps an unmodified copy of every route from the peer. Both of its sites describe that problem in indicative prose and are excluded below. The document's own rules start at section 2."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Route Refresh Capability. Fixes the capability code at 2 and the capability length at 0, and says what advertising the capability conveys to the peer. Every sentence is indicative ('This capability is advertised using the Capability code 2 and Capability length 0'), so no site derives here and the one requirement the section carries is listed unsourced.",
+      "unsourced-ids": [
+        "RFC2918-2-1"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Route-REFRESH Message. Fixes the message type at 5 and the message body at one 4-byte <AFI, SAFI>, and states the Reserved field's handling. The type line and the field diagram carry no modal at all, and the Reserved field's 'Should be set to 0 by the sender and ignored by the receiver' is not sited here by either scan, so all four requirements read from this section are listed unsourced.",
+      "unsourced-ids": [
+        "RFC2918-3-1",
+        "RFC2918-3-2",
+        "RFC2918-3-3",
+        "RFC2918-3-4"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Operation. The only section that binds a speaker on the wire. Its two sites are the two 'shall' sentences of the receive path and are mapped to RFC2918-4-2 and RFC2918-4-3. The four other requirements read from this section come from its 'may ... only if', 'should advertise' and 'should be one of' sentences, which no scan sites, and are listed unsourced.",
+      "unsourced-ids": [
+        "RFC2918-4-1",
+        "RFC2918-4-4",
+        "RFC2918-4-5",
+        "RFC2918-4-6"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. One sentence: this extension to BGP does not change the underlying security issues. It directs no countermeasure at a speaker."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments. Names IDRP as the source of the Route Refresh concept and thanks four reviewers."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References: RFC 1771, RFC 2858, RFC 2842."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Author's Address. Postal address and e-mail for the author. No obligation."
+    },
+    {
+      "id": "9",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Full Copyright Statement. The Internet Society boilerplate governing copying and translation of the document. Its one site is a condition on republishing the text and is excluded below."
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "When the inbound routing policy for a peer changes, all prefixes from that peer must be somehow made available and then re- examined against the new policy.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A description of the problem, in the Introduction, written in indicative prose. The 'must' states what necessarily follows from a policy change, that the prefixes have to be available again to be re-examined, and it is the motivation for the document rather than a rule the document adds. It names no message, field or timer for a speaker to get right."
+    },
+    {
+      "id": "1:2",
+      "quote": "Additional memory and CPU are required to maintain these routes.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A description of another approach, in the Introduction. The subject is soft-reconfiguration, which the sentence before it defines as storing an unmodified copy of all routes from the peer. 'Are required' reports the cost of that approach, which is what motivates this document; it directs nobody."
+    },
+    {
+      "id": "4:1",
+      "quote": "If a BGP speaker receives from its peer a ROUTE-REFRESH message with the <AFI, SAFI> that the speaker didn't advertise to the peer at the session establishment time via capability advertisement, the speaker shall ignore such a message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2918-4-2",
+      "reason": "Captured verbatim as RFC2918-4-2 at [MUST]. It is the receive-side guard: a ROUTE-REFRESH naming an <AFI, SAFI> the speaker never advertised is ignored, with no NOTIFICATION and no error."
+    },
+    {
+      "id": "4:2",
+      "quote": "Otherwise, the BGP speaker shall re- advertise to that peer the Adj-RIB-Out of the <AFI, SAFI> carried in the message, based on its outbound route filtering policy.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2918-4-3",
+      "reason": "Captured verbatim as RFC2918-4-3 at [MUST]. It is the 'otherwise' branch of the same sentence pair and states the whole point of the message: re-advertise the Adj-RIB-Out of the named <AFI, SAFI>, through the outbound route filtering policy rather than around it. It is a distinct obligation from 4:1 and not a restatement of it."
+    },
+    {
+      "id": "9:1",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Internet Society copyright boilerplate that the site scanner did not strip. Its 'must' governs the copyright procedures to be followed when the document text is republished or translated, and it binds a publisher of the document rather than an implementation of the protocol the document specifies."
+    }
+  ]
+}

@@ -55,6 +55,20 @@ judging everything.
 sign-off count against `rfc/drain-budget.txt`. It is a schedule rather than a
 ratchet, and it ships INERT at rate 0. Only the owner arms it.
 
+The rate is unset by RULING, not for want of a number. Four RFCs were walked end
+to end on 2026-08-30 to measure what a sign-off costs, and the table is in
+`rfc/drain-budget.txt` and in that spec. Thomas ruled on 2026-08-31 that the
+schedule waits until the RFC surface is under control, because a quota over
+incomplete code buys a signature rather than conformance. Read the file's own
+comment before you propose a rate: it carries the measurement and the trigger,
+and it says to reset `start` to the arming date, because the floor is CUMULATIVE
+and an old date bills the tree for every month the quota was inert.
+
+The arithmetic is proven rather than assumed. `requiredFloor`, `parseDrainBudget`
+and `checkDrainFloor` carry unit tests over the month count, the anniversary
+clamp in a short month, the enrolled-set cap, the absent-file refusal and the
+rate boundaries.
+
 ## The public ledger's edges
 
 `docs/features/rfc-status.md` is the PUBLIC claim, and a `{gap}` annotation is

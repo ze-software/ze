@@ -24,8 +24,26 @@
 # one-line commit that sets a non-zero rate, taken after the first fleet batch has
 # measured real throughput -- and Thomas takes it. Guessing a rate now would either be so
 # low it forces nothing or so high it reds the tree on unrelated work, and
-# ai/rules/rfc-compliance.md:135-137 records what happens to a rule in the second
+# ai/rules/rfc-compliance.md records what happens to a rule in the second
 # category: it gets removed rather than obeyed.
+#
+# THE MEASUREMENT D5 ASKED FOR EXISTS NOW. Four RFCs were walked end to end on 2026-08-30
+# (rfc1877, rfc2918, rfc4760, rfc5880), spanning all three registers and 7 KB to 110 KB of
+# source. End-to-end cost was 6.2 to 12.4 minutes each, a spread of 2.0x. Read from the
+# slowest walk, a rate of 2 costs a session 25 minutes each month. The full table is in
+# plan/spec-fixit-rfc-drain-quota-never-armed.md, section "WP-2 Measurement".
+#
+# OWNER RULING, 2026-08-31: the rate STAYS AT 0 for now. Thomas was given the measured
+# rate of 2 and ruled that a schedule is premature while the RFC surface is itself
+# incomplete: a quota that forces sign-offs over code known to be buggy buys a signature
+# rather than conformance. The condition he named for arming is "when we have the RFC
+# under control". So this is no longer an unmeasured quota. It is a measured one, held
+# by a stated trigger. Whoever arms it does NOT need to re-measure -- read the table,
+# pick the rate, and reset `start` to the arming date, because the floor is CUMULATIVE
+# from `start` and an old date bills the tree for every month the quota was inert.
+#
+# `start` was reset to 2026-08-31 on the same ruling, so the stale date cannot ambush
+# the next person to set a rate.
 
-start 2026-07-29
+start 2026-08-31
 rate 0

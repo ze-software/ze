@@ -1,0 +1,193 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4760",
+  "register": "rfc2119",
+  "register-reason": "Standards Track, with the RFC 2119 key-words paragraph at section 2 and capitalised MUST-level keywords in sections 3, 4, 7 and 8. The derivation grades the source 'rfc2119' and this sign-off claims exactly that grade.",
+  "source-path": "rfc/full/rfc4760.txt",
+  "source-sha": "7b28975d269770a5",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-fixit-rfc-drain-quota-never-armed WP-1",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of This Memo, Copyright Notice and Abstract. The Abstract states what the document defines and that the extensions are backward compatible. It binds no speaker."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Indicative prose naming the three IPv4-specific pieces of BGP-4 and the two attributes this document adds. Its only modal is the lowercase 'should' of 'the advertisement of reachable destinations should be grouped with ... the next hop', which describes the design rationale for MP_REACH_NLRI rather than directing a speaker. Every obligation it foreshadows is stated normatively in section 3."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Specification of Requirements: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "3",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Multiprotocol Reachable NLRI - MP_REACH_NLRI (Type Code 14). The wire format, the per-field semantics, and the attribute-companion rules. Five derived sites: 3:1 and 3:2 are the same Next Hop encoding sentence repeated under the AFI and SAFI field headings, 3:3 is the Reserved octet, and 3:4 and 3:5 are the ORIGIN/AS_PATH and LOCAL_PREF companions. The section's five advisory rows are listed below: each is a SHOULD or SHOULD NOT sentence the MUST-level site inventory cannot see, and RFC4760-3-5 shares its sentence with site 3:3.",
+      "unsourced-ids": [
+        "RFC4760-3-5",
+        "RFC4760-3-6",
+        "RFC4760-3-7",
+        "RFC4760-3-8",
+        "RFC4760-3-9"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Multiprotocol Unreachable NLRI - MP_UNREACH_NLRI (Type Code 15). Both derived sites are the AFI and SAFI field paragraphs copied from section 3, Next Hop sentence included, which is the copy verified errata 1573 reports: MP_UNREACH_NLRI has no Next Hop field. The section adds one sentence of its own, 'An UPDATE message that contains the MP_UNREACH_NLRI is not required to carry any other path attributes', which relaxes section 3 rather than obliging anyone."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NLRI Encoding. Defines the <length, prefix> 2-tuple, that a zero length matches all addresses of the family, and that the value of the trailing bits is irrelevant. Descriptive throughout, with no modal of any case, so the summary reads no requirement from it."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Subsequent Address Family Identifier. Assigns SAFI 1 to unicast forwarding and SAFI 2 to multicast forwarding, then states one MAY. A value assignment carries no obligation, and the MAY is advisory so the MUST-level inventory cannot see it.",
+      "unsourced-ids": [
+        "RFC4760-6-1"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Error Handling. Its one MUST is site 7:1. The other three sentences are the SHOULD to ignore subsequent routes of that AFI/SAFI, the MAY to terminate the session, and the SHOULD that fixes the Notification code/subcode when it is terminated. All three are advisory and are listed below.",
+      "unsourced-ids": [
+        "RFC4760-7-2",
+        "RFC4760-7-3",
+        "RFC4760-7-4"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Use of BGP Capability Advertisement. Its one MUST is site 8:1. The opening SHOULD to use Capability Advertisement and the Res. field's SHOULD are advisory and are listed below. The Capability Code 1 and Capability Length 4 sentences are value assignments, and 'A speaker that supports multiple <AFI, SAFI> tuples includes them as multiple Capabilities' is indicative prose the summary captures as wire format rather than as a requirement row.",
+      "unsourced-ids": [
+        "RFC4760-8-2",
+        "RFC4760-8-3"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Defines the SAFI name space: 1 and 2 assigned, 3 deprecated, the allocation policy for 5-63 and 67-127, and the reserved and private-use ranges. Binds IANA, not a speaker."
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Comparison with RFC 2858. A change log against the obsoleted document: next hop use made consistent with NEXT_HOP, SAFI 3 deprecated, the SAFI partitioning changed, and Number of SNPAs renamed to Reserved. Its one lowercase 'should be considered reserved' restates the IANA action of section 9 and binds IANA."
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Comparison with RFC 2283. A change log: one instance per attribute, the no-NLRI clarification, the error-handling clarification, and the addition of Capability Advertisement. Every item it names is stated normatively in sections 3, 7 or 8 and is captured there."
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. One sentence: the extension does not change the security issues inherent in existing BGP. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements: the IDR Working Group."
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 3392, RFC 4271, IANA Address Family Numbers, RFC 2119, RFC 2434, RFC 4020."
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "If the Next Hop is allowed to be from more than one Network Layer protocol, the encoding of the Next Hop MUST provide a way to determine its Network Layer protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4760-3-2",
+      "reason": "The Next Hop self-identification MUST, read under the Address Family Identifier field heading. Captured as RFC4760-3-2 at [MUST]."
+    },
+    {
+      "id": "3:2",
+      "quote": "If the Next Hop is allowed to be from more than one Network Layer protocol, the encoding of the Next Hop MUST provide a way to determine its Network Layer protocol.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4760-3-2",
+      "reason": "The identical sentence, repeated word for word under the Subsequent Address Family Identifier field heading because AFI and SAFI are described as a pair. Site 3:1 maps RFC4760-3-2; this is the same obligation stated once more, not a second one."
+    },
+    {
+      "id": "3:3",
+      "quote": "A 1 octet field that MUST be set to 0, and SHOULD be ignored upon receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4760-3-1",
+      "reason": "The Reserved octet of MP_REACH_NLRI. Its MUST half is captured as RFC4760-3-1 at [MUST]; its SHOULD half is RFC4760-3-5, which shares this sentence and is declared unsourced on section 3 because a site carries one disposition."
+    },
+    {
+      "id": "3:4",
+      "quote": "An UPDATE message that carries the MP_REACH_NLRI MUST also carry the ORIGIN and the AS_PATH attributes (both in EBGP and in IBGP exchanges).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4760-3-3",
+      "reason": "The ORIGIN and AS_PATH companion obligation. Captured verbatim as RFC4760-3-3 at [MUST]."
+    },
+    {
+      "id": "3:5",
+      "quote": "Moreover, in IBGP exchanges such a message MUST also carry the LOCAL_PREF attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4760-3-4",
+      "reason": "The IBGP LOCAL_PREF companion obligation, split from the previous sentence by the 'Moreover' that continues it. Captured verbatim as RFC4760-3-4 at [MUST]."
+    },
+    {
+      "id": "4:1",
+      "quote": "If the Next Hop is allowed to be from more than one Network Layer protocol, the encoding of the Next Hop MUST provide a way to determine its Network Layer protocol.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4760-3-2",
+      "reason": "The section 3 AFI paragraph copied into MP_UNREACH_NLRI, Next Hop sentence included. Verified errata 1573 records that this text was copied from MP_REACH_NLRI without adjustment and that MP_UNREACH_NLRI carries no Next Hop field, so the sentence states no obligation here beyond the one site 3:1 maps as RFC4760-3-2."
+    },
+    {
+      "id": "4:2",
+      "quote": "If the Next Hop is allowed to be from more than one Network Layer protocol, the encoding of the Next Hop MUST provide a way to determine its Network Layer protocol.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC4760-3-2",
+      "reason": "The same copy again, under the SAFI field heading of MP_UNREACH_NLRI. Fourth occurrence of one sentence; site 3:1 maps it as RFC4760-3-2."
+    },
+    {
+      "id": "7:1",
+      "quote": "If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4760-7-1",
+      "reason": "The per-AFI/SAFI route deletion on an incorrect MP_REACH_NLRI or MP_UNREACH_NLRI. Captured verbatim as RFC4760-7-1 at [MUST]. The row carried a {not-applicable} annotation claiming RFC 7606 superseded the behavior; the owner voided it on 2026-08-31 and the row is now gated and proven. RFC 7606 Section 3 clause (j) keeps the RFC 4760 procedures in force when the MP attribute cannot be parsed, and ze follows session reset, which drops every route from that neighbor."
+    },
+    {
+      "id": "8:1",
+      "quote": "To have a bi-directional exchange of routing information for a particular <AFI, SAFI> between a pair of BGP speakers, each such speaker MUST advertise to the other (via the Capability Advertisement mechanism) the capability to support that particular <AFI, SAFI> route.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4760-8-1",
+      "reason": "The bi-directional capability advertisement obligation. Captured verbatim as RFC4760-8-1 at [MUST]."
+    }
+  ]
+}

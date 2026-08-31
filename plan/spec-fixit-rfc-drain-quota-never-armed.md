@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | verification |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
 | Deferral shard | `-` (create `plan/deferrals/fixit-rfc-drain-quota-never-armed.md` on the first deferral) |
 | Handoff | - |
-| Updated | 2026-08-30 |
+| Updated | 2026-08-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -133,10 +133,10 @@ no `rfc/short/` level (AC-8).
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Four walks give a usable throughput estimate | The register split in `./le rfc extraction-status` has three classes, and the artifacts already in `rfc/extraction/` span two orders of magnitude in size | A rate set from too small a sample is a guess with a stopwatch attached, which is the failure D5 exists to prevent | The four measured times, reported with their spread. A spread wider than 4x means the sample is too small, and WP-3 says so rather than proposing a rate | unvalidated |
-| A-2 | A walk's cost is dominated by classification, not by the defect tail | `rfc/extraction/README.md` says dispositions are authored and everything else is derived | If the defect tail dominates, the rate must be set from the tail and the walks must report it separately | Each walk records classification time and defect-tail time as two numbers, not one | unvalidated |
-| A-3 | `requiredFloor` behaves as its comment says at a month boundary | Read in `internal/le/rfc/check_extraction.go`, `requiredFloor` | An off-by-one in the month count arms the quota a month early or a month late, and nothing would catch it | AC-2 and AC-3 | unvalidated |
-| A-4 | The owner will answer the `start` question | The file's comment and D5 both reserve arming to him | The spec stops at `verification` with the measurement recorded and the quota still inert, which is worse than today only in that it cost the walks | WP-4. If no answer arrives, the four sign-offs still land and the tests still land | unvalidated |
+| A-1 | Four walks give a usable throughput estimate | The register split in `./le rfc extraction-status` has three classes, and the artifacts already in `rfc/extraction/` span two orders of magnitude in size | A rate set from too small a sample is a guess with a stopwatch attached, which is the failure D5 exists to prevent | The four measured times, reported with their spread. A spread wider than 4x means the sample is too small, and WP-3 says so rather than proposing a rate | CONFIRMED. End-to-end spread is 2.0x (6.2 to 12.4 minutes), inside the 4x threshold |
+| A-2 | A walk's cost is dominated by classification, not by the defect tail | `rfc/extraction/README.md` says dispositions are authored and everything else is derived | If the defect tail dominates, the rate must be set from the tail and the walks must report it separately | Each walk records classification time and defect-tail time as two numbers, not one | BROKEN, in a way the assumption did not anticipate. The tail EXCEEDED classification in two walks of four (rfc4760 3.0 against 1.8, rfc1877 4.8 against 3.6). More important: classification plus tail is 27.1 minutes against 36.0 minutes of end-to-end time, so NEITHER number governs. The residue is reading the RFC and the summary, which every walk reported as its real cost and none of them stamped. The rate is therefore proposed from end-to-end wall clock |
+| A-3 | `requiredFloor` behaves as its comment says at a month boundary | Read in `internal/le/rfc/check_extraction.go`, `requiredFloor` | An off-by-one in the month count arms the quota a month early or a month late, and nothing would catch it | AC-2 and AC-3 | CONFIRMED. It matched the hand-computed calendar in every case, the leap-February clamp and the December month-13 case included. No production change was needed |
+| A-4 | The owner will answer the `start` question | The file's comment and D5 both reserve arming to him | The spec stops at `verification` with the measurement recorded and the quota still inert, which is worse than today only in that it cost the walks | WP-4. If no answer arrives, the four sign-offs still land and the tests still land | OPEN. The question is put in WP-3 below. The four sign-offs and the eight tests have landed either way |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -181,12 +181,22 @@ no `rfc/short/` level (AC-8).
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRFCCheckReportsTheDrainFloorViolation` | `internal/le/rfc/check_test.go` | AC-1, driven from `rfc.Check` rather than from the leaf, per `ai/rules/evidence.md` on guards | |
-| `TestRequiredFloorExcludesTheIncompleteMonth` | `internal/le/rfc/extraction_test.go` | AC-2 | |
-| `TestRequiredFloorClampsTheAnniversaryToTheShortMonth` | `internal/le/rfc/extraction_test.go` | AC-3 | |
-| `TestRequiredFloorCapsAtTheEnrolledSet` | `internal/le/rfc/extraction_test.go` | AC-4 | |
-| `TestParseDrainBudgetRefusesAnAbsentFile` | `internal/le/rfc/extraction_test.go` | The absent-file refusal, which is the guard that stops a missing policy reading as "nothing owed" | |
-| `TestParseDrainBudgetRefusesAStemRow` | `internal/le/rfc/extraction_test.go` | The policy-only invariant the file's comment states | |
+| `TestRFCCheckReportsTheDrainFloorViolation` | `internal/le/rfc/check_test.go` | AC-1, driven from `rfc.Check` rather than from the leaf, per `ai/rules/evidence.md` on guards | PASS, after a staged RED against the inert budget |
+| `TestRequiredFloorExcludesTheIncompleteMonth` | `internal/le/rfc/extraction_test.go` | AC-2 | PASS |
+| `TestRequiredFloorClampsTheAnniversaryToTheShortMonth` | `internal/le/rfc/extraction_test.go` | AC-3 | PASS, leap-February clamp included |
+| `TestRequiredFloorCapsAtTheEnrolledSet` | `internal/le/rfc/extraction_test.go` | AC-4 | PASS |
+| `TestParseDrainBudgetRefusesAnAbsentFile` | `internal/le/rfc/extraction_test.go` | The absent-file refusal, which is the guard that stops a missing policy reading as "nothing owed" | PASS |
+| `TestParseDrainBudgetRefusesAStemRow` | `internal/le/rfc/extraction_test.go` | The policy-only invariant the file's comment states | PASS, 4 cases |
+| `TestParseDrainBudgetRefusesANegativeRate` | `internal/le/rfc/extraction_test.go` | The negative-rate boundary, and that `0` is still accepted | PASS |
+| `TestTheDrainFloorRefusesARateTheEnrolledSetCannotMeet` | `internal/le/rfc/extraction_test.go` | The above-enrolled boundary, and that rate == enrolled is accepted | PASS |
+
+The four arithmetic tests cover code that already worked, so they had no natural
+red phase. Their discrimination was forced by a mutation battery over
+`check_extraction.go`: the month decrement, the anniversary clamp, the
+`min(drainable, ...)` cap, a cap taken at the remaining backlog instead of the
+enrolled set, an absent file parsed as a zero budget, an unknown key accepted, a
+negative rate accepted, and the unmeetable-rate refusal removed. Every mutation
+was caught, and the file was restored byte-identical to HEAD.
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -316,6 +326,135 @@ N-A. Scope is tooling. No wire-visible behavior changes.
 | A walk turns up an unextracted MUST-level obligation | `ai/rules/rfc-compliance.md`: raise it to Thomas as "which way do I fix it". Never exclude it to finish the walk |
 | The owner does not answer WP-3 | Stop at `verification`. Report the measurement and the four landed sign-offs. Do not arm the quota on your own judgement |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## WP-2 Measurement and the Proposed Rate
+
+### The four walks
+
+Four agents walked four stems concurrently on one machine on 2026-08-30. Each
+one landed a real sign-off. `./le rfc extraction-status` moved from `signed 6,
+backlog 165` to `signed 10, backlog 161`, and `./le rfc check` exits 0.
+
+| Stem | Source | Register | Sites | Sections | Classification | Defect tail | End to end |
+|------|--------|----------|-------|----------|----------------|-------------|------------|
+| `rfc2918` | 7.4 KB | `prose` | 5 | 10 | 2.4 min | 1.4 min | 6.2 min |
+| `rfc4760` | 24.5 KB | `rfc2119` | 9 | 15 | 1.8 min | 3.0 min | 6.5 min |
+| `rfc1877` | 10.6 KB | `manual-walk` | 0 | 6 | 3.6 min | 4.8 min | 10.9 min |
+| `rfc5880` | 110 KB | `rfc2119` | 128 | 53 | 9.1 min | 1.0 min | 12.4 min |
+
+The spread is 2.0x end to end, so A-1 holds and the sample is usable.
+
+Read the end-to-end column, not the other two. Every walk reported the same
+thing without being asked: the clock its instructions started excludes reading
+the RFC and the summary, and that reading is the real cost. The three columns
+sum to 27.1 minutes of classification and tail against 36.0 minutes of measured
+work. A rate set from the classification column would be set from 47% of the
+job.
+
+Site count does not predict cost. `rfc1877` has zero sites and took 10.9
+minutes, because a `manual-walk` sign-off must argue which section each
+unsourceable obligation was read from. `rfc5880` has 128 sites and took 12.4
+minutes, because 44 of them are one rule set repeated over three
+authentication types.
+
+### What the rate actually costs
+
+Machine time is not the constraint. At the slowest measured walk, a rate of 2
+costs 25 minutes of agent wall clock each month.
+
+The constraint is the tail of owner questions. The four walks produced six
+questions that only Thomas can answer, and three journal rows. That is 1.5
+questions for each walk, and the questions are the part that cannot be
+parallelized.
+
+| Rate | Agent time each month | Owner questions each month |
+|------|----------------------|---------------------------|
+| 1 | 12 min | 1.5 |
+| 2 | 25 min | 3 |
+| 3 | 37 min | 4.5 |
+| 4 | 50 min | 6 |
+
+### The floor each rate produces
+
+Computed from `requiredFloor`, with the enrolled set at 171 and 10 sign-offs
+banked. The arming date is taken as 2026-08-31.
+
+| Rate | Floor on the arming day, `start 2026-07-29` | Floor on the arming day, `start` moved | First date the floor passes 10, `start 2026-07-29` | First date the floor passes 10, `start` moved |
+|------|---------------------------------------------|----------------------------------------|---------------------------------------------------|-----------------------------------------------|
+| 1 | 1 | 0 | 2027-07-05 | 2027-08-02 |
+| 2 | 2 | 0 | 2027-02-01 | 2027-03-01 |
+| 3 | 3 | 0 | 2026-11-30 | 2027-01-04 |
+| 4 | 4 | 0 | 2026-11-02 | 2026-11-30 |
+
+R-2 is smaller than the spec expected. The 10 banked sign-offs absorb the
+retroactive floor at every candidate rate, so no rate up to 4 reds the tree on
+the day it is armed. The `start` choice moves the first bite by about one
+month.
+
+### Owner ruling, 2026-08-31
+
+**The rate STAYS AT 0. `start` is reset to 2026-08-31.**
+
+Thomas received the proposal below, the floor table, and the one-line diff. He
+ruled that arming is premature while the RFC surface is itself incomplete: a
+quota that forces sign-offs over code known to be buggy buys a signature rather
+than conformance. The condition he named for arming is "when we have the RFC
+under control".
+
+This is NOT the failure D5 was written to prevent, and the difference matters to
+whoever reads this next. D5's risk was a quota that ships inert because nobody
+ever measured throughput, and so never arms. The measurement now exists, it is
+recorded above, and the ruling names a trigger. The next person to arm the quota
+re-measures nothing: they read the table, pick a rate, and reset `start`.
+
+What landed under this ruling:
+- `rfc/drain-budget.txt` keeps `rate 0` and carries the measurement, the ruling
+  and the trigger in its comment, so the file states its own status.
+- `start` moved to 2026-08-31, because the floor is cumulative and a stale start
+  date silently bills the tree for every month the quota was inert.
+- AC-7 is satisfied: the owner received one rate with its arithmetic and was not
+  offered "leave it at 0" as an option. He chose the schedule himself, which is
+  his to choose. AC-9 and AC-10 do not apply, because no rate was armed.
+
+The proposal that produced that ruling is kept below, unedited, because it is
+the input the trigger consumes.
+
+### Proposal (as put to the owner)
+
+**Rate 2, and `start` moved to the arming date.**
+
+Rate 2 is proposed from the slowest walk, per R-1. It asks a session doing
+unrelated work for 25 minutes each month and three owner questions, which is a
+bill such a session can pay. Rate 4 doubles both, and R-1 records what happens
+to a schedule that reds the tree on unrelated work.
+
+`start` moves because a schedule should start when its rate does. Leaving
+`start` at 2026-07-29 bills the tree for a month during which the quota was
+inert by owner decision. The effect is one month either way, so the reason to
+move it is honesty rather than margin.
+
+The one-line diff:
+
+```
+-rate 0
++rate 2
+-start 2026-07-29
++start 2026-08-31
+```
+
+### What the rate is not
+
+Rate 2 drains 24 RFCs a year against a backlog of 161. It does not drain the
+backlog, and it is not meant to. The floor is a ratchet against neglect. The
+draining is done by deliberate passes, and one is running now:
+`plan/spec-rfcgate-6-supported-extraction-signoff.md` walks 44 stems in a single
+spec.
+
+Setting the rate to a drain rate is the failure R-1 names. A quota that demands
+13 sign-offs a month reds the tree for every session that touches anything else,
+and `docs/contributing/rfc-conformance-gates.md` records that such a rule gets
+removed rather than obeyed. A quota that survives at 2 is worth more than one
+that is deleted at 13.
 
 ## Design Insights
 

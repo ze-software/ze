@@ -1,0 +1,1322 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5880",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5880.txt",
+  "source-sha": "9a3492d0917193af",
+  "signed-off": "2026-08-31",
+  "reviewer": "ze-work agent, spec-fixit-rfc-drain-quota-never-armed WP-1",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Abstract, Status of This Memo, copyright notice and table of contents. The Abstract restates section 1 and states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. States the goal of the protocol and says that application-dependent mechanisms live in companion documents. No obligation."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Conventions Used in This Document: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Design. Describes where BFD sits relative to the forwarding plane and what it runs over. Written in the indicative throughout and states no obligation."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Protocol Overview. Describes the Hello exchange and the rate negotiation in the indicative. No obligation."
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Addressing and Session Establishment. States that the application chooses the addresses and that BFD has no discovery mechanism. No obligation."
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Operating Modes. Describes Asynchronous mode, Demand mode and the Echo function, and the trade-offs between them. Their obligations are stated in section 6 and captured there."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "BFD Control Packet Format. Section heading only; the formats are in the subsections below."
+    },
+    {
+      "id": "4.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Generic BFD Control Packet Format. The field descriptions are written in the indicative apart from the Multipoint bit, which is the one site."
+    },
+    {
+      "id": "4.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Simple Password Authentication Section Format. Two sites: the password length bound and the pointer to the section 6.7.2 encoding rules."
+    },
+    {
+      "id": "4.3",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Keyed MD5 and Meticulous Keyed MD5 Authentication Section Format. Two sites: the Reserved byte and the pointer to the section 6.7.3 key encoding rules."
+    },
+    {
+      "id": "4.4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Keyed SHA1 and Meticulous Keyed SHA1 Authentication Section Format. Two sites: the Reserved byte and the pointer to the section 6.7.4 key encoding rules."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "BFD Echo Packet Format. The payload is a local matter, so the section states one advisory obligation and no MUST-level one.",
+      "unsourced-ids": [
+        "RFC5880-5-1"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Elements of Procedure. Introductory text that names section 6.8.1 as the home of the bfd.Xx state variables and warns against enforcing more than the section states. No obligation."
+    },
+    {
+      "id": "6.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Overview. The three role obligations are the sites; the rest of the section describes the session lifecycle in the indicative and is specified normatively in section 6.8."
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "BFD State Machine. The transitions are described in the indicative and are specified normatively in section 6.8.6 and section 6.8.16. The one advisory obligation is the right to hold a session down.",
+      "unsourced-ids": [
+        "RFC5880-6.2-1"
+      ]
+    },
+    {
+      "id": "6.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Demultiplexing and the Discriminator Fields. One site, the discriminator choice rule. The permission to change a discriminator mid-session is advisory.",
+      "unsourced-ids": [
+        "RFC5880-6.3-2"
+      ]
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The Echo Function and Asymmetry. Describes independent Echo directions in the indicative and states one advisory obligation about advertised intervals.",
+      "unsourced-ids": [
+        "RFC5880-6.4-1"
+      ]
+    },
+    {
+      "id": "6.5",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "The Poll Sequence. Two sites: the P and F exclusion, and the rule that a Poll rides on the scheduled periodic packets."
+    },
+    {
+      "id": "6.6",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Demand mode. Three sites, all about the Demand bit and the Poll Sequences a Demand mode change requires. The permission to enable or disable Demand mode at any time is advisory.",
+      "unsourced-ids": [
+        "RFC5880-6.6-4"
+      ]
+    },
+    {
+      "id": "6.7",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Authentication. Describes the generic authentication section, then states the one obligation of the section: an implementation that supports authentication supports both SHA1 types."
+    },
+    {
+      "id": "6.7.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Enabling and Disabling Authentication. The section says the mechanism is out of scope and then states two advisory obligations about changing the authentication state on received packets.",
+      "unsourced-ids": [
+        "RFC5880-6.7.1-1",
+        "RFC5880-6.7.1-2"
+      ]
+    },
+    {
+      "id": "6.7.2",
+      "sites": 10,
+      "disposition": "walked",
+      "reason": "Simple Password Authentication. Ten sites: three transmission field rules, the password bound, the management interface rule, four reception discards and the closing acceptance. The hexadecimal configuration clause is advisory.",
+      "unsourced-ids": [
+        "RFC5880-6.7.2-2"
+      ]
+    },
+    {
+      "id": "6.7.3",
+      "sites": 17,
+      "disposition": "walked",
+      "reason": "Keyed MD5 and Meticulous Keyed MD5 Authentication. Seventeen sites over the transmission and reception rules. The sequence increment guidance for Keyed MD5 is advisory, and the circular increment is a permission.",
+      "unsourced-ids": [
+        "RFC5880-6.7.3-5",
+        "RFC5880-6.7.3-6"
+      ]
+    },
+    {
+      "id": "6.7.4",
+      "sites": 17,
+      "disposition": "walked",
+      "reason": "Keyed SHA1 and Meticulous Keyed SHA1 Authentication. Seventeen sites that repeat the section 6.7.3 rules with SHA1 constants, so most are excluded as duplicates of the rows the summary declares once for both families.",
+      "unsourced-ids": [
+        "RFC5880-6.7.4-6"
+      ]
+    },
+    {
+      "id": "6.8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Functional Specifics. Introductory text defining what 'the Echo function active' and 'Demand mode active' mean for the subsections below. No obligation."
+    },
+    {
+      "id": "6.8.1",
+      "sites": 14,
+      "disposition": "walked",
+      "reason": "State Variables. Fourteen sites: the session state preservation rule and the initial value or constraint of each bfd.Xx variable. The random local discriminator and the longer preservation are advisory.",
+      "unsourced-ids": [
+        "RFC5880-6.8.1-15",
+        "RFC5880-6.8.1-16"
+      ]
+    },
+    {
+      "id": "6.8.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Timer Negotiation. Describes the continuous negotiation in the indicative and defers the detail to section 6.8.7. No obligation."
+    },
+    {
+      "id": "6.8.3",
+      "sites": 8,
+      "disposition": "walked",
+      "reason": "Timer Manipulation. Eight sites over the Poll Sequence requirement, the two holds while a Poll runs, the one-second floor, the immediate honoring rule and the disambiguation choices. The Echo receive interval floor is advisory.",
+      "unsourced-ids": [
+        "RFC5880-6.8.3-7"
+      ]
+    },
+    {
+      "id": "6.8.4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Calculating the Detection Time. Two sites, the Asynchronous and Demand mode expiries. The calculations themselves are written in the indicative."
+    },
+    {
+      "id": "6.8.5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Detecting Failures with the Echo Function. One site, the transition on Echo failure. The detection method is declared out of scope."
+    },
+    {
+      "id": "6.8.6",
+      "sites": 19,
+      "disposition": "walked",
+      "reason": "Reception of BFD Control Packets. Nineteen sites: the ordered procedure lead-in, its stop-on-discard clause, and the discard, demultiplexing, authentication and Demand mode steps. The state machine block in the middle of the section is written in the indicative."
+    },
+    {
+      "id": "6.8.7",
+      "sites": 11,
+      "disposition": "walked",
+      "reason": "Transmitting BFD Control Packets. Eleven sites over the interval floor, jitter, the transmission bars, the Final response, the Demand bit precondition and the field table lead-in. The change-driven extra packet and the Final rate limit are advisory.",
+      "unsourced-ids": [
+        "RFC5880-6.8.7-9",
+        "RFC5880-6.8.7-10"
+      ]
+    },
+    {
+      "id": "6.8.8",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Reception of BFD Echo Packets. Two sites: demultiplexing and the obligation to detect loss."
+    },
+    {
+      "id": "6.8.9",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Transmission of BFD Echo Packets. Three sites, all bars on when and how fast Echo packets leave."
+    },
+    {
+      "id": "6.8.10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Min Rx Interval Change. States that bfd.RequiredMinRxInterval can change at any time and points at section 6.8.3 for the rules. No obligation of its own."
+    },
+    {
+      "id": "6.8.11",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Min Tx Interval Change. States that bfd.DesiredMinTxInterval can change at any time and points at section 6.8.3. No obligation of its own."
+    },
+    {
+      "id": "6.8.12",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Detect Multiplier Change. States that bfd.DetectMult can change to any nonzero value without a Poll Sequence and points at section 6.6. No obligation of its own."
+    },
+    {
+      "id": "6.8.13",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Enabling or Disabling The Echo Function. Two permissions, both advisory, and the summary declares them as one row.",
+      "unsourced-ids": [
+        "RFC5880-6.8.13-1"
+      ]
+    },
+    {
+      "id": "6.8.14",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Enabling or Disabling Demand Mode. One site, the obligation to resume periodic transmission when the remote system leaves Demand mode."
+    },
+    {
+      "id": "6.8.15",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Forwarding Plane Reset. One site, the diagnostic and state transition on a local forwarding plane reset."
+    },
+    {
+      "id": "6.8.16",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Administrative Control. One site, the enable and disable procedure. The transmission after entering AdminDown is advisory.",
+      "unsourced-ids": [
+        "RFC5880-6.8.16-2",
+        "RFC5880-6.8.16-3"
+      ]
+    },
+    {
+      "id": "6.8.17",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Concatenated Paths. One site, the Poll Sequence that carries a concatenated path diagnostic to a remote system in Demand mode. Setting the diagnostic itself is a permission."
+    },
+    {
+      "id": "6.8.18",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Holding Down Sessions. One site, the REQUIRED state maintenance, which restates the section 6.8.1 preservation rule. The reset of bfd.RemoteMinRxInterval after a Detection Time of silence is advisory.",
+      "unsourced-ids": [
+        "RFC5880-6.8.18-1"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Operational Considerations. One site carrying two obligations: implement congestion control across multiple hops, and reduce generated traffic when congestion is detected. The site maps the first; the second is declared here because no separate sentence sources it. The single-hop congestion algorithm is advisory.",
+      "unsourced-ids": [
+        "RFC5880-7-2",
+        "RFC5880-7-3"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Defines the BFD Diagnostic Codes and BFD Authentication Types registries and their initial values. Binds IANA, not a speaker."
+    },
+    {
+      "id": "9",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Security Considerations. One site, the GTSM rule for a directly connected session. The use of the Authentication Section across multiple hops is advisory, and the rest of the section compares the authentication types without directing a speaker.",
+      "unsourced-ids": [
+        "RFC5880-9-1"
+      ]
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References heading."
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 5082, RFC 2119, RFC 1321, RFC 3174."
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 2104, RFC 5226, RFC 2328."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Appendix A, Backward Compatibility. The heading declares itself non-normative and the text describes a suggested version 0 fallback that no speaker is bound to."
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Appendix B, Contributors."
+    },
+    {
+      "id": "C",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Appendix C, Acknowledgments."
+    }
+  ],
+  "sites": [
+    {
+      "id": "4.1:1",
+      "quote": "It MUST be zero on both transmit and receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-4.1-2",
+      "reason": "The Multipoint (M) bit rule, stated once for both directions. RFC5880-4.1-2 carries it at [MUST]."
+    },
+    {
+      "id": "4.2:1",
+      "quote": "The password is a binary string, and MUST be from 1 to 16 bytes in length.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-4.2-1",
+      "reason": "The Simple Password length bound. RFC5880-4.2-1 states it at [MUST] and cites section 4.2 and section 6.7.2."
+    },
+    {
+      "id": "4.2:2",
+      "quote": "The password MUST be encoded and configured according to section 6.7.2.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.2-1",
+      "reason": "A pointer sentence: the obligation it names lives in section 6.7.2, where site 6.7.2:5 maps it as RFC5880-6.7.2-1."
+    },
+    {
+      "id": "4.3:1",
+      "quote": "This byte MUST be set to zero on transmit, and ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-4.3-1",
+      "reason": "The Reserved byte of the Keyed MD5 authentication section. RFC5880-4.3-1 covers section 4.3 and section 4.4 in one row."
+    },
+    {
+      "id": "4.3:2",
+      "quote": "The shared key MUST be encoded and configured to section 6.7.3.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.3-7",
+      "reason": "A pointer sentence: the key encoding and configuration obligation lives in section 6.7.3, where site 6.7.3:6 maps it as RFC5880-6.7.3-7."
+    },
+    {
+      "id": "4.4:1",
+      "quote": "This byte MUST be set to zero on transmit and ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-4.3-1",
+      "reason": "The Reserved byte of the Keyed SHA1 authentication section. The same row states the rule for section 4.3 and section 4.4."
+    },
+    {
+      "id": "4.4:2",
+      "quote": "The shared key MUST be encoded and configured to section 6.7.4.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.4-5",
+      "reason": "A pointer sentence: the key encoding and configuration obligation lives in section 6.7.4, where site 6.7.4:6 maps it as RFC5880-6.7.4-5."
+    },
+    {
+      "id": "6.1:1",
+      "quote": "A system taking the Active role MUST send BFD Control packets for a particular session, regardless of whether it has received any BFD packets for that session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.1-1",
+      "reason": "The Active role transmission obligation, captured verbatim as RFC5880-6.1-1 at [MUST]."
+    },
+    {
+      "id": "6.1:2",
+      "quote": "A system taking the Passive role MUST NOT begin sending BFD packets for a particular session until it has received a BFD packet for that session, and thus has learned the remote system's discriminator value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.1-2",
+      "reason": "The Passive role restriction, captured as RFC5880-6.1-2 at [MUST NOT]."
+    },
+    {
+      "id": "6.1:3",
+      "quote": "At least one system MUST take the Active role (possibly both).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.1-3",
+      "reason": "The role assignment obligation on the session pair, captured as RFC5880-6.1-3 at [MUST]."
+    },
+    {
+      "id": "6.3:1",
+      "quote": "Each system MUST choose an opaque discriminator value that identifies each session, and which MUST be unique among all BFD sessions on the system.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.3-1",
+      "reason": "The discriminator choice and uniqueness rule, captured as RFC5880-6.3-1 at [MUST]."
+    },
+    {
+      "id": "6.5:1",
+      "quote": "A BFD Control packet MUST NOT have both the Poll (P) and Final (F) bits set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.5-1",
+      "reason": "The P and F bit exclusion, captured as RFC5880-6.5-1 at [MUST NOT]."
+    },
+    {
+      "id": "6.5:2",
+      "quote": "If periodic BFD Control packets are already being sent (the remote system is not in Demand mode), the Poll Sequence MUST be performed by setting the Poll (P) bit on those scheduled periodic transmissions; additional packets MUST NOT be sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.5-2",
+      "reason": "The Poll Sequence transmission rule and its no-extra-packets clause, captured together as RFC5880-6.5-2."
+    },
+    {
+      "id": "6.6:1",
+      "quote": "Note that the Demand bit MUST NOT be set unless both systems perceive the session to be Up (the local system thinks the session is Up, and the remote system last reported Up state in the State (Sta) field of the BFD Control packet).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.6-1",
+      "reason": "The Demand bit precondition, captured as RFC5880-6.6-1 at [MUST NOT] and cited from section 6.6 and section 6.8.7."
+    },
+    {
+      "id": "6.6:2",
+      "quote": "When the transmitted value of the Demand (D) bit is to be changed, the transmitting system MUST initiate a Poll Sequence in conjunction with changing the bit in order to ensure that both systems are aware of the change.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.6-2",
+      "reason": "The Poll Sequence obligation on a Demand bit change, captured as RFC5880-6.6-2."
+    },
+    {
+      "id": "6.6:3",
+      "quote": "If Demand mode is active on either or both systems, a Poll Sequence MUST be initiated whenever the contents of the next BFD Control packet to be sent would be different than the contents of the previous packet, with the exception of the Poll (P) and Final (F) bits.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.6-3",
+      "reason": "The Poll Sequence obligation on a content change while Demand mode is active, captured as RFC5880-6.6-3."
+    },
+    {
+      "id": "6.7:1",
+      "quote": "Implementations supporting authentication MUST support both types of SHA1 authentication.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7-1",
+      "reason": "The SHA1 support obligation on any implementation that supports authentication, captured as RFC5880-6.7-1."
+    },
+    {
+      "id": "6.7.2:1",
+      "quote": "The currently selected password and Key ID for the session MUST be stored in the Authentication Section of each outgoing BFD Control packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.2-3",
+      "reason": "The Simple Password transmission paragraph carries one field-setting row in the summary, RFC5880-6.7.2-3, which states the Auth Key ID half of this sentence. The password storage half is not rendered by that row's text."
+    },
+    {
+      "id": "6.7.2:2",
+      "quote": "The Auth Type field MUST be set to 1 (Simple Password).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.2-8",
+      "reason": "The Simple Password transmit Auth Type value. RFC5880-6.7.2-8 states the type and the length in one row, as RFC5880-6.7.3-1 does for Keyed MD5 and RFC5880-6.7.4-1 for Keyed SHA1."
+    },
+    {
+      "id": "6.7.2:3",
+      "quote": "The Auth Len field MUST be set to the proper length (4 to 19 bytes).",
+      "disposition": "excluded",
+      "mapped-to": "RFC5880-6.7.2-8",
+      "reason": "The length half of the row site 6.7.2:2 maps.",
+      "excluded-kind": "duplicate-of"
+    },
+    {
+      "id": "6.7.2:4",
+      "quote": "The password is a binary string, and MUST be 1 to 16 bytes in length.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-4.2-1",
+      "reason": "The section 4.2 password length bound, restated in the transmission paragraph. Site 4.2:1 maps RFC5880-4.2-1."
+    },
+    {
+      "id": "6.7.2:5",
+      "quote": "For interoperability, the management interface by which the password is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.2-1",
+      "reason": "The management interface obligation. The [MUST] half is RFC5880-6.7.2-1; the trailing hexadecimal clause is advisory and is declared as RFC5880-6.7.2-2, listed on section 6.7.2 as unsourced."
+    },
+    {
+      "id": "6.7.2:6",
+      "quote": "If the received BFD Control packet does not contain an Authentication Section, or the Auth Type is not 1 (Simple Password), then the received packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.2-4",
+      "reason": "The Auth Type reception discard, captured as RFC5880-6.7.2-4 across all three authentication families."
+    },
+    {
+      "id": "6.7.2:7",
+      "quote": "If the Auth Key ID field does not match the ID of a configured password, the received packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.2-5",
+      "reason": "The Auth Key ID reception discard, captured as RFC5880-6.7.2-5 across all three authentication families."
+    },
+    {
+      "id": "6.7.2:8",
+      "quote": "If the Auth Len field is not equal to the length of the password selected by the key ID, plus three, the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.2-6",
+      "reason": "The Auth Len reception discard, captured as RFC5880-6.7.2-6 across all three authentication families."
+    },
+    {
+      "id": "6.7.2:9",
+      "quote": "If the Password field does not match the password selected by the key ID, the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.2-7",
+      "reason": "The password comparison discard, captured as RFC5880-6.7.2-7."
+    },
+    {
+      "id": "6.7.2:10",
+      "quote": "Otherwise, the packet MUST be accepted.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.2-7",
+      "reason": "The closing complement of the four Simple Password discard rules. It adds no test of its own: a packet is accepted when no discard condition held, and the last of those conditions is mapped by site 6.7.2:9."
+    },
+    {
+      "id": "6.7.3:1",
+      "quote": "The Auth Type field MUST be set to 2 (Keyed MD5) or 3 (Meticulous Keyed MD5).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-1",
+      "reason": "The Keyed MD5 transmit Auth Type value. RFC5880-6.7.3-1 states the type and the length in one row."
+    },
+    {
+      "id": "6.7.3:2",
+      "quote": "The Auth Len field MUST be set to 24.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.3-1",
+      "reason": "The length half of the row site 6.7.3:1 maps."
+    },
+    {
+      "id": "6.7.3:3",
+      "quote": "The Auth Key ID field MUST be set to the ID of the current authentication key.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.2-3",
+      "reason": "The Auth Key ID transmit rule, declared once for Simple Password, Keyed MD5 and Keyed SHA1 as RFC5880-6.7.2-3."
+    },
+    {
+      "id": "6.7.3:4",
+      "quote": "The Sequence Number field MUST be set to bfd.XmitAuthSeq.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-8",
+      "reason": "The Sequence Number transmit rule, declared once for the keyed families as RFC5880-6.7.3-8."
+    },
+    {
+      "id": "6.7.3:5",
+      "quote": "The authentication key value is a binary string of up to 16 bytes, and MUST be placed into the Auth Key/Digest field, padded with trailing zero bytes as necessary.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-2",
+      "reason": "The key placement step of the digest calculation RFC5880-6.7.3-2 states. The digest is taken over a packet that carries the key in the Auth Key/Digest field, so the placement is part of the calculation, not a separate obligation."
+    },
+    {
+      "id": "6.7.3:6",
+      "quote": "For interoperability, the management interface by which the key is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-7",
+      "reason": "The MD5 key management interface obligation, captured as RFC5880-6.7.3-7. The trailing hexadecimal clause is advisory and is declared as RFC5880-6.7.3-5's sibling row RFC5880-6.7.2-2."
+    },
+    {
+      "id": "6.7.3:7",
+      "quote": "An MD5 digest MUST be calculated over the entire BFD Control packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-2",
+      "reason": "The digest scope obligation, captured verbatim as RFC5880-6.7.3-2."
+    },
+    {
+      "id": "6.7.3:8",
+      "quote": "The resulting digest MUST be stored in the Auth Key/Digest field prior to transmission (replacing the secret key, which MUST NOT be carried in the packet).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-3",
+      "reason": "The storage rule and its parenthesised MUST NOT. RFC5880-6.7.3-3 carries the key-secrecy obligation, which is the part that binds the wire."
+    },
+    {
+      "id": "6.7.3:9",
+      "quote": "For Meticulous Keyed MD5, bfd.XmitAuthSeq MUST be incremented in a circular fashion (when treated as an unsigned 32-bit value).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-4",
+      "reason": "The Meticulous Keyed MD5 sequence increment, captured as RFC5880-6.7.3-4."
+    },
+    {
+      "id": "6.7.3:10",
+      "quote": "If the received BFD Control packet does not contain an Authentication Section, or the Auth Type is not correct (2 for Keyed MD5 or 3 for Meticulous Keyed MD5), then the received packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.2-4",
+      "reason": "The Auth Type reception discard for the MD5 family. RFC5880-6.7.2-4 declares it for all three families and site 6.7.2:6 maps it."
+    },
+    {
+      "id": "6.7.3:11",
+      "quote": "If the Auth Key ID field does not match the ID of a configured authentication key, the received packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.2-5",
+      "reason": "The Auth Key ID reception discard for the MD5 family, declared once as RFC5880-6.7.2-5 and mapped by site 6.7.2:7."
+    },
+    {
+      "id": "6.7.3:12",
+      "quote": "If the Auth Len field is not equal to 24, the packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.2-6",
+      "reason": "The Auth Len reception discard for the MD5 family, declared once as RFC5880-6.7.2-6 and mapped by site 6.7.2:8."
+    },
+    {
+      "id": "6.7.3:13",
+      "quote": "For Keyed MD5, if the sequence number lies outside of the range of bfd.RcvAuthSeq to bfd.RcvAuthSeq+(3*Detect Mult) inclusive (when treated as an unsigned 32-bit circular number space), the received packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-9",
+      "reason": "The Keyed MD5 sequence window discard, captured as RFC5880-6.7.3-9."
+    },
+    {
+      "id": "6.7.3:14",
+      "quote": "For Meticulous Keyed MD5, if the sequence number lies outside of the range of bfd.RcvAuthSeq+1 to bfd.RcvAuthSeq+(3*Detect Mult) inclusive (when treated as an unsigned 32-bit circular number space) the received packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-10",
+      "reason": "The Meticulous Keyed MD5 sequence window discard, captured as RFC5880-6.7.3-10."
+    },
+    {
+      "id": "6.7.3:15",
+      "quote": "Otherwise (bfd.AuthSeqKnown is 0), bfd.AuthSeqKnown MUST be set to 1, and bfd.RcvAuthSeq MUST be set to the value of the received Sequence Number field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-12",
+      "reason": "The first-packet sequence learning rule, captured as RFC5880-6.7.3-12."
+    },
+    {
+      "id": "6.7.3:16",
+      "quote": "If the MD5 digest of the entire BFD Control packet is equal to the received value of the Auth Key/Digest field, the received packet MUST be accepted.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.3-11",
+      "reason": "The accepting face of the digest comparison. RFC5880-6.7.3-11 states the same comparison as a discard, and site 6.7.3:17 maps it."
+    },
+    {
+      "id": "6.7.3:17",
+      "quote": "Otherwise (the digest does not match the Auth Key/Digest field), the received packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.3-11",
+      "reason": "The digest mismatch discard, captured as RFC5880-6.7.3-11 for both keyed families."
+    },
+    {
+      "id": "6.7.4:1",
+      "quote": "The Auth Type field MUST be set to 4 (Keyed SHA1) or 5 (Meticulous Keyed SHA1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-1",
+      "reason": "The Keyed SHA1 transmit Auth Type value. RFC5880-6.7.4-1 states the type and the length in one row."
+    },
+    {
+      "id": "6.7.4:2",
+      "quote": "The Auth Len field MUST be set to 28.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.4-1",
+      "reason": "The length half of the row site 6.7.4:1 maps."
+    },
+    {
+      "id": "6.7.4:3",
+      "quote": "The Auth Key ID field MUST be set to the ID of the current authentication key.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.2-3",
+      "reason": "The Auth Key ID transmit rule for the SHA1 family, declared once as RFC5880-6.7.2-3 and mapped by site 6.7.3:3."
+    },
+    {
+      "id": "6.7.4:4",
+      "quote": "The Sequence Number field MUST be set to bfd.XmitAuthSeq.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.3-8",
+      "reason": "The Sequence Number transmit rule for the SHA1 family, declared once as RFC5880-6.7.3-8 and mapped by site 6.7.3:4."
+    },
+    {
+      "id": "6.7.4:5",
+      "quote": "The authentication key value is a binary string of up to 20 bytes, and MUST be placed into the Auth Key/Hash field, padding with trailing zero bytes as necessary.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-2",
+      "reason": "The key placement step of the hash calculation RFC5880-6.7.4-2 states, which is taken over a packet that carries the key in the Auth Key/Hash field."
+    },
+    {
+      "id": "6.7.4:6",
+      "quote": "For interoperability, the management interface by which the key is configured MUST accept ASCII strings, and SHOULD also allow for the configuration of any arbitrary binary string in hexadecimal form.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-5",
+      "reason": "The SHA1 key management interface obligation, captured as RFC5880-6.7.4-5."
+    },
+    {
+      "id": "6.7.4:7",
+      "quote": "A SHA1 hash MUST be calculated over the entire BFD control packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-2",
+      "reason": "The hash scope obligation, captured verbatim as RFC5880-6.7.4-2."
+    },
+    {
+      "id": "6.7.4:8",
+      "quote": "The resulting hash MUST be stored in the Auth Key/Hash field prior to transmission (replacing the secret key, which MUST NOT be carried in the packet).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-3",
+      "reason": "The storage rule and its parenthesised MUST NOT. RFC5880-6.7.4-3 carries the key-secrecy obligation."
+    },
+    {
+      "id": "6.7.4:9",
+      "quote": "For Meticulous Keyed SHA1, bfd.XmitAuthSeq MUST be incremented in a circular fashion (when treated as an unsigned 32-bit value).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.7.4-4",
+      "reason": "The Meticulous Keyed SHA1 sequence increment, captured as RFC5880-6.7.4-4."
+    },
+    {
+      "id": "6.7.4:10",
+      "quote": "If the received BFD Control packet does not contain an Authentication Section, or the Auth Type is not correct (4 for Keyed SHA1 or 5 for Meticulous Keyed SHA1), then the received packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.2-4",
+      "reason": "The Auth Type reception discard for the SHA1 family, declared once as RFC5880-6.7.2-4 and mapped by site 6.7.2:6."
+    },
+    {
+      "id": "6.7.4:11",
+      "quote": "If the Auth Key ID field does not match the ID of a configured authentication key, the received packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.2-5",
+      "reason": "The Auth Key ID reception discard for the SHA1 family, declared once as RFC5880-6.7.2-5 and mapped by site 6.7.2:7."
+    },
+    {
+      "id": "6.7.4:12",
+      "quote": "If the Auth Len field is not equal to 28, the packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.2-6",
+      "reason": "The Auth Len reception discard for the SHA1 family, declared once as RFC5880-6.7.2-6 and mapped by site 6.7.2:8."
+    },
+    {
+      "id": "6.7.4:13",
+      "quote": "For Keyed SHA1, if the sequence number lies outside of the range of bfd.RcvAuthSeq to bfd.RcvAuthSeq+(3*Detect Mult) inclusive (when treated as an unsigned 32-bit circular number space), the received packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.3-9",
+      "reason": "The Keyed SHA1 sequence window discard. RFC5880-6.7.3-9 declares the rule for MD5 and SHA1 together, and site 6.7.3:13 maps it."
+    },
+    {
+      "id": "6.7.4:14",
+      "quote": "For Meticulous Keyed SHA1, if the sequence number lies outside of the range of bfd.RcvAuthSeq+1 to bfd.RcvAuthSeq+(3*Detect Mult) inclusive (when treated as an unsigned 32-bit circular number space, the received packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.3-10",
+      "reason": "The Meticulous Keyed SHA1 sequence window discard, declared once as RFC5880-6.7.3-10 and mapped by site 6.7.3:14."
+    },
+    {
+      "id": "6.7.4:15",
+      "quote": "Otherwise (bfd.AuthSeqKnown is 0), bfd.AuthSeqKnown MUST be set to 1, bfd.RcvAuthSeq MUST be set to the value of the received Sequence Number field, and the received packet MUST be accepted.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.3-12",
+      "reason": "The first-packet sequence learning rule for the SHA1 family, declared once as RFC5880-6.7.3-12 and mapped by site 6.7.3:15."
+    },
+    {
+      "id": "6.7.4:16",
+      "quote": "If the SHA1 hash of the entire BFD Control packet is equal to the received value of the Auth Key/Hash field, the received packet MUST be accepted.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.3-11",
+      "reason": "The accepting face of the SHA1 hash comparison, whose discarding face is RFC5880-6.7.3-11, mapped by site 6.7.3:17."
+    },
+    {
+      "id": "6.7.4:17",
+      "quote": "Otherwise (the hash does not match the Auth Key/Hash field), the received packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.7.3-11",
+      "reason": "The SHA1 hash mismatch discard. RFC5880-6.7.3-11 declares the rule for MD5 and SHA1 together, and site 6.7.3:17 maps it."
+    },
+    {
+      "id": "6.8.1:1",
+      "quote": "Once session state is created, and at least one BFD Control packet is received from the remote end, it MUST be preserved for at least one Detection Time (see section 6.8.4) subsequent to the receipt of the last BFD Control packet, regardless of the session state.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-14",
+      "reason": "The session state preservation obligation, captured as RFC5880-6.8.1-14."
+    },
+    {
+      "id": "6.8.1:2",
+      "quote": "This variable MUST be initialized to Down.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-1",
+      "reason": "The bfd.SessionState initial value, captured as RFC5880-6.8.1-1."
+    },
+    {
+      "id": "6.8.1:3",
+      "quote": "This variable MUST be initialized to Down.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-2",
+      "reason": "The bfd.RemoteSessionState initial value, captured as RFC5880-6.8.1-2."
+    },
+    {
+      "id": "6.8.1:4",
+      "quote": "It MUST be unique across all BFD sessions on this system, and nonzero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-3",
+      "reason": "The bfd.LocalDiscr uniqueness and nonzero rule, captured as RFC5880-6.8.1-3."
+    },
+    {
+      "id": "6.8.1:5",
+      "quote": "This MUST be initialized to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-4",
+      "reason": "The bfd.RemoteDiscr initial value, captured as RFC5880-6.8.1-4."
+    },
+    {
+      "id": "6.8.1:6",
+      "quote": "If a period of a Detection Time passes without the receipt of a valid, authenticated BFD packet from the remote system, this variable MUST be set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-5",
+      "reason": "The bfd.RemoteDiscr reset after a Detection Time of silence, captured as RFC5880-6.8.1-5."
+    },
+    {
+      "id": "6.8.1:7",
+      "quote": "This MUST be initialized to zero (No Diagnostic). bfd.DesiredMinTxInterval",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-6",
+      "reason": "The bfd.LocalDiag initial value, captured as RFC5880-6.8.1-6."
+    },
+    {
+      "id": "6.8.1:8",
+      "quote": "This MUST be initialized to a value of at least one second (1,000,000 microseconds) according to the rules described in section 6.8.3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-7",
+      "reason": "The bfd.DesiredMinTxInterval initial value, captured as RFC5880-6.8.1-7."
+    },
+    {
+      "id": "6.8.1:9",
+      "quote": "This variable MUST be initialized to 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-8",
+      "reason": "The bfd.RemoteMinRxInterval initial value, captured as RFC5880-6.8.1-8."
+    },
+    {
+      "id": "6.8.1:10",
+      "quote": "This variable MUST be initialized to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-9",
+      "reason": "The bfd.RemoteDemandMode initial value, captured as RFC5880-6.8.1-9."
+    },
+    {
+      "id": "6.8.1:11",
+      "quote": "This variable MUST be a nonzero integer, and is otherwise outside the scope of this specification.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-10",
+      "reason": "The bfd.DetectMult nonzero rule, captured as RFC5880-6.8.1-10."
+    },
+    {
+      "id": "6.8.1:12",
+      "quote": "This variable MUST be initialized to a random 32-bit value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-11",
+      "reason": "The bfd.XmitAuthSeq random initial value, captured as RFC5880-6.8.1-11."
+    },
+    {
+      "id": "6.8.1:13",
+      "quote": "This variable MUST be initialized to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-12",
+      "reason": "The bfd.AuthSeqKnown initial value, captured as RFC5880-6.8.1-12."
+    },
+    {
+      "id": "6.8.1:14",
+      "quote": "This variable MUST be set to zero after no packets have been received on this session for at least twice the Detection Time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.1-13",
+      "reason": "The bfd.AuthSeqKnown reset after twice the Detection Time, captured as RFC5880-6.8.1-13."
+    },
+    {
+      "id": "6.8.3:1",
+      "quote": "If either bfd.DesiredMinTxInterval is changed or bfd.RequiredMinRxInterval is changed, a Poll Sequence MUST be initiated (see section 6.5).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.3-2",
+      "reason": "The Poll Sequence obligation on a timer parameter change, captured as RFC5880-6.8.3-2."
+    },
+    {
+      "id": "6.8.3:2",
+      "quote": "If bfd.DesiredMinTxInterval is increased and bfd.SessionState is Up, the actual transmission interval used MUST NOT change until the Poll Sequence described above has terminated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.3-3",
+      "reason": "The hold on an increased transmit interval, captured as RFC5880-6.8.3-3 at [MUST NOT]."
+    },
+    {
+      "id": "6.8.3:3",
+      "quote": "If bfd.RequiredMinRxInterval is reduced and bfd.SessionState is Up, the previous value of bfd.RequiredMinRxInterval MUST be used when calculating the Detection Time for the remote system until the Poll Sequence described above has terminated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.3-4",
+      "reason": "The hold on a reduced bfd.RequiredMinRxInterval for the remote Detection Time, captured as RFC5880-6.8.3-4."
+    },
+    {
+      "id": "6.8.3:4",
+      "quote": "When bfd.SessionState is not Up, the system MUST set bfd.DesiredMinTxInterval to a value of not less than one second (1,000,000 microseconds).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.3-1",
+      "reason": "The one-second floor on bfd.DesiredMinTxInterval while the session is not Up, captured as RFC5880-6.8.3-1."
+    },
+    {
+      "id": "6.8.3:5",
+      "quote": "If the local system reduces its transmit interval due to bfd.RemoteMinRxInterval being reduced (the remote system has advertised a reduced value in Required Min RX Interval), and the remote system is not in Demand mode, the local system MUST honor the new interval immediately.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.3-5",
+      "reason": "The immediate honoring of a reduced remote receive interval, captured as RFC5880-6.8.3-5."
+    },
+    {
+      "id": "6.8.3:6",
+      "quote": "If this interval has already passed since the last transmission (because the new interval is significantly shorter), the local system MUST send the next periodic BFD Control packet as soon as practicable.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.8.3-5",
+      "reason": "The second sentence of the rule site 6.8.3:5 maps. It states what 'immediately' means when the new interval has already elapsed, and binds nothing further."
+    },
+    {
+      "id": "6.8.3:7",
+      "quote": "In any case other than those explicitly called out above, timing parameter changes MUST be effected immediately (changing the transmission rate and/or the Detection Time).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.3-8",
+      "reason": "The default rule for every timing change not excepted above, captured as RFC5880-6.8.3-8."
+    },
+    {
+      "id": "6.8.3:8",
+      "quote": "Therefore, if multiple changes are made that require the use of a Poll Sequence, there are three choices: 1) they MUST be communicated in a single BFD Control packet (so the semantics of the Final reply are clear), or 2) sufficient time must have transpired since the Poll Sequence was completed to disambiguate the situation (at least a round trip time since the last Poll was transmitted) prior to the initiation of another Poll Sequence, or 3) an additional BFD Control packet with the Final (F) bit *clear* MUST be received after the Poll Sequence has completed prior to the initiation of another Poll Sequence (this option is not available when Demand mode is active).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.3-6",
+      "reason": "The three ways to disambiguate overlapping Poll Sequences, captured as RFC5880-6.8.3-6."
+    },
+    {
+      "id": "6.8.4:1",
+      "quote": "If Demand mode is not active, and a period of time equal to the Detection Time passes without receiving a BFD Control packet from the remote system, and bfd.SessionState is Init or Up, the session has gone down -- the local system MUST set bfd.SessionState to Down and bfd.LocalDiag to 1 (Control Detection Time Expired).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.4-1",
+      "reason": "The Asynchronous mode detection expiry, captured as RFC5880-6.8.4-1."
+    },
+    {
+      "id": "6.8.4:2",
+      "quote": "If Demand mode is active, and a period of time equal to the Detection Time passes after the initiation of a Poll Sequence (the transmission of the first BFD Control packet with the Poll bit set), the session has gone down -- the local system MUST set bfd.SessionState to Down, and bfd.LocalDiag to 1 (Control Detection Time Expired).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.8.4-1",
+      "reason": "The Demand mode detection expiry. The action is the same obligation RFC5880-6.8.4-1 states, set Down and diagnostic 1; only the clock the Detection Time runs from differs, and section 6.6 and section 6.8.4 both state that clock."
+    },
+    {
+      "id": "6.8.5:1",
+      "quote": "When the Echo function is active and a sufficient number of Echo packets have not arrived as they should, the session has gone down -- the local system MUST set bfd.SessionState to Down and bfd.LocalDiag to 2 (Echo Function Failed).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.5-1",
+      "reason": "The Echo failure transition, captured as RFC5880-6.8.5-1."
+    },
+    {
+      "id": "6.8.6:1",
+      "quote": "When a BFD Control packet is received, the following procedure MUST be followed, in the order specified.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.8.6-1",
+      "reason": "The lead-in to the reception procedure. Its steps are declared as RFC5880-6.8.6-1 through RFC5880-6.8.6-15, in the order the summary lists them, and site 6.8.6:3 maps the first."
+    },
+    {
+      "id": "6.8.6:2",
+      "quote": "If the packet is discarded according to these rules, processing of the packet MUST cease at that point.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.8.6-1",
+      "reason": "The stop-on-discard clause of the same lead-in. Every step it governs is a discard rule already declared, the first of which site 6.8.6:3 maps."
+    },
+    {
+      "id": "6.8.6:3",
+      "quote": "If the version number is not correct (1), the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-1",
+      "reason": "The version discard, captured as RFC5880-6.8.6-1."
+    },
+    {
+      "id": "6.8.6:4",
+      "quote": "If the Length field is less than the minimum correct value (24 if the A bit is clear, or 26 if the A bit is set), the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-2",
+      "reason": "The minimum length discard, captured as RFC5880-6.8.6-2 with both bounds."
+    },
+    {
+      "id": "6.8.6:5",
+      "quote": "If the Length field is greater than the payload of the encapsulating protocol, the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-3",
+      "reason": "The encapsulation length discard, captured as RFC5880-6.8.6-3."
+    },
+    {
+      "id": "6.8.6:6",
+      "quote": "If the Detect Mult field is zero, the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-4",
+      "reason": "The zero Detect Mult discard, captured as RFC5880-6.8.6-4."
+    },
+    {
+      "id": "6.8.6:7",
+      "quote": "If the Multipoint (M) bit is nonzero, the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-5",
+      "reason": "The Multipoint bit discard, captured as RFC5880-6.8.6-5."
+    },
+    {
+      "id": "6.8.6:8",
+      "quote": "If the My Discriminator field is zero, the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-6",
+      "reason": "The zero My Discriminator discard, captured as RFC5880-6.8.6-6."
+    },
+    {
+      "id": "6.8.6:9",
+      "quote": "If the Your Discriminator field is nonzero, it MUST be used to select the session with which this BFD packet is associated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-7",
+      "reason": "The demultiplexing rule for a nonzero Your Discriminator, captured as RFC5880-6.8.6-7."
+    },
+    {
+      "id": "6.8.6:10",
+      "quote": "If no session is found, the packet MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.8.6-7",
+      "reason": "The no-session discard, which RFC5880-6.8.6-7 states as the second half of its own text. Site 6.8.6:9 maps that row."
+    },
+    {
+      "id": "6.8.6:11",
+      "quote": "If the Your Discriminator field is zero and the State field is not Down or AdminDown, the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-8",
+      "reason": "The zero Your Discriminator state check, captured as RFC5880-6.8.6-8."
+    },
+    {
+      "id": "6.8.6:12",
+      "quote": "If the Your Discriminator field is zero, the session MUST be selected based on some combination of other fields, possibly including source addressing information, the My Discriminator field, and the interface over which the packet was received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-18",
+      "reason": "The zero Your Discriminator selection obligation, captured as RFC5880-6.8.6-18. It was unextracted until 2026-08-31: the summary declared the nonzero branch at RFC5880-6.8.6-7 and only the create-or-discard MAY at RFC5880-6.8.6-17, so the selection MUST itself had no row. The owner ruled a new id, and (*loop).handleInbound (internal/component/bfd/engine/loop.go) already selects on the (peer, local, vrf, iface, mode) tuple."
+    },
+    {
+      "id": "6.8.6:13",
+      "quote": "If the A bit is set and no authentication is in use (bfd.AuthType is zero), the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-9",
+      "reason": "The A bit set with no authentication in use, captured as RFC5880-6.8.6-9."
+    },
+    {
+      "id": "6.8.6:14",
+      "quote": "If the A bit is clear and authentication is in use (bfd.AuthType is nonzero), the packet MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-10",
+      "reason": "The A bit clear with authentication in use, captured as RFC5880-6.8.6-10."
+    },
+    {
+      "id": "6.8.6:15",
+      "quote": "If the A bit is set, the packet MUST be authenticated under the rules of section 6.7, based on the authentication type in use (bfd.AuthType).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-11",
+      "reason": "The authentication step, captured as RFC5880-6.8.6-11."
+    },
+    {
+      "id": "6.8.6:16",
+      "quote": "If the Required Min Echo RX Interval field is zero, the transmission of Echo packets, if any, MUST cease.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-12",
+      "reason": "The Echo cessation on a zero Required Min Echo RX Interval, captured as RFC5880-6.8.6-12."
+    },
+    {
+      "id": "6.8.6:17",
+      "quote": "If a Poll Sequence is being transmitted by the local system and the Final (F) bit in the received packet is set, the Poll Sequence MUST be terminated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-13",
+      "reason": "The Poll Sequence termination on a received Final, captured as RFC5880-6.8.6-13."
+    },
+    {
+      "id": "6.8.6:18",
+      "quote": "If bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up, Demand mode is active on the remote system and the local system MUST cease the periodic transmission of BFD Control packets (see section 6.8.7).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-14",
+      "reason": "The cessation of periodic transmission when the remote system has Demand mode active, captured as RFC5880-6.8.6-14."
+    },
+    {
+      "id": "6.8.6:19",
+      "quote": "If bfd.RemoteDemandMode is 0, or bfd.SessionState is not Up, or bfd.RemoteSessionState is not Up, Demand mode is not active on the remote system and the local system MUST send periodic BFD Control packets (see section 6.8.7).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-15",
+      "reason": "The resumption of periodic transmission when the remote system does not, captured as RFC5880-6.8.6-15."
+    },
+    {
+      "id": "6.8.7:1",
+      "quote": "With the exceptions listed in the remainder of this section, a system MUST NOT transmit BFD Control packets at an interval less than the larger of bfd.DesiredMinTxInterval and bfd.RemoteMinRxInterval, less applied jitter (see below).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.7-1",
+      "reason": "The transmit interval floor, captured as RFC5880-6.8.7-1 at [MUST NOT]."
+    },
+    {
+      "id": "6.8.7:2",
+      "quote": "The periodic transmission of BFD Control packets MUST be jittered on a per-packet basis by up to 25%, that is, the interval MUST be reduced by a random value of 0 to 25%, in order to avoid self- synchronization with other systems on the same subnetwork.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.7-2",
+      "reason": "The per-packet jitter rule, captured as RFC5880-6.8.7-2."
+    },
+    {
+      "id": "6.8.7:3",
+      "quote": "If bfd.DetectMult is equal to 1, the interval between transmitted BFD Control packets MUST be no more than 90% of the negotiated transmission interval, and MUST be no less than 75% of the negotiated transmission interval.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.7-3",
+      "reason": "The bounds that apply when bfd.DetectMult is 1, captured as RFC5880-6.8.7-3."
+    },
+    {
+      "id": "6.8.7:4",
+      "quote": "The transmit interval MUST be recalculated whenever bfd.DesiredMinTxInterval changes, or whenever bfd.RemoteMinRxInterval changes, and is equal to the greater of those two values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.7-4",
+      "reason": "The recalculation trigger, captured as RFC5880-6.8.7-4."
+    },
+    {
+      "id": "6.8.7:5",
+      "quote": "A system MUST NOT transmit BFD Control packets if bfd.RemoteDiscr is zero and the system is taking the Passive role.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.7-5",
+      "reason": "The Passive role transmission bar, captured as RFC5880-6.8.7-5."
+    },
+    {
+      "id": "6.8.7:6",
+      "quote": "A system MUST NOT periodically transmit BFD Control packets if bfd.RemoteMinRxInterval is zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.7-6",
+      "reason": "The bar on periodic transmission when bfd.RemoteMinRxInterval is zero, captured as RFC5880-6.8.7-6."
+    },
+    {
+      "id": "6.8.7:7",
+      "quote": "A system MUST NOT periodically transmit BFD Control packets if Demand mode is active on the remote system (bfd.RemoteDemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up) and a Poll Sequence is not being transmitted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.7-7",
+      "reason": "The bar on periodic transmission while remote Demand mode is active, captured as RFC5880-6.8.7-7."
+    },
+    {
+      "id": "6.8.7:8",
+      "quote": "If a BFD Control packet is received with the Poll (P) bit set to 1, the receiving system MUST transmit a BFD Control packet with the Poll (P) bit clear and the Final (F) bit set as soon as practicable, without respect to the transmission timer or any other transmission limitations, without respect to the session state, and without respect to whether Demand mode is active on either system.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.6-16",
+      "reason": "The Final transmission obligation. The summary declares it once, as RFC5880-6.8.6-16, citing section 6.8.6 and section 6.8.7; section 6.8.6 states it in the indicative and this sentence carries the keyword."
+    },
+    {
+      "id": "6.8.7:9",
+      "quote": "If rate limiting is in effect, the advertised value of Desired Min TX Interval MUST be greater than or equal to the interval between transmitted packets imposed by the rate limiting function.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.7-8",
+      "reason": "The advertised interval floor that applies when Final packets are rate limited, captured as RFC5880-6.8.7-8."
+    },
+    {
+      "id": "6.8.7:10",
+      "quote": "A system MUST NOT set the Demand (D) bit unless bfd.DemandMode is 1, bfd.SessionState is Up, and bfd.RemoteSessionState is Up.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.6-1",
+      "reason": "The Demand bit precondition, restated here in the transmission rules. RFC5880-6.6-1 cites section 6.6 and section 6.8.7, and site 6.6:1 maps it."
+    },
+    {
+      "id": "6.8.7:11",
+      "quote": "The contents of transmitted BFD Control packets MUST be set as follows:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-4.1-1",
+      "reason": "The normative anchor of the transmit field table. Every entry in the table that follows is written in the indicative, so this sentence is what binds them; the summary declares the two the wire can be judged against as RFC5880-4.1-1 (Version set to 1) and RFC5880-4.1-2 (Multipoint set to 0)."
+    },
+    {
+      "id": "6.8.8:1",
+      "quote": "A received BFD Echo packet MUST be demultiplexed to the appropriate session for processing.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.8-1",
+      "reason": "The Echo demultiplexing obligation, captured as RFC5880-6.8.8-1."
+    },
+    {
+      "id": "6.8.8:2",
+      "quote": "A means of detecting missing Echo packets MUST be implemented, which most likely involves processing of the Echo packets that are received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.8-2",
+      "reason": "The obligation to detect missing Echo packets, captured as RFC5880-6.8.8-2."
+    },
+    {
+      "id": "6.8.9:1",
+      "quote": "BFD Echo packets MUST NOT be transmitted when bfd.SessionState is not Up.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.9-1",
+      "reason": "The bar on Echo transmission while the session is not Up, captured as RFC5880-6.8.9-1."
+    },
+    {
+      "id": "6.8.9:2",
+      "quote": "BFD Echo packets MUST NOT be transmitted unless the last BFD Control packet received from the remote system contains a nonzero value in Required Min Echo RX Interval.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.9-2",
+      "reason": "The bar on Echo transmission without a nonzero remote Required Min Echo RX Interval, captured as RFC5880-6.8.9-2."
+    },
+    {
+      "id": "6.8.9:3",
+      "quote": "The interval between transmitted BFD Echo packets MUST NOT be less than the value advertised by the remote system in Required Min Echo RX Interval, except as follows:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.9-3",
+      "reason": "The Echo transmission interval floor, captured as RFC5880-6.8.9-3. The jitter and single-packet relaxations that follow it are stated at [MAY] and bind nothing."
+    },
+    {
+      "id": "6.8.14:1",
+      "quote": "If Demand mode is no longer active on the remote system, the local system MUST begin transmitting periodic BFD Control packets as described in section 6.8.7.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.14-1",
+      "reason": "The resumption of periodic transmission when remote Demand mode ends, captured as RFC5880-6.8.14-1."
+    },
+    {
+      "id": "6.8.15:1",
+      "quote": "When the forwarding plane in the local system is reset for some reason, such that the remote system can no longer rely on the local forwarding state, the local system MUST set bfd.LocalDiag to 4 (Forwarding Plane Reset), and set bfd.SessionState to Down.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.15-1",
+      "reason": "The forwarding plane reset transition, captured as RFC5880-6.8.15-1."
+    },
+    {
+      "id": "6.8.16:1",
+      "quote": "When this is desired, the following procedure MUST be followed:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.16-1",
+      "reason": "The lead-in that binds the administrative enable and disable procedure. RFC5880-6.8.16-1 declares the procedure as one obligation."
+    },
+    {
+      "id": "6.8.17:1",
+      "quote": "If Demand mode is active on the remote system (the local system is not transmitting periodic BFD Control packets), a Poll Sequence MUST be initiated to ensure that the diagnostic code is transmitted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-6.8.17-1",
+      "reason": "The Poll Sequence obligation when a concatenated path diagnostic must reach a remote system in Demand mode, captured as RFC5880-6.8.17-1."
+    },
+    {
+      "id": "6.8.18:1",
+      "quote": "First, a system is REQUIRED to maintain session state (including timing parameters), even when a session is down, until a Detection Time has passed without the receipt of any BFD Control packets.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC5880-6.8.1-14",
+      "reason": "The section 6.8.1 state preservation obligation, restated here at REQUIRED as the first of the two holddown mechanisms. Site 6.8.1:1 maps RFC5880-6.8.1-14."
+    },
+    {
+      "id": "7:1",
+      "quote": "When BFD is used across multiple hops, a congestion control mechanism MUST be implemented, and when congestion is detected, the BFD implementation MUST reduce the amount of traffic it generates.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-7-1",
+      "reason": "One sentence carrying two obligations. The implementation obligation is RFC5880-7-1; the reduction obligation is RFC5880-7-2, which no separate site can source and which section 7 declares in unsourced-ids."
+    },
+    {
+      "id": "9:1",
+      "quote": "When a BFD session is directly connected across a single link (physical, or a secure tunnel such as IPsec), the TTL or Hop Count MUST be set to the maximum on transmit, and checked to be equal to the maximum value on reception (and the packet dropped if this is not the case).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5880-9-2",
+      "reason": "The GTSM transmit and receive rule for a single-hop session, captured as RFC5880-9-2."
+    }
+  ],
+  "register-reason": "Standards Track, with an RFC 2119 key-words section at section 1.1 and capitalised keywords throughout section 4, section 6.7 and section 6.8. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade."
+}
