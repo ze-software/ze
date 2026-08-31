@@ -260,6 +260,11 @@ func renderBlogArticle(output string, article *blogArticle, tokens numberTokens)
 	if err != nil {
 		return err
 	}
+	// An article links out more than any other page, and a link that leaves
+	// the site owes the same target and rel here as it does on a docs page
+	// (docs.go). Only docs.go called this, so every external link in an
+	// article opened in place and reached back through window.opener.
+	body = patchExternalLinkTargets(body)
 
 	dest := article.dest()
 	title := article.Title + " - Ze Blog"

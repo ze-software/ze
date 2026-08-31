@@ -271,6 +271,11 @@ func appendSeparator(slug []byte) []byte {
 // claim answers slug when this page has not used it, and otherwise the first
 // numbered variant that is free.
 //
+// The separator before the number is an underscore, which is what the retired
+// generator wrote and what the published site carries. goldmark's own default
+// is a hyphen, and taking it would have moved 37 anchors across 9 pages for no
+// reader-visible gain.
+//
 // The counter is bounded by the number of headings on the page, because each
 // turn of the loop is answered by a heading that already took a spelling.
 func (h *headingSlugs) claim(slug []byte) []byte {
@@ -279,7 +284,7 @@ func (h *headingSlugs) claim(slug []byte) []byte {
 		return slug
 	}
 	for suffix := 1; ; suffix++ {
-		numbered := fmt.Sprintf("%s-%d", slug, suffix)
+		numbered := fmt.Sprintf("%s_%d", slug, suffix)
 		if h.taken[numbered] {
 			continue
 		}

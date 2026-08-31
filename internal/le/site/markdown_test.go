@@ -330,8 +330,8 @@ func TestTwoHeadingsWithOneSpellingGetDistinctIDs(t *testing.T) {
 	if len(headings) != 2 {
 		t.Fatalf("got %d headings", len(headings))
 	}
-	if headings[0].ID != "the-answer" || headings[1].ID != "the-answer-1" {
-		t.Errorf("ids are %q and %q, want \"the-answer\" and \"the-answer-1\"", headings[0].ID, headings[1].ID)
+	if headings[0].ID != "the-answer" || headings[1].ID != "the-answer_1" {
+		t.Errorf("ids are %q and %q, want \"the-answer\" and \"the-answer_1\"", headings[0].ID, headings[1].ID)
 	}
 }
 
