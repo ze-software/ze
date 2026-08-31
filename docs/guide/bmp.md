@@ -144,10 +144,18 @@ Ze handles all 7 BMP message types defined in RFC 7854:
   because the report belongs to neither RIB
 - Route-monitoring-policy controls which direction(s) are streamed
 - With `loc-rib true`, streams local RIB best-path changes as Loc-RIB Route
-  Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance with
-  zero-length OPENs and the local router-id as Peer BGP ID, a full-table dump,
-  and a Loc-RIB Peer Down with reason code 6 (RFC 9069 Section 5.3) on shutdown
-  and on the commit that turns `loc-rib` off
+  Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance
+  carrying a fabricated BGP OPEN in both the sent and the received field, the
+  router's own 4-octet ASN as Peer AS and the local router-id as Peer BGP ID, a
+  full-table dump, and a Loc-RIB Peer Down with reason code 6 (RFC 9069
+  Section 5.3) on shutdown and on the commit that turns `loc-rib` off. RFC 9069
+  Section 5.2 requires that OPEN and its capabilities: "This is a fabricated BGP
+  OPEN message. Capabilities MUST include the 4-octet ASN and all necessary
+  capabilities to represent the Loc-RIB Route Monitoring messages." Ze
+  advertises the 4-octet ASN capability and one address-family capability per
+  family the dump delivers, and nothing else
+
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- locRIBPeerHeader, fabricateLocRIBOpen, ensureLocRIBPeerUp, sendLocRIBPeerDown -->
 
 #### A Config Change Bounces the Peers, Not the Session
 

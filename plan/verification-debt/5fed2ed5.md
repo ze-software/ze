@@ -50,3 +50,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-08-31 | 5fed2ed5 | docs(rfc): carry the rfc2866 checklist and index the walk regenerated | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | 5fed2ed5 | docs(radius): correct two comments that name the wrong behavior | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | 5fed2ed5 | docs(radius): correct two comments that name the wrong behavior | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-08-31 | 5fed2ed5 | docs(bmp): the Loc-RIB Peer Up carries a fabricated OPEN, not empty ones | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
