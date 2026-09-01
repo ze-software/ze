@@ -626,26 +626,27 @@ func rfcSectionText(section string, names map[string]string) string {
 
 // rfcRequirementColumns are this table's columns, declared once.
 //
-// The colspan of the text row is derived from this rather than written beside
-// it: the table gained a Tests column and lost two on 2026-09-01, and a number
-// repeated is a number that goes wrong the next time.
-var rfcRequirementColumns = []string{"Requirement", "Level", "Section", "Tests", "Note"}
+// The colspan of the subject row is derived from this rather than written
+// beside it: the table has changed shape three times, and a number repeated is
+// a number that goes wrong the next time.
+var rfcRequirementColumns = []string{"Level", "Section", "Tests"}
 
-// rfcRequirementsHTML renders one row per requirement, carrying the cells
-// rfc/requirements/<stem>.md carries.
+// rfcRequirementsHTML renders two rows per requirement: the SUBJECT, then its
+// attributes.
 //
-// Two things about width, both from the owner's review of 2026-09-01.
+// The requirement's own sentence is what the row is ABOUT and everything else
+// is metadata on it, so it leads, always visible, spanning the table (owner
+// review, 2026-09-01). It was behind a disclosure in the narrowest column
+// before that, which is inside out: the subject hidden and its attributes on
+// show.
 //
-// The two polarities share ONE column, a labeled line each, so each list has
-// the whole column rather than half of it. A polarity with no test SAYS so: "no
-// negative test" is a disclosed fact under the disclosure ruling, and an empty
-// cell is what a reader skims past.
+// A TABLE rather than a block per requirement, and deliberately: the Proof
+// state section below already renders one block per requirement, so blocks here
+// would give a reader two lists of the same shape on one page. Level and
+// section stay aligned down the column, which is what makes 228 rows scannable.
 //
-// The requirement's own TEXT is a SECOND ROW spanning the table, not a
-// disclosure inside the id cell. Inside the cell it expanded within the
-// narrowest column on the page, which is where the sentence was unreadable. It
-// is still a `details`, so it is reachable by keyboard and by touch, and it is
-// still in the markup for a reader searching the page.
+// There is no Note column. Its four marks each went where they explain
+// something, and none was dropped -- see rfcRequirementTestsHTML.
 func rfcRequirementsHTML(entry *rfcLedgerStem) string {
 	if len(entry.Requirements) == 0 {
 		return "<p>" + html.EscapeString(entry.Display+
@@ -656,54 +657,129 @@ func rfcRequirementsHTML(entry *rfcLedgerStem) string {
 	var rows strings.Builder
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
+		rows.WriteString(rfcSpanRow(rfcRequirementColumns,
+			rfcRequirementSubjectHTML(requirement)))
 		rows.WriteString(rfcRowCells(
-			`<code id="`+html.EscapeString(rfcAnchor(requirement.RID))+`">`+
-				html.EscapeString(requirement.RID)+"</code>",
 			html.EscapeString(requirement.Level),
 			html.EscapeString(rfcSectionText(requirement.Section, names)),
-			rfcRequirementTestsHTML(requirement, ambiguous),
-			rfcInlineHTML(requirement.Note)))
-		if requirement.Text == "" {
-			continue
-		}
-		rows.WriteString(rfcSpanRow(rfcRequirementColumns,
-			rfcRequirementTextHTML(requirement.Text)))
+			rfcRequirementTestsHTML(requirement, ambiguous)))
 	}
 	return rfcTableHTML(rfcHeadCells(rfcRequirementColumns...), rows.String())
 }
 
-// rfcRequirementTestsHTML renders both polarities of one requirement, a
-// labeled line each.
+// rfcRequirementSubjectHTML renders the id and the sentence it names.
 //
-// The absence of one polarity is STATED. A requirement tested one way and not
-// the other is exactly what the gate exists to surface, and a blank half-cell
-// says it in a way nobody reads.
+// The id keeps the anchor every other mention on this page links to.
+func rfcRequirementSubjectHTML(requirement *rfcLedgerRequirement) string {
+	out := `<code id="` + html.EscapeString(rfcAnchor(requirement.RID)) + `">` +
+		html.EscapeString(requirement.RID) + "</code>"
+	if requirement.Text == "" {
+		return out
+	}
+	return out + ` <span class="rfc-subject">` + html.EscapeString(requirement.Text) + "</span>"
+}
+
+// rfcRequirementTestsHTML renders one requirement's tests as a GRID: one row
+// per citation, three fields each, plus a row for a polarity with no test.
+//
+// Divs rather than a nested table, by owner amendment of 2026-09-01. A table
+// inside a cell inherits the outer table's width pressure, which is the problem
+// the restructure exists to remove; a grid gets the alignment without it. The
+// two short fields have fixed widths so the tier column lines up down the page
+// and the linked name takes whatever is left.
+//
+// The TIER LEADS. `TestRFC4271PartialBitPreservedOnUnknownTransitive
+// (unit/verify)` wrapped the qualifier away from the name it qualifies, and a
+// short fixed-width token in front of a long variable-width one wraps cleanly.
+//
+// The roles make it data rather than a run of text. There is no header row: the
+// three values say what they are -- a polarity word, a `kind/tier`, a test name
+// -- and 228 hidden header rows on one page would be read out 228 times for
+// nothing.
+//
+// The Note column is gone and this is where two of its four marks landed. The
+// `{kind} reason` annotation sits under the rows, because a reader who has just
+// read "no negative test" is already asking why; it was three cells to the
+// right. The nightly-only mark sits with the tiers that make it nightly.
+//
+// The other two marks were duplicates and are not re-rendered: the audit
+// verdict is named with its meaning and freshness under Proof state, and the
+// superseded pointer under Superseded, both per requirement id. Measured over
+// this corpus before the column went: all 4 audit marks and all 310 superseded
+// marks have those homes, while 374 of 375 `{single-polarity}` reasons and 14
+// of 851 `{not-applicable}` reasons had NO other home, which is why they are
+// rendered here rather than assumed to be elsewhere.
 func rfcRequirementTestsHTML(requirement *rfcLedgerRequirement,
 	ambiguous map[string]bool,
 ) string {
 	var out strings.Builder
+	out.WriteString(`<div class="rfc-tests" role="table" aria-label="` +
+		html.EscapeString("tests bound to "+requirement.RID) + `">` + "\n")
 	for _, polarity := range []string{rfc.PolarityPositive, rfc.PolarityNegative} {
-		if out.Len() > 0 {
-			out.WriteString("<br />")
-		}
-		out.WriteString(`<span class="rfc-polarity">` + html.EscapeString(polarity) +
-			":</span> ")
 		if !rfcHasPolarity(requirement, polarity) {
-			out.WriteString(html.EscapeString(rfcNoPolarityText(polarity)))
+			out.WriteString(rfcTestsRowHTML(polarity, "",
+				html.EscapeString(rfcNoPolarityText(polarity))))
 			continue
 		}
-		out.WriteString(rfcCitationsHTML(requirement, polarity, ambiguous))
+		for index := range requirement.Covers {
+			cover := &requirement.Covers[index]
+			if cover.Polarity != polarity {
+				continue
+			}
+			out.WriteString(rfcTestsRowHTML(polarity, rfcCitationCarrier(cover),
+				rfcCitationHTML(cover, ambiguous)))
+		}
+	}
+	out.WriteString("</div>")
+	for _, mark := range rfcRequirementMarks(requirement) {
+		out.WriteString(`<p class="rfc-mark"><strong>` + html.EscapeString(mark[0]) +
+			":</strong> " + html.EscapeString(mark[1]) + "</p>")
 	}
 	return out.String()
 }
 
-// rfcRequirementTestsMirror states both polarities, labeled, in one cell. A
-// Markdown cell holds no line break, so the two are separated by a marker
+// rfcTestsRowHTML answers one row of that grid: the polarity, the kind and tier,
+// and the test.
+//
+// A row stating an absent polarity carries no tier, and says so rather than
+// leaving the cell blank: a blank reads as a rendering fault and an absent
+// polarity is a disclosed fact (ai/rules/principles.md).
+func rfcTestsRowHTML(polarity, carrier, test string) string {
+	if carrier == "" {
+		carrier = "no test"
+	}
+	return `<div class="rfc-tests-row" role="row"><span role="cell">` +
+		html.EscapeString(polarity) + `</span><span role="cell"><code>` +
+		html.EscapeString(carrier) + `</code></span><span role="cell">` + test +
+		"</span></div>\n"
+}
+
+// rfcRequirementMarks answers the marks that explain this requirement's tests:
+// the annotation that says why a polarity is absent, and the nightly-only mark.
+//
+// One list, read by the page and by the mirror, so the two cannot state
+// different reasons for one requirement.
+func rfcRequirementMarks(requirement *rfcLedgerRequirement) [][2]string {
+	var marks [][2]string
+	if requirement.Annotation != nil {
+		marks = append(marks, [2]string{"{" + requirement.Annotation.Kind + "}",
+			requirement.Annotation.Reason})
+	}
+	if requirement.NightlyOnly {
+		marks = append(marks, [2]string{"nightly-only",
+			"every test bound to this requirement runs in the scheduled workflow alone, so " +
+				"nothing here is proven on the merge path"})
+	}
+	return marks
+}
+
+// rfcRequirementTestsMirror states both polarities and the same marks. A
+// Markdown cell holds no line break, so the lines are separated by a stop
 // rather than by a newline.
 func rfcRequirementTestsMirror(requirement *rfcLedgerRequirement,
 	ambiguous map[string]bool,
 ) string {
-	parts := make([]string, 0, 2)
+	parts := make([]string, 0, 4)
 	for _, polarity := range []string{rfc.PolarityPositive, rfc.PolarityNegative} {
 		if !rfcHasPolarity(requirement, polarity) {
 			parts = append(parts, "**"+polarity+":** "+rfcNoPolarityText(polarity))
@@ -711,6 +787,9 @@ func rfcRequirementTestsMirror(requirement *rfcLedgerRequirement,
 		}
 		parts = append(parts, "**"+polarity+":** "+
 			rfcCitationsMirror(requirement, polarity, ambiguous))
+	}
+	for _, mark := range rfcRequirementMarks(requirement) {
+		parts = append(parts, "**"+mark[0]+":** "+mark[1])
 	}
 	return strings.Join(parts, ". ")
 }
@@ -729,23 +808,6 @@ func rfcHasPolarity(requirement *rfcLedgerRequirement, polarity string) bool {
 // rfcNoPolarityText is what an absent polarity says.
 func rfcNoPolarityText(polarity string) string { return "no " + polarity + " test" }
 
-// rfcRequirementTextHTML puts one requirement's sentence behind a disclosure on
-// a row of its own.
-//
-// The disclosure sits INSIDE the spanning cell rather than in the row above it.
-// A `details` cannot contain a `tr`, and driving a row from a control in the
-// previous row needs either script or a checkbox hack; both cost more
-// accessibility than they buy. What the owner asked for is that the sentence
-// span the table when it opens, and it does: the row is the full width, so both
-// the control and the text it reveals are.
-func rfcRequirementTextHTML(text string) string {
-	if text == "" {
-		return ""
-	}
-	return "<details class=\"rfc-text\"><summary>requirement text</summary>\n<p>" +
-		html.EscapeString(text) + "</p>\n</details>"
-}
-
 // rfcRequirementsMirror states the same rows.
 func rfcRequirementsMirror(entry *rfcLedgerStem) string {
 	if len(entry.Requirements) == 0 {
@@ -754,14 +816,15 @@ func rfcRequirementsMirror(entry *rfcLedgerStem) string {
 	names := rfcSectionNames(entry)
 	ambiguous := rfcAmbiguousNames(entry)
 	var out strings.Builder
-	out.WriteString(rfcMirrorHead("Requirement", "Level", "Section", "Text", "Tests", "Note"))
+	// The subject leads here too, and there is no Note column: its four marks
+	// went where they explain something, exactly as on the page.
+	out.WriteString(rfcMirrorHead("Requirement", "Text", "Level", "Section", "Tests"))
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
-		out.WriteString(rfcMirrorRow("`"+requirement.RID+"`", requirement.Level,
+		out.WriteString(rfcMirrorRow("`"+requirement.RID+"`",
+			rfc.TableCell(requirement.Text), requirement.Level,
 			rfc.TableCell(rfcSectionText(requirement.Section, names)),
-			rfc.TableCell(requirement.Text),
-			rfc.TableCell(rfcRequirementTestsMirror(requirement, ambiguous)),
-			rfc.TableCell(requirement.Note)))
+			rfc.TableCell(rfcRequirementTestsMirror(requirement, ambiguous))))
 	}
 	return out.String()
 }

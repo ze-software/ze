@@ -233,18 +233,36 @@ Five shapes are load-bearing on that page:
   convention `.cmd-eq-table-wrap` already holds for the command family. A test
   path is one unbreakable token, so the page body would scroll sideways without
   it.
-- **The requirement's own sentence is a row of its own**, spanning every column
-  of the table, holding a `<details>` disclosure. It was inside the id cell
-  until 2026-09-01 and expanded within the narrowest column on the page, which
-  is where it was unreadable. A disclosure rather than a hover: hover is
-  unreachable on a touch screen and invisible to a keyboard. The colspan comes
-  from `rfcRequirementColumns`, the table's own declared columns, so a column
-  added or removed cannot leave it wrong. The Markdown mirror keeps its Text
-  column whole.
-- **Both polarities share one Tests column**, a labeled line each, so neither
-  list is squeezed into half the width. A polarity with no test SAYS so: "no
-  negative test" is a disclosed fact under the disclosure ruling, and an empty
-  half-cell is what a reader skims past.
+- **The requirement's sentence LEADS its row**, always visible, with no
+  disclosure. Each requirement is two rows: the anchored id and its quoted
+  sentence spanning the table, then the level, the section and the tests. The
+  sentence is what the row is ABOUT and everything else is metadata on it;
+  hiding the subject while showing its attributes is inside out. It stays a
+  TABLE rather than a block per requirement because the Proof state section
+  already renders one block per requirement, and two lists of the same shape on
+  one page help nobody. The colspan comes from `rfcRequirementColumns`, so a
+  column added or removed cannot leave it wrong.
+- **The tests are a grid of divs**, one row per citation: the polarity, the kind
+  and tier, then the test. The TIER LEADS, because a fixed-width token in front
+  of a variable-width name wraps cleanly and lets the tiers align down the page.
+  Divs rather than a nested table: a table inside a cell inherits the outer
+  table's width pressure, which is what the restructure exists to remove. The
+  block carries table roles so a screen reader meets data rather than a run of
+  text, and it stacks per citation on a narrow viewport. A polarity with no test
+  keeps its row and says so, because an absent polarity is a disclosed fact and
+  a missing row reads as an oversight.
+- **There is no Note column.** It carried four marks and each went where it
+  explains something. The `{kind} reason` annotation and the nightly-only mark
+  render beneath the tests they explain. The audit verdict and the superseded
+  pointer are already rendered per requirement id under Proof state and
+  Superseded, so they are not repeated. That was measured before the column
+  went, not assumed: all 4 audit marks and all 310 superseded marks had those
+  homes, while 374 of 375 `{single-polarity}` reasons and 14 of 851
+  `{not-applicable}` reasons had none, which is why the annotation is rendered
+  rather than dropped. `TestNothingTheNoteCarriedWasLost` holds it.
+- **The Markdown mirror diverges here, and has to.** Markdown cannot nest a
+  table inside a cell, so the mirror keeps labeled lines with the tier still
+  leading each citation. Same population, same order, one shape it can express.
 
 **A test is cited by NAME, never by the file it lives in.** The page printed
 `internal/component/bgp/message/rfc4271_test.go` beside

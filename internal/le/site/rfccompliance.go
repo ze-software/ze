@@ -1551,9 +1551,15 @@ ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
 p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-fold { margin: .6rem 0; }
 .rfc-fold > summary { cursor: pointer; font-weight: 700; }
-.rfc-span > td { padding-top: 0; }
-.rfc-polarity { color: var(--muted); font-weight: 700; }
-.rfc-text { margin: 0; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-subject { display: block; margin-top: .25rem; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
 .rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
 .rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }

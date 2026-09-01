@@ -89,48 +89,6 @@ func rfcMirrorHead(labels ...string) string {
 	return rfcMirrorRow(labels...) + "|" + strings.Join(rule, "|") + "|\n"
 }
 
-// rfcInlineHTML renders one shard cell as HTML: every character escaped, with
-// the cell's own backtick spans and bold runs turned into markup.
-//
-// The cells arrive as the markdown the generated shard carries, which is what
-// makes the site and the repository state one thing about a requirement. Every
-// segment between the markers is escaped, so a pipe, an angle bracket or an
-// ampersand in quoted RFC prose lands inside its own cell and breaks neither
-// the row nor the markup (AC-12).
-func rfcInlineHTML(cell string) string {
-	if cell == "" {
-		return "-"
-	}
-	var out strings.Builder
-	for index, segment := range strings.Split(cell, "`") {
-		if index%2 == 1 {
-			out.WriteString("<code>" + html.EscapeString(segment) + "</code>")
-			continue
-		}
-		out.WriteString(rfcBoldHTML(segment))
-	}
-	return out.String()
-}
-
-// rfcBoldHTML escapes one run of prose and turns its `**...**` pairs into
-// <strong>. An unpaired marker is escaped and left visible rather than opening
-// an element the rest of the page has to close.
-func rfcBoldHTML(text string) string {
-	parts := strings.Split(text, "**")
-	if len(parts)%2 == 0 {
-		return html.EscapeString(text)
-	}
-	var out strings.Builder
-	for index, part := range parts {
-		if index%2 == 1 {
-			out.WriteString("<strong>" + html.EscapeString(part) + "</strong>")
-			continue
-		}
-		out.WriteString(html.EscapeString(part))
-	}
-	return out.String()
-}
-
 // rfcOrUnstated answers a value, or says the record states none. An empty cell
 // reads as a rendering fault rather than as a fact.
 func rfcOrUnstated(value string) string {

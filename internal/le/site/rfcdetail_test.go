@@ -3,6 +3,7 @@ package site
 
 import (
 	"encoding/json"
+	"html"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -691,7 +692,7 @@ func TestAPipeInRequirementTextStaysInItsCell(t *testing.T) {
 	// cells, so taking the last match would judge the wrong row.
 	row, header := "", ""
 	for line := range strings.SplitSeq(mirror, "\n") {
-		if header == "" && strings.HasPrefix(line, "| Requirement | Level | Section |") {
+		if header == "" && strings.HasPrefix(line, "| Requirement | Text | Level |") {
 			header = line
 		}
 		if row == "" && strings.HasPrefix(line, "| `RFC9999-5-1` |") {
@@ -1375,37 +1376,39 @@ func TestAGapThatIsAlsoUntestedTakesOneRow(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-31 -- the requirement's text is not a table column. It sits
-// behind a disclosure in the requirement's own cell, and the mirror keeps it.
+// VALIDATES: AC-57 -- the requirement's sentence LEADS its row, always visible,
+// above the level, the section and the tests.
 //
-// A quoted RFC sentence beside a list of test paths made every row of RFC 4271
-// enormous (owner review, 2026-09-01). A `details` rather than a hover, because
-// hover is unreachable on a touch screen and invisible to a keyboard.
-func TestTheRequirementTextSitsBehindADisclosure(t *testing.T) {
+// It was behind a `details` in the id cell (AC-31, 2026-09-01) and then in a
+// spanning row the same day. Both hid or narrowed the thing the row is ABOUT
+// while showing its metadata, which is inside out (owner review). The
+// disclosure is gone: the subject is the first thing on the row.
+func TestTheRequirementTextLeadsItsRow(t *testing.T) {
 	page, text, mirror := disclosurePage(t)
 	body := mainContent(t, page)
-
 	head := sliceBetween(t, body, "<h2>Requirements</h2>", "</thead>")
-	if strings.Contains(head, "<th>Text</th>") {
-		t.Error("the requirements table still carries a Text column")
-	}
-	for _, want := range []string{"<th>Requirement</th>", "<th>Level</th>", "<th>Section</th>"} {
+
+	// The header is the metadata only: the subject is not a column.
+	for _, want := range []string{"<th>Level</th>", "<th>Section</th>", "<th>Tests</th>"} {
 		if !strings.Contains(head, want) {
 			t.Errorf("the requirements table lost %s", want)
 		}
 	}
-	if !strings.Contains(body, `<details class="rfc-text"><summary>requirement text</summary>`) {
-		t.Error("the requirement text is not behind a disclosure")
+	for _, gone := range []string{"<th>Requirement</th>", "<th>Text</th>", "<th>Note</th>"} {
+		if strings.Contains(head, gone) {
+			t.Errorf("the requirements table still carries %s", gone)
+		}
 	}
-	// Folded is not dropped: the sentence is still in the markup, so a reader
-	// searching the page and a machine reading it both find it.
+	if strings.Contains(body, `<details class="rfc-text">`) {
+		t.Error("the requirement text is still behind a disclosure")
+	}
 	const sentence = "A widget MUST be rejected when its length is zero."
 	if !strings.Contains(text, sentence) {
 		t.Errorf("the page no longer carries %q at all", sentence)
 	}
-	if !strings.Contains(mirror, "| Requirement | Level | Section | Text |") &&
-		!strings.Contains(mirror, "Section | Text |") {
-		t.Error("the mirror lost its Text column")
+	if !strings.Contains(page,
+		`<code id="rfc9999-2-1">RFC9999-2-1</code> <span class="rfc-subject">`) {
+		t.Error("the id and its sentence do not lead the row together")
 	}
 	if !strings.Contains(mirror, sentence) {
 		t.Errorf("the mirror no longer carries %q", sentence)
@@ -1817,13 +1820,13 @@ func TestEveryShardCitationIsATaggedUnit(t *testing.T) {
 	t.Logf("compared %d shard cells against the tagged units behind them", checked)
 }
 
-// VALIDATES: AC-55 -- the two polarities share ONE column, a labeled line
-// each, and a polarity with no test SAYS so.
+// VALIDATES: AC-55 and AC-60 -- the tests are a GRID, one row per citation,
+// with the kind and tier BEFORE the name, and a row stating an absent polarity.
 //
-// Two columns each holding a list gave a requirement tested both ways two
-// narrow stacks side by side (owner review, 2026-09-01). An absent polarity is
-// a disclosed fact under the disclosure ruling, so it is stated rather than
-// left as the empty half of a cell a reader skims past.
+// Two columns each holding a comma-joined run put a requirement's tests in two
+// narrow stacks and wrapped `(unit/verify)` away from the name it qualified
+// (owner review, 2026-09-01). One row per test gives each name room, and a
+// short fixed-width tier in front of it lines the tiers up down the page.
 func TestBothPolaritiesShareOneColumn(t *testing.T) {
 	page, text, mirror := disclosurePage(t)
 	head := sliceBetween(t, mainContent(t, page), "<h2>Requirements</h2>", "</thead>")
@@ -1836,45 +1839,54 @@ func TestBothPolaritiesShareOneColumn(t *testing.T) {
 			t.Errorf("the requirements table still carries %s", gone)
 		}
 	}
-	if !strings.Contains(page, `<span class="rfc-polarity">positive:</span>`) ||
-		!strings.Contains(page, `<span class="rfc-polarity">negative:</span>`) {
-		t.Error("the two polarities are not labeled inside the one column")
+	// A grid of divs rather than a nested table: a table inside a cell inherits
+	// the outer table's width pressure.
+	if !strings.Contains(page, `<div class="rfc-tests" role="table"`) {
+		t.Error("the tests are not a grid readable as data")
 	}
-
-	// RFC9999-3-1 is tested positive and not negative, and the page says both.
+	if strings.Contains(sliceBetween(t, mainContent(t, page), `<div class="rfc-tests"`,
+		"</div>"), "<table") {
+		t.Error("the tests block nests a table inside a cell")
+	}
+	// The tier leads the name it qualifies, in its own cell.
+	if !strings.Contains(page, `<span role="cell">positive</span>`+
+		`<span role="cell"><code>unit/verify</code></span><span role="cell">`) {
+		t.Error("the kind and tier do not lead the test name in their own cells")
+	}
+	// An absent polarity keeps its row and says so.
 	if !strings.Contains(text, "no negative test") {
-		t.Error("an absent polarity is not stated, so it reads as an empty cell")
+		t.Error("an absent polarity is not stated, so it reads as an oversight")
 	}
-	if !strings.Contains(mirror, "**negative:** no negative test") {
-		t.Error("the mirror does not state an absent polarity")
+	if !strings.Contains(page, `<span role="cell"><code>no test</code></span>`) {
+		t.Error("a row stating an absent polarity carries no tier cell")
 	}
-	// A requirement with neither states both.
 	if strings.Count(text, "no positive test") == 0 {
 		t.Error("an absent positive polarity is not stated")
 	}
+	// The mirror cannot nest, so it keeps labeled lines with the tier leading.
+	if !strings.Contains(mirror, "**negative:** no negative test") {
+		t.Error("the mirror does not state an absent polarity")
+	}
+	if !strings.Contains(mirror, "**positive:** `unit/verify` `") {
+		t.Error("the mirror does not lead its citations with the tier")
+	}
 }
 
-// VALIDATES: AC-56 -- the requirement's text is a row of its own spanning the
-// whole table, and the span is derived from the header rather than written
-// beside it.
-//
-// Inside the id cell the sentence expanded within the narrowest column on the
-// page, which is where it was unreadable.
+// VALIDATES: AC-56 -- the subject is a row of its own spanning every column,
+// and the span is derived from the header rather than written beside it.
 func TestTheRequirementTextSpansTheWholeTable(t *testing.T) {
 	page, text, mirror := disclosurePage(t)
 	span := `<tr class="rfc-span"><td colspan="` +
 		strconv.Itoa(len(rfcRequirementColumns)) + `">`
 
-	if !strings.Contains(page, span+`<details class="rfc-text">`) {
-		t.Errorf("the requirement text is not a spanning row: want %q", span)
+	if !strings.Contains(page, span+`<code id="rfc9999-2-1">`) {
+		t.Errorf("the subject is not a spanning row: want %q", span)
 	}
-	// The colspan agrees with the header this very table renders.
 	head := sliceBetween(t, mainContent(t, page), "<h2>Requirements</h2>", "</thead>")
 	if got := strings.Count(head, "<th>"); got != len(rfcRequirementColumns) {
 		t.Errorf("the header renders %d columns and the span covers %d",
 			got, len(rfcRequirementColumns))
 	}
-	// The text is still there, in both renderings, and still escaped.
 	const sentence = "A widget MUST be rejected when its length is zero."
 	if !strings.Contains(text, sentence) || !strings.Contains(mirror, sentence) {
 		t.Error("the requirement text was lost when it moved to its own row")
@@ -1882,13 +1894,121 @@ func TestTheRequirementTextSpansTheWholeTable(t *testing.T) {
 	if !strings.Contains(page, "&lt;once&gt; &amp; only once.") {
 		t.Error("the spanning row does not escape quoted RFC prose")
 	}
-	// A requirement quoting nothing gets no empty row.
+	// A requirement quoting nothing still gets the row: it carries the id and
+	// the anchor the whole page links to.
 	quiet := disclosureLedger()
 	for index := range quiet.Stems[0].Requirements {
 		quiet.Stems[0].Requirements[index].Text = ""
 	}
 	quietPage, _, _ := renderRFCDetailPage(t, quiet)
-	if strings.Contains(quietPage, `<tr class="rfc-span"><td colspan`) {
-		t.Error("a requirement quoting nothing still gets a spanning row")
+	if !strings.Contains(quietPage, span+`<code id="rfc9999-2-1">RFC9999-2-1</code></td>`) {
+		t.Error("a requirement quoting nothing lost its anchored id row")
+	}
+	if strings.Contains(quietPage, `<span class="rfc-subject">`) {
+		t.Error("a requirement quoting nothing renders an empty subject span")
+	}
+}
+
+// VALIDATES: AC-58 -- every fact the retired Note column carried still has a
+// home, over the REAL corpus.
+//
+// The Note held four marks: the annotation, the superseded pointer, the audit
+// stamp and the nightly-only mark (requirementRow, internal/le/rfc/render.go).
+// Two were duplicates of sections this page already renders and two were not,
+// so this checks each mark against the place it now lives rather than trusting
+// the reading. A fact that vanishes in a layout change is what AC-17 and AC-18
+// exist to prevent.
+func TestNothingTheNoteCarriedWasLost(t *testing.T) {
+	ledger := publishedLedgerOfThisCheckout(t)
+	marks := map[string]int{}
+	for index := range ledger.Stems {
+		entry := &ledger.Stems[index]
+		for position := range entry.Requirements {
+			requirement := &entry.Requirements[position]
+			note := strings.TrimSpace(requirement.Note)
+			if note == "" {
+				continue
+			}
+			// The annotation and the nightly-only mark are rendered beside the
+			// tests they explain.
+			if requirement.Annotation != nil {
+				marks["annotation"]++
+				rendered := rfcRequirementTestsHTML(requirement, nil)
+				if !strings.Contains(rendered, requirement.Annotation.Kind) ||
+					!strings.Contains(rendered, html.EscapeString(requirement.Annotation.Reason)) {
+					t.Errorf("%s carries a {%s} reason the tests cell does not state",
+						requirement.RID, requirement.Annotation.Kind)
+				}
+			}
+			if requirement.NightlyOnly {
+				marks["nightly-only"]++
+				if !strings.Contains(rfcRequirementTestsHTML(requirement, nil), "nightly-only") {
+					t.Errorf("%s is nightly-only and the tests cell does not say so",
+						requirement.RID)
+				}
+			}
+			// The audit stamp and the superseded pointer have their own
+			// sections, which is why they are not re-rendered here.
+			if strings.Contains(note, "**audit:") {
+				marks["audit"]++
+				if requirement.Audit == nil {
+					t.Errorf("%s carries an audit mark and no verdict for Proof state to render",
+						requirement.RID)
+				}
+			}
+			if strings.Contains(note, "{"+rfc.SupersededKind+":") {
+				marks["superseded"]++
+				if requirement.Superseded == nil {
+					t.Errorf("%s carries a superseded mark and no pointer for the Superseded "+
+						"section to render", requirement.RID)
+				}
+			}
+		}
+	}
+	for _, mark := range []string{"annotation", "superseded", "audit", "nightly-only"} {
+		if marks[mark] == 0 {
+			t.Errorf("this checkout carries no %s mark, so its home is unproven", mark)
+		}
+	}
+	t.Logf("marks rehomed: %v", marks)
+}
+
+// VALIDATES: AC-59 -- an annotation reason is stated under the tests it
+// explains, where the reader is already asking why.
+func TestAnAnnotationReasonSitsUnderTheTests(t *testing.T) {
+	excused := disclosureLedger()
+	requirement := &excused.Stems[0].Requirements[5]
+	requirement.Covers = []rfcLedgerCover{{Polarity: rfc.PolarityPositive,
+		Unit: "internal/d_test.go::TestAck", File: "internal/d_test.go", Line: 3,
+		Carrier: "unit/verify", Tags: 1}}
+	requirement.Annotation = &rfcLedgerAnnotation{Kind: rfc.AnnotationSinglePolarity,
+		Polarity: rfc.PolarityPositive, Reason: "the widget admits no counter-case"}
+	page, text, mirror := renderRFCDetailPage(t, excused)
+
+	if !strings.Contains(text, "no negative test") {
+		t.Error("the absent polarity is not stated")
+	}
+	if !strings.Contains(text, "{"+rfc.AnnotationSinglePolarity+"}:") ||
+		!strings.Contains(text, "the widget admits no counter-case") {
+		t.Error("the annotation reason is not stated beside the tests it explains")
+	}
+	if !strings.Contains(page, `<p class="rfc-mark">`) {
+		t.Error("the mark carries no class of its own")
+	}
+	if !strings.Contains(mirror, "**{"+rfc.AnnotationSinglePolarity+"}:** "+
+		"the widget admits no counter-case") {
+		t.Error("the mirror does not state the annotation beside the tests")
+	}
+	// The reason follows the polarity lines rather than preceding them. The
+	// slice starts at THIS requirement's own row, because an earlier row
+	// carrying no mark would answer the question about the wrong cell.
+	cell := sliceBetween(t, mainContent(t, page), `aria-label="tests bound to RFC9999-6-1"`,
+		"</td>")
+	mark, negative := strings.Index(cell, "rfc-mark"), strings.Index(cell, ">negative<")
+	if mark < 0 || negative < 0 {
+		t.Fatalf("the tests cell carries no mark or no negative row: %q", cell)
+	}
+	if mark < negative {
+		t.Error("the annotation is rendered above the rows it explains")
 	}
 }

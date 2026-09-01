@@ -101,33 +101,19 @@ func rfcCitationMirror(cover *rfcLedgerCover, ambiguous map[string]bool) string 
 	return "[`" + name + "`](" + repositoryLineURL(cover.File, cover.Line) + ")"
 }
 
-// rfcCitationsHTML renders one requirement's citations of one polarity, as the
-// shard's cell lists them.
+// rfcCitationsMirror states one requirement's citations of one polarity, the
+// tier leading each one.
+//
+// The mirror DIVERGES from the page here, and it has to: Markdown cannot nest a
+// table inside a cell, so the page's per-citation grid becomes a labeled line
+// with the citations joined. What is the same is the order -- the tier before
+// the name it qualifies -- and the population.
 //
 // Built from the tagged units rather than from the shard's own markdown: the
 // units carry the file, the line and the carrier as fields, and every citation
 // the shard prints is one of them. TestEveryShardCitationIsATaggedUnit holds
 // that over the corpus, so this renders the same population the shard does
 // without re-reading a format nobody declared.
-func rfcCitationsHTML(requirement *rfcLedgerRequirement, polarity string,
-	ambiguous map[string]bool,
-) string {
-	parts := make([]string, 0, len(requirement.Covers))
-	for index := range requirement.Covers {
-		cover := &requirement.Covers[index]
-		if cover.Polarity != polarity {
-			continue
-		}
-		parts = append(parts, rfcCitationHTML(cover, ambiguous)+" "+
-			html.EscapeString(rfcCitationCarrier(cover)))
-	}
-	if len(parts) == 0 {
-		return "-"
-	}
-	return strings.Join(parts, ", ")
-}
-
-// rfcCitationsMirror states the same citations.
 func rfcCitationsMirror(requirement *rfcLedgerRequirement, polarity string,
 	ambiguous map[string]bool,
 ) string {
@@ -137,7 +123,8 @@ func rfcCitationsMirror(requirement *rfcLedgerRequirement, polarity string,
 		if cover.Polarity != polarity {
 			continue
 		}
-		parts = append(parts, rfcCitationMirror(cover, ambiguous)+" "+rfcCitationCarrier(cover))
+		parts = append(parts, "`"+rfcCitationCarrier(cover)+"` "+
+			rfcCitationMirror(cover, ambiguous))
 	}
 	if len(parts) == 0 {
 		return "-"
@@ -149,7 +136,7 @@ func rfcCitationsMirror(requirement *rfcLedgerRequirement, polarity string,
 // says whether anything runs it.
 func rfcCitationCarrier(cover *rfcLedgerCover) string {
 	if strings.TrimSpace(cover.Carrier) == "" {
-		return "(no carrier claims this path)"
+		return "no carrier claims this path"
 	}
-	return "(" + cover.Carrier + ")"
+	return cover.Carrier
 }
