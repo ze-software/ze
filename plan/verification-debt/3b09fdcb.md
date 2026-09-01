@@ -19,3 +19,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-01 | 3b09fdcb | fix(rfc): drop the imports a disabled body orphans | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-01 | 3b09fdcb | fix(rfc): drop the imports a disabled body orphans | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-01 | 3b09fdcb | fix(rfc): drop the imports a disabled body orphans | discovery-index freshness | the change adds and removes no package: one function and its test inside internal/le/rfc, which ai/PACKAGE-MAP.md already lists | open |
+| 2026-09-01 | 3b09fdcb | test(rfc): prove the RFC 2865 walk test discriminates its claims | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
