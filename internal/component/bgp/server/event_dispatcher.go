@@ -116,8 +116,11 @@ func (d *EventDispatcher) OnPeerCongestionChange(peer *plugin.PeerInfo, eventTyp
 // BroadcastValidateOpen validates OPEN messages via all plugins that declared WantsValidateOpen.
 // local and remote are *message.Open (typed as any from reactor).
 // group is the peer's enclosing group, empty for a peer that stands alone.
-// Returns nil if all accept, or an OpenValidationError on first rejection.
-func (d *EventDispatcher) BroadcastValidateOpen(peerAddr, group string, local, remote any) error {
+// policyPlugins names the plugins holding OPEN-validation policy for this peer alone,
+// each of which owes an answer (Peer.openPolicyPlugins, bgp/reactor/peer.go).
+// Returns nil if all accept, an OpenValidationError on first rejection, or an
+// OpenValidationUnavailableError when a plugin holding policy did not answer.
+func (d *EventDispatcher) BroadcastValidateOpen(peerAddr, group string, policyPlugins []string, local, remote any) error {
 	localOpen, ok := local.(*message.Open)
 	if !ok {
 		return fmt.Errorf("BroadcastValidateOpen: local not *message.Open: %T", local)
@@ -126,5 +129,5 @@ func (d *EventDispatcher) BroadcastValidateOpen(peerAddr, group string, local, r
 	if !ok {
 		return fmt.Errorf("BroadcastValidateOpen: remote not *message.Open: %T", remote)
 	}
-	return broadcastValidateOpen(d.server, peerAddr, group, localOpen, remoteOpen)
+	return broadcastValidateOpen(d.server, peerAddr, group, policyPlugins, localOpen, remoteOpen)
 }
