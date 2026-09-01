@@ -1,0 +1,1894 @@
+// Design: website/AI.md -- one page for each RFC summary this repository carries
+package site
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"testing"
+
+	"github.com/ze-software/ze/internal/le/rfc"
+)
+
+// disclosureLedger is one summary carrying every bad state the owner ruling of
+// 2026-09-01 names, so a page that softened any of them goes red.
+//
+// The five states, one requirement each: a gated MUST with no test, a `weak`
+// audit verdict, a verdict whose freshness is `stale-unit`, a tagged unit with
+// no discrimination record, and a `no-break` record. A sixth requirement
+// carries a declared gap, and a seventh a `shifted` verdict, because both are
+// named in the ruling's table beside the five.
+func disclosureLedger() rfcLedger {
+	return rfcLedger{Stems: []rfcLedgerStem{{
+		Stem: "rfc9999", Display: "RFC 9999", Title: "The Widget Protocol",
+		Enrolled: true, EnrolmentReason: "every MUST carries both polarities",
+		PublicStatus: "Partial", PublicCoverage: "widgets only",
+		PublicRemaining: "RFC9999-6-1 unmet",
+		SummaryPath:     "rfc/short/rfc9999.md", ShardPath: "rfc/requirements/rfc9999.md",
+		SourcePath: "rfc/full/rfc9999.txt",
+		Coverage: rfcLedgerCoverage{Requirements: 7, Gated: 7, Both: 3, One: 1,
+			Annotated: 1, Missing: 2, NightlyOnly: 1, Gaps: 1, GatedGaps: 1,
+			NotApplicable: 0, SinglePolarity: 0, Tags: 7, Units: 7, Audited: 3,
+			Records: 3, Escapes: 1},
+		Requirements: []rfcLedgerRequirement{
+			{
+				RID: "RFC9999-1-1", Level: "MUST", Section: "1", Gated: true,
+				Text:     "A widget MUST carry a length.",
+				Positive: "--", Negative: "--", Note: "",
+			},
+			{
+				RID: "RFC9999-2-1", Level: "MUST", Section: "2", Gated: true,
+				Text:     "A widget MUST be rejected when its length is zero.",
+				Positive: "`internal/a_test.go` `TestWidget` (unit/verify)",
+				Negative: "`internal/a_test.go` `TestNoWidget` (unit/verify)",
+				Note:     "**audit: weak**",
+				Covers: []rfcLedgerCover{
+					{Polarity: "positive", Unit: "internal/a_test.go::TestWidget",
+						Carrier: "unit/verify", Tags: 1,
+						Proof: &rfcLedgerProof{Route: "revert", State: "verified",
+							Producer: "internal/a.go::Encode", Verified: true, Proves: true}},
+					{Polarity: "negative", Unit: "internal/a_test.go::TestNoWidget",
+						Carrier: "unit/verify", Tags: 1},
+				},
+				Audit: &rfcLedgerVerdict{Verdict: "weak",
+					Meaning:   "the tests pass over code that does not enforce the requirement",
+					Note:      "the assertion checks that the encoder ran, never what it wrote",
+					Freshness: "fresh"},
+			},
+			{
+				RID: "RFC9999-3-1", Level: "MUST", Section: "3", Gated: true,
+				Text:     "A widget MUST be logged.",
+				Positive: "`internal/b_test.go` `TestLogged` (unit/verify)",
+				Negative: "--", Note: "",
+				Covers: []rfcLedgerCover{
+					{Polarity: "positive", Unit: "internal/b_test.go::TestLogged",
+						Carrier: "unit/verify", Tags: 1,
+						Proof: &rfcLedgerProof{Route: "no-break", State: "verified",
+							Reason: "foreign-producer", Verified: true, Proves: false}},
+				},
+				Audit: &rfcLedgerVerdict{Verdict: "enforced",
+					Meaning:   "the tests do what the requirement demands",
+					Freshness: "stale-unit",
+					Moved:     []string{"internal/b_test.go::TestLogged"}},
+			},
+			{
+				RID: "RFC9999-4-1", Level: "MUST", Section: "4", Gated: true,
+				Text:     "A widget MUST NOT be resent.",
+				Positive: "`internal/c_test.go` `TestResend` (interop/nightly)",
+				Negative: "`internal/c_test.go` `TestNoResend` (interop/nightly)",
+				Note:     "**nightly-only**", NightlyOnly: true,
+				Covers: []rfcLedgerCover{
+					{Polarity: "positive", Unit: "internal/c_test.go::TestResend",
+						Carrier: "interop/nightly", Tags: 1},
+					{Polarity: "negative", Unit: "internal/c_test.go::TestNoResend",
+						Carrier: "interop/nightly", Tags: 1,
+						Proof: &rfcLedgerProof{Route: "revert", State: "unit-changed",
+							Detail:   "the tagged unit's behavior changed since the red was observed",
+							Producer: "internal/c.go::Send", Verified: false, Proves: true}},
+				},
+				Audit: &rfcLedgerVerdict{Verdict: "enforced",
+					Meaning:   "the tests do what the requirement demands",
+					Freshness: "shifted", Moved: []string{"internal/c_test.go::TestResend"}},
+			},
+			{
+				RID: "RFC9999-5-1", Level: "MUST", Section: "5", Gated: true,
+				Text:     "A widget MUST be counted | tallied <once> & only once.",
+				Positive: "--", Negative: "--",
+				Note: "{gap} the counter is not implemented | not scheduled",
+				Annotation: &rfcLedgerAnnotation{Kind: "gap",
+					Reason: "the counter is not implemented | not scheduled"},
+			},
+			{
+				RID: "RFC9999-6-1", Level: "MUST", Section: "6", Gated: true,
+				Text:     "A widget MUST be acknowledged.",
+				Positive: "`internal/d_test.go` `TestAck` (unit/verify)",
+				Negative: "`internal/d_test.go` `TestNoAck` (unit/verify)",
+				Covers: []rfcLedgerCover{
+					{Polarity: "positive", Unit: "internal/d_test.go::TestAck",
+						Carrier: "unit/verify", Tags: 1},
+					{Polarity: "negative", Unit: "internal/d_test.go::TestNoAck",
+						Carrier: "unit/verify", Tags: 1},
+				},
+			},
+			{
+				RID: "RFC9999-7-1", Level: "MUST", Section: "7", Gated: true,
+				Text: "A widget MUST be retired.", Positive: "--", Negative: "--",
+				Note: "{superseded: restated RFC9998-2-1} the successor states it",
+				Superseded: &rfcLedgerSuccessor{Disposition: "restated",
+					Target: "RFC9998-2-1", Reason: "the successor states it"},
+			},
+		},
+		Successor: "rfc9998",
+		Extraction: &rfcLedgerExtraction{
+			Path: "rfc/extraction/rfc9999.json", Reviewer: "a reader",
+			SignedOff: "2026-09-01", Register: "protocol",
+			SourcePath: "rfc/full/rfc9999.txt", SourceSHA: "0123456789abcdef",
+			Mapped: 7, Excluded: 2, Relocated: 1, Unclassified: 0,
+			Sections: []rfcLedgerSection{
+				{ID: "1", Sites: 3, Disposition: "walked"},
+				{ID: "9", Sites: 0, Disposition: "skipped", SkipKind: "references",
+					Reason: "the reference list states no obligation"},
+			},
+			Exclusions: []rfcLedgerExcludedSite{
+				{ID: "S3.1", Quote: "An implementation MUST support widgets over TLS.",
+					Kind:   "feature-out-of-scope",
+					Reason: "widgets over TLS are OPTIONAL and Ze does not offer them"},
+				{ID: "S4.2", Quote: "A relay MUST forward the widget.",
+					Kind: "relocated-to-spec", Reason: "a relay is a separate role",
+					RelocatedTo: "plan/spec-widget-relay.md", ReservedID: "RFC9999-4-2"},
+			},
+		},
+	}}}
+}
+
+// renderRFCDetail renders one stem's page and mirror out of a stated ledger.
+func renderRFCDetail(t *testing.T, ledger rfcLedger, stem string) (page, mirror string) {
+	t.Helper()
+	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), ledger)
+	if _, err := renderRFCCompliance(paths); err != nil {
+		t.Fatal(err)
+	}
+	directory := rfcComplianceDirectory + "/" + stem + "/"
+	return readArtifact(t, paths.Output, directory+pageIndexFile),
+		readArtifact(t, paths.Output, directory+pageMirrorFile)
+}
+
+// disclosurePage renders the disclosure fixture's page, its visible text and
+// its mirror.
+func disclosurePage(t *testing.T) (page, text, mirror string) {
+	t.Helper()
+	page, mirror = renderRFCDetail(t, disclosureLedger(), "rfc9999")
+	return page, visibleText(mainContent(t, page)), mirror
+}
+
+// VALIDATES: AC-1 -- the producer answers one route per summary stem plus its
+// own index, and answers each of them exactly once.
+func TestTheRFCLedgerClaimsEachPublishedRouteOnce(t *testing.T) {
+	ledger := twoStemLedger()
+	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), ledger)
+	routes, err := renderRFCCompliance(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(routes) != len(ledger.Stems)+1 {
+		t.Fatalf("the producer claims %d routes over %d stems, want one each plus the index",
+			len(routes), len(ledger.Stems))
+	}
+	seen := map[string]int{}
+	for _, route := range routes {
+		seen[route]++
+	}
+	for route, count := range seen {
+		if count != 1 {
+			t.Errorf("the producer claims %s %d times; Coverage refuses a doubled route", route, count)
+		}
+	}
+	for _, entry := range ledger.Stems {
+		route := rfcComplianceRoute + entry.Stem + "/"
+		if seen[route] != 1 {
+			t.Errorf("the producer claims no route for %s, want %s", entry.Stem, route)
+		}
+	}
+	if seen[rfcComplianceRoute] != 1 {
+		t.Errorf("the producer does not claim its own index %s", rfcComplianceRoute)
+	}
+}
+
+// VALIDATES: AC-13 and A-4 -- every route the producer answers is a page it
+// actually published, so the coverage arithmetic finds neither an unclaimed nor
+// a doubled route arising from this family.
+func TestTheRFCLedgerClaimsOnlyPublishedRoutes(t *testing.T) {
+	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), twoStemLedger())
+	routes, err := renderRFCCompliance(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, route := range routes {
+		directory := strings.Trim(route, "/")
+		for _, name := range []string{pageIndexFile, pageMirrorFile} {
+			path := filepath.Join(paths.Output, filepath.FromSlash(directory), name)
+			if info, err := os.Stat(path); err != nil || info.Size() == 0 {
+				t.Errorf("the producer claims %s and published no %s for it: %v", route, name, err)
+			}
+		}
+	}
+	published, err := pageRegistry(paths.Output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claimed := map[string]bool{}
+	for _, route := range routes {
+		claimed[route] = true
+	}
+	for _, page := range published {
+		if !claimed[page.Route] {
+			t.Errorf("the artifact publishes %s and no producer claimed it", page.Route)
+		}
+	}
+}
+
+// VALIDATES: A-6 -- every published directory is the summary stem itself, so no
+// slug function stands between a stem and its page and two stems cannot collide
+// on one directory.
+func TestASlugIsTheStemItself(t *testing.T) {
+	stems, err := rfcSummaryStems(repositoryRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stems) == 0 {
+		t.Fatal("this checkout carries no summary, so this proves nothing")
+	}
+	safe := regexp.MustCompile(`\A[a-z0-9][a-z0-9.-]*\z`)
+	for _, stem := range stems {
+		if !safe.MatchString(stem) {
+			t.Errorf("the stem %q is not a plain path segment, so it must not be joined into a path", stem)
+		}
+		route := rfcComplianceRoute + stem + "/"
+		if !strings.HasSuffix(route, "/"+stem+"/") {
+			t.Errorf("the route for %s is %s, which does not end in the stem", stem, route)
+		}
+	}
+}
+
+// rfcSummaryStems answers the summary stems of one checkout, read off the
+// directory rather than through the ledger, so this test does not depend on the
+// producer it is about.
+func rfcSummaryStems(root string) ([]string, error) {
+	entries, err := os.ReadDir(filepath.Join(root, "rfc", "short"))
+	if err != nil {
+		return nil, err
+	}
+	stems := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if stem, isMarkdown := strings.CutSuffix(entry.Name(), ".md"); isMarkdown {
+			stems = append(stems, stem)
+		}
+	}
+	return stems, nil
+}
+
+// VALIDATES: AC-11 -- a ledger no page could be built from is refused by name.
+//
+// A skipped entry publishes a family with a silent hole in it, and an empty
+// ledger publishes an index that links nothing while every check the artifact
+// carries passes (ai/rules/principles.md).
+func TestAnUnusableRequirementLedgerIsRefusedByName(t *testing.T) {
+	for _, one := range []struct {
+		name   string
+		ledger rfcLedger
+		want   string
+	}{
+		{"a ledger naming no stem", rfcLedger{}, "names no RFC summary"},
+		{"an entry with an empty stem",
+			rfcLedger{Stems: []rfcLedgerStem{{Stem: ""}}}, "carries an entry with no stem"},
+	} {
+		paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), one.ledger)
+		_, err := renderRFCCompliance(paths)
+		if err == nil {
+			t.Errorf("%s was accepted", one.name)
+			continue
+		}
+		if !strings.Contains(err.Error(), one.want) {
+			t.Errorf("%s answered %q, want a refusal saying %q", one.name, err, one.want)
+		}
+		if !strings.Contains(err.Error(), rfcLedgerFile) {
+			t.Errorf("%s answered %q, which does not name the file", one.name, err)
+		}
+	}
+}
+
+// VALIDATES: AC-11 -- a build derives the ledger once and publishes it as a
+// named artifact, before any producer reads it.
+func TestABuildPublishesTheRequirementLedger(t *testing.T) {
+	previous := liveRequirementLedger
+	t.Cleanup(func() { liveRequirementLedger = previous })
+	liveRequirementLedger = func(string) (rfcLedger, error) { return twoStemLedger(), nil }
+
+	output := t.TempDir()
+	if err := publishRFCLedger(Paths{Repository: repositoryRoot(t), Output: output}); err != nil {
+		t.Fatal(err)
+	}
+	var round rfcLedger
+	if err := json.Unmarshal([]byte(readArtifact(t, output, rfcLedgerFile)), &round); err != nil {
+		t.Fatalf("the published ledger is not JSON: %v", err)
+	}
+	if len(round.Stems) != 2 || round.Stems[0].Stem != "rfc9998" {
+		t.Errorf("the published ledger holds %d stem(s): %+v", len(round.Stems), round.Stems)
+	}
+	named := false
+	for _, name := range namedArtifacts {
+		if name == rfcLedgerFile {
+			named = true
+		}
+	}
+	if !named {
+		t.Errorf("%s is not in namedArtifacts, so a build that stopped writing it would pass every check",
+			rfcLedgerFile)
+	}
+	if missing := checkNamedArtifacts(output); len(missing) == 0 {
+		t.Error("the named-artifact check found nothing missing in a tree holding only the ledger")
+	}
+}
+
+// VALIDATES: AC-2, A-2 and R-6 -- the ledger's requirement cells ARE the cells
+// rfc/requirements/<stem>.md carries, over this checkout's own corpus.
+//
+// The site and the repository must not be able to state different things about
+// one requirement. rfc.RequirementRows is the ONE producer of those cells since
+// 2026-09-01, and this holds the snapshot against the shard that same reading
+// renders, cell by cell, so a mis-mapped column or a dropped escape is a red
+// test rather than a silent divergence on a published page.
+//
+// The comparison is against the GENERATED shard rather than the file on disk.
+// Whether the checked-in file is current is `./le rfc check`'s question, and
+// several sessions share this checkout: a shard somebody has not regenerated
+// yet would redden this test over an edit that is not this page's.
+func TestARequirementRowMatchesItsGeneratedShard(t *testing.T) {
+	root := repositoryRoot(t)
+	ledger, err := collectRequirementLedger(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	collected, err := rfc.Collect(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input, err := rfc.NewRenderInput(root, collected, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shards := rfc.RenderShards(input)
+
+	checked := 0
+	for index := range ledger.Stems {
+		entry := &ledger.Stems[index]
+		if entry.ShardPath == "" {
+			continue
+		}
+		rows := shardRowsByRID(shards[entry.Stem])
+		if len(rows) == 0 {
+			t.Errorf("%s declares requirements and renders no shard row", entry.Stem)
+			continue
+		}
+		for position := range entry.Requirements {
+			requirement := &entry.Requirements[position]
+			want, held := rows[requirement.RID]
+			if !held {
+				t.Errorf("%s carries %s and the shard does not", entry.Stem, requirement.RID)
+				continue
+			}
+			got := []string{requirement.RID, requirement.Level, requirement.Section,
+				requirement.Positive, requirement.Negative, rfc.TableCell(requirement.Note)}
+			for cell := range got {
+				if got[cell] != want[cell] {
+					t.Errorf("%s cell %d reads %q, the shard reads %q",
+						requirement.RID, cell, got[cell], want[cell])
+				}
+			}
+			checked++
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no requirement was compared against a shard, so this proves nothing")
+	}
+	t.Logf("compared %d requirement rows against their generated shards", checked)
+}
+
+// shardRowsByRID reads one generated shard back into its six cells per
+// requirement id, with the backticks around the id removed.
+func shardRowsByRID(shard string) map[string][6]string {
+	out := map[string][6]string{}
+	for line := range strings.SplitSeq(shard, "\n") {
+		if !strings.HasPrefix(line, "| `") {
+			continue
+		}
+		body := strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(line), "|"), "|")
+		cells := strings.Split(body, " | ")
+		if len(cells) != 6 {
+			continue
+		}
+		cells[0] = strings.Trim(strings.TrimSpace(cells[0]), "`")
+		var row [6]string
+		for index := range row {
+			row[index] = strings.TrimSpace(cells[index])
+		}
+		out[row[0]] = row
+	}
+	return out
+}
+
+// VALIDATES: AC-3 -- the at-a-glance facts state the public status, the
+// enrolment and its reason, the counts, and the three repository paths.
+func TestAStemPageStatesItsEnrolmentAndItsPublicStatus(t *testing.T) {
+	_, text, mirror := disclosurePage(t)
+	for _, fact := range []string{
+		"Partial",
+		"Enrolled: every MUST carries both polarities",
+		"rfc/short/rfc9999.md",
+		"rfc/requirements/rfc9999.md",
+		"rfc/full/rfc9999.txt",
+	} {
+		if !strings.Contains(text, fact) {
+			t.Errorf("the page does not state %q", fact)
+		}
+		if !strings.Contains(mirror, fact) {
+			t.Errorf("the mirror does not state %q", fact)
+		}
+	}
+
+	declined := twoStemLedger()
+	_, declinedMirror := renderRFCDetail(t, declined, "rfc9997")
+	for _, fact := range []string{
+		rfcNoPublicRow,
+		"Not enrolled (backlog): the extraction is owed",
+		"no requirement declared, so no shard is generated",
+		"this checkout does not carry the RFC's own text",
+	} {
+		if !strings.Contains(declinedMirror, fact) {
+			t.Errorf("the declined stem's mirror does not state %q", fact)
+		}
+	}
+}
+
+// VALIDATES: AC-15 -- the heading carries the RFC's title from the summary's
+// Meta row, and a summary declaring none shows the display name alone.
+func TestAStemPageCarriesTheTitleFromTheSummaryMetaRow(t *testing.T) {
+	page, _, mirror := disclosurePage(t)
+	if !strings.Contains(page, "RFC 9999 - The Widget Protocol") {
+		t.Error("the page heading does not carry the title from the Meta row")
+	}
+	if !strings.HasPrefix(mirror, "# RFC 9999 - The Widget Protocol\n") {
+		t.Errorf("the mirror opens %q", strings.SplitN(mirror, "\n", 2)[0])
+	}
+
+	untitled := disclosureLedger()
+	untitled.Stems[0].Title = ""
+	_, plain := renderRFCDetail(t, untitled, "rfc9999")
+	if !strings.HasPrefix(plain, "# RFC 9999\n") {
+		t.Errorf("a summary with no title row opens %q, want the display name alone",
+			strings.SplitN(plain, "\n", 2)[0])
+	}
+}
+
+// VALIDATES: AC-4 -- a declared gap shows its kind and its whole reason, beside
+// the public ledger's own Remaining cell. A gap is an ISSUE and is never
+// rendered as coverage (ai/rules/rfc-compliance.md).
+func TestAGapIsShownWithItsReasonAndTheLedgerRemainder(t *testing.T) {
+	_, text, mirror := disclosurePage(t)
+	// The ledger's Remaining cell is stated under What the public ledger says,
+	// beside the Coverage cell it belongs with, and the requirement-by-
+	// requirement answer is under Gaps and untested MUSTs (owner review,
+	// 2026-09-01). Both are on the page and each is stated once.
+	for _, want := range []string{
+		"RFC9999-5-1",
+		"the counter is not implemented | not scheduled",
+		"What the ledger says remains: RFC9999-6-1 unmet",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the page does not state %q", want)
+		}
+	}
+	// The mirror escapes a pipe inside a table cell and writes the fold's label
+	// in bold, so it states the same two facts in Markdown's own spelling.
+	for _, want := range []string{
+		"RFC9999-5-1",
+		rfc.TableCell("the counter is not implemented | not scheduled"),
+		// The remainder names a requirement this summary declares, so it is
+		// linked to its own row rather than left as text.
+		"**What the ledger says remains:**\n\n[`RFC9999-6-1`](#rfc9999-6-1) unmet",
+	} {
+		if !strings.Contains(mirror, want) {
+			t.Errorf("the mirror does not state %q", want)
+		}
+	}
+
+	noRow := disclosureLedger()
+	noRow.Stems[0].PublicStatus = ""
+	noRow.Stems[0].PublicRemaining = ""
+	_, plain := renderRFCDetail(t, noRow, "rfc9999")
+	// The summary DECLARES the absence; docs/features/rfc-status.md is
+	// generated from that declaration, so the page names the authored fact
+	// first and the generated file second.
+	if !strings.Contains(plain, rfcNoPublicRow+", so its summary declares `| Support | - |` "+
+		"and docs/features/rfc-status.md carries no row for RFC 9999.") {
+		t.Error("a stem with no public row does not say where that absence is declared")
+	}
+}
+
+// VALIDATES: AC-5 -- a recorded verdict appears with the word, its published
+// meaning and its freshness state, and what moved where the verdict is not
+// current.
+func TestAnAuditVerdictAppearsWithItsMeaningAndFreshness(t *testing.T) {
+	_, text, mirror := disclosurePage(t)
+	for _, want := range []string{
+		"RFC9999-2-1",
+		"weak (the tests pass over code that does not enforce the requirement), fresh",
+		"stale-unit: internal/b_test.go::TestLogged moved",
+		"shifted: internal/c_test.go::TestResend moved",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the page does not state %q", want)
+		}
+		if !strings.Contains(mirror, want) {
+			t.Errorf("the mirror does not state %q", want)
+		}
+	}
+}
+
+// VALIDATES: AC-5 -- a requirement nobody has audited says so, rather than
+// showing a blank cell a reader would read as "nothing wrong".
+func TestARequirementWithNoVerdictSaysSoRatherThanShowingABlank(t *testing.T) {
+	_, text, mirror := disclosurePage(t)
+	const want = "not audited: no reader has judged these tests"
+	if !strings.Contains(text, want) {
+		t.Errorf("the page does not state %q for a requirement carrying no verdict", want)
+	}
+	if !strings.Contains(mirror, want) {
+		t.Errorf("the mirror does not state %q", want)
+	}
+	if strings.Contains(text, "RFC9999-6-1 not audited") {
+		return
+	}
+	if !strings.Contains(text, "RFC9999-6-1") {
+		t.Error("the unaudited requirement is not named on the page")
+	}
+}
+
+// VALIDATES: AC-6 and AC-20 -- a tagged unit with no recorded break reads as
+// unproven, in a cell of its own, on a row of its own.
+//
+// The retired shape joined every unit of one requirement into one cell with
+// semicolons and repeated "no discrimination record: unproven" on each entry.
+// The words that explain the state are the legend above the table now, stated
+// once (owner review, 2026-09-01).
+func TestATagWithNoDiscriminationRecordReadsAsUnproven(t *testing.T) {
+	_, text, mirror := disclosurePage(t)
+	// The row names the TEST, not the file it lives in: the path is machinery
+	// and the link already resolves to the line (owner review, 2026-09-01).
+	for _, want := range []string{
+		"| negative | `TestNoWidget` | unit/verify | " + rfcUnproven + " |",
+		"| positive | `TestAck` | unit/verify | " + rfcUnproven + " |",
+	} {
+		if !strings.Contains(mirror, want) {
+			t.Errorf("the mirror carries no row %q", want)
+		}
+	}
+	for _, want := range []string{
+		"negative TestNoWidget unit/verify " + rfcUnproven,
+		"positive TestAck unit/verify " + rfcUnproven,
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the page does not state %q", want)
+		}
+	}
+	if strings.Contains(text, "internal/a_test.go TestNoWidget") {
+		t.Error("the proof-state row still prints the file beside the test")
+	}
+	for name, rendering := range map[string]string{"page": text, "mirror": mirror} {
+		if strings.Count(rendering, rfcProofLegend) != 1 {
+			t.Errorf("the %s states the proof legend %d times, want once",
+				name, strings.Count(rendering, rfcProofLegend))
+		}
+		if strings.Contains(rendering, "no discrimination record: "+rfcUnproven) {
+			t.Errorf("the %s still repeats the whole sentence on a unit row", name)
+		}
+	}
+}
+
+// VALIDATES: AC-6 and AC-20 -- a `no-break` record is named as the escape it is
+// and is never counted as a proof.
+//
+// The escape says no break exists. A page that printed it as a route beside
+// `mutant` and `revert` would publish the opposite of what the gate holds
+// (docs/contributing/rfc-conformance-gates.md).
+func TestANoBreakRecordIsCountedApartFromAProof(t *testing.T) {
+	_, text, mirror := disclosurePage(t)
+	const escape = "no-break escape (foreign-producer), which is not a proof, verified"
+	if !strings.Contains(mirror, "| positive | `TestLogged` | unit/verify | "+escape+" |") {
+		t.Error("the mirror carries no escape row for TestLogged")
+	}
+	if !strings.Contains(text, "positive TestLogged unit/verify "+escape) {
+		t.Errorf("the page does not state %q for the escaped unit", escape)
+	}
+	if !strings.Contains(text, "revert, verified") {
+		t.Error("a real proof does not read as a proof, so the two are indistinguishable")
+	}
+}
+
+// VALIDATES: AC-7 -- the sign-off names the reviewer, the date, the source and
+// its fingerprint, one row per section, and every excluded site with its kind
+// and its reason.
+func TestTheExtractionSignoffNamesEveryExcludedSiteAndItsKind(t *testing.T) {
+	_, text, mirror := disclosurePage(t)
+	for _, want := range []string{
+		"a reader", "2026-09-01", "rfc/full/rfc9999.txt", "0123456789abcdef",
+		"rfc/extraction/rfc9999.json",
+		"skipped (references)", "the reference list states no obligation",
+		"S3.1", "feature-out-of-scope",
+		"widgets over TLS are OPTIONAL and Ze does not offer them",
+		"S4.2", "relocated-to-spec",
+		"a relay is a separate role (relocated to plan/spec-widget-relay.md as RFC9999-4-2)",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the sign-off section does not state %q", want)
+		}
+		if !strings.Contains(mirror, want) {
+			t.Errorf("the sign-off mirror does not state %q", want)
+		}
+	}
+
+	none := disclosureLedger()
+	none.Stems[0].Extraction = nil
+	_, plain := renderRFCDetail(t, none, "rfc9999")
+	if !strings.Contains(plain, "No extraction sign-off exists for RFC 9999") {
+		t.Error("a stem with no sign-off does not say so, and an omitted section reads as a fact")
+	}
+}
+
+// VALIDATES: AC-2's superseded half -- a requirement whose obligation moved
+// names the disposition, the target and the reason.
+func TestASupersededRequirementNamesWhereItsObligationWent(t *testing.T) {
+	_, text, mirror := disclosurePage(t)
+	for _, want := range []string{
+		"RFC 9999 is obsoleted by RFC 9998.",
+		"RFC9999-7-1", "restated", "RFC9998-2-1", "the successor states it",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the superseded section does not state %q", want)
+		}
+		if !strings.Contains(mirror, want) {
+			t.Errorf("the superseded mirror does not state %q", want)
+		}
+	}
+}
+
+// VALIDATES: AC-12 and R-5 -- a pipe, a backtick, an angle bracket and an
+// ampersand in quoted RFC prose each land inside their own cell, escaped, and
+// break neither the row nor the markup.
+func TestAPipeInRequirementTextStaysInItsCell(t *testing.T) {
+	page, text, mirror := disclosurePage(t)
+	const prose = "A widget MUST be counted | tallied <once> & only once."
+	if !strings.Contains(text, prose) {
+		t.Errorf("the page does not render %q as one readable cell", prose)
+	}
+	if !strings.Contains(page, "&lt;once&gt; &amp; only once.") {
+		t.Error("the angle brackets and the ampersand are not escaped in the markup")
+	}
+	if strings.Contains(page, "<once>") {
+		t.Error("quoted RFC prose reached the page as raw markup")
+	}
+
+	// The mirror is markdown, where a bare pipe closes a cell. The row has to
+	// keep the header's own column count with the pipe escaped inside the text
+	// cell. The count is READ from the header rather than written here: this
+	// table lost two columns and gained one on 2026-09-01, and a number in a
+	// test is the second place it can be wrong.
+	// The FIRST row for this requirement, which is the requirements table's.
+	// The proof-state table below it opens with the same id and carries fewer
+	// cells, so taking the last match would judge the wrong row.
+	row, header := "", ""
+	for line := range strings.SplitSeq(mirror, "\n") {
+		if header == "" && strings.HasPrefix(line, "| Requirement | Level | Section |") {
+			header = line
+		}
+		if row == "" && strings.HasPrefix(line, "| `RFC9999-5-1` |") {
+			row = line
+		}
+	}
+	if row == "" || header == "" {
+		t.Fatal("the mirror carries no requirements header or no row for RFC9999-5-1")
+	}
+	want := strings.Count(header, "|")
+	if got := strings.Count(row, "|") - strings.Count(row, `\|`); got != want {
+		t.Errorf("the mirror row splits into %d cells and the header into %d: %s",
+			got, want, row)
+	}
+	if !strings.Contains(row, `counted \| tallied`) {
+		t.Errorf("the pipe in the requirement text is not escaped: %s", row)
+	}
+}
+
+// VALIDATES: AC-9 -- the mirror states every fact the page states.
+//
+// The at-a-glance facts are built once and read by both renderings, so this
+// holds the two against each other over the whole list rather than over a
+// sample.
+func TestAnRFCPageMirrorReadsAsThePublishedMirror(t *testing.T) {
+	entry := disclosureLedger().Stems[0]
+	_, text, mirror := disclosurePage(t)
+	for _, fact := range rfcGlanceFacts(&entry) {
+		plain := rfcPlain(fact[1])
+		if !strings.Contains(mirror, plain) {
+			t.Errorf("the mirror does not state the %s fact %q", fact[0], plain)
+		}
+		if !strings.Contains(text, strings.ReplaceAll(plain, "`", "")) {
+			t.Errorf("the page does not state the %s fact %q", fact[0], plain)
+		}
+	}
+	for _, heading := range []string{
+		"## At a glance", "## Coverage", "## Requirements",
+		"## Gaps and untested MUSTs", "## Proof state",
+		"## Extraction sign-off", "## Superseded",
+	} {
+		if !strings.Contains(mirror, heading) {
+			t.Errorf("the mirror carries no %q section", heading)
+		}
+	}
+}
+
+// VALIDATES: AC-9 -- the published page carries the shell every page carries
+// and the seven sections this family states.
+func TestAnRFCPageReadsAsThePublishedPage(t *testing.T) {
+	page, _, _ := disclosurePage(t)
+	for _, chrome := range []string{
+		"<title>RFC 9999 requirement ledger - Ze</title>",
+		`<link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc9999/" />`,
+		`<link rel="stylesheet" href="../../../assets/site.css" />`,
+		`<section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">`,
+		`<h1 id="rfc-detail-title">RFC 9999 - The Widget Protocol</h1>`,
+		"<footer>",
+	} {
+		if !strings.Contains(page, chrome) {
+			t.Errorf("the page is missing %q", chrome)
+		}
+	}
+	for _, heading := range []string{
+		"<h2>At a glance</h2>", "<h2>Coverage</h2>", "<h2>Requirements</h2>",
+		"<h2>Gaps and untested MUSTs</h2>", "<h2>Proof state</h2>",
+		"<h2>Extraction sign-off</h2>", "<h2>Superseded</h2>",
+	} {
+		if !strings.Contains(page, heading) {
+			t.Errorf("the page carries no %s", heading)
+		}
+	}
+}
+
+// VALIDATES: AC-10 and R-7 -- a summary dropped from rfc/short loses its
+// published directory on the next build.
+//
+// A page that survives on the incremental seed alone is frozen content with a
+// fresh timestamp, and every other check the artifact carries passes it.
+func TestARetiredRFCLosesItsPage(t *testing.T) {
+	paths := rfcCompliancePathsWith(t, publishedRFCComplianceRef(t), twoStemLedger())
+	if _, err := renderRFCCompliance(paths); err != nil {
+		t.Fatal(err)
+	}
+	retired := filepath.Join(paths.Output, filepath.FromSlash(rfcComplianceDirectory), "rfc9997")
+	if _, err := os.Stat(retired); err != nil {
+		t.Fatalf("the first build published no page for rfc9997: %v", err)
+	}
+
+	shrunk := rfcLedger{Stems: twoStemLedger().Stems[:1]}
+	writeLedgerArtifact(t, paths.Output, shrunk)
+	if _, err := renderRFCCompliance(paths); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(retired); !os.IsNotExist(err) {
+		t.Errorf("the page for a retired summary is still published: %v", err)
+	}
+	kept := filepath.Join(paths.Output, filepath.FromSlash(rfcComplianceDirectory), "rfc9998")
+	if _, err := os.Stat(kept); err != nil {
+		t.Errorf("the retirement pass removed a live summary's page: %v", err)
+	}
+}
+
+// VALIDATES: AC-16 -- the new site code spells no annotation kind, polarity,
+// audit verdict, freshness state or discrimination route of its own.
+//
+// Every one of those words is a vocabulary internal/le/rfc declares and closes.
+// A literal here is a second declaration of a closed set, which is where the
+// verdict vocabulary drifted before the schema existed (ai/rules/principles.md).
+func TestTheSiteReadsItsRFCVocabularyFromThePackage(t *testing.T) {
+	vocabulary := append([]string{}, rfc.AnnotationKinds()...)
+	vocabulary = append(vocabulary, rfc.Polarities()...)
+	vocabulary = append(vocabulary, rfc.AuditVerdicts()...)
+	vocabulary = append(vocabulary, rfc.FreshnessStates()...)
+	vocabulary = append(vocabulary, rfc.DiscriminationRoutes()...)
+	vocabulary = append(vocabulary, rfc.SiteDispositions()...)
+
+	for _, name := range []string{
+		"rfcdetail.go", "rfcledger.go", "rfcmarkup.go", "rfcevidence.go",
+	} {
+		content, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, word := range vocabulary {
+			literal := `"` + word + `"`
+			if strings.Contains(string(content), literal) {
+				t.Errorf("%s spells %s as a literal; read it from internal/le/rfc instead",
+					name, literal)
+			}
+		}
+	}
+}
+
+// VALIDATES: AC-17 -- every one of the five states the owner ruling names is on
+// the page, under the requirement id it belongs to, in its own word.
+//
+// Disclosure is FULL by owner ruling of 2026-09-01. None of these is omitted,
+// relabeled, softened, shown as a blank cell, or counted as proven. If this
+// test goes red, the PAGE is what gets fixed.
+func TestEveryDisclosedStateAppearsUnderItsRequirementID(t *testing.T) {
+	_, text, mirror := disclosurePage(t)
+	for _, one := range []struct{ state, rid, word string }{
+		{"a gated MUST with no test", "RFC9999-1-1", "no test"},
+		{"a weak audit verdict", "RFC9999-2-1", "weak"},
+		{"a stale-unit verdict", "RFC9999-3-1", "stale-unit"},
+		{"a shifted verdict", "RFC9999-4-1", "shifted"},
+		{"a tagged unit with no discrimination record", "RFC9999-6-1", rfcUnproven},
+		{"a no-break record", "RFC9999-3-1", "no-break"},
+		{"a declared gap", "RFC9999-5-1", "{gap}"},
+	} {
+		for name, rendering := range map[string]string{"page": text, "mirror": mirror} {
+			if !strings.Contains(rendering, one.rid) {
+				t.Errorf("the %s does not name %s, which carries %s", name, one.rid, one.state)
+			}
+			if !strings.Contains(rendering, one.word) {
+				t.Errorf("the %s does not carry the word %q for %s", name, one.word, one.state)
+			}
+		}
+	}
+}
+
+// VALIDATES: AC-18 -- for every count of a bad state the page prints, the
+// requirement ids that produced it are on the same page.
+//
+// A page that says "2 requirements carry no test" and does not name the two has
+// reproduced the aggregate this family exists to replace. The method is the
+// snapshot's own failing rows rather than the page's summary of them.
+func TestNoBadStateIsPublishedOnlyAsACount(t *testing.T) {
+	ledger := disclosureLedger()
+	entry := &ledger.Stems[0]
+	_, text, mirror := disclosurePage(t)
+
+	families := map[string][]string{}
+	for index := range entry.Requirements {
+		requirement := &entry.Requirements[index]
+		if requirement.Gated && len(requirement.Covers) == 0 {
+			families["gated MUST with no test"] = append(
+				families["gated MUST with no test"], requirement.RID)
+		}
+		if requirement.NightlyOnly {
+			families["nightly-only evidence"] = append(
+				families["nightly-only evidence"], requirement.RID)
+		}
+		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationGap {
+			families["declared gap"] = append(families["declared gap"], requirement.RID)
+		}
+		if requirement.Audit != nil && requirement.Audit.Verdict != "enforced" {
+			families["verdict other than enforced"] = append(
+				families["verdict other than enforced"], requirement.RID)
+		}
+		if requirement.Audit != nil && requirement.Audit.Freshness != rfc.FreshState {
+			families["verdict no longer current"] = append(
+				families["verdict no longer current"], requirement.RID)
+		}
+		for _, cover := range requirement.Covers {
+			if cover.Proof == nil {
+				families["tagged unit with no record"] = append(
+					families["tagged unit with no record"], requirement.RID)
+			}
+			if cover.Proof != nil && !cover.Proof.Proves {
+				families["no-break escape"] = append(families["no-break escape"], requirement.RID)
+			}
+		}
+	}
+	if len(families) == 0 {
+		t.Fatal("the disclosure fixture carries no bad state, so this proves nothing")
+	}
+	for family, ids := range families {
+		if len(ids) == 0 {
+			continue
+		}
+		if !strings.Contains(text, strconv.Itoa(len(ids))) {
+			t.Logf("the page prints no count for %s, which is allowed: the list is what is owed", family)
+		}
+		for _, rid := range ids {
+			if !strings.Contains(text, rid) {
+				t.Errorf("the page counts %s and does not name %s", family, rid)
+			}
+			if !strings.Contains(mirror, rid) {
+				t.Errorf("the mirror counts %s and does not name %s", family, rid)
+			}
+		}
+	}
+}
+
+// VALIDATES: A-1 -- the navigation entry for /quality/rfc-compliance/ claims
+// every route under it, so 190 child pages need no nav.json edit.
+//
+// assignPages FAILS THE BUILD on a published page no navigation section claims.
+// The method is the real navigation and the real published route set, with this
+// family's routes added to it.
+func TestEveryRFCDetailRouteBelongsToOneSection(t *testing.T) {
+	root := repositoryRoot(t)
+	var nav siteNav
+	if err := readSourceJSON(filepath.Join(root, "website"), navDataFile, &nav); err != nil {
+		t.Fatal(err)
+	}
+	stems, err := rfcSummaryStems(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes := publishedArtifactRoutes(t)
+	for _, stem := range stems {
+		routes = append(routes, rfcComplianceRoute+stem+"/")
+	}
+	pages := make([]Page, 0, len(routes))
+	for _, route := range routes {
+		directory := strings.Trim(route, "/")
+		pages = append(pages, Page{
+			Route:    route,
+			HTML:     filepath.ToSlash(filepath.Join(directory, pageIndexFile)),
+			Markdown: filepath.ToSlash(filepath.Join(directory, pageMirrorFile)),
+		})
+	}
+	if _, err := assignPages(pages, nav); err != nil {
+		t.Fatalf("the RFC detail routes belong to no navigation section: %v", err)
+	}
+}
+
+// VALIDATES: AC-17 over this checkout's own corpus rather than over the
+// disclosure fixture alone.
+//
+// A fixture proves the renderer discloses what it is handed. This proves the
+// LEDGER hands it the real weaknesses: every gated MUST this repository carries
+// no test for is named on the page for its RFC, under its own requirement id.
+// The count is logged rather than pinned, because it moves with every
+// enrolment; what is pinned is that none of them is missing from a page.
+func TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage(t *testing.T) {
+	root := repositoryRoot(t)
+	ledger, err := collectRequirementLedger(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	untested := 0
+	pages := 0
+	for index := range ledger.Stems {
+		entry := &ledger.Stems[index]
+		var owed []string
+		for position := range entry.Requirements {
+			requirement := &entry.Requirements[position]
+			if requirement.Gated && len(requirement.Covers) == 0 {
+				owed = append(owed, requirement.RID)
+			}
+		}
+		if len(owed) == 0 {
+			continue
+		}
+		pages++
+		untested += len(owed)
+		mirror := rfcDetailMirror(entry)
+		body := rfcDetailBody(entry)
+		for _, rid := range owed {
+			if !strings.Contains(mirror, rid) {
+				t.Errorf("%s carries no test for %s and its mirror does not name it",
+					entry.Stem, rid)
+			}
+			if !strings.Contains(body, rid) {
+				t.Errorf("%s carries no test for %s and its page does not name it",
+					entry.Stem, rid)
+			}
+		}
+	}
+	if untested == 0 {
+		t.Fatal("this checkout carries no untested gated MUST, so this proves nothing")
+	}
+	t.Logf("%d gated MUST-level requirements carry no test, across %d published pages",
+		untested, pages)
+}
+
+// VALIDATES: AC-18 over this checkout's own corpus -- every bad state the
+// snapshot holds for which a requirement id exists is named on the page, and
+// not only counted in the at-a-glance panel.
+func TestNoBadStateOfThisCheckoutIsPublishedOnlyAsACount(t *testing.T) {
+	root := repositoryRoot(t)
+	ledger, err := collectRequirementLedger(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	named := map[string]int{}
+	for index := range ledger.Stems {
+		entry := &ledger.Stems[index]
+		bad := map[string][]string{}
+		for position := range entry.Requirements {
+			requirement := &entry.Requirements[position]
+			if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationGap {
+				bad["declared gap"] = append(bad["declared gap"], requirement.RID)
+			}
+			if requirement.NightlyOnly {
+				bad["nightly-only"] = append(bad["nightly-only"], requirement.RID)
+			}
+			if requirement.Audit != nil && requirement.Audit.Verdict != rfc.VerdictEnforced {
+				bad["verdict other than enforced"] = append(
+					bad["verdict other than enforced"], requirement.RID)
+			}
+			if requirement.Audit != nil && requirement.Audit.Freshness != rfc.FreshState {
+				bad["verdict no longer current"] = append(
+					bad["verdict no longer current"], requirement.RID)
+			}
+			for _, cover := range requirement.Covers {
+				if cover.Proof == nil {
+					bad["tagged unit with no record"] = append(
+						bad["tagged unit with no record"], requirement.RID)
+				}
+				if cover.Proof != nil && !cover.Proof.Proves {
+					bad["no-break escape"] = append(bad["no-break escape"], requirement.RID)
+				}
+			}
+		}
+		if len(bad) == 0 {
+			continue
+		}
+		mirror := rfcDetailMirror(entry)
+		for family, ids := range bad {
+			named[family] += len(ids)
+			for _, rid := range ids {
+				if !strings.Contains(mirror, rid) {
+					t.Errorf("%s carries %s for %s and the page does not name it",
+						entry.Stem, family, rid)
+				}
+			}
+		}
+	}
+	if len(named) == 0 {
+		t.Fatal("this checkout holds no bad state at all, so this proves nothing")
+	}
+	for family, count := range named {
+		t.Logf("%d occurrence(s) of %s, each named under its requirement id", count, family)
+	}
+}
+
+// VALIDATES: AC-19 -- the page opens with the same card grid the index carries,
+// rendered by the same function, over one summary's own numbers, and a number
+// that is not good news carries a tone that says so.
+//
+// The method is the tone of each card against the fixture's own counts rather
+// than a fixed list of tones, so a card that stopped reading its number goes
+// red here.
+func TestAStemPageOpensWithTheCardGridTheIndexCarries(t *testing.T) {
+	entry := disclosureLedger().Stems[0]
+	page, text, mirror := disclosurePage(t)
+	cards := rfcDetailCards(&entry)
+	if len(cards) == 0 {
+		t.Fatal("the page renders no card")
+	}
+	whole := entry.Coverage.Binding()
+	if !strings.Contains(page, rfcCardsHTML(cards, whole)) {
+		t.Error("the page does not carry the markup rfcCardsHTML answers for its own cards")
+	}
+	if !strings.Contains(mirror, rfcCardsMirror(cards, whole)) {
+		t.Error("the mirror does not carry the table rfcCardsMirror answers")
+	}
+	// The percentage and the arithmetic behind it are BOTH on the card, the
+	// count under the value (owner ruling, 2026-09-01).
+	for _, card := range cards {
+		if !strings.Contains(text, card.Label+card.Value+card.Count+card.Note) {
+			t.Errorf("the %s card does not read %q / %q / %q", card.Label, card.Value,
+				card.Count, card.Note)
+		}
+		if card.Count == "" {
+			t.Errorf("the %s card states a value and no arithmetic behind it", card.Label)
+		}
+	}
+
+	// The fixture's seven gated MUSTs all bind: none is {not-applicable}. Three
+	// carry both polarities, three carry no test at all (one declared gap and
+	// two unexcused), and of seven tagged units three carry a record, one of
+	// which is an escape, so two are proven.
+	tones := map[string]string{}
+	for _, card := range cards {
+		tones[card.Label] = card.Tone
+	}
+	// A color names what the measure MEANS, not how well Ze scores on it: a
+	// good outcome is green at any value, a bad one is red above zero, and
+	// neither a population nor a scope count is an outcome.
+	for label, want := range map[string]string{
+		"Tested both ways":           rfcToneOK,
+		"One polarity plus reason":   rfcToneOK,
+		"One polarity, unexcused":    rfcToneBad,
+		"No test at all":             rfcToneBad,
+		"Proven by a recorded break": rfcToneOK,
+		"Out of scope":               rfcToneNeutral,
+		"Gated MUSTs":                rfcToneNeutral,
+		"Audit verdicts":             rfcToneBad,
+	} {
+		if tones[label] != want {
+			t.Errorf("the %s card reads %q, want %q: a bad number must read as bad",
+				label, tones[label], want)
+		}
+	}
+
+	// SCALE leads and STANDING follows, by owner amendment of 2026-09-01, which
+	// supersedes the ratio-first order ruled earlier the same day. The
+	// population is safe at the head only while it is labeled as scale and the
+	// coverage shares sit in the same grid immediately after it.
+	if cards[0].Label != "Gated MUSTs" {
+		t.Errorf("the grid opens with %q, want the population it is a scale of", cards[0].Label)
+	}
+	if cards[0].Tone != rfcToneNeutral {
+		t.Errorf("the leading population card reads %q, so it looks like a result",
+			cards[0].Tone)
+	}
+	if !strings.Contains(cards[0].Note, "A population, not a result") {
+		t.Errorf("the leading card does not say it is a population: %q", cards[0].Note)
+	}
+	if !strings.HasSuffix(cards[2].Value, "%") {
+		t.Errorf("the third card is %q, so a reader meets no coverage share beside the scale",
+			cards[2].Label)
+	}
+
+	clean := disclosureLedger()
+	for index := range clean.Stems[0].Requirements {
+		requirement := &clean.Stems[0].Requirements[index]
+		requirement.Annotation, requirement.Audit = nil, nil
+		for coverIndex := range requirement.Covers {
+			requirement.Covers[coverIndex].Proof = &rfcLedgerProof{Verified: true, Proves: true}
+		}
+	}
+	clean.Stems[0].Coverage.Gaps, clean.Stems[0].Coverage.GatedGaps = 0, 0
+	clean.Stems[0].Coverage.Missing, clean.Stems[0].Coverage.NotApplicable = 0, 0
+	clean.Stems[0].Coverage.Gated, clean.Stems[0].Coverage.Both = 4, 4
+	clean.Stems[0].Coverage.One, clean.Stems[0].Coverage.SinglePolarity = 0, 0
+	clean.Stems[0].Coverage.Audited = 4
+	clean.Stems[0].Coverage.Units, clean.Stems[0].Coverage.Records = 5, 5
+	clean.Stems[0].Coverage.Escapes = 0
+	for _, card := range rfcDetailCards(&clean.Stems[0]) {
+		if card.Tone == rfcToneBad || card.Tone == rfcToneWarn {
+			t.Errorf("a summary with nothing wrong reads %q on the %s card",
+				card.Tone, card.Label)
+		}
+	}
+}
+
+// VALIDATES: AC-21 -- a requirement id mentioned away from its own row links to
+// that row and carries the requirement's text.
+//
+// A bare id tells a reader which line of a shard to go and read. This page
+// carries the line (owner review, 2026-09-01).
+func TestAMentionedRequirementLinksToItsOwnRow(t *testing.T) {
+	page, text, mirror := disclosurePage(t)
+	if !strings.Contains(page, `<code id="rfc9999-5-1">RFC9999-5-1</code>`) {
+		t.Error("the requirement row carries no stable anchor")
+	}
+	for _, want := range []string{
+		`<a href="#rfc9999-5-1"><code>RFC9999-5-1</code></a>`,
+		`<a href="#rfc9999-1-1"><code>RFC9999-1-1</code></a>`,
+		`<a href="#rfc9999-7-1"><code>RFC9999-7-1</code></a>`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page carries no link %q", want)
+		}
+	}
+	if !strings.Contains(mirror, "[`RFC9999-5-1`](#rfc9999-5-1)") {
+		t.Error("the mirror mentions a requirement without linking it to its row")
+	}
+	// The gap row and the superseded row each carry the requirement's own text
+	// beside the id.
+	for _, want := range []string{
+		"A widget MUST be counted | tallied <once> & only once.",
+		"A widget MUST be retired.",
+	} {
+		if strings.Count(text, want) < 2 {
+			t.Errorf("%q appears once, so the mention away from the row is bare", want)
+		}
+	}
+}
+
+// VALIDATES: AC-22 -- the at-a-glance table carries only countable facts and
+// repository paths, and the public remainder is stated exactly once.
+func TestTheGlanceTableCarriesNoProse(t *testing.T) {
+	entry := disclosureLedger().Stems[0]
+	_, text, mirror := disclosurePage(t)
+	for _, fact := range rfcGlanceFacts(&entry) {
+		if len(rfcPlain(fact[1])) > 80 {
+			t.Errorf("the %s cell is %d characters, which is prose in a two-column table",
+				fact[0], len(rfcPlain(fact[1])))
+		}
+	}
+	for _, prose := range []string{
+		"Enrolled: every MUST carries both polarities",
+		"widgets only",
+	} {
+		if !strings.Contains(text, prose) {
+			t.Errorf("the page dropped %q, which moved out of the table and owes a heading", prose)
+		}
+		if !strings.Contains(mirror, prose) {
+			t.Errorf("the mirror dropped %q", prose)
+		}
+	}
+	if count := strings.Count(mirror, "`RFC9999-6-1`](#rfc9999-6-1) unmet"); count != 1 {
+		t.Errorf("the mirror states the public remainder %d times, want once", count)
+	}
+}
+
+// VALIDATES: AC-23 -- a section with nothing to show says so once.
+//
+// The retired page printed the Superseded sentence and then a bare "None." on
+// the next line, and did the same under Gaps. Two statements of one emptiness
+// read as two facts, and only one of them is (owner review, 2026-09-01).
+func TestAnEmptySectionStatesItsEmptinessOnce(t *testing.T) {
+	empty := disclosureLedger()
+	stem := &empty.Stems[0]
+	stem.Successor = ""
+	stem.PublicRemaining = "nothing outstanding"
+	for index := range stem.Requirements {
+		requirement := &stem.Requirements[index]
+		requirement.Annotation, requirement.Superseded = nil, nil
+		if len(requirement.Covers) == 0 {
+			requirement.Covers = []rfcLedgerCover{{Polarity: rfc.PolarityPositive,
+				Unit: "internal/z_test.go::TestZ", Carrier: "unit/verify", Tags: 1}}
+		}
+	}
+	page, mirror := renderRFCDetail(t, empty, "rfc9999")
+	text := visibleText(mainContent(t, page))
+	for name, rendering := range map[string]string{"page": text, "mirror": mirror} {
+		if strings.Contains(rendering, "None.") {
+			t.Errorf("the %s still states an emptiness as a bare \"None.\"", name)
+		}
+		if !strings.Contains(rendering, "declares no gap, and every gated MUST it carries") {
+			t.Errorf("the %s does not say in words that it declares no gap", name)
+		}
+		if !strings.Contains(rendering,
+			"No document obsoletes RFC 9999, so its obligations are stated where they were written.") {
+			t.Errorf("the %s does not say in words that no document obsoletes it", name)
+		}
+	}
+}
+
+// VALIDATES: AC-24 -- a coverage bucket carries a count and no list of ids, and
+// the membership of each weakness is a labeled list under the table with every
+// id linked.
+func TestACoverageBucketCarriesACountAndNotAList(t *testing.T) {
+	entry := disclosureLedger().Stems[0]
+	page, text, mirror := disclosurePage(t)
+	for _, bucket := range rfcCoverageBuckets(&entry) {
+		if !strings.Contains(mirror, "| "+bucket.Label+" | "+strconv.Itoa(bucket.Count)+" |") {
+			t.Errorf("the mirror carries no count row for %q", bucket.Label)
+		}
+		if len(bucket.IDs) == 0 {
+			continue
+		}
+		label := bucket.Label + " (" + strconv.Itoa(len(bucket.IDs)) + "):"
+		if !strings.Contains(text, label) {
+			t.Errorf("the page states no membership list for %q", bucket.Label)
+		}
+		if !strings.Contains(mirror, "**"+label+"**") {
+			t.Errorf("the mirror states no membership list for %q", bucket.Label)
+		}
+		for _, rid := range bucket.IDs {
+			if !strings.Contains(page, `<a href="#`+rfcAnchor(rid)+`"><code>`+rid+"</code></a>") {
+				t.Errorf("%s is named in %q and does not link to its row", rid, bucket.Label)
+			}
+		}
+	}
+}
+
+// VALIDATES: AC-25 -- a requirement row names its section's own title where the
+// extraction sign-off states one.
+func TestARequirementRowNamesItsSection(t *testing.T) {
+	named := disclosureLedger()
+	named.Stems[0].Extraction.Sections = []rfcLedgerSection{
+		{ID: "1", Name: "Constructing the Widget", Sites: 3, Disposition: "walked",
+			Reason: "Constructing the Widget. The only section that binds a speaker."},
+	}
+	page, mirror := renderRFCDetail(t, named, "rfc9999")
+	text := visibleText(mainContent(t, page))
+	if !strings.Contains(text, "1 - Constructing the Widget") {
+		t.Error("the requirement row names the section number alone")
+	}
+	if !strings.Contains(mirror, "| 1 - Constructing the Widget |") {
+		t.Error("the mirror names the section number alone")
+	}
+	if !strings.Contains(text, "Constructing the Widget") {
+		t.Error("the sign-off table does not carry the section name")
+	}
+}
+
+// VALIDATES: AC-26 -- every table this family publishes sits in the container
+// that scrolls it, so the page body never scrolls sideways.
+//
+// A test path is one unbreakable token, and a requirement row carries several
+// beside quoted RFC prose. The convention is the one .cmd-eq-table-wrap already
+// holds for the command family.
+func TestEveryTableOnAStemPageScrollsInsideItsOwnContainer(t *testing.T) {
+	page, _, _ := disclosurePage(t)
+	body := mainContent(t, page)
+	tables := strings.Count(body, "<table>")
+	wrapped := strings.Count(body, `<div class="rfc-table-wrap">`+"\n<table>")
+	if tables == 0 {
+		t.Fatal("the page publishes no table, so this proves nothing")
+	}
+	if wrapped != tables {
+		t.Errorf("%d of %d tables sit in a scrolling container", wrapped, tables)
+	}
+	if !strings.Contains(page, ".rfc-table-wrap { overflow-x: auto; }") {
+		t.Error("the page carries the container and not the rule that scrolls it")
+	}
+}
+
+// VALIDATES: AC-28 -- a requirement that is both a declared gap and a gated
+// MUST with no test takes one row naming both, and quotes its reason once.
+//
+// The first pass emitted two rows under one id, each carrying the same
+// annotation prose. Two rows read as two findings, and there is one (owner
+// review, 2026-09-01).
+func TestAGapThatIsAlsoUntestedTakesOneRow(t *testing.T) {
+	entry := disclosureLedger().Stems[0]
+	rows := rfcGapRows(&entry)
+	seen := map[string]int{}
+	for _, row := range rows {
+		seen[row.RID]++
+	}
+	for rid, count := range seen {
+		if count != 1 {
+			t.Errorf("%s takes %d rows under Gaps and untested MUSTs, want one", rid, count)
+		}
+	}
+	var gap *rfcGapRow
+	for index := range rows {
+		if rows[index].RID == "RFC9999-5-1" {
+			gap = &rows[index]
+		}
+	}
+	if gap == nil {
+		t.Fatal("the declared gap has no row")
+	}
+	if gap.Kind != "{"+rfc.AnnotationGap+"}, no test" {
+		t.Errorf("the row states %q, want both states", gap.Kind)
+	}
+	_, text, mirror := disclosurePage(t)
+	const reason = "the counter is not implemented | not scheduled"
+	// Twice, and only twice: the Note cell of the requirement row and the
+	// Reason cell of the gap row. The mirror escapes the pipe inside a cell.
+	for name, one := range map[string]struct{ rendering, quoted string }{
+		"page":   {text, reason},
+		"mirror": {mirror, rfc.TableCell(reason)},
+	} {
+		if count := strings.Count(one.rendering, one.quoted); count != 2 {
+			t.Errorf("the %s quotes the gap reason %d times, want twice", name, count)
+		}
+	}
+}
+
+// VALIDATES: AC-31 -- the requirement's text is not a table column. It sits
+// behind a disclosure in the requirement's own cell, and the mirror keeps it.
+//
+// A quoted RFC sentence beside a list of test paths made every row of RFC 4271
+// enormous (owner review, 2026-09-01). A `details` rather than a hover, because
+// hover is unreachable on a touch screen and invisible to a keyboard.
+func TestTheRequirementTextSitsBehindADisclosure(t *testing.T) {
+	page, text, mirror := disclosurePage(t)
+	body := mainContent(t, page)
+
+	head := sliceBetween(t, body, "<h2>Requirements</h2>", "</thead>")
+	if strings.Contains(head, "<th>Text</th>") {
+		t.Error("the requirements table still carries a Text column")
+	}
+	for _, want := range []string{"<th>Requirement</th>", "<th>Level</th>", "<th>Section</th>"} {
+		if !strings.Contains(head, want) {
+			t.Errorf("the requirements table lost %s", want)
+		}
+	}
+	if !strings.Contains(body, `<details class="rfc-text"><summary>requirement text</summary>`) {
+		t.Error("the requirement text is not behind a disclosure")
+	}
+	// Folded is not dropped: the sentence is still in the markup, so a reader
+	// searching the page and a machine reading it both find it.
+	const sentence = "A widget MUST be rejected when its length is zero."
+	if !strings.Contains(text, sentence) {
+		t.Errorf("the page no longer carries %q at all", sentence)
+	}
+	if !strings.Contains(mirror, "| Requirement | Level | Section | Text |") &&
+		!strings.Contains(mirror, "Section | Text |") {
+		t.Error("the mirror lost its Text column")
+	}
+	if !strings.Contains(mirror, sentence) {
+		t.Errorf("the mirror no longer carries %q", sentence)
+	}
+}
+
+// VALIDATES: AC-32 -- a proof-state row links the TEST to the line its tag is
+// written on, and the file cell is not a link.
+//
+// rfc.Tag records the line, so the link lands on the assertion rather than on a
+// 900-line file. One repository-blob helper answers the URL for this page and
+// for the documentation renderer, so no second URL literal exists.
+func TestAProofStateRowLinksTheTestToItsOwnLine(t *testing.T) {
+	linked := disclosureLedger()
+	cover := &linked.Stems[0].Requirements[1].Covers[0]
+	cover.File, cover.Line = "internal/a_test.go", 412
+	page, _, mirror := renderRFCDetailPage(t, linked)
+
+	want := repositoryLineURL("internal/a_test.go", 412)
+	if want != "https://github.com/ze-software/ze/blob/main/internal/a_test.go#L412" {
+		t.Fatalf("the blob helper answers %q, which is not where the repository is published", want)
+	}
+	// The name is the link text and the full path is the link's TITLE, so a
+	// reader who needs the package can hover and nobody pays for it in width.
+	if !strings.Contains(page, `<a href="`+want+
+		`" title="internal/a_test.go" target="_blank" rel="noopener"><code>TestWidget</code></a>`) {
+		t.Error("the test name is not linked to the line its tag is written on")
+	}
+	if !strings.Contains(mirror, "[`TestWidget`]("+want+")") {
+		t.Error("the mirror does not link the test name")
+	}
+	if strings.Contains(page, `<a href="`+repositoryBlobURL("internal/a_test.go")+`"><code>`) {
+		t.Error("the link is on the path, which is what the review asked to move")
+	}
+
+	// A tag with no recorded line addresses the file, and a cover with no file
+	// at all is stated unlinked rather than linked to nothing.
+	if got := repositoryLineURL("internal/a_test.go", 0); got != repositoryBlobURL("internal/a_test.go") {
+		t.Errorf("a lineless tag addresses %q, want the file", got)
+	}
+	bare := disclosureLedger()
+	bare.Stems[0].Requirements[1].Covers[0].File = ""
+	barePage, _, _ := renderRFCDetailPage(t, bare)
+	if strings.Contains(barePage, `rel="noopener"><code>TestWidget</code></a>`) {
+		t.Error("a cover with no file was linked anyway")
+	}
+}
+
+// renderRFCDetailPage renders one stated ledger's rfc9999 page, its visible
+// text and its mirror.
+func renderRFCDetailPage(t *testing.T, ledger rfcLedger) (page, text, mirror string) {
+	t.Helper()
+	page, mirror = renderRFCDetail(t, ledger, "rfc9999")
+	return page, visibleText(mainContent(t, page)), mirror
+}
+
+// VALIDATES: AC-33 -- the public ledger's cell is three labeled facts, the long
+// halves are folded, and nothing is dropped.
+func TestThePublicLedgerCellIsLabelledAndFolded(t *testing.T) {
+	long := disclosureLedger()
+	long.Stems[0].PublicCoverage = strings.Repeat("widgets are covered in every direction. ", 12)
+	page, text, mirror := renderRFCDetailPage(t, long)
+
+	if !strings.Contains(text, "Status: Partial") {
+		t.Error("the section does not label the public status")
+	}
+	if !strings.Contains(page,
+		`<details class="rfc-fold"><summary>What the ledger says is covered</summary>`) {
+		t.Error("a long coverage cell is not folded behind a disclosure")
+	}
+	if !strings.Contains(text, strings.TrimSpace(long.Stems[0].PublicCoverage)) {
+		t.Error("folding the coverage cell dropped part of it")
+	}
+	if !strings.Contains(mirror, "**What the ledger says is covered**") {
+		t.Error("the mirror does not label the folded coverage cell")
+	}
+
+	// A short cell is stated in front of the reader rather than hidden behind a
+	// control they have to find.
+	short := disclosureLedger()
+	short.Stems[0].PublicCoverage = "widgets only"
+	shortPage, shortText, _ := renderRFCDetailPage(t, short)
+	if !strings.Contains(shortText, "What the ledger says is covered: widgets only") {
+		t.Error("a short coverage cell is not stated plainly")
+	}
+	if strings.Contains(shortPage,
+		`<summary>What the ledger says is covered</summary>`) {
+		t.Error("a six-word cell was folded behind a disclosure")
+	}
+
+	// The remainder is stated HERE and nowhere else.
+	if count := strings.Count(shortText, "RFC9999-6-1 unmet"); count != 1 {
+		t.Errorf("the page states the public remainder %d times, want once", count)
+	}
+}
+
+// sliceBetween answers the markup between two markers, failing when either is
+// absent so a renamed section cannot silently empty an assertion.
+func sliceBetween(t *testing.T, body, from, to string) string {
+	t.Helper()
+	start := strings.Index(body, from)
+	if start < 0 {
+		t.Fatalf("the page carries no %q", from)
+	}
+	rest := body[start:]
+	end := strings.Index(rest, to)
+	if end < 0 {
+		t.Fatalf("the page carries no %q after %q", to, from)
+	}
+	return rest[:end]
+}
+
+// VALIDATES: AC-51 -- the ledger prose is SPLIT, never rewritten. Rejoining the
+// items reproduces the author's bytes, over every cell in the corpus.
+//
+// These cells are the disclosure. A clause lost to a splitter is disclosure
+// lost, so the property this holds is total: every cell of every summary, both
+// directions, byte for byte (owner ruling, 2026-09-01).
+func TestEveryLedgerCellSplitsWithoutLoss(t *testing.T) {
+	ledger := publishedLedgerOfThisCheckout(t)
+	cells, split := 0, 0
+	for index := range ledger.Stems {
+		entry := &ledger.Stems[index]
+		for name, prose := range map[string]string{
+			"coverage":  entry.PublicCoverage,
+			"remaining": entry.PublicRemaining,
+		} {
+			if strings.TrimSpace(prose) == "" {
+				continue
+			}
+			cells++
+			items := rfcProseSplit(prose)
+			if got := rfcProseJoin(items); got != prose {
+				t.Errorf("%s %s: the claim split loses text\n got %q\nwant %q",
+					entry.Stem, name, got, prose)
+			}
+			// Losslessness alone does not prove the split is in the right
+			// places: a naive cut at every semicolon rejoins byte for byte too.
+			// A correct one leaves every item balanced.
+			for _, item := range items {
+				if !rfcProseBalanced(item) {
+					t.Errorf("%s %s: the split left an unbalanced item %q",
+						entry.Stem, name, item)
+				}
+			}
+			themes := rfcProseThemes(prose)
+			if got := rfcProseThemesJoin(themes); got != prose {
+				t.Errorf("%s %s: the theme split loses text\n got %q\nwant %q",
+					entry.Stem, name, got, prose)
+			}
+			if len(items) > 1 || len(themes) > 1 {
+				split++
+			}
+		}
+	}
+	if cells == 0 {
+		t.Fatal("this checkout publishes no ledger prose, so this proves nothing")
+	}
+	t.Logf("%d ledger cells, %d of them split into items", cells, split)
+}
+
+// VALIDATES: AC-52 -- every path this prose links resolves to a file in the
+// tree, and every requirement id it links is one the RFC declares.
+//
+// The prose also cites RELATIVE paths, and a link built from one addresses
+// nothing. The rule is the repository root, and this is what proves the rule
+// rather than trusting it.
+func TestEveryLinkedPathExistsInTheTree(t *testing.T) {
+	root := repositoryRoot(t)
+	ledger := publishedLedgerOfThisCheckout(t)
+	linked, skipped := 0, 0
+	for index := range ledger.Stems {
+		entry := &ledger.Stems[index]
+		declared := rfcDeclaredIDs(entry)
+		for _, prose := range []string{entry.PublicCoverage, entry.PublicRemaining} {
+			for _, path := range rfcRepositoryPath.FindAllString(prose, -1) {
+				if !rfcLinkablePath(path) {
+					skipped++
+					continue
+				}
+				linked++
+				if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(path))); err != nil {
+					t.Errorf("%s links %s, which is not a file in this tree", entry.Stem, path)
+				}
+			}
+			// An id this RFC does not declare is left as text: a link to a row
+			// the page does not carry is a link nobody can follow.
+			for _, id := range rfcRequirementID.FindAllString(prose, -1) {
+				if declared[id] {
+					continue
+				}
+				if strings.Contains(rfcProseMirror(prose, declared), "["+"`"+id+"`](#") {
+					t.Errorf("%s links %s, which it does not declare", entry.Stem, id)
+				}
+			}
+		}
+	}
+	if linked == 0 {
+		t.Fatal("this checkout links no path from its ledger prose, so this proves nothing")
+	}
+	t.Logf("%d repository paths linked, %d relative citations left as text", linked, skipped)
+}
+
+// publishedLedgerOfThisCheckout derives the real requirement ledger.
+func publishedLedgerOfThisCheckout(t *testing.T) rfcLedger {
+	t.Helper()
+	ledger, err := collectRequirementLedger(repositoryRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ledger
+}
+
+// VALIDATES: AC-51 -- a Coverage cell renders as its claims and a Remaining
+// cell as its themes, with the author's words unchanged.
+func TestTheLedgerProseRendersAsItsOwnStructure(t *testing.T) {
+	entry := disclosureLedger().Stems[0]
+	// The first claim carries a semicolon inside PARENTHESES and another inside
+	// a code span. Both are the cuts a naive splitter makes and this one must
+	// not.
+	entry.PublicCoverage = "the first claim, which cites RFC9999-2-1 " +
+		"(internal/a.go; and a `del { med; }` directive); the second claim; the third"
+	entry.PublicRemaining = "Two gaps remain. Header handling: RFC9999-1-1 is unreported. " +
+		"Timers: nothing re-runs the decision."
+	ledger := disclosureLedger()
+	ledger.Stems[0] = entry
+	page, mirror := renderRFCDetail(t, ledger, "rfc9999")
+	text := visibleText(mainContent(t, page))
+
+	// Three claims, and the semicolon inside `{ med; }` did not make a fourth.
+	if got := strings.Count(page, "<li>"); got < 3 {
+		t.Errorf("the coverage cell renders %d list items, want its three claims", got)
+	}
+	if !strings.Contains(text, "the second claim") || !strings.Contains(text, "the third") {
+		t.Error("a claim was lost in the split")
+	}
+	if !strings.Contains(text, "del { med; }") {
+		t.Error("the split cut inside a code span")
+	}
+	// The themes carry the author's own labels and nothing invented.
+	for _, label := range []string{"Header handling:", "Timers:"} {
+		if !strings.Contains(text, label) {
+			t.Errorf("the remaining cell does not carry the %q theme", label)
+		}
+	}
+	if !strings.Contains(text, "Two gaps remain.") {
+		t.Error("the lead sentence was dropped")
+	}
+	// The ids and the paths are links.
+	if !strings.Contains(page, `<a href="#rfc9999-2-1"><code>RFC9999-2-1</code></a>`) {
+		t.Error("a requirement id in the prose is not linked to its row")
+	}
+	if !strings.Contains(page, repositoryBlobURL("internal/a.go")) {
+		t.Error("a repository path in the prose is not linked to its file")
+	}
+	if !strings.Contains(mirror, "- **Header handling:** ") {
+		t.Error("the mirror does not carry the themes as items")
+	}
+	if !strings.Contains(mirror, "- the second claim") {
+		t.Error("the mirror does not carry the claims as items")
+	}
+}
+
+// VALIDATES: AC-53 -- a test is cited by NAME, never by the file it lives in,
+// and the name is the link.
+//
+// The page printed `internal/component/bgp/message/rfc4271_test.go` beside
+// `TestRFC4271MarkerAllOnesOnSend`. The path is machinery: the link already
+// resolves to the exact line, so the path added width and no information (owner
+// review, 2026-09-01). It stays REACHABLE as the link's title.
+func TestATestIsCitedByNameAndNotByItsFile(t *testing.T) {
+	cited := disclosureLedger()
+	requirement := &cited.Stems[0].Requirements[1]
+	requirement.Covers[0].File, requirement.Covers[0].Line = "internal/a_test.go", 42
+	page, text, mirror := renderRFCDetailPage(t, cited)
+
+	want := repositoryLineURL("internal/a_test.go", 42)
+	if !strings.Contains(page, `<a href="`+want+
+		`" title="internal/a_test.go" target="_blank" rel="noopener"><code>TestWidget</code></a>`) {
+		t.Error("the citation does not name the test, link the line and keep the path as title")
+	}
+	if !strings.Contains(mirror, "[`TestWidget`]("+want+")") {
+		t.Error("the mirror does not link the test name to its line")
+	}
+	// The path is nowhere in the reader's line of sight, in either table.
+	for _, table := range []string{"<h2>Requirements</h2>", "<h2>Proof state</h2>"} {
+		body := sliceBetween(t, mainContent(t, page), table, "</section>")
+		if strings.Contains(visibleText(body), "internal/a_test.go") {
+			t.Errorf("%s still prints the file beside the test", table)
+		}
+	}
+	if strings.Contains(page, "<th>Test file</th>") {
+		t.Error("the proof-state table still carries its Test file column")
+	}
+	if strings.Contains(text, "the whole file is the unit") {
+		t.Error("a scenario still reads as a sentence rather than as its own name")
+	}
+}
+
+// VALIDATES: AC-53 -- a `.ci` scenario is named by its own file name, because
+// it has no function to name.
+func TestAScenarioIsCitedByItsFileName(t *testing.T) {
+	scenario := disclosureLedger()
+	requirement := &scenario.Stems[0].Requirements[1]
+	requirement.Covers[0] = rfcLedgerCover{Polarity: rfc.PolarityPositive,
+		Unit: "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci", Carrier: "functional/verify",
+		File: "test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci", Line: 17, Tags: 1}
+	page, text, mirror := renderRFCDetailPage(t, scenario)
+
+	if !strings.Contains(text, "adj-rib-in-replay-rfc2545-next-hop.ci") {
+		t.Error("the scenario is not named by its own file name")
+	}
+	if strings.Contains(text, "test/plugin/adj-rib-in-replay") {
+		t.Error("the scenario still carries its whole path in the reader's line of sight")
+	}
+	if !strings.Contains(page, `title="test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci"`) {
+		t.Error("the whole path is not reachable as the link's title")
+	}
+	if !strings.Contains(mirror, "[`adj-rib-in-replay-rfc2545-next-hop.ci`]("+
+		repositoryLineURL("test/plugin/adj-rib-in-replay-rfc2545-next-hop.ci", 17)+")") {
+		t.Error("the mirror does not link the scenario by name")
+	}
+}
+
+// VALIDATES: AC-54 -- two tests that share a name on one page do not render
+// identically.
+//
+// Three such collisions exist in this corpus and all three put both units on
+// ONE page, so dropping the path unqualified would show a reader two different
+// tests as one row. The package directory comes back, and only there.
+func TestTwoTestsSharingANameAreToldApart(t *testing.T) {
+	collide := disclosureLedger()
+	entry := &collide.Stems[0]
+	entry.Requirements[1].Covers = []rfcLedgerCover{
+		{Polarity: rfc.PolarityPositive, Unit: "internal/component/radius/rfc_test.go::TestSame",
+			File: "internal/component/radius/rfc_test.go", Line: 10,
+			Carrier: "unit/verify", Tags: 1},
+		{Polarity: rfc.PolarityNegative,
+			Unit: "internal/component/l2tp/plugins/authradius/rfc_test.go::TestSame",
+			File: "internal/component/l2tp/plugins/authradius/rfc_test.go", Line: 20,
+			Carrier: "unit/verify", Tags: 1},
+	}
+	if names := rfcAmbiguousNames(entry); !names["TestSame"] {
+		t.Fatal("two units sharing a name are not detected as ambiguous")
+	}
+	_, text, _ := renderRFCDetailPage(t, collide)
+	for _, want := range []string{"radius/TestSame", "authradius/TestSame"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the page does not tell the two apart: %q is absent", want)
+		}
+	}
+
+	// A name only one unit carries is NOT qualified: the directory is there to
+	// resolve a collision, not to decorate every citation.
+	if names := rfcAmbiguousNames(&disclosureLedger().Stems[0]); len(names) != 0 {
+		t.Errorf("names %v are called ambiguous on a page that carries no collision", names)
+	}
+	plain := disclosureLedger()
+	plain.Stems[0].Requirements[1].Covers[0].File = "internal/a_test.go"
+	_, plainText, _ := renderRFCDetailPage(t, plain)
+	if strings.Contains(plainText, "reactor/TestWidget") {
+		t.Error("an unambiguous citation was qualified anyway")
+	}
+}
+
+// VALIDATES: AC-53 -- every citation the shard prints is a tagged unit, so
+// rendering the citations from the units renders the same population.
+//
+// This is what lets the page cite from structured fields rather than re-reading
+// the shard's own markdown. Measured over the real corpus: 10,768 cells.
+func TestEveryShardCitationIsATaggedUnit(t *testing.T) {
+	ledger := publishedLedgerOfThisCheckout(t)
+	checked := 0
+	for index := range ledger.Stems {
+		entry := &ledger.Stems[index]
+		for position := range entry.Requirements {
+			requirement := &entry.Requirements[position]
+			for _, one := range []struct {
+				polarity string
+				cell     string
+			}{
+				{rfc.PolarityPositive, requirement.Positive},
+				{rfc.PolarityNegative, requirement.Negative},
+			} {
+				checked++
+				cell := strings.TrimSpace(one.cell)
+				empty := cell == "" || cell == "--" || cell == "-"
+				held := 0
+				for _, cover := range requirement.Covers {
+					if cover.Polarity != one.polarity {
+						continue
+					}
+					held++
+					if !strings.Contains(cell, rfcCitationName(cover.Unit)) {
+						t.Errorf("%s cites %s in its units and not in its %s cell",
+							requirement.RID, cover.Unit, one.polarity)
+					}
+				}
+				if empty != (held == 0) {
+					t.Errorf("%s has %d %s units and a cell reading %q",
+						requirement.RID, held, one.polarity, cell)
+				}
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("this checkout compares no cell against its units, so this proves nothing")
+	}
+	t.Logf("compared %d shard cells against the tagged units behind them", checked)
+}
+
+// VALIDATES: AC-55 -- the two polarities share ONE column, a labeled line
+// each, and a polarity with no test SAYS so.
+//
+// Two columns each holding a list gave a requirement tested both ways two
+// narrow stacks side by side (owner review, 2026-09-01). An absent polarity is
+// a disclosed fact under the disclosure ruling, so it is stated rather than
+// left as the empty half of a cell a reader skims past.
+func TestBothPolaritiesShareOneColumn(t *testing.T) {
+	page, text, mirror := disclosurePage(t)
+	head := sliceBetween(t, mainContent(t, page), "<h2>Requirements</h2>", "</thead>")
+
+	if !strings.Contains(head, "<th>Tests</th>") {
+		t.Error("the requirements table carries no single Tests column")
+	}
+	for _, gone := range []string{"<th>Positive test</th>", "<th>Negative test</th>"} {
+		if strings.Contains(head, gone) {
+			t.Errorf("the requirements table still carries %s", gone)
+		}
+	}
+	if !strings.Contains(page, `<span class="rfc-polarity">positive:</span>`) ||
+		!strings.Contains(page, `<span class="rfc-polarity">negative:</span>`) {
+		t.Error("the two polarities are not labeled inside the one column")
+	}
+
+	// RFC9999-3-1 is tested positive and not negative, and the page says both.
+	if !strings.Contains(text, "no negative test") {
+		t.Error("an absent polarity is not stated, so it reads as an empty cell")
+	}
+	if !strings.Contains(mirror, "**negative:** no negative test") {
+		t.Error("the mirror does not state an absent polarity")
+	}
+	// A requirement with neither states both.
+	if strings.Count(text, "no positive test") == 0 {
+		t.Error("an absent positive polarity is not stated")
+	}
+}
+
+// VALIDATES: AC-56 -- the requirement's text is a row of its own spanning the
+// whole table, and the span is derived from the header rather than written
+// beside it.
+//
+// Inside the id cell the sentence expanded within the narrowest column on the
+// page, which is where it was unreadable.
+func TestTheRequirementTextSpansTheWholeTable(t *testing.T) {
+	page, text, mirror := disclosurePage(t)
+	span := `<tr class="rfc-span"><td colspan="` +
+		strconv.Itoa(len(rfcRequirementColumns)) + `">`
+
+	if !strings.Contains(page, span+`<details class="rfc-text">`) {
+		t.Errorf("the requirement text is not a spanning row: want %q", span)
+	}
+	// The colspan agrees with the header this very table renders.
+	head := sliceBetween(t, mainContent(t, page), "<h2>Requirements</h2>", "</thead>")
+	if got := strings.Count(head, "<th>"); got != len(rfcRequirementColumns) {
+		t.Errorf("the header renders %d columns and the span covers %d",
+			got, len(rfcRequirementColumns))
+	}
+	// The text is still there, in both renderings, and still escaped.
+	const sentence = "A widget MUST be rejected when its length is zero."
+	if !strings.Contains(text, sentence) || !strings.Contains(mirror, sentence) {
+		t.Error("the requirement text was lost when it moved to its own row")
+	}
+	if !strings.Contains(page, "&lt;once&gt; &amp; only once.") {
+		t.Error("the spanning row does not escape quoted RFC prose")
+	}
+	// A requirement quoting nothing gets no empty row.
+	quiet := disclosureLedger()
+	for index := range quiet.Stems[0].Requirements {
+		quiet.Stems[0].Requirements[index].Text = ""
+	}
+	quietPage, _, _ := renderRFCDetailPage(t, quiet)
+	if strings.Contains(quietPage, `<tr class="rfc-span"><td colspan`) {
+		t.Error("a requirement quoting nothing still gets a spanning row")
+	}
+}

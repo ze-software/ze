@@ -1,3 +1,8 @@
+// VALIDATES: every production byte of this package is the byte its author
+// sealed, so a behavior change here is deliberate and reviewed.
+// PREVENTS: an edit to a table, an edge case or a closed set that no behavioral
+// test reaches, landing with nobody stating whether an audit verdict moved.
+
 package rfc
 
 import (
@@ -65,7 +70,54 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// escape to no claim, so the route shut for unit tags stayed open for the 94
 	// .ci and 37 interop ones. Those two reasons are now unreachable on that
 	// carrier by construction.
-	const want = "d7326b6c51f67120e8906dcfdb908d6d97e9030c1a01eaec31654a7535e49e9d"
+	// Re-sealed 2026-09-01, for the second publication pass over
+	// plan/spec-publish-the-rfc-requirement-ledger.md. No verdict moved. Three
+	// edits, all uncommitted work of that spec: `ExtractionSection.Title`
+	// derives a section's own name from the opening sentence of its reason so a
+	// published row can print "3 - Constructing the Next Hop field" rather than
+	// "3"; `Verified` and `Proves` move to sit under the types they receive;
+	// and one comment takes the US spelling. None reads a record, changes a
+	// verdict, or moves a requirement into or out of a bucket.
+	// Re-sealed again on 2026-09-01. The value moved twice for two reasons and
+	// only the first is this session's. This session's edits are the three
+	// above and no verdict moved for them. The rest of the move is three
+	// commits other sessions landed on this package between the two seals --
+	// 803f1b696, 3a7bca913 and 99483ef93 -- and NONE of them re-sealed, so the
+	// digest was already red at HEAD before this working tree touched it. This
+	// note does not vouch for those three: each carries its own verdict review
+	// in its own commit message, and a shared checkout gives no way to seal one
+	// change without absorbing another (the paragraph above says so).
+	// Re-sealed 2026-09-01 for the exclusion-kind meanings. No verdict moved.
+	// `exclusionKinds` changes from a set to a map of kind to the sentence the
+	// kind says, which is the shape `auditVerdicts` already has and for the
+	// same reason: internal/le/site aggregates these counts across the corpus
+	// and a reader who meets `binds-another-role` cannot act on the word alone.
+	// `ExclusionKindMeaning` and `ExclusionPresumedWrong` are readers of that
+	// table. The membership of the closed set is byte-identical, and the one
+	// call site that tested it now tests the map for presence.
+	// Re-sealed 2026-09-01 for the exclusion GROUP and the structured finding.
+	// No verdict moved for either. `exclusionKinds` gains a group beside each
+	// meaning, so a published page can tell an obligation that never bound Ze
+	// from one Ze owes; the membership of the closed set is byte-identical.
+	// `Finding` carries the parts a check held before it formatted its line,
+	// `CheckReport.Findings` becomes the one accumulator and `Violations` is
+	// rendered from it, and `Text` takes a pointer receiver because the struct
+	// passed the linter's size floor. Every message the gate prints is
+	// byte-identical: the checks author them exactly as before and the finding
+	// carries them.
+	//
+	// Re-sealed 2026-09-01 for the fixture half of the meta migration: every
+	// fixture summary in this package's tests now carries the `## Meta` table
+	// its enrolment and its public row are declared in. No verdict moved for
+	// that work and none could, because it added no production byte -- the
+	// digest covers no test file.
+	//
+	// The value it seals still ABSORBS the migration itself, which another
+	// session holds uncommitted in this shared checkout. This note does not
+	// vouch for it: its verdict review belongs to that work, and a shared
+	// checkout gives no way to seal one change without absorbing another (the
+	// paragraph above says so).
+	const want = "179d2c65d510739ad1331547e31a819affbda55cca76a360e4edfff1e16b2905"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)

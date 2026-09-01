@@ -20,9 +20,68 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// Finding is one thing the gate refuses, in the PARTS the check had before it
+// formatted them.
+//
+// Message is what the check authored and what `./le rfc check` prints, so it is
+// carried rather than rebuilt: a formatter here would be a second author of a
+// sentence twenty checks already write, and it would drift. The parts beside it
+// are the check's own inputs, never a parse of Message. A consumer that wants
+// columns -- the published gate page does -- reads the parts; one that wants
+// the line reads Message (ai/rules/principles.md).
+//
+// A check with no requirement in hand fills Message alone. That is a finding
+// about a file, a ratchet or a ledger row, and it states itself.
+type Finding struct {
+	Message string `json:"message"`
+	// Where is the summary file and line this was raised at.
+	Where string `json:"where,omitempty"`
+	// RID, Level, Section and Text are the requirement's own.
+	RID     string `json:"rid,omitempty"`
+	Level   string `json:"level,omitempty"`
+	Section string `json:"section,omitempty"`
+	Text    string `json:"text,omitempty"`
+	// Issue is what is wrong, without the requirement's own text after it.
+	Issue string `json:"issue,omitempty"`
+}
+
+// note answers a finding that carries a message and no parts.
+func note(message string) Finding { return Finding{Message: message} }
+
+// notes wraps a check that answers messages rather than findings, so one list
+// carries every violation and Violations is rendered from that one list.
+func notes(messages []string) []Finding {
+	out := make([]Finding, 0, len(messages))
+	for _, message := range messages {
+		out = append(out, note(message))
+	}
+	return out
+}
+
+// findingMessages renders the lines the gate prints.
+func findingMessages(findings []Finding) []string {
+	if len(findings) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(findings))
+	for _, finding := range findings {
+		out = append(out, finding.Message)
+	}
+	return out
+}
+
+// requirementFinding answers a finding that carries one requirement's parts.
+func requirementFinding(req Requirement, issue, message string) Finding {
+	return Finding{Message: message, Where: requirementWhere(req), RID: req.RID,
+		Level: req.Level, Section: req.Section, Text: req.Text, Issue: issue}
+}
+
 // CheckReport is the structured result of one RFC check.
 type CheckReport struct {
-	CannotRun        string         `json:"cannot-run,omitempty"`
+	CannotRun string `json:"cannot-run,omitempty"`
+	// Findings is every violation, in parts. Violations is rendered from it, so
+	// the two cannot hold different populations.
+	Findings         []Finding      `json:"findings,omitempty"`
 	Violations       []string       `json:"violations,omitempty"`
 	Gated            int            `json:"gated,omitempty"`
 	Enrolled         int            `json:"enrolled,omitempty"`
@@ -87,7 +146,7 @@ type CheckReport struct {
 }
 
 // Text renders the diagnostics and success summary the Python gate prints.
-func (r CheckReport) Text() string {
+func (r *CheckReport) Text() string {
 	var tb textbuf.Buffer
 	if r.CannotRun != "" {
 		return tb.Str("rfc-requirements: cannot run: ").Str(r.CannotRun).Byte('\n').String()
@@ -118,7 +177,7 @@ func (r CheckReport) Text() string {
 		tb.Str("extraction: ").Int(int64(len(r.SignedUnenrolled))).
 			Str(" further sign-off(s) are valid but uncounted above, because the stem is not enrolled (").
 			Str(strings.Join(r.SignedUnenrolled, ", ")).
-			Str("). The walk is done and starts counting the day its stem enters rfc/enrolled.txt.\n")
+			Str("). The walk is done and starts counting the day its summary declares `| Enrolment | enrolled |`.\n")
 	}
 	tb.Str("audit: ").Int(int64(r.AuditProven)).Str(" proven, ").Int(int64(r.AuditFindings)).
 		Str(" audited-but-not-proven, of ").Int(int64(r.AuditVerdicts)).Str(" verdict(s); ").
@@ -241,7 +300,8 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	if err != nil {
 		return CheckReport{}, err
 	}
-	baselineEnrolled, enrolledKnown := baselineEnrolled(tree)
+	baseMetas, enrolledKnown := baselineMetas(tree)
+	baselineEnrolled := enrolledFrom(baseMetas)
 	baseEnrolled := baselineEnrolled
 	if !enrolledKnown {
 		baseEnrolled = map[string]bool{}
@@ -252,16 +312,8 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	if !stemsKnown {
 		baselineStems = map[string]bool{}
 	}
-	rows, err := loadStatusLedger(tree)
-	if err != nil {
-		return CheckReport{}, err
-	}
-	baselineRows, rowsKnown := baselineStatusRows(tree)
-	dispositions, err := loadDispositions(tree)
-	if err != nil {
-		return CheckReport{}, err
-	}
-	baselineDispositionSet := baselineDispositions(tree)
+	rows := rowsFrom(collected.Metas)
+	dispositions := dispositionsFrom(collected.Metas)
 	deriver := NewDeriver(tree)
 	signed, extractionErrors, err := evaluateExtractions(deriver, collected.Requirements)
 	if err != nil {
@@ -312,32 +364,29 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		return CheckReport{}, err
 	}
 
-	var violations []string
-	violations = append(violations, checkEnrolment(tree, collected.Enrolled, baseEnrolled, stems, newly, signedSet)...)
-	violations = append(violations, checkNewSummaries(deriver, stems, baselineStems, collected.Enrolled,
-		collected.Requirements, collected.ParseByStem, stemsKnown)...)
+	var findings []Finding
+	findings = append(findings, notes(checkEnrolment(tree, collected.Enrolled, baseEnrolled, stems, newly, signedSet))...)
+	findings = append(findings, notes(checkNewSummaries(deriver, stems, baselineStems, collected.Enrolled,
+		collected.Requirements, collected.ParseByStem, stemsKnown))...)
 	if intersects(collected.Enrolled, baseEnrolled) {
 		carriers, err := carriers(tree)
 		if err != nil {
 			return CheckReport{}, err
 		}
-		violations = append(violations, checkRetiredRequirements(collected.Requirements, collected.Enrolled,
-			ids, baseEnrolled, stems, baselineStems, collected.ParseByStem)...)
-		violations = append(violations, checkLevelRatchet(tree, collected.Requirements, collected.Enrolled,
-			levels, baseEnrolled)...)
-		violations = append(violations, checkCoverageRatchet(collected.Requirements, collected.Tags,
-			collected.Enrolled, baselinePolarities(committed.Tags), baseEnrolled)...)
-		violations = append(violations, checkEvidenceRatchet(collected.Requirements, collected.Tags,
-			collected.Enrolled, carriers, baselineEvidence(tree, committed.Tags), baseEnrolled)...)
+		findings = append(findings, notes(checkRetiredRequirements(collected.Requirements, collected.Enrolled,
+			ids, baseEnrolled, stems, baselineStems, collected.ParseByStem))...)
+		findings = append(findings, notes(checkLevelRatchet(tree, collected.Requirements, collected.Enrolled,
+			levels, baseEnrolled))...)
+		findings = append(findings, notes(checkCoverageRatchet(collected.Requirements, collected.Tags,
+			collected.Enrolled, baselinePolarities(committed.Tags), baseEnrolled))...)
+		findings = append(findings, notes(checkEvidenceRatchet(collected.Requirements, collected.Tags,
+			collected.Enrolled, carriers, baselineEvidence(tree, committed.Tags), baseEnrolled))...)
 	}
-	violations = append(violations, collected.ParseErrors...)
-	violations = append(violations, checkIDAllocation(collected.Requirements, ids)...)
-	violations = append(violations, evaluate(collected.Requirements, collected.Tags, collected.Enrolled)...)
-	successors, err := summarySuccessors(tree, stems)
-	if err != nil {
-		return CheckReport{}, err
-	}
-	violations = append(violations, checkSuperseded(tree, collected.Requirements, successors, stems)...)
+	findings = append(findings, notes(collected.ParseErrors)...)
+	findings = append(findings, notes(checkIDAllocation(collected.Requirements, ids))...)
+	findings = append(findings, evaluate(collected.Requirements, collected.Tags, collected.Enrolled)...)
+	successors := successorsFrom(collected.Metas)
+	findings = append(findings, notes(checkSuperseded(tree, collected.Requirements, successors, stems))...)
 	carriers, err := carriers(tree)
 	if err != nil {
 		return CheckReport{}, err
@@ -346,17 +395,15 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	if err != nil {
 		return CheckReport{}, err
 	}
-	violations = append(violations, compileErrors...)
-	violations = append(violations, checkStatusAgreement(collected.Requirements, rows, collected.Enrolled)...)
-	violations = append(violations, checkSummaryDisposition(stems, collected.Enrolled, dispositions, baselineDispositionSet)...)
-	violations = append(violations, checkStatusCompleteness(collected.Enrolled, rows, baselineRows, rowsKnown,
-		newly, baseEnrolled)...)
+	findings = append(findings, notes(compileErrors)...)
+	findings = append(findings, notes(checkStatusAgreement(collected.Requirements, rows, collected.Enrolled))...)
+	findings = append(findings, notes(checkSummaryDisposition(collected.Metas))...)
 	derived, err := derivedRegisters(deriver, signed, collected.Requirements)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	violations = append(violations, checkUnprovenSupport(collected.Requirements, rows, stems, dispositions,
-		signed, derived)...)
+	findings = append(findings, notes(checkUnprovenSupport(collected.Requirements, rows, stems, dispositions,
+		signed, derived))...)
 	// ARMED 2026-09-01, once every support-promising stem carried a sign-off.
 	// It was written unwired on purpose: arming it while 16 stems still owed one
 	// would have redded this gate for every session sharing the checkout, and a
@@ -366,8 +413,8 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	// whose stem has no summary at all; it says so in its own text. This one
 	// reads the ledger rows, which is the public page itself, so a Supported row
 	// with nothing behind it is visible to it and to nothing else.
-	violations = append(violations, checkSupportedSignoff(rows, stems, signed)...)
-	violations = append(violations, checkGapCountAgreement(collected.Requirements, rows)...)
+	findings = append(findings, notes(checkSupportedSignoff(rows, signed))...)
+	findings = append(findings, notes(checkGapCountAgreement(collected.Requirements, rows))...)
 
 	audits, err := loadAudits(tree, collected.Enrolled)
 	if err != nil {
@@ -378,17 +425,17 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	if err != nil {
 		return CheckReport{}, err
 	}
-	violations = append(violations, auditFileErrors...)
-	violations = append(violations, checkAuditSchema(collected.Requirements, collected.Tags, audits)...)
+	findings = append(findings, notes(auditFileErrors)...)
+	findings = append(findings, notes(checkAuditSchema(collected.Requirements, collected.Tags, audits))...)
 	states := auditFreshness(auditFreshnessInput{Tree: tree, Requirements: collected.Requirements,
 		Tags: collected.Tags, Enrolled: collected.Enrolled, Audits: audits})
-	violations = append(violations, checkAuditFreshness(collected.Requirements, states)...)
-	violations = append(violations, checkAuditDisclosure(collected.Requirements, rows, collected.Enrolled, audits)...)
-	violations = append(violations, checkAuditNote(tree, collected.Requirements, collected.Tags, collected.Enrolled, audits)...)
-	violations = append(violations, checkAuditFindings(collected.Requirements, collected.Enrolled, audits,
-		baselineAuditSet, auditsKnown)...)
-	violations = append(violations, checkAuditVerdictRatchet(collected.Requirements, collected.Enrolled, audits,
-		baselineAuditSet, auditsKnown, baseEnrolled)...)
+	findings = append(findings, notes(checkAuditFreshness(collected.Requirements, states))...)
+	findings = append(findings, notes(checkAuditDisclosure(collected.Requirements, rows, collected.Enrolled, audits))...)
+	findings = append(findings, notes(checkAuditNote(tree, collected.Requirements, collected.Tags, collected.Enrolled, audits))...)
+	findings = append(findings, notes(checkAuditFindings(collected.Requirements, collected.Enrolled, audits,
+		baselineAuditSet, auditsKnown))...)
+	findings = append(findings, notes(checkAuditVerdictRatchet(collected.Requirements, collected.Enrolled, audits,
+		baselineAuditSet, auditsKnown, baseEnrolled))...)
 
 	headRecords, headRecordsKnown := baselineDiscrimination(tree)
 	headRecordBlobs, headRecordBlobsKnown := baselineRecordBlobs(tree, records)
@@ -406,23 +453,23 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		Sources: discriminationSources, Index: discriminationIndex,
 		HeadSources: newTextReader(headRecordBlobs), HeadBlobsKnown: headRecordBlobsKnown,
 		HeadTagBlobs: committed.Blobs}
-	violations = append(violations, checkDiscriminationRatchet(obligations)...)
+	findings = append(findings, notes(checkDiscriminationRatchet(obligations))...)
 
-	violations = append(violations, extractionErrors...)
+	findings = append(findings, notes(extractionErrors)...)
 	extractions, err := LoadExtractions(tree)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	violations = append(violations, checkExtractionRatchet(tree, extractions)...)
-	violations = append(violations, checkDrainFloor(tree, collected.Enrolled, signed, today)...)
+	findings = append(findings, notes(checkExtractionRatchet(tree, extractions))...)
+	findings = append(findings, notes(checkDrainFloor(tree, collected.Enrolled, signed, today))...)
 	ledgerErrors, err := checkLedgerFresh(tree, collected, rows, dispositions)
 	if err != nil {
 		return CheckReport{}, err
 	}
-	violations = append(violations, ledgerErrors...)
+	findings = append(findings, notes(ledgerErrors)...)
 
-	report := CheckReport{Violations: violations}
-	if len(violations) > 0 {
+	report := CheckReport{Findings: findings, Violations: findingMessages(findings)}
+	if len(findings) > 0 {
 		return report, nil
 	}
 	for _, req := range collected.Requirements {

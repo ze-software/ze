@@ -28,11 +28,16 @@ const (
 	selftestRIDSend        = "RFC9999-2-1"
 	selftestRIDDrop        = "RFC9999-2-2"
 	selftestCorrectionDate = "2026-08-26"
-
-	// selftestEnrolled is the body of the fixture tree's rfc/enrolled.txt: the
-	// one stem, on its own line.
-	selftestEnrolled = selftestStem + "\n"
 )
+
+// selftestMeta is the fixture summary's `## Meta` table: the one place a
+// summary declares its own enrolment and its own public row.
+const selftestMeta = "## Meta\n\n| Field | Value |\n|-------|-------|\n" +
+	"| Title | Widgets |\n| Enrolment | enrolled |\n" +
+	"| Enrolment reason | the fixture RFC, gated so the selftest has a population |\n" +
+	"| Support | bgp-base 10 |\n| Support area | Widgets |\n" +
+	"| Support status | Partial |\n| Support coverage | unit tests |\n" +
+	"| Support remaining | Zero MUST gaps. |\n"
 
 const selftestWorkflow = `on:
   schedule:
@@ -43,7 +48,7 @@ jobs:
       - run: ./le integration interop
 `
 
-const selftestSummary = "# RFC 9999\n\n## Compliance Checklist\n\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2) {single-polarity: positive; no receiver input exists} {superseded: restated RFC10000-3-1; the successor states the same rule}\n- [ ] [RFC9999-2-2] [MUST NOT] A receiver MUST NOT drop the widget (§2)\n\nCorrection 2026-08-26: The row `RFC9999-2-1` quotes \"A speaker SHOULD send the widget and preserve its state.\".\n"
+const selftestSummary = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2) {single-polarity: positive; no receiver input exists} {superseded: restated RFC10000-3-1; the successor states the same rule}\n- [ ] [RFC9999-2-2] [MUST NOT] A receiver MUST NOT drop the widget (§2)\n\nCorrection 2026-08-26: The row `RFC9999-2-1` quotes \"A speaker SHOULD send the widget and preserve its state.\".\n"
 
 type summaryFixture struct {
 	text        string
@@ -187,9 +192,9 @@ func runCoverageSelftest() ([]leroot.SelftestResult, error) {
 	return []leroot.SelftestResult{
 		selftestResult("coverage/evaluation-clean", len(clean) == 0,
 			"complete polarity evidence produced a coverage violation"),
-		selftestResult("coverage/missing-polarity", len(missing) == 1 && strings.Contains(missing[0], PolarityNegative),
+		selftestResult("coverage/missing-polarity", len(missing) == 1 && strings.Contains(missing[0].Message, PolarityNegative),
 			"removing the negative test did not produce the named violation"),
-		selftestResult("coverage/unknown-id", len(unknown) == 1 && strings.Contains(unknown[0], "RFC9999-9-9"),
+		selftestResult("coverage/unknown-id", len(unknown) == 1 && strings.Contains(unknown[0].Message, "RFC9999-9-9"),
 			"a tag for an unknown requirement id was accepted"),
 		selftestResult("coverage/rollup", rollupOK,
 			"the annotated and both-polarity populations did not partition the rollup"),
@@ -197,12 +202,15 @@ func runCoverageSelftest() ([]leroot.SelftestResult, error) {
 }
 
 func runStatusSelftest() ([]leroot.SelftestResult, error) {
-	rows := parseStatusLedger("| RFC 9999 | Widgets | Partial | unit tests | one MUST gap |\n")
-	dispositions, err := parseDispositions("rfc8888 backlog the extraction is owed\n")
+	meta, err := ParseMeta(selftestSummary, selftestStem, selftestSummaryRel)
 	if err != nil {
 		return nil, err
 	}
-	_, malformed := parseDispositions("rfc7777 unknown not a disposition\n")
+	rows := rowsFrom(map[string]Meta{selftestStem: meta})
+	_, absent := ParseMeta("# RFC 8888\n\n## Meta\n\n| Field | Value |\n|--|--|\n| Title | X |\n",
+		"rfc8888", "rfc/short/rfc8888.md")
+	_, unknown := ParseMeta(selftestMetaWith("| Enrolment | maybe |\n"), "rfc8888", "rfc/short/rfc8888.md")
+	_, nearMiss := ParseMeta(selftestMetaWith("| Enrolled | enrolled |\n"), "rfc8888", "rfc/short/rfc8888.md")
 	gap := Requirement{
 		RFC: selftestStem, RID: selftestRIDSend, Level: levelMust, Text: "MUST send", Section: "2",
 		Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"},
@@ -212,23 +220,35 @@ func runStatusSelftest() ([]leroot.SelftestResult, error) {
 		map[string]LedgerRow{selftestStem: {Status: "Supported", Coverage: "complete"}},
 		map[string]bool{selftestStem: true},
 	)
-	declared := checkSummaryDisposition(
-		map[string]bool{"rfc8888": true, selftestStem: true},
-		map[string]bool{selftestStem: true}, dispositions, map[string]bool{},
-	)
+	judged := checkSummaryDisposition(map[string]Meta{"rfc8888": {
+		Enrolment: dispositionNonNormative, EnrolmentReason: "ze does not implement it",
+	}})
+	counted := checkGapCountAgreement([]Requirement{gap},
+		map[string]LedgerRow{selftestStem: {Remaining: "Two MUSTs remain"}})
 
 	return []leroot.SelftestResult{
-		selftestResult("status/public-row", rows[selftestStem].Status == "Partial" && rows[selftestStem].Remaining == "one MUST gap",
-			"the public status row did not retain its status and remaining work"),
-		selftestResult("status/disposition", len(declared) == 0 && dispositions["rfc8888"].Kind == dispositionBacklog,
-			"an enrolled-or-declared summary was reported as unowned"),
-		selftestResult("status/disposition-refusal", malformed != nil,
-			"an unknown disposition was accepted"),
+		selftestResult("status/public-row", rows[selftestStem].Status == "Partial" && rows[selftestStem].Remaining == "Zero MUST gaps.",
+			"the summary's Meta table did not yield its status and remaining work"),
+		selftestResult("status/enrolment-absent", absent != nil,
+			"a summary declaring no enrolment was accepted, which would default it out of the gated population"),
+		selftestResult("status/enrolment-unknown", unknown != nil,
+			"an enrolment value outside the closed set was accepted"),
+		selftestResult("status/enrolment-near-miss", nearMiss != nil,
+			"a Meta label naming enrolment in a spelling nothing reads was skipped in silence"),
+		selftestResult("status/non-normative-reason", len(judged) == 1,
+			"a non-normative reason judging what ZE owes was accepted"),
 		selftestResult("status/gap-disclosure", len(hidden) == 1 && strings.Contains(hidden[0], selftestRIDSend),
 			"a Supported row hid a requirement gap"),
+		selftestResult("status/gap-count", len(counted) == 1,
+			"a spelled gap count disagreeing with the annotations was accepted"),
 	}, nil
 }
 
+// selftestMetaWith answers the fixture summary with one extra Meta row, so a
+// refusal can be driven from a real summary rather than from a fragment.
+func selftestMetaWith(row string) string {
+	return strings.Join([]string{"# RFC 8888\n\n", selftestMeta, row}, "")
+}
 func runBaselineSelftest() ([]leroot.SelftestResult, error) {
 	root, err := newSelftestTree("rfc-selftest-baseline-", map[string]string{})
 	if err != nil {
@@ -287,7 +307,7 @@ var Gating = []string{suiteParse, suiteUI}
 			"the retired-requirement ratchet accepted a deleted id"),
 		selftestResult("baseline/level-ratchet", len(levelLoss) == 1 && strings.Contains(levelLoss[0], levelMust),
 			"the level ratchet accepted an unauthorized demotion"),
-		selftestResult("baseline/new-summary-ratchet", len(newSummary) == 1 && strings.Contains(newSummary[0], "not in rfc/enrolled.txt"),
+		selftestResult("baseline/new-summary-ratchet", len(newSummary) == 1 && strings.Contains(newSummary[0], "does not declare `| Enrolment | enrolled |`"),
 			"a new gated summary remained unenrolled"),
 		selftestResult("baseline/enrolment-ratchet", len(emptyEnrolment) == 1 && strings.Contains(emptyEnrolment[0], "nothing is enrolled"),
 			"the empty enrolled set reported clean"),
@@ -322,11 +342,11 @@ func runRealTreeSelftest() ([]leroot.SelftestResult, error) {
 	}
 	report, code := Check(root)
 	return []leroot.SelftestResult{
-		selftestResult("real-tree/public-check", code == 0, realTreeCheckDetail(report)),
+		selftestResult("real-tree/public-check", code == 0, realTreeCheckDetail(&report)),
 	}, nil
 }
 
-func realTreeCheckDetail(report CheckReport) string {
+func realTreeCheckDetail(report *CheckReport) string {
 	if report.CannotRun != "" {
 		return report.CannotRun
 	}

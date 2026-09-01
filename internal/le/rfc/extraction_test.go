@@ -835,3 +835,59 @@ func TestTheDrainFloorRefusesARateTheEnrolledSetCannotMeet(t *testing.T) {
 		t.Errorf("the shortfall does not name the floor of 2:\n%s", errs[0])
 	}
 }
+
+// VALIDATES: a section's own name is the opening sentence of its reason, and
+// prose about the walk is not mistaken for one.
+//
+// A caller that prints "Section 3" owes the reader "Constructing the Next Hop
+// field" beside it. The convention every record in rfc/extraction/ follows is
+// that the reason opens with the section's title; where a reviewer opened with
+// an account of the walk instead, there is no title to print.
+func TestASectionTitleIsTheOpeningSentenceOfItsReason(t *testing.T) {
+	for _, one := range []struct{ reason, want string }{
+		{"Constructing the Next Hop field. The only section that binds a BGP speaker.",
+			"Constructing the Next Hop field"},
+		{"Introduction.", "Introduction"},
+		{"", ""},
+		{"Walked the whole section: state loss after a crash, INITIAL_CONTACT, liveness " +
+			"detection, retransmission, and Child SA deletion.", ""},
+	} {
+		section := ExtractionSection{ID: "3", Reason: one.reason}
+		if got := section.Title(); got != one.want {
+			t.Errorf("the reason %q titles as %q, want %q", one.reason, got, one.want)
+		}
+	}
+}
+
+// VALIDATES: over the real corpus, a section title stays a title.
+//
+// The method is every record this checkout carries, so a reviewer who writes a
+// reason in another shape is caught here rather than on a published page.
+func TestEveryDerivedSectionTitleReadsAsATitle(t *testing.T) {
+	extractions, err := LoadExtractions(checkoutRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	titled := 0
+	for stem, extraction := range extractions {
+		for _, section := range extraction.Sections {
+			title := section.Title()
+			if title == "" {
+				continue
+			}
+			titled++
+			if strings.HasSuffix(title, ".") {
+				t.Errorf("%s section %s titles as %q, which keeps its full stop",
+					stem, section.ID, title)
+			}
+			if len(title) > sectionTitleMax {
+				t.Errorf("%s section %s titles as %q, %d characters",
+					stem, section.ID, title, len(title))
+			}
+		}
+	}
+	if titled == 0 {
+		t.Fatal("no section of this checkout derives a title, so this proves nothing")
+	}
+	t.Logf("%d section(s) carry a derived title", titled)
+}

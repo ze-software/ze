@@ -12,18 +12,26 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) []string {
+// evaluate answers one finding per coverage violation, in the PARTS it had
+// before it formatted them.
+//
+// It is the producer of 148 of this tree's 155 findings, which is why it
+// carries parts and the other checks carry their message alone: a published
+// table of columns is worth having for the population that fills it, and
+// re-parsing the sentence back into fields would be a second reader of a format
+// nobody declared (owner review, 2026-09-01).
+func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) []Finding {
 	known := map[string]bool{}
 	for _, req := range requirements {
 		known[req.RID] = true
 	}
 	byRID := map[string][]Tag{}
-	var errs []string
+	var errs []Finding
 	for _, tag := range tags {
 		if !known[tag.RID] {
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(tag.File).Byte(':').Int(int64(tag.Line)).
-				Str(": unknown RFC requirement: ").Str(tag.RID).String())
+			errs = append(errs, note(tb.Str(tag.File).Byte(':').Int(int64(tag.Line)).
+				Str(": unknown RFC requirement: ").Str(tag.RID).String()))
 			continue
 		}
 		byRID[tag.RID] = append(byRID[tag.RID], tag)
@@ -40,8 +48,9 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 		where := requirementWhere(req)
 		if req.Ticked {
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).
-				Str(" has a ticked checkbox. The box is a template marker, not coverage state -- a tick is a claim, and this gate exists because claims are what rot. Untick it; coverage comes from the test tags").String())
+			const issue = "has a ticked checkbox, which is a claim rather than coverage"
+			errs = append(errs, requirementFinding(req, issue, tb.Str(where).Str(": ").Str(req.RID).
+				Str(" has a ticked checkbox. The box is a template marker, not coverage state -- a tick is a claim, and this gate exists because claims are what rot. Untick it; coverage comes from the test tags").String()))
 		}
 		annotation := req.Annotation
 		if annotation != nil && (annotation.Kind == AnnotationNotApplicable || annotation.Kind == AnnotationGap) {
@@ -52,9 +61,12 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 					locations = append(locations, tb.Str(tag.File).Byte(':').Int(int64(tag.Line)).String())
 				}
 				var tb textbuf.Buffer
-				errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).Str(" is annotated {").
-					Str(annotation.Kind).Str("} but IS tested (").Str(strings.Join(locations, ", ")).
-					Str("); the annotation is stale -- remove it").String())
+				var issue textbuf.Buffer
+				errs = append(errs, requirementFinding(req,
+					issue.Str("is annotated {").Str(annotation.Kind).Str("} and IS tested, so the annotation is stale").String(),
+					tb.Str(where).Str(": ").Str(req.RID).Str(" is annotated {").
+						Str(annotation.Kind).Str("} but IS tested (").Str(strings.Join(locations, ", ")).
+						Str("); the annotation is stale -- remove it").String()))
 			}
 			continue
 		}
@@ -75,21 +87,29 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 					}
 				}
 				var tb textbuf.Buffer
-				errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).Str(" is annotated {single-polarity: ").
-					Str(annotation.Polarity).Str("} but a ").Str(other).Str(" test exists (").
-					Str(strings.Join(locations, ", ")).Str("); the annotation is stale -- remove it and cover both polarities").String())
+				var issue textbuf.Buffer
+				errs = append(errs, requirementFinding(req,
+					issue.Str("is annotated {single-polarity: ").Str(annotation.Polarity).
+						Str("} and a ").Str(other).Str(" test exists, so the annotation is stale").String(),
+					tb.Str(where).Str(": ").Str(req.RID).Str(" is annotated {single-polarity: ").
+						Str(annotation.Polarity).Str("} but a ").Str(other).Str(" test exists (").
+						Str(strings.Join(locations, ", ")).Str("); the annotation is stale -- remove it and cover both polarities").String()))
 			}
 			if !polarity[annotation.Polarity] {
 				var tb textbuf.Buffer
-				errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).Str(" [").Str(req.Level).
-					Str("] has no ").Str(annotation.Polarity).Str(" test: ").Str(truncateRunes(req.Text, 70)).String())
+				var issue textbuf.Buffer
+				errs = append(errs, requirementFinding(req,
+					issue.Str("has no ").Str(annotation.Polarity).Str(" test, which its annotation requires").String(),
+					tb.Str(where).Str(": ").Str(req.RID).Str(" [").Str(req.Level).
+						Str("] has no ").Str(annotation.Polarity).Str(" test: ").Str(truncateRunes(req.Text, 70)).String()))
 			}
 			continue
 		}
 		if len(found) == 0 {
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).Str(" [").Str(req.Level).
-				Str("] has no test and no annotation: ").Str(truncateRunes(req.Text, 70)).String())
+			errs = append(errs, requirementFinding(req, "has no test and no annotation",
+				tb.Str(where).Str(": ").Str(req.RID).Str(" [").Str(req.Level).
+					Str("] has no test and no annotation: ").Str(truncateRunes(req.Text, 70)).String()))
 			continue
 		}
 		var missing []string
@@ -106,9 +126,12 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			}
 			sort.Strings(held)
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).Str(" [").Str(req.Level).
-				Str("] has no ").Str(value).Str(" test (only ").Str(strings.Join(held, "/")).
-				Str("). A ").Str(value).Str("-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}").String())
+			var issue textbuf.Buffer
+			errs = append(errs, requirementFinding(req,
+				issue.Str("has no ").Str(value).Str(" test, only ").Str(strings.Join(held, "/")).String(),
+				tb.Str(where).Str(": ").Str(req.RID).Str(" [").Str(req.Level).
+					Str("] has no ").Str(value).Str(" test (only ").Str(strings.Join(held, "/")).
+					Str("). A ").Str(value).Str("-less test cannot distinguish correct behavior from blanket accept/reject. Add one, or annotate {single-polarity: ...; why}").String()))
 		}
 	}
 	return errs

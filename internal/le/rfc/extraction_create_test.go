@@ -596,13 +596,17 @@ func TestACompletedSignOffIsNeverSilentlyUncounted(t *testing.T) {
 		SignedUnenrolled: got,
 	}
 	text := report.Text()
-	for _, want := range []string{"valid but uncounted above", "rfc1, rfc3", "rfc/enrolled.txt"} {
+	for _, want := range []string{"valid but uncounted above", "rfc1, rfc3",
+		"declares `| Enrolment | enrolled |`"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the check summary does not say %q:\n%s", want, text)
 		}
 	}
-	if strings.Contains(CheckReport{Enrolled: 1, SignedByRegister: map[string]int{}}.Text(),
-		"valid but uncounted above") {
+	// Text takes a pointer receiver: CheckReport grew past the linter's size
+	// floor when the gate's findings joined it, so a composite literal is bound
+	// to a name before the method is called.
+	uncredited := CheckReport{Enrolled: 1, SignedByRegister: map[string]int{}}
+	if strings.Contains(uncredited.Text(), "valid but uncounted above") {
 		t.Error("the clause renders when no sign-off is uncredited")
 	}
 }

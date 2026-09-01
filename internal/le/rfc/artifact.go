@@ -65,29 +65,100 @@ const (
 	exclusionDuplicate  = "duplicate-of"
 )
 
-var exclusionKinds = map[string]bool{
-	"not-a-requirement":   true,
-	"binds-another-role":  true,
-	exclusionDuplicate:    true,
-	"cross-document":      true,
-	"advisory-in-context": true,
-	// feature-out-of-scope says the RFC makes a feature OPTIONAL, Ze decided
-	// not to offer that feature, and this obligation is conditional on
-	// offering it. The reason quotes the sentence that makes the feature
-	// optional and names the scope decision.
-	//
-	// It is a DECISION, and a gap is an ISSUE. A gap says Ze owes the
-	// behavior and does not produce it, so it stays on the ledger until the
-	// behavior exists. This says the obligation never bound Ze at all. The
-	// absent FEATURE is still recorded, as an implementation gap a later
-	// scope decision can revisit, and never as a conformance gap
-	// (ai/rules/rfc-compliance.md, owner directive 2026-08-31).
-	"feature-out-of-scope": true,
-	relocatedToSpec:        true,
+// exclusionKinds is the closed vocabulary, each kind beside what it says about
+// the sentence the walk declined to map.
+//
+// The meaning is stated HERE, beside the kind, because a reader who meets
+// `binds-another-role` on a published page cannot act on the word alone, and
+// because the site aggregates these counts across the corpus. A second table of
+// sentences elsewhere would be a copy of this set with nothing to arbitrate a
+// disagreement (ai/rules/principles.md), which is the shape auditVerdicts
+// already avoids.
+//
+// feature-out-of-scope is a DECISION, and a gap is an ISSUE. A gap says Ze owes
+// the behavior and does not produce it, so it stays on the ledger until the
+// behavior exists. This says the obligation never bound Ze at all. The absent
+// FEATURE is still recorded, as an implementation gap a later scope decision
+// can revisit, and never as a conformance gap (ai/rules/rfc-compliance.md,
+// owner directive 2026-08-31).
+// The two things an exclusion can MEAN. Every kind declares one, and there is
+// no default: a kind added without a group is a kind whose meaning nobody
+// decided, and it would read as scope by omission -- which is the flattery
+// failure this ledger exists to prevent.
+//
+// ExclusionScope says the obligation never bound Ze. ExclusionDebt says the
+// opposite: it is real, Ze owes it, it is unbuilt, and a named spec owns it.
+// Summing the two into one "declined" count publishes a debt as scope.
+const (
+	ExclusionScope = "scope"
+	ExclusionDebt  = "debt"
+)
+
+// ExclusionGroups answers the two, debt first, because that is the one a
+// reader must not miss.
+func ExclusionGroups() []string { return []string{ExclusionDebt, ExclusionScope} }
+
+// exclusionKind is what one kind says and which of the two it means.
+type exclusionKind struct {
+	Meaning string
+	Group   string
+}
+
+var exclusionKinds = map[string]exclusionKind{
+	"not-a-requirement": {Group: ExclusionScope,
+		Meaning: "the sentence states a fact or describes another document, and directs no " +
+			"implementation"},
+	"binds-another-role": {Group: ExclusionScope,
+		Meaning: "the obligation is addressed to a role Ze never acts as"},
+	exclusionDuplicate: {Group: ExclusionScope,
+		Meaning: "the same obligation is already captured under another requirement id"},
+	"cross-document": {Group: ExclusionScope,
+		Meaning: "the obligation belongs to another document that this one only cites"},
+	"advisory-in-context": {Group: ExclusionScope,
+		Meaning: "the sentence advises on applying a rule stated elsewhere and adds no " +
+			"obligation of its own"},
+	"feature-out-of-scope": {Group: ExclusionScope,
+		Meaning: "the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this " +
+			"obligation is conditional on offering it"},
+	relocatedToSpec: {Group: ExclusionDebt,
+		Meaning: "the obligation is real and unbuilt, and a named spec owes it"},
 }
 
 // ExclusionKinds answers them sorted.
-func ExclusionKinds() []string { return sortedKeys(exclusionKinds) }
+func ExclusionKinds() []string { return sortedKeysOf(exclusionKinds) }
+
+// ExclusionKindMeaning answers what one exclusion kind says, and false for a
+// kind outside the vocabulary.
+//
+// A caller that publishes an exclusion owes the reader the sentence. These
+// words are the project's own and mean nothing to a reader outside it.
+func ExclusionKindMeaning(kind string) (string, bool) {
+	entry, held := exclusionKinds[kind]
+	return entry.Meaning, held
+}
+
+// ExclusionKindGroup answers whether one kind means SCOPE or DEBT, and false
+// for a kind outside the vocabulary.
+//
+// The two must never be summed. `relocated-to-spec` is an obligation Ze owes
+// and has not built, and checkExtraction refuses the sign-off unless the named
+// spec exists and still reserves the requirement id, so it is tracked work
+// rather than an obligation that went away.
+func ExclusionKindGroup(kind string) (string, bool) {
+	entry, held := exclusionKinds[kind]
+	return entry.Group, held
+}
+
+// ExclusionPresumedWrong answers whether the repository's own rule treats this
+// kind as suspect until it is justified.
+//
+// `binds-another-role` is PRESUMED WRONG (ai/rules/rfc-compliance.md, owner
+// directive 2026-08-31): Ze rarely implements one side of a protocol, so an
+// obligation addressed to "the sender" or "the receiver" almost always binds
+// it, and the label reads on the public ledger as "not our problem" where the
+// truth is usually "our problem, unbuilt". A page that published the count
+// without that context would repeat the flattery the ledger exists to prevent.
+func ExclusionPresumedWrong(kind string) bool { return kind == "binds-another-role" }
 
 var sectionSkipKinds = map[string]bool{
 	"front-matter": true, "references": true, "iana": true,
@@ -159,6 +230,30 @@ type ExtractionSection struct {
 	SkipKind     string   `json:"skip-kind,omitempty"`
 	Reason       string   `json:"reason,omitempty"`
 	UnsourcedIDs []string `json:"unsourced-ids,omitempty"`
+}
+
+// sectionTitleMax bounds what reads as a section's own name rather than as
+// prose about the walk.
+//
+// A reviewer opens a section's reason with the section's title where the
+// document gives one: "Constructing the Next Hop field. The only section that
+// binds a BGP speaker." Past this width the opening sentence is an account of
+// what the reviewer did, and a page that printed it as a title would name the
+// section wrongly. The widest real title in rfc/extraction/ is 47 characters.
+const sectionTitleMax = 60
+
+// Title answers the section's own name, taken from the opening sentence of the
+// reason, and the empty string where the record states none.
+//
+// A caller that prints a section number owes the reader the name beside it: the
+// number alone is a place to go and look up.
+func (s ExtractionSection) Title() string {
+	lead, _, _ := strings.Cut(strings.TrimSpace(s.Reason), ". ")
+	lead = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(lead), "."))
+	if lead == "" || len(lead) > sectionTitleMax {
+		return ""
+	}
+	return lead
 }
 
 // Extraction is one whole sign-off record.
@@ -519,7 +614,7 @@ func parseSites(data map[string]any, rel, stem string) ([]ExtractionSite, error)
 			}
 		case DispositionExcluded:
 			site.ExcludedKind, _ = entry["excluded-kind"].(string)
-			if !exclusionKinds[site.ExcludedKind] {
+			if _, held := exclusionKinds[site.ExcludedKind]; !held {
 				tb.Reset()
 				return nil, parseErr(tb.Str(place).
 					Str(": excluded needs an 'excluded-kind' from ").

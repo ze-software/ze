@@ -11,12 +11,6 @@ import (
 	"strings"
 )
 
-// The code host a link that leaves this site resolves to.
-const (
-	codeHostBlob = "https://github.com/ze-software/ze/blob/main/docs/"
-	codeHostTree = "https://github.com/ze-software/ze/tree/main/docs/"
-)
-
 // hrefAttribute matches one href attribute of the rendered body, written with
 // either quote. Markdown renders double quotes, and a source that carries raw
 // HTML can write either.
@@ -51,7 +45,7 @@ func rewriteDocLinks(body, docRel string, manifest map[string]string, destinatio
 		}
 		resolved := path.Join(sourceDirectory, target)
 		if strings.HasSuffix(target, "/") {
-			return `href="` + codeHostTree + resolved + `" target="_blank" rel="noopener"`
+			return `href="` + codeHostTree + "docs/" + resolved + `" target="_blank" rel="noopener"`
 		}
 		if directory, published := manifest[resolved]; published {
 			relative := relativeRoute(directory, destination) + "/"
@@ -60,7 +54,7 @@ func rewriteDocLinks(body, docRel string, manifest map[string]string, destinatio
 			}
 			return `href="` + relative + `"`
 		}
-		away := codeHostBlob + resolved
+		away := repositoryBlobURL("docs/" + resolved)
 		if hasFragment {
 			away += "#" + fragment
 		}
@@ -89,7 +83,7 @@ func rewriteDocLinksMarkdown(source, docRel string, manifest map[string]string, 
 		}
 		resolved := path.Join(sourceDirectory, target)
 		if strings.HasSuffix(target, "/") {
-			return "[" + label + "](" + codeHostTree + resolved + ")"
+			return "[" + label + "](" + codeHostTree + "docs/" + resolved + ")"
 		}
 		if !strings.HasSuffix(target, ".md") {
 			return link
@@ -101,7 +95,7 @@ func rewriteDocLinksMarkdown(source, docRel string, manifest map[string]string, 
 			}
 			return "[" + label + "](" + relative + ")"
 		}
-		away := codeHostBlob + resolved
+		away := repositoryBlobURL("docs/" + resolved)
 		if hasFragment {
 			away += "#" + fragment
 		}

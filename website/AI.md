@@ -102,9 +102,30 @@ artifact boundary and can seed it from the current complete Pages checkout.
   `data/nav.json` owns top navigation, and the other files in `data/` own their
   matching catalogues and generated pages. Markdown sources live in `website/`
   and `../docs/`.
-- **Paths and deployment.** `internal/le/site.ResolvePaths` derives the
-  checkout, source and artifact roots. `IsSourceOnly` is the common deployment
-  boundary used by the builder and checker.
+- **Paths and deployment.** `resolvePaths` in `internal/le/site/paths.go`
+  derives the checkout, source and artifact roots. `isSourceOnly` is the common
+  deployment boundary used by the builder and the checker. Both are unexported:
+  every caller of either one is inside the package.
+- **The producer registry.** Every published route is written by exactly ONE
+  named producer. A producer is a `Name` and a `Render` function, registered
+  from the `init()` of the file that owns it, and `Render` ANSWERS the route of
+  every page it wrote rather than declaring the routes it owns. A declaration is
+  a second statement of one fact, and a producer that stops writing a page keeps
+  declaring it; an answer derived from the writing cannot drift from the writing.
+  `checkProducer` panics at init on an empty name, a nil `Render`, or a
+  duplicate name. `writeNamedArtifact` writes a published file that is NOT a
+  route -- a feed, a data file, a machine-reader answer -- and `namedArtifacts`
+  is the list `checkNamedArtifacts` holds it against.
+- **`Coverage`, and what `./le site check` refuses.** `Coverage` compares the
+  routes the producers answered against the routes the artifact publishes.
+  `Unclaimed` is a published route no producer wrote, which survives from the
+  incremental seed with frozen content and a fresh timestamp. `Doubled` is a
+  route two producers wrote, where registration order alone decides which
+  content a reader sees. `./le site check` exits 1 on FOUR conditions, not one:
+  a published source-only path, a public route with no Markdown mirror, a named
+  artifact that is absent or empty, and a red `Coverage`. It takes the same
+  `output <directory>` keyword the build takes, so a session can check the
+  artifact it just built rather than only the published tree.
 - **Command surfaces.** Three producers in `internal/le/site` publish them from
   the live JSON catalog. `commands.go` writes the CLI reference and the
   operator guide, `equivalentdetail.go` the command-equivalent detail pages, and
@@ -147,6 +168,39 @@ artifact boundary and can seed it from the current complete Pages checkout.
   from this tree: the star count reaches api.github.com and keeps the previously
   published number when it cannot, saying so in `_sources`, and the command and
   configuration counts come from the binary this build compiled.
+- **The RFC requirement ledger.** `data/rfc-requirements.json` is derived once
+  per build by `publishRFCLedger` (`internal/le/site/rfcledger.go`), from one
+  reading of the checkout through `rfc.Collect` and `rfc.NewRenderInput`, and
+  never through `rfc.Check`. The `rfc-compliance` producer reads it back and
+  writes the aggregate page at `/quality/rfc-compliance/` plus one detail page
+  per summary stem at `/quality/rfc-compliance/<stem>/`. Every cell of a
+  requirement row is `rfc.RequirementRows`, which is also what
+  `rfc/requirements/<stem>.md` is rendered from, so the site and the repository
+  cannot state different things about one requirement.
+- **The RFC family renders once for two outputs.** `rfcdetail.go` declares each
+  section of a detail page as a heading and a PAIR of functions, one for the
+  markup and one for the Markdown mirror, so a section cannot reach the page and
+  miss the mirror. `rfcmarkup.go` holds the primitives both call: the requirement
+  anchor, the linked mention, the scrolling table container and the escaped cell.
+  `rfcevidence.go` holds the evidence half of the page -- the gaps, the proof
+  state of every tagged unit, the extraction sign-off and the superseded rows.
+  The headline cards are `rfcCardsHTML` and `rfcCardsMirror` in
+  `rfccompliance.go`, and the index page and every detail page render through
+  them, so the family has one card, and each card declares the rule behind its
+  own tone so `rfcToneLegendHTML` can publish it. `repositoryBlobURL` and
+  `repositoryLineURL` in `rfcmarkup.go` are the only spelling of the code host:
+  `doctransform.go` resolves a documentation link through them, and a proof-state
+  row resolves a test tag's line through them. `rfcBindingOf` and
+  `rfcLedgerCoverage.Binding` answer the population every published ratio is
+  taken over: the gated requirements less the `{not-applicable}` set, which is
+  scope rather than coverage. `rfcSatisfaction` declares which bucket binds and
+  `rfcStanding` groups the binding buckets into the ratio cards, so the shares
+  partition their denominator and the two pages never disagree about it.
+  `rfcLedgerCoverage.Bucket` is the one translation between the index's bucket
+  keys and a stem's own counters. A card's movement in the grid is derived from
+  its tone (`rfcCardsIn`), the mechanism sits outside the grid in
+  `rfcMechanismHTML`, and `rfcCheckHTML` renders the gate's findings from
+  `rfc.Finding`, the parts each check held before it formatted its line.
 - **Verification commands.** `go test ./internal/le/site` exercises the
   build boundary, source digest, asset expansion and deck bundling.
   `go test ./internal/le/docvalid -run CommandSurface` exercises native command
