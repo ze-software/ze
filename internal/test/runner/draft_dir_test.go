@@ -114,7 +114,7 @@ func TestDraftReadmeNamesEveryCheck(t *testing.T) {
 	for _, producer := range []string{
 		"accept_only.go",
 		"ci_fixture_test.go",
-		"docwiring/checks.go",
+		"doc/wiring/checks.go",
 		"rfc/carriers.go",
 	} {
 		require.Containsf(t, body, producer,
