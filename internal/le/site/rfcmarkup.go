@@ -49,8 +49,20 @@ func rfcRequirementRefMirror(rid, text string) string {
 // These tables are wide by nature: a requirement row carries quoted RFC prose
 // beside a list of test paths, and a path is one unbreakable token. The
 // container scrolls, so the page body never does.
-func rfcTableHTML(head, rows string) string {
-	return `<div class="rfc-table-wrap">` + "\n<table>\n<thead><tr>" + head +
+func rfcTableHTML(head, rows string) string { return rfcTableClassHTML("", head, rows) }
+
+// rfcTableClassHTML wraps one table that needs a class of its own.
+//
+// One table needs it: the requirements table turns OFF the sticky bold first
+// column every other table wants. Its first cell is the level rather than the
+// row's identity -- the identity is the subject row above it -- so weight and
+// stickiness there emphasize the wrong thing.
+func rfcTableClassHTML(class, head, rows string) string {
+	table := "<table>"
+	if class != "" {
+		table = `<table class="` + class + `">`
+	}
+	return `<div class="rfc-table-wrap">` + "\n" + table + "\n<thead><tr>" + head +
 		"</tr></thead>\n<tbody>\n" + rows + "</tbody>\n</table>\n</div>"
 }
 

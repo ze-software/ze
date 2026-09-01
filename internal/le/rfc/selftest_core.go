@@ -290,8 +290,21 @@ var Gating = []string{suiteParse, suiteUI}
 		map[string]string{req.RID: levelMust}, baselineEnrolled)
 	newSummary := checkNewSummaries(
 		NewDeriver(root), map[string]bool{selftestStem: true}, map[string]bool{"rfc8888": true},
-		map[string]bool{}, []Requirement{req}, map[string]string{}, true,
+		map[string]bool{}, []Requirement{req}, map[string]string{}, true, map[string]Meta{},
 	)
+	// The same new summary, declared out-of-scope: the extraction is done and
+	// the owner declined the feature, so enrolment is not owed and the check
+	// must stay silent.
+	scoped := checkNewSummaries(
+		NewDeriver(root), map[string]bool{selftestStem: true}, map[string]bool{"rfc8888": true},
+		map[string]bool{}, []Requirement{req}, map[string]string{}, true,
+		map[string]Meta{selftestStem: {Enrolment: dispositionOutOfScope}},
+	)
+	// And the guard that stops it being a way to look green.
+	claimed := checkOutOfScope("rfc/short/rfc9999.md: ", Meta{
+		Enrolment: dispositionOutOfScope, EnrolmentReason: "declined 2026-09-01 by the owner",
+		Support: "bgp-base", Status: "Partial",
+	})
 	emptyEnrolment := checkEnrolment(root, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{})
 
 	return []leroot.SelftestResult{
@@ -307,6 +320,10 @@ var Gating = []string{suiteParse, suiteUI}
 			"the retired-requirement ratchet accepted a deleted id"),
 		selftestResult("baseline/level-ratchet", len(levelLoss) == 1 && strings.Contains(levelLoss[0], levelMust),
 			"the level ratchet accepted an unauthorized demotion"),
+		selftestResult("baseline/out-of-scope-not-billed", len(scoped) == 0,
+			"an out-of-scope summary was asked to enrol, which pressures the next author to delete its checklist"),
+		selftestResult("baseline/out-of-scope-claims-nothing", len(claimed) == 1 && strings.Contains(claimed[0], "cannot be advertised as supported"),
+			"an out-of-scope summary was allowed to claim public support"),
 		selftestResult("baseline/new-summary-ratchet", len(newSummary) == 1 && strings.Contains(newSummary[0], "does not declare `| Enrolment | enrolled |`"),
 			"a new gated summary remained unenrolled"),
 		selftestResult("baseline/enrolment-ratchet", len(emptyEnrolment) == 1 && strings.Contains(emptyEnrolment[0], "nothing is enrolled"),

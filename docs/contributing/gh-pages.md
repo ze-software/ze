@@ -242,6 +242,24 @@ Five shapes are load-bearing on that page:
   already renders one block per requirement, and two lists of the same shape on
   one page help nobody. The colspan comes from `rfcRequirementColumns`, so a
   column added or removed cannot leave it wrong.
+- **The tests read in carrier order**: kind first, tier within a kind, then
+  polarity within a group, positive before negative. So every `unit/verify` row
+  comes first, then `functional/verify`, then `interop/nightly`, and a reader
+  sees at a glance whether an obligation is carried by unit tests or by a
+  nightly interop run. The order is `rfc.CarrierRank`, declared in
+  `internal/le/rfc/carriers.go` beside the kinds and tiers it orders, so a kind
+  added to the carrier table cannot sort last on this page in silence;
+  `TestEveryCarrierTheVocabularyDeclaresIsRanked` holds that over the real
+  table. The full order is unit, functional, editor, interop, unknown by kind,
+  and verify, nightly, unrun within each. A carrier the vocabulary does not rank
+  sorts after every ranked one rather than at rank zero, and an absent-polarity
+  row takes the rank of the requirement's best carrier so the gap shows inside
+  the group the eye is already reading.
+- **The subject carries no weight of its own.** `.md-content td:first-child` is
+  bold and sticky for every table on the site and the subject row's spanning
+  cell is a first child, so the requirements table opts out by class. Position
+  marks the subject; weight on top of it is emphasis doing a job the layout
+  already does, and 228 bold rows read as shouting.
 - **The tests are a grid of divs**, one row per citation: the polarity, the kind
   and tier, then the test. The TIER LEADS, because a fixed-width token in front
   of a variable-width name wraps cleanly and lets the tiers align down the page.

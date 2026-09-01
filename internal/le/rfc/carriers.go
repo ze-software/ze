@@ -40,8 +40,73 @@ const (
 const (
 	kindUnit       = "unit"
 	kindFunctional = "functional"
+	kindEditor     = "editor"
 	kindInterop    = "interop"
+	// kindUnknown is the interop tree nothing runs. It declares a kind of its
+	// own rather than borrowing kindInterop, because a tag there is refused and
+	// calling it interop would credit it with a pipeline it does not have.
+	kindUnknown = "unknown"
 )
+
+// carrierKindOrder and carrierTierOrder are the order evidence READS in, from
+// the cheapest and most certain to the most distant.
+//
+// Unit first: it proves the algorithm and it runs on every push. Then
+// functional, which proves the daemon exposes the behavior, then editor, then
+// interop, which proves a foreign peer accepts it and is the slowest and most
+// often nightly. Unknown last, because nothing runs it.
+//
+// Tier orders WITHIN a kind, so unit/verify precedes unit/nightly and both
+// precede every functional row.
+//
+// The order lives HERE, beside the vocabulary it orders. A consumer that
+// published its own sequence would be a second declaration of this set, and it
+// would sort a kind added here to the end in silence (ai/rules/principles.md).
+var (
+	carrierKindOrder = []string{kindUnit, kindFunctional, kindEditor, kindInterop, kindUnknown}
+	carrierTierOrder = []string{tierVerify, tierNightly, tierUnrun}
+)
+
+// CarrierKinds and CarrierTiers answer the two vocabularies in reading order.
+func CarrierKinds() []string { return append([]string(nil), carrierKindOrder...) }
+func CarrierTiers() []string { return append([]string(nil), carrierTierOrder...) }
+
+// CarrierRank answers one sortable rank for a `kind/tier` pair, and false for a
+// pair this vocabulary does not declare.
+//
+// A caller that publishes evidence in order reads this rather than writing the
+// sequence again. The false answer is not a default: a caller MUST place an
+// unranked pair deliberately rather than let it land at rank zero, which is
+// where `unit/verify` lives (ai/rules/principles.md).
+func CarrierRank(kind, tier string) (int, bool) {
+	kindAt := indexOf(carrierKindOrder, kind)
+	tierAt := indexOf(carrierTierOrder, tier)
+	if kindAt < 0 || tierAt < 0 {
+		return 0, false
+	}
+	return kindAt*len(carrierTierOrder) + tierAt, true
+}
+
+// CarrierLabelRank answers the rank of a `kind/tier` label as the ledger prints
+// it, which is the form every consumer of a tagged unit holds.
+func CarrierLabelRank(label string) (int, bool) {
+	kind, tier, held := strings.Cut(label, "/")
+	if !held {
+		return 0, false
+	}
+	return CarrierRank(kind, tier)
+}
+
+// indexOf answers where one value sits in an ordered vocabulary, and -1 for a
+// value outside it.
+func indexOf(order []string, value string) int {
+	for at, one := range order {
+		if one == value {
+			return at
+		}
+	}
+	return -1
+}
 
 // The two functional carrier suffixes, and the pipeline an unrun carrier names.
 const (
@@ -206,7 +271,7 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	out := make([]Carrier, 0, len(suites)+len(editorSuites)+len(interopTrees)+5)
 	out = append(out, interopCarriers(scheduled)...)
 	out = append(out, Carrier{
-		Name: "interop-unrun", Kind: "unknown", Tier: tierUnrun, Prefix: "internal/le/interoplab/",
+		Name: "interop-unrun", Kind: kindUnknown, Tier: tierUnrun, Prefix: "internal/le/interoplab/",
 		Suffix: ".go", Reader: "go", Runner: "no declared native interop action",
 		Pipeline: noAutomatedCaller,
 	}, Carrier{
@@ -223,7 +288,7 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	// `.et` is the cheapest verify-tier non-unit carrier available, and it
 	// costs one row: it is .ci semantics exactly, and only test/editor/ is
 	// walked for it.
-	out = append(out, suiteCarriers("editor", etSuffix, "ci",
+	out = append(out, suiteCarriers(kindEditor, etSuffix, "ci",
 		"./le functional editor", "./le verify current mode full (functional stage",
 		editorSuites)...)
 	// test/exabgp-compat is not one of the run list's suites. It has its own
@@ -241,7 +306,7 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 		Pipeline: unrunCI.Str("no automated caller; ./le functional runs ").
 			Join(suites, ", ").String(),
 	}, Carrier{
-		Name: "editor-unrun", Kind: "editor", Tier: tierUnrun, Prefix: "",
+		Name: "editor-unrun", Kind: kindEditor, Tier: tierUnrun, Prefix: "",
 		Suffix: etSuffix, Reader: "ci",
 		Runner: "no native full-verifier stage walks this directory",
 		Pipeline: unrunET.Str("no automated caller; only test/").Str(editorSuite).

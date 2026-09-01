@@ -664,7 +664,8 @@ func rfcRequirementsHTML(entry *rfcLedgerStem) string {
 			html.EscapeString(rfcSectionText(requirement.Section, names)),
 			rfcRequirementTestsHTML(requirement, ambiguous)))
 	}
-	return rfcTableHTML(rfcHeadCells(rfcRequirementColumns...), rows.String())
+	return rfcTableClassHTML("rfc-requirements", rfcHeadCells(rfcRequirementColumns...),
+		rows.String())
 }
 
 // rfcRequirementSubjectHTML renders the id and the sentence it names.
@@ -715,20 +716,12 @@ func rfcRequirementTestsHTML(requirement *rfcLedgerRequirement,
 	var out strings.Builder
 	out.WriteString(`<div class="rfc-tests" role="table" aria-label="` +
 		html.EscapeString("tests bound to "+requirement.RID) + `">` + "\n")
-	for _, polarity := range []string{rfc.PolarityPositive, rfc.PolarityNegative} {
-		if !rfcHasPolarity(requirement, polarity) {
-			out.WriteString(rfcTestsRowHTML(polarity, "",
-				html.EscapeString(rfcNoPolarityText(polarity))))
-			continue
+	for _, row := range rfcTestRows(requirement) {
+		test := html.EscapeString(rfcNoPolarityText(row.Polarity))
+		if row.Cover != nil {
+			test = rfcCitationHTML(row.Cover, ambiguous)
 		}
-		for index := range requirement.Covers {
-			cover := &requirement.Covers[index]
-			if cover.Polarity != polarity {
-				continue
-			}
-			out.WriteString(rfcTestsRowHTML(polarity, rfcCitationCarrier(cover),
-				rfcCitationHTML(cover, ambiguous)))
-		}
+		out.WriteString(rfcTestsRowHTML(row.Polarity, row.Carrier, test))
 	}
 	out.WriteString("</div>")
 	for _, mark := range rfcRequirementMarks(requirement) {
@@ -745,9 +738,6 @@ func rfcRequirementTestsHTML(requirement *rfcLedgerRequirement,
 // leaving the cell blank: a blank reads as a rendering fault and an absent
 // polarity is a disclosed fact (ai/rules/principles.md).
 func rfcTestsRowHTML(polarity, carrier, test string) string {
-	if carrier == "" {
-		carrier = "no test"
-	}
 	return `<div class="rfc-tests-row" role="row"><span role="cell">` +
 		html.EscapeString(polarity) + `</span><span role="cell"><code>` +
 		html.EscapeString(carrier) + `</code></span><span role="cell">` + test +
@@ -779,14 +769,16 @@ func rfcRequirementMarks(requirement *rfcLedgerRequirement) [][2]string {
 func rfcRequirementTestsMirror(requirement *rfcLedgerRequirement,
 	ambiguous map[string]bool,
 ) string {
-	parts := make([]string, 0, 4)
-	for _, polarity := range []string{rfc.PolarityPositive, rfc.PolarityNegative} {
-		if !rfcHasPolarity(requirement, polarity) {
-			parts = append(parts, "**"+polarity+":** "+rfcNoPolarityText(polarity))
+	rows := rfcTestRows(requirement)
+	parts := make([]string, 0, len(rows)+2)
+	for index := range rows {
+		row := &rows[index]
+		if row.Cover == nil {
+			parts = append(parts, "**"+row.Polarity+":** "+rfcNoPolarityText(row.Polarity))
 			continue
 		}
-		parts = append(parts, "**"+polarity+":** "+
-			rfcCitationsMirror(requirement, polarity, ambiguous))
+		parts = append(parts, "**"+row.Polarity+":** `"+row.Carrier+"` "+
+			rfcCitationMirror(row.Cover, ambiguous))
 	}
 	for _, mark := range rfcRequirementMarks(requirement) {
 		parts = append(parts, "**"+mark[0]+":** "+mark[1])

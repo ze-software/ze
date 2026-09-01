@@ -1552,6 +1552,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-fold { margin: .6rem 0; }
 .rfc-fold > summary { cursor: pointer; font-weight: 700; }
 .rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-requirements td:first-child { position: static; background: transparent; font-weight: 400; }
+.rfc-requirements .rfc-span > td { padding-top: .9rem; }
 .rfc-subject { display: block; margin-top: .25rem; max-width: 52rem; }
 .rfc-tests { display: grid; gap: .15rem .8rem; }
 .rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }

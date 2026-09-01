@@ -2012,3 +2012,140 @@ func TestAnAnnotationReasonSitsUnderTheTests(t *testing.T) {
 		t.Error("the annotation is rendered above the rows it explains")
 	}
 }
+
+// VALIDATES: AC-61 -- the tests read in carrier order: kind, then tier within a
+// kind, then polarity within a group.
+//
+// The order was whatever the tag scan produced, so a reader could not tell at a
+// glance whether an obligation was carried by unit tests or by a nightly
+// interop run (owner review, 2026-09-01). The sequence lives in
+// internal/le/rfc beside the vocabulary it orders, and this reads it from
+// there rather than restating it.
+func TestTheTestsReadInCarrierOrder(t *testing.T) {
+	mixed := disclosureLedger()
+	requirement := &mixed.Stems[0].Requirements[1]
+	requirement.Covers = []rfcLedgerCover{
+		{Polarity: rfc.PolarityNegative, Unit: "internal/le/interoplab/bgp/c.go::checkLate",
+			File: "internal/le/interoplab/bgp/c.go", Line: 9, Carrier: "interop/nightly", Tags: 1},
+		{Polarity: rfc.PolarityNegative, Unit: "internal/a_test.go::TestUnitNegative",
+			File: "internal/a_test.go", Line: 2, Carrier: "unit/verify", Tags: 1},
+		{Polarity: rfc.PolarityPositive, Unit: "test/plugin/late.ci",
+			File: "test/plugin/late.ci", Line: 1, Carrier: "functional/verify", Tags: 1},
+		{Polarity: rfc.PolarityPositive, Unit: "internal/a_test.go::TestUnitPositive",
+			File: "internal/a_test.go", Line: 1, Carrier: "unit/verify", Tags: 1},
+	}
+	rows := rfcTestRows(requirement)
+	got := make([]string, 0, len(rows))
+	for index := range rows {
+		got = append(got, rows[index].Carrier+" "+rows[index].Polarity)
+	}
+	want := []string{
+		"unit/verify positive", "unit/verify negative",
+		"functional/verify positive", "interop/nightly negative",
+	}
+	if strings.Join(got, ", ") != strings.Join(want, ", ") {
+		t.Errorf("the tests read as %v, want %v", got, want)
+	}
+
+	// The order the code applies is the order internal/le/rfc declares.
+	last, first := -1, true
+	for _, kind := range rfc.CarrierKinds() {
+		for _, tier := range rfc.CarrierTiers() {
+			rank, ranked := rfc.CarrierRank(kind, tier)
+			if !ranked {
+				t.Fatalf("%s/%s is in the vocabulary and has no rank", kind, tier)
+			}
+			if !first && rank <= last {
+				t.Errorf("%s/%s ranks %d, which does not follow %d", kind, tier, rank, last)
+			}
+			last, first = rank, false
+		}
+	}
+	if rank, ranked := rfc.CarrierLabelRank("unit/verify"); !ranked || rank != 0 {
+		t.Errorf("unit/verify ranks (%d, %v), want first", rank, ranked)
+	}
+}
+
+// VALIDATES: AC-61 -- the sort is total and stable, and an unranked carrier is
+// placed deliberately rather than landing where unit/verify lives.
+func TestTheTestOrderIsTotalAndStable(t *testing.T) {
+	odd := disclosureLedger()
+	requirement := &odd.Stems[0].Requirements[1]
+	requirement.Covers = []rfcLedgerCover{
+		{Polarity: rfc.PolarityPositive, Unit: "internal/z_test.go::TestZ",
+			File: "internal/z_test.go", Line: 2, Carrier: "unit/verify", Tags: 1},
+		{Polarity: rfc.PolarityPositive, Unit: "internal/a_test.go::TestA",
+			File: "internal/a_test.go", Line: 1, Carrier: "unit/verify", Tags: 1},
+		{Polarity: rfc.PolarityPositive, Unit: "somewhere/x_test.go::TestOdd",
+			File: "somewhere/x_test.go", Line: 3, Carrier: "moon/eclipse", Tags: 1},
+	}
+	rows := rfcTestRows(requirement)
+	if len(rows) != 4 {
+		t.Fatalf("the requirement renders %d rows, want its three tests and one absent "+
+			"polarity", len(rows))
+	}
+	// Alike in kind, tier and polarity: ordered by the name a reader sees, so a
+	// rebuild cannot churn the page.
+	if rows[0].Sort != "TestA" || rows[1].Sort != "TestZ" {
+		t.Errorf("two alike citations read as %q then %q, want name order",
+			rows[0].Sort, rows[1].Sort)
+	}
+	// The unranked carrier is LAST, not first.
+	if rows[len(rows)-1].Carrier != "moon/eclipse" {
+		t.Errorf("the unranked carrier is at position %d of %d",
+			len(rows)-1, len(rows))
+	}
+	if rows[0].Carrier == "moon/eclipse" {
+		t.Error("an unranked carrier landed where unit/verify lives")
+	}
+	// An absent polarity stays in the group the eye is already reading.
+	absent := -1
+	for index := range rows {
+		if rows[index].Cover == nil {
+			absent = index
+		}
+	}
+	if absent < 0 {
+		t.Fatal("the absent polarity has no row")
+	}
+	if rows[absent].Carrier != "no test" || rows[absent].Rank != rows[0].Rank {
+		t.Errorf("the absent polarity sorts at rank %d, want the best carrier's %d",
+			rows[absent].Rank, rows[0].Rank)
+	}
+}
+
+// VALIDATES: AC-62 -- the subject carries no weight of its own.
+//
+// `.md-content td:first-child` is bold and sticky for every table on the site,
+// and the subject row's spanning cell IS a first child, so the id and the
+// sentence rendered bold. Position is what marks the subject; weight on top of
+// it is emphasis doing a job the layout already does, and 228 bold rows read as
+// shouting (owner review, 2026-09-01).
+func TestTheSubjectCarriesNoWeightOfItsOwn(t *testing.T) {
+	page, _, mirror := disclosurePage(t)
+
+	if !strings.Contains(page, `<table class="rfc-requirements">`) {
+		t.Error("the requirements table carries no class, so it cannot opt out of the bold")
+	}
+	if !strings.Contains(page,
+		".rfc-requirements td:first-child { position: static; background: transparent; "+
+			"font-weight: 400; }") {
+		t.Error("the requirements table does not turn off the site-wide first-column weight")
+	}
+	// Nothing in the subject row emits weight of its own.
+	subject := sliceBetween(t, mainContent(t, page), `<tr class="rfc-span">`, "</tr>")
+	for _, weight := range []string{"<strong>", "<b>", "<em>"} {
+		if strings.Contains(subject, weight) {
+			t.Errorf("the subject row emits %s", weight)
+		}
+	}
+	// The mirror does not bold it either.
+	for line := range strings.SplitSeq(mirror, "\n") {
+		if !strings.HasPrefix(line, "| `RFC9999-") {
+			continue
+		}
+		if strings.HasPrefix(line, "| **") || strings.Contains(line, "| **`RFC9999-") {
+			t.Errorf("the mirror bolds the requirement: %s", line)
+		}
+	}
+}

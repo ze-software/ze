@@ -112,12 +112,29 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// that work and none could, because it added no production byte -- the
 	// digest covers no test file.
 	//
-	// The value it seals still ABSORBS the migration itself, which another
-	// session holds uncommitted in this shared checkout. This note does not
-	// vouch for it: its verdict review belongs to that work, and a shared
-	// checkout gives no way to seal one change without absorbing another (the
-	// paragraph above says so).
-	const want = "179d2c65d510739ad1331547e31a819affbda55cca76a360e4edfff1e16b2905"
+	// Re-sealed 2026-09-01 for the migration itself, which the paragraph above
+	// had only absorbed. Enrolment and the public support claim are declared in
+	// each summary's `## Meta` table and the three ledger files are generated
+	// from it; `parseEnrolled`, `parseDispositions`, `parseStatusLedger` and
+	// their loaders are gone, `checkStatusCompleteness` with them, and three
+	// refusals of `checkSummaryDisposition` are unrepresentable rather than
+	// retired. Two dispositions are new -- `source-restricted` for a standard
+	// whose text may not be redistributed, and `out-of-scope` for one whose
+	// extraction is done and whose feature the owner declined -- and each
+	// carries its own guard. No AUDIT verdict moved: the audit schema, its
+	// freshness and its ratchet are untouched by this work, and the gate's
+	// findings differ only where a message names the summary rather than a
+	// retired file.
+	//
+	// That value already covers the carrier reading order, sealed by the same
+	// hash: `editor` and `unknown` become named constants beside the three
+	// kinds that already were, and `carrierKindOrder`, `carrierTierOrder`,
+	// `CarrierKinds`, `CarrierTiers`, `CarrierRank` and `CarrierLabelRank`
+	// declare the order evidence reads in beside the vocabulary it orders. No
+	// verdict moved: the carrier table is byte-identical in Name, Kind, Tier,
+	// Prefix and Suffix, the two literals replaced spelled the same words, and
+	// the rank has no reader inside this package.
+	const want = "c946fe0f5406b5b4b7c09e19006ec41b821d13ebba53d1977382fba5a756e205"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)

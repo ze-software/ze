@@ -367,7 +367,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	var findings []Finding
 	findings = append(findings, notes(checkEnrolment(tree, collected.Enrolled, baseEnrolled, stems, newly, signedSet))...)
 	findings = append(findings, notes(checkNewSummaries(deriver, stems, baselineStems, collected.Enrolled,
-		collected.Requirements, collected.ParseByStem, stemsKnown))...)
+		collected.Requirements, collected.ParseByStem, stemsKnown, collected.Metas))...)
 	if intersects(collected.Enrolled, baseEnrolled) {
 		carriers, err := carriers(tree)
 		if err != nil {
