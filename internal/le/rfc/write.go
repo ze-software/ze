@@ -100,6 +100,10 @@ type IndexReport struct {
 	Ledger  string   `json:"ledger"`
 	Shards  int      `json:"shards"`
 	Deleted []string `json:"deleted"`
+	// Files is every ledger file this run wrote beside the index and the
+	// shards: the enrolled set, the declared remainder and the public
+	// support page, each derived from the summaries.
+	Files []string `json:"files,omitempty"`
 }
 
 // Text is the two lines the generator printed. It is the DEFAULT rendering:
@@ -108,6 +112,9 @@ func (r IndexReport) Text() string {
 	var tb textbuf.Buffer
 	tb.Str("wrote ").Str(r.Ledger).Str(" and ").Int(int64(r.Shards)).
 		Str(" shard(s) under ").Str(shardRelDir).Byte('\n')
+	if len(r.Files) > 0 {
+		tb.Str("wrote ").Join(r.Files, ", ").Byte('\n')
+	}
 	if len(r.Deleted) > 0 {
 		tb.Str("deleted orphan shard(s): ").Join(r.Deleted, ", ").Byte('\n')
 	}
@@ -148,8 +155,17 @@ func IndexUpdate(tree string) (IndexReport, error) {
 			Str(summaryRel).Str(" is present").String())
 	}
 
+	ledgers, err := LedgerFiles(in.Metas)
+	if err != nil {
+		return IndexReport{}, err
+	}
 	if err := writePage(tree, ledgerRel, index); err != nil {
 		return IndexReport{}, err
+	}
+	for _, rel := range LedgerPaths() {
+		if err := writeExact(tree, rel, ledgers[rel]); err != nil {
+			return IndexReport{}, err
+		}
 	}
 	for _, stem := range sortedKeysOf(shards) {
 		if err := writePage(tree, shardRel(stem), shards[stem]); err != nil {
@@ -166,7 +182,8 @@ func IndexUpdate(tree string) (IndexReport, error) {
 	if err != nil {
 		return IndexReport{}, err
 	}
-	return IndexReport{Ledger: ledgerRel, Shards: len(shards), Deleted: removed}, nil
+	return IndexReport{Ledger: ledgerRel, Shards: len(shards), Deleted: removed,
+		Files: LedgerPaths()}, nil
 }
 
 // refuseToWrite is the destructive-input refusal, with every parse error above
@@ -189,6 +206,27 @@ func writePage(tree, rel, body string) error {
 	}
 	var page textbuf.Buffer
 	if err := os.WriteFile(path, []byte(page.Str(body).Byte('\n').String()), 0o644); err != nil { //nolint:gosec // a generated page, world-readable by design
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(rel).Str(": cannot write: ").Err(err))
+	}
+	return nil
+}
+
+// writeExact writes one generated file with no terminator of its own.
+//
+// Separate from writePage, which appends the newline ai/RFC-REQUIREMENTS.md and
+// the shards are compared with. The three ledger files carry their own trailing
+// newline where they end in a row, and the public page ends in an HTML comment
+// that must not gain a blank line: what the generator writes and what the
+// freshness check compares have to be one string, so the terminator is part of
+// the render rather than part of the write.
+func writeExact(tree, rel, body string) error {
+	path := treePath(tree, rel)
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(rel).Str(": cannot create directory: ").Err(err))
+	}
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil { //nolint:gosec // a generated page, world-readable by design
 		var tb textbuf.Buffer
 		return parseErr(tb.Str(rel).Str(": cannot write: ").Err(err))
 	}

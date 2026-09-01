@@ -13,6 +13,13 @@
 | Authoritative URL | https://sflow.org/sflow_version_5.txt |
 | Encoding | XDR (RFC 1832 / RFC 4506) |
 | Transport | UDP, recommended port 6343 |
+| Enrolment | enrolled |
+| Enrolment reason | sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at configured interval) + 11 single-polarity positive (version=5, agent addr, sub-agent seq space, MTU bound, no >1s hold, XDR big-endian, count-prefixed arrays, actual rate, sample_pool, cumulative counters) + 3 gap (split datagram seq, no expanded types, no unavailable sentinel) + 1 not-applicable (collector skip) |
+| Support | drafts 80 |
+| Support area | sFlow export |
+| Support status | Experimental |
+| Support coverage | Flow export protocol alongside NetFlow v9 and IPFIX. Three MUST gaps in rfc/short/sflow-v5.md: datagram-level sequence numbers split across two independent counters per sub-agent (SFLOW-V5-x-9); no expanded sample types, so ifIndex > 2^24-1 is truncated by the 24-bit source_id mask (SFLOW-V5-x-12); unavailable if_counters fields are exported as 0 instead of the max-value unavailable sentinel (SFLOW-V5-x-16). |
+| Support remaining | - |
 
 **Purpose:** sFlow defines a sampling-based mechanism for monitoring traffic
 in switched and routed networks. An sFlow agent embedded in a network

@@ -207,30 +207,66 @@ func TestADuplicateIdIsRefused(t *testing.T) {
 	}
 }
 
-func TestEnrolledRowsTakeTheFirstWordAndSkipComments(t *testing.T) {
-	got, _ := parseEnrolled("# a comment\n\nrfc7606  # trailing words\nrfc4271\n")
-	if len(got) != 2 || !got["rfc7606"] || !got["rfc4271"] {
-		t.Errorf("ParseEnrolled read %v", sortedSet(got))
+// VALIDATES: AC-1 and AC-3 -- enrolment is read from the summary's own Meta
+// table, and an absent or unrecognized value is REFUSED rather than defaulted.
+// PREVENTS: the largest recorded defect class in this repository. A field that
+// defaulted to "not enrolled" would take an RFC out of the gated population with
+// no author intending it and no gate saying so
+// (plan/journal/gate-excludes-part-of-its-population.md).
+func TestEnrolmentIsReadFromTheSummaryMetaTable(t *testing.T) {
+	const head = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n| Title | Widgets |\n"
+	const where = "rfc/short/rfc9999.md"
+
+	meta, err := ParseMeta(head+
+		"| Enrolment | enrolled |\n| Enrolment reason | treat-as-withdraw is proven both ways |\n"+
+		"| Support | - |\n", "rfc9999", where)
+	if err != nil {
+		t.Fatalf("a summary declaring its enrolment did not parse: %v", err)
+	}
+	if !meta.Enrolled() || meta.EnrolmentReason != "treat-as-withdraw is proven both ways" {
+		t.Errorf("the parse read %q / %q", meta.Enrolment, meta.EnrolmentReason)
+	}
+
+	for _, one := range []struct {
+		name string
+		rows string
+		want string
+	}{
+		{"absent", "| Support | - |\n", "no `Enrolment` row"},
+		{"unknown value", "| Enrolment | maybe |\n| Enrolment reason | x |\n| Support | - |\n",
+			"not one of"},
+		{"no reason", "| Enrolment | backlog |\n| Support | - |\n", "no `Enrolment reason` row"},
+		{"near-miss label", "| Enrolled | enrolled |\n| Enrolment | enrolled |\n" +
+			"| Enrolment reason | x |\n| Support | - |\n", "spelling nothing reads"},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			_, err := ParseMeta(head+one.rows, "rfc9999", where)
+			if err == nil {
+				t.Fatalf("%s was accepted", one.name)
+			}
+			if !strings.Contains(err.Error(), one.want) {
+				t.Errorf("the refusal does not say %q:\n%s", one.want, err)
+			}
+		})
 	}
 }
 
-// VALIDATES: the enrolment reason survives the parse.
-//
-// The row is `<stem>\t<why>` and an author writes that sentence once. The
-// reader kept the first field and dropped the rest until 2026-09-01, so the
-// published enrolment had no account of itself and a page would have had to
-// invent one.
-func TestEnrolmentKeepsItsReason(t *testing.T) {
-	enrolled, reasons := parseEnrolled(
-		"# a comment\n\nrfc7606\ttreat-as-withdraw is proven both ways\nrfc4271\n")
-	if !enrolled["rfc7606"] || !enrolled["rfc4271"] {
-		t.Fatalf("the parse read %v", sortedSet(enrolled))
+// VALIDATES: the Meta scan stops at the end of the Meta TABLE.
+// PREVENTS: rfc/short/rfc8277.md refusing for a duplicate that is not one. It
+// states its AFI/SAFI scope as a second table under the same heading, whose
+// first column repeats `1`, and a scan bounded by the next `##` heading read
+// those as Meta field names.
+func TestTheMetaScanStopsAtItsOwnTable(t *testing.T) {
+	const summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
+		"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | gated |\n" +
+		"| Support | - |\n\n**Scope:**\n| AFI | SAFI | Description |\n|---|---|---|\n" +
+		"| 1 | 4 | Labeled IPv4 Unicast |\n| 1 | 128 | VPN-IPv4 |\n"
+	meta, err := ParseMeta(summary, "rfc9999", "rfc/short/rfc9999.md")
+	if err != nil {
+		t.Fatalf("a second table under the same heading was read as Meta rows: %v", err)
 	}
-	if reasons["rfc7606"] != "treat-as-withdraw is proven both ways" {
-		t.Errorf("the reason is %q, want the whole sentence after the stem", reasons["rfc7606"])
-	}
-	if _, held := reasons["rfc4271"]; held {
-		t.Errorf("a row with no reason answered %q, want no entry at all", reasons["rfc4271"])
+	if meta.Title != "Widgets" {
+		t.Errorf("the title is %q", meta.Title)
 	}
 }
 
@@ -248,7 +284,7 @@ func TestGatedCountsCountOnlyMustLevelRows(t *testing.T) {
 	}
 }
 
-// VALIDATES: the title comes from the labelled Meta row, and a summary carrying
+// VALIDATES: the title comes from the labeled Meta row, and a summary carrying
 // no such row answers empty rather than guessing at the H1.
 //
 // The H1 separator is an em dash in one summary, a double hyphen in another and
@@ -259,12 +295,23 @@ func TestGatedCountsCountOnlyMustLevelRows(t *testing.T) {
 func TestASummaryTitleComesFromTheMetaRow(t *testing.T) {
 	const summary = "# RFC 9999 -- Widgets, or so it says\n\n## Meta\n\n" +
 		"| Field | Value |\n|-------|-------|\n| RFC | 9999 |\n" +
-		"| Title | The Widget Protocol |\n"
-	if got := summaryTitle(summary); got != "The Widget Protocol" {
-		t.Errorf("the title is %q, want the Meta row's own value", got)
+		"| Title | The Widget Protocol |\n| Enrolment | enrolled |\n" +
+		"| Enrolment reason | gated |\n| Support | - |\n"
+	meta, err := ParseMeta(summary, "rfc9999", "rfc/short/rfc9999.md")
+	if err != nil {
+		t.Fatalf("the fixture summary did not parse: %v", err)
 	}
-	if got := summaryTitle("# RFC 9999 -- Widgets\n\nno meta table here\n"); got != "" {
-		t.Errorf("a summary with no Title row answered %q, want the empty string", got)
+	if meta.Title != "The Widget Protocol" {
+		t.Errorf("the title is %q, want the Meta row's own value", meta.Title)
+	}
+	bare, err := ParseMeta("# RFC 9999 -- Widgets\n\n## Meta\n\n| Field | Value |\n|--|--|\n"+
+		"| Enrolment | enrolled |\n| Enrolment reason | gated |\n| Support | - |\n",
+		"rfc9999", "rfc/short/rfc9999.md")
+	if err != nil {
+		t.Fatalf("a summary with no Title row did not parse: %v", err)
+	}
+	if bare.Title != "" {
+		t.Errorf("a summary with no Title row answered %q, want the empty string", bare.Title)
 	}
 }
 
@@ -282,10 +329,11 @@ func TestEverySummaryCarriesATitleRow(t *testing.T) {
 	if len(stems) == 0 {
 		t.Fatal("this checkout carries no summary, so this proves nothing")
 	}
-	titles, err := summaryTitles(root, stems)
+	metas, err := summaryMetas(root, stems)
 	if err != nil {
 		t.Fatal(err)
 	}
+	titles := titlesFrom(metas)
 	var missing []string
 	for _, stem := range sortedSet(stems) {
 		if titles[stem] == "" {

@@ -97,7 +97,7 @@ Measured over the 166 enrolled RFCs on 2026-07-29: 101 derive `rfc2119`, 64 deri
 keyword SITE at all while declaring 172 gated MUSTs between them, which is why a
 keyword-only design would have been vacuously green for a large minority of the corpus.
 
-Every figure above is derived by driving this module's own parser over `rfc/enrolled.txt`
+Every figure above is derived by driving this module's own parser over the enrolled set
 -- `derive_inventory(stem, gated)` per stem, register taken from the returned inventory,
 and the 23 selected by `keyword_sites == 0` with their gated totals summed from
 `gated_counts` -- never retyped from a previous run.
@@ -191,7 +191,7 @@ which sites are left.
 | `duplicate-of` | restates an obligation already captured | `mapped-to` must name an id that some OTHER site maps |
 | `cross-document` | the obligation belongs to another RFC the sentence cites | -- |
 | `advisory-in-context` | the capitalised keyword sits inside a SHOULD/MAY construction the splitter mis-cut | the reason quotes the enclosing construction |
-| `feature-out-of-scope` | the RFC makes a feature OPTIONAL, ze decided not to offer it, and the obligation is conditional on offering it | the reason quotes the sentence that makes the feature optional, names the producer showing ze does not offer it, and says the absent feature is disclosed in `docs/features/rfc-status.md` |
+| `feature-out-of-scope` | the RFC makes a feature OPTIONAL, ze decided not to offer it, and the obligation is conditional on offering it | the reason quotes the sentence that makes the feature optional, names the producer showing ze does not offer it, and says the absent feature is disclosed on `docs/features/rfc-status.md`, through the summary's own `Support` rows |
 | `relocated-to-spec` | the obligation IS owed, by a named spec, and it left this summary by an owner ruling | `relocated-to` names the spec, `reserved-id` names the id reserved for it there |
 
 ### `feature-out-of-scope`: a DECISION, not a gap
@@ -206,8 +206,9 @@ conditional on one is excluded here rather than recorded as a gap. `binds-anothe
 the wrong kind for it, because the role IS ze: ze is the speaker the sentence addresses,
 and it declines the option the sentence is conditional on.
 
-The absent FEATURE is still recorded. It goes in the RFC's row in
-`docs/features/rfc-status.md` as an implementation gap a later scope decision can revisit,
+The absent FEATURE is still recorded. It goes in the RFC's public row, declared by the
+`Support` rows of that summary's `## Meta` table and rendered onto
+`docs/features/rfc-status.md`, as an implementation gap a later scope decision can revisit,
 and never as a conformance gap. RFC 8671 sites `5.2:1` and `5.2:2` are the worked example:
 RFC 7854 Section 5 says "A BMP speaker may send pre-policy routes, post-policy routes, or
 both", and ze offers the post-policy Adj-RIB-Out view only.
@@ -260,9 +261,10 @@ not the same fact. That line is derived, so it appears exactly when a relocation
 
 ## Credit is scoped to the enrolled set, and the remainder is published
 
-A sign-off COUNTS when its stem is in `rfc/enrolled.txt`. Credit and the backlog must
-describe one set, or the drain floor compares a credit against a backlog that does not
-contain it, which is the defect `credited` was written to fix.
+A sign-off COUNTS when its stem declares `| Enrolment | enrolled |` in its summary's
+`## Meta` table. Credit and the backlog must describe one set, or the drain floor
+compares a credit against a backlog that does not contain it, which is the defect
+`credited` was written to fix.
 
 Signing before enrolling is the normal order, so a valid sign-off for a stem nobody has
 enrolled yet is a finished walk waiting for its RFC. It is parsed, checked and ratcheted

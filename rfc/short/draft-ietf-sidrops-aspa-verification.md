@@ -10,6 +10,13 @@
 | Date | 2024 |
 | Authors | A. Azimov (Yandex), E. Bogomazov (Qrator Labs), R. Bush (IIJ & Arrcus), K. Patel (Arrcus), K. Sriram (NIST) |
 | RFC Number | Not yet assigned as of March 2026 |
+| Enrolment | enrolled |
+| Enrolment reason | ASPA AS_PATH verification: 4 MET + 2 single-polarity (6-1, 7-2) + 2 gap (6-4 per-AFI records, 8-1 Invalid-not-preferred) |
+| Support | drafts 20 |
+| Support area | ASPA path verification |
+| Support status | Partial |
+| Support coverage | Section 6 verification algorithm (upstream/downstream), AS_SET to Unknown, prepend collapse, AS0-in-provider rejection, RTR ASPA PDU (Type 11) consumption, and re-validation on cache change. Two MUSTs unmet: per-AFI ASPA records (6-4, the AFI flag is parsed then discarded and the cache is keyed by customer AS alone, so per-AFI records overwrite each other); Invalid-not-preferred (8-1, ASPA state drives only reject/keep with default LogOnly, so an accepted Invalid route can outrank a Valid one for the same prefix). |
+| Support remaining | - |
 
 **Purpose:** Defines a procedure for BGP speakers to verify the AS_PATH attribute of received routes using ASPA (Autonomous System Provider Authorization) objects from RPKI, detecting route leaks and path manipulation.
 

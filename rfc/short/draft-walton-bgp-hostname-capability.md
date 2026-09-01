@@ -9,6 +9,13 @@
 | Status | Internet Draft (expired 2016-07-09) |
 | Date | 2016-01-06 |
 | Depends | RFC 5492 (BGP capability advertisement) |
+| Enrolment | enrolled |
+| Enrolment reason | FQDN capability for BGP (code 73). The draft states NO MUST-level obligation: its only RFC 2119 keyword outside the Section 2 key-words paragraph is one SHOULD in Section 4, so the summary declares zero gated rows and rfc/extraction/draft-walton-bgp-hostname-capability.json signs off under 'manual-walk' with the register-reason that says why zero is a property of the document. Ze sends the capability from per-peer config (encodeValue, internal/component/bgp/plugins/hostname/hostname.go), encodes it with (*FQDN).WriteTo and parses a received one with parseFQDN (internal/core/bgp/capability/capability.go). |
+| Support | drafts 50 |
+| Support area | BGP FQDN capability code 73 |
+| Support status | Supported |
+| Support coverage | The draft states no MUST-level obligation: its only RFC 2119 keyword outside the Section 2 key-words paragraph is one SHOULD in Section 4, which is why `rfc/extraction/draft-walton-bgp-hostname-capability.json` signs off under `manual-walk`. Capability code 73, decode support, and per-peer hostname and domain advertisement (`FQDN`, `internal/core/bgp/capability/capability.go`). Carried as `RFC 8516` in the table above until 2026-08-30; RFC 8516 is the CoAP "Too Many Requests" response code and has nothing to do with BGP. IANA names this draft as the reference for code 73, and the scoped config keys the capability emits had always spelled it. |
+| Support remaining | - |
 
 **Purpose:** Defines BGP capability code 73, which carries a speaker's hostname
 and domain name so an operator sees a name beside a peer address when

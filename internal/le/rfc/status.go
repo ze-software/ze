@@ -115,11 +115,18 @@ type Collected struct {
 	ParseErrors  []string
 	ParseByStem  map[string]string
 	Tags         []Tag
-	// EnrolmentReasons is why each enrolled RFC was enrolled, as its row in
-	// rfc/enrolled.txt states it, and Titles is each summary's own Meta title.
-	// Both are read by the SAME walk that reads the set and the requirements,
-	// so a reader that publishes an enrolment publishes its account with it
-	// and nothing has to open either file a second time.
+	// Metas is what every summary's `## Meta` table declares: its enrolment,
+	// its disposition, its public row, its title and its forward lineage.
+	// The three maps below are DERIVED from it, and are kept as fields
+	// because every consumer of this struct already speaks in them.
+	//
+	// One parse of one table. Enrolment, the public support claim and the
+	// declared remainder were three authored files until 2026-09-01, and a
+	// second copy of a fact is a future disagreement with nothing to
+	// arbitrate it (ai/rules/principles.md).
+	Metas map[string]Meta
+	// EnrolmentReasons is why each enrolled RFC was enrolled, and Titles is
+	// each summary's own Meta title.
 	//
 	// A stem missing from either map declared nothing, which is a state a
 	// reader reports rather than an empty string that reads like data.
@@ -133,19 +140,16 @@ type Collected struct {
 // summary the gate cannot read is a summary whose obligations nobody can see,
 // enrolled or not.
 func Collect(tree string) (Collected, error) {
-	enrolled, reasons, err := loadEnrolled(tree)
-	if err != nil {
-		return Collected{}, err
-	}
 	stems, err := summaryStems(tree)
 	if err != nil {
 		return Collected{}, err
 	}
-	titles, err := summaryTitles(tree, stems)
+	metas, err := summaryMetas(tree, stems)
 	if err != nil {
 		return Collected{}, err
 	}
-	out := Collected{Enrolled: enrolled, EnrolmentReasons: reasons, Titles: titles,
+	out := Collected{Metas: metas, Enrolled: enrolledFrom(metas),
+		EnrolmentReasons: enrolmentReasonsFrom(metas), Titles: titlesFrom(metas),
 		ParseByStem: map[string]string{}}
 	for _, stem := range sortedSet(stems) {
 		var name textbuf.Buffer

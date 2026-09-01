@@ -20,8 +20,7 @@ func checkFixtureTree(t *testing.T, extra map[string]string) string {
 
 	files := map[string]string{
 		selftestWorkflowRel: selftestWorkflow,
-		"rfc/enrolled.txt":  selftestEnrolled,
-		selftestSummaryRel: "# RFC 9999\n\n## Compliance Checklist\n\n" +
+		selftestSummaryRel: "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
 			"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n",
 		"rfc/full/rfc9999.txt": "A speaker MUST send the widget.\n",
 		"rfc/drain-budget.txt": "start 2026-07-29\nrate 0\n",
@@ -29,9 +28,6 @@ func checkFixtureTree(t *testing.T, extra map[string]string) string {
 		// so the manifest must name at least one. This fixture's one gated package holds
 		// nothing.
 		"feature-gates.txt": "ze_widget  internal/widget\n",
-		"docs/features/rfc-status.md": "| RFC | Feature | Status | Supported | Gaps |\n" +
-			"|-----|---------|--------|-----------|------|\n" +
-			"| RFC 9999 | Widgets | Partial | The widget sender. | Zero MUST gaps. |\n",
 	}
 	maps.Copy(files, extra)
 
@@ -330,38 +326,13 @@ func signedExtractionFixture(t *testing.T, skeleton bool) map[string]Extraction 
 func TestCheckSupportedSignoffRefusesUnsignedSupportedRow(t *testing.T) {
 	errs := checkSupportedSignoff(
 		map[string]LedgerRow{selftestStem: {Status: "Supported"}},
-		map[string]bool{selftestStem: true},
-		map[string]Extraction{},
-	)
+		map[string]Extraction{})
 
 	if len(errs) != 1 {
 		t.Fatalf("an unsigned Supported row answered %d violation(s): %v", len(errs), errs)
 	}
 	for _, want := range []string{selftestStem, "'Supported'", "rfc/extraction/rfc9999.json",
 		"./le rfc extraction-create stem rfc9999"} {
-		if !strings.Contains(errs[0], want) {
-			t.Errorf("the violation does not name %q:\n%s", want, errs[0])
-		}
-	}
-}
-
-// VALIDATES: a row that promises support for an RFC with NO rfc/short/ summary at all is
-// refused, and the message names the missing summary.
-// PREVENTS: the hole checkUnprovenSupport discloses in its own error text -- it iterates
-// the summary stems, so "Rows naming an RFC with no summary at all are outside this
-// check". Ten such rows sit on the public page today, each one a support promise no check
-// in this package can see.
-func TestCheckSupportedSignoffRefusesSupportedRowWithNoSummary(t *testing.T) {
-	errs := checkSupportedSignoff(
-		map[string]LedgerRow{selftestStem: {Status: "Supported on Linux"}},
-		map[string]bool{},
-		map[string]Extraction{},
-	)
-
-	if len(errs) != 1 {
-		t.Fatalf("a Supported row with no summary answered %d violation(s): %v", len(errs), errs)
-	}
-	for _, want := range []string{selftestStem, "'Supported on Linux'", "rfc/short/rfc9999.md"} {
 		if !strings.Contains(errs[0], want) {
 			t.Errorf("the violation does not name %q:\n%s", want, errs[0])
 		}
@@ -379,13 +350,11 @@ func TestCheckSupportedSignoffPassesWhenEverySupportedRowIsSigned(t *testing.T) 
 			"rfc1001": {Status: "Supported on Linux"},
 			"rfc1002": {Status: "Yes"},
 		},
-		map[string]bool{"rfc1000": true, "rfc1001": true, "rfc1002": true},
 		map[string]Extraction{
 			"rfc1000": {Stem: "rfc1000", Register: registerRFC2119},
 			"rfc1001": {Stem: "rfc1001", Register: registerProse},
 			"rfc1002": {Stem: "rfc1002", Register: registerRFC2119},
-		},
-	)
+		})
 
 	if len(errs) != 0 {
 		t.Errorf("the intended end state answered %d violation(s): %v", len(errs), errs)
@@ -409,7 +378,8 @@ func TestCheckSupportedSignoffIgnoresUnsupportedAndFuture(t *testing.T) {
 		"rfc2004": {Status: "Not supported"},
 	}
 
-	errs := checkSupportedSignoff(rows, map[string]bool{}, map[string]Extraction{})
+	errs := checkSupportedSignoff(
+		rows, map[string]Extraction{})
 
 	if len(errs) != 0 {
 		t.Errorf("a status that discloses rather than promises answered %d violation(s): %v",
@@ -446,9 +416,7 @@ func TestCheckSupportedSignoffRefusesSkeletonArtifact(t *testing.T) {
 
 	errs := checkSupportedSignoff(
 		map[string]LedgerRow{selftestStem: {Status: "Supported"}},
-		map[string]bool{selftestStem: true},
-		signed,
-	)
+		signed)
 
 	if len(errs) != 1 {
 		t.Fatalf("a skeleton satisfied the check: %d violation(s): %v", len(errs), errs)
@@ -473,9 +441,7 @@ func TestCheckSupportedSignoffCreditsTheEvaluatorsOwnSignoff(t *testing.T) {
 
 	errs := checkSupportedSignoff(
 		map[string]LedgerRow{selftestStem: {Status: "Supported on Linux", Coverage: "the widget sender"}},
-		map[string]bool{selftestStem: true},
-		signed,
-	)
+		signed)
 
 	if len(errs) != 0 {
 		t.Fatalf("a signed support claim answered %d violation(s): %v", len(errs), errs)
@@ -496,9 +462,7 @@ func TestCheckSupportedSignoffRefusesTheGeneratedSkeleton(t *testing.T) {
 
 	errs := checkSupportedSignoff(
 		map[string]LedgerRow{selftestStem: {Status: "Supported"}},
-		map[string]bool{selftestStem: true},
-		signed,
-	)
+		signed)
 
 	if len(errs) != 1 {
 		t.Fatalf("a skeleton artifact answered %d violation(s): %v", len(errs), errs)
@@ -510,27 +474,17 @@ func TestCheckSupportedSignoffRefusesTheGeneratedSkeleton(t *testing.T) {
 	}
 }
 
-// VALIDATES: assumption A-1 of plan/spec-rfcgate-6-supported-extraction-signoff.md, at
-// BOTH denominators the spec uses, re-derived from the page rather than retyped: the
-// support-claiming STEM set parseStatusLedger answers, and the support-claiming ROW count
-// of the eight RFC tables.
-// PREVENTS: a scope carried forward from a table in a spec. The two denominators differ,
-// and every earlier count of this page reported one of them without saying which.
+// VALIDATES: assumption A-1 of plan/spec-rfcgate-6-supported-extraction-signoff.md,
+// re-derived from the summaries rather than retyped, and AC-4 of
+// plan/spec-rfc-ledger-single-declaration.md: one summary renders exactly one row.
+// PREVENTS: a scope carried forward from a table in a spec.
 //
-// They differ for one reason now, and the numbers below are 52 = 48 + 4: the ninth table
-// (drafts and non-RFC standards) is outside the spec's scope cut, and it carries four more
-// rows that promise support. That term is DERIVED from the page at the end of this test
-// rather than retyped, so the bridge between the two denominators is checked and not
-// merely described.
-//
-// A second term stood here until 2026-08-31, written `- 1` for a stem the page stated
-// TWICE: RFC 2759 read "Supported within PPP and IPsec EAP" in the access table and
-// "Partial" in the IPsec table, and parseStatusLedger keys by stem and keeps the LAST row,
-// so the promise was invisible to every ledger check that reads the map. Commit 460fdc0f8
-// closed the three MUST gaps the IPsec row disclosed and merged the two rows into one
-// "Supported" row, so no stem is stated twice and the term has nothing to subtract. Do not
-// restore it: a duplicate that hides a promise again makes the derived bridge below fail,
-// which is where a reader should meet it.
+// The two denominators this test carried until 2026-09-01 -- the STEM set the page's
+// parser answered, and the ROW count of the eight RFC tables -- were two numbers because
+// the page was authored and a stem stated twice lost its earlier row. RFC 2759 held that
+// shape until 460fdc0f8. They are one number now: a row IS a summary's `| Support |`
+// declaration, so a stem cannot be stated twice and the bridge has nothing left to check.
+// What survives is the split by section, which is the term the spec's scope cut turns on.
 //
 // A number that moves fails this test with both counts printed, which is the point: the
 // scope is re-derived at the start of a phase and at closure, and a delta is recorded in
@@ -540,18 +494,23 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
 	}
-	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(statusRel)))
+	metas, err := summaryMetas(root, nil)
 	if err != nil {
-		t.Fatalf("read the public ledger: %v", err)
+		t.Fatalf("read the summaries: %v", err)
 	}
-	page := string(raw)
 
-	ledger := parseStatusLedger(page)
-	var mapped []string
-	for _, stem := range sortedKeysOf(ledger) {
-		if statusPromisesSupport(ledger[stem].Status) {
-			mapped = append(mapped, ledger[stem].Status)
+	var mapped, rfcTables, draftTable []string
+	for _, stem := range sortMetaStems(metas) {
+		meta := metas[stem]
+		if !meta.HasRow() || !statusPromisesSupport(meta.Status) {
+			continue
 		}
+		mapped = append(mapped, meta.Status)
+		if meta.Support == "drafts" {
+			draftTable = append(draftTable, meta.Status)
+			continue
+		}
+		rfcTables = append(rfcTables, meta.Status)
 	}
 	exact, qualified, yes := supportClaimSplit(mapped)
 	// No stem reads 'Yes' any more: that cell was RFC 1997's and the page's own
@@ -559,7 +518,7 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	// The shape is kept in the split rather than dropped, because the predicate
 	// still accepts it and a future row could reintroduce it.
 	if len(mapped) != 52 || exact != 41 || qualified != 11 || yes != 0 {
-		t.Errorf("the ledger keys %d support-promising stem(s) (%d exact, %d scope-qualified, %d 'Yes'), want 52 (41, 11, 0)",
+		t.Errorf("the summaries declare %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 52 (41, 11, 0)",
 			len(mapped), exact, qualified, yes)
 	}
 	if exact+qualified+yes != len(mapped) {
@@ -567,56 +526,54 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 			exact+qualified+yes, len(mapped))
 	}
 
-	// The eight RFC tables, row by row. The ninth table's heading ends them, and a row
-	// keyed by anything other than an RFC number is not one of theirs.
-	eightTables, ninthTable, _ := strings.Cut(page, "\n## Drafts")
-	var rows []string
-	for line := range strings.SplitSeq(eightTables, "\n") {
-		if !strings.HasPrefix(line, "|") {
-			continue
-		}
-		cells := splitTableRow(line)
-		if len(cells) < 3 || !statusRFCRE.MatchString(cells[0]) {
-			continue
-		}
-		if statusPromisesSupport(cells[2]) {
-			rows = append(rows, cells[2])
-		}
+	rowExact, rowQualified, rowYes := supportClaimSplit(rfcTables)
+	if len(rfcTables) != 48 || rowExact != 37 || rowQualified != 11 || rowYes != 0 {
+		t.Errorf("the eight RFC sections carry %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 48 (37, 11, 0)",
+			len(rfcTables), rowExact, rowQualified, rowYes)
 	}
-	rowExact, rowQualified, rowYes := supportClaimSplit(rows)
-	if len(rows) != 48 || rowExact != 37 || rowQualified != 11 || rowYes != 0 {
-		t.Errorf("the eight RFC tables carry %d support-promising row(s) (%d exact, %d scope-qualified, %d 'Yes'), want 48 (37, 11, 0)",
-			len(rows), rowExact, rowQualified, rowYes)
+	if len(mapped) != len(rfcTables)+len(draftTable) {
+		t.Errorf("%d support-promising row(s) split into %d + %d, so a section outside the nine holds one",
+			len(mapped), len(rfcTables), len(draftTable))
 	}
+}
 
-	// The ninth table, by the two key shapes parseStatusLedger accepts there: a draft stem
-	// and a non-RFC stem. It holds no RFC-keyed row, so its support promises are exactly
-	// the stems the eight-table count above cannot reach.
-	var draftRows []string
-	for line := range strings.SplitSeq(ninthTable, "\n") {
-		if !strings.HasPrefix(line, "|") {
-			continue
-		}
-		cells := splitTableRow(line)
-		if len(cells) < 3 {
-			continue
-		}
-		if !statusDraftRE.MatchString(cells[0]) && !statusStemRE.MatchString(cells[0]) {
-			continue
-		}
-		if statusPromisesSupport(cells[2]) {
-			draftRows = append(draftRows, cells[2])
+// VALIDATES: AC-4 -- every summary renders at most one row, and no two summaries claim
+// one place on the page.
+// PREVENTS: the duplicate-key defect the authored page could hold and its parser hid. A
+// stem stated twice kept only its LAST row, so a support promise could sit in public with
+// no check in this package able to see it.
+func TestOneSummaryRendersExactlyOneStatusRow(t *testing.T) {
+	root, err := lepath.Root()
+	if err != nil {
+		t.Fatalf("resolve checkout: %v", err)
+	}
+	metas, err := summaryMetas(root, nil)
+	if err != nil {
+		t.Fatalf("read the summaries: %v", err)
+	}
+	placed, err := placeRows(metas)
+	if err != nil {
+		t.Fatalf("place the rows: %v", err)
+	}
+	seen := map[string]bool{}
+	rows := 0
+	for _, section := range placed {
+		for _, row := range section {
+			if seen[row.Stem] {
+				t.Errorf("%s renders more than one row", row.Stem)
+			}
+			seen[row.Stem] = true
+			rows++
 		}
 	}
-
-	// The bridge between the two denominators, asserted rather than described. Every
-	// support-promising row the page carries reaches the ledger under its own key, so the
-	// stem count is the eight-table count plus the ninth table's. A stem stated twice
-	// whose later row withdraws the promise drops the left side and leaves the right one
-	// standing, which is the shape RFC 2759 held until 460fdc0f8 merged its two rows.
-	if len(mapped) != len(rows)+len(draftRows) {
-		t.Errorf("the ledger keys %d support-promising stem(s) but the page carries %d row(s) (%d in the eight RFC tables, %d in the ninth), so a promised row is hidden by a repeated key",
-			len(mapped), len(rows)+len(draftRows), len(rows), len(draftRows))
+	declared := 0
+	for _, meta := range metas {
+		if meta.HasRow() {
+			declared++
+		}
+	}
+	if rows != declared {
+		t.Errorf("%d summaries declare a row and %d were placed", declared, rows)
 	}
 }
 
@@ -1444,5 +1401,74 @@ func TestDiscriminationMeasuresChangedGoFunctionUnits(t *testing.T) {
 	if changed, unresolved := measure(renamed); changed != 0 || unresolved != 1 {
 		t.Errorf("a unit the working tree no longer holds measured %d changed and %d unresolved, "+
 			"want 0 and 1: a unit nobody could read is not a unit nobody changed", changed, unresolved)
+	}
+}
+
+// VALIDATES: a `source-restricted` summary escapes checkUnprovenSupport, and the two DEBT
+// dispositions do not.
+// PREVENTS: the escape widening into a blanket. `backlog` and `blocked` both say the
+// extraction is owed, and a public support claim resting on owed work is exactly what this
+// check exists to refuse -- so an escape keyed on "is not enrolled" would exempt the whole
+// un-enrolled population instead of the two states that are decisions.
+func TestSourceRestrictedExcusesASupportClaimAndDebtDoesNot(t *testing.T) {
+	rows := map[string]LedgerRow{selftestStem: {Status: "Experimental"}}
+	stems := map[string]bool{selftestStem: true}
+
+	for _, one := range []struct {
+		kind    string
+		excused bool
+	}{
+		{dispositionSourceRestricted, true},
+		{dispositionNonNormative, true},
+		{dispositionBacklog, false},
+		{dispositionBlocked, false},
+	} {
+		t.Run(one.kind, func(t *testing.T) {
+			errs := checkUnprovenSupport(nil, rows, stems,
+				map[string]Disposition{selftestStem: {Kind: one.kind, Reason: "why"}},
+				map[string]Extraction{}, map[string]string{})
+			if one.excused && len(errs) != 0 {
+				t.Errorf("%s did not excuse the claim: %v", one.kind, errs)
+			}
+			if !one.excused && len(errs) != 1 {
+				t.Errorf("%s answered %d violation(s), want 1", one.kind, len(errs))
+			}
+		})
+	}
+}
+
+// VALIDATES: a `source-restricted` reason must name what stops the text being copied, and
+// must not judge what Ze owes.
+// PREVENTS: an unfalsifiable escape. This kind excuses a public support promise, so its
+// reason carries the weight a non-normative reason carries and is held to the same
+// discipline: a reviewer can check "published by ISO" and cannot check "we do not need it".
+func TestSourceRestrictedReasonMustNameWhatStopsTheCopy(t *testing.T) {
+	for _, one := range []struct {
+		name   string
+		reason string
+		want   string
+	}{
+		{"names the publisher", "Published by ISO/IEC and not freely redistributable.", ""},
+		{"names the licence", "The copyright holder forbids redistribution.", ""},
+		{"cites nothing", "We never got round to it.", "names nothing a reviewer can check"},
+		{"judges what ze owes", "Ze does not need this standard.", "judges what ZE owes"},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			errs := checkSummaryDisposition(map[string]Meta{"iso-iec-10589": {
+				Enrolment: dispositionSourceRestricted, EnrolmentReason: one.reason,
+			}})
+			if one.want == "" {
+				if len(errs) != 0 {
+					t.Fatalf("a checkable reason was refused: %v", errs)
+				}
+				return
+			}
+			if len(errs) != 1 {
+				t.Fatalf("answered %d violation(s), want 1: %v", len(errs), errs)
+			}
+			if !strings.Contains(errs[0], one.want) {
+				t.Errorf("the refusal does not say %q:\n%s", one.want, errs[0])
+			}
+		})
 	}
 }

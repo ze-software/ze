@@ -55,92 +55,69 @@ func checkStatusAgreement(requirements []Requirement, rows map[string]LedgerRow,
 	return errs
 }
 
+// supportClaimExcused answers the two dispositions under which a public support
+// claim rests on something other than an extracted checklist.
+//
+// `non-normative` says the DOCUMENT imposes no MUST, so an empty checklist is
+// the document's property rather than a hole in the extraction.
+// `source-restricted` says the document's text may not be redistributed, so no
+// checklist can ever be bounded against it and no enrolment is reachable. Both
+// are DECISIONS with a reason a reviewer can check; neither is debt.
+//
+// The other two dispositions excuse nothing. `backlog` and `blocked` say the
+// extraction is owed, and a claim resting on owed work is exactly what this
+// check exists to refuse.
+func supportClaimExcused(kind string) bool {
+	return kind == dispositionNonNormative || kind == dispositionSourceRestricted
+}
+
 func nonNormativeReasonCitesDocument(reason string) bool {
 	return documentCategoryRE.MatchString(reason) || siteKeywordRE.MatchString(reason)
 }
 
-func checkSummaryDisposition(stems, enrolled map[string]bool, dispositions map[string]Disposition,
-	baseline map[string]bool) []string {
-	declared := map[string]bool{}
-	for stem := range dispositions {
-		declared[stem] = true
-	}
+// checkSummaryDisposition judges the ONE claim an un-enrolled summary makes
+// about conformance.
+//
+// Three refusals lived here until 2026-09-01 and none of them can be written
+// any more: a summary in neither ledger file, a stem in both, and a disposition
+// naming a summary that does not exist. Each compared two copies of one fact.
+// The fact is now declared once, in the summary's own `## Meta` table, so a
+// summary that declares no enrolment does not parse, one field cannot hold two
+// values, and a disposition dies with the file that carries it. Deleting a copy
+// retires a check without weakening anything.
+//
+// What survives states a property of ONE document, and moves unchanged.
+func checkSummaryDisposition(metas map[string]Meta) []string {
 	var errs []string
-	for _, stem := range sortedSet(stems) {
-		if enrolled[stem] || declared[stem] {
+	for _, stem := range sortMetaStems(metas) {
+		meta := metas[stem]
+		var where textbuf.Buffer
+		at := where.Str(summaryRel).Byte('/').Str(stem).Str(".md: ").String()
+		if meta.Enrolment == dispositionSourceRestricted {
+			errs = append(errs, checkSourceRestricted(at, meta.EnrolmentReason)...)
 			continue
 		}
-		var tb textbuf.Buffer
-		errs = append(errs, tb.Str("rfc/short/").Str(stem).
-			Str(".md is in neither rfc/enrolled.txt nor rfc/not-enrolled.txt. Every summary is enrolled or declared: an un-enrolled summary with no recorded reason cannot be told apart from one nobody has got to yet. Enroll it, or declare it with a kind from ['backlog', 'blocked', 'non-normative']").String())
-	}
-	for _, stem := range sortedShared(enrolled, dispositions) {
-		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(stem).Str(" is in BOTH rfc/enrolled.txt and rfc/not-enrolled.txt. The two files partition the summaries; a stem in both is a contradiction, and resolving it by precedence would let one file quietly overrule the other. Remove the rfc/not-enrolled.txt row -- enrolment is the discharge").String())
-	}
-	for _, stem := range sortedMissing(dispositions, stems) {
-		var tb textbuf.Buffer
-		errs = append(errs, tb.Str("rfc/not-enrolled.txt declares ").Str(stem).Str(", but rfc/short/").Str(stem).
-			Str(".md does not exist. A disposition for a summary nobody wrote records a decision about nothing, and it hides the fact that the row is stale").String())
-	}
-	for _, stem := range sortedShared(dispositions, stems) {
-		disposition := dispositions[stem]
-		if disposition.Kind != dispositionNonNormative {
+		if meta.Enrolment == dispositionOutOfScope {
+			errs = append(errs, checkOutOfScope(at, meta)...)
 			continue
 		}
-		if nonApplicabilityRE.MatchString(disposition.Reason) {
+		if meta.Enrolment != dispositionNonNormative {
+			continue
+		}
+		if nonApplicabilityRE.MatchString(meta.EnrolmentReason) {
 			var tb textbuf.Buffer
-			errs = append(errs, tb.Str("rfc/not-enrolled.txt: ").Str(stem).
-				Str(" is declared non-normative with a reason that judges what ZE owes rather than what the DOCUMENT states: ").Str(pyRepr(truncateRunes(disposition.Reason, 80))).
+			errs = append(errs, tb.Str(at).
+				Str("is declared non-normative with a reason that judges what ZE owes rather than what the DOCUMENT states: ").Str(pyRepr(truncateRunes(meta.EnrolmentReason, 80))).
 				Str(". 'non-normative' means the RFC imposes no MUST-level obligation on any speaker. Whether an obligation applies to Ze is a conformance judgement (ai/rules/rfc-compliance.md reserves it to the owner) -- record 'backlog' or 'blocked' instead").String())
 			continue
 		}
-		if nonNormativeReasonCitesDocument(disposition.Reason) {
+		if nonNormativeReasonCitesDocument(meta.EnrolmentReason) {
 			continue
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str("rfc/not-enrolled.txt: ").Str(stem).
-			Str(" is declared non-normative with a reason that cites nothing about the DOCUMENT: ").Str(pyRepr(truncateRunes(disposition.Reason, 80))).
+		errs = append(errs, tb.Str(at).
+			Str("is declared non-normative with a reason that cites nothing about the DOCUMENT: ").Str(pyRepr(truncateRunes(meta.EnrolmentReason, 80))).
 			Str(". 'non-normative' is the one kind that makes a claim about conformance, so its reason must rest on something a reviewer can check in the text: the RFC's IETF category (Informational, Experimental, Historic, Best Current Practice), the presence or absence of the RFC 2119 / RFC 8174 / BCP 14 key-words machinery, or the result of a capitalised MUST/SHALL/REQUIRED scan over the source. A reason that cites none of those cannot be checked or contradicted -- record 'backlog' or 'blocked' instead").String())
-	}
-	for _, stem := range sortedSet(baseline) {
-		if !stems[stem] || declared[stem] || enrolled[stem] {
-			continue
-		}
-		var tb textbuf.Buffer
-		errs = append(errs, tb.Str("rfc/short/").Str(stem).Str(".md is still in the tree, but ").Str(stem).
-			Str(" left rfc/not-enrolled.txt without entering rfc/enrolled.txt. A disposition over a LIVE summary is discharged by ENROLMENT and by nothing else: deleting the row returns the summary to the undeclared state the file exists to abolish. To retire the RFC instead, delete rfc/short/").Str(stem).Str(".md in the same commit").String())
-	}
-	return errs
-}
-
-func checkStatusCompleteness(enrolled map[string]bool, rows map[string]LedgerRow,
-	baselineRows map[string]LedgerRow, baselineRowsKnown bool, newly, baselineEnrolled map[string]bool) []string {
-	var errs []string
-	for _, stem := range sortedSet(newly) {
-		if _, held := rows[stem]; held {
-			continue
-		}
-		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(stem).
-			Str(" is newly enrolled but has no row in docs/features/rfc-status.md. Enrolling gates its MUST-level requirements, so the public ledger must disclose the RFC: add a row with a Status, an Implemented coverage note and a Remaining note. RFCs enrolled before this ratchet existed are grandfathered and unaffected").String())
-	}
-	if !baselineRowsKnown {
-		return errs
-	}
-	for _, stem := range sortedSet(enrolled) {
-		if !baselineEnrolled[stem] {
-			continue
-		}
-		if _, existed := baselineRows[stem]; !existed {
-			continue
-		}
-		if _, held := rows[stem]; held {
-			continue
-		}
-		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(stem).
-			Str(" had a row in docs/features/rfc-status.md at HEAD and does not now, while it stays enrolled. Deleting a row retires a public claim without retiring the obligation behind it, and it is the one edit that can make check_status_agreement's missing-row branch fire on unrelated work later. Restore the row, or correct it in place").String())
 	}
 	return errs
 }
@@ -176,7 +153,7 @@ func checkUnprovenSupport(requirements []Requirement, rows map[string]LedgerRow,
 		if !held || gated[stem] > 0 || !statusIsSupportClaim(row.Status) {
 			continue
 		}
-		if disposition, held := dispositions[stem]; held && disposition.Kind == dispositionNonNormative {
+		if disposition, held := dispositions[stem]; held && supportClaimExcused(disposition.Kind) {
 			continue
 		}
 		status := strings.TrimSpace(row.Status)
@@ -202,7 +179,7 @@ func checkUnprovenSupport(requirements []Requirement, rows map[string]LedgerRow,
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str("docs/features/rfc-status.md claims ").Str(stem).Str(" is '").Str(status).
 			Str("', but rfc/short/").Str(stem).Str(".md declares no MUST-level requirement, so the claim rests on an empty checklist and nothing can contradict it. Extract the RFC's obligations (/ze-rfc ").Str(stem).
-			Str("); or, if the document genuinely imposes none, record the evidence -- a non-normative disposition in rfc/not-enrolled.txt, or a manual-walk extraction sign-off whose register-reason says why zero is a property of the text, over a source the derivation does not grade 'rfc2119'. Rows naming an RFC with no summary at all are outside this check").String())
+			Str("); or, if the document genuinely imposes none, record the evidence -- `| Enrolment | non-normative |` in the summary's own Meta table, or a manual-walk extraction sign-off whose register-reason says why zero is a property of the text, over a source the derivation does not grade 'rfc2119'. A standard whose text may not be redistributed declares `| Enrolment | source-restricted |` instead").String())
 	}
 	return errs
 }
@@ -302,10 +279,9 @@ func statusPromisesSupport(status string) bool {
 // that closes it: a recorded walk of the RFC's own text where every requirement-stating
 // site is mapped to a requirement id or excluded with a reason from a closed set.
 //
-// The population is read from `rows`, the public page, and NOT from `stems`. That is the
-// whole point: checkUnprovenSupport iterates the summaries and says so in its own error
-// text, so a row naming an RFC with no summary at all is outside it. Ten such rows sit on
-// the page today, each promising support for an RFC no check in this package can see.
+// The population is every summary that declares a public row. A row naming an RFC with
+// no summary was outside every check in this package until 2026-09-01, and ten such rows
+// sat on the page; a row is now declared BY the summary, so that state cannot be written.
 //
 // The membership test is `signed`, the set evaluateExtractions ACCEPTED, and never
 // `credited`. credited() drops a sign-off whose stem is not enrolled, which is right for
@@ -313,34 +289,102 @@ func statusPromisesSupport(status string) bool {
 // and crediting would then exempt exactly the claim least covered by anything else.
 // Reading `signed` also makes a generated skeleton worth nothing, because an artifact
 // with one unclassified site earns no entry in it.
-func checkSupportedSignoff(rows map[string]LedgerRow, stems map[string]bool,
-	signed map[string]Extraction) []string {
+func checkSupportedSignoff(rows map[string]LedgerRow, signed map[string]Extraction) []string {
 	var errs []string
 	for _, stem := range sortedKeysOf(rows) {
 		row := rows[stem]
 		if !statusPromisesSupport(row.Status) {
 			continue
 		}
-		status := strings.TrimSpace(row.Status)
-		if !stems[stem] {
-			var tb textbuf.Buffer
-			errs = append(errs, tb.Str("docs/features/rfc-status.md claims ").Str(stem).Str(" is '").
-				Str(status).Str("', but there is no rfc/short/").Str(stem).
-				Str(".md at all, so there is no checklist to bound and no other check in this gate can see the claim -- check_unproven_support iterates the summaries and says so in its own text. Write the summary (/ze-rfc ").
-				Str(stem).Str("), put the stem in rfc/enrolled.txt, then walk the source and sign it off at rfc/extraction/").
-				Str(stem).Str(".json (./le rfc extraction-create stem ").Str(stem).
-				Str("). Lowering the row's Status to one that discloses the gap is a conformance decision the owner takes, never a way to clear this violation").String())
-			continue
-		}
 		if _, held := signed[stem]; held {
 			continue
 		}
+		status := strings.TrimSpace(row.Status)
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str("docs/features/rfc-status.md claims ").Str(stem).Str(" is '").
 			Str(status).Str("', but rfc/extraction/").Str(stem).
 			Str(".json is not a valid extraction sign-off, so nothing bounds what rfc/short/").
 			Str(stem).Str(".md left out: an obligation nobody extracted is owed no test, and this gate stays green for it forever. Walk the source and classify every site: ./le rfc extraction-create stem ").
 			Str(stem).Str(". A generated skeleton is not a sign-off -- an unclassified site earns no credit here. Only a status that PROMISES conformance is asked for one; 'Partial', 'Experimental', 'Unsupported' and 'Future' disclose the gap instead and are outside this check").String())
+	}
+	return errs
+}
+
+// restrictedReasonRE is what a `source-restricted` reason must cite: the body
+// that publishes the standard, or the licence that stops it being copied.
+//
+// Positive rather than a blacklist, for the reason the non-normative citation
+// requirement is positive. A reason that cites none of these cannot be checked
+// and cannot be contradicted, which is exactly what a claim excusing a public
+// support promise must not be.
+var restrictedReasonRE = regexp.MustCompile(`(?i)\bISO\b|\bIEC\b|\bITU\b|\bIEEE\b|\bANSI\b|\bETSI\b|\bcopyright\b|\blicen[cs]e\b|\bpaywall|\bnot (?:freely )?redistribut|\bnot (?:publicly|freely) available`)
+
+// checkSourceRestricted judges the reason a summary gives for declaring that
+// its standard's text can never enter this repository.
+//
+// The kind excuses a public support claim, so its reason carries the same
+// weight as a non-normative one and is held to the same discipline: it states a
+// property of the DOCUMENT's availability, and it does not judge what Ze owes.
+// Whether Ze must comply is a conformance judgement ai/rules/rfc-compliance.md
+// reserves to the owner, and a reason phrased that way would launder an
+// unextracted obligation into a decision.
+func checkSourceRestricted(at, reason string) []string {
+	if nonApplicabilityRE.MatchString(reason) {
+		var tb textbuf.Buffer
+		return []string{tb.Str(at).
+			Str("is declared source-restricted with a reason that judges what ZE owes rather than what stops the TEXT reaching this repository: ").
+			Str(pyRepr(truncateRunes(reason, 80))).
+			Str(". 'source-restricted' means the standard's own text may not be redistributed, so no checklist can ever be bounded against it. Whether an obligation applies to Ze is a separate judgement (ai/rules/rfc-compliance.md reserves it to the owner)").String()}
+	}
+	if restrictedReasonRE.MatchString(reason) {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return []string{tb.Str(at).
+		Str("is declared source-restricted with a reason that names nothing a reviewer can check: ").
+		Str(pyRepr(truncateRunes(reason, 80))).
+		Str(". This kind excuses a public support claim, so its reason must rest on the body that publishes the standard (ISO, IEC, ITU, IEEE, ANSI, ETSI) or on the licence, copyright or paywall that stops the text being copied. Where the text IS fetchable, record 'blocked' and fetch it").String()}
+}
+
+// scopeDecisionRE is what an `out-of-scope` reason must carry: the date the
+// decision was taken.
+//
+// A scope decision is the one kind whose truth rests on a person rather than on
+// the document, so the only thing a reviewer can check is WHEN it was taken and
+// therefore whether it is still current. A reason with no date cannot be aged.
+var scopeDecisionRE = regexp.MustCompile(`\b20\d{2}-\d{2}-\d{2}\b`)
+
+// checkOutOfScope refuses the two ways `out-of-scope` could become an escape.
+//
+// The first is a public support claim. Declining to build a feature and telling
+// the world Ze supports it are contradictory, and this disposition gates
+// nothing, so a Status above 'Unsupported' or 'Future' would rest on an
+// unchecked checklist with no other guard reaching it -- checkUnprovenSupport
+// lets a summary with requirements through, and this one has them all.
+//
+// The second is an undateable reason. Scope decisions are revisited; a gap
+// recorded as out-of-scope in 2026 and never dated reads in 2030 as a decision
+// somebody still stands behind.
+func checkOutOfScope(at string, meta Meta) []string {
+	var errs []string
+	if statusIsSupportClaim(meta.Status) && meta.HasRow() {
+		status := strings.TrimSpace(meta.Status)
+		if status == "" {
+			status = "(blank)"
+		}
+		var tb textbuf.Buffer
+		errs = append(errs, tb.Str(at).Str("is declared out-of-scope, so none of its ").
+			Str("requirements is gated, but its `Support status` cell claims ").Str(pyRepr(status)).
+			Str(". A feature the owner decided not to offer cannot be advertised as supported: ").
+			Str("write 'Future' when it is tracked for later, or 'Unsupported' when it is not").String())
+	}
+	if !scopeDecisionRE.MatchString(meta.EnrolmentReason) {
+		var tb textbuf.Buffer
+		errs = append(errs, tb.Str(at).Str("is declared out-of-scope with a reason carrying no ").
+			Str("date: ").Str(pyRepr(truncateRunes(meta.EnrolmentReason, 80))).
+			Str(". This is the one disposition whose truth rests on a decision rather than on the ").
+			Str("document, so the reason must say when it was taken (YYYY-MM-DD) and by whom. A ").
+			Str("scope decision nobody can age reads forever as one somebody still stands behind").String())
 	}
 	return errs
 }

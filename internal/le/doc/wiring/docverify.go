@@ -323,6 +323,32 @@ func rfcFreshnessStage(root string) (any, int) {
 			"ai/RFC-REQUIREMENTS.md is stale vs its sources -- run: ./le rfc index-update")
 	}
 
+	// The three ledger files join the same freshness comparison as the index
+	// and the shards, and by the same rule: they are GENERATED, so a hand edit
+	// to one is destroyed at the next run with nothing saying so. Reporting
+	// them stale is what tells the author before the run does.
+	ledgers, err := rfc.LedgerFiles(input.Metas)
+	if err != nil {
+		return docVerifyPage{text: tb.Reset().Str("rfc-requirements: cannot run: ").
+			Err(err).Byte('\n').String()}, 2
+	}
+	for _, rel := range rfc.LedgerPaths() {
+		body, readErr := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel))) //nolint:gosec // generated page under the named checkout
+		if os.IsNotExist(readErr) {
+			stale = append(stale, tb.Reset().Str(rel).
+				Str(" is missing -- run: ./le rfc index-update").String())
+			continue
+		}
+		if readErr != nil {
+			return docVerifyPage{text: tb.Reset().Str("rfc-requirements: cannot run: ").
+				Err(readErr).Byte('\n').String()}, 2
+		}
+		if string(body) != ledgers[rel] {
+			stale = append(stale, tb.Reset().Str(rel).
+				Str(" is stale vs the summaries that declare it -- run: ./le rfc index-update").String())
+		}
+	}
+
 	shards := rfc.RenderShards(input)
 	keep := make(map[string]bool, len(shards))
 	for _, stem := range rfc.ShardStems(collected.Requirements) {

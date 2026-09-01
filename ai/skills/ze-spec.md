@@ -174,7 +174,7 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
    - Behavior that must be preserved (unless user says otherwise)
    - Write `→ Constraint:` noting preservation requirements
 4. Trace data flow per `ai/rules/architecture.md`
-5. RFC check: verify `rfc/short/rfcNNNN.md` summaries exist for referenced RFCs, and note any `docs/features/rfc-status.md` row the spec will add or change so the standards ledger stays synced (per `ai/rules/repo-maintenance.md`)
+5. RFC check: verify `rfc/short/rfcNNNN.md` summaries exist for referenced RFCs, and note any `## Meta` `Support` row the spec will add or change, since `docs/features/rfc-status.md` is generated from those rows (per `ai/rules/repo-maintenance.md`)
 6. Fill the spec's **Key Insights** summary (minimal context to resume after compaction)
 7. Present research findings to user:
    - Current behavior (what the code does now)

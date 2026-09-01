@@ -10,6 +10,13 @@
 | Date | 2026-06-03 |
 | Updates | RFC 2545 (if approved) |
 | Depends | RFC 4760 (MP-BGP), RFC 2545 (IPv6 next hops), RFC 5492 (capabilities), RFC 8950, RFC 7606 |
+| Enrolment | enrolled |
+| Enrolment reason | Link-Local Next Hop capability for BGP (code 77): twelve MUST-level requirements, all conditioned by Section 2 on the capability being negotiated. Ze advertises the capability (extractLLNHCapabilities, internal/component/bgp/plugins/llnh/llnh.go) and implements none of the 16-octet Link-Local-only next-hop procedures behind it: linkScope.linkLocalNextHop and applyLinkLocalNextHop (internal/component/bgp/reactor/link_scope.go) emit only the RFC 2545 forms, and parseNextHops (internal/core/bgp/attribute/mpnlri.go) runs no fe80::/10 classification on a 16-octet next hop. 3-2 is met by the RFC 2545 32-octet path; 4-2 and 4-8 are met because a link-local is appended only when the peer shares a connected subnet. The rest are outstanding and named in the coverage rollup. |
+| Support | drafts 30 |
+| Support area | Link-local next-hop capability code 77 |
+| Support status | Partial |
+| Support coverage | Capability declaration only. `extractLLNHCapabilities` (`internal/component/bgp/plugins/llnh/llnh.go`) advertises the empty code 77 capability for a peer or group whose config carries a `link-local-nexthop` key that is not `disable`. The draft's own procedures are the 16-octet Link-Local-ONLY Next Hop form, and ze produces neither side of it. Send: `linkScope.linkLocalNextHop` and `applyLinkLocalNextHop` (`internal/component/bgp/reactor/link_scope.go`) emit the RFC 2545 forms only, a 16-octet GLOBAL address or the 32-octet global-then-link-local pair, and `attribute.ValidateGlobalNextHop` (`internal/core/bgp/attribute/nexthop_form.go`) refuses a link-local address in the first slot. Receive: `parseNextHops` (`internal/core/bgp/attribute/mpnlri.go`) performs no `fe80::/10` test, so a 16-octet link-local-only Next Hop is read as a Global IPv6 next hop. `parseCapability` (`internal/core/bgp/capability/capability.go`) has no case for code 77, so ze records no negotiated state and no ze path is conditioned on the capability. The requirements are listed per line in `rfc/short/draft-ietf-idr-linklocal-capability.md` and the walk is bounded by `rfc/extraction/draft-ietf-idr-linklocal-capability.json`. |
+| Support remaining | - |
 
 **Purpose:** Defines BGP capability code 77, which signals that a speaker is
 willing to send and receive an MP_REACH_NLRI Next Hop field holding an IPv6

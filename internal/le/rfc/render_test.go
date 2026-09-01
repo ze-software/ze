@@ -16,18 +16,47 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// fixtureMeta builds one fixture summary's `## Meta` table, which is where a
+// summary declares its own enrolment and its own public row.
+//
+// Three arguments, because three facts are all a case here varies: how the
+// summary is gated, why it is gated that way, and whether it renders a row on
+// the public page. `support` is `<section> <rank>` for a summary that renders a
+// row, and `supportNone` for one that renders none. The four authored cells of
+// a row are the same wherever a row exists, because no case here asserts their
+// text, so they are written once.
+//
+// A Meta table is one contiguous run of rows, so a case needing one more field
+// -- a forward lineage row, for instance -- appends it to what this answers.
+func fixtureMeta(enrolment, reason, support string) string {
+	var tb textbuf.Buffer
+	tb.Str("## Meta\n\n| Field | Value |\n|-------|-------|\n").
+		Str("| Title | Widgets |\n").
+		Str("| Enrolment | ").Str(enrolment).Str(" |\n").
+		Str("| Enrolment reason | ").Str(reason).Str(" |\n").
+		Str("| Support | ").Str(support).Str(" |\n")
+	if support == supportNone {
+		return tb.String()
+	}
+	return tb.Str("| Support area | Widgets |\n| Support status | Supported |\n").
+		Str("| Support coverage | full |\n| Support remaining | - |\n").String()
+}
+
 // renderFixture is the smallest tree the two pages can be rendered over: one
-// summary declaring one MUST-level row, and the enrolled list naming it.
+// summary declaring one MUST-level row, whose own Meta table declares it
+// enrolled and gives it a public row.
 func renderFixture(t *testing.T, extra map[string]string) RenderInput {
 	t.Helper()
 
 	files := map[string]string{
 		"rfc/short/rfc9999.md": "# RFC 9999\n\n" +
-			"- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2)\n",
-		"rfc/enrolled.txt":            "rfc9999\n",
-		"docs/features/rfc-status.md": "| RFC 9999 | Widgets | Supported | full | |\n",
+			fixtureMeta(enrolmentEnrolled,
+				"the fixture RFC, gated so the render has a population", "bgp-base 10") +
+			"\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2)\n",
 		// The carrier table derives each interop tree's tier from whether a
 		// SCHEDULED workflow names its runner, and an unreadable workflow
 		// directory is refused rather than read as "nothing runs". Every
@@ -80,7 +109,10 @@ func TestAnEnrolledRFCWithNoPublicRowIsNamedInTheBacklog(t *testing.T) {
 	// The completeness ratchet grandfathers the rowless enrolments that predate
 	// it, so they are invisible unless this table names them.
 	in := renderFixture(t, map[string]string{
-		"docs/features/rfc-status.md": "| RFC 1234 | Other | Supported | full | |\n",
+		"rfc/short/rfc9999.md": "# RFC 9999\n\n" +
+			fixtureMeta(enrolmentEnrolled, "gated, and claiming no row on the public page",
+				supportNone) +
+			"\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2)\n",
 	})
 	body := renderedIndex(t, in)
 	if !strings.Contains(body, "| `rfc9999` | yes |") {
@@ -104,10 +136,10 @@ func TestEveryEnrolledRFCHavingARowRendersTheAbsenceOfDebtOutLoud(t *testing.T) 
 
 func TestADeclaredSummaryIsRenderedAsDebtUnlessItIsNonNormative(t *testing.T) {
 	in := renderFixture(t, map[string]string{
-		"rfc/short/rfc1000.md": "# RFC 1000\n",
-		"rfc/short/rfc1001.md": "# RFC 1001\n",
-		"rfc/not-enrolled.txt": "rfc1000 non-normative the document states nothing\n" +
-			"rfc1001 backlog nobody has walked it\n",
+		"rfc/short/rfc1000.md": "# RFC 1000\n\n" + fixtureMeta(dispositionNonNormative,
+			"an Informational document with no RFC 2119 key-words machinery", supportNone),
+		"rfc/short/rfc1001.md": "# RFC 1001\n\n" + fixtureMeta(dispositionBacklog,
+			"nobody has walked it", supportNone),
 	})
 	body := renderedIndex(t, in)
 	if !strings.Contains(body, "| `rfc1000` | non-normative | no |") {
@@ -119,16 +151,39 @@ func TestADeclaredSummaryIsRenderedAsDebtUnlessItIsNonNormative(t *testing.T) {
 }
 
 func TestADispositionReasonCarryingAPipeCannotSplitItsRow(t *testing.T) {
-	// rfc/enrolled.txt already writes a grep alternation in this register, and
-	// a bare pipe closes the cell: the row gains a column, the header does not,
-	// and the tail of the reason is dropped from the published page.
+	// An enrolment reason writes a grep alternation in this register, and the
+	// reason now lives in a markdown cell at BOTH ends: the Meta table it is
+	// declared in, and the rendered row it is published in. A pipe read as a
+	// cell boundary at either end gives the row a column its header does not
+	// have and drops the tail of the reason.
+	//
+	// So the reason escapes its pipe as `\|` in the Meta cell, and
+	// splitMetaCells is what keeps the row whole: a reader cutting there would
+	// take `B'` for the next field and shift every cell after it.
+	const reason = `waits on grep 'A\|B'`
+	cells := splitMetaCells(`| Enrolment reason | ` + reason + ` |`)
+	if len(cells) != 2 || cells[1] != reason {
+		t.Fatalf("the escaped pipe split the Meta row into %q", cells)
+	}
+
 	in := renderFixture(t, map[string]string{
-		"rfc/short/rfc1000.md": "# RFC 1000\n",
-		"rfc/not-enrolled.txt": "rfc1000 blocked waits on grep 'A|B'\n",
+		"rfc/short/rfc1000.md": "# RFC 1000\n\n" +
+			fixtureMeta(dispositionBlocked, reason, supportNone),
 	})
 	body := renderedIndex(t, in)
-	if !strings.Contains(body, `waits on grep 'A\|B'`) {
-		t.Errorf("the pipe was not escaped:\n%s", body)
+	rendered := ""
+	for line := range strings.SplitSeq(body, "\n") {
+		if strings.HasPrefix(line, "| `rfc1000` | "+dispositionBlocked+" |") {
+			rendered = line
+			break
+		}
+	}
+	if rendered == "" {
+		t.Fatalf("the disposition rendered no row at all:\n%s", body)
+	}
+	// Four cells, and the last of them still ends where the reason ends.
+	if got := splitMetaCells(rendered); len(got) != 4 || !strings.HasSuffix(got[3], `B'`) {
+		t.Errorf("the pipe split the rendered row into %q", got)
 	}
 }
 
@@ -137,8 +192,9 @@ func TestAnEnrollableRFCIsNamedSoTheNextOneToFinishIsAtTheTop(t *testing.T) {
 	// enrolled. The branch exists so the operator is told which RFC costs
 	// nothing to gate.
 	in := renderFixture(t, map[string]string{
-		"rfc/enrolled.txt":     "",
-		"rfc/not-enrolled.txt": "rfc9999 backlog not gated yet\n",
+		"rfc/short/rfc9999.md": "# RFC 9999\n\n" +
+			fixtureMeta(dispositionBacklog, "not gated yet", supportNone) +
+			"\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2)\n",
 	})
 	body := renderedIndex(t, in)
 	// The block renders only when something IS enrollable, so its absence is
@@ -150,9 +206,8 @@ func TestAnEnrollableRFCIsNamedSoTheNextOneToFinishIsAtTheTop(t *testing.T) {
 
 	covered := renderFixture(t, map[string]string{
 		"rfc/short/rfc9999.md": "# RFC 9999\n\n" +
-			"- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2) {gap: nothing sends it}\n",
-		"rfc/enrolled.txt":     "",
-		"rfc/not-enrolled.txt": "rfc9999 backlog not gated yet\n",
+			fixtureMeta(dispositionBacklog, "not gated yet", supportNone) +
+			"\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2) {gap: nothing sends it}\n",
 	})
 	body = renderedIndex(t, covered)
 	if !strings.Contains(body, "**Enrollable now** (1)") {
@@ -210,8 +265,11 @@ func TestARequirementProvenOnlyByNightlyEvidenceIsMarkedOnItsOwnRow(t *testing.T
 
 func TestASupersededSummaryCarriesItsSuccessorInEveryPlaceItIsNamed(t *testing.T) {
 	in := renderFixture(t, map[string]string{
-		"rfc/short/rfc9999.md": "# RFC 9999\n\n| Obsoleted-by | RFC 9998 |\n\n" +
-			"- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2) " +
+		"rfc/short/rfc9999.md": "# RFC 9999\n\n" +
+			fixtureMeta(enrolmentEnrolled,
+				"the fixture RFC, gated so the render has a population", "bgp-base 10") +
+			"| Obsoleted-by | RFC 9998 |\n" +
+			"\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2) " +
 			"{superseded: unresolved; the successor is not here} {gap: nothing sends it}\n",
 	})
 	body := renderedIndex(t, in)
@@ -239,15 +297,13 @@ func TestASummaryWithNoObligationIsJudgedAgainstItsOwnSourceText(t *testing.T) {
 	// "consistent: source declares none" reads a wire specification as
 	// non-normative.
 	in := renderFixture(t, map[string]string{
-		"rfc/short/rfc1000.md": "# RFC 1000\n",
+		"rfc/short/rfc1000.md": "# RFC 1000\n\n" + fixtureMeta(dispositionBacklog, "owed", supportNone),
 		"rfc/full/rfc1000.txt": "A resolver must answer the query.\n",
-		"rfc/short/rfc1001.md": "# RFC 1001\n",
+		"rfc/short/rfc1001.md": "# RFC 1001\n\n" + fixtureMeta(dispositionBacklog, "owed", supportNone),
 		"rfc/full/rfc1001.txt": "This document describes an idea.\n",
-		"rfc/short/rfc1002.md": "# RFC 1002\n",
+		"rfc/short/rfc1002.md": "# RFC 1002\n\n" + fixtureMeta(dispositionBacklog, "owed", supportNone),
 		"rfc/full/rfc1002.txt": "A speaker MUST answer the query.\n",
-		"rfc/short/rfc1003.md": "# RFC 1003\n",
-		"rfc/not-enrolled.txt": "rfc1000 backlog owed\nrfc1001 backlog owed\n" +
-			"rfc1002 backlog owed\nrfc1003 backlog owed\n",
+		"rfc/short/rfc1003.md": "# RFC 1003\n\n" + fixtureMeta(dispositionBacklog, "owed", supportNone),
 	})
 	body := renderedIndex(t, in)
 	for _, want := range []string{
@@ -268,9 +324,9 @@ func TestASummaryCapturingOnlyAdvisoryRowsStillCountsAsCapturingNothing(t *testi
 	// to name summaries that captured no OBLIGATION.
 	in := renderFixture(t, map[string]string{
 		"rfc/short/rfc1000.md": "# RFC 1000\n\n" +
-			"- [ ] [RFC1000-2-1] [SHOULD] A speaker SHOULD answer (§2)\n",
+			fixtureMeta(dispositionBacklog, "owed", supportNone) +
+			"\n- [ ] [RFC1000-2-1] [SHOULD] A speaker SHOULD answer (§2)\n",
 		"rfc/full/rfc1000.txt": "A speaker MUST answer the query.\n",
-		"rfc/not-enrolled.txt": "rfc1000 backlog owed\n",
 	})
 	body := renderedIndex(t, in)
 	if !strings.Contains(body, "| `rfc1000` | 1 | 0 | **RE-AUTHOR**") {
@@ -281,7 +337,10 @@ func TestASummaryCapturingOnlyAdvisoryRowsStillCountsAsCapturingNothing(t *testi
 func TestASummaryDeclaringNoMUSTLevelRowRendersNoSectionAtAll(t *testing.T) {
 	// The zero boundary the prune relies on: a stem the render never produced is
 	// exactly a stem the write deletes.
-	in := renderFixture(t, map[string]string{"rfc/short/rfc1000.md": "# RFC 1000\n"})
+	in := renderFixture(t, map[string]string{
+		"rfc/short/rfc1000.md": "# RFC 1000\n\n" +
+			fixtureMeta(dispositionBacklog, "owed", supportNone),
+	})
 	if _, held := RenderShards(in)["rfc1000"]; held {
 		t.Error("a summary with no requirement rendered a shard")
 	}
@@ -497,9 +556,9 @@ func generatorTree(t *testing.T, extra map[string]string) string {
 
 	files := map[string]string{
 		"rfc/short/rfc9999.md": "# RFC 9999\n\n" +
-			"- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2) {gap: nothing sends it}\n",
-		"rfc/enrolled.txt":            "rfc9999\n",
-		"docs/features/rfc-status.md": "| RFC 9999 | Widgets | Supported | full | |\n",
+			fixtureMeta(enrolmentEnrolled,
+				"the fixture RFC, gated so the generator has a population", "bgp-base 10") +
+			"\n- [ ] [RFC9999-2-1] [MUST] A speaker MUST answer (§2) {gap: nothing sends it}\n",
 		// The carrier table derives each interop tree's tier from whether a
 		// SCHEDULED workflow names its runner, and an unreadable workflow
 		// directory is refused rather than read as "nothing runs". Every
@@ -614,7 +673,9 @@ func TestTheGeneratorRefusesToWriteWhenASummaryDidNotParse(t *testing.T) {
 	// parse renders nothing, drops out of the rendered set, and its tracked file
 	// is removed as an orphan while the run exits 0.
 	tree := generatorTree(t, map[string]string{
-		"rfc/short/rfc1000.md":        "# RFC 1000\n\n- [ ] [MUST] no id here at all\n",
+		"rfc/short/rfc1000.md": "# RFC 1000\n\n" +
+			fixtureMeta(dispositionBacklog, "owed", supportNone) +
+			"\n- [ ] [MUST] no id here at all\n",
 		"rfc/requirements/rfc1000.md": "# RFC 1000 -- would be deleted\n",
 	})
 	_, err := IndexUpdate(tree)
@@ -639,8 +700,6 @@ func TestTheGeneratorRefusesToWriteWhenTheRenderProducesNoRowAtAll(t *testing.T)
 	// The same failure at full scale: an absent rfc/short/ leaves every stem
 	// unrendered and every tracked file an orphan.
 	tree := fixtureTree(t, map[string]string{
-		"rfc/enrolled.txt":            "",
-		"docs/features/rfc-status.md": "",
 		"rfc/requirements/rfc9999.md": "# RFC 9999 -- would be deleted\n",
 		".github/workflows/ci.yml":    "on: push\njobs:\n  a:\n    steps:\n      - run: ./le verify deps unit-cached\n",
 	})

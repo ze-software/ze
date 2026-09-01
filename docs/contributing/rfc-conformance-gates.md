@@ -14,13 +14,13 @@ names in snake_case. The Go names below are the current ones.
 | Path | Holds |
 |------|-------|
 | `rfc/full/<stem>.txt`, `rfc/drafts/` | The RFC's own text. The source, and the only thing a conformance claim may quote |
-| `rfc/short/<stem>.md` | The extracted summary: one checklist row per requirement, plus a Meta table |
-| `rfc/enrolled.txt`, `rfc/not-enrolled.txt` | Which summaries are gated, and the recorded reason for each that is not |
+| `rfc/short/<stem>.md` | The extracted summary, and the ONE place every fact about that RFC is declared. One checklist row per requirement, plus the `## Meta` table. That table states whether the RFC is gated, and what the public page claims for it |
+| `rfc/enrolled.txt`, `rfc/not-enrolled.txt` | GENERATED from the Meta tables by `./le rfc index-update`: which summaries are gated, and the recorded reason for each that is not |
 | `rfc/extraction/<stem>.json` | The extraction sign-off: the walk of the RFC text, recorded so a machine can re-check it |
 | `rfc/audit/<stem>.json` | A recorded `/ze-rfc-audit` verdict, and the fingerprints that keep it fresh |
 | `rfc/discrimination/<stem>.json` | The recorded breaks under which a tagged unit goes red: one record per requirement, polarity and tagged unit |
 | `rfc/drain-budget.txt` | The extraction drain schedule: a start date and a rate, and nothing else |
-| `docs/features/rfc-status.md` | The PUBLIC support claim, one row per enrolled RFC |
+| `docs/features/rfc-status.md` | GENERATED from the Meta tables by `./le rfc index-update`: the PUBLIC support claim, one row per summary that declares a section |
 | `ai/RFC-REQUIREMENTS.md` | The generated backlog: the coverage rollup, the audit coverage, the claim-discrimination counts and the extraction sign-off counts |
 | `rfc/requirements/<stem>.md` | One RFC's requirement table: six cells per requirement, generated from the summary and the tags |
 
@@ -36,7 +36,7 @@ listed rather than absorbed into a percentage.
 ## The ratchets
 
 `./le rfc check` reads the WORKING TREE to judge coverage, and a tree cannot
-tell "never proven" from "stopped being proven". Nine comparisons against git
+tell "never proven" from "stopped being proven". Eight comparisons against git
 HEAD supply that difference. Each fires only on a real downgrade, so a green run
 means the evidence held rather than that nobody looked.
 
@@ -46,10 +46,9 @@ means the evidence held rather than that nobody looked.
 | Proof is monotonic | `checkCoverageRatchet` | a requirement loses a polarity it had at HEAD. A `{gap}` is NOT an escape: it is the move being blocked |
 | Gating is monotonic | `checkLevelRatchet` | a requirement leaves the MUST-level population, because its level was gated at HEAD and is advisory now. That is the cheapest route from red to green, cheaper than `{gap}` and cheaper than deleting the row, because the id and the tests survive while every coverage obligation attached to the row disappears. The one escape is a `Correction <YYYY-MM-DD>:` paragraph in the same summary, naming the id and quoting at least 24 characters of the RFC verbatim. A row GAINING a gated level is never reported |
 | Requirements do not vanish | `checkRetiredRequirements` | a requirement id of an enrolled RFC disappears from its summary. Without this, deleting the checklist line is cheaper than `{gap}`, which costs a public disclosure row, and the ratchet would pressure people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed |
-| Adding an RFC adds checking | `checkNewSummaries` | a summary NEW since HEAD declares gated MUSTs and is not in `rfc/enrolled.txt`, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords. A document's own RFC 2119 key-words paragraph does not count, and neither does its reference-list entry for RFC 2119 or RFC 8174: both say where the words come from, and neither binds anybody |
+| Adding an RFC adds checking | `checkNewSummaries` | a summary NEW since HEAD declares gated MUSTs and does not declare itself enrolled, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords. A document's own RFC 2119 key-words paragraph does not count, and neither does its reference-list entry for RFC 2119 or RFC 8174: both say where the words come from, and neither binds anybody |
 | Non-unit evidence is monotonic, per tier | `checkEvidenceRatchet` | a requirement loses an evidence KIND it had at HEAD: its `.ci` becomes a unit test, or a verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution leaving the tag COUNT unchanged still fires. A unit test proves the algorithm; only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | Extraction is monotonic | `checkExtractionRatchet` | a stem that carried a sign-off at HEAD carries none now, or a signed stem's exclusion count RISES without a `resign-reason` and a bumped `signed-off` date. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming a hatch where every unmapped site is excluded with a shrug |
-| Public disclosure is monotonic | `checkStatusCompleteness` | an RFC enrolled since HEAD has no row in `docs/features/rfc-status.md`, or a row that existed at HEAD is gone while its RFC stays enrolled. Enrolment gates that RFC's MUSTs, so the public page must say the RFC exists |
 | A claim keeps its proof, and a new claim owes one | `checkDiscriminationRatchet` | a tagged unit the tip commit added against `HEAD^` carries no discrimination record, a record committed at HEAD is deleted while its tag stands, or a recorded proof no longer verifies against the tree. This is the only ratchet that reads the PROSE half of a tag: `claim-sha` fires when the sentence is reworded, because a proof of the old claim is not a proof of the new one |
 
 `checkIDAllocation` and `checkAuditVerdictRatchet` (`internal/le/rfc/check_ratchets.go`,
@@ -60,6 +59,21 @@ Summaries that predate HEAD are the existing backlog and are deliberately
 grandfathered. A rule that reds the gate on unrelated work gets removed rather
 than obeyed. Where git cannot answer, every ratchet judges nothing rather than
 judging everything.
+
+The enrolled baseline is `baselineMetas` (`internal/le/rfc/check_baseline.go`).
+It parses the `## Meta` table of every summary git HEAD holds. A summary that
+does not parse there is skipped rather than emptying the baseline. One
+unreadable file at HEAD must not empty every ratchet's population.
+`checkRetiredRequirements`, `checkLevelRatchet`, `checkCoverageRatchet` and
+`checkEvidenceRatchet` run only where the current enrolled set intersects that
+baseline. A baseline nobody can read disarms all four.
+
+`baselineMetasBeforeMigration` reads the retired `rfc/enrolled.txt` and
+`rfc/not-enrolled.txt` out of GIT HISTORY. It is reached only when no summary at
+HEAD declares an enrolment at all. That is the ability to compare against a
+commit written before the declaration moved, and never a fallback in the live
+path. Without it, the commit that moved the declaration is the one commit whose
+baseline is unreadable, over exactly the change those four ratchets judge.
 
 ### The drain schedule
 
@@ -100,19 +114,36 @@ rate boundaries.
 ## The public ledger's edges
 
 `docs/features/rfc-status.md` is the PUBLIC claim, and a `{gap}` annotation is
-the private admission. `checkStatusAgreement` compares the two, but it reaches
-for a row only when a `{gap}` exists. Three classes of defect sat outside it, so
-each is a hard requirement rather than a HEAD comparison.
+the private admission. Both are now written in one file: the summary declares
+its own row in its `## Meta` table, and the page is rendered from it.
+
+That retired five refusals, because each compared two copies of one fact. Each
+of the five is now UNREPRESENTABLE rather than refused:
+
+- a summary in neither disposition file
+- a stem in both
+- a disposition naming a summary that does not exist
+- a newly enrolled RFC with no public row
+- a row naming an RFC with no summary
+
+`checkStatusCompleteness` is gone, `checkSummaryDisposition` lost three of its
+branches, and `checkSupportedSignoff` lost a population it can never judge.
+Nothing was weakened: deleting a copy is the only free simplification.
+
+`checkStatusAgreement` still compares the claim against the admission, and it
+reaches for a row only when a `{gap}` exists. Four classes of defect sit outside
+it, so each is a hard requirement rather than a HEAD comparison.
 
 | Guard | Refuses |
 |-------|---------|
-| `checkSummaryDisposition` | a summary in `rfc/short/` that is in neither `rfc/enrolled.txt` nor `rfc/not-enrolled.txt`. Also a stem in BOTH, a disposition naming a summary that does not exist, and a disposition deleted while the stem never reaches `rfc/enrolled.txt`. Also a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states. Every summary needs a recorded disposition distinguishing "the RFC imposes nothing", "nobody extracted it", and "we do not have the text" |
-| `checkUnprovenSupport` | a support claim over a summary that declares ZERO gated requirements. A claim is any Status other than `Unsupported` or `Future`, an empty cell included. Two ledgers agreeing on NOTHING is the cheapest way to look green. Two escapes exist, and both are evidence rather than assertion: a `non-normative` disposition whose reason states a property of the text, or a VALID `manual-walk` extraction sign-off carrying a `register-reason`. The second lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero, with no fabricated MUST |
+| `checkSummaryDisposition` | a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states, or that cites nothing a reviewer can check. `non-normative` is the one disposition that claims anything about conformance. Its reason rests on the document: the IETF category, an RFC 2119 / RFC 8174 / BCP 14 key-words paragraph, or a capitalized MUST/SHALL/REQUIRED scan of the source |
+| `checkSourceRestricted` | a `source-restricted` reason that names neither the body publishing the standard (ISO, IEC, ITU, IEEE, ANSI, ETSI) nor the license, copyright or paywall that stops the text being copied. The kind excuses a public support claim, so its reason carries a non-normative one's weight and is held to the same discipline. It is also the only PERMANENT disposition: where the text IS fetchable the kind is `blocked`, and a fetch discharges it |
+| `checkUnprovenSupport` | a support claim over a summary that declares ZERO gated requirements. A claim is any Status other than `Unsupported` or `Future`, an empty cell included. A claim and a checklist that agree on NOTHING is the cheapest way to look green. Three escapes exist, and each is evidence rather than assertion. They are a `non-normative` disposition whose reason states a property of the text, a `source-restricted` one, and a VALID `manual-walk` sign-off with a `register-reason`. The last one lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero |
 | `checkGapCountAgreement` | a Remaining cell whose spelled number, sitting immediately before MUST or SHALL, disagrees with the real `{gap}` count. The COUNT is the only fact on that page a machine can own: it says how many annotations exist, never that their classifications are right |
 
-Un-enrolment exempts only the MISSING-ROW branch. An un-enrolled RFC with no row
-makes no public claim to contradict; one that HAS a row was contradicting its own
-row in public.
+Un-enrolment exempts only the MISSING-ROW branch of `checkStatusAgreement`. An
+un-enrolled RFC with no row makes no public claim to contradict; one that HAS a
+row was contradicting its own row in public.
 
 ## The superseded marker
 
@@ -163,9 +194,9 @@ that fixes that bound, and it is a precondition of a new enrolment
 | Read the published backlog | `ai/RFC-REQUIREMENTS.md`, "Extraction sign-off" |
 | Read the counts machine-readably | `./le rfc extraction-status` |
 
-Before you enrol `rfc/short/<stem>.md` in `rfc/enrolled.txt`, walk the RFC's own
-text section by section and confirm that every MUST, MUST NOT, SHALL, SHALL NOT
-and REQUIRED has a checklist row. When `rfc/full/` lacks the source, fetch it
+Before you set the summary's `Enrolment` row to `enrolled`, walk the RFC's own
+text section by section. Confirm that every MUST, MUST NOT, SHALL, SHALL NOT and
+REQUIRED has a checklist row. When `rfc/full/` lacks the source, fetch it
 first, because "verified against the RFC" is not reproducible without it:
 
     curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt
@@ -182,7 +213,7 @@ IS a sign-off, so that one is written in place as before.
 hidden.** Credit and the backlog must describe one set, so a walk completed
 before its RFC enrols raises no count. `./le rfc check` prints that set on its
 own line so the walk is never silently uncounted, and it starts counting the day
-its stem enters `rfc/enrolled.txt`.
+its summary declares `enrolled`.
 
 Summaries enrolled before the gate existed are grandfathered and published as a
 counted backlog. Grandfathering is implemented as SCOPE (new since HEAD), never
@@ -214,8 +245,9 @@ before you meet one:
   behavior exists. An excluded site says the obligation never bound Ze, and the
   kind names which decision put it out of reach. `feature-out-of-scope` is the
   kind for an OPTIONAL feature Ze declined to offer: the absent FEATURE is
-  disclosed in `docs/features/rfc-status.md` as an implementation gap a later
-  scope decision can revisit, and never as a conformance gap.
+  disclosed on `docs/features/rfc-status.md`, through the summary's own
+  `Support status` and `Support remaining` rows, as an implementation gap a
+  later scope decision can revisit, and never as a conformance gap.
 
 ### Two signals that an extraction is missing
 

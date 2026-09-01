@@ -24,36 +24,56 @@ Generate a structured implementation summary from an RFC text file.
    must be enrolled in the same change** (`check_new_summaries`): writing obligations down
    and gating none of them is how a compliance claim rots. Enrolling does not mean every
    MUST is met — classify each honestly as tested, `{single-polarity}`, `{gap}` (with a
-   non-"Supported" `docs/features/rfc-status.md` row) or `{not-applicable}`. The gate also
-   fails a new summary that does not parse, or that captures zero requirements while
+   non-"Supported" `Support status` row in the summary's own `## Meta` table) or
+   `{not-applicable}`. The gate also fails a new summary that does not parse, or that
+   captures zero requirements while
    `rfc/full/<stem>.txt` contains MUST-level keywords. **Enrolling a stem that was not
    enrolled at HEAD also requires an extraction sign-off** (`rfc/extraction/<stem>.json`);
    see "Extraction sign-off" below.
 
-6b. ENROL OR DECLARE (BLOCKING). Every summary under `rfc/short/` is in `rfc/enrolled.txt`
-   or in `rfc/not-enrolled.txt`. A summary in neither reds `./le rfc check`
-   (`check_summary_disposition`). Un-enrolment with no recorded reason cannot be told apart
-   from work nobody has got to yet.
+6b. DECLARE ENROLMENT AND THE PUBLIC ROW (BLOCKING). Both are declared in the summary's
+   own `## Meta` table, and nowhere else. `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and
+   `docs/features/rfc-status.md` are GENERATED from those tables by `./le rfc index-update`,
+   so an edit to one of the three is lost at the next run. The summary parser REFUSES an
+   absent or unrecognized value and never defaults (`internal/le/rfc/meta.go` `ParseMeta`).
+   A summary that declares nothing does not parse. An RFC leaves the gated population by a
+   decision, never by an absence.
 
-   When you do not enrol, add the row `<stem>` TAB `<kind>` TAB `<reason>`, kind one of:
+   | Meta row | Value |
+   |----------|-------|
+   | `Enrolment` | one of `enrolled`, `backlog`, `blocked`, `non-normative`, `source-restricted` |
+   | `Enrolment reason` | what makes that kind true. Never blank |
+   | `Support` | `-` for no public row, or `<section-key> <rank>`. The keys are the sections `statusSections` declares (`internal/le/rfc/render_ledger.go`). The rank orders this RFC inside its section, because the page's reading order is authored |
+   | `Support name` | the first cell, ONLY where an `rfc<number>` stem cannot derive it. `rfc/short/iso-iec-10589.md` is the one summary that writes it |
+   | `Support area`, `Support status`, `Support coverage` | the authored cells, moved verbatim onto the page. Required whenever `Support` names a section |
+   | `Support remaining` | what is not complete, or `-`. The four-column `drafts` section has no such column, so a row there writes `-` |
+
+   Enrolling is ONE edit to ONE file: write `| Enrolment | enrolled |` with its reason,
+   then run `./le rfc index-update`. Two states are unrepresentable now rather than
+   refused: a stem in both disposition files, and a disposition naming a summary that does
+   not exist. One field holds one value, and it dies with the summary that carries it.
+
+   The four kinds that are not `enrolled`:
 
    - `non-normative` — the DOCUMENT imposes no MUST-level obligation on any speaker. Say
      what makes that true of the TEXT: its IETF category, the absence of an RFC 2119
      key-words section, a keyword scan. It must NOT say the obligation does not apply to Ze.
      That is a conformance judgement `ai/rules/rfc-compliance.md` reserves to the owner. The
      gate rejects a reason phrased that way.
+   - `source-restricted` — DECISION, and the only permanent one. The standard's own text
+     cannot be redistributed, so it can never sit under `rfc/full/` and `check_enrolment`
+     can never accept an enrolment. Name the publishing body (ISO, IEC, ITU, IEEE, ANSI, ETSI)
+     or the license, copyright or paywall that stops the copy. Where the text IS fetchable
+     the kind is `blocked` instead, and a fetch discharges it.
    - `backlog` — DEBT. The extraction is owed, or its obligations are not yet proven.
    - `blocked` — DEBT. Something outside the summary prevents enrolment, most often a
      missing `rfc/full/<stem>.txt`.
 
-   A row leaves `rfc/not-enrolled.txt` only by arriving in `rfc/enrolled.txt`. A deletion
-   returns the summary to the undeclared state, and the gate refuses that too.
-
-   `check_unproven_support` reds separately when the public `docs/features/rfc-status.md`
-   row claims support and the summary declares zero gated requirements. Extract the
-   obligations. Or record the evidence that zero is a property of the document: a
-   `non-normative` disposition, or a `manual-walk` sign-off whose `register-reason` says
-   why.
+   `check_unproven_support` reds separately when the public row claims support and the
+   summary declares zero gated requirements. Extract the obligations. Or record the
+   evidence that zero is a property of the document: a `non-normative` or
+   `source-restricted` disposition, or a `manual-walk` sign-off whose `register-reason`
+   says why.
 7. VERIFY: Re-read RFC and summary, check:
    - ALL wire formats captured with ASCII diagrams?
    - ALL MUST requirements listed?
@@ -132,6 +152,8 @@ yours behind it, a prior commit skipped the regen, so commit that refresh on its
 ### Meta
 - RFC title, number, status, date
 - Obsoletes / Updates / Obsoleted-by
+- `Enrolment` and `Enrolment reason`, and the `Support` rows (step 6b). The parser
+  refuses the summary without them, so a new file cannot omit them
 - Purpose (1-2 sentences)
 - Scope: AFI/SAFI if BGP extension
 
@@ -289,7 +311,7 @@ rejected by `./le rfc check`.
 | Annotation | Meaning | Gate behavior |
 |------------|---------|---------------|
 | `{not-applicable: why}` | Not applicable to Ze (protocol not implemented, role not played) | Passes. MUST NOT coexist with any test tag |
-| `{gap: why; ref}` | Known, deliberate divergence | Passes, but MUST be disclosed in that RFC's `docs/features/rfc-status.md` row. Not a place to hide an accident |
+| `{gap: why; ref}` | Known, deliberate divergence | Passes, but MUST be disclosed in that RFC's public row, which is declared by the `Support status` and `Support remaining` rows of its own `## Meta` table. Not a place to hide an accident |
 | `{single-polarity: positive\|negative; why}` | Genuinely testable only one way | Requires tags of that polarity only, instead of the usual pair |
 
 **These are not escape hatches.** If a requirement has no test because nobody wrote one
@@ -495,9 +517,10 @@ Step-by-step, pseudocode if RFC provides it.
   fails on a stale index and on a stale per-RFC file
 - Never annotate `{not-applicable}` / `{gap}` to reach green. Write the test, or leave
   the RFC un-enrolled and say so
-- Enrollment (`rfc/enrolled.txt`) means "every MUST here is CLASSIFIED": tested, or
-  annotated with a reason that names what is missing. A NEW summary declaring gated MUSTs
-  must be enrolled in the same change; only the pre-existing backlog is grandfathered
+- Enrolment (`| Enrolment | enrolled |` in the summary's `## Meta` table) means "every
+  MUST here is CLASSIFIED": tested, or annotated with a reason that names what is
+  missing. A NEW summary declaring gated MUSTs must be enrolled in the same change;
+  only the pre-existing backlog is grandfathered
 - Coverage is monotonic. A requirement that had a positive and a negative test cannot be
   demoted to `{gap}` later: `check_coverage_ratchet` compares against HEAD and an
   annotation does not substitute for proof that already existed
@@ -513,4 +536,4 @@ Step-by-step, pseudocode if RFC provides it.
 | Regenerate the requirement ledger | `./le rfc index-update` → `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/` |
 | Read one RFC's requirement → test rows | Read `rfc/requirements/<stem>.md` after `./le rfc index-update` |
 | Re-audit that tests still enforce letter and spirit | `/ze-rfc-audit <rfc>` |
-| Public per-RFC support status | `docs/features/rfc-status.md` (product ledger; must agree with `{gap}` annotations) |
+| Public per-RFC support status | Declare it in the summary's `## Meta` `Support` rows. `./le rfc index-update` renders `docs/features/rfc-status.md` from them, and it must agree with the `{gap}` annotations |

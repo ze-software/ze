@@ -44,9 +44,12 @@ type RenderInput struct {
 	Carriers     []Carrier
 	Rows         map[string]LedgerRow
 	Dispositions map[string]Disposition
-	Successors   map[string]string
-	Audits       map[string]Audit
-	States       map[string]Freshness
+	// Metas is what every summary declares about itself, and is what Rows,
+	// Dispositions, Enrolled and Successors are each derived from.
+	Metas      map[string]Meta
+	Successors map[string]string
+	Audits     map[string]Audit
+	States     map[string]Freshness
 	// Covers is the tagged unit each tag sits in, Discrimination is every
 	// stored proof re-verified against this tree, and Unscanned is the
 	// `RFC requirement:` comments in production Go that no carrier claims.
@@ -60,11 +63,11 @@ type RenderInput struct {
 	Unscanned      []UnscannedTag
 }
 
-// NewRenderInput derives everything the two pages need from one checkout.
+// NewRenderInput derives everything the generated pages need from one checkout.
 //
 // Rows and Dispositions are filled here only when the caller left them nil, so
-// a gate that has already parsed the public page for its own checks shares that
-// parse rather than reparsing it.
+// a gate that has already derived them for its own checks shares that
+// derivation rather than repeating it.
 func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 	dispositions map[string]Disposition) (RenderInput, error) {
 	in := RenderInput{
@@ -83,18 +86,19 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 	if in.Carriers, err = carriers(tree); err != nil {
 		return RenderInput{}, err
 	}
-	if in.Successors, err = summarySuccessors(tree, in.Stems); err != nil {
-		return RenderInput{}, err
-	}
-	if in.Rows == nil {
-		if in.Rows, err = loadStatusLedger(tree); err != nil {
+	metas := collected.Metas
+	if metas == nil {
+		if metas, err = summaryMetas(tree, in.Stems); err != nil {
 			return RenderInput{}, err
 		}
+	}
+	in.Metas = metas
+	in.Successors = successorsFrom(metas)
+	if in.Rows == nil {
+		in.Rows = rowsFrom(metas)
 	}
 	if in.Dispositions == nil {
-		if in.Dispositions, err = loadDispositions(tree); err != nil {
-			return RenderInput{}, err
-		}
+		in.Dispositions = dispositionsFrom(metas)
 	}
 	if in.Audits, err = loadAudits(tree, in.Enrolled); err != nil {
 		return RenderInput{}, err
@@ -467,7 +471,7 @@ func RenderIndex(in RenderInput) (string, error) {
 			Str(" files.").String(), "")
 	}
 	out = append(out,
-		"An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement "+
+		"An RFC is **enrolled** (`| Enrolment | enrolled |` in its summary's Meta table) when every MUST-level requirement "+
 			"it declares is covered by a positive AND a negative test, or annotated. "+
 			"Un-enrolled RFCs are listed here but not gated: that remainder is tracked, "+
 			"not hidden (`ai/rules/testing.md`, Back-Fill New Test Types).",

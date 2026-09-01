@@ -566,29 +566,37 @@ never sums the two, because a nightly tier is not merge-gate proof.
   - `./le rfc extraction-status` prints the sign-off counts.
   - `./le rfc reseal` re-stamps an audit verdict after a mechanical edit.
 
-  For an enrolled RFC (`rfc/enrolled.txt`), the gate fails unless every MUST has
-  its pair or a reasoned annotation. Writing a summary does not enroll an RFC.
+  For an enrolled RFC the gate fails unless every MUST has its pair or a
+  reasoned annotation. Writing a summary does not enrol an RFC.
   <!-- source: internal/le/rfc/actions.go -- Actions -->
-- **Enrol it, or declare why not.** Every summary under `rfc/short/` is in
-  `rfc/enrolled.txt` or in `rfc/not-enrolled.txt`. One in neither reds the gate.
+- **Declare enrolment in the summary, and the public row with it.** Both live in
+  the `## Meta` table of `rfc/short/<stem>.md`, and nowhere else.
+  `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md` are
+  generated from those tables by `./le rfc index-update`. A hand edit to one of the
+  three is lost at the next run. Write `| Enrolment | <kind> |` beside
+  `| Enrolment reason | <why> |`, kind one of `enrolled`, `non-normative`,
+  `backlog`, `blocked` or `source-restricted`. A summary that declares neither row
+  does not parse, so the state that used to red the gate cannot be written now.
+
   Un-enrolment used to be the one state that carried no information. So "the RFC
   imposes nothing", "nobody extracted it" and "we do not even have the text" all
-  looked identical. A disposition row is `<stem>` TAB `<kind>` TAB `<reason>`, with
-  kind one of `non-normative`, `backlog` or `blocked`.
+  looked identical.
 
   Only `non-normative` is a claim about conformance. Its reason must state a property
   of the DOCUMENT: its category, a missing RFC 2119 section, a keyword scan. It must
-  never say the obligation does not apply to Ze. `backlog` and `blocked` are debt,
-  and the ledger renders them as debt. A row leaves the file only by arriving in
-  `rfc/enrolled.txt`.
+  never say the obligation does not apply to Ze. `source-restricted` is the permanent
+  kind: the standard's own text cannot be redistributed, so no enrolment is ever
+  reachable. Its reason names the publishing body or the license. `backlog` and
+  `blocked` are debt, and the ledger renders them as debt.
 
-  Two related reds come from the same place. First, a `docs/features/rfc-status.md`
-  row that claims support over a summary with zero gated requirements. The escape is
-  evidence that zero is real: a `non-normative` disposition, or a `manual-walk`
-  extraction sign-off whose `register-reason` says why. Second, a Remaining cell that
-  spells a gap count immediately before MUST or SHALL must agree with the summary's
-  `{gap}` count.
-  <!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkUnprovenSupport, checkGapCountAgreement -->
+  Two related reds come from the same place. First, a public row that claims support
+  over a summary with zero gated requirements. The escape is evidence that zero is
+  real: a `non-normative` or `source-restricted` disposition, or a `manual-walk`
+  extraction sign-off whose `register-reason` says why. Second, a `Support remaining`
+  cell that spells a gap count immediately before MUST or SHALL must agree with the
+  summary's `{gap}` count.
+  <!-- source: internal/le/rfc/meta.go -- ParseMeta, readEnrolment, readSupport -->
+  <!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkUnprovenSupport, checkGapCountAgreement -->
 - **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
   exists, but it cannot read the test. The audit reads the RFC itself and each
   tagged test. It then judges whether the test would fail if the code stopped
@@ -630,8 +638,8 @@ Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 ```
 [ ] Every MUST-level line in rfc/short/rfcNNNN.md has an id (allocated by /ze-rfc)
 [ ] Each gated MUST has a positive AND a negative tagged test, or a reasoned annotation
-[ ] ./le rfc check passes; rfc/enrolled.txt lists the RFC once its tests exist
-[ ] If not enrolled: rfc/not-enrolled.txt carries a kind and a reason for it
+[ ] ./le rfc check passes; the summary's Meta table declares Enrolment: enrolled once its tests exist
+[ ] If not enrolled: that same row carries the kind, and Enrolment reason says why
 ```
 
 ---

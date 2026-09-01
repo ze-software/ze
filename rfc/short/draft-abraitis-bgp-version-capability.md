@@ -9,6 +9,13 @@
 | Status | Internet Draft (Informational, expired 2026-03-11) |
 | Date | 2025-09-07 |
 | Depends | RFC 5492 (capability advertisement), RFC 3629 (UTF-8), RFC 9072 (extended OPEN parameters) |
+| Enrolment | enrolled |
+| Enrolment reason | Software Version capability for BGP (code 75): eleven MUST-level requirements. Send side is implemented and gated by config -- encodeValue writes one length octet plus the constant ZeVersion and extractSoftverCapabilities declares code 75 only for a peer or group whose config carries a software-version key that is not disable or refuse (internal/component/bgp/plugins/softver/softver.go), which is 3-1, 3-2, 3-3, 3-6, 3-8 and 4-2. Receive side: parseCapability (internal/core/bgp/capability/capability.go) has no case for code 75, so a received capability becomes an Unknown nothing reads, which is how 3-4, 3-5, 3-7 and 4-1 are met. 3.1-1 requires RFC 9072, which is enrolled separately and Partial. No requirement carries a tagged test yet; the coverage rollup names them. |
+| Support | drafts 40 |
+| Support area | BGP Software Version capability code 75 |
+| Support status | Supported |
+| Support coverage | Send side only, and the draft makes both halves optional: "Implementations are not required to advertise the version nor to process received advertisements" (Abstract). `encodeValue` (`internal/component/bgp/plugins/softver/softver.go`) writes one length octet plus the constant `ZeVersion`, and `extractSoftverCapabilities` (same file) declares code 75 only for a peer or group whose config carries a `software-version` capability key that is not `disable` or `refuse`, so the default is disabled. Receive side: `parseCapability` (`internal/core/bgp/capability/capability.go`) has no case for code 75, so a received capability becomes an `Unknown` that nothing reads. That is the RFC 5492 Section 3 outcome the draft points at, and it is why the three receiver obligations are met by ignoring rather than by parsing. `ze bgp decode capability 75 <hex>` decodes a payload an operator supplies; that path is a diagnostic tool and is not on the session receive path. Carried in this table as `draft-ietf-idr-software-version` until 2026-09-01. No IETF document of that name exists: the datatracker knows only `draft-abraitis-bgp-version-capability`, revision 18, "Software Version Capability for BGP", which IANA names as the reference for code 75. `docs/architecture/wire/capabilities.md` had always spelled the real one. |
+| Support remaining | - |
 
 **Purpose:** Defines BGP capability code 75, which carries the routing software
 version of a speaker so an operator can correlate a fault with a release.

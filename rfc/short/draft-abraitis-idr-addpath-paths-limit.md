@@ -9,6 +9,13 @@
 | Status | Internet Draft |
 | Date | 2024 |
 | Depends | RFC 7911 (ADD-PATH) |
+| Enrolment | enrolled |
+| Enrolment reason | BGP ADD-PATH Paths-Limit capability (code 76): four MUST-level requirements, all met and test-bound. 3-2 (limit ignored when ADD-PATH capability absent), 3-3 (per-family limit ignored when the AFI/SAFI was not in ADD-PATH), 3-4 (duplicate tuple: first considered, others ignored) each carry positive+negative tags on internal/core/bgp/capability negotiation/parse tests; 3-1 (a single PATHS-LIMIT capability instance carries all families) is {single-polarity: positive} bound to a new reactor emit test, since the encoder appends exactly one capability.PathsLimit by construction (internal/component/bgp/reactor/config_capabilities.go:388-391). |
+| Support | drafts 10 |
+| Support area | BGP PATHS-LIMIT |
+| Support status | Supported |
+| Support coverage | Per-family path-count limit capability for ADD-PATH. |
+| Support remaining | - |
 
 **Purpose:** Extends ADD-PATH (RFC 7911) by letting a receiver advertise the maximum number of paths it wants to receive per prefix, per address family. Prevents uncontrolled path proliferation in ADD-PATH deployments.
 

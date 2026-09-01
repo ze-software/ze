@@ -134,46 +134,96 @@ func gitTreePaths(tree, dir, suffix string) ([]string, bool) {
 	return paths, true
 }
 
-func baselineEnrolled(tree string) (map[string]bool, bool) {
-	var tb textbuf.Buffer
-	raw, ok := gitOutput(tree, "show", tb.Str("HEAD:").Str(enrolledRel).Slice())
+// baselineMetas answers what every summary at HEAD declares about itself.
+//
+// This is what the four gated ratchets stand on. `check` runs
+// checkRetiredRequirements, checkLevelRatchet, checkCoverageRatchet and
+// checkEvidenceRatchet only where the current enrolled set INTERSECTS the
+// baseline one, so a baseline that cannot be read disarms all four -- which is
+// right for a checkout git cannot answer about, and would have been a hole at
+// the one commit that moved enrolment into the summaries.
+//
+// A summary at HEAD that does not parse is SKIPPED rather than failing the
+// whole baseline. HEAD is not this change's to fix, and one unreadable summary
+// must not take the other 190 out of every ratchet's population.
+func baselineMetas(tree string) (map[string]Meta, bool) {
+	paths, ok := gitTreePaths(tree, summaryRel, ".md")
 	if !ok {
 		return nil, false
 	}
-	enrolled, _ := parseEnrolled(string(raw))
-	return enrolled, true
-}
-
-func baselineDispositions(tree string) map[string]bool {
-	// The reader's failure is dropped here and nowhere below it: this baseline
-	// answers a disposition set, and its one caller reads an absent stem the same
-	// way it reads an unreadable one.
-	blobs, _ := gitCatBlobs(tree, headRevision, []string{notEnrolledRel})
-	text, held := blobs[notEnrolledRel]
-	if !held {
-		return map[string]bool{}
-	}
-	found, err := parseDispositions(text)
-	if err != nil {
-		return map[string]bool{}
-	}
-	out := map[string]bool{}
-	for stem := range found {
-		out[stem] = true
-	}
-	return out
-}
-
-func baselineStatusRows(tree string) (map[string]LedgerRow, bool) {
-	blobs, known := gitCatBlobs(tree, headRevision, []string{statusRel})
+	blobs, known := gitCatBlobs(tree, headRevision, paths)
 	if !known {
 		return nil, false
 	}
-	text, held := blobs[statusRel]
-	if !held {
+	out := map[string]Meta{}
+	for _, rel := range paths {
+		text, held := blobs[rel]
+		if !held {
+			continue
+		}
+		stem := strings.TrimSuffix(filepath.Base(rel), ".md")
+		meta, err := ParseMeta(text, stem, rel)
+		if err != nil {
+			continue
+		}
+		out[stem] = meta
+	}
+	if len(out) > 0 {
+		return out, true
+	}
+	return baselineMetasBeforeMigration(tree)
+}
+
+// baselineMetasBeforeMigration reads an enrolment HEAD states in the shape it
+// used before 2026-09-01: rfc/enrolled.txt and rfc/not-enrolled.txt.
+//
+// It reads GIT HISTORY, never the working tree, and it is reached only when no
+// summary at HEAD declares an enrolment at all. That is not a fallback inside
+// the live path -- the tree has exactly one shape and one reader
+// (ai/rules/no-layering.md) -- it is the ability to compare against a commit
+// written before the shape changed. Without it the migration commit is the one
+// commit whose baseline is unreadable, and four ratchets stop running over
+// exactly the change they exist to judge.
+func baselineMetasBeforeMigration(tree string) (map[string]Meta, bool) {
+	blobs, known := gitCatBlobs(tree, headRevision, []string{enrolledRel, notEnrolledRel})
+	if !known {
 		return nil, false
 	}
-	return parseStatusLedger(text), true
+	out := map[string]Meta{}
+	for line := range strings.SplitSeq(blobs[enrolledRel], "\n") {
+		if stem, reason, ok := legacyLedgerRow(line); ok {
+			out[stem] = Meta{Enrolment: enrolmentEnrolled, EnrolmentReason: reason}
+		}
+	}
+	for line := range strings.SplitSeq(blobs[notEnrolledRel], "\n") {
+		stem, rest, ok := legacyLedgerRow(line)
+		if !ok {
+			continue
+		}
+		kind, reason := cutFirstWord(rest)
+		out[stem] = Meta{Enrolment: kind, EnrolmentReason: reason}
+	}
+	return out, len(out) > 0
+}
+
+// legacyLedgerRow reads one row of the two retired ledger files: the first
+// whitespace run separates the stem from the rest.
+func legacyLedgerRow(line string) (string, string, bool) {
+	line = strings.TrimSpace(line)
+	if line == "" || strings.HasPrefix(line, "#") {
+		return "", "", false
+	}
+	stem, rest := cutFirstWord(line)
+	return stem, rest, true
+}
+
+// cutFirstWord splits off the first whitespace-delimited token.
+func cutFirstWord(line string) (string, string) {
+	cut := strings.IndexAny(line, " \t")
+	if cut < 0 {
+		return line, ""
+	}
+	return line[:cut], strings.TrimSpace(line[cut:])
 }
 
 func baselineSummaryStems(tree string) (map[string]bool, bool) {

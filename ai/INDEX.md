@@ -37,6 +37,7 @@ and gated fresh, so they never lie about the current code.
 | Detect behavioral security anomalies (exfil, C2, scanning) | learned `1046`/`1048`/`1049` | Neutral facts in `internal/component/trafficfeature` (fan-out, out/in ratio, entropy, beaconing) on `internal/core/stats`; `anomaly/detect` (report-only) scores per-entity deviation + cohort rarity into incidents (`show anomaly`); `anomaly/shape` responds shadow-first (per-source rate-limit, arm/auto-revert/kill-switch, `show anomaly-shape`). Separate security domain from `ddos`. |
 | Provide or extend first-hop gateway redundancy (VRRP) | `docs/guide/vrrp.md` | RFC 9568/3768 in `internal/plugins/vrrp/` (self-contained plugin) with the per-group virtual-MAC macvlan in `internal/component/iface/macvlan.go`; extend within the self-contained `internal/plugins/vrrp/` plugin |
 | Implement an RFC | `ai/rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
+| Enrol an RFC, or change its public support row | `ai/skills/ze-rfc.md` | Both are declared in the `## Meta` table of `rfc/short/<stem>.md`, step 6b. `./le rfc index-update` generates `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md` from every summary. A hand edit to one of the three is lost at the next run |
 | Prove an RFC MUST is enforced (tag a test, coverage gate) | `ai/skills/ze-rfc.md` | Tag the test `RFC requirement: <id> <polarity>` (both polarities); `./le rfc check` gates coverage; `./le rfc index-update` writes `rfc/requirements/<stem>.md` for that RFC's rows and `ai/RFC-REQUIREMENTS.md` for the index over all of them; a NEW tag also owes a discrimination proof in the same change (`./le rfc discriminate-record`); audit with `/ze-rfc-audit` |
 | Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` (design-time only; placeholders are legal at `skeleton`, blocked from `design` on) |
 | Close a spec (audit, goal validation, review gate, pre-commit evidence) | `ai/rules/completion.md` | `plan/TEMPLATE-CLOSURE.md`, appended by `/ze-close` at step 1; every Pre-Commit sub-table needs an evidence row |
@@ -627,7 +628,8 @@ All architecture docs in `docs/architecture/` unless noted.
 | shutdown | `rfc9003` | `rfc8203` |
 | treat-as-withdraw | `rfc7606` | |
 
-RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`.
+RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`. Each summary's `## Meta` table
+declares its own enrolment and its own row on `docs/features/rfc-status.md`.
 
 ## Session State
 

@@ -174,8 +174,11 @@ and `rfc/requirements/` alone.
   from Thomas that pointed away from full compliance, settles nothing: re-derive it from
   the RFC text. If full implementation plus a tagged test is still an available answer,
   the audit's output is a question for Thomas, never a confirmed annotation.
-- A `{gap}` must still be disclosed in `docs/features/rfc-status.md`; the gate checks that
-  the row is not claiming clean support, but only a reader can tell whether it says enough.
+- A `{gap}` must still be disclosed on the public row. Edit `Support status` or `Support
+  remaining` in that summary's `## Meta` table and run `./le rfc index-update`:
+  `docs/features/rfc-status.md` is generated from those rows and a hand edit to it is lost.
+  The gate checks that the row is not claiming clean support, but only a reader can tell
+  whether it says enough.
 
 ## Related
 
@@ -188,4 +191,4 @@ and `rfc/requirements/` alone.
 | Which tags carry a replayable proof that the test discriminates its claim | `./le rfc discriminate stem <stem>`, and the **Claim discrimination** section of `ai/RFC-REQUIREMENTS.md` |
 | Clear a `shifted` verdict | `./le rfc reseal`, then `./le rfc index-update` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |
-| Public support claims | `docs/features/rfc-status.md` |
+| Public support claims | The `Support` rows of `rfc/short/<stem>.md`; `./le rfc index-update` renders `docs/features/rfc-status.md` from them |

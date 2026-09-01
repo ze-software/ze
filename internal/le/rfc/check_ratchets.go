@@ -75,11 +75,11 @@ func checkIDAllocation(requirements []Requirement, baseline map[string]bool) []s
 func checkEnrolment(tree string, current, baseline, summaries, newly, signed map[string]bool) []string {
 	var errs []string
 	if len(current) == 0 {
-		errs = append(errs, "nothing is enrolled: rfc/enrolled.txt is empty or missing. The gate refuses to report clean while enforcing nothing (ai/rules/evidence.md)")
+		errs = append(errs, "nothing is enrolled: no summary under rfc/short/ declares `| Enrolment | enrolled |`. The gate refuses to report clean while enforcing nothing (ai/rules/evidence.md)")
 	}
 	for _, rfc := range sortedMissing(baseline, current) {
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(rfc).Str(" was un-enrolled. Enrolment is monotonic: an RFC whose MUSTs were gated cannot stop being gated. Restore it in rfc/enrolled.txt").String())
+		errs = append(errs, tb.Str(rfc).Str(" was un-enrolled. Enrolment is monotonic: an RFC whose MUSTs were gated cannot stop being gated. Restore `| Enrolment | enrolled |` in its summary's Meta table").String())
 	}
 	for _, rfc := range sortedMissing(current, summaries) {
 		var tb textbuf.Buffer
@@ -315,7 +315,8 @@ func checkLevelRatchet(tree string, requirements []Requirement, enrolled map[str
 }
 
 func checkNewSummaries(deriver *Deriver, stems, baselineStems, enrolled map[string]bool,
-	requirements []Requirement, parseByStem map[string]string, baselineKnown bool) []string {
+	requirements []Requirement, parseByStem map[string]string, baselineKnown bool,
+	metas map[string]Meta) []string {
 	if !baselineKnown || len(baselineStems) == 0 {
 		return nil
 	}
@@ -323,6 +324,17 @@ func checkNewSummaries(deriver *Deriver, stems, baselineStems, enrolled map[stri
 	var errs []string
 	for _, stem := range sortedMissing(stems, baselineStems) {
 		if enrolled[stem] {
+			continue
+		}
+		// An out-of-scope summary is the one un-enrolled shape that is
+		// allowed to declare gated MUSTs. It declares them precisely so
+		// they are not lost: the extraction is done and the FEATURE is
+		// what the owner declined, so demanding enrolment here would
+		// pressure the next author to delete the checklist instead, which
+		// is the failure checkRetiredRequirements exists to prevent.
+		// checkOutOfScope holds the other half: such a summary may not
+		// claim public support.
+		if metas[stem].OutOfScope() {
 			continue
 		}
 		if problem := parseByStem[stem]; problem != "" {
@@ -333,7 +345,7 @@ func checkNewSummaries(deriver *Deriver, stems, baselineStems, enrolled map[stri
 		if gated[stem] > 0 {
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str("rfc/short/").Str(stem).Str(".md is new and declares ").Int(int64(gated[stem])).
-				Str(" gated MUST-level requirement(s), but is not in rfc/enrolled.txt -- so none of them is checked. Enroll it (see .claude/skills/ze-rfc/SKILL.md), classifying each requirement as tested, {single-polarity}, {gap} or {not-applicable}").String())
+				Str(" gated MUST-level requirement(s), but does not declare `| Enrolment | enrolled |` -- so none of them is checked. Enroll it in its own Meta table (see .claude/skills/ze-rfc/SKILL.md), classifying each requirement as tested, {single-polarity}, {gap} or {not-applicable}").String())
 			continue
 		}
 		inventory, err := deriver.Inventory(stem, gated[stem])

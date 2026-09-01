@@ -301,6 +301,7 @@ and name, plus periodic progress while tests are still running.
 | L2TP | `ze-test l2tp` | `test/l2tp/*.ci` | Runs L2TP control-plane scenarios over loopback UDP with fake test plugins where needed. |
 | Firewall | `ze-test firewall` | `test/firewall/*.ci` | Exercises firewall configuration and daemon behavior through `.ci` process tests. |
 | Policy | `ze-test policy` | `test/policy/*.ci` | Exercises policy-routing configuration and daemon behavior through `.ci` process tests. |
+| IPsec | `ze-test ipsec` | `test/ipsec/*.ci` | Exercises the `vpn ipsec` show, monitor, and clear surfaces and the IKEv2 SA lifecycle through `.ci` process tests. `ipsec-eap-nak-unacceptable-type` reads the daemon log after an authenticator offered an EAP method the peer does not run, so an operator sees the type Ze asked for instead of a dead SA. `ipsec-eap-md5-challenge` runs `authentication { mode eap-md5 }` on both daemons, so an operator reaches EAP MD5-Challenge and the tunnel establishes. Its AUTH payloads come from SK_pi and SK_pr, which RFC 7296 Section 2.16 prescribes for a method that establishes no shared key. The tests that read the kernel XFRM tables declare `option=needs-linux:caps=net-admin`, run under QEMU, and share the `ipsec-xfrm` exclusive group described below. |
 | Web | `ze-test web` | `test/web/*.wb` | Runs `.wb` browser scripts in parallel (cap 4) with a per-test server and an isolated `agent-browser --session`. `option=server:kind=` picks which of Ze three htmx interfaces the test drives: the web UI (default), the looking glass (a daemon plus a `ze-test peer` sink, so its pages have a session to report), the looking glass with a failing engine (`lg-no-engine`, served by `ze-test lg`), or the chaos dashboard (`ze-chaos`). |
 | Install | `ze-test install` | `test/install/*.ci` | Exercises offline install command and installer helper behavior. |
 | Static | `ze-test static` | `test/static/*.ci` | Exercises static route installation and reload add/remove behavior. |
@@ -825,8 +826,9 @@ Rules the gate enforces:
   testable only one way carries a `{single-polarity: positive|negative; why}`
   annotation on its summary line instead.
 - **`./le rfc check` is the gate.** For every MUST-level requirement of an
-  enrolled RFC (`rfc/enrolled.txt`) it requires the positive/negative pair, or a
-  reasoned `{gap}` / `{not-applicable}` / `{single-polarity}` annotation. It scans
+  enrolled RFC (its summary's `## Meta` table declares `Enrolment: enrolled`) it
+  requires the positive/negative pair, or a reasoned `{gap}` /
+  `{not-applicable}` / `{single-polarity}` annotation. It scans
   Go `_test.go` files and `.ci` files under `internal/`, `pkg/`, and `test/`.
   `./le rfc index-update` renders each RFC's requirement to test rows into
   `rfc/requirements/<stem>.md`. It renders the index over them into

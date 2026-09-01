@@ -63,7 +63,7 @@ func renderRollup(in RenderInput) []string {
 		var tb textbuf.Buffer
 		out = append(out, tb.Str("**Enrollable now** (").Int(int64(len(ready))).
 			Str("): every MUST-level requirement is already covered or annotated, so ").
-			Str("adding these to `rfc/enrolled.txt` would gate them without any new work: ").
+			Str("declaring `| Enrolment | enrolled |` on these would gate them without any new work: ").
 			Str(joinBackticked(shown)).Str(ellipsis).String(), "")
 	}
 	var nightly textbuf.Buffer
@@ -672,7 +672,7 @@ func renderStatusBacklog(in RenderInput) []string {
 	out = append(out, "",
 		"## Declared not enrolled",
 		"",
-		"`rfc/not-enrolled.txt` records why each un-enrolled summary is not enrolled, "+
+		"Each un-enrolled summary records why in its own `| Enrolment |` and `| Enrolment reason |` Meta rows, "+
 			"so the remainder is a decision rather than an absence. Only `non-normative` "+
 			"is a claim about the document; `backlog` and `blocked` are **DEBT** and are "+
 			"listed as such. A disposition is discharged by enrolment and by nothing else.",
@@ -685,9 +685,9 @@ func renderStatusBacklog(in RenderInput) []string {
 			if disp.Kind == dispositionNonNormative {
 				debt = "no"
 			}
-			// TableCell for the same reason the shard rows need it: the reason
-			// is AUTHORED, and rfc/enrolled.txt already writes a grep
-			// alternation in this register.
+			// TableCell for the same reason the shard rows need it: the
+			// reason is AUTHORED prose from a Meta cell, and an author
+			// writes a grep alternation in that register.
 			var row textbuf.Buffer
 			out = append(out, row.Str("| `").Str(stem).Str("` | ").Str(disp.Kind).
 				Str(" | ").Str(debt).Str(" | ").Str(TableCell(disp.Reason)).

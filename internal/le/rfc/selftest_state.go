@@ -33,8 +33,8 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 	const rid = selftestRIDDrop
 	root, err := newSelftestTree("rfc-selftest-audit-", map[string]string{
 		selftestWorkflowRel: selftestWorkflow,
-		enrolledRel:         selftestEnrolled,
-		selftestSummaryRel:  selftestSummary,
+
+		selftestSummaryRel: selftestSummary,
 		testPath: "package sample\nfunc TestWidget() {\n" +
 			"\t// RFC requirement: RFC9999-2-2 positive\n" +
 			"\t// RFC requirement: RFC9999-2-2 negative\n}\n",
@@ -141,7 +141,7 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 
 func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 	root, err := newSelftestTree("rfc-selftest-extraction-", map[string]string{
-		enrolledRel:            selftestEnrolled,
+
 		selftestSummaryRel:     selftestSummary,
 		"rfc/full/rfc9999.txt": selftestRFCSource,
 	})
@@ -237,8 +237,8 @@ func extractionSelftestArtifact(inventory *Inventory) map[string]any {
 
 func runRenderSelftest() ([]leroot.SelftestResult, error) {
 	root, err := newSelftestTree("rfc-selftest-render-", map[string]string{
-		selftestWorkflowRel:           selftestWorkflow,
-		enrolledRel:                   selftestEnrolled,
+		selftestWorkflowRel: selftestWorkflow,
+
 		selftestSummaryRel:            selftestSummary,
 		"rfc/full/rfc9999.txt":        selftestRFCSource,
 		"docs/features/rfc-status.md": "| RFC 9999 | Widgets | Partial | selftest | one MUST gap |\n",

@@ -33,7 +33,7 @@ func checkAuditFiles(tree string, enrolled, stems map[string]bool) ([]string, er
 		if !enrolled[stem] {
 			var message textbuf.Buffer
 			errs = append(errs, message.Str(rel).Str(": ").Str(stem).
-				Str(" is not in rfc/enrolled.txt, so nothing reads these verdicts -- an audit file for an un-enrolled RFC is evidence the gate never loads. Enroll ").Str(stem).Str(", or delete the file").String())
+				Str(" does not declare `| Enrolment | enrolled |`, so nothing reads these verdicts -- an audit file for an un-enrolled RFC is evidence the gate never loads. Enroll ").Str(stem).Str(", or delete the file").String())
 		}
 	}
 	return errs, nil
