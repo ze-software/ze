@@ -17,8 +17,13 @@
 package rfc
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"go/ast"
+	"go/format"
+	"go/parser"
+	"go/token"
 	"os"
 	"regexp"
 	"sort"
@@ -475,7 +480,103 @@ func revertBreak(reader *sourceReader, index *scopeIndex,
 			Str("expected to end its line, which is what gofmt writes"))
 	}
 	record.Break = tb.Reset().Str("body of ").Str(symbol).Str(" replaced by ").Str(revertBody).String()
-	return overlayFile{rel: rel, content: strings.Replace(*content, texts[0], disabled, 1)}, nil
+	broken := strings.Replace(*content, texts[0], disabled, 1)
+	return overlayFile{rel: rel, content: dropOrphanedImports(rel, broken)}, nil
+}
+
+// dropOrphanedImports answers the source with the imports the disabled body
+// left behind removed.
+//
+// Replacing a body with a halt orphans every import that only that body used.
+// An unused import does not compile, so the overlay fails to BUILD and the run
+// reports a build failure where a red was owed: the proof is refused for a
+// reason that says nothing about whether the test discriminates. Eleven RFC
+// 2865 records were unobtainable for that reason alone, every one of them
+// naming a producer whose file imported "context" or "fmt" nowhere else.
+//
+// An import is dropped only when the name it is reached by appears NOWHERE in
+// the file outside the import block, which is the same test the compiler
+// applies. A blank and a dot import are always kept, because neither is reached
+// by a name and both carry an effect the compiler cannot see.
+//
+// The one assumption is that an import whose package name differs from the last
+// element of its path carries that name explicitly, which is what goimports
+// writes. Where it does not, the prune drops an import still in use and the
+// build fails exactly as it failed before, so the assumption costs nothing it
+// did not already cost.
+func dropOrphanedImports(rel, broken string) string {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, rel, broken, parser.ParseComments)
+	if err != nil {
+		return broken
+	}
+	used := fileNames(file)
+
+	pruned := false
+	for _, decl := range file.Decls {
+		group, isDecl := decl.(*ast.GenDecl)
+		if !isDecl || group.Tok != token.IMPORT {
+			continue
+		}
+		kept := group.Specs[:0]
+		for _, spec := range group.Specs {
+			imported, isImport := spec.(*ast.ImportSpec)
+			if !isImport {
+				kept = append(kept, spec)
+				continue
+			}
+			name := importName(imported)
+			if name == "_" || name == "." || used[name] {
+				kept = append(kept, spec)
+				continue
+			}
+			pruned = true
+		}
+		group.Specs = kept
+	}
+	if !pruned {
+		return broken
+	}
+
+	var out bytes.Buffer
+	if err := format.Node(&out, fset, file); err != nil {
+		return broken
+	}
+	return out.String()
+}
+
+// fileNames answers every identifier the file uses outside its import block.
+//
+// The import block is skipped so an import does not keep itself alive: the name
+// in `import "fmt"` is the path, but an explicitly named one declares an
+// identifier that would otherwise count as its own use.
+func fileNames(file *ast.File) map[string]bool {
+	used := map[string]bool{}
+	for _, decl := range file.Decls {
+		if group, isDecl := decl.(*ast.GenDecl); isDecl && group.Tok == token.IMPORT {
+			continue
+		}
+		ast.Inspect(decl, func(node ast.Node) bool {
+			if ident, isIdent := node.(*ast.Ident); isIdent {
+				used[ident.Name] = true
+			}
+			return true
+		})
+	}
+	return used
+}
+
+// importName answers the name an import is reached by: the one it declares, or
+// the last element of its path when it declares none.
+func importName(spec *ast.ImportSpec) string {
+	if spec.Name != nil {
+		return spec.Name.Name
+	}
+	path := strings.Trim(spec.Path.Value, `"`)
+	if cut := strings.LastIndex(path, "/"); cut >= 0 {
+		return path[cut+1:]
+	}
+	return path
 }
 
 // disableBody answers the function with its body replaced by a halt.
