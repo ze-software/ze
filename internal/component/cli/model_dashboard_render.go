@@ -245,11 +245,11 @@ func peerColumnValue(p dashboardPeer, col dashboardSortColumn, ds *dashboardStat
 // own style, so one escape carries both and nothing resets mid-row.
 func stateColor(state string) (color.Color, bool) {
 	switch state {
-	case "established":
+	case peerStateEstablished:
 		return dashStateGreen, true
-	case "connecting", "active", "opensent", "openconfirm":
+	case peerStateConnecting, peerStateActive, peerStateOpenSent, peerStateOpenConfirm:
 		return dashStateYellow, true
-	case "stopped", "idle", "idle-hold":
+	case peerStateStopped, peerStateIdle, peerStateIdleHold:
 		return dashStateRed, true
 	}
 	return nil, false

@@ -9,8 +9,11 @@ Ze provides real-time BGP event monitoring and a live peer dashboard through the
 ze cli -c "monitor bgp"
 ```
 
-The dashboard refreshes every 2 seconds and shows router identity plus a sortable, colour-coded peer table with update rates. Keys: j/k moves, s/S sorts, Enter opens detail, and Esc exits.
-<!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
+The dashboard refreshes every second and shows router identity plus a sortable, color-coded peer table with update rates. Keys: j/k moves, s/S sorts, Enter opens detail, and Esc exits.
+
+Each column sorts by the value it holds, not by the text it prints. Addresses sort numerically, so 10.0.0.9 comes before 10.0.0.10 and every IPv4 peer comes before every IPv6 one. Uptime sorts by duration, so 59s comes before 1m0s. State sorts by how far the session has progressed, from stopped to established. Rows that hold the same value in the sorted column come out in address order. The highlighted peer therefore stays under the cursor from one refresh to the next, and when you change the sort column or reverse the direction.
+<!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand, dashboardPollInterval -->
+<!-- source: internal/component/cli/model_dashboard_sort.go -- comparePeers -->
 
 ## Event Streaming
 

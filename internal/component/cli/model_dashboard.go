@@ -225,6 +225,44 @@ func (ds *dashboardState) resolveSelectedIndex(peers []dashboardPeer) int {
 	return 0
 }
 
+// sortedPeers returns the peer rows in the order the table shows them, which is
+// the only order the selection index means anything in.
+func (ds *dashboardState) sortedPeers() []dashboardPeer {
+	if ds.snapshot == nil {
+		return nil
+	}
+	return sortDashboardPeers(ds.snapshot.Peers, ds.sortColumn, ds.sortAsc)
+}
+
+// followSelection keeps the highlight on the peer it was on after the table has
+// been re-ordered or refreshed.
+//
+// The index is a position in the sorted table. A new sort column, a reversed
+// direction, and a peer that came or went each move the peer but not the index.
+// An index left alone puts the highlight on a different peer until the next poll
+// resolves it again. An Enter inside that second opens a session the operator
+// never pointed at.
+func (ds *dashboardState) followSelection() {
+	peers := ds.sortedPeers()
+	if len(peers) == 0 {
+		return
+	}
+	ds.selectedIdx = ds.resolveSelectedIndex(peers)
+	ds.selectedAddr = peers[ds.selectedIdx].Address
+}
+
+// moveSelection moves the highlight by delta rows of the sorted table. It
+// records the peer it landed on, so the next poll finds it again wherever the
+// refreshed data puts it.
+func (ds *dashboardState) moveSelection(delta int) {
+	peers := ds.sortedPeers()
+	if len(peers) == 0 {
+		return
+	}
+	ds.selectedIdx = min(max(ds.selectedIdx+delta, 0), len(peers)-1)
+	ds.selectedAddr = peers[ds.selectedIdx].Address
+}
+
 // dashboardFactory returns the injected DashboardFactory, or nil when none is
 // registered or the stored value is the wrong type (fail-closed).
 func (m *Model) dashboardFactory() DashboardFactory {
@@ -330,11 +368,7 @@ func (m Model) handleDashboardData(msg dashboardDataMsg) (tea.Model, tea.Cmd) {
 
 	// Update selected index after data refresh.
 	if snap != nil && len(snap.Peers) > 0 {
-		sorted := sortDashboardPeers(snap.Peers, m.activeDashboard().sortColumn, m.activeDashboard().sortAsc)
-		m.activeDashboard().selectedIdx = m.activeDashboard().resolveSelectedIndex(sorted)
-		if m.activeDashboard().selectedIdx < len(sorted) {
-			m.activeDashboard().selectedAddr = sorted[m.activeDashboard().selectedIdx].Address
-		}
+		m.activeDashboard().followSelection()
 
 		// If in detail view and peer disappeared, return to table.
 		// Otherwise refresh detail data.
@@ -396,34 +430,20 @@ func (m *Model) handleDashboardKey(keyStr string) bool {
 		ds.showHelp = true
 	case "s":
 		ds.sortColumn = ds.sortColumn.next()
+		ds.followSelection()
 	case "S":
 		ds.sortAsc = !ds.sortAsc
+		ds.followSelection()
 	case "j", "down":
-		if ds.snapshot != nil && len(ds.snapshot.Peers) > 0 {
-			ds.selectedIdx = min(ds.selectedIdx+1, len(ds.snapshot.Peers)-1)
-			sorted := sortDashboardPeers(ds.snapshot.Peers, ds.sortColumn, ds.sortAsc)
-			if ds.selectedIdx < len(sorted) {
-				ds.selectedAddr = sorted[ds.selectedIdx].Address
-			}
-		}
+		ds.moveSelection(1)
 	case "k", "up":
-		if ds.selectedIdx > 0 {
-			ds.selectedIdx--
-		}
-		if ds.snapshot != nil && len(ds.snapshot.Peers) > 0 {
-			sorted := sortDashboardPeers(ds.snapshot.Peers, ds.sortColumn, ds.sortAsc)
-			if ds.selectedIdx < len(sorted) {
-				ds.selectedAddr = sorted[ds.selectedIdx].Address
-			}
-		}
+		ds.moveSelection(-1)
 	case "enter":
-		if ds.snapshot != nil && len(ds.snapshot.Peers) > 0 {
-			sorted := sortDashboardPeers(ds.snapshot.Peers, ds.sortColumn, ds.sortAsc)
-			if ds.selectedIdx < len(sorted) {
-				ds.detailAddr = sorted[ds.selectedIdx].Address
-				ds.detailData = nil
-				m.fetchPeerDetail(ds.detailAddr)
-			}
+		peers := ds.sortedPeers()
+		if ds.selectedIdx < len(peers) {
+			ds.detailAddr = peers[ds.selectedIdx].Address
+			ds.detailData = nil
+			m.fetchPeerDetail(ds.detailAddr)
 		}
 	}
 
@@ -484,10 +504,7 @@ func (m Model) renderDashboard() string {
 	if ds.detailAddr != "" {
 		sb.Str(renderDashboardDetail(ds))
 	} else {
-		var peers []dashboardPeer
-		if ds.snapshot != nil {
-			peers = sortDashboardPeers(ds.snapshot.Peers, ds.sortColumn, ds.sortAsc)
-		}
+		peers := ds.sortedPeers()
 		tableHeight := max(1, m.height-3) // header(1) + footer(1) + separator(1)
 		sb.Str(renderDashboardPeerTable(peers, ds, ds.sortColumn, ds.sortAsc, width, tableHeight))
 	}
