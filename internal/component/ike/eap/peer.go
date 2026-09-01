@@ -44,11 +44,28 @@ var (
 )
 
 // PeerResult is the outcome of processing one EAP-Request from the authenticator.
+//
+// Four outcomes, and the caller reads them in this order (handleEAPResponse,
+// internal/component/ike/engine/fsm.go):
+//
+//	Err        the exchange failed, and the IKE SA is put in StateDead
+//	Done       the exchange succeeded and MSK carries the key
+//	Response   the exchange continues with this EAP-Response
+//	Discarded  the packet was dropped and the exchange waits for the next one
+//
+// Discarded is a field rather than the absence of the other three. RFC 3748
+// Section 4.2 makes a peer drop several packets in silence, and the wire
+// behavior of dropping one is indistinguishable from a result that fell out of
+// a branch nobody wrote: both send nothing and both end no exchange. A zero
+// value that reads as a valid answer is what ai/rules/principles.md forbids, so
+// the drop says so, and the caller logs it because a forged EAP-Success is a
+// thing an operator wants named.
 type PeerResult struct {
-	Response *Packet
-	MSK      [64]byte
-	Done     bool
-	Err      error
+	Response  *Packet
+	MSK       [64]byte
+	Done      bool
+	Discarded bool
+	Err       error
 }
 
 // PeerTLSConfig holds certificate material for the EAP-TLS peer (client).
@@ -107,6 +124,26 @@ type peerState uint8
 const (
 	peerStateIdentity peerState = iota
 	peerStateMethod
+
+	// peerStateMethodDone is the peer after its method conversation completed
+	// SUCCESSFULLY and before the EAP-Success that concludes the exchange. It is
+	// the only state in which an EAP-Success is answered, and the only one in
+	// which an EAP-Failure is discarded, so the two obligations of RFC 3748
+	// Section 4.2 that turn on "the method conversation has concluded" both read
+	// this one value.
+	//
+	// Two sites reach it, and each is the moment its method indicates success to
+	// the peer and the peer indicates success back:
+	//
+	//	handleMSCHAPv2Success  the Authenticator Response verified, and the
+	//	                       acknowledgement RFC 2759 Section 5 owes going out
+	//	handleTLSRequest       the TLS handshake complete and the MSK exported,
+	//	                       with the peer's own final flight already sent
+	//
+	// The peer can still owe EAP-TLS fragments here, so a Request is dispatched
+	// from this state exactly as it is from peerStateMethod (handleRequest).
+	peerStateMethodDone
+
 	peerStateDone
 	peerStateFailed
 )
@@ -142,6 +179,15 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 		return PeerResult{Err: ErrTooManyRounds}
 	}
 
+	// RFC 3748 Section 4: "Since EAP only defines Codes 1-4, EAP packets with
+	// other codes MUST be silently discarded by both authenticators and peers."
+	// The discard comes before every other guard, including the parked cause
+	// below, because a discarded packet is one the peer never read: it can decide
+	// nothing about the session, not even that the session is over.
+	if request.Code == 0 || request.Code > CodeFailure {
+		return peerDiscard()
+	}
+
 	// A parked TLS failure outranks whatever arrives next. The reply the RFC asks
 	// for has gone out, so this packet ends the exchange whatever it is, and the
 	// cause the operator needs is the handshake's rather than the generic "the
@@ -161,11 +207,48 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 
 	switch request.Code {
 	case CodeSuccess:
+		// RFC 3748 Section 4.2: "A peer EAP implementation receiving a Success or
+		// Failure packet where sending one is not explicitly permitted MUST
+		// silently discard it.  By default, an EAP peer MUST silently discard a
+		// "canned" Success packet (a Success packet sent immediately upon
+		// connection).  This ensures that a rogue authenticator will not be able to
+		// bypass mutual authentication by sending a Success packet prior to
+		// conclusion of the EAP method conversation."
+		//
+		// That conclusion is peerStateMethodDone, and nothing else here reaches the
+		// MSK. Before it ps.msk is either all zero or a key no method has yet
+		// authenticated the far end for, and the caller turns a Done result
+		// straight into the IKEv2 AUTH payload (handleEAPResponse,
+		// internal/component/ike/engine/fsm.go), so an authenticator that says
+		// "Success" first and authenticates never would be believed.
+		if ps.state != peerStateMethodDone {
+			return peerDiscard()
+		}
 		ps.state = peerStateDone
 		msk := ps.msk
 		return PeerResult{Done: true, MSK: msk}
 
 	case CodeFailure:
+		// RFC 3748 Section 4.2: "On the peer, after success result indications have
+		// been exchanged by both sides, a Failure packet MUST be silently
+		// discarded."
+		//
+		// peerStateMethodDone is that state and only that state: the authenticator
+		// indicated success through the method, and the peer indicated success back
+		// (see the state's own comment). An EAP-Failure arriving there contradicts
+		// an authentication both ends already agreed on, so it is dropped and the
+		// peer keeps waiting for the EAP-Success. RFC 3748 Section 4.2 adds that
+		// the peer "MAY, in the event that an EAP Success is not received, conclude
+		// that the EAP Success packet was lost"; ze does not take that liberty and
+		// waits for the packet.
+		//
+		// No path through the engine reaches this today, because ze's own
+		// authenticator sends Success rather than Failure once the method
+		// succeeded. The guard exists for the authenticator that does not: the
+		// packet is unauthenticated, so any party on the path can forge one.
+		if ps.state == peerStateMethodDone {
+			return peerDiscard()
+		}
 		ps.state = peerStateFailed
 		return PeerResult{Err: ErrEAPFailure}
 
@@ -176,6 +259,21 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 		return PeerResult{Err: fmt.Errorf("eap: unexpected code %d", request.Code)}
 	}
 }
+
+// peerDiscard is the result of a silent discard: the packet is dropped and the
+// session waits for the next one.
+//
+// Silence is owed to the AUTHENTICATOR, never to the operator. No EAP-Response
+// goes out, no error ends the exchange, and handleEAPResponse
+// (internal/component/ike/engine/fsm.go) leaves the SA in StateEAPInProgress
+// with its retransmit timer armed, which is the state a peer that never
+// received the packet would be in. A discard that reported an error instead
+// would end the exchange, and an authenticator that can end an exchange with
+// one forged packet is the denial of service this guard would have introduced.
+//
+// The session is not left open forever: maxEAPRounds counts a discarded packet
+// like any other, so a flood of them ends in ErrTooManyRounds.
+func peerDiscard() PeerResult { return PeerResult{Discarded: true} }
 
 // Succeeded reports whether the exchange completed successfully.
 func (ps *PeerSession) Succeeded() bool { return ps.state == peerStateDone }
@@ -223,7 +321,11 @@ func (ps *PeerSession) handleRequest(req *Packet) PeerResult {
 		}
 		return PeerResult{Err: fmt.Errorf("eap: unexpected type %d in identity state", req.Type)}
 
-	case peerStateMethod:
+	// A Request is dispatched the same way once the method conversation has
+	// concluded, because the peer can still owe packets there: an EAP-TLS final
+	// flight longer than one fragment is answered with a fragment ACK, and that
+	// ACK is an EAP-Request (handleTLSRequest).
+	case peerStateMethod, peerStateMethodDone:
 		return ps.handleMethodRequest(req)
 
 	default:
@@ -336,6 +438,14 @@ func (ps *PeerSession) handleMSCHAPv2Success(identifier uint8, td []byte) PeerRe
 		ps.state = peerStateFailed
 		return PeerResult{Err: errors.New("eap-mschapv2: the authenticator response does not match the expected value, so the authenticator does not know the password")}
 	}
+
+	// The method conversation has concluded successfully: the authenticator
+	// indicated success with this packet, and the acknowledgement below is the
+	// peer's own success result indication. RFC 3748 Section 4.2 turns two
+	// obligations on that fact, and Process reads this state for both: an
+	// EAP-Success is answered only from here, and an EAP-Failure is discarded only
+	// from here.
+	ps.state = peerStateMethodDone
 
 	// RFC 2759: peer acknowledges Success with an MSCHAPv2 Success packet (OpCode=3).
 	msID := td[1]
@@ -648,6 +758,13 @@ func (ps *PeerSession) handleTLSRequest(req *Packet) PeerResult {
 			return PeerResult{Err: err}
 		}
 		ps.msk = msk
+
+		// The method conversation has concluded successfully. Both ends have shown
+		// the other a Finished the other verified, and readAndSendTLS above has
+		// already sent the peer's half. RFC 3748 Section 4.2 lets an EAP-Success be
+		// answered only from here (Process), and this is the assignment that puts a
+		// real key behind the Done result it produces.
+		ps.state = peerStateMethodDone
 	}
 
 	return result

@@ -67,6 +67,32 @@ responder at all.
 
 <!-- source: internal/component/ike/eap/peer.go -- handleMSCHAPv2Success, authenticatorResponse -->
 
+**An EAP-Success is a claim too, and the peer reads it only after the method
+conversation concluded.** RFC 3748 Section 4.2 makes the peer discard a Success
+sent before that point, so a rogue authenticator cannot skip the method by
+answering "Success" first. `PeerSession.Process` switched on the Code before it
+read the state until 2026-09-01, and a Success arriving at the identity round
+returned `Done` with an all-zero MSK. Two packets share that guard: a Failure
+arriving after both ends indicated success is dropped as well, and a Code
+outside 1-4 is dropped by the peer and by the authenticator.
+
+A discard is not an error. `handleEAPResponse` (`internal/component/ike/engine`)
+puts the SA in `StateDead` for any non-nil `PeerResult.Err`, so a discard that
+reported one would trade the bypass above for a denial of service: one forged
+packet would end the exchange. The SA is left alone, it stays in
+`StateEAPInProgress`, and `maxEAPRounds` still counts the round, so a flood ends
+the exchange rather than holding it open.
+
+**The silence is owed to the authenticator, not to the operator.** The drop is
+`PeerResult.Discarded`, a field rather than the absence of the other three
+outcomes, because dropping a packet and falling out of a branch nobody wrote
+look identical on the wire: each sends nothing and each ends no exchange. The
+caller logs `ike: EAP packet discarded` with the Code, so an operator whose peer
+is being fed forged EAP-Success packets learns it.
+
+<!-- source: internal/component/ike/eap/peer.go -- PeerSession.Process, peerStateMethodDone, peerDiscard -->
+<!-- source: internal/component/ike/eap/eap.go -- Session.Process -->
+
 ## Proof
 
 `test/interop-ipsec/scenarios` carries `eap-mschapv2` and `eap-tls`, with

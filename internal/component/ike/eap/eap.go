@@ -219,6 +219,19 @@ func (s *Session) Begin() *Packet {
 // (or Success/Failure). Returns nil when the exchange is complete and the
 // final packet has already been returned.
 func (s *Session) Process(response *Packet) *Packet {
+	// RFC 3748 Section 4: "Since EAP only defines Codes 1-4, EAP packets with
+	// other codes MUST be silently discarded by both authenticators and peers."
+	//
+	// A nil packet is the discard: handleResponderEAP
+	// (internal/component/ike/engine/responder_eap.go) sends nothing for it, and
+	// the exchange keeps the state it had, so the peer's next packet is read as if
+	// this one had never arrived. Answering an undefined Code with an EAP-Failure,
+	// which this did until 2026-09-01, ends a conversation on a packet the RFC
+	// says not to read at all, and lets anybody on the path kill an EAP exchange
+	// with one unauthenticated octet.
+	if response.Code == 0 || response.Code > CodeFailure {
+		return nil
+	}
 	if response.Code != CodeResponse {
 		return s.failure(response)
 	}
