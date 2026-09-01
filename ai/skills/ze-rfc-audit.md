@@ -41,6 +41,14 @@ For each requirement, answer four questions in order. A `no` at any point is a f
 | 3 | Does the buffer **isolate** this rule? | If the input can trip a different rule first, the test proves nothing about this one. A zero-length COMMUNITY case whose trailing garbage causes a structural error passes for the wrong reason, and its own comment may admit it. |
 | 4 | Does the test prove the **whole** requirement, or one clause? | "Malformed X ⇒ treat-as-withdraw **and** the Total Attribute Length locates the NLRI" is two obligations. Covering the first and tagging the line is a half-truth. |
 
+Question 2 has a machine answer where one has been recorded. `./le rfc discriminate stem
+<stem>` names the tags of that RFC that carry a discrimination record: a break of the
+producing code under which the tagged unit was OBSERVED to go red, replayed by
+`./le rfc check` on every run. A tag with a verified record has answered question 2 for
+the break it names, and for nothing else. Questions 1, 3 and 4 stay yours, and so does
+question 2 for every tag with no record, which is most of the corpus. Reading a record as
+a verdict is the substitution this skill exists to prevent.
+
 Then the polarity pair:
 
 - **positive** must be a genuinely conforming input, not merely "a different error".
@@ -177,6 +185,7 @@ and `rfc/requirements/` alone.
 | Requirement → test map for one RFC | `./le rfc index-update`, then read `rfc/requirements/<stem>.md` |
 | The backlog over every RFC | `./le rfc index-update` → `ai/RFC-REQUIREMENTS.md` |
 | Which requirements are audited, proven, or carry a finding | the **Audit coverage** section of `ai/RFC-REQUIREMENTS.md` (derived, never hand-maintained) |
+| Which tags carry a replayable proof that the test discriminates its claim | `./le rfc discriminate stem <stem>`, and the **Claim discrimination** section of `ai/RFC-REQUIREMENTS.md` |
 | Clear a `shifted` verdict | `./le rfc reseal`, then `./le rfc index-update` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |
 | Public support claims | `docs/features/rfc-status.md` |

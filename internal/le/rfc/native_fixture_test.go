@@ -32,7 +32,32 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// Re-sealed 2026-08-31 for the feature-out-of-scope exclusion kind. No verdict
 	// moved: the change adds one entry to the closed exclusion vocabulary that
 	// ParseExtractionArtifact accepts, and rfc/audit/ records no exclusion kind.
-	const want = "c2106d359d80efe61f833f1f74d6158000c6e8c448beaaddcbcbc8b088a48a2d"
+	//
+	// Re-sealed 2026-09-01, for plan/spec-publish-the-rfc-requirement-ledger.md.
+	// No verdict moved. The change is an EXPORT pass: the polarities, the
+	// annotation kinds, the audit verdicts, the discrimination routes, the proof
+	// states, the site dispositions, the cover key, the discrimination verdict,
+	// the per-RFC coverage row and the markdown cell escape are renamed to their
+	// exported spellings so internal/le/site can publish them, `Audit.Record`
+	// answers one verdict typed, the audit vocabulary carries the sentence each
+	// word means, `RequirementRows` becomes the ONE producer of a shard's six
+	// cells with `RenderShards` formatting what it answers, `parseEnrolled` keeps
+	// the enrolment reason, and a summary's Meta `| Title |` row becomes a parsed
+	// fact. Verified by regenerating: `ai/RFC-REQUIREMENTS.md` and 189 shards
+	// re-rendered byte-identical apart from `rfc/requirements/rfc4724.md`, which
+	// was stale against a tag committed before this work.
+	//
+	// The digest covers every non-test byte of this package, so it also carries
+	// the uncommitted edits other sessions hold in this shared checkout.
+	//
+	// Re-sealed 2026-09-01, for the two baselines the discrimination obligation
+	// reads (owner decision). Two verdicts moved. A tag owes its proof where the
+	// TIP COMMIT added it against HEAD^, so a tag only in somebody's working tree
+	// is nobody's violation and the author meets it inside the detached verify
+	// worktree. A stale record's drift is judged at the granularity the record
+	// fingerprints, so an unrelated uncommitted edit elsewhere in the producer's
+	// file no longer downgrades a committed drift to a report.
+	const want = "4b2772fd3d7d7e57cd4be3d8c334693d657ce347450c9e396ab5f89a962e9ae8"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)

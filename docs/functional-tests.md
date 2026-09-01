@@ -917,6 +917,27 @@ let the gate re-seal a verdict against a fingerprint the guard does not compute.
 
 <!-- source: internal/le/rfc/actions.go -- Answer -->
 
+### What a verdict cannot replay: the discrimination record
+
+An audit verdict is a person's judgement, written on the day they read the test.
+`rfc/discrimination/<stem>.json` records a machine-replayable answer to the same
+question: a named break of the producing code, and the observation that the tagged unit
+went RED under that break and green again after it. `./le rfc check` replays the
+fingerprints on every run, so a rewritten unit, a reworded claim or a moved producer
+voids the record instead of outliving it.
+
+`./le rfc discriminate-record` is the only writer, and it writes only a red it observed
+itself. For a `.ci` tag it disables the producing function, runs ONE test of ONE suite,
+requires a failure that NAMES that test, and puts the producer back byte for byte. That
+is the walk `docs/contributing/testing.md` prescribes under "A test that exists is not a
+test that gates", with the result kept. For an interop tag it runs the one scenario the
+checker declares, and the record cites the numbered assertion it rests on.
+
+A tag you ADD owes a record in the same change. The two proof routes, the closed escape
+vocabulary and the refusals are in `docs/contributing/rfc-conformance-gates.md`.
+
+<!-- source: internal/le/rfc/discriminate_action.go -- recordDiscrimination -->
+
 Full authoring guidance: `ai/skills/ze-rfc.md` (id allocation and annotations),
 `ai/skills/ze-rfc-audit.md` (letter-and-spirit audit, the verdict vocabulary and the four
 freshness states), and `docs/contributing/rfc-implementation-guide.md`.

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 5/5 |
 | Deferral shard | `-` |
 | Handoff | - |
 | Updated | 2026-08-31 |
@@ -134,7 +134,7 @@ all of them on day one.
 3. `LoadDiscrimination` reads `rfc/discrimination/<stem>.json` into one record per requirement id, polarity and unit key, where the unit key is `path::UnitName`.
 4. `checkDiscriminationRatchet` compares three sets: the tags in the tree, the records on disk, and the records at HEAD. It emits a violation for a record that no longer verifies, for a tag that owes a record and has none, and for a proven count that fell.
 5. `./le rfc discriminate` in PROPOSE mode reads a gomu report, keeps the mutants whose file and line fall inside code the tagged unit covers, and prints them as candidate breaks ranked by proximity to the producer the claim names.
-6. `./le rfc discriminate` in RECORD mode applies one candidate through the same overlay gomu uses, runs ONLY the tagged unit, requires RED, restores, re-runs, requires GREEN, and writes the record. It refuses to write a proof it did not observe.
+6. `./le rfc discriminate-record` runs ONLY the tagged unit and requires GREEN FIRST, then applies one candidate through the same overlay gomu uses and requires RED. It refuses to write a proof it did not observe. There is no post-restore run on any route: a unit or `.ci` break is a Go overlay, so no file on disk moves, and the interop break edits the working tree and is put back byte for byte instead.
 7. `render.go` publishes the counts into `ai/RFC-REQUIREMENTS.md`, alongside the extraction and audit counts already there.
 
 ### Boundaries Crossed
@@ -167,13 +167,13 @@ all of them on day one.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | gomu can generate mutants for essentially the whole unit-tag population | measured: 565 tagged unit test files, 6 with a `//go:build` constraint; `.gomuignore` excludes no `internal/component/` or `internal/plugins/` path | the `mutant` route covers less than claimed and more tags fall to the `revert` route, which is hand-written | run gomu over three tagged packages in Phase 2 and count the files it skipped | unvalidated |
-| A-2 | a gomu `Result` attributes a kill to a NAMED test, so a mutant killed by an untagged sibling can be told apart from one killed by the tagged unit | the `TestOutput` field of `Result` in `vendor/github.com/sivchari/gomu/internal/mutation/engine.go`, holding `TestInfo{Name, Status}` | claim-scoped kill is not derivable from the report, and `discriminate` must run the tagged unit itself under the overlay: slower, still correct | run gomu on one package with JSON output and read the test attribution back | unvalidated |
-| A-3 | the tagged unit is resolvable for every carrier in scope | `UnitAt` returns `ScopeFunc` for Go and `ScopeFile` for a `.ci`, and both are already consumed by the write-time guard | a `.ci` proof cannot name what to run, and the functional route needs a scenario-level key instead | assert `UnitAt` over all 3,933 in-scope tags in a unit test | unvalidated |
+| A-1 | gomu can generate mutants for essentially the whole unit-tag population | measured: 565 tagged unit test files, 6 with a `//go:build` constraint; `.gomuignore` excludes no `internal/component/` or `internal/plugins/` path | the `mutant` route covers less than claimed and more tags fall to the `revert` route, which is hand-written | run gomu over three tagged packages in Phase 2 and count the files it skipped | **confirmed** 2026-08-31. `role`: 10 non-test `.go` found, 10 walked, 0 excluded by `.gomuignore`, 3 yielded no mutant (`yang/doc.go`, `yang/embed.go`, `yang/register.go`, all declaration-only), 1,042 mutants over the other 7. `isis/packet`: 19 found, 19 walked, 0 excluded, 1 yielded no mutant (`doc.go`), 2,128 mutants. `flowexport/netflow9`: 9 found, 9 walked, 0 excluded, 2 yielded no mutant (`doc.go`, `register.go`), 513 mutants. Measured skip list over the three packages is 6 declaration-only files and no package, no build-tagged file and no `.gomuignore` exclusion. Not free: 100 of 1,042, 87 of 2,128 and 16 of 513 mutants are `NOT_VIABLE` (they do not compile) |
+| A-2 | a gomu `Result` attributes a kill to a NAMED test, so a mutant killed by an untagged sibling can be told apart from one killed by the tagged unit | the `TestOutput` field of `Result` in `vendor/github.com/sivchari/gomu/internal/mutation/engine.go`, holding `TestInfo{Name, Status}` | claim-scoped kill is not derivable from the report, and `discriminate` must run the tagged unit itself under the overlay: slower, still correct | run gomu on one package with JSON output and read the test attribution back | **BROKEN** 2026-08-31. `Result.TestOutput`, `Result.TestsRun`, `Result.TestsFailed` and `Mutant.Function` are DECLARED in `vendor/github.com/sivchari/gomu/internal/mutation/engine.go` and assigned NOWHERE in the vendored tree: `runTestWithOverlay` (`vendor/.../internal/execution/engine.go`) sets `Status`, `Output` and `Error` only. Measured 0 of 1,042, 0 of 2,128 and 0 of 513 results carrying either field, over three packages. The kill IS attributable, from the `--- FAIL: <name>` lines in the raw `Output` text, because gomu runs `go test` with no `-run` and keeps the combined output. Pinned by `TestGomuReportTestAttributionParses` against `internal/le/rfc/testdata/gomu-report.json`, which reds if gomu ever fills the field |
+| A-3 | the tagged unit is resolvable for every carrier in scope | `UnitAt` returns `ScopeFunc` for Go and `ScopeFile` for a `.ci`, and both are already consumed by the write-time guard | a `.ci` proof cannot name what to run, and the functional route needs a scenario-level key instead | assert `UnitAt` over all 3,933 in-scope tags in a unit test | **confirmed** 2026-08-31. `TestUnitAtResolvesEveryInScopeTag`: 3,923 in-scope tags, 3,831 resolve to a function and 92 to a whole file, 0 resolve to nothing and 0 mint a key naming other than one function |
 | A-4 | an interop tag can cite a numbered assertion, and a `.ci` tag can cite a directive line | measured: 99 `fail(N,` sites in the bgp and ipsec checkers, and `checkerFailure` renders `assertion %d`. NOT verified for `.ci`, which has no numbering | the citation half of AC-8 needs a different key for `.ci`, for example the `expect=` directive text | enumerate the assertion sites and the `.ci` directive shapes in Phase 1 | unvalidated |
 | A-5 | roughly 1 tag in 4 over-claims | `spec-restore-bespoke-interop-assertions`: 5 over-claims in a sample of about 20, drawn from ONE package by one session, and two later batches came back clean | the ratchet is either over-built for a rare defect or under-built for a common one; neither changes whether the gate is correct | the proven set measures the true rate as it climbs, and the first 100 records are the first honest sample | unvalidated |
 | A-6 | no machine-readable requirement-to-producer link exists today | the `units` and `tests` maps in `rfc/audit/rfc7606.json` hold TESTS only, and producers appear in prose `note` fields. 10 production tags exist, 5 carry no polarity, and none is on a carrier | a producer index exists and the `mutant` route can be scoped without a coverage profile | grep the audit schema and `internal/le/rfc/audit.go` for any producer field | unvalidated |
-| A-7 | a mutant descriptor keyed on the producer function name plus the tagged unit's normalized text hash survives ordinary refactoring better than a line number | the re-stamp history in `rfc/audit/rfc7606.json`: two whole paragraphs exist because `tagged_unit_shas` hashes the enclosing FILE and every key shifted by the height of an inserted header | records rot on mechanical edits, and this work reproduces the re-stamp burden it was meant to avoid | replay the records across a mechanical rename in Phase 4 | unvalidated |
+| A-7 | a mutant descriptor keyed on the producer function name plus the tagged unit's normalized text hash survives ordinary refactoring better than a line number | the re-stamp history in `rfc/audit/rfc7606.json`: two whole paragraphs exist because `tagged_unit_shas` hashes the enclosing FILE and every key shifted by the height of an inserted header | records rot on mechanical edits, and this work reproduces the re-stamp burden it was meant to avoid | replay the records across a mechanical rename in Phase 4 | **confirmed** 2026-08-31, in Phase 2 rather than Phase 4 because Phase 2 owns the key. `TestDiscriminationRecordKeyedOnUnitHashNotLine`: a 9-line inserted header, a comment inside both units, a rewritten doc comment and added blank lines each leave the record VERIFIED; an inverted assertion and a rewritten producer each void it. A renamed unit or producer answers `unit-gone` / `producer-gone` (`TestDiscriminationRecordDiesWithItsUnit`) |
 | A-8 | the 3 violations `./le rfc check` reports in this tree are other sessions' work and will be gone before this spec is implemented | `check_rfc.go` was edited by the restore work and by session `rfc-gate`, both uncommitted elsewhere | the implementing session cannot tell its own red from the tree's | re-run `./le rfc check` at the start of implementation and record the baseline | unvalidated |
 | A-9 | the interop tier costs 21 to 150 seconds per scenario warm and 353 seconds cold | measured during `spec-restore-bespoke-interop-assertions`, quoted by the commissioning thread, not re-measured here | the `revert` route at interop tier is more expensive than budgeted, and the record must be produced by a nightly job rather than by hand | time one `./le integration interop` scenario in Phase 3 | unvalidated |
 
@@ -218,7 +218,8 @@ all of them on day one.
 |-------|-------------------|-------------------|
 | AC-1 | a `mutant` record whose stored break no longer makes its tagged unit fail | `./le rfc check` reports a violation naming the requirement id, the polarity, the tagged unit key, the mutated text and the producer function; exit code 2 |
 | AC-2 | a tag on an enrolled RFC's gated requirement, present in the tree and absent at HEAD, with no discrimination record | a violation naming the file, line, requirement id and polarity, and stating which proof route applies to its carrier kind |
-| AC-3 | a tagged unit whose behavior changed since HEAD under the `ChangedTags` predicate, whose record was not re-verified in the same change | a violation naming the unit and the stale record. A comment-only, whitespace-only or Go import-only edit produces NO violation |
+| AC-3 | a tagged unit whose behavior changed since HEAD under the `ChangedTags` predicate, whose record was not re-verified in the same change | a violation naming the unit and the stale record. A comment-only, whitespace-only or Go import-only edit produces NO violation. The tag's OWN claim text is the one exception and is NOT noise: rewording it stales the record and owes a re-record (AC-13) |
+| AC-13 | a tag whose claim text is edited, its unit body untouched, its record otherwise verifying | a violation naming the requirement id and the record, because a proof of the old claim is not a proof of the new one. The claim text is hashed as its own record field, so an unrelated doc comment or a reformat inside the unit still produces NO violation |
 | AC-4 | a record present at HEAD and absent in the tree, while its tag is still present | a violation: the proven set is monotonic. When the TAG is gone too, no violation, and the orphaned record is reported as removable |
 | AC-5 | `./le rfc discriminate stem <stem>` over a stem with unproven tags, given a gomu report path | it prints one candidate break per unproven unit-tier tag, drawn from mutants inside the code that tagged unit covers, ranked by whether the mutated text touches a symbol the claim's prose names, and writes nothing |
 | AC-6 | a `revert` record naming a producer symbol that does not resolve, or that the tagged unit's coverage profile never executes | a violation. An unreachable producer is the defect, not a proof of one |
@@ -234,26 +235,32 @@ all of them on day one.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestCheckDiscriminationRatchetReportsBrokenProof` | `internal/le/rfc/check_test.go` | AC-1 | |
-| `TestCheckDiscriminationRequiresProofForNewTag` | `internal/le/rfc/check_test.go` | AC-2 | |
-| `TestCheckDiscriminationIgnoresCommentOnlyEdit` | `internal/le/rfc/check_test.go` | AC-3, negative half | |
-| `TestCheckDiscriminationFiresOnChangedUnit` | `internal/le/rfc/check_test.go` | AC-3, positive half | |
-| `TestCheckDiscriminationProvenSetIsMonotonic` | `internal/le/rfc/check_test.go` | AC-4 | |
-| `TestCheckDiscriminationOrphanRecordIsRemovable` | `internal/le/rfc/check_test.go` | AC-4, second half | |
-| `TestDiscriminateProposesCoveredMutantsOnly` | `internal/le/rfc/discriminate_test.go` | AC-5 | |
-| `TestDiscriminateRanksBySymbolInClaim` | `internal/le/rfc/discriminate_test.go` | AC-5, ranking | |
-| `TestDiscriminationRevertRequiresReachableProducer` | `internal/le/rfc/discriminate_test.go` | AC-6, R-10 | |
-| `TestDiscriminationEscapeRefusedForMutatableUnitTag` | `internal/le/rfc/discriminate_test.go` | AC-7 | |
-| `TestDiscriminationEscapeVocabularyIsClosed` | `internal/le/rfc/discriminate_test.go` | AC-7 | |
-| `TestDiscriminationCitationMustExistInCarrier` | `internal/le/rfc/discriminate_test.go` | AC-8 | |
-| `TestCheckReportsUnscannedProductionTags` | `internal/le/rfc/check_test.go` | AC-9 | |
-| `TestCheckReportCarriesDiscriminationCounters` | `internal/le/rfc/check_test.go` | AC-10 | |
-| `TestDiscriminateRefusesUnobservedRed` | `internal/le/rfc/discriminate_test.go` | AC-11 | |
-| `TestDiscriminationRecordKeyedOnUnitHashNotLine` | `internal/le/rfc/discriminate_test.go` | R-6, A-7 | |
-| `TestRFCActionsCarryDiscriminateVerb` | `internal/le/rfc/actions_test.go` | wiring | |
-| `TestSelftestCoversDiscriminationProperties` | `internal/le/rfc/selftest_test.go` | one selftest row per refusal | |
-| `TestUnitAtResolvesEveryInScopeTag` | `internal/le/rfc/goscope_test.go` | A-3, over the real tree | |
-| `TestGomuReportTestAttributionParses` | `internal/le/rfc/discriminate_test.go` | A-2, against a checked-in gomu report fixture | |
+| `TestCheckDiscriminationRatchetReportsBrokenProof` | `internal/le/rfc/check_test.go` | AC-1 | PASS |
+| `TestCheckDiscriminationRequiresProofForNewTag` | `internal/le/rfc/check_test.go` | AC-2 | PASS |
+| `TestCheckDiscriminationIgnoresCommentOnlyEdit` | `internal/le/rfc/check_test.go` | AC-3, negative half | PASS |
+| `TestCheckDiscriminationStalesOnRewordedClaim` | `internal/le/rfc/check_test.go` | AC-13 | PASS |
+| `TestCheckDiscriminationFiresOnChangedUnit` | `internal/le/rfc/check_test.go` | AC-3, positive half | PASS |
+| `TestCheckDiscriminationProvenSetIsMonotonic` | `internal/le/rfc/check_test.go` | AC-4 | PASS |
+| `TestCheckDiscriminationOrphanRecordIsRemovable` | `internal/le/rfc/check_test.go` | AC-4, second half | PASS |
+| `TestDiscriminateProposesCoveredMutantsOnly` | `internal/le/rfc/discriminate_test.go` | AC-5 | PASS |
+| `TestDiscriminateRanksBySymbolInClaim` | `internal/le/rfc/discriminate_test.go` | AC-5, ranking | PASS |
+| `TestDiscriminationRevertRequiresReachableProducer` | `internal/le/rfc/discriminate_test.go` | AC-6, R-10 | PASS |
+| `TestDiscriminationEscapeRefusedForMutatableUnitTag` | `internal/le/rfc/discriminate_test.go` | AC-7 | PASS |
+| `TestDiscriminationEscapeVocabularyIsClosed` | `internal/le/rfc/discriminate_test.go` | AC-7 | PASS |
+| `TestDiscriminationCitationMustExistInCarrier` | `internal/le/rfc/discriminate_test.go` | AC-8 | PASS |
+| `TestCheckReportsUnscannedProductionTags` | `internal/le/rfc/check_test.go` | AC-9 | PASS |
+| `TestCheckReportCarriesDiscriminationCounters` | `internal/le/rfc/check_test.go` | AC-10 | PASS |
+| `TestDiscriminateRefusesUnobservedRed` | `internal/le/rfc/discriminate_test.go` | AC-11 | PASS |
+| `TestDiscriminationRecordKeyedOnUnitHashNotLine` | `internal/le/rfc/discriminate_test.go` | R-6, A-7 | PASS |
+| `TestDiscriminationRealRecordsSurviveAMechanicalRename` | `internal/le/rfc/discriminate_test.go` | R-6, over the REAL records rather than a fixture | PASS |
+| `TestDiscriminationRecordDiesWithItsUnit` | `internal/le/rfc/discriminate_test.go` | R-6, the orphan half of A-7 | PASS |
+| `TestRFCActionsCarryDiscriminateVerb` | `internal/le/rfc/actions_test.go` | wiring | PASS |
+| `TestSelftestCoversDiscriminationProperties` | `internal/le/rfc/selftest_test.go` | one selftest row per refusal | PASS |
+| `TestUnitAtResolvesEveryInScopeTag` | `internal/le/rfc/goscope_test.go` | A-3, over the real tree | PASS |
+| `TestGomuReportTestAttributionParses` | `internal/le/rfc/discriminate_test.go` | A-2, against a checked-in gomu report fixture | PASS (A-2 measured BROKEN) |
+| `TestCheckDiscriminationDriftIsJudgedAgainstHead` | `internal/le/rfc/check_test.go` | owner decision, 2026-08-31: an uncommitted edit reports, a committed one refuses | PASS |
+| `TestCheckDiscriminationMeasuresChangedGrandfatheredUnits` | `internal/le/rfc/check_test.go` | owner decision, 2026-08-31: the wide reading is measured and enforces nothing | PASS |
+| `TestGomuReportRefusesAPathOutsideTheCheckout` | `internal/le/rfc/discriminate_test.go` | Security Review Checklist, input validation: a report path reaches a tree write | PASS |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -350,7 +357,7 @@ all of them on day one.
    - Files: `internal/le/rfc/discriminate_action.go`, `internal/le/rfc/discriminate_test.go`
    - Verify: A-4 and A-9 move off `unvalidated`. Prove one tag of each carrier kind end to end: one unit tag by `mutant`, one `.ci` tag by `revert`, one interop tag by `revert` with an assertion citation
 4. **Phase: The ratchet's obligations** -- new tags and changed units owe a proof
-   - Tests: `TestCheckDiscriminationRequiresProofForNewTag`, `TestCheckDiscriminationFiresOnChangedUnit`, `TestCheckDiscriminationIgnoresCommentOnlyEdit`, `TestCheckDiscriminationProvenSetIsMonotonic`, `TestCheckDiscriminationOrphanRecordIsRemovable`, `TestCheckReportsUnscannedProductionTags`
+   - Tests: `TestCheckDiscriminationRequiresProofForNewTag`, `TestCheckDiscriminationFiresOnChangedUnit`, `TestCheckDiscriminationIgnoresCommentOnlyEdit`, `TestCheckDiscriminationStalesOnRewordedClaim`, `TestCheckDiscriminationProvenSetIsMonotonic`, `TestCheckDiscriminationOrphanRecordIsRemovable`, `TestCheckReportsUnscannedProductionTags`
    - Files: `internal/le/rfc/check_ratchets.go`, `internal/le/rfc/check_baseline.go`
    - Verify: replay the records across a mechanical rename and confirm no mass staleness (R-6). Force the ratchet RED by breaking one recorded proof, then restore
 5. **Phase: Documentation and discovery** -- the pages that describe the gate describe this one
@@ -421,6 +428,10 @@ all of them on day one.
 | One escape, `no-break`, with a closed vocabulary and a checked precondition | a free-text opt-out; no escape at all | No escape makes the gate unlandable, because some claims genuinely have no expressible break. A free-text opt-out becomes the answer within a week (R-9). The four dispositions of `checkSuperseded`, each with a precondition the gate verifies, is this repository's settled answer to honest debt |
 | `check` never executes anything; it re-verifies a stored record | `check` runs the mutant or the scenario | Interop scenarios cost 21 to 150 seconds warm and 353 cold, and `rfc check` is a stage of every full verify. Storing the proof and re-verifying the fingerprints is what `checkAuditFreshness` already does |
 | Records key on producer function name plus the tagged unit's normalized text hash | file and line, as the audit artifact does | The audit artifact's own history shows the cost: whole re-stamp paragraphs exist because a 9-line inserted header shifted every key. `behaviorBytes` already normalizes away comments and whitespace and is the right hash input |
+| The tag's CLAIM TEXT is hashed as its own field, separate from the unit body (owner decision, 2026-08-31) | leave the claim text out of the record, which is what AC-3 says literally | `behaviorBytes` strips comments and the claim sentence IS a comment, so a sealed proof survives a reworded claim. An author could prove a modest claim, then widen the sentence with no code edit, and `check` would publish the wider claim as proven. That is the over-claim this spec exists to stop, and it is CHEAPER to land than the five already found, because it needs no test edit at all. AC-3's "a comment-only edit produces NO violation" is about NOISE, an unrelated doc comment or a reformat, and the tag's own claim sentence is the thing under judgement rather than noise. The accepted cost is that rewording a claim, a typo fix included, goes stale and owes a re-record |
+| A stale record is a violation only where the drift is COMMITTED; drift under an uncommitted edit is REPORTED (owner decision, 2026-08-31) | judge every stale record against the working tree, as Phase 2 did | Several sessions share this checkout. Judging against the working tree reds `./le rfc check` for all of them over one session's uncommitted edit to `wireu/wellknown.go`, `geodns/config.go` or `role/config.go`, and clearing the interop one costs a 576-second re-record. `docs/contributing/rfc-conformance-gates.md` states that a rule which reds the tree on unrelated work gets removed rather than obeyed. HEAD tells the two apart, every sibling branch of this ratchet is already HEAD-gated, and the author still meets the violation at their own commit. A drifted record is never counted as proven in the meantime, so an unreliable observation cannot read as an answer (`ai/rules/principles.md`) |
+| The WIDE reading of the obligation is MEASURED and published, and enforces nothing (owner decision, 2026-08-31) | enforce the wide reading now; leave the narrow reading alone and measure nothing | R-2 says a tag added since HEAD OR a tagged unit whose behavior changed owes a record. AC-3 says the violation names "the stale record", which only a unit that already has one can have. Phase 4 implemented the narrow reading, so a grandfathered tagged test can be gutted today and nothing bills it. Enforcing the wide reading before anyone has counted it is how a ratchet earns removal; measuring it is what says whether enforcing it is affordable. `discriminationChangedUnits` consumes `ChangedTags`, so the count follows one predicate rather than a second one |
+| Every escape names what ties it to THIS claim, on top of the fact its reason states | check the reason's fact alone, as Phase 3 did | A reason's fact is about a FILE or a CARRIER KIND. `interop` is a property of all 37 interop tags at once and a declaration-only file exists in every package, so a reason checked on its own discharges every tag equally: naming any `doc.go` escaped any tag on any tier. That is the blanket opt-out R-9 exists to prevent, wearing a closed vocabulary. `foreign-producer` now cites the `fail(N, ...)` number its own checker writes out, read by the same checker AC-8 uses; the two producer-naming reasons need the tag's own claim to name an identifier that file declares. Coverage cannot supply the second tie and that is measured: a declaration-only file has no statement, so no profile ever carries a block for it |
 | REJECTED: constrain tag prose to a checkable grammar | -- | It rewrites 3,977 prose halves, and a grammar expressive enough for "FRR installs the route via the link-local next hop" is a language nobody wants to write. Worse, it checks the SHAPE of the claim rather than its truth: a well-formed sentence can still name an assertion the body never makes. Closing that means comparing the claim to the body, which is the citation option below, and then the grammar has bought nothing |
 | REJECTED: require each tag to cite the assertion line it rests on | -- | Cheap to check, and genuinely useful at interop tier where 99 numbered assertions already exist, so it is ADOPTED there as part of the record (AC-8) rather than as the whole design. As the whole design it fails twice: a cited line rots on every edit above it, which is the re-stamp burden `rfc/audit/` already pays, and a cited assertion can still be too weak for the claim. It proves a pointer exists, not that the pointer discriminates |
 | REJECTED: hand-sampling with a documented rate | -- | Already implemented, already running, already measured: `/ze-rfc-audit` plus `rfc/audit/<stem>.json` covers 1 of 172 enrolled RFCs, and 2 of that one's verdicts are stale today. An audit is a photograph, and the defect it photographs re-enters on the next commit. It also gates nothing: a new over-claiming tag lands green whatever last month's sample said |
@@ -478,7 +489,7 @@ a requirement means, which is documented in `docs/contributing/rfc-conformance-g
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1 through AC-12 all demonstrated
+- [ ] AC-1 through AC-13 all demonstrated
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] `./le verify worktree` passes. It runs every stage against a COMMIT in a throwaway worktree, which is the pre-commit gate (`ai/rules/git-safety.md`). An in-place `./le verify current` is void the moment the tree moves under it
 - [ ] Feature code integrated in `internal/le/rfc/`, not library-only
@@ -491,6 +502,7 @@ a requirement means, which is documented in `docs/contributing/rfc-conformance-g
 ### Goal Validation
 | Goal | Evidence that proves it |
 |------|------------------------|
+| A proven tag cannot be widened by rewording it | Seal a record, then edit ONLY the claim sentence to say more than the body checks. `./le rfc check` reports the record stale and names the requirement id. Restore the sentence, confirm exit 0. Paste both (AC-13) |
 | A tag can no longer advertise an assertion its body never makes | Take a tag whose recorded proof is `mutant`. Apply the stored break: the tagged unit goes RED. Now WEAKEN that test until it no longer checks the claim and re-apply the break: the unit stays GREEN and `./le rfc check` reports the violation. Paste both runs |
 | The new gate is forced RED, so it is proven to discriminate | Three forced reds, each with pasted output: edit one stored mutant descriptor so it no longer kills and see exit 2 naming that record; add a new tag on a gated requirement with no record and see exit 2 naming file, line and id; delete a record whose tag remains and see exit 2 on the monotonic branch. Restore each and confirm exit 0 |
 | The gate is inert on the standing corpus, so it does not red unrelated work | `./le rfc check` on the unchanged tree before and after this work reports the IDENTICAL violation list, with 0 owed. Paste both |

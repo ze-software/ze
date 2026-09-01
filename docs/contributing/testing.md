@@ -135,6 +135,15 @@ their per-package scores to the committed history.
 Mutation testing is advisory. It never gates `./le verify current mode full` or CI. A surviving mutant
 is a signal that a test could be stronger, not a blocking failure.
 
+One consumer reads a gomu report for a narrower question. `./le rfc discriminate
+<selector> report <path>` scopes the report to ONE RFC-tagged test: it keeps the
+KILLED mutants that lie in code that test's own coverage profile executes, and
+offers them as candidate breaks. `./le rfc discriminate-record` then applies one,
+runs that test alone, and records the red it observed. gomu's status stays
+unchanged, because nothing in `./le rfc check` starts a mutation run: the gate
+reads a stored record. See `docs/contributing/rfc-conformance-gates.md`, "The
+discrimination record".
+
 Files with custom build tags and `cmd/ze/` are excluded via `.gomuignore` because
 gomu has no `--tags` support. Reports land in `tmp/` (gitignored). Mutation score
 history is tracked in `test/mutation/history.ndjson`.
@@ -357,10 +366,18 @@ FALSE PASS. Three `redistribute-late-join*.ci` tests kept passing with the
 late-join replay (`handleReplayBatch`) disabled: the route reached the peer by
 some other path, so they guarded nothing and shipped green.
 
-No tool catches this. Mutation testing through the Go `gomu` binary runs unit
-tests only; it never executes `.ci` or `.et`. Proving that a functional test
-gates is a manual design discipline: disable the producing function, confirm the
-test flips to red, and revert.
+Mutation testing through the Go `gomu` binary runs unit tests only; it never
+executes `.ci` or `.et`. Proving that a functional test gates is therefore the
+discipline this page has always prescribed: disable the producing function,
+confirm the test flips to red, and revert.
+
+For an RFC-tagged carrier that walk now has a runner and a record.
+`./le rfc discriminate-record ... route revert producer <path>::<Func>` disables
+the named function, runs ONE `.ci` or ONE interop scenario, requires the red, and
+puts the producer back byte for byte. What it writes is a
+`rfc/discrimination/<stem>.json` record that `./le rfc check` re-verifies on every
+run, so the red is remembered rather than done once and forgotten. An untagged
+`.ci` still owes the walk by hand.
 
 When a behavior genuinely cannot be made to fail under mutation because it is
 not observable end to end (the reactor suppresses a duplicate announce, so

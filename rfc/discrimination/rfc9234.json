@@ -1,0 +1,16 @@
+{
+  "rfc": "rfc9234",
+  "records": [
+    {
+      "rid": "RFC9234-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/role/config_test.go::TestExtractRoleCapabilities_ParseBGPConfig",
+      "unit-sha": "77ba5b4ba36ec6a8",
+      "claim-sha": "93f95e3186667c1c",
+      "route": "mutant",
+      "producer": "internal/component/bgp/plugins/role/config.go::extractPeerRoleConfigs",
+      "producer-sha": "f5becd591afb8d0f",
+      "break": "line 186: \"peerCfg != nil\" -\u003e \"false\""
+    }
+  ]
+}

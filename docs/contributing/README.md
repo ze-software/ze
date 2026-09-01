@@ -22,7 +22,7 @@ Ze development is expected on macOS or Linux. Windows is not a supported develop
 | `claude-code-cheatsheet.md` | Quick reference for the AI-assisted workflow and skills |
 | `gh-pages.md` | Publishing the documentation site |
 | `rfc-implementation-guide.md` | How to implement an RFC: reading, summarising, and compliance evidence |
-| `rfc-conformance-gates.md` | What `./le rfc check` measures: the artifacts, the eight ratchets, the public ledger guards, the superseded marker, and the extraction sign-off |
+| `rfc-conformance-gates.md` | What `./le rfc check` measures: the artifacts, the nine ratchets, the public ledger guards, the superseded marker, the extraction sign-off, and the claim-discrimination record |
 
 For architecture-level testing design (CI format, interop, QEMU), see
 `../architecture/testing/`.

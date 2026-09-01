@@ -5,6 +5,7 @@
 // Detail: check_audit.go -- audit schema, freshness, disclosure, and ratchets
 // Detail: check_extraction.go -- extraction, drain, and generated-page checks
 // Detail: check_compile.go -- tagged-package type checking
+// Detail: discriminate.go -- the recorded proofs this check reads and counts
 //
 // check.go owns the control flow for `le rfc check`. Every leaf computes one
 // concern and this function fixes the diagnostic order to the Python producer's.
@@ -36,6 +37,53 @@ type CheckReport struct {
 	AuditVerdicts    int            `json:"audit-verdicts,omitempty"`
 	AuditDone        int            `json:"audit-done,omitempty"`
 	AuditTotal       int            `json:"audit-total,omitempty"`
+	// The three discrimination figures render even at zero, unlike every count
+	// above them. They are published DEBT, and an absent key would let a
+	// consumer read "nothing is proven yet" as "this gate has no such stage".
+	DiscriminationProven  int `json:"discrimination-proven"`
+	DiscriminationOwed    int `json:"discrimination-owed"`
+	DiscriminationEscaped int `json:"discrimination-escaped"`
+	// DiscriminationRemovable names the records whose TAG is gone. They are
+	// reported rather than refused: a record dies with the tag it proves, so an
+	// orphan has nothing left to be wrong about and the next action is to delete
+	// it, not to re-record it.
+	DiscriminationRemovable []string `json:"discrimination-removable,omitempty"`
+	// DiscriminationDrifted names the records the working tree contradicts under
+	// an edit nobody has committed. Reported rather than refused: the drift
+	// belongs to whoever is editing that file, and it becomes their violation at
+	// their commit (owner decision, 2026-08-31). None of them is counted as
+	// proven, because an unverified verdict is counted by nothing.
+	DiscriminationDrifted []string `json:"discrimination-drifted,omitempty"`
+	// DiscriminationChanged counts the grandfathered tagged units whose behavior
+	// changed since HEAD with no proof recorded. A MEASUREMENT of the unproven
+	// backlog, never a violation: it renders at zero for the reason the three
+	// figures above do, so an absent key cannot read as "this gate has no such
+	// stage" (owner decision, 2026-08-31).
+	DiscriminationChanged int `json:"discrimination-changed"`
+	// DiscriminationBacklog counts the tagged units the unpushed commits added
+	// without proving. A MEASUREMENT of how much sits behind the obligation,
+	// never a violation: the unpushed set is hundreds of commits deep here,
+	// nobody can clear it inside the change in hand, and billing it is what gets
+	// a ratchet removed rather than obeyed.
+	//
+	// nil says the branch it is measured against did not resolve, and renders as
+	// JSON null. A plain int cannot carry that: a branch nobody could read and a
+	// branch nothing is ahead of are opposite answers that both count 0, and a
+	// reader of the second kind of 0 would take a measurement that never ran for
+	// a clean backlog (ai/rules/principles.md). The branch is named by
+	// backlogRevision, which is where that name is declared.
+	DiscriminationBacklog *int `json:"discrimination-backlog"`
+	// DiscriminationUnresolved counts the tagged units that measurement could
+	// not read at BOTH revisions. It renders beside the count above because a
+	// zero the walk never looked for is not a zero: almost every tag keys on a
+	// function, and a resolver answering nothing would publish an empty backlog
+	// over a corpus it never opened (ai/rules/principles.md).
+	DiscriminationUnresolved int `json:"discrimination-unresolved"`
+	// UnscannedTags are the `RFC requirement:` comments in production Go that
+	// no carrier claims. Published debt, not a violation: they predate the
+	// check, and a ratchet that reds the tree over standing debt gets removed
+	// rather than obeyed.
+	UnscannedTags []UnscannedTag `json:"unscanned-tags,omitempty"`
 }
 
 // Text renders the diagnostics and success summary the Python gate prints.
@@ -76,7 +124,61 @@ func (r CheckReport) Text() string {
 		Str(" audited-but-not-proven, of ").Int(int64(r.AuditVerdicts)).Str(" verdict(s); ").
 		Int(int64(r.AuditDone)).Str(" of ").Int(int64(r.AuditTotal)).Str(" auditable requirement(s) audited (").
 		Str(strconv.FormatFloat(percentage, 'f', 2, 64)).Str("%); a missing verdict is legal (the audit is sampled, the gate is total).\n")
+	tb.Str("discrimination: ").Int(int64(r.DiscriminationProven)).Str(" proven, ").
+		Int(int64(r.DiscriminationOwed)).Str(" owed, ").Int(int64(r.DiscriminationEscaped)).
+		Str(" escaped; a proof is a recorded break under which the tagged unit itself goes red, ").
+		Str("and a tag the commit under test did not add is grandfathered.\n")
+	if r.DiscriminationBacklog != nil {
+		tb.Str("discrimination: ").Int(int64(*r.DiscriminationBacklog)).
+			Str(" tagged unit(s) carry a tag added since ").Str(backlogRevision).
+			Str(" with no proof recorded. A MEASUREMENT of the unpushed backlog, not an ").
+			Str("obligation being enforced: nothing on this line is a violation and the exit ").
+			Str("code is unchanged. The owed count above bills only what the commit under test ").
+			Str("added, which is the one change its author can still record a proof in.\n")
+	}
+	if len(r.DiscriminationRemovable) > 0 {
+		tb.Str("discrimination: ").Int(int64(len(r.DiscriminationRemovable))).
+			Str(" record(s) can be removed, because the tag each one proved is gone (").
+			Str(strings.Join(r.DiscriminationRemovable, ", ")).
+			Str("). A record dies with its tag, so an orphan is deleted rather than re-recorded.\n")
+	}
+	if len(r.DiscriminationDrifted) > 0 {
+		tb.Str("discrimination: ").Int(int64(len(r.DiscriminationDrifted))).
+			Str(" record(s) do not match the working tree under an edit nobody has committed (").
+			Str(strings.Join(r.DiscriminationDrifted, ", ")).
+			Str("). None counts as proven while that edit stands, and none is a violation here: ").
+			Str("the drift belongs to whoever edited that file, and it becomes their violation ").
+			Str("at their commit.\n")
+	}
+	tb.Str("discrimination: ").Int(int64(r.DiscriminationChanged)).
+		Str(" grandfathered tagged unit(s) changed behavior since HEAD with no proof recorded. ").
+		Str("A MEASUREMENT of the unproven backlog, not an obligation: nothing on this line is a ").
+		Str("violation and the exit code is unchanged. Whether it becomes one is a later decision.\n")
+	if r.DiscriminationUnresolved > 0 {
+		tb.Str("discrimination: ").Int(int64(r.DiscriminationUnresolved)).
+			Str(" further tagged unit(s) could not be read at both HEAD and here, so the count ").
+			Str("above them counted neither. A unit key names a function, and one that resolves ").
+			Str("at neither revision is a measurement that did not run rather than a clean one.\n")
+	}
+	if len(r.UnscannedTags) > 0 {
+		tb.Str("unscanned: ").Int(int64(len(r.UnscannedTags))).
+			Str(" 'RFC requirement:' comment(s) sit in production Go on no carrier, so nothing resolves them and nothing runs them; ").
+			Int(int64(unscannedRefused(r.UnscannedTags))).
+			Str(" of those would be refused outright, having no polarity. They read as evidence to a person and are counted by no gate.\n")
+	}
 	return tb.String()
+}
+
+// unscannedRefused counts the production tags no scanner could read even if one
+// claimed their file.
+func unscannedRefused(tags []UnscannedTag) int {
+	refused := 0
+	for index := range tags {
+		if tags[index].Refusal != "" {
+			refused++
+		}
+	}
+	return refused
 }
 
 func evidenceCounts(tags []Tag, carriers []Carrier) map[string]int {
@@ -178,12 +280,43 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		}
 	}
 
+	records, err := loadDiscrimination(tree)
+	if err != nil {
+		return CheckReport{}, err
+	}
+	// One reader and one scope index for every discrimination consumer below.
+	// Each resolves a unit key inside a file's text, and a second cache would
+	// re-read the same files for the same answers.
+	discriminationSources := newSourceReader(tree)
+	discriminationIndex := newScopeIndex()
+	// The committed tag corpus is read once, at the three revisions this check
+	// compares, and serves four consumers: the polarity and evidence ratchets
+	// below, which only run where the enrolled sets meet; the obligation, which
+	// bills what the tip commit added against the commit before it; the backlog,
+	// which measures what the unpushed commits added against the pushed branch;
+	// and the changed-unit measurement, which reads the tip's own blobs.
+	committed := readCommittedTags(tree, discriminationIndex)
+	// Every tag is resolved to the unit it sits in ONCE. Three consumers read
+	// that answer: the claim fingerprint each record is verified against, the
+	// obligation a unit new since HEAD owes, and the orphan exemption that tells
+	// a record whose tag is gone from one the tree contradicts.
+	discriminationCovers, err := tagCovers(discriminationSources, discriminationIndex, collected.Tags)
+	if err != nil {
+		return CheckReport{}, err
+	}
+	// The stored proofs are re-verified ONCE, and the verdicts serve both the
+	// ratchet and the published figures. A record that no longer verifies is
+	// therefore refused and uncounted by one decision rather than two.
+	discrimination, err := verifyDiscrimination(tree, records, discriminationCovers)
+	if err != nil {
+		return CheckReport{}, err
+	}
+
 	var violations []string
 	violations = append(violations, checkEnrolment(tree, collected.Enrolled, baseEnrolled, stems, newly, signedSet)...)
 	violations = append(violations, checkNewSummaries(deriver, stems, baselineStems, collected.Enrolled,
 		collected.Requirements, collected.ParseByStem, stemsKnown)...)
 	if intersects(collected.Enrolled, baseEnrolled) {
-		baselineTagSet := baselineTags(tree)
 		carriers, err := carriers(tree)
 		if err != nil {
 			return CheckReport{}, err
@@ -193,9 +326,9 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		violations = append(violations, checkLevelRatchet(tree, collected.Requirements, collected.Enrolled,
 			levels, baseEnrolled)...)
 		violations = append(violations, checkCoverageRatchet(collected.Requirements, collected.Tags,
-			collected.Enrolled, baselinePolarities(baselineTagSet), baseEnrolled)...)
+			collected.Enrolled, baselinePolarities(committed.Tags), baseEnrolled)...)
 		violations = append(violations, checkEvidenceRatchet(collected.Requirements, collected.Tags,
-			collected.Enrolled, carriers, baselineEvidence(tree, baselineTagSet), baseEnrolled)...)
+			collected.Enrolled, carriers, baselineEvidence(tree, committed.Tags), baseEnrolled)...)
 	}
 	violations = append(violations, collected.ParseErrors...)
 	violations = append(violations, checkIDAllocation(collected.Requirements, ids)...)
@@ -237,7 +370,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	}
 	violations = append(violations, auditFileErrors...)
 	violations = append(violations, checkAuditSchema(collected.Requirements, collected.Tags, audits)...)
-	states := AuditFreshness(AuditFreshnessInput{Tree: tree, Requirements: collected.Requirements,
+	states := auditFreshness(auditFreshnessInput{Tree: tree, Requirements: collected.Requirements,
 		Tags: collected.Tags, Enrolled: collected.Enrolled, Audits: audits})
 	violations = append(violations, checkAuditFreshness(collected.Requirements, states)...)
 	violations = append(violations, checkAuditDisclosure(collected.Requirements, rows, collected.Enrolled, audits)...)
@@ -246,6 +379,24 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		baselineAuditSet, auditsKnown)...)
 	violations = append(violations, checkAuditVerdictRatchet(collected.Requirements, collected.Enrolled, audits,
 		baselineAuditSet, auditsKnown, baseEnrolled)...)
+
+	headRecords, headRecordsKnown := baselineDiscrimination(tree)
+	headRecordBlobs, headRecordBlobsKnown := baselineRecordBlobs(tree, records)
+	gated := map[string]bool{}
+	for _, req := range collected.Requirements {
+		if req.Gated() && collected.Enrolled[req.RFC] {
+			gated[req.RID] = true
+		}
+	}
+	obligations := discriminationInput{Verdicts: discrimination,
+		Requirements: collected.Requirements, Gated: gated, Covers: discriminationCovers,
+		HeadCovers: committed.Head, PriorCovers: committed.Prior, PriorKnown: committed.PriorKnown,
+		BacklogCovers: committed.Backlog, BacklogRef: committed.BacklogRef,
+		HeadRecords: headRecords, HeadKnown: headRecordsKnown, Carriers: carriers,
+		Sources: discriminationSources, Index: discriminationIndex,
+		HeadSources: newTextReader(headRecordBlobs), HeadBlobsKnown: headRecordBlobsKnown,
+		HeadTagBlobs: committed.Blobs}
+	violations = append(violations, checkDiscriminationRatchet(obligations)...)
 
 	violations = append(violations, extractionErrors...)
 	extractions, err := LoadExtractions(tree)
@@ -286,7 +437,32 @@ func check(tree string, today time.Time) (CheckReport, error) {
 		report.AuditTotal += row.Auditable
 	}
 	report.AuditFindings = len(worklist)
+	report.DiscriminationProven, report.DiscriminationEscaped = discriminationRouteCounts(discrimination)
+	report.DiscriminationOwed = len(discriminationOwed(obligations))
+	report.DiscriminationBacklog = discriminationBacklog(obligations)
+	report.DiscriminationRemovable = discriminationRemovable(discrimination)
+	report.DiscriminationDrifted = discriminationDrifted(obligations)
+	report.DiscriminationChanged, report.DiscriminationUnresolved = discriminationChangedUnits(obligations)
+	report.UnscannedTags, err = unscannedTags(tree, carriers)
+	if err != nil {
+		return CheckReport{}, err
+	}
 	return report, nil
+}
+
+// discriminationRemovable names the records whose tag is gone, in record order.
+func discriminationRemovable(verdicts []DiscriminationVerdict) []string {
+	var out []string
+	for index := range verdicts {
+		if !verdicts[index].removable() {
+			continue
+		}
+		var tb textbuf.Buffer
+		out = append(out, tb.Str(verdicts[index].Record.RID).Byte(' ').
+			Str(verdicts[index].Record.Polarity).Str(" at ").
+			Str(verdicts[index].Record.Unit).String())
+	}
+	return out
 }
 
 func intersects(left, right map[string]bool) bool {

@@ -1,0 +1,17 @@
+{
+  "rfc": "rfc1035",
+  "records": [
+    {
+      "rid": "RFC1035-3.1-3",
+      "polarity": "positive",
+      "unit": "test/parse/dns-name-too-long.ci",
+      "unit-sha": "c204dd4ce061c6b5",
+      "claim-sha": "dcc432e3d77ebfa9",
+      "route": "revert",
+      "producer": "internal/plugins/geodns/config.go::checkName",
+      "producer-sha": "ae76105513799355",
+      "break": "body of checkName replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=stdout:contains=64-octet label"
+    }
+  ]
+}

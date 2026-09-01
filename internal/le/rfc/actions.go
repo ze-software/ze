@@ -31,10 +31,41 @@ var actions = leaction.New(area,
 		Why: "judge one proposed file from stdin against its existing RFC-tagged test units, " +
 			"and return the carrier predicate, widened edit scope, and owner-approval decision",
 		Parameters: []leaction.Parameter{
-			{Keyword: "path", Value: "path"},
+			{Keyword: keyPath, Value: keyPath},
 		},
 		AnswerArgs: taggedScopeAnswer,
 	},
+	leaction.Action{
+		Verb: "discriminate",
+		Why: "report what one RFC stem or one requirement id has PROVEN and what it still owes: " +
+			"the recorded breaks under which a tagged unit goes red, and the tags carrying no such " +
+			"record. A tag's prose says what a test demonstrates and no gate can read a sentence, " +
+			"so a record is what replaces reading it",
+		Parameters: []leaction.Parameter{
+			{Keyword: keyStem, Value: keyStem},
+			{Keyword: keyID, Value: keyID},
+			{Keyword: keyReport, Value: keyPath},
+		},
+		AnswerArgs: discriminateAnswer},
+	leaction.Action{
+		Verb: "discriminate-record",
+		Why: "record ONE proof that a tagged unit was OBSERVED to fail under a named break of " +
+			"the code its claim rests on, or one escape saying no break exists. It applies the " +
+			"break through a Go overlay, runs the tagged unit, and requires a failure that NAMES " +
+			"that unit: a red it did not observe is never written, and a green run refuses",
+		Writes: true,
+		Parameters: []leaction.Parameter{
+			{Keyword: keyID, Value: keyID},
+			{Keyword: keyPolarity, Value: keyPolarity},
+			{Keyword: keyUnit, Value: keyUnit},
+			{Keyword: keyRoute, Value: keyRoute},
+			{Keyword: keyProducer, Value: keyProducer},
+			{Keyword: keyReport, Value: keyPath},
+			{Keyword: keyMutant, Value: "file:line:column#n"},
+			{Keyword: keyCitation, Value: keyCitation},
+			{Keyword: keyReason, Value: keyReason},
+		},
+		AnswerArgs: discriminateRecordAnswer},
 	leaction.Action{Verb: "check", Why: "verify RFC requirement coverage, evidence strength, public status, audit verdicts, extraction sign-off, and generated ledger freshness without writing",
 		Answer: checkAnswer},
 	leaction.Action{Verb: "selftest", Why: "exercise every RFC engine concern against in-process fixtures and report one " +
@@ -104,6 +135,42 @@ func extractionStatusAnswer() (any, int) {
 		return nil, 2
 	}
 	status, err := extractionStatus(NewDeriver(tree), collected.Requirements, collected.Enrolled)
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	return status, 0
+}
+
+// discriminateAnswer reports one selector's recorded proofs and unproven tags.
+//
+// Exactly one selector, because the two answer different questions and a call
+// naming both would have to pick one silently. It answers 2 for anything that
+// stopped it, which includes a malformed record: a corrupt artifact must never
+// read as a stem with nothing proven.
+func discriminateAnswer(args leaction.Arguments) (any, int) {
+	stem, hasStem := args[keyStem]
+	rid, hasID := args[keyID]
+	if hasStem == hasID {
+		leaction.ReportError(errors.New("rfc discriminate requires exactly one of stem <stem> or id <ID>"))
+		return nil, 2
+	}
+	selector := rid
+	selected := func(one string) bool { return one == rid }
+	if hasStem {
+		selector = stem
+		selected = func(one string) bool { return hasRIDStem(one, stem) }
+	}
+	if selector == "" {
+		leaction.ReportError(errors.New("rfc discriminate was given an empty selector"))
+		return nil, 2
+	}
+	tree, err := lepath.Root()
+	if err != nil {
+		leaction.ReportError(err)
+		return nil, 2
+	}
+	status, err := discriminationStatusOf(tree, selector, args[keyReport], selected)
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

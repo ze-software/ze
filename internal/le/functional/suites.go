@@ -109,6 +109,13 @@ const (
 	bgpVerb  = "bgp"
 )
 
+// AllTests is the selector a caller replaces to run ONE test of a suite.
+//
+// Exported for internal/le/rfc, which runs a single tagged .ci to observe the
+// red one discrimination record rests on: a suite-wide run cannot attribute a
+// failure to one carrier.
+const AllTests = allTests
+
 // Gating is the run list, in the order the gating run runs them.
 //
 // It is also the progress denominator and the population from which every

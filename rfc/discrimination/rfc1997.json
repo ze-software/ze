@@ -1,0 +1,17 @@
+{
+  "rfc": "rfc1997",
+  "records": [
+    {
+      "rid": "RFC1997-Well-1",
+      "polarity": "positive",
+      "unit": "internal/le/interoplab/bgp/check_rfc.go::checkNoExportBoundary",
+      "unit-sha": "54e1cac72d8796c7",
+      "claim-sha": "efa588496af48a45",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/wellknown.go::AllowsEgressTo",
+      "producer-sha": "1180e31db97ccb63",
+      "break": "body of AllowsEgressTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "7"
+    }
+  ]
+}

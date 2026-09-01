@@ -22,6 +22,16 @@ names in snake_case. The Go names below are the current ones.
 | `rfc/drain-budget.txt` | The extraction drain schedule: a start date and a rate, and nothing else |
 | `docs/features/rfc-status.md` | The PUBLIC support claim, one row per enrolled RFC |
 | `ai/RFC-REQUIREMENTS.md` | The generated backlog: the coverage rollup, the audit coverage, the claim-discrimination counts and the extraction sign-off counts |
+| `rfc/requirements/<stem>.md` | One RFC's requirement table: six cells per requirement, generated from the summary and the tags |
+
+Everything in that table is also PUBLISHED, one page per summary stem at
+`/quality/rfc-compliance/<stem>/`. The page carries the same six cells, the
+recorded verdict and its freshness, and the state of every stored proof
+re-verified against the tree. `internal/le/site/rfcledger.go` derives it, and
+the disclosure is full by owner ruling of 2026-09-01: a `no-break` record is
+named as the escape it is and never counted as a proof, a verdict that is not
+`enforced` is named under its requirement id, and a gated MUST with no test is
+listed rather than absorbed into a percentage.
 
 ## The ratchets
 
@@ -40,7 +50,7 @@ means the evidence held rather than that nobody looked.
 | Non-unit evidence is monotonic, per tier | `checkEvidenceRatchet` | a requirement loses an evidence KIND it had at HEAD: its `.ci` becomes a unit test, or a verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution leaving the tag COUNT unchanged still fires. A unit test proves the algorithm; only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | Extraction is monotonic | `checkExtractionRatchet` | a stem that carried a sign-off at HEAD carries none now, or a signed stem's exclusion count RISES without a `resign-reason` and a bumped `signed-off` date. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming a hatch where every unmapped site is excluded with a shrug |
 | Public disclosure is monotonic | `checkStatusCompleteness` | an RFC enrolled since HEAD has no row in `docs/features/rfc-status.md`, or a row that existed at HEAD is gone while its RFC stays enrolled. Enrolment gates that RFC's MUSTs, so the public page must say the RFC exists |
-| A claim keeps its proof, and a new claim owes one | `checkDiscriminationRatchet` | a tagged unit new since HEAD carries no discrimination record, a record committed at HEAD is deleted while its tag stands, or a recorded proof no longer verifies against the tree. This is the only ratchet that reads the PROSE half of a tag: `claim-sha` fires when the sentence is reworded, because a proof of the old claim is not a proof of the new one |
+| A claim keeps its proof, and a new claim owes one | `checkDiscriminationRatchet` | a tagged unit the tip commit added against `HEAD^` carries no discrimination record, a record committed at HEAD is deleted while its tag stands, or a recorded proof no longer verifies against the tree. This is the only ratchet that reads the PROSE half of a tag: `claim-sha` fires when the sentence is reworded, because a proof of the old claim is not a proof of the new one |
 
 `checkIDAllocation` and `checkAuditVerdictRatchet` (`internal/le/rfc/check_ratchets.go`,
 `check_audit.go`) compare against HEAD on the same footing, for requirement id
@@ -262,8 +272,8 @@ refusals exist today.
 | A record naming a requirement no summary declares | A proof of an obligation nobody wrote down proves nothing |
 | Two records claiming one requirement, polarity and tagged unit | The proven count is published, and a duplicate inflates it |
 | A record whose `producer` no longer resolves in the tree | The break was applied to code that is gone |
-| A record whose `unit-sha`, `claim-sha` or `producer-sha` no longer matches COMMITTED code | Nothing observed the red over the code that was committed, or the red was observed about a different sentence, so a hand-written record is refused by the same rule that catches a real drift. The drift is judged against HEAD, never against the working tree (owner decision, 2026-08-31): several sessions share this checkout, so one session's uncommitted edit to a producer would otherwise red the gate for all of them, and clearing an interop record costs a 576-second re-record. A record staled by an edit nobody has committed is REPORTED on a `discrimination:` line of its own, counted as proven by nothing, and becomes a violation at the commit that carries the edit |
-| A tagged unit present in the tree, absent at HEAD, on an enrolled RFC's gated requirement, carrying no verified record | The obligation is what a CHANGE adds. A floor that starts at zero and only forbids going below zero proves nothing |
+| A record whose `unit-sha`, `claim-sha` or `producer-sha` no longer matches COMMITTED code | Nothing observed the red over the code that was committed, or the red was observed about a different sentence, so a hand-written record is refused by the same rule that catches a real drift. The drift is judged against HEAD, never against the working tree (owner decision, 2026-08-31): several sessions share this checkout, so one session's uncommitted edit to a producer would otherwise red the gate for all of them, and clearing an interop record costs a 576-second re-record. A record staled by an edit nobody has committed is REPORTED on a `discrimination:` line of its own, counted as proven by nothing, and becomes a violation at the commit that carries the edit. HEAD and the tree are compared at the granularity the record FINGERPRINTS, which is the producer or unit FUNCTION: comparing whole files let any unrelated uncommitted edit elsewhere in that file silence the author's own violation |
+| A tagged unit the TIP COMMIT added against `HEAD^`, on an enrolled RFC's gated requirement, carrying no verified record | The obligation is what a CHANGE adds. A floor that starts at zero and only forbids going below zero proves nothing. Both sides are COMMITTED (owner decision, 2026-09-01): a tag sitting only in somebody's working tree bills nobody, and `./le verify worktree` checks the commit under test out detached, where a tag that commit added IS the tip |
 | A record committed at HEAD, deleted from the tree, while the tag it proved is still there | The proven set only goes up. Deleting a record beside a standing tag takes a proof off the published ledger and leaves the claim behind it |
 | Nothing, when a record's TAG is gone | A record dies with the tag it proves, so an orphan has nothing left to be wrong about. It is REPORTED as removable, on a `discrimination:` line of its own, and counted as proven by nothing |
 | A functional or interop record citing an assertion its carrier does not contain, or citing none | No generated break reaches either carrier, so the citation is what ties the recorded red to one assertion rather than to the whole suite. An interop citation is checked against the numbers the checker WRITES OUT, so an assertion numbered by expression -- `fail(index+2, err)` inside a loop -- cannot be cited until its checker writes the number |
@@ -299,15 +309,33 @@ a backlog the summary line publishes:
 
 `proven` counts the records taking a proof route and `escaped` counts the
 `no-break` records, which are debt rather than evidence. `owed` is
-change-scoped and keyed on the tagged UNIT: a unit present in the tree and
-absent at HEAD owes its record in the change that adds it, and a unit older than
-HEAD is grandfathered, exactly as the extraction backlog is. Only a MUST-level
+change-scoped and keyed on the tagged UNIT: a unit the TIP COMMIT added against
+`HEAD^` owes its record in that commit, and a unit the tip commit did not add is
+grandfathered, exactly as the extraction backlog is. Only a MUST-level
 requirement of an enrolled RFC obliges, because that is the population this gate
 exists for. Where git cannot answer, `owed` is 0, because a baseline that cannot
 be read accuses nobody, and every owed unit is also a violation, so a report
 that renders at all renders `0 owed`.
 
-A second figure sits beside it and enforces nothing:
+Both sides of that comparison are COMMITTED (owner decision, 2026-09-01). A tag
+that sits only in the working tree bills nobody: several sessions share this
+checkout, and judging the tree instead put the violation in front of every
+bystander and in front of the author never, because `./le verify worktree`
+checks the commit under test out DETACHED and a tag that commit added is at HEAD
+there. The tip commit is the one change whose author can still record a proof.
+
+A second figure says how much sits BEHIND that obligation, and enforces nothing:
+
+    discrimination: 0 tagged unit(s) carry a tag added since origin/main with no proof recorded.
+
+The line renders only where `origin/main` resolves, because a count taken
+against a baseline nobody read is worse than no count. It is the same predicate
+as `owed` with the pushed branch as its baseline, so the measurement cannot
+drift from the rule it measures. Billing it would be unclearable: the unpushed
+set runs to hundreds of commits, its tags were added by sessions that have
+finished, and nobody can clear it inside the change in hand.
+
+A third figure sits beside those two and also enforces nothing:
 
     discrimination: 0 grandfathered tagged unit(s) changed behavior since HEAD with no proof recorded.
 

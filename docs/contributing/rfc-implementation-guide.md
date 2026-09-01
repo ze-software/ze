@@ -516,6 +516,19 @@ inside a `terminator=` block):
 - **Place the tag inline at the table case** when one function covers many
   requirements. One id per line, polarity mandatory. The tag is the only authored
   half of the binding, so it dies with the test.
+- **A NEW tag owes a discrimination proof in the same change.** `./le rfc check`
+  refuses a tagged unit the tip commit added against `HEAD^` and that carries no
+  recorded break under which that unit itself goes red. Both sides are
+  committed, so the violation reaches you at your own commit rather than every
+  other session at theirs. Record one with
+  `./le rfc discriminate-record`; `./le rfc discriminate stem <stem>` proposes
+  the candidates. The full contract is `rfc/discrimination/README.md`.
+- **The prose after the polarity is the CLAIM, and it is fingerprinted.** It is
+  what the proof is a proof OF, so rewording it stales the record and owes a
+  re-record. The claim runs to the end of the comment paragraph, so a sentence
+  continued on the next comment line is part of it. Write what the test
+  demonstrates and nothing wider: a claim that says more than the body checks is
+  the defect the record exists to refuse.
 
 #### What each carrier earns in the ledger
 
@@ -599,7 +612,7 @@ never sums the two, because a nightly tier is not merge-gate proof.
   `rfc/audit/`, and that is deliberate. A check that also wrote cannot be trusted
   to report. And a regen target that wrote evidence would re-stamp hand-authored
   judgements during unrelated work.
-  <!-- source: internal/le/rfc/freshness.go -- AuditFreshness -->
+  <!-- source: internal/le/rfc/freshness.go -- auditFreshness -->
   <!-- source: internal/le/rfc/reseal.go -- resealTree -->
 - **A `STALE` verdict is.** The tagged unit itself changed, so re-run
   `/ze-rfc-audit <rfc>`. The re-seal refuses that case by design.

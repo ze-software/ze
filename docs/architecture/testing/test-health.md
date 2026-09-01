@@ -50,7 +50,7 @@ native test action is a tag orphan. The tag universe is derived from the Go
 action tables and feature manifest, so a new feature gate cannot silently
 orphan its tests. The satisfiability search handles negated and compile-out
 constraints such as `!linux` and `ze_core && !ze_web`.
-<!-- source: internal/le/testsensitivity/tags.go -- TagUniverse -->
+<!-- source: internal/le/testsensitivity/tags.go -- tagUniverse -->
 
 ### Detector pitfalls
 
@@ -86,6 +86,25 @@ is the explicit `--bootstrap-baseline`.
 
 The ratchet scans the WORKING TREE, so an inert test is caught by the
 `./le verify current mode full` run that precedes its commit, not blamed on the next one.
+
+### The question these detectors do not ask
+
+`assert-nothing` asks whether a test CAN fail. The RFC claim-discrimination
+ratchet asks whether one test fails for the reason its tag CLAIMS. A test that
+asserts something real, and something narrower than its `RFC requirement:` tag
+advertises, passes every detector on this page. `./le rfc check` refuses it once
+a record exists for that tag under `rfc/discrimination/`, by replaying the
+recorded break. The record and its refusals are in
+`docs/contributing/rfc-conformance-gates.md`, "The discrimination record".
+
+The two gates take opposite shapes, for a reason worth reading before you copy
+either one. A floor works here because the detectors read the whole tree in one
+AST pass, so the count is cheap and total. A discrimination proof costs one test
+run per tag, over a corpus of about 3,900 tags, and a floor set low enough to
+reach on day one forbids only going below zero. That obligation is
+change-scoped instead: a tagged unit that is new against git HEAD owes its
+record in the change that adds it, and the standing corpus is grandfathered.
+<!-- source: internal/le/rfc/check_ratchets.go -- checkDiscriminationRatchet -->
 
 ## The per-commit weakening record
 

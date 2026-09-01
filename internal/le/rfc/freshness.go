@@ -58,10 +58,27 @@ type Freshness struct {
 type sourceReader struct {
 	tree  string
 	cache map[string]*string
+	// sealed says the cache IS the revision: a path it does not carry is absent,
+	// and no filesystem read can add one.
+	sealed bool
 }
 
 func newSourceReader(tree string) *sourceReader {
 	return &sourceReader{tree: tree, cache: map[string]*string{}}
+}
+
+// newTextReader answers a reader over texts already in hand.
+//
+// A caller holding a revision's CONTENT rather than a checkout gets the same
+// resolver every tree reader uses: the HEAD blobs check_baseline.go reads, and a
+// fixture's own files. A path the texts do not carry reads as absent, which is
+// what a reader over a checkout answers for a file that is not there.
+func newTextReader(texts map[string]string) *sourceReader {
+	cache := make(map[string]*string, len(texts))
+	for rel, text := range texts {
+		cache[rel] = &text
+	}
+	return &sourceReader{cache: cache, sealed: true}
 }
 
 // read answers a file's text, or nil when it could not be read.
@@ -69,6 +86,9 @@ func (r *sourceReader) read(rel string) *string {
 	found, held := r.cache[rel]
 	if held {
 		return found
+	}
+	if r.sealed {
+		return nil
 	}
 	raw, err := os.ReadFile(treePath(r.tree, rel)) // #nosec G304 -- a path the verdict names, validated by fingerprintKey
 	if err != nil {
@@ -336,8 +356,8 @@ func verdictFreshness(verdict map[string]any, reqSHA string,
 	return Freshness{State: FreshState}
 }
 
-// AuditFreshnessInput is the whole tree the derivation reads.
-type AuditFreshnessInput struct {
+// auditFreshnessInput is the whole tree the derivation reads.
+type auditFreshnessInput struct {
 	Tree         string
 	Requirements []Requirement
 	Tags         []Tag
@@ -345,7 +365,7 @@ type AuditFreshnessInput struct {
 	Audits       map[string]Audit
 }
 
-// AuditFreshness answers the state of every requirement carrying a verdict.
+// auditFreshness answers the state of every requirement carrying a verdict.
 //
 // Derived once and shared by the freshness check, the ledger's proven count and
 // the re-seal, so the three can never disagree about which verdicts are
@@ -357,7 +377,7 @@ type AuditFreshnessInput struct {
 // Refusing here instead would take the LEDGER RENDER down with it -- a report is
 // not a gate, and a cited producer that has been deleted must still be
 // reportable rather than crashing every consumer of the ledger.
-func AuditFreshness(in AuditFreshnessInput) map[string]Freshness {
+func auditFreshness(in auditFreshnessInput) map[string]Freshness {
 	reader := newSourceReader(in.Tree)
 	index := newScopeIndex()
 	byRID := map[string][]Tag{}

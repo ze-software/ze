@@ -32,10 +32,24 @@ var (
 	goImportDelimRE   = regexp.MustCompile(`^(?:import\s*\(|\))$`)
 )
 
+// The two comment markers a tag can open a line with. A carrier's shape
+// decides which, and the claim reader takes the same one its scanner took.
+const (
+	goComment   = "//"
+	hashComment = "#"
+)
+
 // parseTagRest reads the words after the marker: the id, then the mandatory
-// polarity. Polarity is never inferred, because a negative-only test passes if
-// the code rejects everything and a positive-only one passes if it accepts
-// everything. Only the pair pins behavior to the requirement.
+// polarity, then the claim.
+//
+// Polarity is never inferred, because a negative-only test passes if the code
+// rejects everything and a positive-only one passes if it accepts everything.
+// Only the pair pins behavior to the requirement.
+//
+// The claim is the rest of the line, and it is what the tag ADVERTISES its unit
+// demonstrates. Until 2026-08-31 nothing read it, which is how a tag could
+// promise an assertion its body never makes. extendClaim below adds the lines
+// it runs onto, and discriminate.go fingerprints the whole of it.
 func parseTagRest(rest, where string) (Tag, error) {
 	var tb textbuf.Buffer
 	parts := strings.Fields(rest)
@@ -52,9 +66,47 @@ func parseTagRest(rest, where string) (Tag, error) {
 	if !polarities[polarity] {
 		return Tag{}, parseErr(tb.Str(where).Str(": tag for ").Str(rid).
 			Str(" has invalid polarity ").Str(pyRepr(parts[1])).Str("; expected one of ").
-			Str(pyRepr(polarityNames())))
+			Str(pyRepr(Polarities())))
 	}
-	return Tag{RID: rid, Polarity: polarity}, nil
+	return Tag{RID: rid, Polarity: polarity, Claim: strings.Join(parts[2:], " ")}, nil
+}
+
+// extendClaim answers the whole prose one tag claims: head, the words after the
+// polarity on the tag's own line, plus the comment lines the claim runs onto.
+//
+// The claim is a comment PARAGRAPH rather than a line. 2,701 of the 3,900 tags
+// in this checkout carry a claim that continues under the tag's own line, so
+// reading one line would leave two thirds of the corpus free to widen its
+// sentence with no fingerprint moving -- which is the over-claim the
+// discrimination record exists to refuse.
+//
+// The paragraph ends at the first line that is not a comment, at an empty
+// comment line, which is Go's own paragraph break inside a doc comment, and at
+// the next tag, which opens a claim of its own.
+//
+// Whitespace runs collapse to one space, so re-wrapping one sentence across the
+// line boundary changes nothing and changing a word changes everything. A
+// reflow is noise; a reworded claim is the thing under judgement.
+func extendClaim(head string, lines []string, at int, marker string) string {
+	words := strings.Fields(head)
+	for index := at + 1; index < len(lines); index++ {
+		body, commented := commentBody(lines[index], marker)
+		if !commented || body == "" || strings.Contains(body, tagMarker) {
+			break
+		}
+		words = append(words, strings.Fields(body)...)
+	}
+	return strings.Join(words, " ")
+}
+
+// commentBody answers the text of one comment line, and false for a line that
+// is not a comment.
+func commentBody(line, marker string) (string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, marker) {
+		return "", false
+	}
+	return strings.TrimSpace(strings.TrimPrefix(trimmed, marker)), true
 }
 
 // tagWhere renders the `<path>:<line>` a tag's message opens with.
@@ -71,8 +123,9 @@ func tagWhere(path string, line int) string {
 // at the case. A function-level-only tag would stay green after the single
 // enforcing case was deleted.
 func scanGoTags(src, path string) ([]Tag, error) {
+	lines := strings.Split(src, "\n")
 	var out []Tag
-	for i, line := range strings.Split(src, "\n") {
+	for i, line := range lines {
 		found := goTagRE.FindStringSubmatch(line)
 		if found == nil {
 			continue
@@ -82,6 +135,7 @@ func scanGoTags(src, path string) ([]Tag, error) {
 			return nil, err
 		}
 		tag.File, tag.Line = path, i+1
+		tag.Claim = extendClaim(tag.Claim, lines, i, goComment)
 		out = append(out, tag)
 	}
 	return out, nil
@@ -94,9 +148,10 @@ func scanGoTags(src, path string) ([]Tag, error) {
 // FILE CONTENT rather than .ci syntax. Scanning those blocks would invent
 // phantom tags from an embedded shell script's own comments.
 func scanCITags(src, path string) ([]Tag, error) {
+	lines := strings.Split(src, "\n")
 	var out []Tag
 	terminator := ""
-	for i, line := range strings.Split(src, "\n") {
+	for i, line := range lines {
 		if terminator != "" {
 			if strings.TrimSpace(line) == terminator {
 				terminator = ""
@@ -110,10 +165,11 @@ func scanCITags(src, path string) ([]Tag, error) {
 				return nil, err
 			}
 			tag.File, tag.Line = path, i+1
+			tag.Claim = extendClaim(tag.Claim, lines, i, hashComment)
 			out = append(out, tag)
 			continue
 		}
-		if strings.HasPrefix(stripped, "#") {
+		if strings.HasPrefix(stripped, hashComment) {
 			continue
 		}
 		if found := terminatorRE.FindStringSubmatch(stripped); found != nil {
@@ -126,11 +182,12 @@ func scanCITags(src, path string) ([]Tag, error) {
 // scanLegacyPythonTags reads the deleted interop checker shape from the parent
 // commit during this cutover. Current-tree carriers never select it.
 func scanLegacyPythonTags(src, path string) ([]Tag, error) {
+	lines := strings.Split(src, "\n")
 	var out []Tag
-	for index, line := range strings.Split(src, "\n") {
+	for index, line := range lines {
 		stripped := strings.TrimSpace(line)
 		found := ciTagRE.FindStringSubmatch(stripped)
-		if found == nil || !strings.HasPrefix(stripped, "#") {
+		if found == nil || !strings.HasPrefix(stripped, hashComment) {
 			continue
 		}
 		tag, err := parseTagRest(found[1], tagWhere(path, index+1))
@@ -138,6 +195,7 @@ func scanLegacyPythonTags(src, path string) ([]Tag, error) {
 			return nil, err
 		}
 		tag.File, tag.Line = path, index+1
+		tag.Claim = extendClaim(tag.Claim, lines, index, hashComment)
 		out = append(out, tag)
 	}
 	return out, nil

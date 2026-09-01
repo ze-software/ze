@@ -250,13 +250,13 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 	return out
 }
 
-// carrierFor answers the carrier a repo-relative path belongs to, and false
+// CarrierFor answers the carrier a repo-relative path belongs to, and false
 // when the shape carries no tags.
 //
 // test/draft/ and development-tool tests outside interoplab answer false.
 // Interoplab tests exercise foreign implementations and can carry protocol
 // evidence when their native action is scheduled.
-func carrierFor(rel string, carriers []Carrier) (Carrier, bool) {
+func CarrierFor(rel string, carriers []Carrier) (Carrier, bool) {
 	if strings.HasPrefix(rel, draftPrefix) ||
 		(strings.HasPrefix(rel, developmentToolsPrefix) && !strings.HasPrefix(rel, "internal/le/interoplab/")) {
 		return Carrier{}, false
@@ -300,6 +300,14 @@ func ScanTree(tree string) ([]Tag, error) {
 	if err != nil {
 		return nil, err
 	}
+	return scanTreeWith(tree, carriers)
+}
+
+// scanTreeWith is that same walk over a carrier table the caller resolved.
+//
+// One walk, so a caller that already has a table cannot end up with a second
+// scanner beside this one.
+func scanTreeWith(tree string, carriers []Carrier) ([]Tag, error) {
 	var tags []Tag
 	for _, sub := range testRoots {
 		base := treePath(tree, sub)
@@ -340,7 +348,7 @@ func scanDir(tree, dir string, carriers []Carrier) ([]Tag, error) {
 	for _, name := range files {
 		path := filepath.Join(dir, name)
 		rel := relTo(tree, path)
-		carrier, ok := carrierFor(rel, carriers)
+		carrier, ok := CarrierFor(rel, carriers)
 		if !ok {
 			continue
 		}
@@ -372,6 +380,125 @@ func scanDir(tree, dir string, carriers []Carrier) ([]Tag, error) {
 		tags = append(tags, found...)
 	}
 	return tags, nil
+}
+
+// UnscannedTag is one `RFC requirement:` comment in production Go, where no
+// carrier reads it.
+//
+// It looks like evidence to a person opening the file and is counted by
+// nothing: no gate resolves its id, no gate demands its polarity, and no gate
+// asks whether anything runs it. Ten of them sit in this checkout.
+type UnscannedTag struct {
+	File     string `json:"file"`
+	Line     int    `json:"line"`
+	Rest     string `json:"rest"`
+	Refusal  string `json:"refusal,omitempty"`
+	Polarity string `json:"polarity,omitempty"`
+}
+
+// unscannedTags answers every `RFC requirement:` comment sitting in a non-test
+// Go file that no carrier claims.
+//
+// Not a violation, and deliberately so: the ten in this tree predate the check,
+// and a ratchet that reds the tree over standing debt gets removed rather than
+// obeyed. It is REPORTED, in the shape the extraction backlog is reported, so a
+// reader can see the population and act on it.
+//
+// The scan is the tag comment rather than the marker string. `internal/le/rfc`
+// spells the marker in a constant and in three regexes, and a marker match
+// would report this package's own parser as evidence.
+//
+// A test file is out of scope by construction: every one of them either sits on
+// a carrier, or sits under a path CarrierFor refuses on purpose, and both of
+// those are answers rather than oversights.
+func unscannedTags(tree string, carriers []Carrier) ([]UnscannedTag, error) {
+	var out []UnscannedTag
+	for _, sub := range testRoots {
+		base := treePath(tree, sub)
+		info, statErr := os.Stat(base)
+		if statErr != nil || !info.IsDir() {
+			continue
+		}
+		found, walkErr := scanUnscannedDir(tree, base, carriers)
+		if walkErr != nil {
+			return nil, walkErr
+		}
+		out = append(out, found...)
+	}
+	return out, nil
+}
+
+// scanUnscannedDir walks one directory for production Go carrying a tag.
+func scanUnscannedDir(tree, dir string, carriers []Carrier) ([]UnscannedTag, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		var tb textbuf.Buffer
+		return nil, parseErr(tb.Str(relTo(tree, dir)).Str(": cannot read: ").Err(err))
+	}
+	var files, dirs []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			if !skipDirs[entry.Name()] {
+				dirs = append(dirs, entry.Name())
+			}
+			continue
+		}
+		if strings.HasSuffix(entry.Name(), ".go") && !strings.HasSuffix(entry.Name(), "_test.go") {
+			files = append(files, entry.Name())
+		}
+	}
+	sort.Strings(files)
+	sort.Strings(dirs)
+
+	var out []UnscannedTag
+	for _, name := range files {
+		path := filepath.Join(dir, name)
+		rel := relTo(tree, path)
+		if _, carried := CarrierFor(rel, carriers); carried {
+			continue
+		}
+		src, readErr := readFile(path, rel)
+		if readErr != nil {
+			return nil, readErr
+		}
+		if !strings.Contains(src, tagMarker) {
+			continue
+		}
+		out = append(out, unscannedTagsIn(src, rel)...)
+	}
+	for _, name := range dirs {
+		found, walkErr := scanUnscannedDir(tree, filepath.Join(dir, name), carriers)
+		if walkErr != nil {
+			return nil, walkErr
+		}
+		out = append(out, found...)
+	}
+	return out, nil
+}
+
+// unscannedTagsIn reads one production file's tags, and records for each
+// whether parseTagRest would have accepted it.
+//
+// The refusal is the sharp half of the report. A tag with no polarity would be
+// REFUSED outright by every scanner, so it is not merely uncounted evidence: it
+// is evidence that could not be counted even if a carrier claimed the file.
+func unscannedTagsIn(src, rel string) []UnscannedTag {
+	var out []UnscannedTag
+	for index, line := range strings.Split(src, "\n") {
+		found := goTagRE.FindStringSubmatch(line)
+		if found == nil {
+			continue
+		}
+		entry := UnscannedTag{File: rel, Line: index + 1, Rest: strings.TrimSpace(found[1])}
+		tag, err := parseTagRest(found[1], tagWhere(rel, index+1))
+		if err != nil {
+			entry.Refusal = err.Error()
+		} else {
+			entry.Polarity = tag.Polarity
+		}
+		out = append(out, entry)
+	}
+	return out
 }
 
 // readerFor answers the scanner one carrier's shape needs.

@@ -643,13 +643,13 @@ func TestCheckReportCarriesDiscriminationCounters(t *testing.T) {
 	// One proof and one escape over the one requirement this fixture declares, so
 	// the two figures cannot be read off a single row.
 	proof := sealFixture(t, files, DiscriminationRecord{
-		RID: selftestRIDSend, Polarity: polarityPositive,
-		Unit: selftestCIPath, Route: routeMutant, Citation: selftestCIDirective,
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: selftestCIPath, Route: RouteMutant, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	escape := sealFixture(t, files, DiscriminationRecord{
-		RID: selftestRIDSend, Polarity: polarityNegative,
-		Unit: selftestCIPath, Route: routeNoBreak,
+		RID: selftestRIDSend, Polarity: PolarityNegative,
+		Unit: selftestCIPath, Route: RouteNoBreak,
 		Reason: escapeDeclaration, Producer: selftestTablePath,
 	})
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof, escape)
@@ -693,8 +693,8 @@ func TestCheckRefusesADiscriminationRecordForAnUndeclaredRequirement(t *testing.
 	// under test here is the ratchet's own refusal, reached with fingerprints
 	// that are otherwise sound.
 	undeclared := sealFixture(t, files, DiscriminationRecord{
-		RID: selftestRIDSend, Polarity: polarityPositive,
-		Unit: selftestCIPath, Route: routeMutant, Citation: selftestCIDirective,
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: selftestCIPath, Route: RouteMutant, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	undeclared.RID = "RFC9999-9-9"
@@ -732,8 +732,8 @@ func TestCheckDiscriminationRatchetReportsBrokenProof(t *testing.T) {
 		selftestProducerPath: selftestProducerSource,
 	}
 	proof := sealFixture(t, files, DiscriminationRecord{
-		RID: selftestRIDSend, Polarity: polarityPositive,
-		Unit: selftestCIPath, Route: routeMutant, Citation: selftestCIDirective,
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: selftestCIPath, Route: RouteMutant, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
@@ -753,8 +753,8 @@ func TestCheckDiscriminationRatchetReportsBrokenProof(t *testing.T) {
 		t.Fatalf("a broken proof answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	}
-	for _, want := range []string{selftestRIDSend, polarityPositive, selftestCIPath,
-		selftestBreak, selftestProducerUnit, proofProducerChanged} {
+	for _, want := range []string{selftestRIDSend, PolarityPositive, selftestCIPath,
+		selftestBreak, selftestProducerUnit, ProofProducerChanged} {
 		if !strings.Contains(report.Violations[0], want) {
 			t.Errorf("the violation omits %q: %s", want, report.Violations[0])
 		}
@@ -805,24 +805,60 @@ func commitFixtureTree(t *testing.T, committed, working map[string]string) strin
 	t.Helper()
 
 	root := checkFixtureTree(t, committed)
-	for _, args := range [][]string{
-		{"init", "-q"},
-		{"add", "-A"},
-		{"-c", "user.email=fixture@example.invalid", "-c", "user.name=rfc-fixture",
-			"commit", "-q", "-m", "fixture"},
-	} {
-		command := exec.CommandContext(t.Context(), "git", append([]string{"-C", root}, args...)...) //nolint:gosec // this test's own throwaway fixture repository
-		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
-		if out, err := command.CombinedOutput(); err != nil {
-			t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
-		}
-	}
+	gitFixture(t, root, []string{"init", "-q"})
+	commitFixture(t, root, "fixture")
+	layFixture(t, root, working)
+	return root
+}
 
-	writeFixtureFiles(t, root, working)
+// commitFixtureTip commits base, commits tip on top of it, then lays working
+// over the result without committing it.
+//
+// Two commits are what an obligation scoped to the TIP commit needs: base is
+// HEAD^, tip is HEAD, and working is the edit nobody committed. A fixture with
+// one commit has no HEAD^, so the obligation judges nothing there -- which is
+// its own case and has its own row.
+func commitFixtureTip(t *testing.T, base, tip, working map[string]string) string {
+	t.Helper()
+
+	root := checkFixtureTree(t, base)
+	gitFixture(t, root, []string{"init", "-q"})
+	commitFixture(t, root, "base")
+	layFixture(t, root, tip)
+	commitFixture(t, root, "tip")
+	layFixture(t, root, working)
+	return root
+}
+
+// layFixture writes files over a fixture tree and rewrites the generated ledger
+// pages, which the freshness check compares byte for byte against the corpus.
+func layFixture(t *testing.T, root string, files map[string]string) {
+	t.Helper()
+
+	writeFixtureFiles(t, root, files)
 	if _, err := IndexUpdate(root); err != nil {
 		t.Fatalf("rewrite the fixture ledger pages: %v", err)
 	}
-	return root
+}
+
+// commitFixture stages and commits whatever the fixture tree holds.
+func commitFixture(t *testing.T, root, message string) {
+	t.Helper()
+
+	gitFixture(t, root, []string{"add", "-A"})
+	gitFixture(t, root, []string{"-c", "user.email=fixture@example.invalid",
+		"-c", "user.name=rfc-fixture", "commit", "-q", "-m", message})
+}
+
+// gitFixture runs one git command in the fixture's own throwaway repository.
+func gitFixture(t *testing.T, root string, args []string) {
+	t.Helper()
+
+	command := exec.CommandContext(t.Context(), "git", append([]string{"-C", root}, args...)...) //nolint:gosec // this test's own throwaway fixture repository
+	command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+	if out, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
+	}
 }
 
 // writeFixtureFiles lays files over a fixture tree, deleting the ones whose
@@ -873,37 +909,65 @@ func fixtureCorpus() map[string]string {
 	}
 }
 
-// VALIDATES: AC-2 -- a tagged unit present in the tree and absent at HEAD, on an enrolled
-// RFC's gated requirement, reds the gate with exit 2, and the violation names the file,
-// the line, the requirement, the polarity and the proof route its carrier kind admits.
-// METHOD: one corpus committed, then one carrier added on top of it. The forced red is
-// restored by putting the tree back to what was committed, which is the pair that says
-// the ratchet followed the CHANGE rather than the corpus.
-// PREVENTS: an inert ratchet. A floor that starts at zero and only forbids going below
-// zero proves nothing (R-2), so the obligation is what a change adds.
+// VALIDATES: AC-2 -- a tagged unit the TIP COMMIT added, on an enrolled RFC's gated
+// requirement, reds the gate with exit 2, and the violation names the file, the line, the
+// requirement, the polarity and the proof route its carrier kind admits.
+// VALIDATES: owner decision of 2026-09-01 -- the same tag left UNCOMMITTED is nobody's
+// violation. Several sessions share this checkout, and `./le verify worktree` checks the
+// commit under test out detached, where a tag that commit added IS the tip. Billing the
+// working tree instead fires for every bystander and never in the one place it must.
+// METHOD: three trees over one corpus. Two commits with the tag in the second, two commits
+// with nothing added on top, and two commits with the tag laid over them uncommitted. The
+// three together say the ratchet follows the tip COMMIT, rather than the corpus or the
+// working tree.
+// PREVENTS: an inert ratchet on one side (R-2: a floor that starts at zero and only forbids
+// going below zero proves nothing) and, on the other, the cross-session red that gets a
+// ratchet removed rather than obeyed (R-8).
 func TestCheckDiscriminationRequiresProofForNewTag(t *testing.T) {
-	unchanged := commitFixtureTree(t, fixtureCorpus(), nil)
+	unchanged := commitFixtureTip(t, fixtureCorpus(), fixtureCorpusNudge(), nil)
 	if report, code := Check(unchanged); code != 0 || len(report.Violations) != 0 {
 		t.Fatalf("the unchanged corpus answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	} else if report.DiscriminationOwed != 0 {
-		t.Fatalf("owed is %d on a corpus no change touched, want 0: every tag in it is its own HEAD's",
-			report.DiscriminationOwed)
+		t.Fatalf("owed is %d on a tip commit that added no tag, want 0", report.DiscriminationOwed)
 	}
 
-	added := commitFixtureTree(t, fixtureCorpus(),
-		map[string]string{fixtureGadgetCIPath: fixtureGadgetCI})
+	added := commitFixtureTip(t, fixtureCorpus(),
+		map[string]string{fixtureGadgetCIPath: fixtureGadgetCI}, nil)
 	report, code := Check(added)
 	if code != 2 || len(report.Violations) != 1 {
-		t.Fatalf("a tag new against HEAD answered %d with %d violation(s):\n%s",
+		t.Fatalf("a tag the tip commit added answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	}
-	for _, want := range []string{fixtureGadgetCIPath + ":1", selftestRIDSend, polarityPositive,
-		routeRevert, kindFunctional} {
+	for _, want := range []string{fixtureGadgetCIPath + ":1", selftestRIDSend, PolarityPositive,
+		RouteRevert, kindFunctional} {
 		if !strings.Contains(report.Violations[0], want) {
 			t.Errorf("the violation omits %q: %s", want, report.Violations[0])
 		}
 	}
+
+	// The same tag, in the working tree and committed by nobody. It bills nobody
+	// until whoever wrote it commits it, which is the whole point of the rule:
+	// every other session sharing this checkout would meet it as its own.
+	uncommitted := commitFixtureTip(t, fixtureCorpus(), fixtureCorpusNudge(),
+		map[string]string{fixtureGadgetCIPath: fixtureGadgetCI})
+	quiet, code := Check(uncommitted)
+	if code != 0 || len(quiet.Violations) != 0 {
+		t.Fatalf("a tag nobody committed answered %d with %d violation(s):\n%s",
+			code, len(quiet.Violations), quiet.Text())
+	}
+	if quiet.DiscriminationOwed != 0 {
+		t.Errorf("owed is %d over an uncommitted tag, want 0", quiet.DiscriminationOwed)
+	}
+}
+
+// fixtureCorpusNudge is a tip commit that adds no tag.
+//
+// git refuses an empty commit, so a two-commit fixture whose subject is "the tip
+// added nothing tagged" still has to put SOMETHING in that commit. An untagged
+// note under docs/ is the smallest thing no carrier scans.
+func fixtureCorpusNudge() map[string]string {
+	return map[string]string{"docs/fixture-note.md": "# Fixture\n\nThe tip commit added no tag.\n"}
 }
 
 // VALIDATES: AC-3, positive half -- a tagged unit whose behavior changed under a record
@@ -916,8 +980,8 @@ func TestCheckDiscriminationFiresOnChangedUnit(t *testing.T) {
 	files := fixtureCorpus()
 	files[fixtureGadgetCIPath] = fixtureGadgetCI
 	proof := sealFixture(t, files, DiscriminationRecord{
-		RID: selftestRIDSend, Polarity: polarityPositive,
-		Unit: fixtureGadgetCIPath, Route: routeRevert, Citation: selftestCIDirective,
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
@@ -937,7 +1001,7 @@ func TestCheckDiscriminationFiresOnChangedUnit(t *testing.T) {
 		t.Fatalf("a changed tagged unit answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	}
-	for _, want := range []string{fixtureGadgetCIPath, selftestRIDSend, proofUnitChanged} {
+	for _, want := range []string{fixtureGadgetCIPath, selftestRIDSend, ProofUnitChanged} {
 		if !strings.Contains(report.Violations[0], want) {
 			t.Errorf("the violation omits %q: %s", want, report.Violations[0])
 		}
@@ -952,8 +1016,8 @@ func TestCheckDiscriminationIgnoresCommentOnlyEdit(t *testing.T) {
 	files := fixtureCorpus()
 	files[fixtureGadgetCIPath] = fixtureGadgetCI
 	proof := sealFixture(t, files, DiscriminationRecord{
-		RID: selftestRIDSend, Polarity: polarityPositive,
-		Unit: fixtureGadgetCIPath, Route: routeRevert, Citation: selftestCIDirective,
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
@@ -985,8 +1049,8 @@ func TestCheckDiscriminationStalesOnRewordedClaim(t *testing.T) {
 	files := fixtureCorpus()
 	files[fixtureGadgetCIPath] = fixtureGadgetCI
 	proof := sealFixture(t, files, DiscriminationRecord{
-		RID: selftestRIDSend, Polarity: polarityPositive,
-		Unit: fixtureGadgetCIPath, Route: routeRevert, Citation: selftestCIDirective,
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
@@ -1000,7 +1064,7 @@ func TestCheckDiscriminationStalesOnRewordedClaim(t *testing.T) {
 		t.Fatalf("a reworded claim answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	}
-	for _, want := range []string{selftestRIDSend, fixtureGadgetCIPath, proofClaimChanged} {
+	for _, want := range []string{selftestRIDSend, fixtureGadgetCIPath, ProofClaimChanged} {
 		if !strings.Contains(report.Violations[0], want) {
 			t.Errorf("the violation omits %q: %s", want, report.Violations[0])
 		}
@@ -1026,8 +1090,8 @@ func TestCheckDiscriminationProvenSetIsMonotonic(t *testing.T) {
 	committed := fixtureCorpus()
 	committed[fixtureGadgetCIPath] = fixtureGadgetCI
 	proof := sealFixture(t, committed, DiscriminationRecord{
-		RID: selftestRIDSend, Polarity: polarityPositive,
-		Unit: fixtureGadgetCIPath, Route: routeRevert, Citation: selftestCIDirective,
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	committed[selftestDiscriminationRel] = discriminationArtifact(t, proof)
@@ -1039,7 +1103,7 @@ func TestCheckDiscriminationProvenSetIsMonotonic(t *testing.T) {
 		t.Fatalf("a withdrawn record answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	}
-	for _, want := range []string{selftestRIDSend, polarityPositive, fixtureGadgetCIPath} {
+	for _, want := range []string{selftestRIDSend, PolarityPositive, fixtureGadgetCIPath} {
 		if !strings.Contains(report.Violations[0], want) {
 			t.Errorf("the violation omits %q: %s", want, report.Violations[0])
 		}
@@ -1066,8 +1130,8 @@ func TestCheckDiscriminationOrphanRecordIsRemovable(t *testing.T) {
 	files := fixtureCorpus()
 	files[fixtureGadgetCIPath] = fixtureGadgetCI
 	proof := sealFixture(t, files, DiscriminationRecord{
-		RID: selftestRIDSend, Polarity: polarityPositive,
-		Unit: fixtureGadgetCIPath, Route: routeRevert, Citation: selftestCIDirective,
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof)
@@ -1116,7 +1180,7 @@ func TestCheckReportsUnscannedProductionTags(t *testing.T) {
 			len(report.UnscannedTags), report.UnscannedTags)
 	}
 	if report.UnscannedTags[0].File != selftestProducerPath || report.UnscannedTags[0].Refusal != "" ||
-		report.UnscannedTags[0].Polarity != polarityPositive {
+		report.UnscannedTags[0].Polarity != PolarityPositive {
 		t.Errorf("the well-formed production tag was misread: %+v", report.UnscannedTags[0])
 	}
 	if report.UnscannedTags[1].Refusal == "" {
@@ -1141,8 +1205,8 @@ func TestCheckDiscriminationDriftIsJudgedAgainstHead(t *testing.T) {
 	committed := fixtureCorpus()
 	committed[fixtureGadgetCIPath] = fixtureGadgetCI
 	proof := sealFixture(t, committed, DiscriminationRecord{
-		RID: selftestRIDSend, Polarity: polarityPositive,
-		Unit: fixtureGadgetCIPath, Route: routeRevert, Citation: selftestCIDirective,
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
 		Producer: selftestProducerUnit, Break: selftestBreak,
 	})
 	committed[selftestDiscriminationRel] = discriminationArtifact(t, proof)
@@ -1158,7 +1222,7 @@ func TestCheckDiscriminationDriftIsJudgedAgainstHead(t *testing.T) {
 		t.Fatalf("the drifted list carries %d record(s), want the 1 the edit staled:\n%s",
 			len(report.DiscriminationDrifted), report.Text())
 	}
-	for _, want := range []string{selftestRIDSend, fixtureGadgetCIPath, proofProducerChanged} {
+	for _, want := range []string{selftestRIDSend, fixtureGadgetCIPath, ProofProducerChanged} {
 		if !strings.Contains(report.DiscriminationDrifted[0], want) {
 			t.Errorf("the drifted line omits %q: %s", want, report.DiscriminationDrifted[0])
 		}
@@ -1175,8 +1239,119 @@ func TestCheckDiscriminationDriftIsJudgedAgainstHead(t *testing.T) {
 		t.Fatalf("a committed edit under a record answered %d with %d violation(s):\n%s",
 			code, len(refused.Violations), refused.Text())
 	}
-	if !strings.Contains(refused.Violations[0], proofProducerChanged) {
+	if !strings.Contains(refused.Violations[0], ProofProducerChanged) {
 		t.Errorf("the violation does not name the fingerprint that moved: %s", refused.Violations[0])
+	}
+}
+
+// VALIDATES: owner decision of 2026-09-01, second half -- the WIDER obligation is measured
+// against the pushed branch and REPORTED, never billed: it moves no violation, changes no
+// exit code, and its report line says in its own words that it enforces nothing.
+// METHOD: three commits and a remote-tracking ref. origin/main is the first, the second
+// adds one tagged carrier, and the third adds nothing tagged. The tip commit therefore
+// owes nothing and the tree is green, while the branch is one tagged unit ahead of what
+// was pushed. A tree whose ref does not resolve is the pair, and it prints no line at all
+// rather than a figure taken against nothing.
+// PREVENTS: billing a backlog nobody can clear inside the change in hand, which is the R-8
+// failure at the scale that gets a ratchet removed rather than obeyed, and its opposite --
+// publishing a count against a baseline that was never read.
+func TestCheckDiscriminationBacklogIsMeasuredNotBilled(t *testing.T) {
+	root := checkFixtureTree(t, fixtureCorpus())
+	gitFixture(t, root, []string{"init", "-q"})
+	commitFixture(t, root, "pushed")
+	layFixture(t, root, map[string]string{fixtureGadgetCIPath: fixtureGadgetCI})
+	commitFixture(t, root, "unpushed, one tagged carrier added")
+	layFixture(t, root, fixtureCorpusNudge())
+	commitFixture(t, root, "unpushed, nothing tagged")
+
+	// Before the ref exists the branch is measured against nothing, and the
+	// report says nothing rather than guessing a baseline.
+	silent, code := Check(root)
+	if code != 0 || len(silent.Violations) != 0 {
+		t.Fatalf("a tip commit that added no tag answered %d with %d violation(s):\n%s",
+			code, len(silent.Violations), silent.Text())
+	}
+	if silent.DiscriminationBacklog != nil {
+		t.Fatalf("an unresolvable ref measured %d, want no measurement at all",
+			*silent.DiscriminationBacklog)
+	}
+	if strings.Contains(silent.Text(), "added since") {
+		t.Errorf("the report published a backlog line with no baseline to take it against:\n%s",
+			silent.Text())
+	}
+
+	gitFixture(t, root, []string{"update-ref", "refs/remotes/origin/main", "HEAD~2"})
+	report, code := Check(root)
+	if code != 0 || len(report.Violations) != 0 {
+		t.Fatalf("the measured backlog answered %d with %d violation(s), and it enforces "+
+			"nothing:\n%s", code, len(report.Violations), report.Text())
+	}
+	if report.DiscriminationOwed != 0 {
+		t.Errorf("owed is %d, want 0: the tip commit added no tag, so the backlog sits "+
+			"behind the obligation rather than inside it", report.DiscriminationOwed)
+	}
+	if report.DiscriminationBacklog == nil || *report.DiscriminationBacklog != 1 {
+		t.Fatalf("the backlog did not measure the 1 tagged unit the unpushed commits added "+
+			"against origin/main:\n%s", report.Text())
+	}
+	want := "discrimination: 1 tagged unit(s) carry a tag added since origin/main with no proof recorded"
+	if !strings.Contains(report.Text(), want) {
+		t.Errorf("the report omits %q:\n%s", want, report.Text())
+	}
+}
+
+// fixtureProducerPair is the producer file with a SECOND function beside the one
+// a record fingerprints. Two functions are what tells a file-level comparison
+// from a unit-level one: an edit to the second says nothing about the first.
+const fixtureProducerPair = "package sample\n\n" +
+	"// SendWidget answers the widget the speaker sends.\n" +
+	"func SendWidget(count int) int {\n\treturn count\n}\n\n" +
+	"// WidgetName answers the name this speaker gives a widget.\n" +
+	"func WidgetName() string {\n\treturn \"widget\"\n}\n"
+
+// VALIDATES: the drift a record went stale against is judged at the granularity the record
+// FINGERPRINTS -- the producer FUNCTION -- so an unrelated uncommitted edit elsewhere in
+// the producer's file cannot downgrade a committed drift from a violation to a report.
+// METHOD: one record sealed against SendWidget, that function rewritten and COMMITTED, and
+// a second function in the same file rewritten and left uncommitted. The pair beside
+// TestCheckDiscriminationDriftIsJudgedAgainstHead is what makes it a property: an
+// uncommitted edit to the fingerprinted function itself still only reports.
+// PREVENTS: the fail-open shape the file-level comparison had. Any session editing any
+// line of a producer's file silenced the author's own violation, and the record went on
+// being published as unproven with nobody billed for re-recording it.
+func TestCheckDiscriminationDriftIsJudgedAtUnitGranularity(t *testing.T) {
+	sealed := fixtureCorpus()
+	sealed[fixtureGadgetCIPath] = fixtureGadgetCI
+	sealed[selftestProducerPath] = fixtureProducerPair
+	proof := sealFixture(t, sealed, DiscriminationRecord{
+		RID: selftestRIDSend, Polarity: PolarityPositive,
+		Unit: fixtureGadgetCIPath, Route: RouteRevert, Citation: selftestCIDirective,
+		Producer: selftestProducerUnit, Break: selftestBreak,
+	})
+	sealed[selftestDiscriminationRel] = discriminationArtifact(t, proof)
+
+	// The fingerprinted function rewritten, and COMMITTED. The drift is the
+	// commit's, so the author owes a re-record and the gate says so.
+	committed := maps.Clone(sealed)
+	committed[selftestProducerPath] = strings.Replace(fixtureProducerPair, "return count", "return 0", 1)
+	// A DIFFERENT function in the same file, edited and left uncommitted. It
+	// explains none of the drift above it.
+	elsewhere := strings.Replace(committed[selftestProducerPath], `return "widget"`, `return "gadget"`, 1)
+
+	report, code := Check(commitFixtureTree(t, committed,
+		map[string]string{selftestProducerPath: elsewhere}))
+	if code != 2 || len(report.Violations) != 1 {
+		t.Fatalf("a committed drift beside an unrelated uncommitted edit answered %d with "+
+			"%d violation(s), want exit 2 and the one violation the commit owes:\n%s",
+			code, len(report.Violations), report.Text())
+	}
+	if !strings.Contains(report.Violations[0], ProofProducerChanged) {
+		t.Errorf("the violation does not name the fingerprint that moved: %s", report.Violations[0])
+	}
+	if len(report.DiscriminationDrifted) != 0 {
+		t.Errorf("the drifted list carries %d record(s), want 0: the drift was committed, so "+
+			"it is a violation rather than somebody's working copy:\n%s",
+			len(report.DiscriminationDrifted), report.Text())
 	}
 }
 
@@ -1237,13 +1412,13 @@ func TestCheckDiscriminationMeasuresChangedGrandfatheredUnits(t *testing.T) {
 // backlog of zero (ai/rules/principles.md).
 func TestDiscriminationMeasuresChangedGoFunctionUnits(t *testing.T) {
 	unit := selftestTestPath + "::TestWidget"
-	key := cover{rid: selftestRIDSend, polarity: polarityPositive, unit: unit}
+	key := Cover{RID: selftestRIDSend, Polarity: PolarityPositive, Unit: unit}
 	head := map[string]string{selftestTestPath: selftestTestSource}
 	measure := func(working map[string]string) (int, int) {
 		return discriminationChangedUnits(discriminationInput{
 			Gated:      map[string]bool{selftestRIDSend: true},
-			Covers:     map[cover][]Tag{key: {{RID: selftestRIDSend, Polarity: polarityPositive}}},
-			HeadCovers: map[cover]bool{key: true},
+			Covers:     map[Cover][]Tag{key: {{RID: selftestRIDSend, Polarity: PolarityPositive}}},
+			HeadCovers: map[Cover][]Tag{key: {{RID: selftestRIDSend, Polarity: PolarityPositive}}},
 			Sources:    newTextReader(working), Index: newScopeIndex(), HeadTagBlobs: head})
 	}
 

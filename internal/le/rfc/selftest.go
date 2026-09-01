@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- the RFC engine proved against fixtures
-// Detail: selftest_core.go -- parser, carrier, coverage, status, ratchet, and check stages
+// Detail: selftest_core.go -- parser, carrier, coverage, status, ratchet, discrimination, and check stages
 // Detail: selftest_state.go -- audit, extraction, render, and write stages
 //
 // selftest.go owns the RFC fixture-suite control flow and the action answer.
@@ -32,6 +32,7 @@ func selftestStages() []selftestStage {
 		{name: "coverage", run: runCoverageSelftest},
 		{name: "status", run: runStatusSelftest},
 		{name: "audit", run: runAuditSelftest},
+		{name: "discrimination", run: runDiscriminationSelftest},
 		{name: "extraction", run: runExtractionSelftest},
 		{name: "render", run: runRenderSelftest},
 		{name: "baseline", run: runBaselineSelftest},

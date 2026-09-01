@@ -1,0 +1,103 @@
+{
+  "totalFiles": 10,
+  "processedFiles": 7,
+  "totalMutants": 1042,
+  "killedMutants": 0,
+  "results": [
+    {
+      "mutant": {
+        "id": "internal/component/bgp/plugins/role/config.go_0",
+        "filePath": "internal/component/bgp/plugins/role/config.go",
+        "line": 46,
+        "column": 2,
+        "type": "branch_condition",
+        "original": "len(exportTokens) == 0",
+        "mutated": "true",
+        "description": "Replace branch condition \"len(exportTokens) == 0\" with true"
+      },
+      "status": "KILLED",
+      "output": "--- FAIL: TestResolveExportEdgeCases (0.00s)\n    --- FAIL: TestResolveExportEdgeCases/duplicate_tokens_deduped (0.00s)\n        config_test.go:118: \n            \tError Trace:\tinternal/component/bgp/plugins/role/config_test.go:118\n            \tError:      \tNot equal: \n            \t            \texpected: []string{\"customer\"}\n            \t            \tactual  : []string(nil)\n            \t            \t\n            \t            \tDiff:\n            \t            \t--- Expected\n            \t            \t+++ Actual\n            \t            \t@@ -1,4 +1,2 @@\n"
+    },
+    {
+      "mutant": {
+        "id": "internal/component/bgp/plugins/role/config.go_2",
+        "filePath": "internal/component/bgp/plugins/role/config.go",
+        "line": 46,
+        "column": 2,
+        "type": "branch_condition",
+        "original": "len(exportTokens) == 0",
+        "mutated": "false",
+        "description": "Replace branch condition \"len(exportTokens) == 0\" with false"
+      },
+      "status": "SURVIVED",
+      "output": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/plugins/role\t0.051s"
+    },
+    {
+      "mutant": {
+        "id": "internal/component/bgp/plugins/role/config.go_2",
+        "filePath": "internal/component/bgp/plugins/role/config.go",
+        "line": 46,
+        "column": 5,
+        "type": "conditional_binary",
+        "original": "==",
+        "mutated": "!=",
+        "description": "Replace == with !="
+      },
+      "status": "NOT_VIABLE",
+      "output": "compilation error: # github.com/ze-software/ze/internal/component/bgp/plugins/role\nopen <overlay>/mutant_internal/component/bgp/plugins/role/config.go_2/config.go: no such file or directory",
+      "error": "Compilation failed: compilation error: # github.com/ze-software/ze/internal/component/bgp/plugins/role\nopen <overlay>/mutant_internal/component/bgp/plugins/role/config.go_2/config.go: no such file or directory\n"
+    }
+  ],
+  "statistics": {
+    "killed": 694,
+    "survived": 235,
+    "timedOut": 12,
+    "errors": 1,
+    "notViable": 100,
+    "mutationScore": 73.67303609341825,
+    "mutationTypes": {
+      "arithmetic_assign": {
+        "total": 6,
+        "killed": 2,
+        "survived": 0
+      },
+      "arithmetic_binary": {
+        "total": 165,
+        "killed": 123,
+        "survived": 35
+      },
+      "branch_condition": {
+        "total": 262,
+        "killed": 141,
+        "survived": 48
+      },
+      "conditional_binary": {
+        "total": 473,
+        "killed": 352,
+        "survived": 115
+      },
+      "logical_binary": {
+        "total": 35,
+        "killed": 27,
+        "survived": 6
+      },
+      "logical_not_removal": {
+        "total": 23,
+        "killed": 18,
+        "survived": 4
+      },
+      "return_bool_literal": {
+        "total": 49,
+        "killed": 27,
+        "survived": 3
+      },
+      "return_zero_value": {
+        "total": 29,
+        "killed": 4,
+        "survived": 24
+      }
+    }
+  },
+  "timestamp": "2026-08-31T16:06:12.586406466+01:00",
+  "version": "0.1.0"
+}

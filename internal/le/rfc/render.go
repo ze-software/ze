@@ -47,6 +47,17 @@ type RenderInput struct {
 	Successors   map[string]string
 	Audits       map[string]Audit
 	States       map[string]Freshness
+	// Covers is the tagged unit each tag sits in, Discrimination is every
+	// stored proof re-verified against this tree, and Unscanned is the
+	// `RFC requirement:` comments in production Go that no carrier claims.
+	//
+	// Derived here rather than handed in, unlike Rows and Dispositions. Two
+	// callers render this page -- `./le rfc index-update` writes it and the
+	// gate compares against it -- so a figure only one of them could compute
+	// would publish differently depending on who rendered it.
+	Covers         map[Cover][]Tag
+	Discrimination []DiscriminationVerdict
+	Unscanned      []UnscannedTag
 }
 
 // NewRenderInput derives everything the two pages need from one checkout.
@@ -88,10 +99,23 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 	if in.Audits, err = loadAudits(tree, in.Enrolled); err != nil {
 		return RenderInput{}, err
 	}
-	in.States = AuditFreshness(AuditFreshnessInput{
+	in.States = auditFreshness(auditFreshnessInput{
 		Tree: tree, Requirements: in.Requirements, Tags: in.Tags,
 		Enrolled: in.Enrolled, Audits: in.Audits,
 	})
+	if in.Covers, err = tagCovers(newSourceReader(tree), newScopeIndex(), in.Tags); err != nil {
+		return RenderInput{}, err
+	}
+	records, err := loadDiscrimination(tree)
+	if err != nil {
+		return RenderInput{}, err
+	}
+	if in.Discrimination, err = verifyDiscrimination(tree, records, in.Covers); err != nil {
+		return RenderInput{}, err
+	}
+	if in.Unscanned, err = unscannedTags(tree, in.Carriers); err != nil {
+		return RenderInput{}, err
+	}
 	return in, nil
 }
 
@@ -180,7 +204,11 @@ func tagSites(found []Tag, polarity string, in RenderInput,
 	return strings.Join(order, ", ")
 }
 
-// tableCell makes one AUTHORED string safe to put in a markdown table cell.
+// TableCell makes one AUTHORED string safe to put in a markdown table cell.
+//
+// Exported because the published per-RFC page's Markdown mirror puts the same
+// authored prose in the same shape of cell, and a second escape rule beside
+// this one is a second answer to one question (ai/rules/principles.md).
 //
 // A bare pipe closes the cell, so a reason quoting a grep alternation splits its
 // row into extra columns and the published page renders a broken table. Seven
@@ -189,7 +217,7 @@ func tagSites(found []Tag, polarity string, in RenderInput,
 //
 // Only cells built from authored prose need this. A requirement id, a level, a
 // section and a test link are all derived and can hold no pipe.
-func tableCell(text string) string {
+func TableCell(text string) string {
 	// The BACKSLASH first, then the pipe. A reason that already carries a
 	// literal `\|` -- a grep BRE alternation, which two annotation reasons do
 	// -- would otherwise render as `\\|`, and GFM reads that as an escaped
@@ -198,19 +226,68 @@ func tableCell(text string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(text, `\`, `\\`), "|", `\|`)
 }
 
-// RenderShards answers one RFC's requirement table per entry, keyed by summary
-// stem.
+// RequirementRow is one requirement's row of rfc/requirements/<stem>.md, cell
+// by cell, before any of them is formatted into markdown.
 //
-// A stem absent from the requirements renders nothing at all. That is the zero
-// boundary the ledger already had -- a summary declaring no requirement rendered
-// no section -- and it is why the prune deletes only what this did not produce.
-func RenderShards(in RenderInput) map[string]string {
+// It exists so the shard and every other publication of a requirement are ONE
+// derivation. The site publishes the same six cells on /quality/rfc-compliance/
+// <stem>/, and a second assembly of them would let the repository and the
+// public page state different things about one obligation with nothing to
+// arbitrate it (ai/rules/principles.md).
+//
+// Note is the RAW note: the nightly-only mark, the audit marker, the annotation
+// and the superseded pointer, joined by a space and escaped by nothing. Each
+// consumer escapes at its own render boundary, which is markdown here and HTML
+// on the site.
+type RequirementRow struct {
+	RID      string `json:"rid"`
+	Level    string `json:"level"`
+	Section  string `json:"section"`
+	Positive string `json:"positive"`
+	Negative string `json:"negative"`
+	Note     string `json:"note"`
+}
+
+// NoteCell answers the note as a markdown table cell: the raw note with the
+// characters that would break a row escaped.
+func (r RequirementRow) NoteCell() string { return TableCell(r.Note) }
+
+// RequirementRows answers every RFC's requirement rows, keyed by summary stem
+// and sorted by requirement id inside each one.
+//
+// The ONE producer of those rows. RenderShards formats what this answers, and
+// any other publisher of a requirement reads it rather than assembling the
+// cells again.
+func RequirementRows(in RenderInput) map[string][]RequirementRow {
 	byRID := tagsByRID(in.Tags)
 	_, byRFC := requirementsByRFC(in.Requirements)
+	verdictByRID := auditMarks(in)
 
-	// The per-row audit marker, so a reader scanning ONE requirement sees the
-	// verdict without reconstructing it from the coverage section.
-	verdictByRID := map[string]string{}
+	// One read per tagged file for the whole walk, shared across every stem.
+	reader := newSourceReader(in.Tree)
+	index := newScopeIndex()
+
+	out := make(map[string][]RequirementRow, len(byRFC))
+	for _, rfc := range ShardStems(in.Requirements) {
+		reqs := append([]Requirement(nil), byRFC[rfc]...)
+		sort.Slice(reqs, func(i, j int) bool { return reqs[i].RID < reqs[j].RID })
+		rows := make([]RequirementRow, 0, len(reqs))
+		for _, req := range reqs {
+			rows = append(rows, requirementRow(req, byRID[req.RID], verdictByRID[req.RID],
+				in, reader, index))
+		}
+		out[rfc] = rows
+	}
+	return out
+}
+
+// auditMarks answers the per-row audit marker: the verdict word, and the
+// freshness state beside it whenever the verdict is not current.
+//
+// A reader scanning ONE requirement sees the verdict without reconstructing it
+// from the coverage section.
+func auditMarks(in RenderInput) map[string]string {
+	out := map[string]string{}
 	for _, req := range in.Requirements {
 		verdict, held := in.Audits[req.RFC].Verdict(req.RID)
 		if !held || len(verdict) == 0 {
@@ -221,18 +298,21 @@ func RenderShards(in RenderInput) map[string]string {
 			var tb textbuf.Buffer
 			value = tb.Str(value).Str(", ").Str(state.State).String()
 		}
-		verdictByRID[req.RID] = value
+		out[req.RID] = value
 	}
+	return out
+}
 
-	// One read per tagged file for the whole render, shared across every shard.
-	reader := newSourceReader(in.Tree)
-	index := newScopeIndex()
-
+// RenderShards answers one RFC's requirement table per entry, keyed by summary
+// stem.
+//
+// A stem absent from the requirements renders nothing at all. That is the zero
+// boundary the ledger already had -- a summary declaring no requirement rendered
+// no section -- and it is why the prune deletes only what this did not produce.
+func RenderShards(in RenderInput) map[string]string {
+	rows := RequirementRows(in)
 	shards := map[string]string{}
 	for _, rfc := range ShardStems(in.Requirements) {
-		reqs := append([]Requirement(nil), byRFC[rfc]...)
-		sort.Slice(reqs, func(i, j int) bool { return reqs[i].RID < reqs[j].RID })
-
 		state := "not enrolled"
 		if in.Enrolled[rfc] {
 			state = "enrolled (gated)"
@@ -246,7 +326,7 @@ func RenderShards(in RenderInput) map[string]string {
 		// No line numbers in the banner, deliberately. A citation names the
 		// file and the enclosing function, which is what survives an edit above
 		// the tag; the exact lines are recoverable on demand.
-		out := make([]string, 0, len(reqs)+6)
+		out := make([]string, 0, len(rows[rfc])+6)
 		out = append(out,
 			head.Str("# ").Str(Prefix(rfc)).Str(" -- ").Str(state).String(),
 			"",
@@ -260,9 +340,8 @@ func RenderShards(in RenderInput) map[string]string {
 			"",
 			"| Requirement | Level | § | Positive test | Negative test | Note |",
 			"|---|---|---|---|---|---|")
-		for _, req := range reqs {
-			out = append(out, shardRow(req, byRID[req.RID], verdictByRID[req.RID],
-				in, reader, index))
+		for _, row := range rows[rfc] {
+			out = append(out, shardRow(row))
 		}
 		out = append(out, "")
 		shards[rfc] = strings.Join(out, "\n")
@@ -270,9 +349,9 @@ func RenderShards(in RenderInput) map[string]string {
 	return shards
 }
 
-// shardRow renders one requirement's row.
-func shardRow(req Requirement, found []Tag, audited string, in RenderInput,
-	reader *sourceReader, index *scopeIndex) string {
+// requirementRow answers one requirement's six cells.
+func requirementRow(req Requirement, found []Tag, audited string, in RenderInput,
+	reader *sourceReader, index *scopeIndex) RequirementRow {
 	// Sorted by (file, line) so the page is byte-stable regardless of the order
 	// the tree happened to be walked in: directory order is filesystem
 	// dependent, so an unsorted render churns across machines and defeats the
@@ -288,10 +367,10 @@ func shardRow(req Requirement, found []Tag, audited string, in RenderInput,
 	var marks []string
 	// The marker is on the ROW, so a reader scanning one requirement sees the
 	// weakness without reconstructing it from the per-link tiers.
-	if isNightlyOnly(found, in.Carriers) {
+	if NightlyOnly(found, in.Carriers) {
 		marks = append(marks, "**nightly-only**")
 	}
-	if audited != "" && audited != verdictEnforced {
+	if audited != "" && audited != VerdictEnforced {
 		// An `enforced` verdict is unmarked on purpose: it says the row's tests
 		// do what the row already claims. Every OTHER value contradicts the
 		// row, and a contradiction has to be visible where the claim is made.
@@ -308,19 +387,29 @@ func shardRow(req Requirement, found []Tag, audited string, in RenderInput,
 		// questions -- what Ze still owes, and which document states it today
 		// -- and dropping either would leave a reader with half the row's facts.
 		var tb textbuf.Buffer
-		tb.Byte('{').Str(supersededKind).Str(": ").Str(req.Superseded.Disposition)
+		tb.Byte('{').Str(SupersededKind).Str(": ").Str(req.Superseded.Disposition)
 		if req.Superseded.Target != "" {
 			tb.Byte(' ').Str(req.Superseded.Target)
 		}
 		marks = append(marks, tb.Str("} ").Str(req.Superseded.Reason).String())
 	}
 
-	pos := orDashes(tagSites(found, polarityPositive, in, reader, index))
-	neg := orDashes(tagSites(found, polarityNegative, in, reader, index))
-	var row textbuf.Buffer
-	return row.Str("| `").Str(req.RID).Str("` | ").Str(req.Level).Str(" | ").
-		Str(req.Section).Str(" | ").Str(pos).Str(" | ").Str(neg).Str(" | ").
-		Str(tableCell(strings.Join(marks, " "))).Str(" |").String()
+	return RequirementRow{
+		RID:      req.RID,
+		Level:    req.Level,
+		Section:  req.Section,
+		Positive: orDashes(tagSites(found, PolarityPositive, in, reader, index)),
+		Negative: orDashes(tagSites(found, PolarityNegative, in, reader, index)),
+		Note:     strings.Join(marks, " "),
+	}
+}
+
+// shardRow formats one requirement's row as the shard writes it.
+func shardRow(row RequirementRow) string {
+	var out textbuf.Buffer
+	return out.Str("| `").Str(row.RID).Str("` | ").Str(row.Level).Str(" | ").
+		Str(row.Section).Str(" | ").Str(row.Positive).Str(" | ").Str(row.Negative).
+		Str(" | ").Str(row.NoteCell()).Str(" |").String()
 }
 
 // orDashes answers the empty-cell marker for a polarity with no citation.
@@ -387,6 +476,7 @@ func RenderIndex(in RenderInput) (string, error) {
 	out = append(out, renderEvidenceLegend(in.Carriers)...)
 	out = append(out, renderRollup(in)...)
 	out = append(out, renderAuditCoverage(in)...)
+	out = append(out, renderDiscrimination(in)...)
 	extraction, err := renderExtractionTable(in)
 	if err != nil {
 		return "", err

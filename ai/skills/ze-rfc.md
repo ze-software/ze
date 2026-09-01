@@ -365,8 +365,10 @@ The link is two-way, but only ONE side is authored: the test tags itself.
 a test path into a summary (`ai/rules/evidence.md`). A hand-written back-link
 survives deletion of the test it names; a tag dies with the test.
 
-The rendered link carries the test's `file:line`, so the ledger drifts whenever a tagged
-test moves. Regenerate and commit it in the same change (see "Keep the ledger committed").
+The rendered link names the file and the enclosing function, never a line, so an edit
+above a tag does not churn the ledger. It still drifts when a tagged test is added, moved
+between functions or deleted. Regenerate and commit it in the same change (see "Keep the
+ledger committed").
 
 In the test that enforces a requirement:
 
@@ -395,6 +397,41 @@ Rules:
   is deleted, which is exactly the rot this system exists to catch.
 - `.ci` tags must start at the line start (`internal/test/runner/parsing.go`) and must
   not sit inside a `terminator=` block, where `#` is raw file content, not a comment.
+
+### The proof a new tag owes (BLOCKING)
+
+The prose after the polarity is the CLAIM, and no gate can read a sentence. So a tag you
+ADD owes, in the same change, a record of a break under which its own tagged unit goes
+RED. `./le rfc check` refuses a tagged unit that is new against git HEAD and carries none.
+
+| Step | Command | What it does |
+|------|---------|--------------|
+| 1 | `./le rfc discriminate stem <stem>` | says which of that RFC's tags carry a record, which records no longer verify, and which tags carry none |
+| 2 | `./le rfc discriminate stem <stem> report <path>` | reads a gomu JSON report and proposes candidate breaks for the unit tags, best first |
+| 3 | `./le rfc discriminate-record ...` | runs that tagged unit alone and requires the GREEN first, applies one break, requires the RED, and writes `rfc/discrimination/<stem>.json` |
+
+The green comes BEFORE the break, not after it: a unit already failing proves nothing
+about a break, and there is no post-restore run on any route. A unit or `.ci` break is a
+Go overlay, so no file on disk is touched and there is nothing to restore. An interop
+break edits the working tree, because the lab compiles ze inside Docker from the
+repository as the build context, and that one is put back and re-read byte for byte.
+
+`discriminate-record` refuses to write a red it did not observe, and refuses a red that
+does not NAME the tagged unit: a build error and a failing sibling test each turn a run
+red and neither proves the claim. A `.ci` or an interop tag takes the `revert` route and
+cites the assertion it rests on, because no generated mutant reaches either carrier.
+
+The `no-break` escape is the third route and it is not a way out. Its reason comes from a
+closed vocabulary, the gate checks the fact each reason claims, and the record must also
+tie that fact to THIS tag: `declaration-only` and `generated-producer` need the tag's own
+claim to name something their producer file declares, and `foreign-producer` needs the
+`fail(N, ...)` number its checker writes out. It is refused outright for a unit-tier tag
+whose producer gomu can mutate.
+
+Write the claim to match what the body checks. A claim wider than the assertion is what
+this record exists to refuse, and rewording a claim stales its record and owes a fresh
+one. Full contract: `docs/contributing/rfc-conformance-gates.md`, "The discrimination
+record", and `rfc/discrimination/README.md`.
 
 ## Changing an RFC Test (BLOCKING)
 

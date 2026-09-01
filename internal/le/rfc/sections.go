@@ -20,7 +20,7 @@ import (
 // Without it the backlog exists but is unreadable -- thousands of rows with a
 // dash in them is an inventory, not a worklist.
 func renderRollup(in RenderInput) []string {
-	cov := rfcCoverageRows(in.Requirements, in.Tags, in.Carriers)
+	cov := CoverageRows(in.Requirements, in.Tags, in.Carriers)
 	// Enrolled first (regressions matter most), then closest to enrollable, so
 	// the next RFC worth finishing is always at the top.
 	sort.SliceStable(cov, func(i, j int) bool {
@@ -112,7 +112,7 @@ func renderRollup(in RenderInput) []string {
 // not here, the other says its summary declares no row, and neither is a
 // checked pointer. None of this lowers what any of these requirements owes -- a
 // superseded MUST is gated, counted and ratcheted exactly as a current one is.
-func renderSupersededNote(in RenderInput, cov []rfcCoverage) []string {
+func renderSupersededNote(in RenderInput, cov []CoverageRow) []string {
 	var superseded []string
 	for _, c := range cov {
 		if _, held := in.Successors[c.RFC]; held {
@@ -204,11 +204,11 @@ func renderAuditCoverage(in RenderInput) []string {
 		"",
 		provenNote.Str("**Proven** (").Int(int64(proven)).
 			Str(") is the count that means what the badge implies: a verdict of `").
-			Str(verdictEnforced).
+			Str(VerdictEnforced).
 			Str("` -- the tests would fail if the code stopped complying -- that is still ").
 			Str("fresh. It is NOT the **Both** column of the rollup above: that one ").
 			Str("answers which polarities exist, and a requirement can have both and ").
-			Str("still be judged `").Str(verdictWeak).Str("`. Every one of the ").
+			Str("still be judged `").Str(VerdictWeak).Str("`. Every one of the ").
 			Int(int64(findings)).
 			Str(" verdict(s) that is audited but not proven is named below with its ").
 			Str("verdict, so no requirement can read as proven and weak at once.").String(),
@@ -262,7 +262,7 @@ func renderAuditCoverage(in RenderInput) []string {
 		var intro textbuf.Buffer
 		out = append(out, intro.
 			Str("One row per requirement whose verdict is anything other than a fresh `").
-			Str(verdictEnforced).
+			Str(VerdictEnforced).
 			Str("`. A blur is not a worklist: each is named so it can be picked up ").
 			Str("individually.").String(), "",
 			"| Requirement | Verdict | Meaning |", "|---|---|---|")
@@ -278,10 +278,10 @@ func renderAuditCoverage(in RenderInput) []string {
 
 // unprovenMeaning is one line per verdict word.
 var unprovenMeaning = map[string]string{
-	verdictWeak:          "tagged and green, but cannot fail on non-compliance",
-	verdictWrong:         "the test asserts something the RFC does not say",
-	verdictUnimplemented: "the tests are fine; the CODE does not comply",
-	verdictNotApplicable: "no reachable code path could satisfy or violate it",
+	VerdictWeak:          "tagged and green, but cannot fail on non-compliance",
+	VerdictWrong:         "the test asserts something the RFC does not say",
+	VerdictUnimplemented: "the tests are fine; the CODE does not comply",
+	VerdictNotApplicable: "no reachable code path could satisfy or violate it",
 }
 
 // stateMeaning is one line per freshness state.
@@ -322,13 +322,181 @@ func verdictMeaning(reason string) string {
 			Str("` in the unpublished freshness state `").Str(state).
 			Str("` -- add it to _STATE_MEANING").String()
 	}
-	if value == verdictEnforced || !auditVerdicts[value] {
+	if _, known := auditVerdicts[value]; value == VerdictEnforced || !known {
 		return "outside the recorded vocabulary"
 	}
 	if meaning, held := unprovenMeaning[value]; held {
 		return meaning
 	}
 	return "no published meaning for this verdict -- add one to _UNPROVEN_MEANING"
+}
+
+// renderDiscrimination is the published state of the claim half of a tag.
+//
+// Every other table on this page judges the STRUCTURED half of a tag: the id
+// resolves, the polarity is declared, the carrier runs. None of them can read
+// the sentence after it, so a tag advertising an assertion its body never makes
+// counts here as evidence. A discrimination record is what replaces reading
+// that sentence, and this section publishes how much of the corpus carries one.
+//
+// Prose, no table: internal/le/testhealth/collect_rfc.go matches a nine-cell
+// regex against every line of this file, so a table of the same width would be
+// folded into the proof-density figure it reports.
+func renderDiscrimination(in RenderInput) []string {
+	proven, escaped := discriminationRouteCounts(in.Discrimination)
+	byRoute := map[string]int{}
+	byReason := map[string]int{}
+	covered := make(map[Cover]bool, len(in.Discrimination))
+	removable := 0
+	for index := range in.Discrimination {
+		verdict := &in.Discrimination[index]
+		if !verdict.Verified() {
+			if verdict.removable() {
+				removable++
+			}
+			continue
+		}
+		covered[verdict.Record.Cover()] = true
+		byRoute[verdict.Record.Route]++
+		byReason[verdict.Record.Reason]++
+	}
+
+	gated := map[string]bool{}
+	for _, req := range in.Requirements {
+		if req.Gated() && in.Enrolled[req.RFC] {
+			gated[req.RID] = true
+		}
+	}
+	scope, backlog := 0, 0
+	for key := range in.Covers {
+		if !gated[key.RID] {
+			continue
+		}
+		scope++
+		if !covered[key] {
+			backlog++
+		}
+	}
+	// Two populations, and the record total is the wider one. A record can sit
+	// on a requirement this gate does not oblige -- an un-enrolled RFC, or a
+	// SHOULD -- and it is real evidence there. Publishing the two counts side
+	// by side without this figure renders an arithmetic error to a reader who
+	// subtracts one from the other.
+	outside := proven + escaped - (scope - backlog)
+
+	var lead, counts, debt, escape textbuf.Buffer
+	out := []string{
+		"## Claim discrimination",
+		"",
+		lead.Str("A tag names a requirement and a polarity, and then states in prose what ").
+			Str("its test demonstrates. No gate can read that sentence, so a test that ").
+			Str("asserts less than its tag claims counts as evidence everywhere else on ").
+			Str("this page. A record under `rfc/discrimination/` replaces reading it: it ").
+			Str("names a break of the producing code, and it stores the observation that ").
+			Str("the tagged unit went RED under that break and green again after it. ").
+			Str("`./le rfc check` replays the fingerprints on every run and refuses a ").
+			Str("record whose unit, claim or producer has moved since.").String(),
+		"",
+		counts.Str("Proven: ").Int(int64(proven)).Byte(' ').Str(routePhrase(byRoute)).
+			Str(". Escaped: ").
+			Int(int64(escaped)).Str(". Unproven backlog: ").Int(int64(backlog)).
+			Str(" of ").Int(int64(scope)).
+			Str(" tagged unit(s) on a gated requirement of an enrolled RFC.").
+			Str(outsidePhrase(outside)).String(),
+		"",
+		debt.Str("The backlog is grandfathered, as the extraction backlog is. The ").
+			Str("obligation is CHANGE-SCOPED: a tagged unit that is new against git HEAD ").
+			Str("owes its proof in the change that added it, and `./le rfc check` reports ").
+			Str("that figure as `owed`. It is absent from this page on purpose. `owed` is ").
+			Str("a fact about a commit boundary rather than about this tree, so a page ").
+			Str("carrying it would go stale when nothing in the tree had changed.").String(),
+		"",
+		escape.Str("An escape (`").Str(RouteNoBreak).
+			Str("`) is a recorded claim that no break exists, and the gate checks a ").
+			Str("precondition for each reason it accepts: ").Str(reasonPhrase(byReason)).
+			Str(". It is counted apart from a proof because a claim that nothing can ").
+			Str("break is debt, not evidence.").String(),
+		"",
+	}
+	if removable > 0 {
+		var tb textbuf.Buffer
+		out = append(out, tb.Int(int64(removable)).
+			Str(" record(s) can be deleted: the tag each one proved is gone. A record ").
+			Str("dies with its tag, so an orphan is removed rather than re-recorded.").
+			String(), "")
+	}
+	return append(out, renderUnscanned(in.Unscanned)...)
+}
+
+// outsidePhrase says how many records sit outside the obliged population.
+//
+// DERIVED, so the sentence appears exactly when the fact does. Silent at zero,
+// because a reader who meets it there learns nothing and still pays for it.
+func outsidePhrase(outside int) string {
+	if outside <= 0 {
+		return ""
+	}
+	var tb textbuf.Buffer
+	return tb.Byte(' ').Int(int64(outside)).
+		Str(" further record(s) sit outside that population, on a requirement no gate ").
+		Str("obliges: an un-enrolled RFC, or a level below MUST. They are counted in ").
+		Str("the totals above and not in the backlog, so the two figures are two ").
+		Str("populations rather than one arithmetic.").String()
+}
+
+// routePhrase names every proof route, including the zeros.
+//
+// The escape route is left out: it is counted in its own sentence, because a
+// reader who meets three numbers in one list reads their sum as the proven
+// count (R-9).
+func routePhrase(counts map[string]int) string {
+	var tb textbuf.Buffer
+	tb.Byte('(')
+	first := true
+	for _, name := range DiscriminationRoutes() {
+		if name == RouteNoBreak {
+			continue
+		}
+		if !first {
+			tb.Str(", ")
+		}
+		first = false
+		tb.Str(name).Byte(' ').Int(int64(counts[name]))
+	}
+	return tb.Byte(')').String()
+}
+
+// reasonPhrase names every escape reason, including the zeros.
+func reasonPhrase(counts map[string]int) string {
+	var tb textbuf.Buffer
+	for index, name := range escapeReasonNames() {
+		if index > 0 {
+			tb.Str(", ")
+		}
+		tb.Byte('`').Str(name).Str("` ").Int(int64(counts[name]))
+	}
+	return tb.String()
+}
+
+// renderUnscanned publishes the `RFC requirement:` comments that sit in
+// production Go on no carrier.
+//
+// Reported rather than refused, in the shape the extraction backlog is
+// reported. They predate the check, and a ratchet that reds the tree over
+// standing debt gets removed rather than obeyed. Published because a comment
+// that reads as evidence to a person and is counted by no gate is the exact
+// failure this section exists to make visible.
+func renderUnscanned(tags []UnscannedTag) []string {
+	if len(tags) == 0 {
+		return nil
+	}
+	var tb textbuf.Buffer
+	return []string{tb.Int(int64(len(tags))).
+		Str(" `RFC requirement:` comment(s) sit in production Go that no carrier claims. ").
+		Str("Nothing resolves them and nothing runs them, and ").
+		Int(int64(unscannedRefused(tags))).
+		Str(" of them carry no polarity, so no scanner would accept them even if a ").
+		Str("carrier did claim the file. `./le rfc check` names each one.").String(), ""}
 }
 
 // renderExtractionTable is the published backlog: how much of the standards
@@ -517,12 +685,12 @@ func renderStatusBacklog(in RenderInput) []string {
 			if disp.Kind == dispositionNonNormative {
 				debt = "no"
 			}
-			// tableCell for the same reason the shard rows need it: the reason
+			// TableCell for the same reason the shard rows need it: the reason
 			// is AUTHORED, and rfc/enrolled.txt already writes a grep
 			// alternation in this register.
 			var row textbuf.Buffer
 			out = append(out, row.Str("| `").Str(stem).Str("` | ").Str(disp.Kind).
-				Str(" | ").Str(debt).Str(" | ").Str(tableCell(disp.Reason)).
+				Str(" | ").Str(debt).Str(" | ").Str(TableCell(disp.Reason)).
 				Str(" |").String())
 		}
 	} else {

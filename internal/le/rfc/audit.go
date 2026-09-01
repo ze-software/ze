@@ -38,25 +38,42 @@ const auditRel = "rfc/audit"
 // an empty tests map is refused and the code-map remedy is open only to
 // `unimplemented`.
 const (
-	verdictEnforced      = "enforced"
-	verdictWeak          = "weak"
-	verdictWrong         = "wrong"
-	verdictUnimplemented = "unimplemented"
-	verdictNotApplicable = "not-applicable"
+	VerdictEnforced      = "enforced"
+	VerdictWeak          = "weak"
+	VerdictWrong         = "wrong"
+	VerdictUnimplemented = "unimplemented"
+	VerdictNotApplicable = "not-applicable"
 )
 
-var auditVerdicts = map[string]bool{
-	verdictEnforced:      true,
-	verdictWeak:          true,
-	verdictWrong:         true,
-	verdictUnimplemented: true,
-	verdictNotApplicable: true,
+// auditVerdicts is the closed vocabulary, each word beside what it says about
+// the tests bound to a requirement.
+//
+// The meaning is stated HERE, beside the word, because a reader who meets
+// `weak` on a published page cannot act on the word alone. A second table of
+// sentences elsewhere would be a copy of this set with nothing to arbitrate a
+// disagreement (ai/rules/principles.md).
+var auditVerdicts = map[string]string{
+	VerdictEnforced:      "the tests do what the requirement demands",
+	VerdictWeak:          "the tests pass over code that does not enforce the requirement",
+	VerdictWrong:         "the tests assert something other than what the requirement demands",
+	VerdictUnimplemented: "no code path enforces the requirement",
+	VerdictNotApplicable: "the requirement has no reachable code path in Ze",
 }
 
-// auditVerdictNames answers the closed vocabulary, sorted. The fixture pins it
+// AuditVerdicts answers the closed vocabulary, sorted. The fixture pins it
 // by VALUE rather than by count, which is what kills a one-word mutation in a
 // set no output ever prints.
-func auditVerdictNames() []string { return sortedKeys(auditVerdicts) }
+func AuditVerdicts() []string { return sortedKeysOf(auditVerdicts) }
+
+// AuditVerdictMeaning answers what one verdict word says, and false for a word
+// outside the vocabulary.
+//
+// A caller that publishes a verdict owes the reader the sentence: the word on
+// its own carries no meaning to anyone who has not read the audit skill.
+func AuditVerdictMeaning(verdict string) (string, bool) {
+	meaning, held := auditVerdicts[verdict]
+	return meaning, held
+}
 
 var auditFileKeys = map[string]bool{
 	"rfc": true, "audited": true, "requirements": true,
@@ -125,10 +142,8 @@ func fingerprintKey(key, where string) (string, string, error) {
 	if matched == nil {
 		matched = retired
 	}
-	if matched != nil {
-		rel := matched[1]
-		if strings.HasPrefix(rel, "/") || strings.HasPrefix(rel, "~") ||
-			slashSegments(rel) {
+	if len(matched) > 1 {
+		if !insideRepo(matched[1]) {
 			return "", "", parseErr(tb.Str(where).Str(": fingerprint key ").Str(pyRepr(key)).
 				Str(" names a path outside the repository. A verdict is authored input, ").
 				Str("not a trusted path source"))
@@ -155,6 +170,24 @@ func fingerprintKey(key, where string) (string, string, error) {
 // which is the traversal a key must never carry.
 func slashSegments(rel string) bool {
 	return slices.Contains(strings.Split(rel, "/"), "..")
+}
+
+// insideRepo reports whether a path from AUTHORED input stays in the checkout.
+//
+// Three shapes leave it: an absolute path, a home-relative path, and any `..`
+// segment. Stated positively, so a caller reads "inside" rather than inverting
+// three negatives, and declared once because every authored path that reaches a
+// tree read or a tree write owes the same answer -- a fingerprint key in a
+// record, and the file path in a gomu report, which becomes an overlay key and,
+// on the interop carrier, an os.WriteFile target (ai/rules/principles.md).
+func insideRepo(rel string) bool {
+	if strings.HasPrefix(rel, "/") {
+		return false
+	}
+	if strings.HasPrefix(rel, "~") {
+		return false
+	}
+	return !slashSegments(rel)
 }
 
 // keyFile answers the file half of a fingerprint key, for a caller that wants
@@ -252,9 +285,9 @@ func validateVerdict(rid string, verdict any, order *keyOrder, where string) err
 		return err
 	}
 	value, _ := data["verdict"].(string)
-	if !auditVerdicts[value] {
+	if _, known := auditVerdicts[value]; !known {
 		return parseErr(tb.Str(at).Str(" has verdict ").Str(pyRepr(data["verdict"])).
-			Str(", which is not one of ").Str(pyRepr(auditVerdictNames())).
+			Str(", which is not one of ").Str(pyRepr(AuditVerdicts())).
 			Str(". The vocabulary is closed (ai/skills/ze-rfc-audit.md): a fifth word is ").
 			Str("drift, and drift in this field is a compliance claim nobody can read"))
 	}
@@ -287,11 +320,11 @@ func validateVerdict(rid string, verdict any, order *keyOrder, where string) err
 	// means it. A field that sits unread on the other four verdicts is a field
 	// an author can believe they filled in.
 	if _, held := data["no_code_path"]; held {
-		if value != verdictNotApplicable {
+		if value != VerdictNotApplicable {
 			return parseErr(tb.Str(at).Str(" carries 'no_code_path' with verdict ").
 				Str(pyRepr(data["verdict"])).
 				Str(". That field states why no reachable code path exists and is only ").
-				Str("meaningful on ").Str(pyRepr(verdictNotApplicable)))
+				Str("meaningful on ").Str(pyRepr(VerdictNotApplicable)))
 		}
 		// required=false on purpose: absent-or-empty stays the REPORTED
 		// violation that names what to write, and only a wrong TYPE refuses.
@@ -318,6 +351,55 @@ type Audit struct {
 func (a Audit) Verdict(rid string) (map[string]any, bool) {
 	found, isObject := a.Verdicts[rid].(map[string]any)
 	return found, isObject
+}
+
+// VerdictRecord is one recorded judgement, typed.
+//
+// Verdict answers the untyped document, because the writer rewrites it and the
+// freshness rule compares the raw fields. A READER outside this package wants
+// the fields instead, and reaching into `map[string]any` for them would spell
+// the six keys a second time -- which is where the vocabulary drifted before
+// the schema existed (ai/rules/principles.md).
+type VerdictRecord struct {
+	Verdict string `json:"verdict"`
+	Note    string `json:"note"`
+	// RequirementSHA fingerprints the obligation's own text as it read when
+	// the verdict was recorded.
+	RequirementSHA string `json:"requirement-sha"`
+	// Tests, Units and Code are the three fingerprint maps, keyed by the
+	// symbol each one names.
+	Tests map[string]string `json:"tests,omitempty"`
+	Units map[string]string `json:"units,omitempty"`
+	Code  map[string]string `json:"code,omitempty"`
+	// UpgradeReason is why a previous verdict was raised, and NoCodePath is
+	// why no reachable code path exists. Each is empty where the record wrote
+	// none, and NoCodePath is legal only on a not-applicable verdict.
+	UpgradeReason string `json:"upgrade-reason,omitempty"`
+	NoCodePath    string `json:"no-code-path,omitempty"`
+}
+
+// Record answers one requirement's recorded verdict as fields, and whether it
+// has one.
+//
+// A verdict that reaches here has passed the validating load, so every field is
+// the type this reads. A document that reached it without one answers the zero
+// value for that field alone, which is the state the record is in.
+func (a Audit) Record(rid string) (VerdictRecord, bool) {
+	verdict, held := a.Verdict(rid)
+	if !held {
+		return VerdictRecord{}, false
+	}
+	record := VerdictRecord{
+		Verdict: verdictValue(verdict),
+		Tests:   recordedMap(verdict, fingerprintTests),
+		Units:   recordedMap(verdict, fingerprintUnits),
+		Code:    recordedMap(verdict, fingerprintCode),
+	}
+	record.Note, _ = verdict["note"].(string)
+	record.RequirementSHA, _ = verdict["requirement_sha"].(string)
+	record.UpgradeReason, _ = verdict["upgrade_reason"].(string)
+	record.NoCodePath, _ = verdict["no_code_path"].(string)
+	return record, true
 }
 
 // auditStems answers every stem with an rfc/audit/<stem>.json.
