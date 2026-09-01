@@ -1,0 +1,33 @@
+# Test: `ze announce unicast <prefix>` typed as argv reaches the handler, puts
+# the prefix on a peer's wire, and refuses a trailing token no keyword claims.
+#
+# The .ci cannot drive this alone. The daemon publishes its ephemeral SSH
+# address into the file ZE_SSH_EPHEMERAL names, and only a compiled fixture can
+# read that file and put ZE_SSH_HOST and ZE_SSH_PORT on the client. So the
+# fixture starts both halves, a daemon over ephemeral SSH and the ze-test peer
+# this file scripts, and drives `ze announce` as argv against them.
+#
+# The peer holds the assertion. It exits zero only when both expectations
+# below arrived in order, so the run proves the announcement reached the wire
+# rather than only that the command exited zero.
+#
+# VALIDATES: `ze announce unicast 10.0.0.0/24 next-hop 10.0.0.1` reaches
+#   handleAnnounceUnicast, announceAndTrack and the reactor, and the peer reads
+#   the UPDATE that carries ORIGIN IGP, the AS_PATH ze prepends for the eBGP
+#   session, NEXT_HOP 10.0.0.1 and the 10.0.0.0/24 NLRI; and that a trailing
+#   token no keyword claims is refused BY NAME on all three announce forms.
+# PREVENTS: the announce grammar living only in a handler no functional test
+#   reaches, which is how the option parser could discard a trailing
+#   `rate-limit 500` in silence and lose the rate limit without a word.
+
+tmpfs=peer-script:terminator=EOF_PEER
+option=tcp_connections:value=1
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A000001180A0000
+EOF_PEER
+
+option=timeout:value=180s
+
+cmd=foreground:seq=1:exec=ze-test fixture ui/cli-announce-reaches-the-wire $PORT:timeout=170s
+expect=exit:code=0
+expect=stdout:contains=OK

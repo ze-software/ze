@@ -3,17 +3,18 @@ module ze-cli-announce-cmd {
     prefix cliannouncecmd;
     import ze-extensions { prefix ze; }
     description "On-demand route origination and lifecycle management";
-    revision 2026-08-30 { description "The flowspec traffic action is a one-of: community, rate-limit and discard are three spellings of the one extended community RFC 8955 Section 7 defines, an operator supplies exactly one, and the generated line bracketed all three as if the command ran without any. They now sit in an action container carrying ze:modifier one-of, which the renderer states as a required alternation. The container's name is never typed."; }
+    revision 2026-09-01 { description "The two-path declaration is restored, and the flowspec traffic action is a one-of. A replay of an older upstream snapshot dropped the announce-forms and withdraw-forms groupings and the peer container, while ze-flowspec-cmd kept augmenting /cliannouncecmd:peer/announce/flowspec. That augment then resolved against nothing, so every config load failed and the daemon started for nobody. The one-of the same replay introduced is kept: community, rate-limit and discard are three spellings of the one extended community RFC 8955 Section 7 defines, an operator supplies exactly one, and the generated line bracketed all three as if the command ran without any. They sit in an action container carrying ze:modifier one-of, which the renderer states as a required alternation. The container's name is never typed."; }
+    revision 2026-08-31 { description "Every announce and withdraw form is reachable at two paths. A bare form reaches every peer. peer <selector> announce and peer <selector> withdraw reach the peers the selector matches. That is the ExaBGP order an operator already types. Each set of forms is one grouping instantiated twice, so the second path restates no grammar. The selector is declared on the peer container the operator types it after. withdraw all loses its own selector leaf: the peer prefix states that scope for every form rather than one form stating it in its tail."; }
     revision 2026-08-30 { description "announce is three commands, one per form: unicast, blackhole and flowspec. The arguments after the form word differ between them, so one node could state at most one of the three and the description spelled the rest in prose. This is what withdraw was already split into. unicast and blackhole now state their whole grammar; flowspec states its trailing options only, because the match components are the flowspec NLRI plugin's vocabulary."; }
     revision 2026-08-29 { description "Declare the announce trailing groups: tag carries a key AND a value, so it is one group rather than two leaves, and for carries a duration whose keyword differs from its value name."; }
     revision 2026-08-29 { description "withdraw is three commands, one per form: tag, id and all. Each states its own arguments, so the grammar is in the model rather than in a handler's switch and in a description."; }
     revision 2026-06-27 { description "Initial revision"; }
 
-    container announce {
-        config false;
-        description "Announce a route on demand to selected peers.
-Each form is a command of its own: the arguments after the form word differ
-between them, and one node cannot state three grammars.";
+    grouping announce-forms {
+        description "The three announce forms, declared once and instantiated
+twice. A bare announce reaches every peer. peer <selector> announce reaches the
+peers the selector matches. Restating the grammar under the second path would
+be a second declaration of one fact.";
 
         container unicast {
             config false;
@@ -24,7 +25,8 @@ between them, and one node cannot state three grammars.";
             container next-hop {
                 config false;
                 ze:modifier "once";
-                description "The next hop to advertise. Defaults to this router.";
+                description "The next hop to advertise.";
+                ze:help "It defaults to this router.";
                 leaf address { type string { length "1..46"; } mandatory true; description "An address, or self for this router"; }
             }
 
@@ -54,9 +56,10 @@ between them, and one node cannot state three grammars.";
         container blackhole {
             config false;
             ze:command "ze-bgp:announce-blackhole";
-            description "Originate a blackhole route on demand.
-The BLACKHOLE community is attached by this command, so RFC 7999 Section 3.1
-narrows the fan-out to the sessions that recorded the agreement.";
+            description "Originate a blackhole route on demand.";
+            ze:help "This command attaches the BLACKHOLE community itself, so
+RFC 7999 Section 3.1 narrows the fan-out to the sessions that recorded the
+agreement.";
             leaf prefix { type string { length "1..49"; } mandatory true; description "Prefix to blackhole, in CIDR form"; }
 
             container tag {
@@ -78,41 +81,45 @@ narrows the fan-out to the sessions that recorded the agreement.";
         container flowspec {
             config false;
             ze:command "ze-bgp:announce-flowspec";
-            description "Originate a FlowSpec rule on demand (RFC 8955).
-The match components come from ze-flowspec-cmd, which augments this container.
-They are the FlowSpec codec vocabulary and the plugin that owns it declares
-them, so this module never restates another plugin's words. An augmented
-container carries no declaration order, so the components sort by name and land
-in front of the action and the options declared here.";
+            description "Originate a FlowSpec rule on demand (RFC 8955).";
+            ze:help "The match components come from ze-flowspec-cmd, which
+augments this container. They are the FlowSpec codec vocabulary, and the plugin
+that owns it declares them, so this module never restates another plugin's
+words. An augmented container carries no declaration order, so the components
+sort by name and land in front of the action and the options declared here.";
 
             container action {
                 config false;
                 ze:modifier "one-of";
-                description "The traffic action, which every FlowSpec rule must carry.
-RFC 8955 Section 7 makes it an extended community, so the three containers below
-are three spellings of ONE community rather than three mechanisms: community is
-the general case, and rate-limit and discard are sugar over it. The operator
-types one of them and never types this container's name.";
+                description "The traffic action, which every FlowSpec rule must carry.";
+                ze:help "RFC 8955 Section 7 makes it an extended community, so
+the three containers below are three spellings of ONE community rather than
+three mechanisms: community is the general case, and rate-limit and discard are
+sugar over it. The operator types one of them and never types this container's
+name.";
 
                 container community {
                     config false;
                     ze:modifier "once";
-                    description "The traffic action, as the extended community RFC 8955
-Section 7 defines it. rate-limit and discard are spellings of one.";
+                    description "The traffic action, as the extended community RFC 8955 Section 7 defines it.";
+                    ze:help "rate-limit and discard are two spellings of this one
+action.";
                     leaf value { type string { length "1..64"; } mandatory true; description "Action community, such as traffic-rate or redirect"; }
                 }
 
                 container rate-limit {
                     config false;
                     ze:modifier "once";
-                    description "Rate-limit the matched traffic. Sugar for a traffic-rate community.";
+                    description "Rate-limit the matched traffic.";
+                    ze:help "It is sugar for a traffic-rate community.";
                     leaf bytes-per-second { type string { pattern '[0-9]+'; length "1..20"; } mandatory true; description "Rate in bytes per second"; }
                 }
 
                 container discard {
                     config false;
                     ze:modifier "once";
-                    description "Discard the matched traffic. Sugar for a traffic-rate of zero.";
+                    description "Discard the matched traffic.";
+                    ze:help "It is sugar for a traffic-rate of zero.";
                 }
             }
 
@@ -133,14 +140,18 @@ Section 7 defines it. rate-limit and discard are spellings of one.";
         }
     }
 
-    container withdraw {
-        config false;
-        description "Withdraw on-demand announcements.";
+    grouping withdraw-forms {
+        description "The three withdraw forms, declared once and instantiated
+twice, the same way the announce forms are. A bare withdraw reaches every
+announcement. peer <selector> withdraw reaches the announcements made to the
+peers that selector names.";
 
         container tag {
             config false;
             ze:command "ze-bgp:withdraw-tag";
-            description "Withdraw the announcements carrying a tag. A key of * withdraws every tagged announcement, and an absent value withdraws every value of the key.";
+            description "Withdraw the announcements carrying a tag.";
+            ze:help "A key of * withdraws every tagged announcement. An absent
+value withdraws every value of the key.";
             leaf key { type string; mandatory true; description "Tag key, or * for every tagged announcement"; }
             leaf value { type string; description "Tag value; every value of the key when absent"; }
         }
@@ -155,8 +166,50 @@ Section 7 defines it. rate-limit and discard are spellings of one.";
         container all {
             config false;
             ze:command "ze-bgp:withdraw-all";
-            description "Withdraw every on-demand announcement, or every one whose peer selector matches a pattern.";
-            leaf selector { type string; description "Peer selector pattern; every announcement when absent"; }
+            description "Withdraw every on-demand announcement.";
+            ze:help "Type it after peer <selector> to withdraw only the
+announcements made to those peers.";
+        }
+    }
+
+    container announce {
+        config false;
+        description "Announce a route on demand to selected peers.";
+        ze:help "Each form is a command of its own. The arguments after the form
+word differ between them, and one node cannot state three grammars.";
+        uses announce-forms;
+    }
+
+    container withdraw {
+        config false;
+        description "Withdraw on-demand announcements.";
+        uses withdraw-forms;
+    }
+
+    container peer {
+        config false;
+
+        // No description here. The top-level peer container is shared with
+        // ze-raw-cmd and ze-update-cmd, and mergeYANGEntry warns when two
+        // modules describe one node differently. The description that node
+        // carries is ze-raw-cmd's.
+        //
+        // The peer every command below reads. It is declared here, on the
+        // keyword the operator types it after, and each command inherits it.
+        leaf selector { type string; mandatory true; description "Peer selector: an address, a peer name, an AS pattern such as as65001, a glob, or * for every peer"; }
+
+        container announce {
+            config false;
+            description "Announce a route on demand to selected peers.";
+            ze:help "Each form is a command of its own. The arguments after the form
+word differ between them, and one node cannot state three grammars.";
+            uses announce-forms;
+        }
+
+        container withdraw {
+            config false;
+            description "Withdraw on-demand announcements.";
+            uses withdraw-forms;
         }
     }
 
