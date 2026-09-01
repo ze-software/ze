@@ -661,3 +661,45 @@ func TestBMPRiboutDedupPeerDown(t *testing.T) {
 		t.Error("dedup state should be cleared after peer down")
 	}
 }
+
+// TestNoDirectionAnnouncesPrePolicyAdjRIBOut pins the scope decision that RFC
+// 8671 Section 5.2 hangs on: ze offers the post-policy Adj-RIB-Out view and
+// never the pre-policy one.
+//
+// O=1 with L=0 is the pre-policy Adj-RIB-Out header. RFC 7854 Section 5 leaves
+// the choice to the implementation -- "A BMP speaker may send pre-policy
+// routes, post-policy routes, or both" -- so the Section 5.2 obligations that
+// hang on sending it do not bind ze. That is recorded as a scope decision in
+// rfc/extraction/rfc8671.json (sites 5.2:1 and 5.2:2) and in
+// docs/features/rfc-status.md, and until now it rested on prose alone.
+//
+// The two sibling tests above each pin ONE direction. This pins the invariant
+// across every direction the enum can carry, DirectionUnspecified included, so
+// a new direction that set O without L is refused by a test rather than by a
+// reader noticing.
+//
+// VALIDATES: no header ze builds carries O=1 with L=0.
+// PREVENTS: ze emitting a pre-policy Adj-RIB-Out header it owes RFC 8671
+// Section 5.2 conformance for, while the ledger records that obligation as out
+// of scope -- a published claim going false with no test to catch it.
+func TestNoDirectionAnnouncesPrePolicyAdjRIBOut(t *testing.T) {
+	directions := []rpc.MessageDirection{
+		rpc.DirectionUnspecified,
+		rpc.DirectionSent,
+		rpc.DirectionReceived,
+	}
+
+	for _, direction := range directions {
+		se := &rpc.StructuredEvent{
+			PeerAddress: "10.0.0.1",
+			PeerAS:      65001,
+			Direction:   direction,
+		}
+
+		ph := peerHeaderFromEvent(se)
+		if ph.Flags&PeerFlagO != 0 && ph.Flags&PeerFlagL == 0 {
+			t.Errorf("direction %d built a pre-policy Adj-RIB-Out header (O=1, L=0), which ze does not offer: flags %#02x",
+				direction, ph.Flags)
+		}
+	}
+}
