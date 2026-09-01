@@ -79,3 +79,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-01 | 5fed2ed5 | feat(rfc): sign off RFC 3748, the last stem the gate was waiting on | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-01 | 5fed2ed5 | feat(rfc): sign off RFC 3748, the last stem the gate was waiting on | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-01 | 5fed2ed5 | docs(rfc): fetch the draft that states RFC 9582's misattributed rows | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-01 | 5fed2ed5 | feat(rfc): arm the gate that refuses an unbounded Supported claim | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-01 | 5fed2ed5 | feat(rfc): arm the gate that refuses an unbounded Supported claim | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

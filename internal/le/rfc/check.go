@@ -357,6 +357,16 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	}
 	violations = append(violations, checkUnprovenSupport(collected.Requirements, rows, stems, dispositions,
 		signed, derived)...)
+	// ARMED 2026-09-01, once every support-promising stem carried a sign-off.
+	// It was written unwired on purpose: arming it while 16 stems still owed one
+	// would have redded this gate for every session sharing the checkout, and a
+	// gate everybody learns to ignore enforces nothing.
+	//
+	// checkUnprovenSupport, above, reads the SUMMARIES and so cannot see a claim
+	// whose stem has no summary at all; it says so in its own text. This one
+	// reads the ledger rows, which is the public page itself, so a Supported row
+	// with nothing behind it is visible to it and to nothing else.
+	violations = append(violations, checkSupportedSignoff(rows, stems, signed)...)
 	violations = append(violations, checkGapCountAgreement(collected.Requirements, rows)...)
 
 	audits, err := loadAudits(tree, collected.Enrolled)
