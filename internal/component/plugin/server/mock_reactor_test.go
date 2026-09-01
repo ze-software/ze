@@ -120,9 +120,9 @@ func (m *mockReactor) AddAPIProcessCount(_ int) {}
 
 func (m *mockReactor) SignalPluginStartupComplete() {}
 
-func (m *mockReactor) SignalPeerAPIReady(_ string)      {}
-func (m *mockReactor) SetPeerUpBarrier(_ string, _ int) {}
-func (m *mockReactor) SignalPeerUpBarrier(_ string)     {}
+func (m *mockReactor) SignalPeerAPIReady(_ string, _ plugin.Sender) {}
+func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)             {}
+func (m *mockReactor) SignalPeerUpBarrier(_ string)                 {}
 
 func (m *mockReactor) PausePeer(_ netip.Addr) error  { return nil }
 func (m *mockReactor) ResumePeer(_ netip.Addr) error { return nil }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/test/sim"
 )
@@ -189,10 +190,11 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	// A route sender signaling must leave the registrar barrier shut, and must
 	// release its own.
 	peer := newBarrierPeer(t)
-	peer.resetAPISync(1)
+	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
+	peer.resetAPISync([]string{"pusher"})
 	peer.SetPeerUpBarrier(1)
 
-	peer.SignalAPIReady()
+	peer.SignalAPIReady(plugin.ProcessSender("pusher"))
 	barrierShut(t, peer)
 
 	apiDone := make(chan struct{})
@@ -206,7 +208,8 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 	// And the reverse: a registrar acknowledgement must not release the API
 	// sync, but must open the peer-up barrier.
 	peer2 := newBarrierPeer(t)
-	peer2.resetAPISync(1)
+	peer2.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
+	peer2.resetAPISync([]string{"pusher"})
 	peer2.SetPeerUpBarrier(1)
 
 	api2 := make(chan struct{})
@@ -214,7 +217,7 @@ func TestPeerUpBarrierAndAPISyncAreIndependent(t *testing.T) {
 		peer2.waitForAPISync()
 		close(api2)
 	}()
-	t.Cleanup(peer2.SignalAPIReady)
+	t.Cleanup(func() { peer2.SignalAPIReady(plugin.ProcessSender("pusher")) })
 
 	peer2.SignalPeerUpBarrier()
 	require.False(t, chanClosed(api2)(), "SignalPeerUpBarrier released waitForAPISync: shared counters")

@@ -54,8 +54,11 @@ type ReactorStartupCoordinator interface {
 	// SignalPluginStartupComplete signals that all plugin phases are done.
 	SignalPluginStartupComplete()
 
-	// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
-	SignalPeerAPIReady(peerAddr string)
+	// SignalPeerAPIReady signals that a peer-specific API initialization is
+	// complete. sender names the process that reported, because the peer's
+	// End-of-RIB waits for a NAMED set of route-pushing processes and a report
+	// from a process outside that set must not release it.
+	SignalPeerAPIReady(peerAddr string, sender Sender)
 
 	// SetPeerUpBarrier declares how many barrier-declaring plugins
 	// (registry.Registration.PeerUpBarrier) a peer's peer-up event is being

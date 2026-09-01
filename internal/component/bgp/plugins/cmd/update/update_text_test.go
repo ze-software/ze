@@ -1236,18 +1236,18 @@ func (m *mockReactorBatch) SetConfigTree(_ map[string]any) {}
 func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64, _ string, _ plugin.Sender) error {
 	return nil
 }
-func (m *mockReactorBatch) DeleteUpdate(_ uint64) error            { return nil }
-func (m *mockReactorBatch) RetainUpdate(_ uint64) error            { return nil }
-func (m *mockReactorBatch) ReleaseUpdate(_ uint64, _ string) error { return nil }
-func (m *mockReactorBatch) ListUpdates() []uint64                  { return nil }
-func (m *mockReactorBatch) SignalAPIReady()                        {}
-func (m *mockReactorBatch) AddAPIProcessCount(_ int)               {}
-func (m *mockReactorBatch) SignalPluginStartupComplete()           {}
-func (m *mockReactorBatch) SignalPeerAPIReady(_ string)            {}
-func (m *mockReactorBatch) SetPeerUpBarrier(_ string, _ int)       {}
-func (m *mockReactorBatch) SignalPeerUpBarrier(_ string)           {}
-func (m *mockReactorBatch) RegisterCacheConsumer(_ string, _ bool) {}
-func (m *mockReactorBatch) UnregisterCacheConsumer(_ string)       {}
+func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                  { return nil }
+func (m *mockReactorBatch) RetainUpdate(_ uint64) error                  { return nil }
+func (m *mockReactorBatch) ReleaseUpdate(_ uint64, _ string) error       { return nil }
+func (m *mockReactorBatch) ListUpdates() []uint64                        { return nil }
+func (m *mockReactorBatch) SignalAPIReady()                              {}
+func (m *mockReactorBatch) AddAPIProcessCount(_ int)                     {}
+func (m *mockReactorBatch) SignalPluginStartupComplete()                 {}
+func (m *mockReactorBatch) SignalPeerAPIReady(_ string, _ plugin.Sender) {}
+func (m *mockReactorBatch) SetPeerUpBarrier(_ string, _ int)             {}
+func (m *mockReactorBatch) SignalPeerUpBarrier(_ string)                 {}
+func (m *mockReactorBatch) RegisterCacheConsumer(_ string, _ bool)       {}
+func (m *mockReactorBatch) UnregisterCacheConsumer(_ string)             {}
 func (m *mockReactorBatch) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string, _ plugin.Sender) error {
 	return nil
 }

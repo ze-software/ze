@@ -3,6 +3,7 @@ package reactor
 import (
 	"bufio"
 	"bytes"
+	"log/slog"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -361,7 +362,8 @@ func TestInitialSyncClosesTheQueueGateBeforeItWaitsForRoutePushingPlugins(t *tes
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	tc := newTriggerClock()
 	peer.SetClock(tc)
-	peer.resetAPISync(1) // one route-pushing binding; it has not reported ready
+	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
+	peer.resetAPISync([]string{"pusher"}) // one route-pushing binding; it has not reported ready
 
 	done := make(chan struct{})
 	go func() {
@@ -387,7 +389,7 @@ func TestInitialSyncClosesTheQueueGateBeforeItWaitsForRoutePushingPlugins(t *tes
 		"the forwarding rails must not be parked by this wait, or a relayed route is held behind a "+
 			"barrier that has nothing to do with it")
 
-	peer.SignalAPIReady()
+	peer.SignalAPIReady(plugin.ProcessSender("pusher"))
 
 	require.Eventually(t, func() bool {
 		select {
@@ -422,7 +424,7 @@ func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T)
 	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("caller")}
 	tc := newTriggerClock()
 	peer.SetClock(tc)
-	peer.resetAPISync(1)
+	peer.resetAPISync([]string{"caller"})
 
 	done := make(chan struct{})
 	go func() {
@@ -444,7 +446,7 @@ func TestInitialSyncSuppressesAnotherProducersEORWhileItsOwnIsOwed(t *testing.T)
 	assert.Empty(t, conn.written(),
 		"another producer's end-of-rib must not overtake the one this initial sync still owes")
 
-	peer.SignalAPIReady()
+	peer.SignalAPIReady(plugin.ProcessSender("caller"))
 	require.Eventually(t, func() bool {
 		select {
 		case <-done:
@@ -750,4 +752,137 @@ func TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily(t *testing.T) {
 		"a session that declared no Multiprotocol capability still exchanges IPv4 "+
 			"unicast, so its End-of-RIB marker is owed (RFC 4724 Section 4)")
 	assert.Equal(t, uint32(1), peer.Stats().EORSent, "the marker is counted once")
+}
+
+// TestInitialSyncBarrierCreditsOnlyTheProcessesItNames pins WHO can release the
+// End-of-RIB barrier.
+//
+// RFC requirement: RFC4724-4-1 positive -- "The End-of-RIB marker MUST be sent by
+// a BGP speaker to its peer once it completes the initial routing update ... for
+// an address family" (RFC 4724 Section 4). A marker released by a process that
+// pushes no route into that update claims a completion that has not happened.
+//
+// VALIDATES: a `plugin session ready` from a process the peer does not name
+// leaves the barrier shut, a second report from a named process does not count
+// twice, and the marker goes out when the LAST named process reports.
+// PREVENTS: a fungible barrier. The population used to be a count, so it was
+// anonymous and any plugin's report satisfied one unit of it. bgp-adj-rib-in
+// reports on EVERY peer-up, including for a peer that attaches it for events
+// alone, so a peer attaching it beside two route-pushing processes released its
+// marker on the wrong process's word while the second was still writing routes.
+func TestInitialSyncBarrierCreditsOnlyTheProcessesItNames(t *testing.T) {
+	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
+	peer.settings.ProcessBindings = []ProcessBinding{
+		sendUpdateOnly("pusher-one"),
+		sendRawOnly("pusher-two"),
+		{PluginName: "listener"}, // attached for events; pushes no route
+	}
+	tc := newTriggerClock()
+	peer.SetClock(tc)
+	peer.resetAPISync([]string{"pusher-one", "pusher-two"})
+
+	done := make(chan struct{})
+	go func() {
+		peer.sendInitialRoutes()
+		close(done)
+	}()
+
+	select {
+	case <-tc.waiting:
+	case <-time.After(5 * time.Second):
+		t.Fatal("sendInitialRoutes never entered the api-sync wait")
+	}
+
+	peer.SignalAPIReady(plugin.ProcessSender("listener"))
+	assert.False(t, apiSyncReleased(peer),
+		"a report from a process this peer does not name must not release the barrier: it pushes "+
+			"no route into this initial routing update, so it closes none of it")
+
+	peer.SignalAPIReady(plugin.ProcessSender("pusher-one"))
+	peer.SignalAPIReady(plugin.ProcessSender("pusher-one"))
+	assert.False(t, apiSyncReleased(peer),
+		"a second report from the same process must not stand in for the process that still owes routes")
+	assert.Empty(t, conn.written(),
+		"nothing reaches the wire while a named process has not reported")
+
+	peer.SignalAPIReady(plugin.ProcessSender("pusher-two"))
+	assert.True(t, apiSyncReleased(peer),
+		"the last named process's report releases the barrier")
+
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "the last named process's report must release the barrier")
+	assert.Equal(t, eorWire(family.IPv4Unicast), conn.written(),
+		"the marker reaches the wire once every named process has reported")
+}
+
+// TestAPISyncTimeoutNamesTheProcessThatNeverReported pins the diagnostic the
+// operator gets when the barrier gives up.
+//
+// The End-of-RIB that follows the timeout says the initial routing update is
+// complete when it is not (RFC 4724 Section 4), so the log line is the only
+// place the operator learns which program to go and look at. A count could not
+// carry that name, and the timeout said "API sync timeout" and nothing else.
+//
+// VALIDATES: the timeout logs at WARN, names the process that stayed silent, and
+// omits the process that reported.
+// PREVENTS: a nameless timeout. With several route-pushing processes attached,
+// an operator reading "API sync timeout" has to guess which of them is stuck.
+func TestAPISyncTimeoutNamesTheProcessThatNeverReported(t *testing.T) {
+	sink := &syncBuffer{}
+	defer swapRoutesLogger(slog.New(slog.NewTextHandler(sink, &slog.HandlerOptions{Level: slog.LevelWarn})))()
+
+	peer := newBarrierPeer(t)
+	tc := newTriggerClock()
+	peer.SetClock(tc)
+	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("talker"), sendRawOnly("mute")}
+	peer.resetAPISync([]string{"talker", "mute"})
+	peer.SignalAPIReady(plugin.ProcessSender("talker"))
+
+	done := make(chan struct{})
+	go func() {
+		peer.waitForAPISync()
+		close(done)
+	}()
+
+	select {
+	case <-tc.waiting:
+	case <-time.After(5 * time.Second):
+		t.Fatal("waitForAPISync never entered its wait")
+	}
+	tc.expire()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("waitForAPISync did not return after its timeout fired")
+	}
+
+	logged := sink.String()
+	assert.Contains(t, logged, "silent=mute",
+		"the timeout must name the process that never reported, or the operator has nothing to look at")
+	assert.NotContains(t, logged, "talker",
+		"a process that reported must not be named as silent")
+}
+
+// apiSyncReleased reports whether the initial-sync barrier has opened. The read
+// is a non-blocking select rather than an observation of the wire, so it settles
+// the moment SignalAPIReady returns: waiting for a marker to appear would make
+// the negative case a race the test wins by default.
+func apiSyncReleased(p *Peer) bool {
+	p.mu.RLock()
+	ready := p.apiSyncReady
+	p.mu.RUnlock()
+
+	select {
+	case <-ready:
+		return true
+	default:
+		return false
+	}
 }

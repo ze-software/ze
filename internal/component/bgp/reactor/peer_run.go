@@ -445,11 +445,17 @@ func (p *Peer) runOnce() error {
 
 			peerLogger().Info("session established", "peer", addr, "localAS", p.settings.LocalAS, "peerAS", p.settings.PeerAS)
 
-			// Reset per-session API sync: count the bindings that may push a
+			// Reset per-session API sync: NAME the bindings that may push a
 			// route onto this peer's wire. They signal "plugin session ready"
 			// when their initial routes are out, and this peer's End-of-RIB
 			// waits for all of them (RFC 4724 Section 4: the marker is sent once
 			// the initial routing update completes).
+			//
+			// The names travel, not their count. Every plugin can dispatch that
+			// signal, and several do it for a peer that grants them no send word
+			// at all, so a barrier holding a count releases on the wrong
+			// plugin's word (Peer.SignalAPIReady). The names are also what the
+			// timeout diagnostic prints when one of them never reports.
 			//
 			// MayPushRoutes reads BOTH rails that reach the wire, which is what
 			// closes the undercount this count used to carry. Every rail that
@@ -460,13 +466,13 @@ func (p *Peer) runOnce() error {
 			// the owner added on 2026-08-30. Before that word existed the rail
 			// was gated on attachment alone, so a hand-built UPDATE from a bare
 			// `attach process X { }` binding sat outside this barrier entirely.
-			apiSendCount := 0
+			var routePushers []string
 			for _, binding := range p.settings.ProcessBindings {
 				if binding.MayPushRoutes() {
-					apiSendCount++
+					routePushers = append(routePushers, binding.PluginName)
 				}
 			}
-			p.resetAPISync(apiSendCount)
+			p.resetAPISync(routePushers)
 
 			// Reset the peer-up barrier for this session BEFORE plugins are
 			// notified below: the dispatcher raises its expected count and the

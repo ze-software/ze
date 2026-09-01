@@ -83,16 +83,16 @@ func (m *mockReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig  
 func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return m.peerCaps
 }
-func (m *mockReactor) GetConfigTree() map[string]any          { return nil }
-func (m *mockReactor) SetConfigTree(_ map[string]any)         {}
-func (m *mockReactor) SignalAPIReady()                        {}
-func (m *mockReactor) AddAPIProcessCount(_ int)               {}
-func (m *mockReactor) SignalPluginStartupComplete()           {}
-func (m *mockReactor) SignalPeerAPIReady(_ string)            {}
-func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)       {}
-func (m *mockReactor) SignalPeerUpBarrier(_ string)           {}
-func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
-func (m *mockReactor) UnregisterCacheConsumer(_ string)       {}
+func (m *mockReactor) GetConfigTree() map[string]any                { return nil }
+func (m *mockReactor) SetConfigTree(_ map[string]any)               {}
+func (m *mockReactor) SignalAPIReady()                              {}
+func (m *mockReactor) AddAPIProcessCount(_ int)                     {}
+func (m *mockReactor) SignalPluginStartupComplete()                 {}
+func (m *mockReactor) SignalPeerAPIReady(_ string, _ plugin.Sender) {}
+func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)             {}
+func (m *mockReactor) SignalPeerUpBarrier(_ string)                 {}
+func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool)       {}
+func (m *mockReactor) UnregisterCacheConsumer(_ string)             {}
 func (m *mockReactor) ForwardUpdatesDirect(_ []uint64, _ []netip.AddrPort, _ string, _ plugin.Sender) error {
 	return nil
 }

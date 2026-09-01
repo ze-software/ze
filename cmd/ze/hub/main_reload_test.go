@@ -76,16 +76,16 @@ func (r *reloadTestReactor) SetConfigTree(tree map[string]any) {
 	r.setTree = tree
 	r.tree = tree
 }
-func (r *reloadTestReactor) SignalAPIReady()                    {}
-func (r *reloadTestReactor) AddAPIProcessCount(int)             {}
-func (r *reloadTestReactor) SignalPluginStartupComplete()       {}
-func (r *reloadTestReactor) SignalPeerAPIReady(string)          {}
-func (m *reloadTestReactor) SetPeerUpBarrier(_ string, _ int)   {}
-func (m *reloadTestReactor) SignalPeerUpBarrier(_ string)       {}
-func (r *reloadTestReactor) PausePeer(netip.Addr) error         { return nil }
-func (r *reloadTestReactor) ResumePeer(netip.Addr) error        { return nil }
-func (r *reloadTestReactor) RegisterCacheConsumer(string, bool) {}
-func (r *reloadTestReactor) UnregisterCacheConsumer(string)     {}
+func (r *reloadTestReactor) SignalAPIReady()                          {}
+func (r *reloadTestReactor) AddAPIProcessCount(int)                   {}
+func (r *reloadTestReactor) SignalPluginStartupComplete()             {}
+func (r *reloadTestReactor) SignalPeerAPIReady(string, plugin.Sender) {}
+func (m *reloadTestReactor) SetPeerUpBarrier(_ string, _ int)         {}
+func (m *reloadTestReactor) SignalPeerUpBarrier(_ string)             {}
+func (r *reloadTestReactor) PausePeer(netip.Addr) error               { return nil }
+func (r *reloadTestReactor) ResumePeer(netip.Addr) error              { return nil }
+func (r *reloadTestReactor) RegisterCacheConsumer(string, bool)       {}
+func (r *reloadTestReactor) UnregisterCacheConsumer(string)           {}
 func (r *reloadTestReactor) FlushForwardPool(context.Context) error {
 	return nil
 }

@@ -8,6 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // DefaultAPITimeout is how long to wait for all "api ready" signals at startup.
@@ -203,16 +205,20 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 // (cmd/peer/session.go handlePeerSessionReady) still answers "peer ready
 // acknowledged", and the peer simply waits out waitForAPISync and sends its EOR
 // apiSyncTimeout late. See ai/rules/evidence.md ("or say something").
-func (r *Reactor) SignalPeerAPIReady(peerAddr string) {
+//
+// sender names the process that reported. The peer's barrier is a SET of
+// route-pushing process names, so a report is credited to the one that sent it
+// and to nothing else (Peer.SignalAPIReady).
+func (r *Reactor) SignalPeerAPIReady(peerAddr string, sender plugin.Sender) {
 	peer, ok := r.lookupPeer(peerAddr)
 	if !ok {
 		slog.Warn("api ready signal for unknown peer; its EOR will be delayed until the API sync timeout",
-			"peer", peerAddr)
+			"peer", peerAddr, "process", sender.String())
 		return
 	}
 
-	slog.Debug("peer api ready signal", "peer", peerAddr)
-	peer.SignalAPIReady()
+	slog.Debug("peer api ready signal", "peer", peerAddr, "process", sender.String())
+	peer.SignalAPIReady(sender)
 }
 
 // SetPeerUpBarrier declares how many barrier-declaring plugins the peer-up

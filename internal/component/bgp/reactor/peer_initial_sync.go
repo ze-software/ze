@@ -415,7 +415,7 @@ func (p *Peer) sendInitialRoutes() {
 	// AnnounceEOR does not slip another producer's marker in front of it and
 	// `request quiesce` does not report the peer settled (peer.go).
 	p.mu.RLock()
-	needsAPIWait := p.apiSyncExpected > 0
+	needsAPIWait := len(p.apiSyncExpected) > 0
 	p.mu.RUnlock()
 	if needsAPIWait {
 		p.waitForAPISync()

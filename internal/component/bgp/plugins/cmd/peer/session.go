@@ -15,9 +15,14 @@ func init() {
 }
 
 // handlePeerSessionReady signals that a peer-specific API process has completed initialization.
+//
+// ctx.Sender is what the peer's End-of-RIB barrier is keyed on, so it is passed
+// through rather than read here: the barrier names the route-pushing processes
+// this peer waits for, and only the process that sent this command closes its
+// own share of the wait (reactor.Peer.SignalAPIReady).
 func handlePeerSessionReady(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	if ctx.Reactor() != nil && ctx.Peer != "" && ctx.Peer != "*" {
-		ctx.Reactor().SignalPeerAPIReady(ctx.Peer)
+		ctx.Reactor().SignalPeerAPIReady(ctx.Peer, ctx.Sender)
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,

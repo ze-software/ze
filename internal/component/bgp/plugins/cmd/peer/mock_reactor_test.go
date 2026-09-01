@@ -100,7 +100,7 @@ func (m *mockReactor) SetConfigTree(_ map[string]any) {}
 func (m *mockReactor) SignalAPIReady()                {}
 func (m *mockReactor) AddAPIProcessCount(_ int)       {}
 func (m *mockReactor) SignalPluginStartupComplete()   {}
-func (m *mockReactor) SignalPeerAPIReady(peer string) {
+func (m *mockReactor) SignalPeerAPIReady(peer string, _ plugin.Sender) {
 	m.signalPeerReadyCalls = append(m.signalPeerReadyCalls, peer)
 }
 func (m *mockReactor) SetPeerUpBarrier(_ string, _ int)       {}

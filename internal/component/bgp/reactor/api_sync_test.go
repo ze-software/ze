@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/test/sim"
 )
 
@@ -346,7 +347,8 @@ func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) <-ch
 	require.NotNil(t, peer, "peer must be stored under its own address:port key")
 
 	peer.SetClock(sim.NewFakeClock(time.Now()))
-	peer.resetAPISync(1)
+	peer.settings.ProcessBindings = []ProcessBinding{sendUpdateOnly("pusher")}
+	peer.resetAPISync([]string{"pusher"})
 
 	synced := make(chan struct{})
 	go func() {
@@ -355,7 +357,7 @@ func armAPISyncPeer(t *testing.T, r *Reactor, addr netip.Addr, port uint16) <-ch
 	}()
 	// Release the waiter so the goroutine never outlives the test when the
 	// signal legitimately does not arrive (unknown-peer case).
-	t.Cleanup(peer.SignalAPIReady)
+	t.Cleanup(func() { peer.SignalAPIReady(plugin.ProcessSender("pusher")) })
 
 	return synced
 }
@@ -389,7 +391,7 @@ func TestSignalPeerAPIReadyNonDefaultPort(t *testing.T) {
 	synced := armAPISyncPeer(t, r, addr, 1179)
 
 	// Bare IP: exactly what the emitters put on the wire.
-	r.SignalPeerAPIReady(addr.String())
+	r.SignalPeerAPIReady(addr.String(), plugin.ProcessSender("pusher"))
 
 	require.Eventually(t, chanClosed(synced), 2*time.Second, time.Millisecond,
 		"a peer on a non-default port must receive its ready signal")
@@ -405,7 +407,7 @@ func TestSignalPeerAPIReadyDefaultPort(t *testing.T) {
 	addr := netip.MustParseAddr("192.0.2.11")
 	synced := armAPISyncPeer(t, r, addr, DefaultBGPPort)
 
-	r.SignalPeerAPIReady(addr.String())
+	r.SignalPeerAPIReady(addr.String(), plugin.ProcessSender("pusher"))
 
 	require.Eventually(t, chanClosed(synced), 2*time.Second, time.Millisecond,
 		"a peer on the default port must receive its ready signal")
@@ -429,7 +431,7 @@ func TestSignalPeerAPIReadyUnknownPeerWarns(t *testing.T) {
 	r := New(&Config{})
 	synced := armAPISyncPeer(t, r, netip.MustParseAddr("192.0.2.12"), 1179)
 
-	r.SignalPeerAPIReady("198.51.100.99")
+	r.SignalPeerAPIReady("198.51.100.99", plugin.ProcessSender("pusher"))
 
 	require.Never(t, chanClosed(synced), 100*time.Millisecond, time.Millisecond,
 		"a signal for an unknown peer must not release a different peer's API sync")

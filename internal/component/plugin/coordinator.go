@@ -360,9 +360,9 @@ func (c *Coordinator) OnPostStartup(fn func()) {
 }
 
 // SignalPeerAPIReady signals that a peer-specific API initialization is complete. No-op without reactor.
-func (c *Coordinator) SignalPeerAPIReady(peerAddr string) {
+func (c *Coordinator) SignalPeerAPIReady(peerAddr string, sender Sender) {
 	if r := c.getReactor(); r != nil {
-		r.SignalPeerAPIReady(peerAddr)
+		r.SignalPeerAPIReady(peerAddr, sender)
 	}
 }
 

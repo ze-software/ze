@@ -138,7 +138,7 @@ func TestCoordinatorWithoutReactor(t *testing.T) {
 	c.SignalAPIReady()
 	c.AddAPIProcessCount(1)
 	c.SignalPluginStartupComplete()
-	c.SignalPeerAPIReady("10.0.0.1")
+	c.SignalPeerAPIReady("10.0.0.1", ProcessSender("p"))
 	c.SetPeerUpBarrier("10.0.0.1", 1)
 	c.SignalPeerUpBarrier("10.0.0.1")
 
@@ -387,9 +387,9 @@ func (m *mockReactor) SetConfigTree(map[string]any)         {}
 func (m *mockReactor) SignalAPIReady() {
 	m.apiReadyCalled = true
 }
-func (m *mockReactor) AddAPIProcessCount(int)       {}
-func (m *mockReactor) SignalPluginStartupComplete() {}
-func (m *mockReactor) SignalPeerAPIReady(string)    {}
+func (m *mockReactor) AddAPIProcessCount(int)            {}
+func (m *mockReactor) SignalPluginStartupComplete()      {}
+func (m *mockReactor) SignalPeerAPIReady(string, Sender) {}
 func (m *mockReactor) SetPeerUpBarrier(peer string, expected int) {
 	m.barrierSet = peer
 	m.barrierExpected = expected

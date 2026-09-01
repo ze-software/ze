@@ -1273,9 +1273,10 @@ func (a *reactorAPIAdapter) SignalPluginStartupComplete() {
 	a.r.SignalPluginStartupComplete()
 }
 
-// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
-func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string) {
-	a.r.SignalPeerAPIReady(peerAddr)
+// SignalPeerAPIReady signals that a peer-specific API initialization is
+// complete. sender names the process that reported it.
+func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string, sender plugin.Sender) {
+	a.r.SignalPeerAPIReady(peerAddr, sender)
 }
 
 // SetPeerUpBarrier declares how many barrier plugins a peer's peer-up event is
