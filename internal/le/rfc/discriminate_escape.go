@@ -209,12 +209,20 @@ func (e *escapeCheck) producerOutOfReach(producerFile string) (string, bool) {
 	if path.Dir(producerFile) == path.Dir(unitFile) {
 		return "", false
 	}
-	if e.carried && e.carrier.Kind != kindUnit {
-		return "", false
-	}
 	if e.unitImports(unitFile, producerFile) {
 		return "", false
 	}
+	// A non-unit carrier used to be exempt here, on the reasoning that a .ci or
+	// an interop scenario runs the whole daemon and so reaches every compiled
+	// file. That is true and it is exactly why the exemption had to go: a
+	// predicate every compiled file satisfies ties the escape to NO claim, and
+	// the reach test was the only tie these two reasons had. The measured route
+	// it left open was 605 of 4,020 claims carrying a word some function-free
+	// file declares. A .ci names no Go import and shares a directory with no
+	// producer, so these two reasons are now unreachable on that carrier by
+	// construction: its tags take a proof route, and an interop tag whose
+	// behavior really is produced elsewhere takes foreign-producer, which ties
+	// itself to one numbered assertion instead.
 	return head.Str(unitFile).Str(" neither sits in that package nor imports it, so nothing ").
 		Str("that file declares runs when this unit runs. A reason that holds about any file ").
 		Str("an author names discharges every tag equally, which is the blanket opt-out the ").

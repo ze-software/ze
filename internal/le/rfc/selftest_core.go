@@ -369,6 +369,13 @@ const (
 	selftestCISource = "# RFC requirement: RFC9999-2-2 negative -- the daemon drops a widget that\n" +
 		"# is not in the Widgets table it was given.\n"
 	selftestTableSource = "package sample\n\nvar Widgets = []int{1, 2, 3}\n"
+	// The .ci's escape names a declaration-only file in the .ci's OWN package.
+	// Reach is required of every carrier, so a file under internal/sample is out
+	// of a test/plugin carrier's reach: a predicate every compiled file
+	// satisfies ties an escape to no claim, which is what the reach test exists
+	// to stop (R-9).
+	selftestCITablePath   = "test/plugin/table.go"
+	selftestCITableSource = "package plugin\n\nvar Widgets = []int{1, 2, 3}\n"
 	// selftestCIDirective is the assertion a functional record cites. A .ci has
 	// no assertion numbering, so the citation is the directive line itself.
 	selftestCIDirective = "expect=widget sent"
@@ -390,6 +397,7 @@ func selftestDiscriminationSources() map[string]string {
 		selftestProducerPath: selftestProducerSource,
 		selftestCIPath:       selftestCISource,
 		selftestTablePath:    selftestTableSource,
+		selftestCITablePath:  selftestCITableSource,
 	}
 }
 
@@ -413,7 +421,7 @@ func selftestDiscriminationRecords(tree string) ([]DiscriminationRecord, error) 
 	}, {
 		RID: selftestRIDDrop, Polarity: PolarityNegative,
 		Unit: selftestCIPath, Route: RouteNoBreak,
-		Reason: escapeDeclaration, Producer: selftestTablePath,
+		Reason: escapeDeclaration, Producer: selftestCITablePath,
 	}}
 
 	records := make([]DiscriminationRecord, 0, len(unsealed))

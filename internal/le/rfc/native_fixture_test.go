@@ -57,7 +57,15 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// worktree. A stale record's drift is judged at the granularity the record
 	// fingerprints, so an unrelated uncommitted edit elsewhere in the producer's
 	// file no longer downgrades a committed drift to a report.
-	const want = "4b2772fd3d7d7e57cd4be3d8c334693d657ce347450c9e396ab5f89a962e9ae8"
+	//
+	// Re-sealed 2026-09-01, for the escape's reach test. One verdict moved: a
+	// carrier that runs the daemon is no longer exempt from reach. The exemption
+	// read that a .ci or an interop scenario reaches every compiled file, which is
+	// true and is why it had to go: a predicate every file satisfies ties the
+	// escape to no claim, so the route shut for unit tags stayed open for the 94
+	// .ci and 37 interop ones. Those two reasons are now unreachable on that
+	// carrier by construction.
+	const want = "d7326b6c51f67120e8906dcfdb908d6d97e9030c1a01eaec31654a7535e49e9d"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)

@@ -639,6 +639,7 @@ func TestCheckReportCarriesDiscriminationCounters(t *testing.T) {
 			selftestCIDirective + "\n",
 		selftestProducerPath: selftestProducerSource,
 		selftestTablePath:    selftestTableSource,
+		selftestCITablePath:  selftestCITableSource,
 	}
 	// One proof and one escape over the one requirement this fixture declares, so
 	// the two figures cannot be read off a single row.
@@ -650,7 +651,7 @@ func TestCheckReportCarriesDiscriminationCounters(t *testing.T) {
 	escape := sealFixture(t, files, DiscriminationRecord{
 		RID: selftestRIDSend, Polarity: PolarityNegative,
 		Unit: selftestCIPath, Route: RouteNoBreak,
-		Reason: escapeDeclaration, Producer: selftestTablePath,
+		Reason: escapeDeclaration, Producer: selftestCITablePath,
 	})
 	files[selftestDiscriminationRel] = discriminationArtifact(t, proof, escape)
 	root := checkFixtureTree(t, files)

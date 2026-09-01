@@ -62,7 +62,7 @@ func TestDiscriminationStatusSeparatesProvenFromUnproven(t *testing.T) {
 	escape := sealFixture(t, files, DiscriminationRecord{
 		RID: selftestRIDDrop, Polarity: PolarityNegative,
 		Unit: selftestCIPath, Route: RouteNoBreak,
-		Reason: escapeDeclaration, Producer: selftestTablePath,
+		Reason: escapeDeclaration, Producer: selftestCITablePath,
 	})
 	// One further carrier whose tag no record covers, so the answer has to
 	// separate what is proven from what is not.

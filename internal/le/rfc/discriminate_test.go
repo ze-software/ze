@@ -940,6 +940,14 @@ func TestDiscriminationEscapeRefusedForUnreachableProducer(t *testing.T) {
 		"a compiled file the unit neither sits in nor imports": {carrier: Carrier{Kind: kindUnit},
 			tagged: widgetsClaim,
 			record: withProducer(withUnit(base, selftestDiscriminationUnit), strangerPath)},
+		// A carrier that runs the daemon reaches every compiled file, so reach
+		// says nothing there and used to exempt it. A predicate every file
+		// satisfies ties the escape to no claim, which left the whole route
+		// open for the .ci and interop tags after it was shut for unit tags.
+		// These two reasons are now unreachable on that carrier: it names no
+		// import and shares a directory with no producer.
+		"a compiled file under a carrier that runs the daemon": {carrier: Carrier{Kind: kindFunctional},
+			tagged: widgetsClaim, record: withProducer(withUnit(base, selftestCIPath), strangerPath)},
 	}
 	for name, one := range unreachable {
 		verdict := verdictOf(one)
@@ -958,10 +966,6 @@ func TestDiscriminationEscapeRefusedForUnreachableProducer(t *testing.T) {
 		"a producer in a package the unit's file imports": {carrier: Carrier{Kind: kindUnit},
 			tagged: widgetsClaim,
 			record: withProducer(withUnit(base, importerPath+"::TestImports"), strangerPath)},
-		// A .ci runs the daemon rather than a package, so an unrelated compiled
-		// file is reached where the same file is out of a unit test's reach.
-		"a compiled file under a carrier that runs the daemon": {carrier: Carrier{Kind: kindFunctional},
-			tagged: widgetsClaim, record: withProducer(withUnit(base, selftestCIPath), strangerPath)},
 	}
 	for name, one := range reachable {
 		if verdict := verdictOf(one); !verdict.Verified() {
@@ -990,8 +994,11 @@ func TestDiscriminationEscapeRefusedForUnresolvedProducerSymbol(t *testing.T) {
 	files[generatedPath] = generated
 	reader := newSourceReader(discriminationTree(t, files))
 	index := newScopeIndex()
+	// The unit sits beside both producers, so reach is satisfied and the symbol
+	// half of the key is what this test is left measuring. A .ci under test/
+	// would be refused for reach before the symbol is ever read.
 	base := DiscriminationRecord{RID: selftestRIDSend, Polarity: PolarityPositive,
-		Unit: selftestCIPath, Route: RouteNoBreak, Source: selftestDiscriminationRel}
+		Unit: "internal/sample/widget.ci", Route: RouteNoBreak, Source: selftestDiscriminationRel}
 	tableClaim := []Tag{{Claim: "the daemon drops a widget that is not in the Widgets table"}}
 	generatedClaim := []Tag{{Claim: "Emit answers one widget for each request"}}
 	verdictOf := func(one escapeCheck) DiscriminationVerdict {
