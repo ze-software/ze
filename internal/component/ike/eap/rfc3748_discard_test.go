@@ -298,7 +298,8 @@ func TestRFC3748UndefinedCodesAreSilentlyDiscarded(t *testing.T) {
 // a Response whose Type is neither the outstanding Request's nor a legacy Nak.
 //
 // RFC 3748 Section 4.1: "An EAP server receiving a Response not meeting these
-// requirements MUST silently discard it."
+// requirements MUST silently discard it." An EAP-Failure instead would let one
+// unauthenticated packet end the exchange.
 func TestAuthenticatorDiscardsAResponseOfAnotherType(t *testing.T) {
 	s, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: "p"})
 	if err != nil {
@@ -333,8 +334,19 @@ func TestAuthenticatorProcessesAResponseOfTheMethodType(t *testing.T) {
 	}
 }
 
+// TestPeerDiscardsARequestOfAnotherType drives the peer through the Identity
+// Request and a real MS-CHAPv2 Challenge, so the method is UNDER WAY, and then
+// hands it an EAP-TLS Request.
+//
+// The Challenge round is what makes this Section 2.1's case rather than Section
+// 5.3.1's. Section 2.1 binds from the moment the peer has answered the initial
+// Request of a method with a Response of that method's Type, and until then an
+// unacceptable authentication Type is owed the legacy Nak that
+// TestRFC3748PeerNaksBeforeItCommitsToAMethod (rfc3748_nak_test.go) pins.
+//
 // RFC requirement: RFC3748-2.1-4 positive -- the peer silently discards a Request
-// of a Type other than the one under way, answering with no packet and no error.
+// of a Type other than the one under way, answering with no packet and no error,
+// once it has answered a Request of the method's own Type.
 //
 // RFC 3748 Section 2.1: "Once a peer has sent a Response of the same Type as the
 // initial Request, an authenticator MUST NOT send a Request of a different Type
@@ -345,16 +357,21 @@ func TestAuthenticatorProcessesAResponseOfTheMethodType(t *testing.T) {
 // unauthenticated packet ended the exchange.
 func TestPeerDiscardsARequestOfAnotherType(t *testing.T) {
 	ps := NewPeerSession(TypeMSCHAPv2, "u", "p")
+	t.Cleanup(ps.Close)
 
-	// The method must be UNDER WAY first. Section 2.1 binds from the moment the
-	// peer has answered the initial Request, so an unknown Type arriving in the
-	// identity state is a different obligation: RFC 3748 Section 5.3.1 owes it a
-	// legacy Nak, which plan/spec-eap-notification-and-nak.md owns.
 	if got := ps.Process(&Packet{Code: CodeRequest, Identifier: 1, Type: TypeIdentity}); got.Response == nil {
 		t.Fatal("the identity request must draw an identity response")
 	}
 
-	res := ps.Process(&Packet{Code: CodeRequest, Identifier: 2, Type: TypeTLS, TypeData: []byte{0x20}})
+	// An MS-CHAPv2 Challenge: opcode 1, identifier, 2-octet length, then a
+	// 16-octet challenge behind its own length octet. Answering it is the
+	// "Response of the same Type as the initial Request" the sentence turns on.
+	challenge := append([]byte{1, 2, 0, 22, 16}, make([]byte, 16)...)
+	if got := ps.Process(&Packet{Code: CodeRequest, Identifier: 2, Type: TypeMSCHAPv2, TypeData: challenge}); got.Response == nil {
+		t.Fatalf("the MS-CHAPv2 Challenge must draw a Response, got %+v", got)
+	}
+
+	res := ps.Process(&Packet{Code: CodeRequest, Identifier: 3, Type: TypeTLS, TypeData: []byte{0x20}})
 
 	if !res.Discarded {
 		t.Fatal("a Request of another Type must be discarded")
@@ -363,7 +380,7 @@ func TestPeerDiscardsARequestOfAnotherType(t *testing.T) {
 		t.Fatalf("the discard must carry no error, or the packet ends the SA: %v", res.Err)
 	}
 	if res.Response != nil {
-		t.Fatalf("the discard must draw no response, got type %d", res.Response.Type)
+		t.Fatalf("the discard must draw no response, and a Nak is forbidden here; got type %d", res.Response.Type)
 	}
 }
 

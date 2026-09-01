@@ -147,6 +147,48 @@ c.PeerAddr = peerAddr
 c.PeerIP, _ = netip.ParseAddr(peerAddr)
 ```
 
+### A zero value is never an answer
+
+The section above asks a type not to hold an invalid value. A zero value is the
+harder case, because it is the value every field holds before anybody writes to
+it, so it cannot be told apart from a field nobody set.
+
+**The dangerous form is the zero that behaves correctly.** A missing branch and
+a deliberate no-op produce the same silence, so a reader cannot tell whether the
+case was handled or forgotten, and the next change deletes the behavior without
+touching a line that mentions it. Give the outcome a name and make the caller
+branch on it.
+
+| The accident | Why it holds today | What breaks it |
+|--------------|--------------------|----------------|
+| An all-zero result means "drop this packet", because the caller sends only when a field is non-nil | the wire behavior is right | a second outcome that also sends nothing, now indistinguishable from a bug |
+| An empty set means "the peer offered nothing", read as "we failed to read the peer" | both are rare | the first peer that legitimately offers nothing |
+| A search returning no hits is read as absence | the corpus was complete | the first query that fails rather than finds nothing |
+
+**The sharpest case is a zero that is guarding without being a guard.** A test
+written to ask *which value do I use* can, by accident, also answer *is this
+allowed yet* — because the value happens to stay zero until the moment
+authorization is granted. Nothing names the second job, no test covers it, and
+the comment above it describes only the first. Change the type so a legitimate
+zero appears, and the guard is gone with no line deleted and no test red.
+
+Ze has paid for this three times in one package. `PeerResult` needed an explicit
+`Discarded`, because a silent drop and an unwritten branch were the same value.
+`PeerResult` needed `Notified` beside its message, because a Notification whose
+message is legitimately empty is still a Notification. And `verifyRemoteAuth`
+gated an EAP peer's AUTH payload on `sa.EAPMSK != [64]byte{}`, a test asking
+which key to sign with, which happened to reject an AUTH arriving before the EAP
+exchange succeeded — until a method that derives no key made the MSK legitimately
+zero, at which point the accidental guard would have become an authentication
+bypass. The replacement asks the exchange whether it succeeded, on purpose.
+
+So, before writing a zero, nil, false or empty as a result, ask two questions.
+Can a caller tell this from a failure? And is anything downstream relying on this
+value being absent? If the second answer is yes, that reliance is a guard, and a
+guard gets a name, a comment and a test.
+
+Full rule: `ai/rules/principles.md` (blocking).
+
 ### Assertions, in a language that has none
 
 An assertion detects a programmer error. An error return handles an operating

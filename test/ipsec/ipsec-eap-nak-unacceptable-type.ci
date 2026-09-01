@@ -1,0 +1,157 @@
+# Functional test: an operator reads the daemon log after a concentrator offered
+# an EAP method ze does not run, and finds the Type ze asked for instead of an
+# unexplained dead SA. Spec: spec-eap-notification-and-nak, user story 3.
+#
+# Two unprivileged ze instances negotiate IKEv2 over loopback, exactly as
+# ipsec-eap-tls-clienthello.ci does. The responder is the EAP authenticator and
+# runs EAP-TLS. The initiator is the EAP peer and runs EAP-MSCHAPv2. So the
+# authenticator offers Type 13 to a peer that runs Type 26, which is the
+# situation RFC 3748 Section 5.3.1 governs: "Where a peer receives a Request for
+# an unacceptable authentication Type (4-253,255) ... a Nak Response (Type 3)
+# MUST be sent."
+#
+# The subject is PeerSession.naks and PeerSession.nakResponse (eap/peer.go). The
+# peer answers Code 2, Type 3, with one Type-Data octet holding 26. Before this
+# the same Request produced an error, the initiator logged "ike: EAP process
+# failed" and both SAs died with nothing said about which method either end
+# wanted.
+#
+# What the operator sees is the authenticator's line, because an EAP-Failure
+# packet carries no reason (RFC 3748 Section 4.2). nakRefused (eap/eap.go) puts
+# the offered Type and the desired Types into Session.Err, and
+# handleResponderEAP (engine/responder_eap.go) logs it. That line names both
+# halves of the negotiation: type 13 offered, type 26 asked for.
+#
+# WHAT REVERTING PROVES: with PeerSession.naks returning false, the Type-13
+# Request falls through to the silent discard, the authenticator never receives a
+# Response, and the await fence below times out with no "refused type 13" line in
+# either daemon's stderr.
+#
+# The needles carry no literal colon, because the .ci parser splits a directive
+# on it (docs/architecture/testing/ci-format.md).
+
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design
+# (engine/child.go); control-plane tests opt out of the kernel entirely.
+option=env:var=ze_test_ike_dataplane:value=noop
+option=timeout:value=60s
+
+# ── Responder daemon (background): the EAP authenticator on 127.0.0.2, running
+# the one method ze offers that the initiator below does not run ──
+stdin=responder:terminator=EOF_RESPONDER
+pki {
+	ca eap-test-ca {
+		certificate MIIBljCCAT2gAwIBAgIUKnupE9vc3PDkIlewog5/vLbWUSgwCgYIKoZIzj0EAwIwGTEXMBUGA1UEAwwOemUtZWFwLXRlc3QtY2EwHhcNMjYwODEwMTg0NDQ3WhcNNDYwODA1MTg0NDQ3WjAZMRcwFQYDVQQDDA56ZS1lYXAtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFGjZtjQ6ZOLFEN1q9LpSZJzb+lw1Eli3+g+f46YDBOaRsVKhmEkLSUrBzn4FRTlk0VDDPHkmGyY+hfcDt78tfyjYzBhMB0GA1UdDgQWBBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAfBgNVHSMEGDAWgBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjOPQQDAgNHADBEAiBANDiRgrWYy1NTNe27qBx9nDnu1q4u/rw7XcyKrh3rvgIgIHwLNpk9xZ8sVGaD89O5M5bSz/e0mvHnTdBP0i1yJ7U=
+	}
+	certificate eap-server {
+		certificate MIIBwTCCAWegAwIBAgIUH5hTTx7S3bFSBefmYhlJ9dqnTNkwCgYIKoZIzj0EAwIwGTEXMBUGA1UEAwwOemUtZWFwLXRlc3QtY2EwHhcNMjYwODEwMTg0NDQ3WhcNNDYwODA1MTg0NDQ3WjAYMRYwFAYDVQQDDA16ZS1lYXAtc2VydmVyMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEz4irhidUXvMf2M8F4mlc8aa4dyztBmHreoYRrUdrDtgK7c6aw6+N0DVGY1KV6SEKzlzUo60tn1XkYTVHqUxBqqOBjTCBijAJBgNVHRMEAjAAMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUEDDAKBggrBgEFBQcDATAYBgNVHREEETAPgg16ZS1lYXAtc2VydmVyMB0GA1UdDgQWBBSjzE5OGwU2a4fHTu4UQ9qT3N+6fjAfBgNVHSMEGDAWgBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAKBggqhkjOPQQDAgNIADBFAiBf+KoYeLLFPcJCdEzL/6xkNOyJO3oDXN9M1gnve60d2gIhAJgayu8M6UWUX15ibA1/3JSvX2A7ZxeqRTnHf2HQM7AO
+		private {
+			key MHcCAQEEIAtyVG/P13ZcsFIvu3Y6j1tIwu4NTatJnm4dvDsHj72voAoGCCqGSM49AwEHoUQDQgAEz4irhidUXvMf2M8F4mlc8aa4dyztBmHreoYRrUdrDtgK7c6aw6+N0DVGY1KV6SEKzlzUo60tn1XkYTVHqUxBqg==
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode eap-tls
+					local-id "ze-eap-server"
+					remote-id "ze-eap-client"
+					certificate eap-server
+					ca-certificate eap-test-ca
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (foreground): the EAP peer on 127.0.0.1, configured for
+# EAP-MSCHAPv2, so every Type-13 Request earns a Nak naming Type 26 ──
+stdin=config:terminator=EOF_CONFIG
+pki {
+	ca eap-test-ca {
+		certificate MIIBljCCAT2gAwIBAgIUKnupE9vc3PDkIlewog5/vLbWUSgwCgYIKoZIzj0EAwIwGTEXMBUGA1UEAwwOemUtZWFwLXRlc3QtY2EwHhcNMjYwODEwMTg0NDQ3WhcNNDYwODA1MTg0NDQ3WjAZMRcwFQYDVQQDDA56ZS1lYXAtdGVzdC1jYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFGjZtjQ6ZOLFEN1q9LpSZJzb+lw1Eli3+g+f46YDBOaRsVKhmEkLSUrBzn4FRTlk0VDDPHkmGyY+hfcDt78tfyjYzBhMB0GA1UdDgQWBBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAfBgNVHSMEGDAWgBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwIBBjAKBggqhkjOPQQDAgNHADBEAiBANDiRgrWYy1NTNe27qBx9nDnu1q4u/rw7XcyKrh3rvgIgIHwLNpk9xZ8sVGaD89O5M5bSz/e0mvHnTdBP0i1yJ7U=
+	}
+	certificate eap-client {
+		certificate MIIBwDCCAWegAwIBAgIUH5hTTx7S3bFSBefmYhlJ9dqnTNowCgYIKoZIzj0EAwIwGTEXMBUGA1UEAwwOemUtZWFwLXRlc3QtY2EwHhcNMjYwODEwMTg0NDQ3WhcNNDYwODA1MTg0NDQ3WjAYMRYwFAYDVQQDDA16ZS1lYXAtY2xpZW50MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErylToGd9Bj1/JVoz57qU0usT3ZTDIMYqjQkC4JThKC+/76/lx6pvBcxdUCbnrO7ms+G+nGUiDiqA0i5RFWS83aOBjTCBijAJBgNVHRMEAjAAMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDAjAYBgNVHREEETAPgg16ZS1lYXAtY2xpZW50MB0GA1UdDgQWBBTph73b7t4WIshUldktYUMA/VhCJjAfBgNVHSMEGDAWgBQ2RF1tYZavhWAxK7Rm8PC1mQXwSTAKBggqhkjOPQQDAgNHADBEAiAj3bO3Piq2uU07D2A/dqhjKVCLi6DjL+n/sJ3Tp8XvkAIgdPtn0mjrjTMVCO2m5sVGgj7IkGi4XlqphwUFccFSkrI=
+		private {
+			key MHcCAQEEINuZlDX/7b+1y/anmTXCJKeS/LY3SV/IzyAAsa0HiX9ZoAoGCCqGSM49AwEHoUQDQgAErylToGd9Bj1/JVoz57qU0usT3ZTDIMYqjQkC4JThKC+/76/lx6pvBcxdUCbnrO7ms+G+nGUiDiqA0i5RFWS83Q==
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode eap-mschapv2
+					local-id "ze-eap-client"
+					# remote-id is set on purpose. Without it ze warns that every
+					# certificate this authority issued authenticates as this peer,
+					# and a functional test must not model that configuration.
+					remote-id "ze-eap-server"
+					certificate eap-client
+					ca-certificate eap-test-ca
+					pre-shared-secret "testpassword"
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=ze -:stdin=responder
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=50s
+
+await=stderr:contains=the peer refused type 13 with a Nak asking for type 26:timeout=40s
+expect=stderr:contains=the peer refused type 13 with a Nak asking for type 26
+expect=stderr:contains=EAP authentication failed
+reject=stderr:pattern=EAP process failed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

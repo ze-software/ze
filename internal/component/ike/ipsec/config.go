@@ -595,8 +595,10 @@ func parseEAPUser(name string, t *config.Tree, authMode AuthMode) (EAPUser, erro
 
 	user := EAPUser{Name: name}
 
-	switch authMode {
-	case AuthEAPMSCHAPv2:
+	// IsEAPPasswordMode (validate.go) is the one declaration of which modes read
+	// the password leaf, so this file names no method.
+	switch {
+	case IsEAPPasswordMode(authMode):
 		if v, ok := t.Get("password"); ok {
 			if secret.IsEncoded(v) {
 				decoded, err := secret.Decode(v)
@@ -608,11 +610,10 @@ func parseEAPUser(name string, t *config.Tree, authMode AuthMode) (EAPUser, erro
 				user.Password = v
 			}
 		}
-	case AuthEAPTLS:
+	case authMode == AuthEAPTLS:
 		if v, ok := t.Get("certificate"); ok {
 			user.Certificate = v
 		}
-	case AuthUnknown, AuthPreSharedSecret, AuthX509:
 	}
 
 	return user, nil
@@ -699,58 +700,53 @@ func parseAuthConfig(peerName string, t *config.Tree) (AuthConfig, error) {
 		return auth, err
 	}
 
-	switch mode {
-	case AuthPreSharedSecret:
+	// A pre-shared-secret peer and an EAP password mode read the same leaf,
+	// because the password IS the shared secret in both. IsEAPPasswordMode
+	// (validate.go) is the one declaration of which EAP modes carry one.
+	if mode == AuthPreSharedSecret || IsEAPPasswordMode(mode) {
 		psk, err := parsePreSharedSecret(peerName, t)
 		if err != nil {
 			return auth, err
 		}
 		auth.PSK = psk
-	case AuthEAPMSCHAPv2:
-		psk, err := parsePreSharedSecret(peerName, t)
-		if err != nil {
-			return auth, err
-		}
-		auth.PSK = psk
-		if v, ok := t.Get("ca-certificate"); ok {
-			auth.CACertificate = v
-		}
-		if v, ok := t.Get("certificate"); ok {
-			auth.Certificate = v
-		}
-		if x509Tree := t.GetContainer("x509"); x509Tree != nil {
-			if auth.CACertificate == "" {
-				if v, ok := x509Tree.Get("ca-certificate"); ok {
-					auth.CACertificate = v
-				}
-			}
-			if auth.Certificate == "" {
-				if v, ok := x509Tree.Get("certificate"); ok {
-					auth.Certificate = v
-				}
-			}
-		}
-	case AuthX509, AuthEAPTLS:
-		if v, ok := t.Get("ca-certificate"); ok {
-			auth.CACertificate = v
-		}
-		if v, ok := t.Get("certificate"); ok {
-			auth.Certificate = v
-		}
-		if x509Tree := t.GetContainer("x509"); x509Tree != nil {
-			if auth.CACertificate == "" {
-				if v, ok := x509Tree.Get("ca-certificate"); ok {
-					auth.CACertificate = v
-				}
-			}
-			if auth.Certificate == "" {
-				if v, ok := x509Tree.Get("certificate"); ok {
-					auth.Certificate = v
-				}
-			}
-		}
-	case AuthUnknown:
+	}
+	// RFC 7296 Section 2.16 requires the responder to authenticate itself with a
+	// public-key signature, whichever EAP method runs. Every EAP mode therefore
+	// needs the certificate and the trust anchor, and x509 needs them for its own
+	// signature. ValidatePKIRefs (validate.go) demands them from the same pair of
+	// answers.
+	if mode == AuthX509 || IsEAPMode(mode) {
+		readCertificateRefs(t, &auth)
 	}
 
 	return auth, nil
+}
+
+// readCertificateRefs reads the two PKI store names an auth config points at.
+//
+// Each one is written either as a leaf of the authentication container or as a
+// leaf of the x509 container inside it. The flat leaf wins, and the container is
+// read only for a name the flat leaf left empty.
+func readCertificateRefs(t *config.Tree, auth *AuthConfig) {
+	if v, ok := t.Get("ca-certificate"); ok {
+		auth.CACertificate = v
+	}
+	if v, ok := t.Get("certificate"); ok {
+		auth.Certificate = v
+	}
+
+	x509Tree := t.GetContainer("x509")
+	if x509Tree == nil {
+		return
+	}
+	if auth.CACertificate == "" {
+		if v, ok := x509Tree.Get("ca-certificate"); ok {
+			auth.CACertificate = v
+		}
+	}
+	if auth.Certificate == "" {
+		if v, ok := x509Tree.Get("certificate"); ok {
+			auth.Certificate = v
+		}
+	}
 }

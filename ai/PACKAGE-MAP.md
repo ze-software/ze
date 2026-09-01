@@ -319,7 +319,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/component/ike/cmd` | registers the IPsec VPN operational command handlers |  |
 | `internal/component/ike/crypto` | implements the IKEv2 cryptographic primitives and proposal negotiation |  |
 | `internal/component/ike/dataplane` | abstracts installation of IPsec security associations and policies across xfrm and VPP backends |  |
-| `internal/component/ike/eap` | implements the EAP authentication framework and its MSCHAPv2 and TLS methods for IKEv2 |  |
+| `internal/component/ike/eap` | implements the EAP authentication framework and its MD5-Challenge, MSCHAPv2 and TLS methods for IKEv2 |  |
 | `internal/component/ike/engine` | IKEv2 engine for native IPsec VPN | ike |
 | `internal/component/ike/ipsec` | defines the IPsec data model types and parses their configuration |  |
 | `internal/component/ike/ipsec/yang` | embeds and registers the IPsec configuration YANG schema module |  |

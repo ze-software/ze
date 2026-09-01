@@ -1601,7 +1601,9 @@ cipher and refuses it beside an AEAD cipher, because an AEAD cipher carries its 
 integrity.
 DH groups: 1-31 (14 = MODP-2048 recommended minimum).
 Authentication modes: `pre-shared-secret` (with a `$9$`-encoded key), `x509` (PKI store
-references), `eap-tls`, or `eap-mschapv2`.
+references), `eap-tls`, `eap-mschapv2`, or `eap-md5`. RFC 7296 Section 2.16 discourages
+`eap-md5`, which establishes no shared key, and the daemon warns once when a configuration
+adopts it. See [IPsec VPN](ipsec.md) for what it costs.
 
 Cross-reference validation runs at config load: peer IKE/ESP group references must name
 defined groups, `ca-certificate` and `certificate` names must exist in the PKI store,

@@ -24,11 +24,6 @@ var (
 	ErrTooManyRounds = errors.New("eap: exceeded maximum exchange rounds")
 	ErrEAPFailure    = errors.New("eap: authenticator sent Failure")
 
-	// errSessionEnded refuses every packet that arrives after the peer ended the
-	// session. An EAP-Success is the packet a rogue authenticator sends next, and
-	// answering it with the MSK would undo the refusal that produced this state.
-	errSessionEnded = errors.New("eap: the peer session ended and answers nothing further")
-
 	// errNoPeerTrustAnchor refuses an EAP-TLS peer session that could not
 	// path-validate the authenticator. RFC 5216 Section 5.3 makes that validation
 	// a MUST, and the configured CA is the peer's only trust anchor: EAP carries
@@ -60,11 +55,28 @@ var (
 // value that reads as a valid answer is what ai/rules/principles.md forbids, so
 // the drop says so, and the caller logs it because a forged EAP-Success is a
 // thing an operator wants named.
+//
+// Notified rides BESIDE Response rather than replacing it: a Type-2
+// Notification Request draws a Notification Response AND owes the operator the
+// message it carried, so a caller that read only one of the two would drop the
+// other. It is a flag rather than a non-empty Notification, because the message
+// can arrive zero octets long. RFC 3748 Section 5.2 asks for "a displayable
+// message greater than zero octets in length", so an empty one is malformed and
+// still owed a Response, and a caller branching on the string alone would read
+// that malformed Request as no Notification at all.
 type PeerResult struct {
-	Response  *Packet
+	Response *Packet
+
+	// Notification is the displayable message a Type-2 Request carried, valid
+	// only when Notified is set. It is UNAUTHENTICATED and chosen by whoever sent
+	// the packet, so a caller logs it as a value and never builds a path, a
+	// command or a format string out of it.
+	Notification string
+
 	MSK       [64]byte
 	Done      bool
 	Discarded bool
+	Notified  bool
 	Err       error
 }
 
@@ -84,6 +96,20 @@ type PeerSession struct {
 	rounds   int
 	state    peerState
 	msk      [64]byte
+
+	// methodCommitted records that the peer has answered an authentication
+	// METHOD Request with a Response of that method's own Type. It is the
+	// boundary RFC 3748 Section 2.1 draws: "A peer MUST NOT send a Nak (legacy or
+	// expanded) in reply to a Request after an initial non-Nak Response has been
+	// sent."
+	//
+	// The Identity Response does NOT set it, and the reading is load-bearing.
+	// Section 5.4 describes a Nak sent in answer to the Request that follows the
+	// Identity Response ("The Response MAY be either of Type 4 (MD5-Challenge),
+	// Nak (Type 3), or Expanded Nak (Type 254)"), so an initial non-Nak Response
+	// that counted the Identity Response would make Section 5.3.1's Nak MUST
+	// unreachable in every conversation ze can have.
+	methodCommitted bool
 
 	// MSCHAPv2 state. The Authenticator Challenge and the NT-Response are held
 	// from the Challenge round to the Success round, because RFC 2759 Section 5
@@ -203,9 +229,9 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 	// refusal: answering it would hand out the MSK the refusal denied.
 	if ps.state == peerStateFailed {
 		// RFC 3748 Section 4.2: "The peer MUST silently discard Success packets."
-		// A discard rather than errSessionEnded, because the engine reads a
-		// non-nil Err as a reason to kill the SA, and the session is already over
-		// by the refusal that set this state. The MSK is denied either way; what
+		// A discard rather than an error, because the engine reads a non-nil Err
+		// as a reason to kill the SA, and the session is already over by the
+		// refusal that set this state. The MSK is denied either way; what
 		// changes is that a rogue authenticator can no longer choose the moment
 		// the SA dies by sending one packet after the refusal.
 		return peerDiscard()
@@ -284,6 +310,25 @@ func peerDiscard() PeerResult { return PeerResult{Discarded: true} }
 // Succeeded reports whether the exchange completed successfully.
 func (ps *PeerSession) Succeeded() bool { return ps.state == peerStateDone }
 
+// DerivesKey reports whether the configured method fills PeerResult.MSK on
+// success.
+//
+// RFC 7296 Section 2.16 makes the answer decide which AUTH payload the IKEv2
+// initiator computes: "For EAP methods that create a shared key as a side effect
+// of authentication, that shared key MUST be used by both the initiator and
+// responder to generate AUTH payloads in messages 7 and 8", and "If EAP methods
+// that do not generate a shared key are used, the AUTH payloads in messages 7
+// and 8 MUST be generated using SK_pi and SK_pr, respectively."
+//
+// The carrier asks rather than reading the MSK, because an all-zero MSK is
+// indistinguishable from a method that failed, and a zero that looks like a
+// valid answer is the defect ai/rules/principles.md forbids.
+//
+// It answers from the configured Type and needs no method instance, because the
+// peer half runs each method inline in this file and holds none. TypeDerivesKey
+// is the single declaration both halves read.
+func (ps *PeerSession) DerivesKey() bool { return TypeDerivesKey(ps.method) }
+
 // Close releases every resource the peer session holds.
 //
 // The caller MUST call it once the exchange has ended, for ANY reason: an
@@ -307,40 +352,197 @@ func (ps *PeerSession) Close() {
 	ps.tlsTransport.shutdown()
 }
 
+// handleRequest answers one EAP-Request, choosing between four outcomes by the
+// Request's Type before any method sees it.
+//
+// The Type decides first because three of the four outcomes belong to the EAP
+// framework rather than to a method: a Notification is answered whatever runs
+// underneath, a Nak refuses a method that never starts, and a discard drops a
+// Request no method asked for. Only the fourth reaches handleMethodRequest.
+// Routing every Type into the method first, which this did until 2026-09-01,
+// gave all four situations one answer -- an error that killed the IKE SA.
 func (ps *PeerSession) handleRequest(req *Packet) PeerResult {
-	switch ps.state {
-	case peerStateIdentity:
-		if req.Type == TypeIdentity {
-			ps.state = peerStateMethod
-			return PeerResult{
-				Response: &Packet{
-					Code:       CodeResponse,
-					Identifier: req.Identifier,
-					Type:       TypeIdentity,
-					TypeData:   []byte(ps.identity),
-				},
-			}
-		}
-		if req.Type == ps.method {
-			ps.state = peerStateMethod
-			return ps.handleMethodRequest(req)
-		}
-		return PeerResult{Err: fmt.Errorf("eap: unexpected type %d in identity state", req.Type)}
-
-	// A Request is dispatched the same way once the method conversation has
-	// concluded, because the peer can still owe packets there: an EAP-TLS final
-	// flight longer than one fragment is answered with a fragment ACK, and that
-	// ACK is an EAP-Request (handleTLSRequest).
-	case peerStateMethod, peerStateMethodDone:
-		return ps.handleMethodRequest(req)
-
-	default:
-		return PeerResult{Err: fmt.Errorf("eap: request in terminal state")}
+	// RFC 3748 Section 2.1: an authenticator "MUST NOT send a Request for an
+	// additional method of any Type after completion of the initial
+	// authentication method; a peer receiving such Requests MUST treat them as
+	// invalid, and silently discard them."
+	//
+	// peerStateDone is that completion, and the discard is what the sentence asks
+	// for. Reporting an error instead, which this did until 2026-09-01, let one
+	// unauthenticated Request arriving after the EAP-Success kill the IKE SA:
+	// handleEAPResponse (internal/component/ike/engine/fsm.go) reads any non-nil
+	// Err as StateDead.
+	//
+	// peerStateFailed is not tested here. Process discards every packet in that
+	// state before it dispatches, so no Request reaches this function holding it.
+	if ps.state == peerStateDone {
+		return peerDiscard()
 	}
+
+	if req.Type == TypeNotification {
+		return ps.notificationResponse(req)
+	}
+
+	if ps.naks(req.Type) {
+		return ps.nakResponse(req)
+	}
+
+	if req.Type == ps.method {
+		// The state advances only OUT of the identity state. A method Request that
+		// arrives in peerStateMethodDone is an EAP-TLS final flight still owing a
+		// fragment, and moving it back to peerStateMethod would reopen the
+		// EAP-Success gate that state exists to close.
+		//
+		// A method Request in the identity state is an authenticator that skipped
+		// the Identity Request, which RFC 3748 Section 5.1 permits: the identity
+		// "MAY be obtained via the lower layer".
+		if ps.state == peerStateIdentity {
+			ps.state = peerStateMethod
+		}
+		return ps.commitMethod(req)
+	}
+
+	if req.Type == TypeIdentity && ps.state == peerStateIdentity {
+		ps.state = peerStateMethod
+		return PeerResult{
+			Response: &Packet{
+				Code:       CodeResponse,
+				Identifier: req.Identifier,
+				Type:       TypeIdentity,
+				TypeData:   []byte(ps.identity),
+			},
+		}
+	}
+
+	// RFC 3748 Section 2.1: "a peer receiving such Requests MUST treat them as
+	// invalid, and silently discard them.  As a result, Identity Requery is not
+	// supported."
+	//
+	// What reaches here is every Type the three answers above do not own: an
+	// Identity Requery, a Type 3 that Section 5 forbids in a Request, a Type 0,
+	// and an authentication Type arriving after the peer committed to its method.
+	// None of them earns a Nak, and an error would let one unauthenticated packet
+	// end the exchange.
+	return peerDiscard()
+}
+
+// naks reports whether a Request of this Type owes a legacy Nak.
+//
+// RFC 3748 Section 5.3.1: "Where a peer receives a Request for an unacceptable
+// authentication Type (4-253,255), or a peer lacking support for Expanded Types
+// receives a Request for Type 254, a Nak Response (Type 3) MUST be sent."
+//
+// RFC 3748 Section 5.7 is what puts Type 254 here rather than in the discard:
+// "Peers not equipped to interpret the Expanded Type MUST send a Nak as
+// described in Section 5.3.1, and negotiate a more suitable authentication
+// method." ze reads no Expanded Type, so every Type-254 Request takes that
+// route, and ze never composes an Expanded Nak of its own.
+func (ps *PeerSession) naks(t uint8) bool {
+	if t == ps.method {
+		return false
+	}
+	if ps.methodCommitted {
+		return false
+	}
+	if t == typeExperimental || t == TypeExpandedEAP {
+		return true
+	}
+	return t >= typeAuthenticationLow && t <= typeAuthenticationHigh
+}
+
+// nakResponse refuses an authentication Type and names the one ze runs.
+//
+// RFC 3748 Section 5.3.1: "The Type-Data field of the Nak Response (Type 3)
+// MUST contain one or more octets indicating the desired authentication
+// Type(s), one octet per Type, or the value zero (0) to indicate no proposed
+// alternative."
+//
+// The one octet is the configured method, never the zero. Zero tells the
+// authenticator to stop ("the authenticator SHOULD NOT send another Request
+// after receiving a Nak Response containing a zero value"), and ze always has
+// the alternative the operator configured. Naming it is what turns a refusal
+// into the negotiation the RFC intends.
+//
+// RFC 3748 Section 5.3.1 on the Identifier: "The Identifier field of a legacy
+// Nak Response MUST match the Identifier field of the Request packet that it is
+// sent in response to." The Request's own value is copied rather than counted
+// from, so no counter of this session's can drift away from it.
+func (ps *PeerSession) nakResponse(req *Packet) PeerResult {
+	return PeerResult{
+		Response: &Packet{
+			Code:       CodeResponse,
+			Identifier: req.Identifier,
+			Type:       TypeNAK,
+			TypeData:   []byte{ps.method},
+		},
+	}
+}
+
+// notificationMax bounds the displayable message the peer carries out of a
+// Notification Request.
+//
+// RFC 3748 Section 5.2: "Note that the default maximum length of a Notification
+// Request is 1020 octets.  By default, this leaves at most 1015 octets for the
+// human readable message." The packet is unauthenticated and arrives before any
+// key exists, so the carrier's own limit is what bounds it otherwise, and an
+// IKE_AUTH payload is far larger than the RFC's budget.
+const notificationMax = 1015
+
+// notificationResponse answers a Type-2 Notification Request.
+//
+// RFC 3748 Section 5.2: "The peer MUST respond to a Notification Request with a
+// Notification Response unless the EAP authentication method specification
+// prohibits the use of Notification messages." Ze runs three methods, and no
+// specification behind any of them carries such a prohibition: RFC 3748 Section
+// 5.4 for MD5-Challenge, RFC 2759 for MS-CHAPv2 and RFC 5216 for EAP-TLS. So all
+// three owe the Response.
+//
+// RFC 3748 Section 5.2 on the packet: "A Response MUST be sent in reply to the
+// Request with a Type field of 2 (Notification).  The Type-Data field of the
+// Response is zero octets in length."
+//
+// RFC 3748 Section 5.2 on what it is NOT: "In any case, a Nak Response MUST NOT
+// be sent in response to a Notification Request." Type 2 is answered above the
+// Nak test in handleRequest, and it sits below the 4-253 range that test reads,
+// so neither route can produce one.
+//
+// The peer state and every method field are untouched. Section 5.2: the
+// Notification "is not an error indication, and therefore does not change the
+// state of the peer".
+func (ps *PeerSession) notificationResponse(req *Packet) PeerResult {
+	message := req.TypeData
+	if len(message) > notificationMax {
+		message = message[:notificationMax]
+	}
+	return PeerResult{
+		Notified:     true,
+		Notification: string(message),
+		Response: &Packet{
+			Code:       CodeResponse,
+			Identifier: req.Identifier,
+			Type:       TypeNotification,
+		},
+	}
+}
+
+// commitMethod dispatches a Request of the method's own Type and records the
+// commitment when the method answers it.
+//
+// The commitment is the Response leaving, not the Request arriving: a method
+// that discards or errors has sent nothing, so RFC 3748 Section 2.1's "initial
+// non-Nak Response" has not been sent and the peer may still Nak.
+func (ps *PeerSession) commitMethod(req *Packet) PeerResult {
+	res := ps.handleMethodRequest(req)
+	if res.Response != nil {
+		ps.methodCommitted = true
+	}
+	return res
 }
 
 func (ps *PeerSession) handleMethodRequest(req *Packet) PeerResult {
 	switch ps.method {
+	case TypeMD5Challenge:
+		return ps.handleMD5ChallengeRequest(req)
 	case TypeMSCHAPv2:
 		return ps.handleMSCHAPv2Request(req)
 	case TypeTLS:
@@ -350,15 +552,102 @@ func (ps *PeerSession) handleMethodRequest(req *Packet) PeerResult {
 	}
 }
 
-func (ps *PeerSession) handleMSCHAPv2Request(req *Packet) PeerResult {
-	// RFC 3748 Section 2.1: "The peer MUST silently discard a Request of a Type
-	// other than the one under way." One method runs per conversation, so a
-	// Request naming another Type answers no state this peer holds. An error here
-	// killed the SA, which handed a packet nobody authenticated the power to end
-	// the exchange.
-	if req.Type != TypeMSCHAPv2 {
-		return peerDiscard()
+// handleMD5ChallengeRequest answers a Request of Type 4. handleRequest routes
+// only a Request whose Type is the configured method here, so the Type is
+// settled before this is called and the Value-Size octet is the first thing left
+// to read.
+//
+// RFC 3748 Section 5.4: "The Request contains a "challenge" message to the peer.
+// A Response MUST be sent in reply to the Request." Ze runs MD5-Challenge when
+// the operator configured it, so the Response is that method's own and never a
+// Nak: naks() answers false for the configured Type.
+//
+// The Request body is the CHAP Challenge of RFC 1994 Section 4.1, and the
+// Response ze composes has the same three fields:
+//
+//	 0        1                            1+Value-Size        len(TypeData)
+//	+--------+----------------------------+-------------------+
+//	| Value- |          Value             |       Name        |
+//	|  Size  |  (Value-Size octets)       |  (rest of packet) |
+//	+--------+----------------------------+-------------------+
+//	    16     the MD5 response             the peer identity
+//
+// Every length is read against the Type-Data actually present before it indexes
+// it. This packet arrives unauthenticated from the network, and it arrives before
+// any key exists, so a Value-Size that overruns the packet is a shape the peer
+// must expect rather than a shape it may assume away.
+//
+// The Name runs to the end of the packet. RFC 1994 Section 4.1: "The Name should
+// not be NUL or CR/LF terminated.  The size is determined from the Length
+// field." DecodePacket sized TypeData from the EAP Length field, so the end of
+// the slice IS that size and nothing scans for a terminator.
+//
+// No MSK is derived. RFC 3748 Section 5.4 Security Claims: "Key derivation:
+// No". ps.msk stays all zero through a successful MD5-Challenge exchange, which
+// is why the carrier reads DerivesKey rather than the array.
+func (ps *PeerSession) handleMD5ChallengeRequest(req *Packet) PeerResult {
+	td := req.TypeData
+	if len(td) == 0 {
+		return PeerResult{Err: fmt.Errorf("eap-md5: the Request carries no Type-Data, so it has no Value-Size octet")}
 	}
+
+	// RFC 1994 Section 4.1: "The Value field is one or more octets." A zero
+	// Value-Size names an empty challenge, which would make every peer holding the
+	// same secret produce the same response for a given Identifier.
+	valueSize := int(td[0])
+	if valueSize == 0 {
+		return PeerResult{Err: fmt.Errorf("eap-md5: the Request declares Value-Size 0, and RFC 1994 Section 4.1 gives the Value one or more octets")}
+	}
+	if len(td) < 1+valueSize {
+		return PeerResult{Err: fmt.Errorf("eap-md5: the Request declares Value-Size %d but carries %d octets after it", valueSize, len(td)-1)}
+	}
+	challenge := td[1 : 1+valueSize]
+
+	// The Identifier hashed is the Request's own. RFC 1994 Section 4.1: "The
+	// Response Identifier MUST be copied from the Identifier field of the
+	// Challenge which caused the Response", and the Response carries it below.
+	// RFC 3748 Section 5.4 permits the authenticator to retransmit this Request
+	// unchanged, so the same Identifier and the same challenge produce the same
+	// Value, and a retransmission is answered rather than refused.
+	value := md5ChallengeResponse(req.Identifier, ps.password, challenge)
+
+	name := []byte(ps.identity)
+	resp := make([]byte, 1+len(value)+len(name))
+	resp[0] = byte(len(value))
+	copy(resp[1:], value[:])
+	copy(resp[1+len(value):], name)
+
+	// The method conversation concludes with this Response, so the peer may accept
+	// the EAP-Success that follows it.
+	//
+	// RFC 3748 Section 4.2 gates that acceptance: "By default, an EAP peer MUST
+	// silently discard a "canned" Success packet (a Success packet sent immediately
+	// upon connection).  This ensures that a rogue authenticator will not be able
+	// to bypass mutual authentication by sending a Success packet prior to
+	// conclusion of the EAP method conversation." MD5-Challenge has one round and
+	// no mutual authentication to bypass. Section 5.4 Security Claims: "Mutual
+	// authentication:     No". So the conversation concludes here, and there is
+	// nothing further for the peer to verify: unlike MS-CHAPv2, which reaches this
+	// state only after checking the Authenticator Response, this method gives the
+	// peer no evidence about the authenticator at all. That is the method's own
+	// weakness rather than this state's, and it is why RFC 7296 Section 2.16 sends
+	// the AUTH payload to SK_pi and SK_pr instead of to an MSK.
+	ps.state = peerStateMethodDone
+
+	return PeerResult{
+		Response: &Packet{
+			Code:       CodeResponse,
+			Identifier: req.Identifier,
+			Type:       TypeMD5Challenge,
+			TypeData:   resp,
+		},
+	}
+}
+
+// handleMSCHAPv2Request answers a Request of Type 26. handleRequest routes only
+// a Request whose Type is the configured method here, so the Type is settled
+// before this is called and the opcode is the first thing left to read.
+func (ps *PeerSession) handleMSCHAPv2Request(req *Packet) PeerResult {
 	td := req.TypeData
 	if len(td) < 4 {
 		return PeerResult{Err: fmt.Errorf("eap-mschapv2: request too short")}
@@ -661,11 +950,10 @@ func (e *mschapv2FailureError) Error() string {
 
 // handleTLSRequest processes EAP-TLS requests from the authenticator.
 // RFC 5216 Section 2.1.5: handles Start, fragmented data, and fragment ACKs.
+// handleTLSRequest answers a Request of Type 13. handleRequest routes only a
+// Request whose Type is the configured method here, so the Type is settled
+// before this is called and the flags octet is the first thing left to read.
 func (ps *PeerSession) handleTLSRequest(req *Packet) PeerResult {
-	if req.Type != TypeTLS {
-		return PeerResult{Err: fmt.Errorf("eap-tls: expected type %d, got %d", TypeTLS, req.Type)}
-	}
-
 	// If we're waiting for a fragment ACK, the server's response is an ACK. Send next fragment.
 	if ps.waitFragAck {
 		ps.waitFragAck = false

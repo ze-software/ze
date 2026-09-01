@@ -7,7 +7,7 @@ authenticator such as strongSwan. The responder half is described in
 <!-- source: internal/component/ike/eap/peer.go -- PeerSession, NewPeerSession, NewPeerSessionTLS, Process -->
 <!-- source: internal/component/ike/engine/fsm.go -- startEAPExchange, handleEAPResponse, buildPeerTLSConfig -->
 <!-- source: internal/component/ike/engine/auth.go -- buildAuthRequest, buildEAPResponse, buildEAPAuthMessage -->
-<!-- source: internal/component/ike/engine/eap_auth.go -- ComputeAuthFromMSK -->
+<!-- source: internal/component/ike/engine/eap_auth.go -- computeEAPAuth, eapAuthSecret -->
 
 ## RFC obligations carried by this code
 
@@ -65,7 +65,7 @@ on every other shape, the packet with no Message included. A peer that only
 checks that 40 characters parse as hexadecimal authenticates against any
 responder at all.
 
-<!-- source: internal/component/ike/eap/peer.go -- handleMSCHAPv2Success, authenticatorResponse -->
+<!-- source: internal/component/ike/eap/peer.go -- handleMSCHAPv2Success, parseAuthenticatorResponse -->
 
 **An EAP-Success is a claim too, and the peer reads it only after the method
 conversation concluded.** RFC 3748 Section 4.2 makes the peer discard a Success
@@ -110,4 +110,22 @@ end installs an XFRM SA. `eap-tls13` is the same exchange with
 `charon.tls.version_max = 1.3` on the same image, and it carries the ESP
 data-plane assertions.
 
+`eap-nak-method-negotiation` puts strongSwan in front of ze offering an
+authentication Type ze does not run. It proves one thing: strongSwan reads ze's
+Type-3 Nak as a Nak rather than as a malformed Response. The scenario waits for
+`initiating EAP_MD5 method`, which is charon offering Type 4, then for
+`EAP/RES/NAK`, which is charon's own summary of the Response it decoded. Neither
+end then installs an XFRM SA.
+
+The scenario proves nothing about the Type the Nak asks for. The strongSwan
+image includes no `eap-dynamic` plugin, which is the only charon plugin that
+answers a received Nak by offering another method. So charon ends the exchange
+instead of switching method. Two other tests prove the desired-Type octet.
+`rfc3748_nak_test.go` `TestNakNamesTheConfiguredMethod` reads it from the
+encoded Response. `test/ipsec/ipsec-eap-nak-unacceptable-type.ci` reads it from
+ze's own authenticator, which logs `the peer refused type 13 with a Nak asking
+for type 26`.
+
 <!-- source: internal/component/ike/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
+<!-- source: internal/component/ike/eap/peer.go -- naks, nakResponse -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkEAPNakMethodNegotiation, eapNakFacts -->

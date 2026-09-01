@@ -34,8 +34,43 @@ func (c *IPsecConfig) ValidateGroupRefs() error {
 // IsEAPMode reports whether an auth mode runs the EAP exchange. RFC 7296
 // Section 2.16 puts an extra obligation on these modes, so several layers need
 // to ask the question.
+//
+// Every EAP mode is here, including the one whose method establishes no shared
+// key. Section 2.16 obliges the responder to authenticate itself with a
+// public-key signature whichever method runs, and ValidatePKIRefs reads this
+// answer to demand the certificate and the trust anchor that carry it.
 func IsEAPMode(mode AuthMode) bool {
-	return mode == AuthEAPMSCHAPv2 || mode == AuthEAPTLS
+	return mode == AuthEAPMSCHAPv2 || mode == AuthEAPTLS || mode == AuthEAPMD5
+}
+
+// IsEAPPasswordMode reports whether an auth mode runs an EAP method whose
+// credential is the password an operator configured.
+//
+// RFC 3748 Section 5.4 makes MD5-Challenge the CHAP exchange of RFC 1994, whose
+// "secret" is that password. MS-CHAPv2 hashes the same value into the NT
+// password hash. One credential therefore serves both methods.
+//
+// Five layers ask which modes carry that credential. parseEAPUser and
+// parseAuthConfig read the leaves. ValidateRemoteAccess refuses an empty one.
+// engine.eapMethodConfig builds the authenticator's method from it, and
+// engine.startEAPExchange builds the peer's. Each layer held its own copy of the
+// list until 2026-09-01, so a sixth password method needed five edits
+// (ai/rules/principles.md).
+//
+// EAP-TLS is not one of these: it authenticates with a certificate.
+// Pre-shared-secret is not one either. parseAuthConfig reads the same leaf for
+// it, but no EAP exchange runs there, so nothing else asks this question of it.
+//
+// The switch names every mode, so the exhaustive linter refuses a mode added to
+// the enum and not answered here.
+func IsEAPPasswordMode(mode AuthMode) bool {
+	switch mode {
+	case AuthEAPMSCHAPv2, AuthEAPMD5:
+		return true
+	case AuthUnknown, AuthPreSharedSecret, AuthX509, AuthEAPTLS:
+		return false
+	}
+	return false
 }
 
 // rdnAttributes are the X.500 attribute names an operator writes at the head of a
@@ -395,8 +430,11 @@ func (c *IPsecConfig) ValidateRemoteAccess() error {
 
 	for name := range ra.Users {
 		user := ra.Users[name]
-		if ra.Auth.Mode == AuthEAPMSCHAPv2 && user.Password == "" {
-			return fmt.Errorf("ipsec eap-user %q: password is required for eap-mschapv2", name)
+		// A password method refuses an empty credential. MD5-Challenge hashes
+		// this value with the challenge (RFC 1994 Section 4.1), so an empty one
+		// authenticates every peer that guesses the identity.
+		if IsEAPPasswordMode(ra.Auth.Mode) && user.Password == "" {
+			return fmt.Errorf("ipsec eap-user %q: password is required for %s", name, ra.Auth.Mode)
 		}
 		if ra.Auth.Mode == AuthEAPTLS && user.Certificate == "" {
 			return fmt.Errorf("ipsec eap-user %q: certificate is required for eap-tls", name)

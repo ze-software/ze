@@ -373,6 +373,11 @@ func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
 
 func (m *tlsMethod) Type() uint8 { return TypeTLS }
 
+// DerivesKey answers true: deriveMSK exports the key RFC 5216 Section 2.3
+// defines from the TLS master secret. TypeDerivesKey holds the single
+// declaration.
+func (m *tlsMethod) DerivesKey() bool { return TypeDerivesKey(TypeTLS) }
+
 // Start sends the EAP-TLS Start request (S flag set, no TLS data).
 // RFC 5216 Section 2.1: server initiates with EAP-Request/EAP-TLS with S flag.
 func (m *tlsMethod) Start(identifier uint8) *Packet {

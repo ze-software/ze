@@ -163,6 +163,38 @@ func TestEAPTLSNegativeHandshakeIsProvenAndFailClosed(t *testing.T) {
 	}
 }
 
+// VALIDATES: The Nak scenario passes only when strongSwan's own log records both
+// the method it offered and the Nak it parsed back, with no XFRM SA at either end.
+// PREVENTS: an exchange that never reached EAP passing on an empty kernel, and a
+// checker crediting ze with a Nak strongSwan never decoded.
+func TestEAPNakCheckerRequiresStrongSwanToParseTheNak(t *testing.T) {
+	checker, ok := scenarioCheckers["eap-nak-method-negotiation"]
+	if !ok {
+		t.Fatal("native integration registry does not execute eap-nak-method-negotiation")
+	}
+	newLab := func(logs, zeXFRM string) *scenarioLab {
+		fake := scriptedLab()
+		fake.peerLogs[swanPeer] = interoplab.LogResult{Available: true, Text: logs}
+		fake.answer(zePeer, []string{"ip", "xfrm", "state"}, zeXFRM)
+		fake.answer(swanPeer, []string{"ip", "xfrm", "state"}, "")
+		return checkerFixture(fake)
+	}
+
+	good := "initiating EAP_MD5 method (id 0x00)\nparsed IKE_AUTH request 2 [ EAP/RES/NAK ]\n"
+	if err := checker(context.Background(), newLab(good, "")); err != nil {
+		t.Fatalf("proven Nak refusal rejected: %v", err)
+	}
+	if err := checker(context.Background(), newLab("initiating EAP_MD5 method (id 0x00)\n", "")); err == nil {
+		t.Fatal("refusal passed without strongSwan parsing the Nak")
+	}
+	if err := checker(context.Background(), newLab("parsed IKE_AUTH request 2 [ EAP/RES/NAK ]\n", "")); err == nil {
+		t.Fatal("refusal passed without strongSwan offering a method")
+	}
+	if err := checker(context.Background(), newLab(good, "proto esp spi 0x1\n")); err == nil {
+		t.Fatal("refusal passed with an XFRM SA installed at ze")
+	}
+}
+
 // VALIDATES: The native responder checker reads strongSwan's TLS 1.3 verdict,
 // protected-success acceptance, missing-indication refusal, and both XFRM states.
 // PREVENTS: an established IKE SA or a bare EAP-Success standing in for RFC 9190 Section 2.5.

@@ -1,11 +1,17 @@
-// VALIDATES: RFC 7296 Section 2.16. Ze admits only EAP methods that generate a shared key, so
-// the keyless AUTH mode that the section governs stays unreachable.
-// PREVENTS: a wider accepted-method set that lets a keyless EAP method start. Ze has no SK_pi
-// or SK_pr AUTH path to serve such a method.
+// VALIDATES: eap.NewSession accepts EAP-MSCHAPv2, a method that generates a shared key,
+// and the exchange it starts yields a real 64-octet MSK; EAP-TLS reaches its own
+// constructor rather than the unsupported-method arm.
+// PREVENTS: an accepted-method set narrowed until a key-deriving method an IKEv2 AUTH
+// payload needs is refused as unsupported.
 //
-// Owner ruling OR-E of 2026-07-30, given during the RFC 7296 extraction pilot
-// (docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md): the row RFC7296-2.16-5 is discharged by
-// proof, never by annotation. The row stays gated, so a wider accepted set cannot pass unnoticed.
+// RFC7296-2.16-5 was claimed in this file until 2026-09-01, discharged by the argument
+// that no keyless EAP method could ever start. eap.NewSession accepts MD5-Challenge now,
+// because RFC 3748 Section 5 obliges every EAP implementation to support Types 1-4, so
+// that argument is false. Owner ruling OR-E of 2026-07-30, given during the RFC 7296
+// extraction pilot (docs/architecture/ike/rfcgate-1b-rfc7296-pilot.md), requires the row
+// to be discharged by proof rather than by annotation, and both polarities now sit on
+// internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go, which drives the
+// SK_pi and SK_pr AUTH construction over a real MD5-Challenge exchange.
 package eap
 
 import (
@@ -13,38 +19,13 @@ import (
 	"testing"
 )
 
-// eapmKeyDeriving lists the EAP method types Ze offers for IKEv2. EAP-MSCHAPv2 derives an MSK
-// at eap_mschapv2.go:139, and EAP-TLS derives one at eap_tls.go:232.
-var eapmKeyDeriving = map[uint8]bool{
-	TypeMSCHAPv2: true,
-	TypeTLS:      true,
-}
-
-// RFC requirement: RFC7296-2.16-5 positive -- the rule governs EAP methods that generate no shared key.
-// NewSession at eap.go:130-149 dispatches on the method type, and its default arm at
-// eap.go:141-142 returns ErrUnsupportedMethod. The test sweeps all 256 type codes and asserts
-// that every code outside the two key-deriving methods is refused there. A keyless method never
-// starts, which keeps the SK_pi and SK_pr AUTH mode unreachable.
-func TestRFC7296EAPKeylessMethodsAreRefused(t *testing.T) {
-	for code := range 256 {
-		methodType := uint8(code)
-		if eapmKeyDeriving[methodType] {
-			continue
-		}
-		if _, err := NewSession(methodType, MethodConfig{}); err == nil {
-			t.Fatalf("EAP method type %d was accepted, but it generates no shared key", methodType)
-		} else if !errors.Is(err, ErrUnsupportedMethod) {
-			t.Fatalf("EAP method type %d failed with %v, want ErrUnsupportedMethod", methodType, err)
-		}
-	}
-}
-
-// RFC requirement: RFC7296-2.16-5 negative -- the refusal is specific, and it is not a blanket
-// rejection. NewSession accepts EAP-MSCHAPv2, starts an identity conversation, and the exchange
-// yields a real 64-octet MSK for the AUTH payload. NewSession also hands EAP-TLS to
-// newTLSMethod at eap.go:136-140, whose empty-certificate error is not ErrUnsupportedMethod.
-// Both facts show that the sweep in the positive measures the accepted set, rather than a
-// constructor that fails for every input.
+// TestRFC7296EAPKeyDerivingMethodsAreAccepted checks that the two methods ze offers an
+// IKEv2 exchange are both reachable through eap.NewSession.
+//
+// The method is one call for each: EAP-MSCHAPv2 is constructed, started, driven to
+// success by driveMSCHAPv2 and its MSK read, and EAP-TLS is constructed with an empty
+// configuration so that the error it returns can be checked not to be
+// ErrUnsupportedMethod.
 func TestRFC7296EAPKeyDerivingMethodsAreAccepted(t *testing.T) {
 	session, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: "secret"})
 	if err != nil {

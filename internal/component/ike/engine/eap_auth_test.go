@@ -15,16 +15,16 @@ func TestAuthFromMSK(t *testing.T) {
 	}
 	signedOctets := []byte("test signed octets data for AUTH verification")
 
-	auth, err := ComputeAuthFromMSK(crypto.PRF_HMAC_SHA2_256, msk, signedOctets)
+	auth, err := computeAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, msk[:], signedOctets)
 	if err != nil {
-		t.Fatalf("ComputeAuthFromMSK: %v", err)
+		t.Fatalf("computeAuthFromSharedSecret: %v", err)
 	}
 	if len(auth) != 32 {
 		t.Fatalf("auth length: got %d, want 32 (SHA-256 PRF output)", len(auth))
 	}
 
 	// Same inputs produce same output.
-	auth2, err := ComputeAuthFromMSK(crypto.PRF_HMAC_SHA2_256, msk, signedOctets)
+	auth2, err := computeAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, msk[:], signedOctets)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,19 +35,19 @@ func TestAuthFromMSK(t *testing.T) {
 	}
 
 	// Verify succeeds.
-	if err := VerifyAuthFromMSK(crypto.PRF_HMAC_SHA2_256, msk, signedOctets, auth); err != nil {
-		t.Fatalf("VerifyAuthFromMSK: %v", err)
+	if err := verifyAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, msk[:], signedOctets, auth); err != nil {
+		t.Fatalf("verifyAuthFromSharedSecret: %v", err)
 	}
 
 	// Different MSK fails.
 	var badMSK [64]byte
 	badMSK[0] = 0xFF
-	if err := VerifyAuthFromMSK(crypto.PRF_HMAC_SHA2_256, badMSK, signedOctets, auth); err == nil {
+	if err := verifyAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, badMSK[:], signedOctets, auth); err == nil {
 		t.Fatal("expected verification failure with wrong MSK")
 	}
 
 	// Different signed octets fails.
-	if err := VerifyAuthFromMSK(crypto.PRF_HMAC_SHA2_256, msk, []byte("different"), auth); err == nil {
+	if err := verifyAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, msk[:], []byte("different"), auth); err == nil {
 		t.Fatal("expected verification failure with wrong signed octets")
 	}
 }
@@ -59,12 +59,12 @@ func TestAuthFromMSKDifferentPRF(t *testing.T) {
 	}
 	signedOctets := []byte("test data")
 
-	auth256, err := ComputeAuthFromMSK(crypto.PRF_HMAC_SHA2_256, msk, signedOctets)
+	auth256, err := computeAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, msk[:], signedOctets)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	auth512, err := ComputeAuthFromMSK(crypto.PRF_HMAC_SHA2_512, msk, signedOctets)
+	auth512, err := computeAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_512, msk[:], signedOctets)
 	if err != nil {
 		t.Fatal(err)
 	}

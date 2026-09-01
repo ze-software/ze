@@ -17,7 +17,6 @@ import (
 	"crypto/sha1" //nolint:gosec // required by IKEv2 CERTREQ (RFC 7296 Section 3.7)
 	"crypto/sha256"
 	"crypto/sha512"
-	"crypto/subtle"
 	"encoding/asn1"
 	"errors"
 	"fmt"
@@ -288,7 +287,12 @@ func computeLocalAuth(sa *SA) (*wire.PayloadAUTH, error) {
 		return computePSKAuth(sa)
 	case ipsec.AuthX509:
 		return computeX509Auth(sa)
-	case ipsec.AuthEAPTLS, ipsec.AuthEAPMSCHAPv2:
+	// Every EAP mode keys its AUTH from the exchange rather than from a
+	// configured credential, MD5-Challenge included: it derives no MSK, so
+	// eapAuthSecret (eap_auth.go) keys it from SK_pi and SK_pr instead. The modes
+	// are named one by one because the exhaustive linter then refuses a mode added
+	// to the enum and not answered here.
+	case ipsec.AuthEAPTLS, ipsec.AuthEAPMSCHAPv2, ipsec.AuthEAPMD5:
 		return computeEAPAuth(sa)
 	case ipsec.AuthUnknown:
 		return nil, fmt.Errorf("ike auth: unsupported auth mode %s", sa.PeerCfg.Auth.Mode)
@@ -297,6 +301,11 @@ func computeLocalAuth(sa *SA) (*wire.PayloadAUTH, error) {
 }
 
 // computePSKAuth computes AUTH using pre-shared key per RFC 7296 Section 2.15.
+//
+// A pre-shared key IS the "Shared Secret" that section names, so the formula is
+// not written here: computeAuthFromSharedSecret (eap_auth.go) is the one place
+// the pad string, the PRF order and the operand order are declared. This
+// function supplies the secret and refuses an absent one.
 func computePSKAuth(sa *SA) (*wire.PayloadAUTH, error) {
 	psk := sa.PeerCfg.Auth.PSK
 	if psk == "" {
@@ -308,14 +317,7 @@ func computePSKAuth(sa *SA) (*wire.PayloadAUTH, error) {
 		return nil, err
 	}
 
-	prfID := sa.Proposal.PRF.ID
-	keyPad := []byte("Key Pad for IKEv2")
-	derivedKey, err := ikecrypto.PRF(prfID, []byte(psk), keyPad)
-	if err != nil {
-		return nil, err
-	}
-
-	authData, err := ikecrypto.PRF(prfID, derivedKey, signedOctets)
+	authData, err := computeAuthFromSharedSecret(sa.Proposal.PRF.ID, []byte(psk), signedOctets)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +384,9 @@ func computeX509Auth(sa *SA) (*wire.PayloadAUTH, error) {
 }
 
 // verifyRemoteAuth verifies the remote peer's AUTH payload.
-// RFC 7296 Section 2.16: after EAP, the responder's AUTH also uses MSK-derived key.
+// RFC 7296 Section 2.16: after EAP, the peer's AUTH is keyed by the secret
+// eapAuthSecret names for the peer's role, which is the MSK for a key-generating
+// method and SK_pi or SK_pr for one that generates no key.
 func verifyRemoteAuth(sa *SA, authPayload *wire.PayloadAUTH) error {
 	// The policy half of remote-id, before any credential is read. The peer picks the
 	// identity its AUTH covers, so a valid signature proves who holds the key and never
@@ -406,22 +410,36 @@ func verifyRemoteAuth(sa *SA, authPayload *wire.PayloadAUTH) error {
 
 	switch authPayload.AuthMethod {
 	case wire.AuthMethodPSK:
-		if isEAP && sa.EAPMSK != [64]byte{} {
-			return VerifyAuthFromMSK(sa.Proposal.PRF.ID, sa.EAPMSK, signedOctets, authPayload.AuthData)
+		if !isEAP {
+			return verifyPSKAuth(sa, authPayload.AuthData, signedOctets)
 		}
-		// The receive-side mirror of computeServerAuth (responder_eap.go).
-		// RFC 7296 Section 2.16 says EAP methods "MUST be used in conjunction
-		// with a public-key-signature-based authentication of the responder to
-		// the initiator". Reaching here on an EAP SA means the remote sent a
-		// shared-secret AUTH before any MSK existed. That is the responder AUTH
-		// of the first EAP message, and a pre-shared key does not satisfy the
-		// obligation. Refuse it (ai/rules/evidence.md).
-		if isEAP {
+		// Which secret keys an EAP peer's AUTH is a question for the METHOD, and
+		// eapAuthSecret puts it to the session. This branch tested
+		// `sa.EAPMSK != [64]byte{}` until 2026-09-01, and that test cannot answer
+		// it: an all-zero MSK is the same value for a method that derives no key,
+		// for one whose derivation failed, and for a field nobody has set, so the
+		// zero was being read as a valid answer (ai/rules/principles.md). It also
+		// sent every non-key-deriving method to the refusal below, which is the
+		// case RFC 7296 Section 2.16 writes SK_pi and SK_pr for.
+		//
+		// eapAuthSecret carries the ordering the old test provided by accident:
+		// it refuses until the EAP exchange has succeeded, so an AUTH that arrives
+		// early still lands in the refusal.
+		secret, secretErr := eapAuthSecret(sa, !sa.IsInitiator)
+		if secretErr != nil {
+			// The receive-side mirror of computeServerAuth (responder_eap.go).
+			// RFC 7296 Section 2.16 says EAP methods "MUST be used in conjunction
+			// with a public-key-signature-based authentication of the responder to
+			// the initiator". Reaching here on an EAP SA means the remote sent a
+			// shared-secret AUTH that no completed EAP exchange backs. That is the
+			// responder AUTH of the first EAP message, and a pre-shared key does
+			// not satisfy the obligation. Refuse it (ai/rules/evidence.md).
 			return fmt.Errorf(
-				"ike auth: EAP peer %q sent a pre-shared-key AUTH, and RFC 7296 Section 2.16 "+
-					"requires a public-key signature from the responder", sa.PeerName)
+				"ike auth: EAP peer %q sent a shared-key AUTH no completed EAP exchange backs, "+
+					"and RFC 7296 Section 2.16 requires a public-key signature from the "+
+					"responder: %w", sa.PeerName, secretErr)
 		}
-		return verifyPSKAuth(sa, authPayload.AuthData, signedOctets)
+		return verifyAuthFromSharedSecret(sa.Proposal.PRF.ID, secret, signedOctets, authPayload.AuthData)
 	case wire.AuthMethodDigitalSig:
 		return verifyX509Auth(sa, authPayload.AuthData, signedOctets)
 	case wire.AuthMethodRSASig:
@@ -430,29 +448,19 @@ func verifyRemoteAuth(sa *SA, authPayload *wire.PayloadAUTH) error {
 	return fmt.Errorf("ike auth: unsupported remote auth method %d", authPayload.AuthMethod)
 }
 
-// verifyPSKAuth verifies a PSK AUTH payload.
+// verifyPSKAuth verifies a PSK AUTH payload against the value the configured
+// pre-shared key produces over the same signed octets.
+//
+// verifyAuthFromSharedSecret (eap_auth.go) holds the construction and the
+// constant-time comparison, so the two directions of one formula cannot drift
+// apart: a change to the pad string or the PRF order moves the sender and the
+// receiver together.
 func verifyPSKAuth(sa *SA, authData, signedOctets []byte) error {
 	psk := sa.PeerCfg.Auth.PSK
 	if psk == "" {
 		return errNoPSK
 	}
-
-	prfID := sa.Proposal.PRF.ID
-	keyPad := []byte("Key Pad for IKEv2")
-	derivedKey, err := ikecrypto.PRF(prfID, []byte(psk), keyPad)
-	if err != nil {
-		return err
-	}
-
-	expected, err := ikecrypto.PRF(prfID, derivedKey, signedOctets)
-	if err != nil {
-		return err
-	}
-
-	if subtle.ConstantTimeCompare(authData, expected) != 1 {
-		return errAuthFailed
-	}
-	return nil
+	return verifyAuthFromSharedSecret(sa.Proposal.PRF.ID, []byte(psk), signedOctets, authData)
 }
 
 // verifyX509Auth verifies a Digital Signature (method 14) AUTH payload.

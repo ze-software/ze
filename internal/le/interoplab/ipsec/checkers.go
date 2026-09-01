@@ -25,6 +25,7 @@ var scenarioCheckers = map[string]scenarioChecker{
 	"cookie-challenge":               checkCookieChallenge,
 	"delete-while-window-held":       checkDeleteWhileWindowHeld,
 	"eap-mschapv2":                   checkEAPMSCHAPv2,
+	"eap-nak-method-negotiation":     checkEAPNakMethodNegotiation,
 	"eap-tls":                        checkEAPTLS,
 	"eap-tls13":                      checkEAPTLS13,
 	"esn-both-offered":               checkESNBothOffered,
@@ -114,6 +115,54 @@ func checkEAPMSCHAPv2(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	return lab.verifyTunnelTraffic(ctx, "traffic did not flow through the EAP-MSCHAPv2 tunnel")
+}
+
+// eapNakFacts are strongSwan's own record of the refusal, in the order the
+// exchange produces them.
+//
+// "initiating EAP_MD5 method" is charon offering Type 4: eap_authenticator.c
+// logs "initiating %N method (id 0x%02X)" through eap_type_names. It is the
+// positive evidence the absence assertions below need, because an exchange that
+// never reached an EAP method Request would install no XFRM SA either.
+//
+// "EAP/RES/NAK" is charon's parsed-message summary for ze's Response: message.c
+// renders an EAP payload as the payload name, the code short name and the type
+// short name, so a Type-3 Response reads EAP/RES/NAK. charon decoded ze's octets
+// to reach it, which is what makes it a fact about ze's bytes rather than about
+// ze's intent.
+//
+// The scenario's strongswan.conf sets `flush_line = yes`, so both lines reach
+// `docker logs` when charon writes them rather than when its stdio buffer fills.
+// Without it a short exchange leaves them invisible and the wait below fails on
+// charon's buffer instead of on charon's exchange.
+var eapNakFacts = [...]string{
+	"initiating EAP_MD5 method",
+	"EAP/RES/NAK",
+}
+
+// checkEAPNakMethodNegotiation proves ze answers a Request for an authentication
+// Type it does not run with a Nak another implementation parses as one.
+//
+// strongSwan is the authenticator and offers eap-md5, which RFC 7296 Section
+// 2.16 puts out of ze's scope. ze runs eap-mschapv2 and answers with the legacy
+// Nak of RFC 3748 Section 5.3.1.
+//
+// The scenario asserts the refusal rather than a tunnel, and the peer is the
+// reason: the strongSwan image ships no eap-dynamic plugin, which is the only
+// charon plugin that answers a received Nak by offering another method. So
+// charon ends the exchange, and no XFRM SA appears at either end. That absence
+// is read only after the two positive facts above, so a scenario that never got
+// as far as EAP fails here instead of passing on an empty kernel.
+func checkEAPNakMethodNegotiation(ctx context.Context, lab *scenarioLab) error {
+	for _, fact := range eapNakFacts {
+		if err := lab.waitLog(ctx, swanPeer, fact, lab.timeout); err != nil {
+			return err
+		}
+	}
+	if err := lab.checkXFRMCount(ctx, zePeer, 0); err != nil {
+		return err
+	}
+	return lab.checkXFRMCount(ctx, swanPeer, 0)
 }
 
 var eapTLSRefusalFacts = [...]string{

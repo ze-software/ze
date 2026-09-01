@@ -492,7 +492,7 @@ func TestResponderCreatesSAOnSAInit(t *testing.T) {
 // proves: sa.EAPSession holds a *eap.Session, Begin/Process drive the EAP rounds, the
 // server's own AUTH is verified by the client, the MSK-derived AUTH is exchanged and
 // verified both ways, and the first Child SA installs. No RADIUS, network, or XFRM.
-// PREVENTS: EAP-server desync, MSK-AUTH direction bugs, and the "NewEAPSession has
+// PREVENTS: EAP-server desync, MSK-AUTH direction bugs, and the "newEAPSession has
 // zero callers" regression.
 func TestResponderEAPSessionWired(t *testing.T) {
 	log := slogutil.DiscardLogger()
@@ -563,7 +563,7 @@ func TestResponderEAPSessionWired(t *testing.T) {
 
 	sess, ok := respSA.EAPSession.(*eap.Session)
 	if !ok || sess == nil {
-		t.Fatal("sa.EAPSession must hold a *eap.Session (NewEAPSession wired)")
+		t.Fatal("sa.EAPSession must hold a *eap.Session (newEAPSession wired)")
 	}
 	if !sess.Succeeded() {
 		t.Error("EAP server session did not record success")

@@ -26,9 +26,14 @@ const pemBlockCertificate = "CERTIFICATE"
 // eapMethodConfig builds the EAP method configuration (server side) from the peer's
 // auth config: the MSCHAPv2 shared password, or the EAP-TLS server certificate chain.
 func eapMethodConfig(sa *SA) (eap.MethodConfig, error) {
-	if sa.PeerCfg.Auth.Mode == ipsec.AuthEAPMSCHAPv2 {
+	// A password method reads the one configured secret. MD5-Challenge hashes it
+	// with the challenge it issues (RFC 1994 Section 4.1), and MS-CHAPv2 hashes it
+	// into the NT password hash. An empty value therefore authenticates every peer,
+	// and is refused here rather than at the compare. ipsec.IsEAPPasswordMode
+	// (ipsec/validate.go) is the one declaration of which modes carry one.
+	if ipsec.IsEAPPasswordMode(sa.PeerCfg.Auth.Mode) {
 		if sa.PeerCfg.Auth.PSK == "" {
-			return eap.MethodConfig{}, fmt.Errorf("ike: EAP-MSCHAPv2 requires a password")
+			return eap.MethodConfig{}, fmt.Errorf("ike: %s requires a password", sa.PeerCfg.Auth.Mode)
 		}
 		return eap.MethodConfig{Password: sa.PeerCfg.Auth.PSK}, nil
 	}
@@ -152,7 +157,7 @@ func (ps *PeerSession) startResponderEAP(sa *SA, msgID uint32, remoteSAi2 *wire.
 		sa.State = StateDead
 		return
 	}
-	sess, err := NewEAPSession(sa.PeerCfg.Auth.Mode, config)
+	sess, err := newEAPSession(sa.PeerCfg.Auth.Mode, config)
 	if err != nil {
 		log.Warn("ike: create EAP session failed", "peer", sa.PeerName, "error", err)
 		sa.State = StateDead

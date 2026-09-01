@@ -144,7 +144,7 @@ func allZero(b []byte) bool {
 // RFC 7296 Section 2.16 -- the EAP shared key generates the AUTH of messages 7 and 8
 // ---------------------------------------------------------------------------
 
-// The three tests below exercise ComputeAuthFromMSK, the PRIMITIVE, and they are
+// The three tests below exercise computeAuthFromSharedSecret, the PRIMITIVE, and they are
 // untagged. A mutation keying computeEAPAuth (the producer of the AUTH payloads of
 // messages 7 and 8) from a constant instead of sa.EAPMSK left all three PASSING,
 // so the RFC7296-2.16 tags sit on rfc7296_eap_auth_producer_test.go, which drives
@@ -161,14 +161,14 @@ func TestWp2EAPSharedKeyGeneratesAUTH(t *testing.T) {
 	}
 	signed := []byte("the signed octets of message 7")
 
-	auth, err := ComputeAuthFromMSK(crypto.PRF_HMAC_SHA2_256, msk, signed)
+	auth, err := computeAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, msk[:], signed)
 	if err != nil {
-		t.Fatalf("ComputeAuthFromMSK: %v", err)
+		t.Fatalf("computeAuthFromSharedSecret: %v", err)
 	}
 	if allZero(auth) {
 		t.Fatal("the AUTH derived from the MSK is all zero")
 	}
-	if err := VerifyAuthFromMSK(crypto.PRF_HMAC_SHA2_256, msk, signed, auth); err != nil {
+	if err := verifyAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, msk[:], signed, auth); err != nil {
 		t.Errorf("the AUTH derived from the MSK does not verify under that same MSK: %v", err)
 	}
 }
@@ -183,19 +183,19 @@ func TestWp2EAPAUTHRejectsAnotherKey(t *testing.T) {
 	}
 	signed := []byte("the signed octets of message 7")
 
-	auth, err := ComputeAuthFromMSK(crypto.PRF_HMAC_SHA2_256, theirs, signed)
+	auth, err := computeAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, theirs[:], signed)
 	if err != nil {
-		t.Fatalf("ComputeAuthFromMSK: %v", err)
+		t.Fatalf("computeAuthFromSharedSecret: %v", err)
 	}
-	if err := VerifyAuthFromMSK(crypto.PRF_HMAC_SHA2_256, mine, signed, auth); err == nil {
+	if err := verifyAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, mine[:], signed, auth); err == nil {
 		t.Error("an AUTH keyed by another EAP shared key was accepted")
 	}
 
-	good, err := ComputeAuthFromMSK(crypto.PRF_HMAC_SHA2_256, mine, signed)
+	good, err := computeAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, mine[:], signed)
 	if err != nil {
-		t.Fatalf("ComputeAuthFromMSK: %v", err)
+		t.Fatalf("computeAuthFromSharedSecret: %v", err)
 	}
-	if err := VerifyAuthFromMSK(crypto.PRF_HMAC_SHA2_256, mine, []byte("other octets"), good); err == nil {
+	if err := verifyAuthFromSharedSecret(crypto.PRF_HMAC_SHA2_256, mine[:], []byte("other octets"), good); err == nil {
 		t.Error("an AUTH over different signed octets was accepted")
 	}
 }
@@ -212,9 +212,9 @@ func TestWp2EAPAUTHFollowsSuccess(t *testing.T) {
 		t.Fatal("the fixture SA already holds an MSK, so the ordering below proves nothing")
 	}
 	signed := []byte("signed octets")
-	before, err := ComputeAuthFromMSK(sa.Proposal.PRF.ID, sa.EAPMSK, signed)
+	before, err := computeAuthFromSharedSecret(sa.Proposal.PRF.ID, sa.EAPMSK[:], signed)
 	if err != nil {
-		t.Fatalf("ComputeAuthFromMSK: %v", err)
+		t.Fatalf("computeAuthFromSharedSecret: %v", err)
 	}
 
 	// Success delivers the MSK, and the AUTH of the two following messages changes with
@@ -222,9 +222,9 @@ func TestWp2EAPAUTHFollowsSuccess(t *testing.T) {
 	for i := range sa.EAPMSK {
 		sa.EAPMSK[i] = byte(i + 3)
 	}
-	after, err := ComputeAuthFromMSK(sa.Proposal.PRF.ID, sa.EAPMSK, signed)
+	after, err := computeAuthFromSharedSecret(sa.Proposal.PRF.ID, sa.EAPMSK[:], signed)
 	if err != nil {
-		t.Fatalf("ComputeAuthFromMSK: %v", err)
+		t.Fatalf("computeAuthFromSharedSecret: %v", err)
 	}
 	if bytes.Equal(before, after) {
 		t.Error("the AUTH is the same before and after Success, so it is not keyed by the EAP result")

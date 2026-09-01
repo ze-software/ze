@@ -2,13 +2,13 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | `plan/spec-rfcgate-6-supported-extraction-signoff.md` (its 2026-08-30 walk produced the six unclassified rfc3748 sites and the scratch sign-off this spec lands) |
 | Phase | - |
 | Deferral shard | - |
 | Handoff | verify |
-| Updated | 2026-08-30 |
+| Updated | 2026-09-01 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -32,13 +32,16 @@ handling of a received Nak, lands the requirement rows and both test polarities
 for every RFC 3748 site those two types make live, and lands the rfc3748
 extraction sign-off that has no honest disposition without them.
 
-Type 4 (MD5-Challenge) is a deliberate deviation, authorized by Thomas on
-2026-08-30 and recorded as a row in
-`plan/journal/gate-excludes-part-of-its-population.md`. The rationale is RFC 7296
-Section 2.16, at `rfc/full/rfc7296.txt` line 2958: "EAP methods that do not
-establish a shared key SHOULD NOT be used, as they are subject to a number of
-man-in-the-middle attacks". Ze speaks EAP only inside IKEv2, so MD5-Challenge is
-a method Ze may never use.
+Type 4 (MD5-Challenge) was a deliberate deviation, authorized by Thomas on
+2026-08-30 and WITHDRAWN by him on 2026-09-01, when he ordered the method
+implemented. The row in `plan/journal/gate-excludes-part-of-its-population.md`
+carries the withdrawal beside the original. The rationale the deviation rested
+on was RFC 7296 Section 2.16, at `rfc/full/rfc7296.txt` line 2958: "EAP methods
+that do not establish a shared key SHOULD NOT be used, as they are subject to a
+number of man-in-the-middle attacks". That reading was too strong. The sentence
+is a SHOULD NOT, and the sentence after it specifies what to do when such a
+method IS used, so MD5-Challenge over IKEv2 is a configuration the RFC provides
+for rather than one Ze may never reach. See D-1 below.
 
 **That rationale does not discharge the obligation, and the spec says so
 plainly.** A SHOULD NOT about USING a method is not an answer to a MUST about
@@ -56,7 +59,35 @@ obligation that fails to bind.
 Two questions are the owner's and neither is answerable inside this spec. Both
 ask which way to fix, never whether to skip.
 
-### D-1: how an authorized deviation is dispositioned in an extraction sign-off
+### D-1: ANSWERED 2026-09-01 -- option C, implement MD5-Challenge
+
+Thomas chose option C on 2026-09-01: implement Type 4. That WITHDRAWS the
+2026-08-30 deviation, and every artifact citing it as current is corrected
+rather than kept. Sites `5:2`, `5.4:1` and `5.4:2` are `mapped` to
+`RFC3748-5-2`, `RFC3748-5.4-1` and `RFC3748-5.4-2`, so the closed
+exclusion-kind set never had to hold a word for an authorized deviation.
+
+Option C was priced in this spec as "full support with an unreachable entry
+point", and that price rested on a claim the RFC does not make. RFC 7296
+Section 2.16, at `rfc/full/rfc7296.txt` line 2958, states a SHOULD NOT rather
+than a MUST NOT, and the sentence after it specifies what to do when such a
+method IS used: "If EAP methods that do not generate a shared key are used, the
+AUTH payloads in messages 7 and 8 MUST be generated using SK_pi and SK_pr,
+respectively." RFC 3748 itself carries no prohibition on non-key-deriving
+methods over IKEv2; its only mentions of IKE are a lower-layer list and two
+citations. So MD5-Challenge inside IKEv2 is a specified configuration, and the
+implementation is reachable rather than unwired.
+
+One question falls out of that and is NOT answered here. `rfc/short/rfc3748.md`
+carries `RFC3748-7.10-3` as `[MUST NOT] Methods that do not generate MSK ...
+MUST NOT be used with IKEv2 (S7.10, RFC 7296 S2.16)`. Section 7.10 says nothing
+about IKE, and Section 2.16 says SHOULD NOT, so the row states an obligation
+stronger than either source. Correcting a level in `rfc/short/` is a doing-less
+action under `ai/rules/rfc-compliance.md`, so it waits for Thomas. Until it is
+settled, no config value selects MD5-Challenge inside an IKEv2 session: the
+method and the AUTH path are built and proven, and the selection surface is not.
+
+### D-1 (original text, superseded): how an authorized deviation is dispositioned in an extraction sign-off
 
 `rfc/extraction/README.md` publishes a CLOSED set of six exclusion kinds:
 `not-a-requirement`, `binds-another-role`, `duplicate-of`, `cross-document`,
@@ -88,7 +119,26 @@ fix it, with what each costs. The spec picks none.
 | B | Use the existing published-divergence route: a `{gap: reason}` annotation on the new row plus the `docs/features/rfc-status.md` disclosure the gap-count check compares against | near zero, and it is what `check_audit` and `checkGapCount` were built for | a `{gap}` in the summary, which `ai/rules/rfc-compliance.md` treats as a doing-less classification the owner must have authorized. He authorized the deviation on 2026-08-30; whether that word extends to this spelling is his to say |
 | C | Implement MD5-Challenge as an EAP method | a method, its tests, and a surface no IKEv2 session may select, because RFC3748-7.10-3 already forbids USING a non-key-deriving method there | full support with an unreachable entry point, which is the unwired-feature shape (`ai/rules/completion.md`) |
 
-### D-2: does Ze's authenticator ever SEND a Notification Request
+### D-2: ANSWERED 2026-09-01 -- Ze's authenticator sends none
+
+Thomas answered D-2 on 2026-09-01: the authenticator sends no Notification
+Request. Section 5.2 states the send as a MAY, and its own text agrees that the
+smaller surface is the usual one: "In most circumstances, Notification should
+not be required."
+
+Site `5.2:4` is therefore `excluded` with kind `feature-out-of-scope`, its
+reason quoting the MAY and naming the scope decision, which is what
+`ai/rules/rfc-compliance.md` requires of an optional feature Ze declines. The
+absent feature is recorded in `rfc/short/rfc3748.md` so a later scope decision
+can revisit it, and it is never recorded as a conformance gap. The mandatory
+half is untouched: Ze's peer ANSWERS a Notification Request, and that is
+`RFC3748-5.2-1`.
+
+With D-1 and D-2 both answered, every site in `rfc/extraction/rfc3748.json`
+carries a disposition and no relocation remains, so the sign-off this spec was
+blocked on is landed.
+
+### D-2 (original text, superseded): does Ze's authenticator ever SEND a Notification Request
 
 RFC 3748 Section 5.2 makes the send a MAY: "An authenticator MAY send a
 Notification Request to the peer at any time when there is no outstanding
@@ -205,11 +255,11 @@ Notification should not be required."
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | "an initial non-Nak Response" in RFC 3748 Section 2.1 means the peer's first Response to an authentication METHOD Request, not the Identity Response | RFC 3748 Section 5.4: "The Response MAY be either of Type 4 (MD5-Challenge), Nak (Type 3), or Expanded Nak (Type 254)", which describes a Nak sent after an Identity Response. The literal alternative makes Section 5.3.1's MUST unreachable in every conversation | the Nak would be forbidden the moment the peer answers the Identity Request, which no implementation could satisfy | the reading is stated in the code comment above the guard, and `TestRFC3748PeerNaksBeforeItCommitsToAMethod` drives both sides of the boundary | unvalidated |
-| A-2 | The strongSwan image built from `test/interop-ipsec/Dockerfile.strongswan` (alpine 3.21, package `strongswan`) ships the `eap-dynamic` plugin | the Alpine package is the full charon build, and the scenario needs a peer that reacts to a Nak by offering another method | the scenario falls back to the single-method form: strongSwan offers `eap-md5` only, Ze Naks, and the assertion is strongSwan's "received EAP Nak" log line plus no tunnel | `docker run --rm <image> ls /usr/lib/ipsec/plugins` before the scenario is written | unvalidated |
-| A-3 | An all-zero `PeerResult` today means "send nothing and wait", so an explicit discard outcome changes no wire behavior | `handleEAPResponse` (`internal/component/ike/engine/fsm.go`) guards the send with `if result.Response != nil` and has no else branch | the discard would need a carrier change as well as a peer change | `TestPeerDiscardLeavesTheSAAlive` drives the engine path and asserts the SA state is unchanged | unvalidated |
-| A-4 | Neither EAP-MSCHAPv2 nor EAP-TLS prohibits Notification messages in its own specification | RFC 3748 Section 5.2's excusing clause requires the METHOD specification to say so, and neither RFC 2759 nor RFC 5216 contains such a prohibition | the peer would owe a silent discard rather than a Response while that method runs, which is site `5.2:3` | a read of RFC 2759 and RFC 5216 for a Notification prohibition, recorded in the site's reason | unvalidated |
-| A-5 | `Session.err` is the right home for the desired Types a received Nak carried | `Session.Err()` already exists for exactly this reason: RFC 3748 Section 4.2 leaves an EAP-Failure no field to carry a reason, and `handleResponderEAP` logs it | the information would need a second channel out of the authenticator | `TestAuthenticatorRecordsTheTypesANakAskedFor` reads `Session.Err()` after a driven Nak | unvalidated |
+| A-1 | "an initial non-Nak Response" in RFC 3748 Section 2.1 means the peer's first Response to an authentication METHOD Request, not the Identity Response | RFC 3748 Section 5.4: "The Response MAY be either of Type 4 (MD5-Challenge), Nak (Type 3), or Expanded Nak (Type 254)", which describes a Nak sent after an Identity Response. The literal alternative makes Section 5.3.1's MUST unreachable in every conversation | the Nak would be forbidden the moment the peer answers the Identity Request, which no implementation could satisfy | the reading is stated in the code comment above the guard, and `TestRFC3748PeerNaksBeforeItCommitsToAMethod` drives both sides of the boundary | confirmed: `PeerSession.methodCommitted` (peer.go) and `Session.methodAnswered` (eap.go) carry the reading; `TestRFC3748PeerNaksBeforeItCommitsToAMethod` drives both sides |
+| A-2 | The strongSwan image built from `test/interop-ipsec/Dockerfile.strongswan` (alpine 3.21, package `strongswan`) ships the `eap-dynamic` plugin | the Alpine package is the full charon build, and the scenario needs a peer that reacts to a Nak by offering another method | the scenario falls back to the single-method form: strongSwan offers `eap-md5` only, Ze Naks, and the assertion is strongSwan's "received EAP Nak" log line plus no tunnel | `docker run --rm <image> ls /usr/lib/ipsec/plugins` before the scenario is written | **broken**: the image ships no `eap-dynamic` (`ls /usr/lib/ipsec/plugins`), so the scenario took the fallback this row named. Mistake Log and Deviations rows recorded |
+| A-3 | An all-zero `PeerResult` today means "send nothing and wait", so an explicit discard outcome changes no wire behavior | `handleEAPResponse` (`internal/component/ike/engine/fsm.go`) guards the send with `if result.Response != nil` and has no else branch | the discard would need a carrier change as well as a peer change | `TestPeerDiscardLeavesTheSAAlive` drives the engine path and asserts the SA state is unchanged | confirmed: `TestPeerDiscardLeavesTheSAAlive` drives `handleEAPResponse` and asserts the SA state is unchanged |
+| A-4 | Neither EAP-MSCHAPv2 nor EAP-TLS prohibits Notification messages in its own specification | RFC 3748 Section 5.2's excusing clause requires the METHOD specification to say so, and neither RFC 2759 nor RFC 5216 contains such a prohibition | the peer would owe a silent discard rather than a Response while that method runs, which is site `5.2:3` | a read of RFC 2759 and RFC 5216 for a Notification prohibition, recorded in the site's reason | confirmed: `grep -c -i notification rfc/full/rfc2759.txt` = 0 and the same over `rfc/full/rfc5216.txt` = 0, so neither specification mentions Notification at all |
+| A-5 | `Session.err` is the right home for the desired Types a received Nak carried | `Session.Err()` already exists for exactly this reason: RFC 3748 Section 4.2 leaves an EAP-Failure no field to carry a reason, and `handleResponderEAP` logs it | the information would need a second channel out of the authenticator | `TestAuthenticatorRecordsTheTypesANakAskedFor` reads `Session.Err()` after a driven Nak | confirmed: `Session.nakRefused` and `Session.nakUnexpected` write `s.err`; `TestAuthenticatorRecordsTheTypesANakAskedFor` reads `Session.Err()` |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -305,7 +355,50 @@ Notification should not be required."
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `eap-nak-method-negotiation` | `test/interop-ipsec/scenarios/` | strongSwan | Ze's Type-3 Nak is a packet another implementation parses as a Nak, and the method it names is the one Ze runs. Proven RED by reverting the Nak path and rebuilding `test/interop-ipsec/ze-linux` | |
+| `eap-nak-method-negotiation` | `test/interop-ipsec/scenarios/` | strongSwan | Ze's Type-3 Nak is a packet another implementation parses as a Nak. The desired-Type octet is NOT proven here, because the image ships no `eap-dynamic` plugin and charon never switches method; that octet is proven by `TestNakNamesTheConfiguredMethod` and by `test/ipsec/ipsec-eap-nak-unacceptable-type.ci`. Proven RED by reverting the Nak path and rebuilding `test/interop-ipsec/ze-linux` | |
+
+## Recorded RED Proofs (AC-14)
+
+`ai/rules/interop-and-goal-validation.md` makes the revert-and-rebuild mandatory
+and not deferrable, so the observed output is recorded here rather than left in
+a session transcript.
+
+**Interop, `eap-nak-method-negotiation`.** `PeerSession.naks` was reverted to
+return false on every arm, and the image was REBUILT (`ze-ipsec-interop`
+sha256:7cd83f300132) so the container saw the revert; a host-side edit it never
+sees proves nothing. Exit 1:
+
+```
+"error": "wait for strongswan log \"EAP/RES/NAK\" timed out before the peer became ready",
+"name": "eap-nak-method-negotiation",
+"passed": false
+```
+
+Restored, re-run green: `code 0 passed 1 [{'name': 'eap-nak-method-negotiation', 'passed': True}]`.
+
+**Functional, `ipsec-eap-nak-unacceptable-type.ci`.** Same revert, exit 1:
+
+```
+TEST FAILURE: 11 ipsec-eap-nak-unacceptable-type
+TYPE:    timeout
+LIKELY CAUSE:
+  await=stderr: daemon stderr never contained "the peer refused type 13 with a Nak asking for type 26" within 2m0s
+level=WARN msg="ike: EAP packet discarded" subsystem=ike peer=peer-1 code=1 type=13 id=2
+level=WARN msg="ike: responder handshake timed out, tearing down" subsystem=ike peer=initiator state=eap-in-progress
+```
+
+**Functional, `ipsec-eap-md5-challenge.ci`.** The `AuthEAPMD5` arm of
+`eapMethodType` was deleted; FAIL in 2.9s with `ike: create EAP session failed
+... auth mode eap-md5 is not an EAP method`. Restored, green in 4.3s.
+
+**What the interop scenario does NOT prove.** The strongSwan image ships no
+`eap-dynamic` plugin, verified by listing `/usr/lib/ipsec/plugins` in the built
+image, and that is the only charon plugin that answers a Nak by offering another
+method. So charon never switches and the scenario cannot prove the Nak's
+desired-Type octet names the method ze runs. That octet is proven by
+`TestNakNamesTheConfiguredMethod` and by
+`test/ipsec/ipsec-eap-nak-unacceptable-type.ci`, where ze's own authenticator
+names it.
 
 ## Files to Modify
 - `internal/component/ike/eap/peer.go` - the Notification path, the Nak path, the Section 2.1 boundary, the discard outcome, and the `PeerResult` fields that carry them
@@ -461,14 +554,14 @@ Notification should not be required."
 | Ze sends a LEGACY Nak for a Type-254 Request | implementing the Expanded Nak of Section 5.3.2 | Section 5.7 sends a peer not equipped to interpret the Expanded Type to Section 5.3.1, which is the legacy Nak, and Section 5.3.2 says the Expanded Nak "MUST be sent only in reply to a Request of Type 254 ... where the authentication Type is unacceptable" by a peer that supports Expanded Types. Section 5 puts that support at SHOULD. Implementing the Expanded Nak would mean claiming Expanded support Ze does not have |
 | The discard is an explicit `PeerResult` outcome | returning a zero `PeerResult`, or returning an error | A zero result already produces the correct wire behavior, which is exactly what makes it dangerous: it is indistinguishable from a bug at every call site, and the same architecture doc records this defect twice in this package. An error is wrong because Section 2.1 says discard, and `handleEAPResponse` kills the SA on an error |
 | The Nak names the one configured method, never Type 0 | sending Type 0 (no viable alternative) | Type 0 tells the authenticator to stop (Section 5.3.1: it "SHOULD NOT send another Request"). Ze always has a viable alternative, which is the method the operator configured, and naming it is what makes the negotiation work |
-| The Type-4 deviation is recorded in `plan/journal/gate-excludes-part-of-its-population.md` | a new class file named for the deviation | The class the row belongs to is the durable one: an obligation that binds Ze sat outside every checked population, first because the summary declared no row and then because the walk excluded it on circular grounds. Two rows from the same walk already sit in that file. `ai/rules/rfc-compliance.md` requires the row; it does not require a class of its own |
+| The Type-4 deviation, while it stood, was recorded in `plan/journal/gate-excludes-part-of-its-population.md`; its 2026-09-01 withdrawal is appended to the same row | a new class file named for the deviation | The class the row belongs to is the durable one: an obligation that binds Ze sat outside every checked population, first because the summary declared no row and then because the walk excluded it on circular grounds. Two rows from the same walk already sit in that file. `ai/rules/rfc-compliance.md` requires the row; it does not require a class of its own |
 
 ## Known Limitations
 
-- Type 4 (MD5-Challenge) is not implemented. This is the authorized deviation of 2026-08-30 and it is published in the journal row, not hidden
+- Type 4 (MD5-Challenge) is implemented on both roles, by Thomas's 2026-09-01 order withdrawing the 2026-08-30 deviation. `authentication { mode eap-md5 }` selects it, default off, and adopting it logs the RFC 7296 Section 2.16 warning. `RFC3748-7.10-3` was restated at SHOULD NOT on the owner's 2026-09-01 answer, because Section 7.10 does not mention IKE and Section 2.16 states a SHOULD NOT
 - Type 254 (Expanded Types) is not implemented. RFC 3748 Section 5 puts it at SHOULD, and Ze answers a Type-254 Request with the legacy Nak the RFC prescribes for a peer that lacks the support
 - Ze's AUTHENTICATOR still offers exactly one method, so a received Nak ends the exchange. Offering a second method after a Nak is a feature with its own configuration surface and is not in this spec
-- Whether Ze's authenticator ever SENDS a Notification Request is D-2 and is not decided here
+- Ze's authenticator sends no Notification Request. That is D-2, answered by Thomas on 2026-09-01, and it is a declined option rather than a gap: RFC 3748 Section 5.2 states the send as a MAY
 
 ## RFC Documentation (Scope: protocol)
 
@@ -534,3 +627,299 @@ Code, Identifier, Length of 6, Type of 3 and one desired-Type octet.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Implementation Summary
+
+### What Was Implemented
+- **The peer answers Type 2.** `PeerSession.notificationResponse` (`internal/component/ike/eap/peer.go`) builds a Code-2/Type-2 Response with zero-octet Type-Data and the Request's Identifier, carries the displayable message out on `PeerResult.Notification` behind an explicit `PeerResult.Notified` flag, and bounds it at `notificationMax` (1015). Peer state and every method field are untouched.
+- **The peer answers Type 3.** `PeerSession.naks` decides (Types 4-253, 255 and 254 by RFC 3748 Section 5.7, never the configured method, never after `methodCommitted`), and `PeerSession.nakResponse` names the one configured method in a single desired-Type octet.
+- **The Section 2.1 boundary is a field, not an inference.** `PeerSession.methodCommitted` is set by `commitMethod` only when the method actually produced a Response, and `Session.methodAnswered` (`eap.go`) is its authenticator-side mirror.
+- **A discard is an explicit outcome.** `peerDiscard()` returns `PeerResult{Discarded: true}`; `handleRequest` returns it for `peerStateDone`, for an Identity Requery and for any Type the three answers above do not own. `handleEAPResponse` and `startEAPExchange` (`engine/fsm.go`) log it and leave the SA in `StateEAPInProgress`.
+- **The authenticator reads a Nak instead of discarding what it carried.** `Session.nakRefused` records the desired Types through `nakRefusal`/`desiredTypes` (bounded at `desiredTypeMax` = 252) into `Session.err`; `Session.nakUnexpected` discards a Nak sent after the peer committed and records why, per RFC 3748 Section 2.1's "SHOULD discard it and log the event".
+- **Type 4 (MD5-Challenge) is implemented on both roles**, by the owner's 2026-09-01 withdrawal of the 2026-08-30 deviation. `md5ChallengeMethod` (`eap/eap_md5challenge.go`) is the authenticator half; `PeerSession.handleMD5ChallengeRequest` (`peer.go`) is the peer half; `md5ChallengeResponse` is the one CHAP computation both use.
+- **The AUTH payload asks the method instead of reading a zero.** `eapAuthSecret` (`engine/eap_auth.go`) returns the MSK for a key-deriving method and SK_pi/SK_pr for one that derives none, gated on `Succeeded()`. `ComputeAuthFromMSK`/`VerifyAuthFromMSK` became `computeAuthFromSharedSecret`/`verifyAuthFromSharedSecret`, and `computePSKAuth`/`verifyPSKAuth` now route through them, so one formula serves all three secrets.
+- **Single declarations replaced four scattered switches.** `eap.TypeDerivesKey`, `engine.eapMethodType`, `ipsec.IsEAPPasswordMode` and `ipsec.IsEAPMode` each hold one fact that `parseEAPUser`, `parseAuthConfig`, `ValidateRemoteAccess`, `eapMethodConfig`, `startEAPExchange` and `warnKeylessEAPModes` now read rather than restate.
+- **The operator surface.** `enum eap-md5` in both `authentication mode` enums (`ipsec/yang/ze-ipsec-conf.yang`), `ipsec.AuthEAPMD5`, and `warnKeylessEAPModes` writing one RFC 7296 Section 2.16 warning per adoption from `runEngine` (`engine/register.go`).
+- **Proof.** 9 new requirement rows in `rfc/short/rfc3748.md` with both polarities, 26 new test functions across 10 files, the `eap-nak-method-negotiation` interop scenario with `checkEAPNakMethodNegotiation` (`internal/le/interoplab/ipsec/checkers.go`), and two `.ci` functional tests.
+
+### Bugs Found/Fixed
+- **A Request of an unhandled Type killed the IKE SA.** `handleRequest` returned an error for every Type but Identity and the configured method; `handleEAPResponse` reads any non-nil `Err` as `StateDead`. One unauthenticated packet therefore ended the exchange. Covered by `TestPeerDiscardsAnIdentityRequery`, `TestPeerDiscardsARequestAfterTheExchangeCompleted` and `TestPeerDiscardLeavesTheSAAlive`.
+- **A spoofed Nak ended a live authentication.** `Session.handleMethod` answered every `TypeNAK` Response with `s.failure(...)`, including one arriving after the peer had committed to the method, which RFC 3748 Section 2.1 says to discard and log. Covered by `TestAuthenticatorDiscardsAnUnexpectedNak`.
+- **`sa.EAPMSK != [64]byte{}` was a zero read as an answer.** `verifyRemoteAuth` decided the EAP AUTH construction from an all-zero MSK, which is the same value for a method that derives none, one whose derivation failed, and a field nobody set. Replaced by `eapAuthSecret`. Covered by `TestEAPAuthOfNonKeyDerivingMethodUsesSKpiAndSKpr`, `TestEAPAuthOfKeyDerivingMethodStillUsesTheMSK` and `TestEAPAuthIsRefusedBeforeTheEAPExchangeSucceeds`.
+- **The desired Types a Nak carried were discarded.** An operator read "authentication failed" with no way to learn which method the far end wanted. Covered by `TestAuthenticatorRecordsTheTypesANakAskedFor` and asserted end-to-end by `test/ipsec/ipsec-eap-nak-unacceptable-type.ci`.
+- **An unbounded attacker-chosen string reached a log line.** `wireEAPToPacket` slices Type-Data with no cap, so a Nak's desired-Type list and a Notification message both needed one: `desiredTypeMax` (252, the RFC's own count of authentication Types) and `notificationMax` (1015, RFC 3748 Section 5.2's own budget). Covered by `TestNakDesiredTypeListIsBounded`.
+- **`ai/RFC-REQUIREMENTS.md` was stale against its sources**, found by this closure's `./le rfc check` run. Fixed by `./le rfc index-update`, which rewrote it and `rfc/requirements/rfc3748.md` (proven 134 -> 140).
+
+### Documentation Updates
+- `docs/features.md` -- the "IPsec EAP Authentication" and "IKEv2 Engine" rows name MD5-Challenge and the peer's Nak/Notification behavior; the "IPsec Interop Testing" row names the new scenario. Anchors added: `<!-- source: internal/component/ike/engine/eap_auth.go -- eapMethodType, warnKeylessEAPModes -->`.
+- `docs/guide/ipsec.md` -- two new sections, "EAP method negotiation" and "EAP MD5-Challenge", each with source anchors; the package table and the road-warrior paragraph name `eap-md5`.
+- `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` -- the Notification Response and legacy Nak wire formats with byte offsets, and the MD5-Challenge packet shapes.
+- `docs/architecture/ike/ipsec-11-interop-eap.md` -- the `eap-nak-method-negotiation` scenario, what it proves and what it does NOT prove; the `ComputeAuthFromMSK` anchor is repointed at `computeEAPAuth, eapAuthSecret`.
+- `docs/architecture/ike/ipsec-7-ikev2-engine.md` -- the discard outcome the SA survives.
+- `docs/architecture/ike/ipsec-14-responder.md` and `ai/digests/ipsec-ike.md` -- the renamed producers and the two-secret AUTH rule.
+- `docs/functional-tests.md` -- both new `.ci` tests are described at line 304. NOTE: the file is clean in the working tree; that edit was carried into commit `199b684f6` by a concurrent session sharing this checkout's index.
+- `docs/features/rfc-status.md` -- NOT hand-edited. It is generated; `./le rfc index-update` was run.
+- `docs/architecture/testing/interop.md` -- No. It does not enumerate ipsec scenario directories (`grep 'eap-mschapv2' docs/architecture/testing/interop.md` returns nothing), so a new scenario owes it no row.
+- `./le doc check verify` -- exit 1, and every one of the 1,700 findings is in `../gh-pages/` or `../wiki/` and names the CLI command catalog, which commit `e691533a6` moved. Zero findings under `docs/`. Grouped by file: `grep -c` over the run gives `../gh-pages/reference/command-equivalents/index.html` 818, `../gh-pages/reference/cli/index.md` 440, `../gh-pages/reference/cli/index.html` 391, `../gh-pages/llms.txt` 391, `../wiki/command-catalog.md` 1.
+
+### Deviations from Plan
+- **A-2 broke.** The strongSwan image ships no `eap-dynamic` plugin, so the interop scenario uses the single-method fallback the assumption row named. See the Mistake Log.
+- **Type 4 was implemented**, which the spec's D-1 originally priced as option C with an unreachable entry point. The owner withdrew the deviation on 2026-09-01 and chose option A for the surface, so `authentication { mode eap-md5 }` selects it, default off. `RFC3748-7.10-3` was restated at SHOULD NOT on the same answer.
+- **The scope grew past the spec's Files to Modify** to cover what MD5-Challenge reached: `engine/auth.go`, `engine/eap_auth.go`, `engine/register.go`, `engine/responder_eap.go`, `ipsec/config.go`, `ipsec/types.go`, `ipsec/validate.go`, `ipsec/yang/ze-ipsec-conf.yang` and `internal/le/interoplab/ipsec/checkers.go`. Each is a site the new mode had to be answered at; none is a second mechanism.
+- **`test/ipsec/ipsec-eap-md5-challenge.ci` and four MD5 test files were added** beyond the TDD plan, because the plan was written when Type 4 was excluded.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-2 assumed the alpine 3.21 `strongswan` package is the full charon build and ships `eap-dynamic`, so the interop scenario could prove that Ze's Nak makes a concentrator switch method | `ls /usr/lib/ipsec/plugins` in the image built from `test/interop-ipsec/Dockerfile.strongswan` lists `eap-md5`, `eap-mschapv2`, `eap-tls`, `eap-radius`, `eap-aka`, `eap-sim` and `eap-identity`, and no `eap-dynamic`. `eap-dynamic` is the only charon plugin that answers a received Nak by offering another method | Listing the plugin directory in the built image before the scenario was written, which is the validation method the A-2 row itself named | The scenario took the fallback the row named: charon offers `eap-md5` only, Ze Naks, and the assertion is charon's own `initiating EAP_MD5 method` and `EAP/RES/NAK` lines plus no XFRM SA at either end. The desired-Type octet is proven instead by `TestNakNamesTheConfiguredMethod` and by `test/ipsec/ipsec-eap-nak-unacceptable-type.ci`. `docs/architecture/ike/ipsec-11-interop-eap.md`, the scenario's `swanctl.conf` and `checkEAPNakMethodNegotiation`'s doc comment each say what the scenario does NOT prove, so a later reader cannot mistake it |
+| approach | The scenario first failed on the wrong assertion: Ze's log recorded `ike: EAP packet discarded ... code=1 type=4`, so charon HAD sent the Request, while charon's own log still ended at `parsed IKE_AUTH request 1` | charon's stderr block-buffers when it is a pipe rather than a terminal, so `docker logs` showed the buffer and not the exchange | Comparing the two daemons' logs at the moment the checker timed out | `test/interop-ipsec/scenarios/eap-nak-method-negotiation/strongswan.conf` sets `filelog { stderr { default = 1; flush_line = yes } }`, and the file records the measurement that made it necessary. `plan/journal/failing-gate-prints-no-cause.md` carries the general class |
+| escalation | The generated `ai/RFC-REQUIREMENTS.md` was stale at the moment closure started, although `./le rfc index-update` had already been run once during implementation | Every discrimination record written after that run moves the index's proven counts, so the index goes stale again with each one | `./le rfc check` at closure step 1 named it | Re-ran `./le rfc index-update`. The lesson is that the index run belongs AFTER the last discrimination record, not after the last summary edit |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Implement Type 2 (Notification) on the peer | Done | `PeerSession.notificationResponse`, `internal/component/ike/eap/peer.go` | Both peer states; state and method fields untouched |
+| Implement Type 3 (Nak) on the peer | Done | `PeerSession.naks` and `PeerSession.nakResponse`, `peer.go` | Types 4-253, 255 and 254; never after `methodCommitted` |
+| Correct the authenticator's handling of a received Nak | Done | `Session.nakRefused` and `Session.nakUnexpected`, `internal/component/ike/eap/eap.go` | Desired Types recorded; an unexpected Nak discarded and logged |
+| Land the requirement rows and both polarities for every site the two types make live | Done | `rfc/short/rfc3748.md:264, 308-316` | 9 rows; `RFC3748-2.1-3` carries no `{single-polarity}` |
+| Land the rfc3748 extraction sign-off | Done | `rfc/extraction/rfc3748.json` | `./le rfc extraction-status`: rfc3748 is absent from the 126-stem `unsigned` list, so it is one of the 55 signed |
+| Implement Type 4 (MD5-Challenge), per the owner's 2026-09-01 withdrawal | Done | `internal/component/ike/eap/eap_md5challenge.go`, `PeerSession.handleMD5ChallengeRequest` | Both roles; `authentication { mode eap-md5 }` selects it, default off |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestPeerAnswersANotificationRequest` | Code 2, Type 2, zero-octet Type-Data, Identifier copied, 5-octet packet |
+| AC-2 | Done | `TestNotificationMidMethodLeavesTheMethodUntouched` | Full MS-CHAPv2 exchange with a Notification injected between rounds |
+| AC-3 | Done | `TestPeerAnswersANotificationRequest` plus `handleEAPResponse`'s `result.Notified` branch (`engine/fsm.go`) | The message leaves on `PeerResult` and is logged once, as a slog value |
+| AC-4 | Done | `TestPeerNeverNaksANotificationRequest` | Zero-length and non-UTF-8 messages still draw a Type-2 Response |
+| AC-5 | Done | `TestPeerNaksAnUnacceptableAuthenticationType`, `TestNakNamesTheConfiguredMethod` | Code 2, Type 3, one octet holding 26, 6-octet packet |
+| AC-6 | Done | `TestPeerNaksAnExpandedTypeRequestWithALegacyNak` | Type 254 draws a legacy Nak; no Type-254 packet is ever encoded |
+| AC-7 | Done | `TestPeerNaksAnUnacceptableAuthenticationType` | A Type-4 offer to an `eap-mschapv2` peer is refused by the protocol's own mechanism |
+| AC-8 | Done | `TestPeerDiscardsARequestAfterTheExchangeCompleted`, `TestPeerDiscardLeavesTheSAAlive` | `Discarded` set, no Response, no Err, SA stays in `StateEAPInProgress` |
+| AC-9 | Done | `TestPeerDiscardsAnIdentityRequery` | Type 1 is outside 4-253 and 255, so no Nak |
+| AC-10 | Done | `TestAuthenticatorRecordsTheTypesANakAskedFor` | EAP-Failure plus `Session.Err()` naming the Types |
+| AC-11 | Done | `TestNakNamesTheConfiguredMethod`, `TestNakIdentifierMatchesTheRequest` | Length 6, desired octet never 0 while a method is configured |
+| AC-12 | Done | `rfc/short/rfc3748.md` | `grep -c 'RFC3748-5.2-\|RFC3748-5.3.1-\|RFC3748-5-2\|RFC3748-5.4-'` = 9; `grep 'RFC3748-2.1-3'` shows no annotation |
+| AC-13 | Changed | `./le rfc check` | Exit 2, and NONE of the 15 rfc3748 findings is a row this spec wrote. They are `RFC3748-2-3`, `2.2-1`, `4.1-6..9`, `4.2-10..15`, `7.10-5..7` at `rfc/short/rfc3748.md:289-306`, all present at HEAD (`git diff -- rfc/short/rfc3748.md` changes one line) and all owed by `plan/spec-rfcgate-6-supported-extraction-signoff.md`, whose commit `f0b75088f` declares them: "Fifteen coverage violations remain, each a row declared and not yet proven." Discrimination is clean: `changed 0, escaped 0, owed 0, unresolved 0` |
+| AC-14 | Done | Recorded RED Proofs section above | Interop RED under a reverted `PeerSession.naks` with the image REBUILT (`ze-ipsec-interop` sha256:7cd83f300132); functional RED for both `.ci` tests |
+| AC-15 | Done | `rfc/extraction/rfc3748.json` | Every site dispositioned, no relocation left; D-1 answered, so `5:2`, `5.4:1` and `5.4:2` are `mapped` and `5.2:4` is `excluded: feature-out-of-scope` per D-2 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestPeerAnswersANotificationRequest` | Done | `eap/rfc3748_notification_test.go` | |
+| `TestPeerNeverNaksANotificationRequest` | Done | `eap/rfc3748_notification_test.go` | |
+| `TestNotificationMidMethodLeavesTheMethodUntouched` | Done | `eap/rfc3748_notification_test.go` | |
+| `TestNotificationRequestsCountAgainstTheRoundCap` | Done | `eap/rfc3748_notification_test.go` | |
+| `TestPeerNaksAnUnacceptableAuthenticationType` | Done | `eap/rfc3748_nak_test.go` | |
+| `TestPeerNaksAnExpandedTypeRequestWithALegacyNak` | Done | `eap/rfc3748_nak_test.go` | |
+| `TestNakIdentifierMatchesTheRequest` | Done | `eap/rfc3748_nak_test.go` | |
+| `TestPeerDoesNotNakAMethodError` | Done | `eap/rfc3748_nak_test.go` | |
+| `TestRFC3748PeerNaksBeforeItCommitsToAMethod` | Done | `eap/rfc3748_nak_test.go` | Carries the `RFC3748-2.1-3` positive and negative tags |
+| `TestPeerDiscardsAnIdentityRequery` | Done | `eap/rfc3748_nak_test.go` | |
+| `TestAuthenticatorRecordsTheTypesANakAskedFor` | Done | `eap/rfc3748_nak_test.go` | |
+| `TestRFC3748ResponseTypeMatchesRequest` (corrected) | Done | `eap/rfc3748_walk_test.go:213` | The `RFC3748-4.1-5` negative arm now asserts a Type-3 Nak carrying `{TypeMSCHAPv2}` |
+| `TestEngineAnswersANotificationRequest` | Done | `engine/eap_wiring_test.go` | |
+| `TestEngineSendsANakForAnUnacceptableType` | Done | `engine/eap_wiring_test.go` | |
+| `TestPeerDiscardLeavesTheSAAlive` | Done | `engine/eap_wiring_test.go` | |
+| `ipsec-eap-nak-unacceptable-type` | Done | `test/ipsec/ipsec-eap-nak-unacceptable-type.ci` | |
+| `eap-nak-method-negotiation` | Changed | `test/interop-ipsec/scenarios/eap-nak-method-negotiation/` | Single-method fallback; see the A-2 Mistake Log row |
+| 11 further tests, added beyond the plan | Changed | `eap/rfc3748_md5challenge_test.go`, `eap/method_set_test.go`, `eap/spoofed_packet_test.go`, `engine/rfc3748_ikev2_method_selection_test.go`, `engine/rfc7296_eap_nonkeying_auth_test.go`, `engine/eap_password_mode_test.go`, `ipsec/eap_password_mode_test.go`, `test/ipsec/ipsec-eap-md5-challenge.ci` | The plan was written while Type 4 was excluded |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/ike/eap/peer.go` | Done | |
+| `internal/component/ike/eap/eap.go` | Done | |
+| `internal/component/ike/engine/fsm.go` | Done | |
+| `internal/component/ike/eap/rfc3748_test.go` | Done | `TestRFC3748PeerNeverSendsNAK` deleted, tag moved; `TestRFC3748IKEv2RequiresKeyDerivingMethod` deleted, tags moved to the engine |
+| `internal/component/ike/eap/rfc3748_walk_test.go` | Done | |
+| `rfc/short/rfc3748.md` | Done | The nine rows are at HEAD; the working tree changes one `not-applicable` reason to name MD5-Challenge |
+| `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` | Done | |
+| `docs/architecture/ike/ipsec-11-interop-eap.md` | Done | |
+| `docs/architecture/ike/ipsec-7-ikev2-engine.md` | Done | |
+| `docs/architecture/core-design.md` | Changed | Untouched, as the row predicted for any answer but option A to D-1's original framing |
+| `docs/features/rfc-status.md` | Done | Regenerated by `./le rfc index-update`, never hand-edited |
+| `docs/features.md` | Done | |
+| `plan/journal/gate-excludes-part-of-its-population.md` | Done | Carries the deviation and its 2026-09-01 withdrawal |
+| `internal/component/ike/eap/rfc3748_notification_test.go` | Done | Created |
+| `internal/component/ike/eap/rfc3748_nak_test.go` | Done | Created |
+| `internal/component/ike/engine/eap_wiring_test.go` | Done | Created |
+| `test/ipsec/ipsec-eap-nak-unacceptable-type.ci` | Done | Created |
+| `test/interop-ipsec/scenarios/eap-nak-method-negotiation/swanctl.conf` | Done | Created |
+| `test/interop-ipsec/scenarios/eap-nak-method-negotiation/ze.conf` | Done | Created |
+| `test/interop-ipsec/scenarios/eap-nak-method-negotiation/strongswan.conf` | Changed | Created, beyond the plan: charon block-buffers stderr through a pipe |
+| `rfc/extraction/rfc3748.json` | Done | Landed |
+| 9 further files | Changed | `engine/auth.go`, `engine/eap_auth.go`, `engine/register.go`, `engine/responder_eap.go`, `ipsec/config.go`, `ipsec/types.go`, `ipsec/validate.go`, `ipsec/yang/ze-ipsec-conf.yang`, `internal/le/interoplab/ipsec/checkers.go` -- the sites MD5-Challenge reached |
+
+### Audit Summary
+- **Total items:** 62 (6 requirements, 15 ACs, 18 tests, 23 files)
+- **Done:** 55
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 7 (AC-13, the interop scenario, the 11 extra tests, `docs/architecture/core-design.md`, `strongswan.conf`, the 9 extra files, the extra `.ci`) -- each recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| An authenticator that offers a method Ze does not run gets a Type-3 Response naming the method Ze runs, instead of an error and a dead IKE SA | interop | `eap-nak-method-negotiation` under `./le integration interop-ipsec`: `code 0 passed 1 [{'name': 'eap-nak-method-negotiation', 'passed': True}]`. The assertion is strongSwan's own `initiating EAP_MD5 method` then `EAP/RES/NAK`, so charon decoded Ze's octets as a Nak. RED proven by reverting `PeerSession.naks` and REBUILDING the image (`ze-ipsec-interop` sha256:7cd83f300132): `wait for strongswan log "EAP/RES/NAK" timed out before the peer became ready`, exit 1 |
+| An operator can see which method the far end asked for | functional | `test/ipsec/ipsec-eap-nak-unacceptable-type.ci`: two daemons, one configured `mode eap-tls` as authenticator and one `mode eap-mschapv2` as peer, asserting `the peer refused type 13 with a Nak asking for type 26` and `EAP authentication failed` on stderr. RED under the same revert: `await=stderr ... never contained` within 2m0s |
+| Ze answers a Notification Request instead of erroring | functional (unit over the engine entry point) | `TestEngineAnswersANotificationRequest` (`engine/eap_wiring_test.go`) drives `handleEAPResponse`, not `handleRequest`, so the Response reaching the wire is what is asserted |
+| One unauthenticated packet can no longer end an EAP exchange | data correctness | Three tests, each over the real entry point: `TestPeerDiscardLeavesTheSAAlive` (SA state unchanged after a discard), `TestAuthenticatorDiscardsAnUnexpectedNak` (a Nak after commitment is discarded and recorded), `TestPeerDiscardsARequestAfterTheExchangeCompleted` |
+| Type 4 is supported on both roles and reachable by an operator | functional | `test/ipsec/ipsec-eap-md5-challenge.ci`: both daemons carry `authentication { mode eap-md5 }`, the tunnel establishes (`expect=exit:code=0`, `engine-steps: all steps passed`), and the warning is asserted verbatim: `this peer runs an EAP method that establishes no shared key` and `EAP methods that do not establish a shared key SHOULD NOT be used`. RED proven by deleting the `AuthEAPMD5` arm of `eapMethodType`: FAIL in 2.9s with `ike: create EAP session failed ... auth mode eap-md5 is not an EAP method` |
+| A method that derives no key still authenticates its IKEv2 AUTH correctly | data correctness | `TestEAPAuthOfNonKeyDerivingMethodUsesSKpiAndSKpr` drives a real MD5-Challenge exchange and asserts the AUTH is the SK_pi/SK_pr construction; `TestEAPAuthOfKeyDerivingMethodStillUsesTheMSK` is the counter-case; `TestEAPAuthIsRefusedBeforeTheEAPExchangeSucceeds` pins the ordering guard RFC 7296 Section 2.16 requires |
+| Every RFC 3748 site the two types make live carries a row and both polarities | RFC gate | 9 rows at `rfc/short/rfc3748.md:264, 308-316`, none reported by `./le rfc check`; 36 discrimination records verify across rfc3748 (34) and rfc7296 (2) with `discrimination-changed 0, escaped 0, owed 0, unresolved 0` |
+| The rfc3748 extraction sign-off lands | RFC gate | `./le rfc extraction-status`: rfc3748 is absent from the 126-stem `unsigned` list, so it is one of the 55 signed. `rfc/extraction/rfc3748.json` is 67,948 bytes under `rfc/extraction/`, not scratch |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| No shard. The spec metadata declares `Deferral shard \| -`, and `ls plan/deferrals/eap-notification-and-nak.md` finds no file | done | Nothing to resolve, and nothing to `remove`. No foreign shard was emptied by this work: this closure set no row in any other spec's shard to a terminal status |
+| D-1, carried in the spec's own Owner Decisions rather than in a shard | done | Answered 2026-09-01: implement Type 4, and make it operator-selectable (option A for the surface). Implemented; the 2026-08-30 deviation is withdrawn in `plan/journal/gate-excludes-part-of-its-population.md` |
+| D-2, same | done | Answered 2026-09-01: the authenticator sends no Notification Request. Site `5.2:4` is `excluded` with kind `feature-out-of-scope`; the absent feature is recorded in Known Limitations, never as a conformance gap |
+| The four ids `plan/spec-rfcgate-6-supported-extraction-signoff.md` relocated to this spec | done | `RFC3748-5-2`, `RFC3748-5.2-3`, `RFC3748-5.4-1` and `RFC3748-5.4-2`. Three are now rows in `rfc/short/rfc3748.md` (lines 308, 315, 316) with tests; `RFC3748-5.2-3` is covered by `RFC3748-5.2-1`'s Type-Data assertion in `TestPeerAnswersANotificationRequest` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/eap-notification-and-nak-16e17751-e30b-42b6-a39a-c8a12d282c82.md` |
+| `review check` | clean. `./le spec session review check` returns `review_gate: OK (39 code files, clean, hashes match ...)`, exit 0. `./le commit review-check spec eap-notification-and-nak` returns `clean true`, `verdict clean`, exit 0, over all 39 code files |
+| Rounds | 3. Round 1 and round 2 ran during implementation (one full independent 3-lens `/ze-review`, every BLOCKER and ISSUE fixed). Round 3 is this closure's fresh pass over the COMPLETE diff INCLUDING those fixes, and it found one ISSUE, fixed here |
+| Outstanding before the commit | TWO preconditions, neither a finding about the diff and neither this session's to satisfy. (1) `test/rfc-changed.md` carries no owner row for five changed RFC-tagged units, enumerated under Pre-Commit Verification; `./le commit create` refuses commit A without them and only Thomas writes them. (2) `plan/spec-rfcgate-6-supported-extraction-signoff.md:866` cites this spec by full path and must be restated to the bare stem on commit A; that file is another session's in-flight work. The review verdict is CLEAN because both are facts about approval and about other sessions' files, not about the reviewed code |
+| Reviewer lenses used | Round 3: (1) logic and wiring -- every product hunk read at the producing function, the AUTH role pairing checked in both directions, the two Section 2.1 boundary fields checked for asymmetry; (2) security and edge cases -- unauthenticated input bounds, constant-time comparison, zero-as-answer, panic reachability from a socket; (3) gate and record integrity -- `./le repository check`, `./le commit audit`, `./le rfc check`, `./le doc check verify`, `gofmt`, `go vet`, and every claim in this spec's own closure prose re-verified against source |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `ai/RFC-REQUIREMENTS.md` is stale against its sources, so the generated index disagrees with the summaries it derives from. Root cause: the index carries the discrimination proven/backlog counts (`Proven: 134` vs the tree's 140), and every record written after the last `./le rfc index-update` moves them, so the run made during implementation went stale again with each later record | `ai/RFC-REQUIREMENTS.md`, generated by `./le rfc index-update` | `[source]` Re-ran `./le rfc index-update`, which rewrote `ai/RFC-REQUIREMENTS.md` and `rfc/requirements/rfc3748.md` (`Proven: 134 (mutant 3, revert 131)` -> `Proven: 140 (mutant 3, revert 137)`). `[workaround]` rejected: hand-editing a generated file is destroyed at the next run with nothing saying so |
+| 2 | NOTE | `md5ChallengeMethod.Process` clears the credential with `m.secret = ""`, which drops the reference but leaves the string's backing bytes in the heap, and `md5ChallengeResponse` leaves a copy of the secret in its 128-byte stack buffer | `internal/component/ike/eap/eap_md5challenge.go` | Not fixed, and recorded as a NOTE. Go strings are immutable, so there is no in-place clear; a `[]byte` credential through `MethodConfig` would be the fix, and it is a change to a field EAP-MSCHAPv2 and the config parser share. NOTEs do not block |
+| 3 | NOTE | `./le repository check` reports one issue: `ParseEncryptionAlgo` in `internal/component/ike/ipsec/types.go` has no cross-package non-test caller. The symbol is at HEAD and untouched by this diff, whose only hunk in that file adds `AuthEAPMD5` to the `AuthMode` enum | `internal/component/ike/ipsec/types.go`, `ParseEncryptionAlgo` | Not fixed: a defect this work did not produce and does not depend on (`ai/rules/principles.md`). No journal row added -- `plan/journal/unwired-feature.md` already carries 77 rows of this class |
+| 4 | NOTE | `golangci-lint` reports `eap/rfc5216_msk_label_test.go:30` (unlambda) and `eap/rfc2759_failure_packet_test.go:26` (unparam). Neither line is in this diff: the first file is unmodified, and the second's only hunk is a `SplitSeq`/`CutPrefix` modernization at line 85 belonging to a concurrent session | `internal/component/ike/eap/` | Not fixed. Another session's work in a shared checkout |
+| 5 | NOTE | Commit B removes this spec, and one sibling spec cites it by full path: `plan/spec-rfcgate-6-supported-extraction-signoff.md:866` reads "7 belong to `plan/spec-eap-notification-and-nak.md`". `speccitation.Scan` matches the full path, and `find_dangling` resolves with `(repo / ref).is_file()`, so the citation reads GREEN today and goes red the moment the file is gone (`./le spec citation` is currently `OK (211 specs, 51 baselined dangling, 10 line-token WARN)`) | `plan/spec-rfcgate-6-supported-extraction-signoff.md:866` | **Not fixed, and deliberately.** The correct edit is the bare-stem restatement `spec-eap-notification-and-nak`, and it must ride on commit A. That file is another session's in-flight work, uncommitted in this shared checkout, so editing it from here would carry their diff into this commit (`ai/rules/principles.md`). Named for the main thread. `plan/deferrals/rfcgate-6-supported-extraction-signoff.md:22` and `plan/journal/gate-excludes-part-of-its-population.md:5` also cite the path, and both are outside the gate, which reads `plan/spec-*.md` only. `internal/component/ike/engine/eap_wiring_test.go:203` cites it in a comment; it is outside the gate too, and the comment stays true as a historical reference |
+| 6 | NOTE | `docs/features.md` carries a row this work did not write: "Published RFC conformance ledger", belonging to `plan/spec-publish-the-rfc-requirement-ledger.md`. Commit A must declare the file, so that row rides along | `docs/features.md` | Not fixed. Named so the main thread can decide whether to wait for that session or carry the row |
+
+## Pre-Commit Verification
+
+### Verification run
+
+| Command | Result |
+|---------|--------|
+| `./le verify worktree` | **Not applicable to this diff, and recorded rather than skipped.** `le verify worktree [commit <revision>]` runs the population against a fixed COMMIT in a fresh detached worktree, and this work is uncommitted, so a run defaulting to HEAD would verify a tree that does not carry it. It is owed on commit A, and the commit script runs it. `./le verify status check` reads `STALE: no status file (never verified)` for this checkout |
+| `./le verify current mode full` | The in-place population over the working tree, which DOES carry the diff. Its first stage, `verify lint/run`, completed: 78 findings repo-wide across 20 build flavors, of which exactly two are under `internal/component/ike/` and neither is a line this diff wrote (`eap/rfc5216_msk_label_test.go:30`, unmodified here; `eap/rfc2759_failure_packet_test.go:26`, whose only hunk here is a concurrent session's `SplitSeq`/`CutPrefix` edit at line 85). The remaining 39 stages were still running when this closure ended, and the run is left for the commit |
+| `go test -count=1 ./internal/component/ike/...` | exit 0. All 10 packages `ok`: `eap` 2.181s, `engine` 30.635s, `ipsec` 0.023s, plus cmd, crypto, dataplane, transport, wire, yang |
+| `go vet ./internal/component/ike/...` | exit 0 |
+| `gofmt -l internal/component/ike/` | no output |
+| `./le repository check` | exit 1, one issue: `internal/component/ike/ipsec/types.go:55 ParseEncryptionAlgo has no cross-package non-test caller`. At HEAD and untouched (this diff edits the same file from line 157) |
+| `./le rfc check` | exit 2, 15 rfc3748 findings, all at `rfc/short/rfc3748.md:289-306`, all at HEAD, all owed by `plan/spec-rfcgate-6-supported-extraction-signoff.md`. Discrimination clean: `changed 0, escaped 0, owed 0, unresolved 0` |
+| `./le rfc extraction-status` | exit 0. rfc3748 absent from the 126-stem `unsigned` list, so it is one of the 55 signed |
+| `./le doc check verify` | exit 1. Zero findings under `docs/`; all 2,047 are in the sibling `../gh-pages/` and `../wiki/` checkouts and name the CLI command catalog commit `e691533a6` moved |
+| `./le commit audit` | exit 1, 12 weakened findings. See the note under Files Exist |
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/eap/rfc3748_notification_test.go` | Yes | `ls` lists it; 357 lines |
+| `internal/component/ike/eap/rfc3748_nak_test.go` | Yes | `ls` lists it; 494 lines |
+| `internal/component/ike/engine/eap_wiring_test.go` | Yes | `ls` lists it; 259 lines |
+| `internal/component/ike/eap/eap_md5challenge.go` | Yes | `ls` lists it; 246 lines |
+| `test/ipsec/ipsec-eap-nak-unacceptable-type.ci` | Yes | `-rw-rw-r-- 7255 Sep 1 12:42` |
+| `test/ipsec/ipsec-eap-md5-challenge.ci` | Yes | `-rw-rw-r-- 8558 Sep 1 16:46` |
+| `test/interop-ipsec/scenarios/eap-nak-method-negotiation/` | Yes | `ls` lists `strongswan.conf`, `swanctl.conf`, `ze.conf` |
+| `rfc/extraction/rfc3748.json` | Yes | `-rw-r--r-- 67948 Sep 1 22:49`, under `rfc/extraction/` and not scratch |
+
+### Owner approval still owed before commit A (BLOCKING for `./le commit create`)
+
+`./le commit audit` reports 12 weakened findings over this diff. `test/rfc-changed.md`
+carries four rows, all dated 2026-09-01 and all naming Thomas's approval. The rows
+resolve findings by test NAME, and `./le commit create` is the only run that resolves
+them against the DECLARED file set, so the exact remainder is known there. What this
+closure can name is the set of changed RFC-tagged units for which NO row exists:
+
+| File | Tagged unit | Why it changed | Row exists |
+|------|-------------|----------------|------------|
+| `internal/component/ike/eap/rfc3748_test.go` | `TestRFC3748PeerNeverSendsNAK` (deleted) | Its own words asserted the non-conformant behavior: the peer "errors (never NAKs) on an unexpected type" and "must error instead". RFC 3748 Section 5.3.1 requires the Nak. Tags `RFC3748-2.1-3 positive` and `RFC3748-7.10-3`, both re-homed: `RFC3748-2.1-3` to `TestRFC3748PeerNaksBeforeItCommitsToAMethod` (`eap/rfc3748_nak_test.go`) with BOTH polarities, `RFC3748-7.10-3` to `engine/rfc3748_ikev2_method_selection_test.go` | **No** |
+| `internal/component/ike/engine/rfc7296_eap_auth_producer_test.go` | file | Rename only: `ComputeAuthFromMSK`/`VerifyAuthFromMSK` -> `computeAuthFromSharedSecret`/`verifyAuthFromSharedSecret`, plus `[64]byte` -> `[:]` at the call. No assertion moved | **No** |
+| `internal/component/ike/engine/rfc7296_wp2_test.go` | file | Same rename, same reason. No assertion moved | **No** |
+| `internal/component/ike/engine/responder_test.go` | file | Rename only: `NewEAPSession` -> `newEAPSession` in one comment and one `t.Fatal` string. No assertion moved | **No** |
+| `internal/component/ike/eap/rfc3748_identifier_test.go` | file | Interface conformance only: `doneMethod` gains `DerivesKey()`, which `Method` now requires. No assertion moved | **No** |
+| `internal/component/ike/eap/rfc2759_failure_packet_test.go` | file | Not this work: a concurrent session's `SplitSeq`/`CutPrefix` modernization | Out of scope; drops out once commit A declares only this work's files |
+
+No row was written for any of them. `test/rfc-changed.md` says a row is the OWNER's
+approval, so writing one on this session's own initiative would be a forgery by that
+file's own words (`ai/rules/rfc-compliance.md`).
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1..AC-4 | The peer answers Type 2 and never Naks one | `go test -run 'RFC3748(Notification\|Nak\|Peer)' ./internal/component/ike/eap/` -> `ok ... 0.007s`, 9 PASS lines |
+| AC-5..AC-7, AC-11 | The peer Naks 4-253, 255 and 254, naming the configured method | Same run; `TestRFC3748PeerNaksBeforeItCommitsToAMethod` PASS |
+| AC-8, AC-9 | A Request the peer does not own is discarded, not errored | `go test -run 'TestEngine(Answers\|Sends)\|TestPeerDiscardLeavesTheSAAlive' ./internal/component/ike/engine/` -> 3 PASS, `ok ... 0.055s` |
+| AC-10 | The authenticator names the Types a Nak asked for | `TestAuthenticatorRecordsTheTypesANakAskedFor` in the eap run above |
+| AC-12 | 9 rows, no stale annotation | `grep -c 'RFC3748-5.2-\|RFC3748-5.3.1-\|RFC3748-5-2\|RFC3748-5.4-' rfc/short/rfc3748.md` = 9; `grep -n 'RFC3748-2.1-3' rfc/short/rfc3748.md` -> line 264, no `{single-polarity` |
+| AC-13 | `./le rfc check` reports nothing against this spec's rows | Exit 2; all 15 rfc3748 findings are at lines 289-306 and belong to `spec-rfcgate-6-supported-extraction-signoff`, present at HEAD |
+| AC-14 | Both RED proofs observed | Recorded verbatim in the Recorded RED Proofs section, with the rebuilt image digest |
+| AC-15 | The sign-off is landed | `./le rfc extraction-status`: rfc3748 absent from `unsigned` (126 stems), so it is one of the 55 `signed` |
+| Whole package | Nothing regressed | `go test -count=1 ./internal/component/ike/...` -> exit 0, all 10 packages `ok` (`eap` 2.181s, `engine` 30.635s, `ipsec` 0.023s) |
+| Renames left no dangling caller | `ComputeAuthFromMSK`, `VerifyAuthFromMSK`, `NewEAPSession` have no remaining reference | `grep -rn 'ComputeAuthFromMSK\|VerifyAuthFromMSK\|NewEAPSession' --include='*.go' .` -> no hits in product or test code |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| IKE_AUTH carrying an EAP Request of Type 4 while the SA is in `StateEAPInProgress` | `test/ipsec/ipsec-eap-nak-unacceptable-type.ci` | Yes. Read the file: it starts two daemons, one `mode eap-tls` and one `mode eap-mschapv2` (lines 80, 133), and asserts `the peer refused type 13 with a Nak asking for type 26` at lines 152-154, which is Ze's own authenticator reading Ze's own Nak. Also `TestEngineSendsANakForAnUnacceptableType`, which drives `handleEAPResponse` |
+| IKE_AUTH carrying an EAP Request of Type 2 | none (unit over the engine entry point) | Yes. `TestEngineAnswersANotificationRequest` (`engine/eap_wiring_test.go`) calls `handleEAPResponse`, not `handleRequest`, so the send path is exercised. No `.ci` exists: no operator surface changes for a Notification beyond the log line |
+| IKE_AUTH carrying an unexpected Type after the method began | none (unit over the engine entry point) | Yes. `TestPeerDiscardLeavesTheSAAlive` asserts the SA state is unchanged after `handleEAPResponse` returns |
+| strongSwan offering a method Ze does not run | `test/interop-ipsec/scenarios/eap-nak-method-negotiation/` | Yes. Read the checker: `checkEAPNakMethodNegotiation` (`internal/le/interoplab/ipsec/checkers.go`) waits for charon's `initiating EAP_MD5 method` then `EAP/RES/NAK`, then requires zero XFRM SAs at both ends, in that order, so a scenario that never reached EAP fails rather than passing on an empty kernel |
+| An operator configures `authentication { mode eap-md5 }` | `test/ipsec/ipsec-eap-md5-challenge.ci` | Yes. Read the file: both daemons carry `mode eap-md5` (lines 107, 195), the tunnel establishes (`expect=exit:code=0`, `engine-steps: all steps passed`), and the adoption warning is asserted verbatim (lines 221-222) |
+
+### Security Review (step 2)
+
+| Check (from the spec's Security Review Checklist) | Finding |
+|---|---|
+| Input validation -- an unauthenticated Notification message reaching a log line | Passes. `handleEAPResponse` (`engine/fsm.go`) passes it as a slog VALUE (`"message", result.Notification`), never into a format string, a path or a command. `notificationResponse` truncates at `notificationMax` = 1015, which is RFC 3748 Section 5.2's own budget |
+| Resource exhaustion -- Notification Requests are free to repeat | Passes. `PeerSession.Process` counts every Request against `maxEAPRounds` BEFORE dispatch, so a Notification consumes a round. `TestNotificationRequestsCountAgainstTheRoundCap` pins it. The log line is bounded by the same 1015-octet cut |
+| The same question, asked of the Nak the AUTHENTICATOR receives | Found and closed in this diff. `wireEAPToPacket` slices Type-Data out of the whole EAP payload with no cap, so one IKE_AUTH could carry tens of thousands of octets into `Session.err` and from there into an operator's log. `desiredTypeMax` = 252 bounds it, which is the RFC's own count of authentication Types (4 through 255), and the render says `(truncated)` when it stopped short. `TestNakDesiredTypeListIsBounded` pins it |
+| Error leakage -- the Nak names the configured method | Accepted, as the checklist predicted. It is the negotiation RFC 3748 Section 5.3.1 requires and it discloses nothing an authenticator does not learn from a successful exchange |
+| Authorization that could fail open -- can the discard end the exchange as a success | No. `peerDiscard()` returns `PeerResult{Discarded: true}` with `Done` false, no MSK and no Response, and `handleEAPResponse` has no branch that reads a discard as completion. `TestPeerDiscardLeavesTheSAAlive` asserts the SA stays in `StateEAPInProgress` |
+| Downgrade -- can a Nak steer Ze onto a keyless method | No. `nakResponse` writes `ps.method`, the ONE configured method, so the Nak names what the operator chose and never a Type an attacker picked. `naks` returns false for `ps.method`, so a Request for the configured method is never refused |
+| Cryptographic misuse (generic) | `md5ChallengeMethod.Process` compares with `subtle.ConstantTimeCompare`, and `constantTimeEqualAuth` (`engine/eap_auth.go`) now calls the same primitive instead of a hand-rolled loop. `md5ChallengeMethod.Start` draws its challenge from `crypto/rand`, not a counter, which RFC 1994 Section 2.3 requires. MD5 is used only where RFC 3748 Section 5.4 prescribes it, with a `//nolint:gosec` naming the section |
+| Privilege escalation / fail-open in the AUTH path | Closed in this diff, and it is the most consequential security change here. `eapAuthSecret` refuses until `Succeeded()`, so a peer cannot send its AUTH on the first EAP round and skip authenticating: SK_pi and SK_pr are derived from SKEYSEED, which anybody who completed IKE_SA_INIT holds. A key-deriving method was covered by the MSK being zero until success; a keyless method has no such accident, so the guard is written. `TestEAPAuthIsRefusedBeforeTheEAPExchangeSucceeds` pins it |
+| Buffer overflow / out-of-bounds | Every length in `handleMD5ChallengeRequest` and `md5ChallengeMethod.Process` is checked against the Type-Data actually present before it indexes: empty Type-Data, `Value-Size` 0, and `len(td) < 1+valueSize` each return an error. `TestMD5ChallengeRefusesMalformedTypeData` drives them |
+| Panic reachable from a socket (`docs/contributing/ze-go-style.md`, style pass question 1) | None. Three panics exist in the changed packages: `eap/eap.go:641` (a method setting `FinalRequest` with no `Err`, reachable only from Ze's own method code and never from a peer's bytes) and `engine/auth.go:798` and `:807` (DER-encoding a compile-time constant). All three are at HEAD and untouched by this diff |
+| Information leakage | `md5ChallengeMethod.Process` drops the credential (`m.secret = ""`) on both arms, before returning either verdict. See NOTE 2 in the Review Gate for what that does and does not clear |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | "An initial non-Nak Response" is the peer's first Response to a METHOD Request. The reading is stated above `PeerSession.methodCommitted` (`peer.go`) and mirrored above `Session.methodAnswered` (`eap.go`), and `TestRFC3748PeerNaksBeforeItCommitsToAMethod` drives both sides of the boundary: a Nak before the commitment, a discard after it. The literal alternative would make RFC 3748 Section 5.3.1's MUST unreachable, and Section 5.4's "The Response MAY be either of Type 4 (MD5-Challenge), Nak (Type 3), or Expanded Nak (Type 254)" describes exactly the Nak that follows an Identity Response |
+| A-2 | **broken** | The strongSwan image ships NO `eap-dynamic` plugin. `ls /usr/lib/ipsec/plugins` in the image built from `test/interop-ipsec/Dockerfile.strongswan` lists `eap-md5`, `eap-mschapv2`, `eap-tls`, `eap-radius`, `eap-aka`, `eap-sim` and `eap-identity`. The A-2 row's own fallback was taken: strongSwan offers `eap-md5` only, Ze Naks, and the assertion is charon's log plus no tunnel. Mistake Log row and Deviations entry recorded |
+| A-3 | confirmed | `handleEAPResponse` (`engine/fsm.go`) guards the send with `if result.Response != nil` and has no else branch, so an all-zero `PeerResult` sent nothing and waited. `TestPeerDiscardLeavesTheSAAlive` drives the engine path and asserts the SA state is unchanged, so the explicit `Discarded` outcome changed no wire behavior; what changed is that a caller must now branch on it |
+| A-4 | confirmed | Neither specification prohibits Notification messages. `grep -c -i 'notification' rfc/full/rfc2759.txt` = 0 and `grep -c -i 'notification' rfc/full/rfc5216.txt` = 0: the word does not appear in either document. Recorded above `PeerSession.notificationResponse`, which names RFC 3748 Section 5.4, RFC 2759 and RFC 5216 and concludes all three methods owe the Response |
+| A-5 | confirmed | `Session.err` carries it. `Session.nakRefused` writes `nakRefusal(...)` and `Session.nakUnexpected` writes its own sentence, both into `s.err`, which `Session.Err()` returns and `handleResponderEAP` logs. `TestAuthenticatorRecordsTheTypesANakAskedFor` reads `Session.Err()` after a driven Nak. `Err`'s doc comment was widened to say that a non-nil value no longer means the exchange ended, so a caller reads `Succeeded()` for the outcome |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| 1. New user-facing feature -- Yes | `docs/features.md`, "IPsec EAP Authentication" row: MD5-Challenge type 4, the SK_pi/SK_pr AUTH, the adoption warning, and the peer's Nak and Notification behavior. Checked against `eapMethodType`, `warnKeylessEAPModes` and `PeerSession.nakResponse` | Yes |
+| 2. Config syntax changed -- Yes (the checklist said No; the answer changed with D-1) | `enum eap-md5` added to BOTH `authentication mode` enumerations in `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` (the `remote-access` one at line 254 and the `site-to-site` one at line 566), each with a description quoting RFC 7296 Section 2.16. `docs/guide/ipsec.md` documents it. Verified against the YANG, not against the spec | Yes |
+| 3. CLI command -- No | No `internal/component/ike/cmd/` file is in the diff | Yes |
+| 4. API/RPC -- No | No RPC type in the diff | Yes |
+| 6. User guide page -- Yes | `docs/guide/ipsec.md` gains "EAP method negotiation" and "EAP MD5-Challenge", both with `<!-- source: -->` anchors naming `handleRequest`, `nakResponse`, `notificationResponse`, `md5ChallengeMethod`, `eapMethodType`, `warnKeylessEAPModes`, `eapAuthSecret` | Yes |
+| 7. Wire format -- Yes | `docs/architecture/ike/ipsec-9-ikev2-eap-nat.md` +122 lines carrying the Notification Response and legacy Nak shapes with byte offsets, plus the CHAP Challenge/Response body | Yes |
+| 9. RFC behavior -- Yes | `rfc/short/rfc3748.md` carries the 9 rows; `docs/features/rfc-status.md` is GENERATED and was regenerated by `./le rfc index-update`, never hand-edited | Yes |
+| 10. Test infrastructure -- Yes | `docs/functional-tests.md:304` describes both new `.ci` tests. The file is clean in the working tree because a concurrent session's commit `199b684f6` carried that edit. `docs/architecture/testing/interop.md` owes nothing: `grep 'eap-mschapv2'` over it returns no hit, so it does not enumerate scenario directories | Yes |
+| 11. Daemon comparison -- No | `docs/comparison.md` compares feature presence and already lists EAP; the support level did not change | Yes |
+| 12. Internal architecture -- Yes | `docs/architecture/ike/ipsec-7-ikev2-engine.md` (+32, the discard outcome), `ipsec-11-interop-eap.md` (the scenario and what it does not prove), `ipsec-14-responder.md`, `ai/digests/ipsec-ike.md` | Yes |
+| 16. Changed files behind existing anchors -- Yes | `peer.go` -> `ipsec-11-interop-eap.md`, `eap.go` -> `ipsec-9-ikev2-eap-nat.md`, `fsm.go` -> `ipsec-7-ikev2-engine.md`, `eap_auth.go` -> `ipsec-11-interop-eap.md` (repointed from `ComputeAuthFromMSK` to `computeEAPAuth, eapAuthSecret`), `auth.go` -> `ipsec-14-responder.md`. All five edited | Yes |
+| 17. Existing examples still valid -- Yes | `docs/guide/ipsec.md`'s existing EAP examples are unchanged and stay valid: no existing leaf changed, one enum value was added | Yes |
+| Doctor check needed -- No | The change adds no file path, socket, port, module, binary or certificate. `eap-md5` reuses the `pre-shared-secret` leaf and the same PKI refs every EAP mode already needs (`ValidatePKIRefs`, `ipsec/validate.go`) | Yes |
+| `./le doc check verify` | Exit 1. All findings are in `../gh-pages/` (2,046) and `../wiki/` (1), every one naming the CLI command catalog that commit `e691533a6` moved. Zero findings under `docs/` | Yes |
+
+## Core Insight
+
+**One refusal path had one shape for four different situations, and the RFC gives each a different answer.** `PeerSession.handleRequest` returned an error for an unacceptable method, an out-of-order Request, an Identity Requery and a malformed method payload alike, and the carrier read every error as `StateDead`. So the single most consequential change here is not the Nak or the Notification: it is that the peer now has four outcomes where it had one, and three of them are decided by the Type BEFORE any method sees the packet. The same shape appears again one layer down. `sa.EAPMSK != [64]byte{}` was one test standing in for two questions -- "did the exchange succeed" and "does this method derive a key" -- and an all-zero MSK answers neither. Both defects are the same mistake: a value that happened to correlate with the answer was read AS the answer, and the correlation held only while the population was small. Widening the population (a third EAP method, a fourth peer outcome) is what exposed both.

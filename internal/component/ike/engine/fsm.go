@@ -917,19 +917,37 @@ func startEAPExchange(sa *SA, eapPayload *wire.PayloadEAP, tr *transport.UDPTran
 		identity = sa.PeerName
 	}
 
+	// eapMethodType (eap_auth.go) is the one declaration of which method a mode
+	// selects, and ipsec.IsEAPPasswordMode (ipsec/validate.go) is the one
+	// declaration of which modes carry a password. The first arm below asks the
+	// METHOD, because EAP-TLS is the one method that needs its own constructor: it
+	// carries a TLS configuration the other methods have no field for.
+	methodType, isEAP := eapMethodType(sa.PeerCfg.Auth.Mode)
+	if !isEAP {
+		log.Warn("ike: server sent EAP but auth mode is not EAP", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+
 	var ps *eap.PeerSession
-	switch sa.PeerCfg.Auth.Mode {
-	case ipsec.AuthEAPMSCHAPv2:
-		ps = eap.NewPeerSession(eap.TypeMSCHAPv2, identity, sa.PeerCfg.Auth.PSK)
-	case ipsec.AuthEAPTLS:
+	switch {
+	case methodType == eap.TypeTLS:
 		tlsCfg := buildPeerTLSConfig(sa, log)
 		if tlsCfg == nil {
 			sa.State = StateDead
 			return
 		}
 		ps = eap.NewPeerSessionTLS(identity, tlsCfg)
+	case ipsec.IsEAPPasswordMode(sa.PeerCfg.Auth.Mode):
+		// A password method takes the one shared secret the operator configured.
+		ps = eap.NewPeerSession(methodType, identity, sa.PeerCfg.Auth.PSK)
 	default:
-		log.Warn("ike: server sent EAP but auth mode is not EAP", "peer", sa.PeerName)
+		// Unreachable while eapMethodType and ipsec.IsEAPPasswordMode answer for
+		// the same modes. It is written rather than folded into the password arm
+		// so that a method added to eapMethodType alone fails loudly here, instead
+		// of being handed to a constructor that cannot carry what it needs.
+		log.Warn("ike: no EAP peer session exists for the configured method",
+			"peer", sa.PeerName, "mode", sa.PeerCfg.Auth.Mode.String(), "type", methodType)
 		sa.State = StateDead
 		return
 	}
@@ -941,6 +959,14 @@ func startEAPExchange(sa *SA, eapPayload *wire.PayloadEAP, tr *transport.UDPTran
 		log.Warn("ike: EAP process failed", "peer", sa.PeerName, "error", result.Err)
 		sa.State = StateDead
 		return
+	}
+
+	// RFC 3748 Section 4.2 makes the peer drop a Success the method conversation
+	// does not permit yet, and the first packet of an EAP exchange never permits
+	// one. The exchange proceeds as if the packet had not arrived, so the SA goes
+	// to StateEAPInProgress below and waits for the authenticator's next packet.
+	if result.Discarded {
+		log.Warn("ike: EAP packet discarded", "peer", sa.PeerName, "code", parsed.Code, "type", parsed.Type)
 	}
 
 	if result.Response != nil {
@@ -1029,6 +1055,28 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 		sendRaw(sa, tr, authMsg, log)
 		log.Debug("ike: EAP success, sent AUTH from MSK", "peer", sa.PeerName)
 		return
+	}
+
+	// A packet RFC 3748 Section 4.2 or Section 4 made the peer drop. It is named
+	// here and nowhere else: the silence the RFC asks for is silence toward the
+	// authenticator, and an operator whose peer is being fed forged EAP-Success
+	// packets learns it from this line. The SA is left alone, so it stays in
+	// StateEAPInProgress and waits for the authenticator's next packet.
+	if result.Discarded {
+		log.Warn("ike: EAP packet discarded", "peer", sa.PeerName, "code", parsed.Code, "type", parsed.Type, "id", parsed.Identifier)
+	}
+
+	// RFC 3748 Section 5.2: "The peer SHOULD display this message to the user or
+	// log it if it cannot be displayed." A daemon has no user to display it to,
+	// so the log line IS the display, and it is written once for each
+	// Notification Request. The Notification Response goes out below on the same
+	// round, because Section 5.2 owes both.
+	//
+	// The message is unauthenticated and chosen by whoever sent the packet, which
+	// is why it is passed as a slog VALUE: it is never built into the format
+	// string, a path or a command.
+	if result.Notified {
+		log.Info("ike: EAP notification from the authenticator", "peer", sa.PeerName, "message", result.Notification)
 	}
 
 	if result.Response != nil {

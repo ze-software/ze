@@ -14,7 +14,7 @@ import (
 // Every test in this file drives computeEAPAuth, which auth.go and responder.go
 // call to build the AUTH payloads of messages 7 and 8, and each one is red under a
 // mutation keying computeEAPAuth from a constant instead of sa.EAPMSK. The tests
-// in rfc7296_wp2_test.go exercise ComputeAuthFromMSK, the primitive, and stayed
+// in rfc7296_wp2_test.go exercise computeAuthFromSharedSecret, the primitive, and stayed
 // green under that mutation, which is why the RFC7296-2.16 tags sit here.
 
 // eapProducerAUTH returns the AUTH payload the message-7/8 producer builds for sa.
@@ -35,7 +35,7 @@ func eapProducerAUTH(t *testing.T, sa *SA, what string) *wire.PayloadAUTH {
 //
 // PREVENTS: the defect this file exists for. computeEAPAuth is the producer both auth.go
 // and responder.go call; keying it from any constant, or from a field other than sa.EAPMSK,
-// is invisible to a test that only exercises ComputeAuthFromMSK with a hand-built key.
+// is invisible to a test that only exercises computeAuthFromSharedSecret with a hand-built key.
 //
 // The MSK is the ONLY input changed between the two calls, and the SA comes from a real EAP
 // handshake, so the difference cannot come from anywhere else.
@@ -57,9 +57,9 @@ func TestEapAuthProducerIsKeyedByTheNegotiatedMSK(t *testing.T) {
 
 	// Both sides must generate the AUTH of messages 7 and 8 from that shared key.
 	fromResponder := eapProducerAUTH(t, resp, "responder, negotiated MSK")
-	expected, err := ComputeAuthFromMSK(resp.Proposal.PRF.ID, resp.EAPMSK, mustSignedOctets(t, resp))
+	expected, err := computeAuthFromSharedSecret(resp.Proposal.PRF.ID, resp.EAPMSK[:], mustSignedOctets(t, resp))
 	if err != nil {
-		t.Fatalf("ComputeAuthFromMSK: %v", err)
+		t.Fatalf("computeAuthFromSharedSecret: %v", err)
 	}
 	if !bytes.Equal(fromResponder.AuthData, expected) {
 		t.Error("the AUTH the producer builds is not the value the negotiated EAP shared key generates")
@@ -99,7 +99,7 @@ func TestEapAuthProducerOutputIsRefusedUnderAnotherKey(t *testing.T) {
 	resp.EAPMSK = other
 	underOther := eapProducerAUTH(t, resp, "responder, other MSK")
 
-	if err := VerifyAuthFromMSK(resp.Proposal.PRF.ID, negotiated, signed, underOther.AuthData); err == nil {
+	if err := verifyAuthFromSharedSecret(resp.Proposal.PRF.ID, negotiated[:], signed, underOther.AuthData); err == nil {
 		t.Error("an AUTH the producer keyed from another EAP shared key verified under the negotiated one")
 	}
 
@@ -107,7 +107,7 @@ func TestEapAuthProducerOutputIsRefusedUnderAnotherKey(t *testing.T) {
 	// key talking and not a verifier that rejects everything.
 	resp.EAPMSK = negotiated
 	underReal := eapProducerAUTH(t, resp, "responder, negotiated MSK")
-	if err := VerifyAuthFromMSK(resp.Proposal.PRF.ID, negotiated, signed, underReal.AuthData); err != nil {
+	if err := verifyAuthFromSharedSecret(resp.Proposal.PRF.ID, negotiated[:], signed, underReal.AuthData); err != nil {
 		t.Errorf("the AUTH the producer keyed from the negotiated shared key did not verify: %v", err)
 	}
 }

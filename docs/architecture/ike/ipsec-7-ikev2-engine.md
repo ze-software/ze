@@ -115,7 +115,16 @@ from operator `clear` alone.
 **PSK AUTH comparison is constant time.** A byte-at-a-time comparison leaks
 timing that lets an attacker brute-force the derived key one byte at a time.
 
+**One function holds the AUTH construction, whatever the secret is.** RFC 7296
+Section 2.15 gives one formula, and `computeAuthFromSharedSecret` is the only
+place its pad string, its PRF order and its operand order are written. A
+pre-shared key, an EAP MSK, and SK_pi or SK_pr each enter it as the secret
+argument. `verifyPSKAuth` and the EAP verifier share `verifyAuthFromSharedSecret`
+for the same reason, so a change to the construction moves the sender and the
+receiver together.
+
 <!-- source: internal/component/ike/engine/auth.go -- verifyPSKAuth, computePSKAuth -->
+<!-- source: internal/component/ike/engine/eap_auth.go -- computeAuthFromSharedSecret, verifyAuthFromSharedSecret, constantTimeEqualAuth -->
 
 **The engine emits SA lifecycle events.** `vpn-ipsec/sa-up` and
 `vpn-ipsec/sa-down` are registered at init time, so any component can subscribe.
@@ -156,6 +165,29 @@ one as evidence about the other.
 **Remote identity policy is separate from the certificate check.** The peer's
 claimed ID is matched against config, not inferred from the certificate. That
 lookup has its own file.
+
+**A discarded EAP packet is not a dead SA.** `handleEAPResponse` puts the SA in
+`StateDead` for any non-nil `PeerResult.Err`, so reporting an error for a packet
+RFC 3748 makes the peer drop would let one forged packet end the exchange. A
+discard is `PeerResult.Discarded` instead. Nothing is sent, the SA stays in
+`StateEAPInProgress`, and the retransmit timer is re-armed before the handler
+returns, which is the state a peer that never received the packet would be in.
+`maxEAPRounds` still counts the round, so a flood ends the exchange rather than
+holding it open. The engine writes `ike: EAP packet discarded` with the Code, the
+Type and the Identifier, because the silence RFC 3748 asks for is owed to the
+authenticator and not to the operator.
+
+**A Notification message reaches the operator through the log.** RFC 3748 Section
+5.2 says the peer "SHOULD display this message to the user or log it if it cannot
+be displayed". A daemon has no user to display it to, so the log line is the
+display: `ike: EAP notification from the authenticator` at Info, with the peer
+name and the message. The message is unauthenticated and is chosen by whoever
+sent the packet, so it is passed as a slog value and is never built into a format
+string, a path or a command. Ze sends the Notification Response on the same
+round, because `PeerResult` carries `Notified` beside `Response`.
+
+<!-- source: internal/component/ike/engine/fsm.go -- handleEAPResponse -->
+<!-- source: internal/component/ike/eap/peer.go -- PeerResult, peerDiscard, notificationResponse -->
 
 <!-- source: internal/component/ike/engine/remote_id.go -- remote identity matching -->
 <!-- source: internal/component/ike/engine/notify_error.go -- error notification emission -->

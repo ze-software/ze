@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7296",
+  "records": [
+    {
+      "rid": "RFC7296-2.16-5",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go::TestEAPAuthOfKeyDerivingMethodStillUsesTheMSK",
+      "unit-sha": "7352c25fdd88c496",
+      "claim-sha": "d373de2eb034fb57",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/eap_auth.go::eapAuthSecret",
+      "producer-sha": "ef2933708abe8b50",
+      "break": "body of eapAuthSecret replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7296-2.16-5",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7296_eap_nonkeying_auth_test.go::TestEAPAuthOfNonKeyDerivingMethodUsesSKpiAndSKpr",
+      "unit-sha": "c7212508f41e6e75",
+      "claim-sha": "bbf6d96ba420d5d4",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/eap_auth.go::eapAuthSecret",
+      "producer-sha": "ef2933708abe8b50",
+      "break": "body of eapAuthSecret replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

@@ -4,12 +4,17 @@
 // RFC 3748 (EAP) enrollment coverage for the framework logic ze's `eap` package
 // genuinely implements: packet length validation (Section 4), the lock-step
 // authenticator state machine (Sections 2, 2.1), Success/Failure formatting and
-// single emission (Section 4.2), the peer's no-NAK / no-self-timer behavior
-// (Sections 2.1, 4.1), and the MSK size / key-deriving-method constraints
-// (Section 7.10). Lower-layer obligations (Section 3.1), pass-through (Section
-// 2.3) and Expanded/EMSK details are annotated in the summary as not-applicable:
-// ze carries EAP only inside IKEv2, terminates every method locally, and offers
-// only the two key-deriving methods EAP-TLS and EAP-MSCHAPv2.
+// single emission (Section 4.2), the peer's no-self-timer behavior (Section
+// 4.1), and the MSK size a completed method yields (Section 7.10). Which method
+// an IKEv2 exchange may select is not decided here: the eap package builds every
+// method RFC 3748 Section 5 obliges it to, and the two producers that pick one
+// for IKEv2 live in the engine package, where
+// rfc3748_ikev2_method_selection_test.go covers them.
+// Lower-layer obligations (Section 3.1) and pass-through (Section 2.3) are
+// annotated in the summary as not-applicable: ze carries EAP only inside IKEv2
+// and terminates every method locally. The peer's Notification and Nak duties
+// (Sections 5.2, 5.3.1 and 5.7) are proven in rfc3748_notification_test.go and
+// rfc3748_nak_test.go, which is where the Section 2.1 Nak boundary lives too.
 //
 // Both EAP roles ze plays are exercised: the authenticator via `Session`
 // (Begin/Process) and the peer via `PeerSession` (Process), driven end-to-end
@@ -19,14 +24,11 @@
 // minimum); Success/Failure are 4 octets with no Type field and are emitted once;
 // the authenticator is lock-step and only advances on a valid Response; a single
 // method runs per conversation and its completion sends Success or Failure; the
-// peer never NAKs and never self-retransmits; a completed method yields a 64-octet
-// MSK; and only key-deriving methods (EAP-TLS, EAP-MSCHAPv2) are selectable while
-// non-keying types (MD5-Challenge/OTP/GTC) are refused for IKEv2.
+// peer never self-retransmits; and a completed method yields a 64-octet MSK.
 // PREVENTS: accepting an over-length or sub-minimum EAP frame, formatting or
 // retransmitting Success/Failure incorrectly, advancing the authenticator without
 // a valid Response, running a second method mid-conversation, the peer emitting a
-// NAK or a spontaneous retransmission, shrinking the MSK below 64 octets, or
-// admitting a non-key-deriving EAP method into an IKEv2 exchange.
+// spontaneous retransmission, or shrinking the MSK below 64 octets.
 
 package eap
 
@@ -283,47 +285,6 @@ func TestRFC3748MethodCompletionSendsResult(t *testing.T) {
 	}
 }
 
-func TestRFC3748PeerNeverSendsNAK(t *testing.T) {
-	// RFC requirement: RFC3748-2.1-3 positive -- the EAP peer never emits a Type-3 NAK:
-	// it answers Identity with Identity and each method Request with a method Response,
-	// and errors (never NAKs) on an unexpected type. No Response it produces across a
-	// full exchange -- nor when handed an unexpected type -- is a NAK.
-	peer := NewPeerSession(TypeMSCHAPv2, "user", "secret")
-	auth, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: "secret"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := auth.Begin()
-	for round := range 8 {
-		pr := peer.Process(req)
-		if pr.Response != nil && pr.Response.Type == TypeNAK {
-			t.Fatalf("peer emitted a Type-3 NAK at round %d", round)
-		}
-		if pr.Err != nil || pr.Done || pr.Response == nil {
-			break
-		}
-		next := auth.Process(pr.Response)
-		if next == nil || next.Code == CodeSuccess || next.Code == CodeFailure {
-			// Feed the terminal packet so the peer processes Success/Failure too.
-			if next != nil {
-				peer.Process(next)
-			}
-			break
-		}
-		req = next
-	}
-
-	// An unexpected type in the identity phase must produce an error, not a NAK.
-	peer2 := NewPeerSession(TypeMSCHAPv2, "user", "secret")
-	res := peer2.Process(&Packet{Code: CodeRequest, Identifier: 1, Type: 99})
-	if res.Response != nil && res.Response.Type == TypeNAK {
-		t.Fatal("peer answered an unexpected type with a NAK; it must error instead")
-	}
-	if res.Err == nil {
-		t.Fatal("peer should error on an unexpected initial type")
-	}
-}
-
 func TestRFC3748PeerHasNoRetransmitTimer(t *testing.T) {
 	// RFC requirement: RFC3748-4.1-1 positive -- the EAP peer is a synchronous,
 	// request-driven transform: it emits a Response only when handed a Request via
@@ -398,28 +359,5 @@ func TestRFC3748MSKSize(t *testing.T) {
 	var zero [64]byte
 	if mskResult.MSK == zero {
 		t.Fatal("derived MSK is all-zero; a real key must be derived")
-	}
-}
-
-func TestRFC3748IKEv2RequiresKeyDerivingMethod(t *testing.T) {
-	// RFC requirement: RFC3748-7.10-3 positive -- a key-deriving method ze offers for
-	// IKEv2 (EAP-MSCHAPv2) is accepted by NewSession and starts an EAP conversation;
-	// TestRFC3748MSKSize confirms such a method yields a real 64-octet MSK for the
-	// IKEv2 AUTH payload.
-	sess, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: "secret"})
-	if err != nil {
-		t.Fatalf("EAP-MSCHAPv2 (a key-deriving method) was rejected: %v", err)
-	}
-	if sess.Begin().Type != TypeIdentity {
-		t.Fatal("accepted key-deriving method did not start an EAP conversation")
-	}
-
-	// RFC requirement: RFC3748-7.10-3 negative -- methods that do not derive an MSK
-	// (MD5-Challenge type 4, OTP type 5, GTC type 6) are refused by NewSession, so they
-	// can never be selected for an IKEv2 conversation.
-	for _, nonKeying := range []uint8{4, 5, 6} {
-		if _, err := NewSession(nonKeying, MethodConfig{}); err == nil {
-			t.Fatalf("non-key-deriving method type %d was accepted for IKEv2", nonKeying)
-		}
 	}
 }

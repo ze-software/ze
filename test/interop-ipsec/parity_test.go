@@ -18,6 +18,7 @@ var ipsecScenarios = []string{
 	"cookie-challenge",
 	"delete-while-window-held",
 	"eap-mschapv2",
+	"eap-nak-method-negotiation",
 	"eap-tls",
 	"eap-tls13",
 	"esn-both-offered",
@@ -68,6 +69,7 @@ func TestEveryNativeScenarioHasCompleteInputs(t *testing.T) {
 	extra := map[string][]string{
 		"eap-tls":                        {"ze-env"},
 		"eap-tls13":                      {"strongswan.conf", "pki/ca.pem", "pki/server.pem", "pki/server-key.pem"},
+		"eap-nak-method-negotiation":     {"strongswan.conf"},
 		"initiator-rekey-answer-narrows": {"ze-env"},
 		"ipsec-bgp-redistribute-frr":     {"frr.conf"},
 		"natt-transport-inner-checksum":  {"strongswan.conf"},

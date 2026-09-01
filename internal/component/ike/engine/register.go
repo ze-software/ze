@@ -599,6 +599,13 @@ func runEngine(conn net.Conn) int {
 			ipsecMetrics.Update()
 		}
 
+		// RFC 7296 Section 2.16 discourages an EAP method that establishes no
+		// shared key, and eap-md5 is one. The line goes out HERE, once for each
+		// configuration this daemon adopts, rather than once for each handshake:
+		// it is a fact about what the operator wrote, so it is worth as many lines
+		// as there are configurations and no more.
+		warnKeylessEAPModes(cfg, log)
+
 		log.Info("ike engine configured", "peers", len(cfg.Peers))
 		return nil
 	}

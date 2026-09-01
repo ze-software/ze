@@ -157,6 +157,13 @@ func parsePFSMode(s string) (PFSMode, bool) {
 }
 
 // AuthMode discriminates between PSK and X.509 authentication.
+//
+// AuthEAPMD5 is the one mode that runs an EAP method establishing no shared
+// key. RFC 7296 Section 2.16: "EAP methods that do not establish a shared key
+// SHOULD NOT be used, as they are subject to a number of man-in-the-middle
+// attacks". It is never a default and no other mode reaches it, so an operator
+// holds it only by writing it, and the engine warns once when it is adopted
+// (warnKeylessEAPModes, internal/component/ike/engine/eap_auth.go).
 type AuthMode int
 
 const (
@@ -165,6 +172,7 @@ const (
 	AuthX509
 	AuthEAPTLS
 	AuthEAPMSCHAPv2
+	AuthEAPMD5
 )
 
 var authModeNames = map[AuthMode]string{ //nolint:gosec // enum name, not a credential
@@ -172,6 +180,7 @@ var authModeNames = map[AuthMode]string{ //nolint:gosec // enum name, not a cred
 	AuthX509:            "x509",
 	AuthEAPTLS:          "eap-tls",
 	AuthEAPMSCHAPv2:     "eap-mschapv2",
+	AuthEAPMD5:          "eap-md5",
 }
 
 var authModeByName map[string]AuthMode

@@ -90,11 +90,13 @@ tree.
     TLS, `eap/peer.go`, `eap/peer.go`, `eap/peer.go`) round-trips through
     `handleEAPResponse` (`fsm.go`), each response re-encrypted via
     `buildEAPResponse` (`auth.go`) and sent through `sendEAPResponsePacket`
-    (`fsm.go`). On `result.Done`, AUTH is derived from the EAP MSK
-    (`ComputeAuthFromMSK`, `eap_auth.go`) and sent as a bare-AUTH IKE_AUTH
-    (`buildEAPAuthMessage`, `auth.go`); the peer's final AUTH response is
-    verified via `VerifyAuthFromMSK` inside `verifyRemoteAuth` (`auth.go`) on
-    the next `handleAuthResponse` pass.
+    (`fsm.go`). On `result.Done`, AUTH is keyed by the secret RFC 7296 §2.16
+    names for the method that ran: the EAP MSK when the method derives one, and
+    SK_pi when it does not (`eapAuthSecret` and `computeEAPAuth`,
+    `eap_auth.go`). It is sent as a bare-AUTH IKE_AUTH (`buildEAPAuthMessage`,
+    `auth.go`). The responder's final AUTH is verified against SK_pr, or against
+    the MSK, by `verifyAuthFromSharedSecret` inside `verifyRemoteAuth`
+    (`auth.go`) on the next `handleAuthResponse` pass.
 11. **SA established.** `runInitiator`'s wait loop exits when `sa.State ==
     StateEstablished` (`fsm.go`), emits `vpn-ipsec/sa-up` (`fsm.go`,
     `events.go`), then calls `ps.runEstablished` (`fsm.go`,
@@ -192,7 +194,7 @@ tree.
   install key roles (`ChildSA.LocalIsInitiator`, `child.go`). AUTH signed octets are
   role-correct (`computeSignedOctets` uses absolute nonces + `isInitiator != sa.IsInitiator`
   ID selection). EAP-server is the real `eap.Session` (`eap/eap.go`) wired via
-  `NewEAPSession`; `startResponderEAP`/`handleResponderEAP` mirror the initiator EAP flow.
+  `newEAPSession`; `startResponderEAP`/`handleResponderEAP` mirror the initiator EAP flow.
   Interop-verified as responder vs strongSwan 5.9.14 (`scenarios/responder-psk`).
 - **Operator `clear` is a graceful, bounded bounce (spec-fixit-ipsec-clear-reestablish).**
   `clear vpn ipsec sa[ peer <name>]` → `TerminateAllSAs`/`TerminatePeerSA` call
@@ -268,9 +270,9 @@ tree.
 - **No MOBIKE.** A site-to-site peer's IP change is not handled in-band; the only
   recovery is the reconnect-with-backoff loop after the session errors out
   (`reconnectDelay`, `fsm.go`, `reconcile.go`).
-- **Constant-time comparisons are used correctly** for PSK AUTH
-  (`subtle.ConstantTimeCompare`, `auth.go`) and MSK-derived AUTH
-  (`constantTimeEqualAuth`, `eap_auth.go`), but `computeSignedOctets`
+- **Constant-time comparisons are used correctly.** PSK AUTH and MSK-derived AUTH now
+  share one verifier, `verifyAuthFromSharedSecret` (`eap_auth.go`), whose
+  `constantTimeEqualAuth` calls `subtle.ConstantTimeCompare`. But `computeSignedOctets`
   (`auth.go`) takes an explicit `isInitiator` flag that callers must invert
   correctly depending on which side's signed octets are being built or verified
   (`fsm.go` passes `!sa.IsInitiator` when verifying the *remote* AUTH), easy

@@ -133,7 +133,7 @@ Do not re-litigate these.
 | RFC 2759 duplicate row | delete the `Supported within PPP and IPsec EAP` row, keep `Partial`; done |
 | RFC 4301 | lower the row to `Partial` and spec the fixes; done. The 12 met-and-undeclared sites are HELD |
 | RFC 9234 fail-open | fail closed for role-configured peers only |
-| RFC 3748 | spec Notification and NAK; MD5-Challenge is an authorized deviation needing a journal row |
+| RFC 3748 | spec Notification and NAK; MD5-Challenge is an authorized deviation needing a journal row. VOID 2026-09-01: Thomas withdrew that deviation and ordered Type 4 (MD5-Challenge) implemented |
 | RADIUS Class | keep the conformant fix |
 | RFC 7947 Section 2.1 | insert into Adj-RIB-In before the ingress filter, marking the entry filtered |
 | RFC 7947 x-4/x-5 | correct both levels; their source Section 2.3 is explicitly non-normative |

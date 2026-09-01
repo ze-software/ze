@@ -254,6 +254,20 @@ module ze-ipsec-conf {
                         type enumeration {
                             enum eap-tls;
                             enum eap-mschapv2;
+                            enum eap-md5 {
+                                description "EAP MD5-Challenge, Type 4 (RFC 3748
+                                    Section 5.4). It establishes no shared key, and
+                                    RFC 7296 Section 2.16 discourages such a method:
+                                    EAP methods that do not establish a shared key
+                                    SHOULD NOT be used, as they are subject to a number
+                                    of man-in-the-middle attacks. The IKEv2 AUTH
+                                    payloads are then keyed by SK_pi and SK_pr instead
+                                    of by an EAP MSK. The method authenticates the
+                                    client to Ze and tells the client nothing about Ze.
+                                    The daemon writes one warning when this mode is
+                                    adopted. Use eap-tls or eap-mschapv2 unless the
+                                    client runs no other method.";
+                            }
                         }
                         mandatory true;
                         description "EAP authentication method.";
@@ -552,6 +566,21 @@ module ze-ipsec-conf {
                                 enum x509;
                                 enum eap-tls;
                                 enum eap-mschapv2;
+                                enum eap-md5 {
+                                    description "EAP MD5-Challenge, Type 4 (RFC 3748
+                                        Section 5.4). It establishes no shared key, and
+                                        RFC 7296 Section 2.16 discourages such a method:
+                                        EAP methods that do not establish a shared key
+                                        SHOULD NOT be used, as they are subject to a
+                                        number of man-in-the-middle attacks. The IKEv2
+                                        AUTH payloads are then keyed by SK_pi and SK_pr
+                                        instead of by an EAP MSK. The method
+                                        authenticates this peer to the far end and tells
+                                        this peer nothing about the far end. The daemon
+                                        writes one warning when this mode is adopted.
+                                        Use eap-tls or eap-mschapv2 unless the far end
+                                        runs no other method.";
+                                }
                             }
                             mandatory true;
                             description "Authentication mode.";

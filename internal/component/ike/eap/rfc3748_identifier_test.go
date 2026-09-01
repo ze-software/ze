@@ -136,6 +136,8 @@ type doneMethod struct{ closed bool }
 
 func (m *doneMethod) Type() uint8 { return TypeMSCHAPv2 }
 
+func (m *doneMethod) DerivesKey() bool { return TypeDerivesKey(TypeMSCHAPv2) }
+
 func (m *doneMethod) Start(identifier uint8) *Packet {
 	return &Packet{Code: CodeRequest, Identifier: identifier, Type: TypeMSCHAPv2}
 }

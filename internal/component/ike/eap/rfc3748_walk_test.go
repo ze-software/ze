@@ -14,10 +14,11 @@
 //
 // VALIDATES: octets past the Length field never reach the method; every new
 // Request changes the Identifier; a Response echoes the outstanding Request's
-// Identifier and Type; a peer whose method fails ends the conversation; a waiting
-// peer acts on Success and on Failure rather than dropping either; no Request ever
-// carries a NAK type; the Identity Response is not null terminated; EAP-TLS
-// rejects a modified packet; and a key-deriving method authenticates both ends.
+// Identifier, and carries the Request's own Type or the legacy Nak; a peer whose
+// method fails ends the conversation; a waiting peer acts on Success and on
+// Failure rather than dropping either; no Request ever carries a NAK type; the
+// Identity Response is not null terminated; EAP-TLS rejects a modified packet;
+// and a key-deriving method authenticates both ends.
 // PREVENTS: a decoder that reads Data Link Layer padding as Type-Data; an
 // authenticator that holds the Identifier constant across two Requests; a peer
 // that answers with a counter or a Type of its own; a peer that leaves a failed
@@ -212,17 +213,27 @@ func TestRFC3748ResponseTypeMatchesRequest(t *testing.T) {
 	}
 
 	// RFC requirement: RFC3748-4.1-5 negative -- a Request whose Type is neither
-	// Identity nor the one configured method produces no Response at all, so no
-	// Response can leave carrying a Type the Request did not name.
+	// Identity nor the one configured method takes the sentence's OTHER branch,
+	// "or correspond to a legacy or Expanded Nak": the peer answers Type 99 with a
+	// legacy Nak (Type 3) naming the method it runs. So the Response carries the
+	// Request's own Type or the legacy Nak Type, and Type 99 is neither of them.
 	peer := NewPeerSession(TypeMSCHAPv2, "user", "secret")
 	t.Cleanup(peer.Close)
 
 	res := peer.Process(&Packet{Code: CodeRequest, Identifier: 1, Type: 99})
-	if res.Err == nil {
-		t.Fatal("the peer accepted a Request of Type 99")
+	if res.Err != nil {
+		t.Fatalf("the peer refused a Request of Type 99 with %v, want a legacy Nak", res.Err)
 	}
-	if res.Response != nil {
-		t.Fatalf("the peer answered a Type 99 Request with a Response of Type %d", res.Response.Type)
+	if res.Response == nil {
+		t.Fatal("the peer answered a Type 99 Request with no Response at all")
+	}
+	if res.Response.Type != TypeNAK {
+		t.Fatalf("the peer answered a Type 99 Request with a Response of Type %d, want %d (legacy Nak)",
+			res.Response.Type, TypeNAK)
+	}
+	if !bytes.Equal(res.Response.TypeData, []byte{TypeMSCHAPv2}) {
+		t.Fatalf("the legacy Nak asks for %#x, want the configured method %#x",
+			res.Response.TypeData, []byte{TypeMSCHAPv2})
 	}
 }
 

@@ -43,6 +43,11 @@ func newMSCHAPv2Method(config MethodConfig) *mschapv2Method {
 
 func (m *mschapv2Method) Type() uint8 { return TypeMSCHAPv2 }
 
+// DerivesKey answers true: handleResponse fills m.msk from DeriveMSK, and
+// handleSuccessAck hands it to the exchange. TypeDerivesKey holds the single
+// declaration.
+func (m *mschapv2Method) DerivesKey() bool { return TypeDerivesKey(TypeMSCHAPv2) }
+
 // Close releases the method's resources. MS-CHAPv2 runs entirely inside
 // Process, so it holds no goroutine and no connection, and this does nothing.
 // The method still declares it, because Method requires every implementation to
@@ -198,10 +203,12 @@ const (
 	// "vvvvvvvvvv" is the ASCII representation of a decimal version code (need
 	// not be 10 digits) indicating the password changing protocol version
 	// supported on the server.  For MS-CHAP-V2, this value SHOULD always be 3."
+	// sendFailure writes this value into every Failure Message.
 	mschapv2PasswordChangeVersion = 3
 
 	// mschapv2ChallengeDigits is the length of the C= field. RFC 2759 Section 6:
-	// "This field MUST be exactly 32 octets long and MUST be present."
+	// "This field MUST be exactly 32 octets long and MUST be present." The peer
+	// half checks an arriving C= field against this length.
 	mschapv2ChallengeDigits = 32
 )
 

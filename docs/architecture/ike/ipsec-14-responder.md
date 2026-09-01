@@ -59,11 +59,11 @@ enforced by a busy flag.
 <!-- source: internal/component/ike/engine/reconcile.go -- setSA, getSA -->
 
 **Reuse the EAP server.** `eap.Session` was implemented and unit tested with no
-callers. The responder wires it through `NewEAPSession`. The responder
+callers. The responder wires it through `newEAPSession`. The responder
 authenticates itself with its long-term credential in the first IKE_AUTH, runs
 EAP, then exchanges an MSK-derived AUTH.
 
-<!-- source: internal/component/ike/engine/eap_auth.go -- NewEAPSession, ComputeAuthFromMSK -->
+<!-- source: internal/component/ike/engine/eap_auth.go -- newEAPSession, eapAuthSecret, computeEAPAuth -->
 <!-- source: internal/component/ike/engine/responder_eap.go -- computeServerAuth, startResponderEAP, handleResponderEAP -->
 
 **Responder child install is asymmetric.** The responder installs the first
