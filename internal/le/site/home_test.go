@@ -44,8 +44,8 @@ func homeFixture(t *testing.T) Paths {
 			filepath.Join(source, changesSourceDirectory, week+markdownExtension))
 	}
 
-	writeHeroDemo(t, root)
 	output := t.TempDir()
+	writeHeroDemo(t, root, output)
 	writeArtifactFile(t, output, factsFile, publishedFactsSnapshot)
 	return Paths{Repository: root, Source: source, Output: output}
 }
@@ -70,10 +70,11 @@ const publishedFactsSnapshot = `{
 }`
 
 // writeHeroDemo lays down the recorded demonstration the homepage hero replays,
-// under the id the page names.
-func writeHeroDemo(t *testing.T, root string) {
+// under the id the page names. The media goes in the artifact tree, which is
+// where a render writes it and where the catalog reads it.
+func writeHeroDemo(t *testing.T, root, output string) {
 	t.Helper()
-	media := filepath.Join(root, "website", "assets", "demos")
+	media := filepath.Join(output, "assets", "demos")
 	if err := os.MkdirAll(media, 0o755); err != nil {
 		t.Fatal(err)
 	}

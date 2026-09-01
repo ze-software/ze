@@ -14,7 +14,8 @@ import (
 
 // demoFixture lays out one checkout that holds a single recorded
 // demonstration: the checked-in definition under demos/terminal, and the
-// generated media with its own manifest under website/assets/demos.
+// generated media with its own manifest under the ARTIFACT tree's
+// assets/demos, which is where a render writes it.
 //
 // The cast is a real asciicast v2 file rather than a stub, because the
 // renderer reads the grid and the running time out of it and reserves the
@@ -22,7 +23,8 @@ import (
 func demoFixture(t *testing.T) Paths {
 	t.Helper()
 	root := t.TempDir()
-	media := filepath.Join(root, "website", "assets", "demos")
+	output := t.TempDir()
+	media := filepath.Join(output, "assets", "demos")
 	if err := os.MkdirAll(media, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +59,7 @@ func demoFixture(t *testing.T) Paths {
 			},
 		}},
 	})
-	return Paths{Repository: root, Source: filepath.Join(root, "website"), Output: t.TempDir()}
+	return Paths{Repository: root, Source: filepath.Join(root, "website"), Output: output}
 }
 
 func writeDemoAsset(t *testing.T, media, name, content string) {
@@ -165,7 +167,7 @@ func TestATerminalDemoIsRefusedRatherThanPublishedWrong(t *testing.T) {
 	for name, tampered := range tampers {
 		t.Run(name, func(t *testing.T) {
 			paths := demoFixture(t)
-			writeDemoAsset(t, filepath.Join(paths.Source, "assets", "demos"), "launcher.cast", tampered)
+			writeDemoAsset(t, filepath.Join(paths.Output, "assets", "demos"), "launcher.cast", tampered)
 			_, _, _, err := newDemoCatalog(paths).expand(
 				"<!-- terminal-demo: launcher -->", "<!-- terminal-demo: launcher -->", "../", "guide/quickstart.md")
 			if err == nil || !strings.Contains(err.Error(), "launcher") {
@@ -222,14 +224,14 @@ func TestARunningTimeReadsAsAPhrase(t *testing.T) {
 // it is about a file nothing else would accept.
 func TestTheFixtureCastParsesAsAsciicastV2(t *testing.T) {
 	paths := demoFixture(t)
-	facts, err := readCastFacts(filepath.Join(paths.Source, "assets", "demos", "launcher.cast"))
+	facts, err := readCastFacts(filepath.Join(paths.Output, "assets", "demos", "launcher.cast"))
 	if err != nil {
 		t.Fatalf("read cast: %v", err)
 	}
 	if facts.Columns != 100 || facts.Rows != 25 || facts.Seconds != 7.25 {
 		t.Errorf("the recording states %dx%d over %v seconds", facts.Columns, facts.Rows, facts.Seconds)
 	}
-	if _, err := readCastFacts(filepath.Join(paths.Source, "assets", "demos", "launcher.txt")); err == nil {
+	if _, err := readCastFacts(filepath.Join(paths.Output, "assets", "demos", "launcher.txt")); err == nil {
 		t.Error("a file that is not an asciicast must be refused")
 	}
 }

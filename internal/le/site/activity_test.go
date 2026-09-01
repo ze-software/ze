@@ -308,8 +308,8 @@ func TestExactlyOneProducerClaimsTheActivityRoute(t *testing.T) {
 		if err != nil {
 			// A producer this checkout cannot run is named rather than
 			// counted, so a reader sees which population was examined.
-			// website/assets/demos/ is generated and absent here, so the docs
-			// producer and the homepage refuse (R-8 of the spec).
+			// The artifact tree's assets/demos is generated and absent here, so
+			// the docs producer and the homepage refuse (R-8 of the spec).
 			refused = append(refused, producer.Name)
 			continue
 		}

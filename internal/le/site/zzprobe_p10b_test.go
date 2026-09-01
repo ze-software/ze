@@ -29,8 +29,8 @@ func TestProbeUnclaimedRoutes(t *testing.T) {
 			written[route]++
 		}
 	}
-	// The docs producer and the homepage refuse in this checkout, because
-	// website/assets/demos/ is absent (R-8). Their destinations are counted
+	// The docs producer and the homepage refuse in this checkout, because the
+	// artifact tree's assets/demos is absent (R-8). Their destinations are counted
 	// from the page list instead, which is how the phase 10 census counted
 	// them, so the two failures do not read as 150 unclaimed routes.
 	docsPages, err := docsProducerPages()

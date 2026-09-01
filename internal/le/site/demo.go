@@ -86,10 +86,10 @@ type demoCatalog struct {
 // errDemoMediaAbsent says this checkout holds no rendered demonstrations at
 // all, which is a different answer from a recording that fails its digest.
 //
-// The media is generated and is not tracked: `./le terminal-demo render-all`
-// writes it, and the site build stages it. So a fresh checkout cannot publish
-// the pages that show a demonstration until that render has run, and this
-// error says which command to run rather than naming a path that is missing.
+// The media is generated rather than authored, and a render is the only thing
+// that writes it. So a checkout whose artifact tree holds no recording cannot
+// publish the pages that show one, and this error names the command to run
+// rather than a path that is missing.
 var errDemoMediaAbsent = errors.New("this checkout holds no rendered terminal demonstrations: run `./le terminal-demo render-all` before a site build")
 
 // newDemoCatalog answers a catalog that has read nothing yet.
@@ -97,12 +97,23 @@ func newDemoCatalog(paths Paths) *demoCatalog {
 	return &demoCatalog{paths: paths}
 }
 
-// assetRoot is where a render writes the media this build publishes. It sits
-// in the website SOURCE tree, which the build stages into the artifact, so the
-// media a page links is the media this checkout holds rather than the media the
-// previous artifact carried.
+// assetRoot is where a render writes the media this build publishes: the
+// ARTIFACT tree, which is where `./le terminal-demo render` and `render-all`
+// write by default (renderEngine, internal/le/terminaldemo/actions.go).
+//
+// It read the website SOURCE tree until 2026-09-01, and nothing ever copied one
+// to the other. The staging list comes from `git ls-files --exclude-standard`
+// run in `website/`, and `website/.gitignore` ignores `assets/demos`, so the
+// media was excluded from staging and the build published whatever the previous
+// artifact carried. A page therefore stamped a `?v=` digest read from one
+// directory over bytes served from another, and the two were different
+// recordings of the same demonstration.
+//
+// The media survives the rebuild because seedArtifact lays the last published
+// artifact back down before any producer reads this (build.go). A recording
+// made since that publish is in it, because the render wrote it there.
 func (catalog *demoCatalog) assetRoot() string {
-	return filepath.Join(catalog.paths.Source, "assets", "demos")
+	return filepath.Join(catalog.paths.Output, "assets", "demos")
 }
 
 // load reads the two manifests once and indexes the demonstrations by id.
