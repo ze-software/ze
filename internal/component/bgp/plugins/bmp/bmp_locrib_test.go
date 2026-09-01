@@ -62,7 +62,7 @@ func TestLocRIBPeerHeader(t *testing.T) {
 	// VALIDATES: RFC 9069 Section 5.1 PeerType=3 header: Peer Address zero, Peer
 	// AS the router's own ASN, BGP ID the router-id, and Flags=0 (F=0
 	// in-Loc-RIB; the reserved bits MUST be transmitted as 0).
-	ph := locRIBPeerHeader(localIdentity{asn: 4200000001, routerID: 0x0a141e01})
+	ph := locRIBPeerHeader(localIdentity{asn: 4200000001, routerID: 0x0a141e01}, time.Time{})
 
 	if ph.PeerType != PeerTypeLocRIB {
 		t.Errorf("PeerType = %d, want %d (Loc-RIB)", ph.PeerType, PeerTypeLocRIB)
@@ -96,8 +96,8 @@ func TestLocRIBPeerHeader(t *testing.T) {
 // implementation that hardcoded one value, or that zero-filled the field as ze did until
 // 2026-08-31, fails here while still passing the positive case.
 func TestLocRIBPeerHeaderCarriesTheIdentityItIsGiven(t *testing.T) {
-	first := locRIBPeerHeader(localIdentity{asn: 65001, routerID: 0x0a141e01})
-	second := locRIBPeerHeader(localIdentity{asn: 65002, routerID: 0x0a141e02})
+	first := locRIBPeerHeader(localIdentity{asn: 65001, routerID: 0x0a141e01}, time.Time{})
+	second := locRIBPeerHeader(localIdentity{asn: 65002, routerID: 0x0a141e02}, time.Time{})
 
 	if first.PeerAS == second.PeerAS {
 		t.Errorf("two identities produced one Peer AS (%d): the field does not come from the identity", first.PeerAS)

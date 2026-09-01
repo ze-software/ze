@@ -204,7 +204,7 @@ func (bp *BMPPlugin) primeSender(ss *senderSession) {
 	bp.mu.RLock()
 	peers := 0
 	for _, st := range bp.peerUps {
-		if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen); err != nil {
+		if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen, nil); err != nil {
 			logger().Debug("bmp: peer up resync failed", "collector", ss.name, "error", err)
 			continue
 		}
@@ -287,7 +287,7 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 				logger().Debug("bmp: peer bounce down failed", "collector", ss.name, "error", err)
 				continue
 			}
-			if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen); err != nil {
+			if err := ss.writePeerUpLocked(st.peer, st.localAddr, st.localPort, st.remotePort, st.sentOpen, st.recvOpen, nil); err != nil {
 				logger().Debug("bmp: peer bounce up failed", "collector", ss.name, "error", err)
 			}
 		}

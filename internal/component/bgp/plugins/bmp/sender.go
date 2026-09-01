@@ -607,11 +607,16 @@ func (ss *senderSession) scratchFor(need int) ([]byte, error) {
 	return ss.scratch[:need], nil
 }
 
-// writePeerUp encodes and sends a BMP Peer Up message.
+// writePeerUp encodes and sends the Peer Up of a MONITORED BGP peer, which
+// carries no Peer Up Information TLV.
+//
+// The RFC 9069 Loc-RIB instance peer carries one, the VRF/Table Name, and its
+// two producers take writeMu themselves so they call writePeerUpLocked directly
+// (bmp_locrib.go ensureLocRIBPeerUp and primeLocRIBPeerUp).
 func (ss *senderSession) writePeerUp(peer PeerHeader, localAddr [16]byte, localPort, remotePort uint16, sentOpen, recvOpen []byte) error {
 	ss.writeMu.Lock()
 	defer ss.writeMu.Unlock()
-	return ss.writePeerUpLocked(peer, localAddr, localPort, remotePort, sentOpen, recvOpen)
+	return ss.writePeerUpLocked(peer, localAddr, localPort, remotePort, sentOpen, recvOpen, nil)
 }
 
 // writePeerUpLocked is writePeerUp for a caller that already holds writeMu --
@@ -620,7 +625,7 @@ func (ss *senderSession) writePeerUp(peer PeerHeader, localAddr [16]byte, localP
 // connection so nothing can precede them.
 //
 // Caller MUST hold writeMu.
-func (ss *senderSession) writePeerUpLocked(peer PeerHeader, localAddr [16]byte, localPort, remotePort uint16, sentOpen, recvOpen []byte) error {
+func (ss *senderSession) writePeerUpLocked(peer PeerHeader, localAddr [16]byte, localPort, remotePort uint16, sentOpen, recvOpen []byte, infoTLVs []TLV) error {
 	pu := &PeerUp{
 		Peer:            peer,
 		LocalAddress:    localAddr,
@@ -628,9 +633,14 @@ func (ss *senderSession) writePeerUpLocked(peer PeerHeader, localAddr [16]byte, 
 		RemotePort:      remotePort,
 		SentOpenMsg:     sentOpen,
 		ReceivedOpenMsg: recvOpen,
+		InfoTLVs:        infoTLVs,
 	}
 
-	buf, err := ss.scratchFor(CommonHeaderSize + PeerHeaderSize + peerUpFixedSize + len(sentOpen) + len(recvOpen))
+	tlvBytes := 0
+	for i := range infoTLVs {
+		tlvBytes += TLVHeaderSize + len(infoTLVs[i].Value)
+	}
+	buf, err := ss.scratchFor(CommonHeaderSize + PeerHeaderSize + peerUpFixedSize + len(sentOpen) + len(recvOpen) + tlvBytes)
 	if err != nil {
 		return err
 	}

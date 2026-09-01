@@ -67,3 +67,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-08-31 | 5fed2ed5 | feat(rfc): sign off RFC 7947 and record RFC 9384 as non-normative | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-08-31 | 5fed2ed5 | feat(rfc): sign off RFC 2385 and close the enrolment its row opened | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-08-31 | 5fed2ed5 | feat(rfc): sign off RFC 2385 and close the enrolment its row opened | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-01 | 5fed2ed5 | feat(bmp): sign off RFC 9069 and meet the three obligations it found | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-01 | 5fed2ed5 | feat(bmp): sign off RFC 9069 and meet the three obligations it found | full native verification over this commit's Go | no full native verification covers this commit's Go | open |

@@ -99,7 +99,7 @@ func TestRFC8671ReservedPeerFlagsTransmittedAsZero(t *testing.T) {
 		})
 	}
 
-	locRIB := locRIBPeerHeader(localIdentity{asn: 65001, routerID: 0x01020304})
+	locRIB := locRIBPeerHeader(localIdentity{asn: 65001, routerID: 0x01020304}, time.Time{})
 	if flags := locRIB.Flags; flags&peerFlagsReserved != 0 {
 		t.Errorf("loc-rib flags = %#x, reserved bits must be transmitted as 0", flags)
 	}
@@ -1133,8 +1133,9 @@ func TestBMPRollbackWithoutAnApplyLeavesTheSenderConfigurationAlone(t *testing.T
 }
 
 // RFC requirement: RFC9069-5.3-1 positive -- "The Peer Down notification MUST use reason
-// code 6." The Loc-RIB Peer Down this reload puts on the wire carries reason 6, and no
-// Peer Down Information TLV follows it, because the Loc-RIB Peer Up carried none.
+// code 6." The Loc-RIB Peer Down this reload puts on the wire carries reason 6. What
+// follows the reason is the VRF/Table Name TLV every ze Loc-RIB Peer Up carries, which is
+// RFC9069-5.2.1-1 rather than this row, and is asserted there.
 //
 // TestBMPReloadTurningLocRIBOffUnsubscribesAndSaysSo
 // VALIDATES: a reload that removes `loc-rib true` stops Loc-RIB monitoring and

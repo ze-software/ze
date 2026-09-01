@@ -103,7 +103,7 @@ per RFC 7854 recommendations.
 | Command | Description |
 |---------|-------------|
 | `ze show bmp sessions` | Show active BMP receiver sessions (router address, sysName, uptime) |
-| `ze show bmp peers` | Show monitored BGP peers (AS, BGP ID, up/down status) |
+| `ze show bmp peers` | Show monitored BGP peers (AS, BGP ID, up/down status, and the address families their Peer Up OPEN advertised) |
 | `ze show bmp collectors` | Show sender collector connection status |
 
 ## Protocol Details
@@ -154,6 +154,19 @@ Ze handles all 7 BMP message types defined in RFC 7854:
   capabilities to represent the Loc-RIB Route Monitoring messages." Ze
   advertises the 4-octet ASN capability and one address-family capability per
   family the dump delivers, and nothing else
+- Names that Loc-RIB `global` in a VRF/Table Name Information TLV (type 3) on
+  the Peer Up, and repeats the TLV after reason code 6 on the Peer Down. RFC
+  9069 Section 5.2.1: "The default value of "global" MUST be used for the
+  default Loc-RIB instance with a zero-filled distinguisher", and Section 5.3:
+  "The VRF/Table Name informational TLV MUST be included if it was in the Peer
+  Up." Ze runs one Loc-RIB, the default instance, and its distinguisher is zero
+- Timestamps a Loc-RIB message with the time its routes entered the Loc-RIB, and
+  with ZERO where that time is unknown. RFC 9069 Section 5.1: "If zero, the time
+  is unavailable." An incremental best change is delivered on the goroutine that
+  installed it, so it carries a real time; the initial full-table dump, the Peer
+  Up, the Peer Down and the End-of-RIB marker each carry zero rather than a
+  wall-clock read that would date every replayed route to the collector's
+  connection
 
 <!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- locRIBPeerHeader, fabricateLocRIBOpen, ensureLocRIBPeerUp, sendLocRIBPeerDown -->
 

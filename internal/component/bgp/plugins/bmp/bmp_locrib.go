@@ -44,6 +44,41 @@ const (
 	optParamCapabilities byte  = 2
 )
 
+// locRIBTableName is the VRF/Table Name ze reports for its one Loc-RIB.
+//
+// RFC 9069 Section 5.2.1: "The default value of "global" MUST be used for the
+// default Loc-RIB instance with a zero-filled distinguisher." Ze runs exactly
+// one Loc-RIB, it is the default instance, and locRIBPeerHeader leaves the
+// distinguisher zero -- so this string is the name the RFC fixes for it, not a
+// name an operator chose.
+//
+// The size the same section requires is a property of this constant: "The
+// string size MUST be within the range of 1 to 255 bytes", and "global" is six
+// UTF-8 bytes.
+const locRIBTableName = "global"
+
+// locRIBTableNameTLV is the Peer Up Information TLV that carries it.
+//
+// RFC 9069 Section 5.2.1 registers "Type = 3: VRF/Table Name. The Information
+// field contains a UTF-8 string whose value MUST be equal to the value of the
+// VRF or table name (e.g., RD instance name) being conveyed", and Section 5.3
+// repeats the TLV for the Peer Down: "The VRF/Table Name informational TLV MUST
+// be included if it was in the Peer Up." One TLV, built in one place, so the
+// Peer Up and the Peer Down cannot convey two different names.
+func locRIBTableNameTLV() TLV {
+	return makeStringTLV(PeerTLVVRFTableName, locRIBTableName)
+}
+
+// locRIBTableNameTLVBytes is the same TLV encoded, for the Peer Down, whose
+// body is "the reason ... followed by data in TLV format" (RFC 9069 Section
+// 5.3) rather than a TLV list the message writer appends.
+func locRIBTableNameTLVBytes() []byte {
+	tlv := locRIBTableNameTLV()
+	buf := make([]byte, TLVHeaderSize+len(tlv.Value))
+	writeTLV(buf, 0, tlv)
+	return buf
+}
+
 // eventBusPtr holds the in-process EventBus, installed by the plugin's
 // registration (register.go ConfigureEventBus). bmp subscribes to the RIB's
 // best-change events on it for Loc-RIB monitoring. Package-level (mirrors
@@ -85,20 +120,42 @@ type localIdentity struct {
 //     system number (ASN)."
 //   - "Peer BGP ID: Set the ID to the router-id of the VRF instance if VRF is
 //     used; otherwise, set to the global instance router-id."
+//   - "Timestamp: The time when the encapsulated routes were installed in the
+//     Loc-RIB, expressed in seconds and microseconds since midnight (zero hour),
+//     January 1, 1970 (UTC). If zero, the time is unavailable. Precision of the
+//     timestamp is implementation dependent."
+//
+// The Peer Distinguisher stays zero: "Zero-filled if the Loc-RIB represents the
+// global instance", and ze runs exactly one Loc-RIB, the global one. The
+// "otherwise" branch names a route distinguisher per VRF instance, and VRF is
+// out of ze's scope (owner decision, 2026-09-01).
+//
+// installed is the time the encapsulated routes entered the Loc-RIB, and the
+// ZERO Time says ze does not know it. The RFC states the answer for that case
+// rather than leaving it to the sender: a zero Timestamp means unavailable. Ze
+// knows the install time for an incremental best change only, where the RIB
+// delivers the event on the installing goroutine, so an initial full-table
+// replay, a Peer Up, a Peer Down and an End-of-RIB marker each carry zero. A
+// wall clock read here would date every replayed route to the moment the
+// collector connected, which is a claim about the network that is false.
 //
 // RFC 9069 Section 4.2 defines the flags byte: bit 7 is the F flag, "set when a
 // filter is applied to Loc-RIB routes sent to the BMP collector", and ze filters
 // none, so F is 0. The remaining bits are "reserved for future use. They MUST be
 // transmitted as 0", which the V, L, A and O flags of RFC 7854 and RFC 8671 sit
 // in for this peer type.
-func locRIBPeerHeader(id localIdentity) PeerHeader {
-	return PeerHeader{
-		PeerType:     PeerTypeLocRIB,
-		Flags:        0, // RFC 9069 Section 4.2: F=0 (unfiltered), reserved bits 0.
-		PeerAS:       id.asn,
-		PeerBGPID:    id.routerID,
-		TimestampSec: uint32(time.Now().Unix()), //nolint:gosec // wall-clock seconds
+func locRIBPeerHeader(id localIdentity, installed time.Time) PeerHeader {
+	header := PeerHeader{
+		PeerType:  PeerTypeLocRIB,
+		Flags:     0, // RFC 9069 Section 4.2: F=0 (unfiltered), reserved bits 0.
+		PeerAS:    id.asn,
+		PeerBGPID: id.routerID,
 	}
+	if !installed.IsZero() {
+		header.TimestampSec = uint32(installed.Unix())               //nolint:gosec // wall-clock seconds
+		header.TimestampUsec = uint32(installed.Nanosecond() / 1000) //nolint:gosec // bounded by 1e9/1e3
+	}
+	return header
 }
 
 // bgpIdentityFromSentOpen reads the router's own ASN and router-id out of a sent
@@ -477,7 +534,10 @@ func (bp *BMPPlugin) closeDumpFamilies(scope *dumpScope, ss *senderSession) {
 	// nothing else has sent one; the guard inside is per-session and idempotent.
 	bp.ensureLocRIBPeerUp(senders)
 
-	peer := locRIBPeerHeader(bp.localIdentity())
+	// Zero Timestamp: an End-of-RIB marker encapsulates no route, so there is no
+	// install time to report (RFC 9069 Section 5.1, "If zero, the time is
+	// unavailable").
+	peer := locRIBPeerHeader(bp.localIdentity(), time.Time{})
 	for _, fam := range missing {
 		bp.sendLocRIBEndOfRIB(senders, fam, peer)
 	}
@@ -557,7 +617,18 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 
 	bp.ensureLocRIBPeerUp(senders)
 
-	peer := locRIBPeerHeader(bp.localIdentity())
+	// RFC 9069 Section 5.1 asks for "the time when the encapsulated routes were
+	// installed in the Loc-RIB", and ze can answer for an INCREMENTAL batch
+	// only: the RIB emits it on the goroutine that installed the change, so the
+	// clock read here is that install to the precision this implementation
+	// offers ("Precision of the timestamp is implementation dependent"). A
+	// replay batch re-reads a table installed at times nobody recorded, so it
+	// carries the zero the same paragraph defines as "the time is unavailable".
+	installed := time.Now()
+	if batch.IsReplay() {
+		installed = time.Time{}
+	}
+	peer := locRIBPeerHeader(bp.localIdentity(), installed)
 	for i := range batch.Changes {
 		body := buildLocRIBUpdateBody(batch.Family, batch.Changes[i])
 		if body == nil {
@@ -603,8 +674,10 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 // has been announced at all, which is what sendLocRIBPeerDown keys off.
 func (bp *BMPPlugin) ensureLocRIBPeerUp(senders []*senderSession) {
 	id := bp.localIdentity()
-	peer := locRIBPeerHeader(id)
+	// Zero Timestamp: a Peer Up encapsulates no route (RFC 9069 Section 5.1).
+	peer := locRIBPeerHeader(id, time.Time{})
 	open := fabricateLocRIBOpen(id)
+	tlvs := []TLV{locRIBTableNameTLV()}
 	var zeroAddr [16]byte
 	announced := false
 	for _, ss := range senders {
@@ -617,7 +690,7 @@ func (bp *BMPPlugin) ensureLocRIBPeerUp(senders []*senderSession) {
 		claimed := ss.locRIBUpSent.CompareAndSwap(false, true)
 		var err error
 		if claimed {
-			err = ss.writePeerUpLocked(peer, zeroAddr, 0, 0, open, open)
+			err = ss.writePeerUpLocked(peer, zeroAddr, 0, 0, open, open, tlvs)
 		}
 		ss.writeMu.Unlock()
 
@@ -662,7 +735,8 @@ func (bp *BMPPlugin) primeLocRIBPeerUp(ss *senderSession) {
 	id := bp.localIdentity()
 	open := fabricateLocRIBOpen(id)
 	var zeroAddr [16]byte
-	if err := ss.writePeerUpLocked(locRIBPeerHeader(id), zeroAddr, 0, 0, open, open); err != nil {
+	peer := locRIBPeerHeader(id, time.Time{}) // a Peer Up encapsulates no route
+	if err := ss.writePeerUpLocked(peer, zeroAddr, 0, 0, open, open, []TLV{locRIBTableNameTLV()}); err != nil {
 		ss.locRIBUpSent.Store(false) // nothing reached the collector; let the next batch retry
 		logger().Debug("bmp: loc-rib peer up failed", "collector", ss.name, "error", err)
 		return
@@ -763,9 +837,16 @@ func (bp *BMPPlugin) sendLocRIBPeerDown() {
 	senders := bp.senders
 	bp.mu.Unlock()
 
-	peer := locRIBPeerHeader(bp.localIdentity())
+	// Zero Timestamp: a Peer Down encapsulates no route (RFC 9069 Section 5.1).
+	//
+	// RFC 9069 Section 5.3: "Following the reason is data in TLV format", and
+	// "The VRF/Table Name informational TLV MUST be included if it was in the
+	// Peer Up." Every ze Loc-RIB Peer Up carries it, so every Loc-RIB Peer Down
+	// carries it too.
+	peer := locRIBPeerHeader(bp.localIdentity(), time.Time{})
+	tlv := locRIBTableNameTLVBytes()
 	for _, ss := range senders {
-		if err := ss.writePeerDown(peer, PeerDownTLVData, nil); err != nil {
+		if err := ss.writePeerDown(peer, PeerDownTLVData, tlv); err != nil {
 			logger().Debug("bmp: loc-rib peer down failed", "collector", ss.name, "error", err)
 		}
 		ss.locRIBUpSent.Store(false)

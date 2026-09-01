@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -25,13 +26,19 @@ type monitoredRouter struct {
 }
 
 // monitoredPeer tracks a BGP peer reported by a BMP router.
+//
+// Families are the address families the peer's Peer Up OPEN advertised, which
+// RFC 9069 Section 6.1.1 requires a receiver to read: "A BMP receiver MUST
+// process these capabilities to know which peer belongs to which address
+// family." Empty when the OPEN advertised none, never defaulted.
 type monitoredPeer struct {
-	Router    string `json:"router"`
-	PeerAS    uint32 `json:"peer-as"`
-	PeerBGPID string `json:"peer-bgp-id"`
-	IsIPv6    bool   `json:"ipv6"`
-	IsUp      bool   `json:"up"`
-	Reason    uint8  `json:"down-reason,omitempty"`
+	Router    string   `json:"router"`
+	PeerAS    uint32   `json:"peer-as"`
+	PeerBGPID string   `json:"peer-bgp-id"`
+	IsIPv6    bool     `json:"ipv6"`
+	IsUp      bool     `json:"up"`
+	Families  []string `json:"families,omitempty"`
+	Reason    uint8    `json:"down-reason,omitempty"`
 }
 
 // peerKey uniquely identifies a monitored peer.
@@ -108,18 +115,24 @@ func (s *bmpState) removeRouter(remote string) {
 	}
 }
 
-// peerUp records a peer as up.
-func (s *bmpState) peerUp(remote string, ph PeerHeader) {
+// peerUp records a peer as up, with the address families its Peer Up OPEN
+// advertised (RFC 9069 Section 6.1.1).
+func (s *bmpState) peerUp(remote string, ph PeerHeader, families []family.Family) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	key := peerKey{router: remote, distinguisher: ph.Distinguisher, address: ph.Address}
 	var b textbuf.Buffer
+	names := make([]string, 0, len(families))
+	for _, fam := range families {
+		names = append(names, fam.String())
+	}
 	s.peers[key] = &monitoredPeer{
 		Router:    remote,
 		PeerAS:    ph.PeerAS,
 		PeerBGPID: b.Reset().Uint(uint64(ph.PeerBGPID >> 24)).Byte('.').Uint(uint64((ph.PeerBGPID >> 16) & 0xFF)).Byte('.').Uint(uint64((ph.PeerBGPID >> 8) & 0xFF)).Byte('.').Uint(uint64(ph.PeerBGPID & 0xFF)).String(),
 		IsIPv6:    ph.IsIPv6(),
 		IsUp:      true,
+		Families:  names,
 	}
 }
 

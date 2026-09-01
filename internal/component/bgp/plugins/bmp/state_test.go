@@ -59,7 +59,7 @@ func TestStatePeerUpDown(t *testing.T) {
 	s.addRouter("10.0.0.1:12345")
 
 	peer := testPeerHeader()
-	s.peerUp("10.0.0.1:12345", peer)
+	s.peerUp("10.0.0.1:12345", peer, nil)
 
 	status, data, err := s.peersCommand()
 	if err != nil {
@@ -103,7 +103,7 @@ func TestStateRemoveRouterClearsPeers(t *testing.T) {
 	// VALIDATES: AC-16 -- removing router drops its peers
 	s := newBMPState()
 	s.addRouter("10.0.0.1:12345")
-	s.peerUp("10.0.0.1:12345", testPeerHeader())
+	s.peerUp("10.0.0.1:12345", testPeerHeader(), nil)
 
 	s.removeRouter("10.0.0.1:12345")
 

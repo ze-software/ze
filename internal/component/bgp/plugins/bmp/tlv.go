@@ -1,3 +1,4 @@
+// RFC: rfc/short/rfc7854.md
 // Design: docs/architecture/core-design.md -- BMP TLV encoding
 //
 // Related: bmp.go -- plugin lifecycle and session handling
@@ -22,6 +23,16 @@ const (
 	InitTLVString   uint16 = 0
 	InitTLVSysDescr uint16 = 1
 	InitTLVSysName  uint16 = 2
+)
+
+// Peer Up Information TLV types.
+//
+// RFC 9069 Section 8.3 renames the "BMP Initiation Message TLVs" registry to
+// "BMP Initiation and Peer Up Information TLVs" and registers type 3, so the
+// Initiation types above share this number space. RFC 9069 Section 5.3 defines
+// the same type 3 for the Peer Down Information TLV that follows reason 6.
+const (
+	PeerTLVVRFTableName uint16 = 3
 )
 
 // Termination TLV types (RFC 7854 Section 4.5).

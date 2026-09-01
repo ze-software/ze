@@ -24,8 +24,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -735,9 +738,25 @@ func (bp *BMPPlugin) processTermination(remote string, _ *Termination) {
 	}
 }
 
-// bmpCompositeKey builds the composite peer identity "<router>:<peer-address>"
-// used as the key in ribInPool[bmpProtocolID].
+// bmpCompositeKey builds the composite peer identity used as the key in
+// ribInPool[bmpProtocolID].
+//
+// For a monitored BGP peer (RFC 7854 peer types 0 to 2) the identity is
+// "<router>:<peer-address>". A Loc-RIB Instance Peer has no peer address to be
+// identified by -- RFC 9069 Section 5.1 says "Peer Address: Zero-filled. The
+// remote peer address is not applicable" -- so every Peer Type 3 peer of one
+// router produced the same key "<router>:0.0.0.0", and two Loc-RIB instances
+// shared one pool: a Peer Down for either withdrew the routes of both.
+//
+// RFC 9069 Section 6.1.1 names the fields that DO identify one: "The BMP
+// receiver identifies the Loc-RIB by the peer header distinguisher and BGP ID."
+// So a Loc-RIB peer keys on those two.
 func bmpCompositeKey(router string, ph PeerHeader) string {
+	if ph.PeerType == PeerTypeLocRIB {
+		var b textbuf.Buffer
+		return b.Str(router).Str(":loc-rib:").Uint(ph.Distinguisher).Byte(':').
+			Uint(uint64(ph.PeerBGPID)).String()
+	}
 	return router + ":" + peerAddressString(ph)
 }
 
@@ -749,15 +768,68 @@ func peerAddressString(ph PeerHeader) string {
 	return net.IP(ph.Address[12:16]).String()
 }
 
+// processPeerUp records a peer a monitored router reports as up, and the
+// address families that peer carries.
+//
+// RFC 9069 Section 6.1.1: "Each emulated peer instance MUST send a Peer Up with
+// the OPEN message indicating the address family capabilities. A BMP receiver
+// MUST process these capabilities to know which peer belongs to which address
+// family." The families are read from the sent OPEN, which RFC 9069 Section 5.2
+// makes the authoritative one for a Loc-RIB instance peer ("Received OPEN
+// Message: Repeat of the same sent OPEN message"), and from the received OPEN
+// for a monitored BGP peer, whose sent OPEN says what the MONITORED router
+// offered rather than what the peer announces.
+//
+// An OPEN that does not parse, or that advertises no Multiprotocol capability,
+// leaves the set EMPTY. It is never defaulted to IPv4 unicast: a guessed family
+// is indistinguishable from an advertised one at every reader
+// (ai/rules/principles.md), and the association this requirement exists to
+// record would then be an invention.
 func (bp *BMPPlugin) processPeerUp(remote string, m *PeerUp) {
-	bp.state.peerUp(remote, m.Peer)
+	open := m.SentOpenMsg
+	if m.Peer.PeerType != PeerTypeLocRIB {
+		open = m.ReceivedOpenMsg
+	}
+	families := openMultiprotocolFamilies(open)
+	bp.state.peerUp(remote, m.Peer, families)
 	logger().Info("bmp: peer up",
 		"remote", remote,
 		"peer-as", m.Peer.PeerAS,
 		"peer-bgp-id", fmt.Sprintf("%08x", m.Peer.PeerBGPID),
 		"local-port", m.LocalPort,
 		"remote-port", m.RemotePort,
+		"families", families,
 	)
+}
+
+// openMultiprotocolFamilies answers the address families a BGP OPEN PDU
+// advertises, in the order the capabilities appear.
+//
+// RFC 4760 Section 8 defines the Multiprotocol Extensions capability as the
+// declaration of an <AFI, SAFI> pair, so those capabilities ARE the peer's
+// family list. A PDU that does not parse as an OPEN, and one carrying no such
+// capability, both answer an empty list rather than a default.
+func openMultiprotocolFamilies(open []byte) []family.Family {
+	if len(open) < message.HeaderLen {
+		return nil
+	}
+	parsed, err := message.UnpackOpen(open[message.HeaderLen:])
+	if err != nil {
+		return nil
+	}
+	caps, err := capability.ParseFromOptionalParams(parsed.OptionalParams, parsed.ExtendedParams)
+	if err != nil {
+		return nil
+	}
+	var out []family.Family
+	for _, capa := range caps {
+		multi, ok := capa.(*capability.Multiprotocol)
+		if !ok {
+			continue
+		}
+		out = append(out, family.Family{AFI: multi.AFI, SAFI: multi.SAFI})
+	}
+	return out
 }
 
 func (bp *BMPPlugin) processPeerDown(remote string, m *PeerDown) {
