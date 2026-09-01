@@ -1,6 +1,6 @@
 # BGP Implementation Comparison
 
-A feature comparison of open-source BGP daemon implementations.
+A feature comparison of open-source routing daemon implementations. Most tables compare BGP. The OSPF table compares the three daemons here that implement it.
 
 > **Disclaimer:** This comparison was generated with AI assistance (partially based on
 > [rustbgpd's comparison](https://github.com/lance0/rustbgpd/blob/main/docs/COMPARISON.md))
@@ -9,7 +9,7 @@ A feature comparison of open-source BGP daemon implementations.
 > project's own documentation before making decisions. Corrections and updates are welcome
 > via the [issue tracker](https://github.com/ze-software/ze/issues).
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 ## Overview
 
@@ -435,6 +435,64 @@ processes and injects routes from them. It is a route injector/receiver, not a r
 | Recursive next-hop | Yes | Yes | Yes | Yes | Yes | No | No | N/A | No | No | Yes |
 | Multipath/ECMP | Yes | Yes | Yes | Yes | Yes | Yes | Yes | N/A | No | Partial | Yes |
 
+## OSPF Standards Coverage
+
+The tables above compare BGP. This one compares OSPF, against the two daemons that
+also implement it natively. Ze, FRR and BIRD are the whole population here: the
+other implementations in this document speak BGP only.
+
+**Version basis.** Ze at commit `35f84e060`. FRR at release tag `frr-10.7.1`
+(2026-08-31). BIRD 2.19.2 and BIRD 3.3.2 (both 2026-07-30), which carry an
+identical OSPF standards list, so one column serves both.
+
+**What each column asserts.** The three columns are not judged alike, so no cell
+here says a bare "yes".
+
+A Ze cell states what the code does with the value, in three grades. **Originates
+and consumes** means Ze builds it, parses it on receipt, and something acts on the
+parsed value. **Originates** means built and parsed, with no consumer beyond
+display. **No** means no producer exists.
+
+An FRR or BIRD cell names the evidence: the configuration command, or the source
+file that implements it, at the version above. That is what was checked. Neither
+daemon was run, and no cell here claims interop.
+
+| RFC | Ze | FRR 10.7.1 | BIRD 2.19.2 / 3.3.2 |
+| --- | --- | --- | --- |
+| 8362 OSPFv3 Extended LSAs | Originates 3 of the 7 LSA types, and only under segment routing. Decoded on receipt only to read Prefix-SIDs. No consumer in SPF. Non-conformant on the wire, see the note below | No. The OSPFv3 LS-type list in `ospf6d/ospf6_lsa.h` ends at `GRACE_LSA 0x000b` and bounds the handler table there | No. Absent from the maintainers' own standards list in `proto/ospf/ospf.c` |
+| 8666 OSPFv3 Segment Routing | Originates and consumes: installs labels to the MPLS FIB. 3 MUST-level gaps declared | No. `ospf6d/` holds no `ospf6_sr.*`, and OSPFv3 SR is defined over the Extended LSAs above | No. Same standards list |
+| 8665 OSPFv2 Segment Routing | Originates and consumes: installs labels. 14 MUST-level gaps declared | Yes: `segment-routing on`, `ospfd/ospf_sr.c`. Upstream marks it EXPERIMENTAL | No. Same standards list |
+| 5286 Loop-Free Alternate | Originates nothing on the wire, correctly. Computes LFA and TI-LFA, and the backup next hops reach the kernel with `RTNH_F_LINKDOWN` | TI-LFA only: `fast-reroute ti-lfa`, and the docs say it requires a Segment Routing configuration. FRR's RFC 5286 code is `isisd/isis_lfa.c`, which `ospfd` does not use | No. The OSPF grammar in `proto/ospf/config.Y` has no LFA, backup or alternate keyword |
+| 7684 Extended Prefix and Link | Originates and consumes: Segment Routing reads the prefix SIDs. A received Adj-SID is decoded and discarded | Yes: `ospfd/ospf_ext.c`, a direct RFC 7684 implementation | No. Same standards list |
+| 7770 Router Information | Originates and consumes: a remote SRGB read from these LSAs drives label computation | Yes: `router-info [as \| area]`, `ospfd/ospf_ri.c`. Its header cites the predecessor RFC 4970 | Listed as supported, but dormant: `ospf_originate_ri_lsa()` is commented out at its only call site, and `lsa_validate_ri` says "we do not really process RI LSAs" |
+| 3630 and 5392 Traffic Engineering | Originates both. The TE database feeds `show ospf te-database` and metrics. No CSPF or admission consumer reads it: `LookupLink` has no non-test caller | Yes: `mpls-te on`, `mpls-te router-address`, `mpls-te inter-as area \| as`, `ospfd/ospf_te.c` | No. Neither RFC is on the standards list |
+| 5250 Opaque LSAs | Originates and consumes, with a registry other features register consumers into | Yes: `ospf opaque-lsa`, `capability opaque`, `ospfd/ospf_opaque.c` | Carries and floods them, including unknown types, and originates none |
+| 3623 and 5187 Graceful Restart | Originates and consumes, both versions: Grace-LSA out, helper in, with self-LSA suppression, install suppression and FIB retention | Yes, both: `graceful-restart`, `graceful-restart helper enable`, `ospfd/ospf_gr.c` and `ospf6d/ospf6_gr.c` | Yes, both: `graceful restart on \| aware`. The default is `aware`, which is helper only |
+| 5443 LDP-IGP Synchronization | Originates and consumes: an LDP session event substitutes the advertised metric, and the Router-LSA is re-originated | Yes: `mpls ldp-sync` with a holddown, default VRF only | No, and BIRD has no LDP at all |
+| 4577 OSPF as PE/CE | No. No DN-bit originator, no VRF, no sham link | No. `OSPF_OPTION_DN` is defined in `ospfd/ospfd.h` and consumed nowhere, and the interface-type set in `lib/libospf.h` has no sham-link type | The DN bit only: `vpn pe` in the grammar, consumed in `rt.c`. No sham link in its interface-type set either |
+
+**Where the open ground is.** RFC 8362 and RFC 8666 travel together, because
+OSPFv3 Segment Routing is defined over the Extended LSAs. Neither FRR nor BIRD
+implements either, so this is the one part of the table where Ze is alone.
+
+**A caveat on RFC 8362, stated because the row above would otherwise mislead.**
+Ze's Extended LSAs carry the U-bit clear. RFC 8362 Section 2 requires it set, "so
+that the LSAs will be flooded by OSPFv3 routers that do not understand them". The
+same section assigns LS types 0xA021 through 0xA029, and Ze declares those types
+less 0x8000.
+
+With the U-bit clear, RFC 5340 Section 4.4.1 confines an unrecognized LSA to
+link-local scope. Ze's Prefix-SIDs therefore stop at the first router in a mixed
+area that does not support them. Having the feature and having it interoperate
+are different claims. Only the first is true today.
+
+<!-- source: internal/plugins/ospf/v3/types/lsa.go -- the Extended LSA types -->
+<!-- source: internal/plugins/ospf/sr_origination_v6.go -- v6OriginateSR -->
+<!-- source: internal/plugins/ospf/te_originate.go -- teOriginateType1, teOriginateType6 -->
+<!-- source: internal/plugins/ospf/ldp_sync.go -- effectiveP2PCost, ldpSyncWithholdTransit -->
+<!-- source: internal/plugins/ospf/spf/lfa.go -- the LFA and TI-LFA computation -->
+<!-- source: internal/plugins/ospf/sr_install.go -- srRemoteCapabilities, srRemotePrefixSIDs -->
+
 ## Positioning
 
 **Ze** is an open-source network operating system and the successor to ExaBGP. It runs as a
@@ -560,6 +618,8 @@ requiring root, kernel modules, or Docker.
 After the detail tables above: the gaps, stated plainly, not buried in a
 "No" cell thirteen tables deep.
 
+- **OSPF as PE/CE (RFC 4577) is absent** -- no DN-bit originator, no VRF and no sham link. FRR has none of it either. BIRD has the DN bit alone.
+- **OSPFv3 Extended LSAs (RFC 8362) do not interoperate** -- Ze builds 3 of the 7 LSA types and sets the U-bit wrong on all of them. They stop at the first OSPFv3 router that does not support them. Neither FRR nor BIRD implements RFC 8362 at all.
 - **No BGP confederations (RFC 5065)** — BIRD 3, bio-rd (partial), FRR, GoBGP, BIRD 2, and freeRtr all support it.
 - **No privilege separation** — a signature feature of at least one other implementation in this table.
 - **BFD integration is "Partial"** — several other implementations here have full support.
