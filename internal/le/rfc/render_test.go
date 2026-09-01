@@ -403,7 +403,7 @@ func TestEveryTagTheScanProducesResolvesToACarrier(t *testing.T) {
 		t.Fatal("the fixture produced no tag, so the property below is vacuous")
 	}
 	for _, tag := range in.Tags {
-		if _, held := carrierFor(tag.File, in.Carriers); !held {
+		if _, held := CarrierFor(tag.File, in.Carriers); !held {
 			t.Errorf("the scan produced a tag in %s, which no carrier claims", tag.File)
 		}
 		if evidenceLabel(tag.File, in.Carriers) == "unknown/unrun" {
@@ -473,11 +473,11 @@ func TestAnAnnotatedRequirementWithOneTestIsAuditableOnlyWhenTheAnnotationSaysWh
 		{"both polarities need no annotation", Requirement{}, both, true},
 		{"one polarity alone is incomplete", Requirement{}, one, false},
 		{"single-polarity justifies the missing one",
-			Requirement{Annotation: &Annotation{Kind: annotationSinglePolarity}}, one, true},
+			Requirement{Annotation: &Annotation{Kind: AnnotationSinglePolarity}}, one, true},
 		{"a gap does not justify it",
-			Requirement{Annotation: &Annotation{Kind: annotationGap}}, one, false},
+			Requirement{Annotation: &Annotation{Kind: AnnotationGap}}, one, false},
 		{"an annotation with no test at all is not cover",
-			Requirement{Annotation: &Annotation{Kind: annotationSinglePolarity}}, nil, false},
+			Requirement{Annotation: &Annotation{Kind: AnnotationSinglePolarity}}, nil, false},
 	}
 	for _, one := range cases {
 		t.Run(one.name, func(t *testing.T) {

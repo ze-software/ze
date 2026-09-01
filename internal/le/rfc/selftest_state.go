@@ -69,7 +69,7 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 		"audited": selftestCorrectionDate,
 		"requirements": map[string]any{
 			rid: map[string]any{
-				"verdict":         verdictEnforced,
+				"verdict":         VerdictEnforced,
 				"note":            "TestWidget exercises accepted and rejected widget input.",
 				"requirement_sha": RequirementSHA(requirement.Text),
 				fingerprintTests:  tests,
@@ -91,7 +91,7 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 		return nil, err
 	}
 	schemaErrors := checkAuditSchema(collected.Requirements, collected.Tags, audits)
-	fresh := AuditFreshness(AuditFreshnessInput{
+	fresh := auditFreshness(auditFreshnessInput{
 		Tree: root, Requirements: collected.Requirements, Tags: collected.Tags,
 		Enrolled: collected.Enrolled, Audits: audits,
 	})
@@ -110,7 +110,7 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	shifted := AuditFreshness(AuditFreshnessInput{
+	shifted := auditFreshness(auditFreshnessInput{
 		Tree: root, Requirements: collected.Requirements, Tags: shiftedTags,
 		Enrolled: collected.Enrolled, Audits: audits,
 	})
@@ -122,7 +122,7 @@ func runAuditSelftest() ([]leroot.SelftestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	resealed := AuditFreshness(AuditFreshnessInput{
+	resealed := auditFreshness(auditFreshnessInput{
 		Tree: root, Requirements: collected.Requirements, Tags: shiftedTags,
 		Enrolled: collected.Enrolled, Audits: resealedAudits,
 	})
@@ -210,14 +210,14 @@ func extractionSelftestArtifact(inventory *Inventory) map[string]any {
 	for _, site := range inventory.Sites {
 		entry := map[string]any{
 			"id": site.ID, keyQuote: site.Quote,
-			keyDisposition:  dispositionExcluded,
+			keyDisposition:  DispositionExcluded,
 			"excluded-kind": "not-a-requirement",
 			keyReason:       "the fixture did not declare this site",
 		}
 		if mappedTo := mappedIDs[site.ID]; mappedTo != "" {
 			entry = map[string]any{
 				"id": site.ID, keyQuote: site.Quote,
-				keyDisposition: dispositionMapped, "mapped-to": mappedTo,
+				keyDisposition: DispositionMapped, "mapped-to": mappedTo,
 			}
 		}
 		sites = append(sites, entry)

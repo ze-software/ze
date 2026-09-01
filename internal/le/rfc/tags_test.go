@@ -172,7 +172,7 @@ func TestTheFirstMatchingCarrierWinsAndTheIncubatorIsSkipped(t *testing.T) {
 	}
 	for _, one := range cases {
 		t.Run(one.path, func(t *testing.T) {
-			carrier, held := carrierFor(one.path, carriers)
+			carrier, held := CarrierFor(one.path, carriers)
 			if held != one.held {
 				t.Fatalf("CarrierFor(%q) held=%v, want %v", one.path, held, one.held)
 			}

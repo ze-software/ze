@@ -164,7 +164,7 @@ func TestExtractionCreatePreservesEveryAuthoredDispositionField(t *testing.T) {
 		}},
 		Sites: []ExtractionSite{{
 			ID: "2:1", Quote: "A speaker MUST act.",
-			Disposition: dispositionExcluded, ExcludedKind: exclusionDuplicate,
+			Disposition: DispositionExcluded, ExcludedKind: exclusionDuplicate,
 			Reason: "restates the mapped row", MappedTo: "RFC9999-2-2",
 		}},
 	}
@@ -174,7 +174,7 @@ func TestExtractionCreatePreservesEveryAuthoredDispositionField(t *testing.T) {
 		t.Errorf("the refresh lost artifact fields: %+v", document)
 	}
 	site := document.Sites[0]
-	if site.Disposition == nil || *site.Disposition != dispositionExcluded ||
+	if site.Disposition == nil || *site.Disposition != DispositionExcluded ||
 		site.ExcludedKind != exclusionDuplicate || site.Reason != previous.Sites[0].Reason ||
 		site.MappedTo != "RFC9999-2-2" {
 		t.Errorf("the duplicate disposition lost a required field: %+v", site)
@@ -188,7 +188,7 @@ func TestExtractionCreatePreservesEveryAuthoredDispositionField(t *testing.T) {
 
 	previous.Sites[0] = ExtractionSite{
 		ID: "2:1", Quote: "A speaker MUST act.",
-		Disposition: dispositionExcluded, ExcludedKind: relocatedToSpec,
+		Disposition: DispositionExcluded, ExcludedKind: relocatedToSpec,
 		Reason:      "the implementation belongs to the destination spec",
 		RelocatedTo: "plan/spec-widget.md", ReservedID: "RFC9999-2-3",
 	}
@@ -205,7 +205,7 @@ func TestExtractionCreateRefreshPreservesOnlyDecisionsForTheSameSentence(t *test
 		t.Fatalf("derive fixture inventory: %v, %+v", err, inventory)
 	}
 	document := newExtractionDocument(inventory, nil)
-	mapped := dispositionMapped
+	mapped := DispositionMapped
 	document.SignedOff = "2026-07-29"
 	document.Reviewer = "tester"
 	document.Sites[0].Disposition = &mapped
@@ -475,7 +475,7 @@ func TestAFullyClassifiedRefreshStillLandsInTheCorpus(t *testing.T) {
 		t.Fatalf("derive fixture inventory: %v, %+v", err, inventory)
 	}
 	document := newExtractionDocument(inventory, nil)
-	mapped, walked := dispositionMapped, "walked"
+	mapped, walked := DispositionMapped, "walked"
 	document.SignedOff = "2026-08-30"
 	document.Reviewer = "tester"
 	document.Sites[0].Disposition, document.Sites[0].MappedTo = &mapped, "RFC9999-2-1"

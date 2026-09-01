@@ -56,7 +56,7 @@ func goTagPackages(tree string, tags []Tag, carriers []Carrier) []string {
 	dirs := map[string]bool{}
 	var tb textbuf.Buffer
 	for _, tag := range tags {
-		carrier, held := carrierFor(tag.File, carriers)
+		carrier, held := CarrierFor(tag.File, carriers)
 		if !held || carrier.Reader != "go" {
 			continue
 		}
@@ -177,7 +177,7 @@ func checkTagPackagesCompile(tree string, tags []Tag, carriers []Carrier) ([]str
 	}
 	held := map[string][]Tag{}
 	for _, tag := range tags {
-		carrier, found := carrierFor(tag.File, carriers)
+		carrier, found := CarrierFor(tag.File, carriers)
 		if found && carrier.Reader == "go" {
 			held[filepath.ToSlash(filepath.Dir(tag.File))] = append(held[filepath.ToSlash(filepath.Dir(tag.File))], tag)
 		}

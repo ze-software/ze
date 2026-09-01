@@ -103,7 +103,7 @@ func reseal(tree string, prove func(string) bool, note string) (ResealReport, er
 	if err != nil {
 		return ResealReport{}, err
 	}
-	states := AuditFreshness(AuditFreshnessInput{
+	states := auditFreshness(auditFreshnessInput{
 		Tree: tree, Requirements: collected.Requirements, Tags: collected.Tags,
 		Enrolled: collected.Enrolled, Audits: audits,
 	})

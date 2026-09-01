@@ -95,7 +95,7 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 	kind = strings.TrimSpace(kind)
 	rest = strings.TrimSpace(rest)
 	if !annotationKinds[kind] {
-		known := append(annotationKindNames(), supersededKind)
+		known := append(AnnotationKinds(), SupersededKind)
 		sort.Strings(known)
 		return nil, parseErr(tb.Str(where).Str(": unknown annotation kind ").Str(pyRepr(kind)).
 			Str("; expected one of ").Str(pyRepr(known)))
@@ -104,13 +104,13 @@ func parseAnnotation(body, where string) (*Annotation, error) {
 		return nil, parseErr(tb.Str(where).Str(": annotation {").Str(kind).
 			Str("} has an empty reason. A bare annotation is an escape hatch; say why."))
 	}
-	if kind == annotationSinglePolarity {
+	if kind == AnnotationSinglePolarity {
 		polarity, why, _ := strings.Cut(rest, ";")
 		polarity = strings.TrimSpace(polarity)
 		why = strings.TrimSpace(why)
 		if !polarities[polarity] {
 			return nil, parseErr(tb.Str(where).Str(": single-polarity needs a polarity from ").
-				Str(pyRepr(polarityNames())).Str(", got ").Str(pyRepr(polarity)).
+				Str(pyRepr(Polarities())).Str(", got ").Str(pyRepr(polarity)).
 				Str(". Format: {single-polarity: negative; why}"))
 		}
 		if why == "" {
@@ -130,20 +130,20 @@ func parseSuccessor(body, where string) (*Successor, error) {
 	_, rest, _ := strings.Cut(body, ":")
 	rest = strings.TrimSpace(rest)
 	if rest == "" {
-		return nil, parseErr(tb.Str(where).Str(": {").Str(supersededKind).
+		return nil, parseErr(tb.Str(where).Str(": {").Str(SupersededKind).
 			Str("} has an empty body. Say where the obligation went: {").
-			Str(supersededKind).Str(": ").Str(successorRestated).Str(" <ID>; why}, {").
-			Str(supersededKind).Str(": ").Str(successorDropped).Str("; why}, {").
-			Str(supersededKind).Str(": ").Str(successorUnextracted).Str(" <§section>; why} or {").
-			Str(supersededKind).Str(": ").Str(successorUnresolved).Str("; why}"))
+			Str(SupersededKind).Str(": ").Str(successorRestated).Str(" <ID>; why}, {").
+			Str(SupersededKind).Str(": ").Str(successorDropped).Str("; why}, {").
+			Str(SupersededKind).Str(": ").Str(successorUnextracted).Str(" <§section>; why} or {").
+			Str(SupersededKind).Str(": ").Str(successorUnresolved).Str("; why}"))
 	}
 	head, reason, found := strings.Cut(rest, ";")
 	reason = strings.TrimSpace(reason)
 	if !found || reason == "" {
-		return nil, parseErr(tb.Str(where).Str(": {").Str(supersededKind).Str(": ").
+		return nil, parseErr(tb.Str(where).Str(": {").Str(SupersededKind).Str(": ").
 			Str(strings.TrimSpace(head)).Str("} has no reason. A forward pointer nobody ").
 			Str("explained is a pointer nobody checked; say what the successor does with ").
-			Str("this obligation. Format: {").Str(supersededKind).
+			Str("this obligation. Format: {").Str(SupersededKind).
 			Str(": <disposition> [<ID>]; why}"))
 	}
 	parts := strings.Fields(head)
@@ -152,7 +152,7 @@ func parseSuccessor(body, where string) (*Successor, error) {
 		disposition = parts[0]
 	}
 	if !successorDispositions[disposition] {
-		return nil, parseErr(tb.Str(where).Str(": unknown {").Str(supersededKind).
+		return nil, parseErr(tb.Str(where).Str(": unknown {").Str(SupersededKind).
 			Str("} disposition ").Str(pyRepr(disposition)).Str("; expected one of ").
 			Str(pyRepr(successorDispositionNames())))
 	}
@@ -168,15 +168,15 @@ func parseSuccessor(body, where string) (*Successor, error) {
 			example = rb.Str(successorRestated).Str(" RFC9568-5.2.3-2").String()
 		}
 		if len(parts) != 2 {
-			return nil, parseErr(tb.Str(where).Str(": {").Str(supersededKind).Str(": ").
+			return nil, parseErr(tb.Str(where).Str(": {").Str(SupersededKind).Str(": ").
 				Str(disposition).Str("} needs exactly one ").Str(names).Str(", got ").
-				Str(pyRepr(strings.TrimSpace(head))).Str(". Format: {").Str(supersededKind).
+				Str(pyRepr(strings.TrimSpace(head))).Str(". Format: {").Str(SupersededKind).
 				Str(": ").Str(example).Str("; why}"))
 		}
 		return &Successor{Disposition: disposition, Target: parts[1], Reason: reason}, nil
 	}
 	if len(parts) != 1 {
-		return nil, parseErr(tb.Str(where).Str(": {").Str(supersededKind).Str(": ").
+		return nil, parseErr(tb.Str(where).Str(": {").Str(SupersededKind).Str(": ").
 			Str(disposition).Str("} names nothing, got ").
 			Str(pyRepr(strings.TrimSpace(head))).Str(". Only ").Str(successorRestated).
 			Str(" and ").Str(successorUnextracted).Str(" name a target"))
@@ -202,9 +202,9 @@ func stripMarkers(rest, where string) (*Annotation, *Successor, string, error) {
 		body := strings.TrimSpace(rest[loc[2]:loc[3]])
 		kind := strings.TrimSpace(strings.SplitN(body, ":", 2)[0])
 		var tb textbuf.Buffer
-		if kind == supersededKind {
+		if kind == SupersededKind {
 			if successor != nil {
-				return nil, nil, "", parseErr(tb.Str(where).Str(": two {").Str(supersededKind).
+				return nil, nil, "", parseErr(tb.Str(where).Str(": two {").Str(SupersededKind).
 					Str("} markers on one line. An obligation has one destination"))
 			}
 			parsed, err := parseSuccessor(body, where)
@@ -389,32 +389,89 @@ func summaryStems(tree string) (map[string]bool, error) {
 }
 
 // parseEnrolled reads rfc/enrolled.txt: one stem per line, comments and blank
-// lines skipped, the first word of a row taken.
-func parseEnrolled(text string) map[string]bool {
-	out := map[string]bool{}
+// lines skipped, the first word of a row keying it and the rest of the row
+// answering why that RFC is enrolled.
+//
+// The reason is KEPT rather than discarded. Each row is `<stem>\t<why>`, the
+// file's own header says so, and an author writes that sentence once. A reader
+// publishing the enrolment therefore has the reason to publish with it, and
+// nothing has to re-derive a justification the file already carries.
+func parseEnrolled(text string) (map[string]bool, map[string]string) {
+	enrolled := map[string]bool{}
+	reasons := map[string]string{}
 	for line := range strings.SplitSeq(text, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		out[strings.Fields(line)[0]] = true
+		fields := splitFieldsN(line, 2)
+		enrolled[fields[0]] = true
+		if len(fields) > 1 {
+			reasons[fields[0]] = strings.TrimSpace(fields[1])
+		}
 	}
-	return out
+	return enrolled, reasons
 }
 
-// loadEnrolled answers the enrolled set, or the empty set when the file is
-// absent. Absent is a legal state; unreadable is not, and reaches the caller.
-func loadEnrolled(tree string) (map[string]bool, error) {
+// loadEnrolled answers the enrolled set and the reason each row states, or two
+// empty maps when the file is absent. Absent is a legal state; unreadable is
+// not, and reaches the caller.
+func loadEnrolled(tree string) (map[string]bool, map[string]string, error) {
 	path := treePath(tree, enrolledRel)
 	raw, err := os.ReadFile(path) // #nosec G304 -- rfc/enrolled.txt under the checkout
 	if err != nil {
 		if os.IsNotExist(err) {
-			return map[string]bool{}, nil
+			return map[string]bool{}, map[string]string{}, nil
 		}
 		var tb textbuf.Buffer
-		return nil, parseErr(tb.Str(relTo(tree, path)).Str(": cannot read: ").Err(err))
+		return nil, nil, parseErr(tb.Str(relTo(tree, path)).Str(": cannot read: ").Err(err))
 	}
-	return parseEnrolled(string(raw)), nil
+	enrolled, reasons := parseEnrolled(string(raw))
+	return enrolled, reasons, nil
+}
+
+// titleRowRE reads the forward Meta `| Title |` row of a summary.
+//
+// Anchored at the start of a line and matched case-insensitively, in the shape
+// obsoletedRowRE already reads the obsolescence row with. One labelled source
+// and nothing else: the H1 separator is an em dash in one summary, a double
+// hyphen in another and a colon in a third, and one H1 carries a `(short)`
+// suffix, so a fallback parser would have to guess which half is the title.
+var titleRowRE = regexp.MustCompile(`(?mi)^\|\s*Title\s*\|([^|]*)\|`)
+
+// summaryTitle answers the RFC's own title, read off the summary's Meta table,
+// and the empty string for a summary carrying no such row.
+//
+// Empty rather than a guess. A wrong title on a published page states a fact
+// about a standards document that the document does not state, and the caller
+// shows the display name alone instead (OD-4).
+func summaryTitle(text string) string {
+	found := titleRowRE.FindStringSubmatch(text)
+	if found == nil {
+		return ""
+	}
+	return strings.TrimSpace(found[1])
+}
+
+// summaryTitles answers the title every summary of one checkout declares.
+//
+// A stem whose summary declares none is ABSENT from the map rather than present
+// with an empty value, so a caller can tell "this summary states no title" from
+// "this stem has no summary" (ai/rules/principles.md).
+func summaryTitles(tree string, stems map[string]bool) (map[string]string, error) {
+	out := make(map[string]string, len(stems))
+	for _, stem := range sortedSet(stems) {
+		var name textbuf.Buffer
+		rel := name.Str(summaryRel).Byte('/').Str(stem).Str(".md").String()
+		text, err := readFile(treePath(tree, rel), rel)
+		if err != nil {
+			return nil, err
+		}
+		if title := summaryTitle(text); title != "" {
+			out[stem] = title
+		}
+	}
+	return out, nil
 }
 
 // gatedCounts answers the number of MUST-level requirements each summary

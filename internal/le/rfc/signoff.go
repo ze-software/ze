@@ -317,7 +317,7 @@ func evaluateExtraction(tree string, art Extraction, inv *Inventory, reqs []Requ
 	}
 	mappedTargets := map[string]bool{}
 	for _, site := range art.Sites {
-		if site.Disposition == dispositionMapped && site.MappedTo != "" {
+		if site.Disposition == DispositionMapped && site.MappedTo != "" {
 			mappedTargets[site.MappedTo] = true
 		}
 	}
@@ -352,7 +352,7 @@ func evaluateExtraction(tree string, art Extraction, inv *Inventory, reqs []Requ
 		}
 
 		switch {
-		case site.Disposition == dispositionMapped:
+		case site.Disposition == DispositionMapped:
 			// The site's LEVEL against the row's. Both facts were already here
 			// and neither was compared: a sentence quoting a capitalised MUST
 			// could be mapped to a SHOULD row and reported as captured, while

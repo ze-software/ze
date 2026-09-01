@@ -55,9 +55,13 @@ const (
 // The two site dispositions and the one exclusion kind that other files read
 // by name. Spelled once, because a second spelling is a second place for a
 // reader and the closed set below to drift apart.
+//
+// Both dispositions are EXPORTED, because internal/le/site publishes the
+// exclusions of every sign-off and has to select them. Deriving the word by
+// elimination out of SiteDispositions would put a second rule beside this one.
 const (
-	dispositionMapped   = "mapped"
-	dispositionExcluded = "excluded"
+	DispositionMapped   = "mapped"
+	DispositionExcluded = "excluded"
 	exclusionDuplicate  = "duplicate-of"
 )
 
@@ -93,7 +97,7 @@ var sectionSkipKinds = map[string]bool{
 // SectionSkipKinds answers them sorted.
 func SectionSkipKinds() []string { return sortedKeys(sectionSkipKinds) }
 
-var siteDispositions = map[string]bool{dispositionMapped: true, dispositionExcluded: true}
+var siteDispositions = map[string]bool{DispositionMapped: true, DispositionExcluded: true}
 
 // SiteDispositions answers them sorted.
 func SiteDispositions() []string { return sortedKeys(siteDispositions) }
@@ -179,10 +183,10 @@ type Extraction struct {
 // because it is one: this walk declined to map the sentence. Counting the
 // subset apart is what lets a reviewer tell a homed obligation from a dismissed
 // sentence.
-func (e Extraction) Relocated() int { return e.countSites(dispositionExcluded, relocatedToSpec) }
+func (e Extraction) Relocated() int { return e.countSites(DispositionExcluded, relocatedToSpec) }
 
 // Mapped counts the sites this walk tied to a requirement id.
-func (e Extraction) Mapped() int { return e.countSites(dispositionMapped, "") }
+func (e Extraction) Mapped() int { return e.countSites(DispositionMapped, "") }
 
 // Excluded counts the sites this walk declined to map, relocations included.
 //
@@ -190,7 +194,7 @@ func (e Extraction) Mapped() int { return e.countSites(dispositionMapped, "") }
 // it is one: this walk did decline to map the sentence. It is counted APART in
 // the ledger's relocation note, because a homed obligation and a dismissed
 // sentence are not the same fact.
-func (e Extraction) Excluded() int { return e.countSites(dispositionExcluded, "") }
+func (e Extraction) Excluded() int { return e.countSites(DispositionExcluded, "") }
 
 // Unclassified counts the sites and the sections this artifact leaves with no
 // disposition.
@@ -509,11 +513,11 @@ func parseSites(data map[string]any, rel, stem string) ([]ExtractionSite, error)
 			return nil, err
 		}
 		switch site.Disposition {
-		case dispositionMapped:
+		case DispositionMapped:
 			if site.MappedTo, err = strField(entry, "mapped-to", place, true); err != nil {
 				return nil, err
 			}
-		case dispositionExcluded:
+		case DispositionExcluded:
 			site.ExcludedKind, _ = entry["excluded-kind"].(string)
 			if !exclusionKinds[site.ExcludedKind] {
 				tb.Reset()

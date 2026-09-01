@@ -44,7 +44,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 				Str(" has a ticked checkbox. The box is a template marker, not coverage state -- a tick is a claim, and this gate exists because claims are what rot. Untick it; coverage comes from the test tags").String())
 		}
 		annotation := req.Annotation
-		if annotation != nil && (annotation.Kind == annotationNotApplicable || annotation.Kind == annotationGap) {
+		if annotation != nil && (annotation.Kind == AnnotationNotApplicable || annotation.Kind == AnnotationGap) {
 			if len(found) > 0 {
 				locations := make([]string, 0, len(found))
 				for _, tag := range found {
@@ -61,10 +61,10 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 		if !req.Gated() {
 			continue
 		}
-		if annotation != nil && annotation.Kind == annotationSinglePolarity {
-			other := polarityNegative
-			if annotation.Polarity == polarityNegative {
-				other = polarityPositive
+		if annotation != nil && annotation.Kind == AnnotationSinglePolarity {
+			other := PolarityNegative
+			if annotation.Polarity == PolarityNegative {
+				other = PolarityPositive
 			}
 			if polarity[other] {
 				var locations []string
@@ -93,7 +93,7 @@ func evaluate(requirements []Requirement, tags []Tag, enrolled map[string]bool) 
 			continue
 		}
 		var missing []string
-		for _, value := range []string{polarityNegative, polarityPositive} {
+		for _, value := range []string{PolarityNegative, PolarityPositive} {
 			if !polarity[value] {
 				missing = append(missing, value)
 			}
@@ -139,7 +139,7 @@ func checkSuperseded(tree string, requirements []Requirement, successors map[str
 		if successor == "" {
 			if mark != nil {
 				var tb textbuf.Buffer
-				errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).Str(" carries {").Str(supersededKind).
+				errs = append(errs, tb.Str(where).Str(": ").Str(req.RID).Str(" carries {").Str(SupersededKind).
 					Str("} but rfc/short/").Str(req.RFC).Str(".md names no successor in its forward Meta row. Name the obsoleting RFC in the Meta table, or remove the marker").String())
 			}
 			continue

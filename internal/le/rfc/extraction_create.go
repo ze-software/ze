@@ -236,10 +236,10 @@ func newExtractionDocument(inventory *Inventory, previous *Extraction) extractio
 		entry := extractionDocumentSite{ID: site.ID, Quote: site.Quote}
 		if old, held := previousSites[site.ID]; held && old.Quote == site.Quote {
 			entry.Disposition = stringPointer(old.Disposition)
-			if old.Disposition == dispositionMapped {
+			if old.Disposition == DispositionMapped {
 				entry.MappedTo = old.MappedTo
 			}
-			if old.Disposition == dispositionExcluded {
+			if old.Disposition == DispositionExcluded {
 				entry.ExcludedKind = old.ExcludedKind
 				entry.Reason = old.Reason
 			}

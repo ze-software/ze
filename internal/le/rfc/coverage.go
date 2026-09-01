@@ -6,7 +6,7 @@
 // render.go is a formatting of a number produced here.
 //
 // Two rollups, over two different questions, and they are deliberately not one.
-// rfcCoverage answers which POLARITIES exist for a requirement. auditCoverage
+// CoverageRow answers which POLARITIES exist for a requirement. auditCoverage
 // answers whether a human read the test and believed it. A requirement can have
 // both polarities and a `weak` verdict, so a single "proven" column would have
 // to lie about one of them.
@@ -45,7 +45,7 @@ func (c Carrier) Label() string {
 // plausibly right: an unrecognized carrier must never render as though
 // something proved something.
 func evidenceLabel(rel string, carriers []Carrier) string {
-	if c, held := carrierFor(rel, carriers); held {
+	if c, held := CarrierFor(rel, carriers); held {
 		return c.Label()
 	}
 	return "unknown/unrun"
@@ -54,19 +54,19 @@ func evidenceLabel(rel string, carriers []Carrier) string {
 // evidenceTier answers the execution tier for one repo-relative path, and
 // tierUnrun for a path no carrier claims.
 func evidenceTier(rel string, carriers []Carrier) string {
-	if c, held := carrierFor(rel, carriers); held {
+	if c, held := CarrierFor(rel, carriers); held {
 		return c.Tier
 	}
 	return tierUnrun
 }
 
-// isNightlyOnly answers: this requirement HAS evidence, and none of it runs
+// NightlyOnly answers: this requirement HAS evidence, and none of it runs
 // inside ./le verify current mode full.
 //
 // A nightly-advisory scenario and a merge-gate unit test are both "a tag", and
 // flattening them into one proven cell is how a claim nothing blocks on gets
 // read as a claim every merge enforces.
-func isNightlyOnly(found []Tag, carriers []Carrier) bool {
+func NightlyOnly(found []Tag, carriers []Carrier) bool {
 	if len(found) == 0 {
 		return false
 	}
@@ -78,8 +78,8 @@ func isNightlyOnly(found []Tag, carriers []Carrier) bool {
 	return true
 }
 
-// rfcCoverage is one RFC's polarity row. Every field is derived.
-type rfcCoverage struct {
+// CoverageRow is one RFC's polarity row. Every field is derived.
+type CoverageRow struct {
 	RFC       string `json:"rfc"`
 	Gated     int    `json:"gated"`
 	Both      int    `json:"both"`
@@ -95,20 +95,20 @@ type rfcCoverage struct {
 }
 
 // Outstanding is the work still owed before this RFC could be enrolled.
-func (c rfcCoverage) Outstanding() int { return c.One + c.Missing }
+func (c CoverageRow) Outstanding() int { return c.One + c.Missing }
 
-// rfcCoverageRows answers per-RFC polarity coverage. This is the backlog,
+// CoverageRows answers per-RFC polarity coverage. This is the backlog,
 // derived rather than maintained.
 //
 // A hand-kept TODO list of missing tests would rot the moment someone wrote one
 // and forgot the list. Counting the tags is the only version that cannot lie.
-func rfcCoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier) []rfcCoverage {
+func CoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier) []CoverageRow {
 	byRID := tagsByRID(tags)
 	order, byRFC := requirementsByRFC(requirements)
 
-	out := make([]rfcCoverage, 0, len(order))
+	out := make([]CoverageRow, 0, len(order))
 	for _, rfc := range order {
-		row := rfcCoverage{RFC: rfc}
+		row := CoverageRow{RFC: rfc}
 		gated := 0
 		for _, req := range byRFC[rfc] {
 			if !req.Gated() {
@@ -116,7 +116,7 @@ func rfcCoverageRows(requirements []Requirement, tags []Tag, carriers []Carrier)
 			}
 			gated++
 			found := byRID[req.RID]
-			if isNightlyOnly(found, carriers) {
+			if NightlyOnly(found, carriers) {
 				row.NightlyOnly++
 			}
 			switch {
@@ -171,10 +171,10 @@ func requirementsByRFC(requirements []Requirement) ([]string, map[string][]Requi
 func bothPolarities(found []Tag) bool {
 	var positive, negative bool
 	for _, tag := range found {
-		if tag.Polarity == polarityPositive {
+		if tag.Polarity == PolarityPositive {
 			positive = true
 		}
-		if tag.Polarity == polarityNegative {
+		if tag.Polarity == PolarityNegative {
 			negative = true
 		}
 	}
@@ -237,7 +237,7 @@ func polarityCovered(req Requirement, found []Tag) bool {
 		return true
 	}
 	return len(found) > 0 && req.Annotation != nil &&
-		req.Annotation.Kind == annotationSinglePolarity
+		req.Annotation.Kind == AnnotationSinglePolarity
 }
 
 // auditCoverageInput is what the audit rollup reads.
@@ -305,7 +305,7 @@ func auditCoverageRows(in auditCoverageInput) ([]auditCoverage, []worklistRow) {
 			if recordedState, known := in.States[req.RID]; known {
 				state = recordedState.State
 			}
-			if value == verdictEnforced && state == FreshState {
+			if value == VerdictEnforced && state == FreshState {
 				row.Proven++
 				continue
 			}

@@ -31,7 +31,7 @@ func checkStatusAgreement(requirements []Requirement, rows map[string]LedgerRow,
 	enrolled map[string]bool) []string {
 	var errs []string
 	for _, req := range requirements {
-		if req.Annotation == nil || req.Annotation.Kind != annotationGap {
+		if req.Annotation == nil || req.Annotation.Kind != AnnotationGap {
 			continue
 		}
 		row, held := rows[req.RFC]
@@ -247,7 +247,7 @@ func spelledGapCount(remaining string) (int, bool) {
 func checkGapCountAgreement(requirements []Requirement, rows map[string]LedgerRow) []string {
 	gaps := map[string]int{}
 	for _, req := range requirements {
-		if req.Annotation != nil && req.Annotation.Kind == annotationGap {
+		if req.Annotation != nil && req.Annotation.Kind == AnnotationGap {
 			gaps[req.RFC]++
 		}
 	}

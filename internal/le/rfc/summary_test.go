@@ -208,9 +208,29 @@ func TestADuplicateIdIsRefused(t *testing.T) {
 }
 
 func TestEnrolledRowsTakeTheFirstWordAndSkipComments(t *testing.T) {
-	got := parseEnrolled("# a comment\n\nrfc7606  # trailing words\nrfc4271\n")
+	got, _ := parseEnrolled("# a comment\n\nrfc7606  # trailing words\nrfc4271\n")
 	if len(got) != 2 || !got["rfc7606"] || !got["rfc4271"] {
 		t.Errorf("ParseEnrolled read %v", sortedSet(got))
+	}
+}
+
+// VALIDATES: the enrolment reason survives the parse.
+//
+// The row is `<stem>\t<why>` and an author writes that sentence once. The
+// reader kept the first field and dropped the rest until 2026-09-01, so the
+// published enrolment had no account of itself and a page would have had to
+// invent one.
+func TestEnrolmentKeepsItsReason(t *testing.T) {
+	enrolled, reasons := parseEnrolled(
+		"# a comment\n\nrfc7606\ttreat-as-withdraw is proven both ways\nrfc4271\n")
+	if !enrolled["rfc7606"] || !enrolled["rfc4271"] {
+		t.Fatalf("the parse read %v", sortedSet(enrolled))
+	}
+	if reasons["rfc7606"] != "treat-as-withdraw is proven both ways" {
+		t.Errorf("the reason is %q, want the whole sentence after the stem", reasons["rfc7606"])
+	}
+	if _, held := reasons["rfc4271"]; held {
+		t.Errorf("a row with no reason answered %q, want no entry at all", reasons["rfc4271"])
 	}
 }
 
@@ -225,5 +245,55 @@ func TestGatedCountsCountOnlyMustLevelRows(t *testing.T) {
 	}
 	if _, held := got["rfc2"]; held {
 		t.Errorf("an RFC declaring only advisory rows is counted: %v", got)
+	}
+}
+
+// VALIDATES: the title comes from the labelled Meta row, and a summary carrying
+// no such row answers empty rather than guessing at the H1.
+//
+// The H1 separator is an em dash in one summary, a double hyphen in another and
+// a colon in a third, and one H1 carries a "(short)" suffix, so a fallback
+// parser would have to guess which half of the heading is the title. A wrong
+// title on a published page states a fact about a standards document that the
+// document does not state.
+func TestASummaryTitleComesFromTheMetaRow(t *testing.T) {
+	const summary = "# RFC 9999 -- Widgets, or so it says\n\n## Meta\n\n" +
+		"| Field | Value |\n|-------|-------|\n| RFC | 9999 |\n" +
+		"| Title | The Widget Protocol |\n"
+	if got := summaryTitle(summary); got != "The Widget Protocol" {
+		t.Errorf("the title is %q, want the Meta row's own value", got)
+	}
+	if got := summaryTitle("# RFC 9999 -- Widgets\n\nno meta table here\n"); got != "" {
+		t.Errorf("a summary with no Title row answered %q, want the empty string", got)
+	}
+}
+
+// VALIDATES: every summary of this corpus declares its title, so the empty
+// answer above is unreachable on the published pages.
+//
+// The method is the real tree rather than a fixture: the backfill of 2026-09-01
+// is what makes this true, and only the corpus can say whether it stayed true.
+func TestEverySummaryCarriesATitleRow(t *testing.T) {
+	root := checkoutRoot(t)
+	stems, err := summaryStems(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stems) == 0 {
+		t.Fatal("this checkout carries no summary, so this proves nothing")
+	}
+	titles, err := summaryTitles(root, stems)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var missing []string
+	for _, stem := range sortedSet(stems) {
+		if titles[stem] == "" {
+			missing = append(missing, stem)
+		}
+	}
+	if len(missing) != 0 {
+		t.Errorf("%d summary/summaries declare no Meta | Title | row: %s",
+			len(missing), strings.Join(missing, ", "))
 	}
 }

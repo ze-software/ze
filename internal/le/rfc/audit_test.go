@@ -125,7 +125,7 @@ func TestTwoKeysResolvingToOneUnitDoNotCollapse(t *testing.T) {
 // freshVerdict is a recorded verdict whose three maps the caller spells.
 func freshVerdict(reqSHA string, tests, units, code map[string]any) map[string]any {
 	out := map[string]any{
-		"verdict": verdictEnforced, "note": "n", "requirement_sha": reqSHA,
+		"verdict": VerdictEnforced, "note": "n", "requirement_sha": reqSHA,
 		"tests": tests,
 	}
 	if units != nil {
@@ -204,7 +204,7 @@ func TestEachFreshnessStateIsReachedFromItsOwnEvidence(t *testing.T) {
 			// of writing a not-applicable verdict omits the tests map, and
 			// reading the raw field made that spelling permanently stale.
 			name:    "a verdict that cites nothing",
-			verdict: map[string]any{"verdict": verdictNotApplicable, "note": "n", "requirement_sha": req},
+			verdict: map[string]any{"verdict": VerdictNotApplicable, "note": "n", "requirement_sha": req},
 			state:   FreshState,
 		},
 	}
@@ -465,5 +465,61 @@ func TestTheFunctionSpansOfAFileNeverOverlap(t *testing.T) {
 	}
 	if checked < 50 {
 		t.Fatalf("only %d tagged Go file(s) were walked; this checkout has more", checked)
+	}
+}
+
+// VALIDATES: the typed accessor answers what the untyped record holds.
+//
+// Verdict answers the document, because the writer rewrites it and the
+// freshness rule compares its raw fields. A reader outside this package wants
+// the fields, and reaching into map[string]any for them would spell the six
+// keys a second time -- which is where this vocabulary drifted before the
+// schema existed.
+func TestTheAuditVerdictAccessorAnswersTheRecordedFields(t *testing.T) {
+	audit := Audit{Verdicts: map[string]any{
+		"RFC9999-2-1": map[string]any{
+			"verdict":         VerdictWeak,
+			"note":            "the test asserts the encoder ran, never what it wrote",
+			"requirement_sha": "0123456789abcdef",
+			fingerprintTests:  map[string]any{"internal/a_test.go::TestWidget": "aaaaaaaaaaaaaaaa"},
+			fingerprintUnits:  map[string]any{"internal/a_test.go::TestWidget": "bbbbbbbbbbbbbbbb"},
+			fingerprintCode:   map[string]any{"internal/a.go::Encode": "cccccccccccccccc"},
+			"upgrade_reason":  "raised after the encoder gained a length check",
+		},
+	}}
+
+	record, held := audit.Record("RFC9999-2-1")
+	if !held {
+		t.Fatal("the accessor found no verdict where the record holds one")
+	}
+	if record.Verdict != VerdictWeak {
+		t.Errorf("the verdict is %q, want %q", record.Verdict, VerdictWeak)
+	}
+	if record.Note == "" || record.RequirementSHA != "0123456789abcdef" {
+		t.Errorf("the note and the requirement fingerprint read %q and %q",
+			record.Note, record.RequirementSHA)
+	}
+	if record.Tests["internal/a_test.go::TestWidget"] != "aaaaaaaaaaaaaaaa" ||
+		record.Units["internal/a_test.go::TestWidget"] != "bbbbbbbbbbbbbbbb" ||
+		record.Code["internal/a.go::Encode"] != "cccccccccccccccc" {
+		t.Errorf("the three fingerprint maps read %+v", record)
+	}
+	if record.UpgradeReason == "" || record.NoCodePath != "" {
+		t.Errorf("the upgrade reason reads %q and the no-code-path %q",
+			record.UpgradeReason, record.NoCodePath)
+	}
+	if _, held := audit.Record("RFC9999-9-9"); held {
+		t.Error("a requirement with no verdict answered one")
+	}
+
+	meaning, known := AuditVerdictMeaning(VerdictWeak)
+	if !known || meaning == "" {
+		t.Error("the weak verdict publishes no meaning, so a page would print a word alone")
+	}
+	if _, known := AuditVerdictMeaning("splendid"); known {
+		t.Error("a word outside the closed vocabulary answered a meaning")
+	}
+	if len(AuditVerdicts()) != 5 {
+		t.Errorf("the vocabulary holds %d words, want five", len(AuditVerdicts()))
 	}
 }

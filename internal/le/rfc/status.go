@@ -115,6 +115,16 @@ type Collected struct {
 	ParseErrors  []string
 	ParseByStem  map[string]string
 	Tags         []Tag
+	// EnrolmentReasons is why each enrolled RFC was enrolled, as its row in
+	// rfc/enrolled.txt states it, and Titles is each summary's own Meta title.
+	// Both are read by the SAME walk that reads the set and the requirements,
+	// so a reader that publishes an enrolment publishes its account with it
+	// and nothing has to open either file a second time.
+	//
+	// A stem missing from either map declared nothing, which is a state a
+	// reader reports rather than an empty string that reads like data.
+	EnrolmentReasons map[string]string
+	Titles           map[string]string
 }
 
 // Collect parses every summary tolerantly and scans the tree once.
@@ -123,7 +133,7 @@ type Collected struct {
 // summary the gate cannot read is a summary whose obligations nobody can see,
 // enrolled or not.
 func Collect(tree string) (Collected, error) {
-	enrolled, err := loadEnrolled(tree)
+	enrolled, reasons, err := loadEnrolled(tree)
 	if err != nil {
 		return Collected{}, err
 	}
@@ -131,7 +141,12 @@ func Collect(tree string) (Collected, error) {
 	if err != nil {
 		return Collected{}, err
 	}
-	out := Collected{Enrolled: enrolled, ParseByStem: map[string]string{}}
+	titles, err := summaryTitles(tree, stems)
+	if err != nil {
+		return Collected{}, err
+	}
+	out := Collected{Enrolled: enrolled, EnrolmentReasons: reasons, Titles: titles,
+		ParseByStem: map[string]string{}}
 	for _, stem := range sortedSet(stems) {
 		var name textbuf.Buffer
 		path := treePath(tree, summaryRel, name.Str(stem).Str(".md").String())

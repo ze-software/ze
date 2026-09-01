@@ -77,14 +77,14 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 	var prefix textbuf.Buffer
 	rel := prefix.Str(auditRel).Byte('/').Str(rfc).Str(".json: ").Str(rid).String()
 	var errs []string
-	if value == verdictEnforced {
+	if value == VerdictEnforced {
 		if len(recordedMap(verdict, fingerprintTests)) == 0 {
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(rel).Str(" is 'enforced' with an empty 'tests' map. 'enforced' means the tests would fail if the code stopped complying, so it must cite at least one. If no reachable code path could satisfy or violate the requirement, the honest verdict is 'not-applicable' with a 'no_code_path' reason and an agreeing {not-applicable} annotation").String())
 		}
-		if req.Annotation == nil || req.Annotation.Kind != annotationSinglePolarity {
+		if req.Annotation == nil || req.Annotation.Kind != AnnotationSinglePolarity {
 			var missing []string
-			for _, polarity := range []string{polarityNegative, polarityPositive} {
+			for _, polarity := range []string{PolarityNegative, PolarityPositive} {
 				if !polarities[polarity] {
 					missing = append(missing, polarity)
 				}
@@ -104,18 +104,18 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 			}
 		}
 	}
-	if value == verdictUnimplemented {
+	if value == VerdictUnimplemented {
 		if len(recordedMap(verdict, fingerprintCode)) == 0 {
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(rel).Str(" is 'unimplemented' with an empty 'code' map. A claim that the CODE does not comply must name the producing code, or it is unfalsifiable: with neither tests nor code fingerprinted, the verdict can never go stale and no one is ever asked to look again").String())
 		}
-		if req.Annotation == nil || (req.Annotation.Kind != annotationGap && req.Annotation.Kind != annotationNotApplicable) {
+		if req.Annotation == nil || (req.Annotation.Kind != AnnotationGap && req.Annotation.Kind != AnnotationNotApplicable) {
 			var tb textbuf.Buffer
 			errs = append(errs, tb.Str(rel).Str(" is 'unimplemented' but ").Str(req.Source).Byte(':').Int(int64(req.Line)).
 				Str(" carries no {gap} or {not-applicable} annotation. The record and the checklist must agree: a divergence Ze knows about must be declared where a reader of the summary will meet it").String())
 		}
 	}
-	if value == verdictNotApplicable {
+	if value == VerdictNotApplicable {
 		if tests := recordedMap(verdict, fingerprintTests); len(tests) > 0 {
 			keys := make([]string, 0, len(tests))
 			for key := range tests {
@@ -133,7 +133,7 @@ func verdictClaims(rfc, rid string, verdict map[string]any, req Requirement, fou
 		var tb textbuf.Buffer
 		kind := "no annotation"
 		if req.Annotation != nil {
-			if req.Annotation.Kind == annotationNotApplicable {
+			if req.Annotation.Kind == AnnotationNotApplicable {
 				return errs
 			}
 			kind = tb.Byte('{').Str(req.Annotation.Kind).Byte('}').String()
@@ -201,7 +201,7 @@ func checkAuditDisclosure(requirements []Requirement, rows map[string]LedgerRow,
 			continue
 		}
 		value := verdictValue(verdict)
-		if value != verdictWrong && value != verdictUnimplemented {
+		if value != VerdictWrong && value != VerdictUnimplemented {
 			continue
 		}
 		seen[req.RID] = true
@@ -233,7 +233,7 @@ func checkAuditFindings(requirements []Requirement, enrolled map[string]bool, au
 		}
 		was := baseline[req.RFC][req.RID]
 		oldValue := verdictValue(was)
-		if oldValue != verdictWeak && oldValue != verdictWrong {
+		if oldValue != VerdictWeak && oldValue != VerdictWrong {
 			continue
 		}
 		seen[req.RID] = true
@@ -243,7 +243,7 @@ func checkAuditFindings(requirements []Requirement, enrolled map[string]bool, au
 			errs = append(errs, tb.Str(auditRel).Byte('/').Str(req.RFC).Str(".json: the ").Str(pyRepr(oldValue)).Str(" finding on ").Str(req.RID).Str(" was DELETED. A finding is resolved by fixing the test or retiring the requirement, never by removing the record of it -- deletion is the cheapest route from red to green and is the one this ratchet exists to close").String())
 			continue
 		}
-		if verdictValue(now) != verdictEnforced {
+		if verdictValue(now) != VerdictEnforced {
 			continue
 		}
 		upgrade, _ := now["upgrade_reason"].(string)
@@ -305,7 +305,7 @@ func checkAuditNote(tree string, requirements []Requirement, tags []Tag, enrolle
 			continue
 		}
 		verdict, held := audits[req.RFC].Verdict(req.RID)
-		if !held || verdictValue(verdict) != verdictEnforced || len(byRID[req.RID]) == 0 {
+		if !held || verdictValue(verdict) != VerdictEnforced || len(byRID[req.RID]) == 0 {
 			continue
 		}
 		seen[req.RID] = true
