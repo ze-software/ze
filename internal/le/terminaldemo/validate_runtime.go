@@ -96,11 +96,20 @@ func validateCLIDashboard() error {
 	if strings.Count(peers, `"state": "established"`) != 3 {
 		return fmt.Errorf("validation failed: expected three established sessions\n%s", peers)
 	}
-	output, err := runPTYFixture(env, "--timeout", "20", "--command", "exit", "--command", `@wait operational\]`, "--command", "monitor bgp", "--command", `@wait 127\.0\.0\.4`, "--command", "@type s", "--command", `@wait ASN \^`, "--command", "@key down", "--command", "@key enter", "--command", `@wait Peer Detail: 127\.0\.0\.2`, "--command", "@escape", "--command", "@type q", "--command", `@wait operational\]`, "--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
+	// The keystrokes are the tape's: the table opens in address order with
+	// 127.0.0.2 on the first row, `s` re-orders it by ASN to .4, .2, .3, and the
+	// highlight follows its peer to the second row. One `down` therefore reaches
+	// 127.0.0.3, and Enter opens that session.
+	//
+	// The peer this ends on is a FIXED answer, and it was not always one. The
+	// highlight used to stay at a row NUMBER across a re-sort, so `down` reached
+	// .2 or .3 depending on whether a poll landed in between and re-resolved the
+	// index (comparePeers and followSelection, internal/component/cli).
+	output, err := runPTYFixture(env, "--timeout", "20", "--command", "exit", "--command", `@wait operational\]`, "--command", "monitor bgp", "--command", `@wait 127\.0\.0\.4`, "--command", "@type s", "--command", `@wait ASN \^`, "--command", "@key down", "--command", "@key enter", "--command", `@wait Peer Detail: 127\.0\.0\.3`, "--command", "@escape", "--command", "@type q", "--command", `@wait operational\]`, "--command", "exit", "--", "sshpass", "-e", "ssh", "ze-demo")
 	if err != nil {
 		return err
 	}
-	return requireAll(output, "ASN ^", "Peer Detail: 127.0.0.2")
+	return requireAll(output, "ASN ^", "Peer Detail: 127.0.0.3")
 }
 
 func validateZeFSConfig() error {
