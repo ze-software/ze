@@ -47,6 +47,9 @@ docs/research/comparison/
 docs/research/ze-vpp-plan.md
 *-inlined.html
 
+# Restricted-source reconstruction. Keep local and never commit.
+/rfc/full/RFC-SYNTHETIC-ISIS.txt
+
 # Coverage reports
 coverage.out
 coverage.html
