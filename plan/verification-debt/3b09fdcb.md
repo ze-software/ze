@@ -26,3 +26,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-01 | 3b09fdcb | fix(rfc): attribute a red the break killed the binary with | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-01 | 3b09fdcb | fix(rfc): attribute a red the break killed the binary with | discovery-index freshness | the change adds and removes no package: one method and one constant inside internal/le/rfc, which ai/PACKAGE-MAP.md already lists | open |
 | 2026-09-01 | 3b09fdcb | test(rfc): prove the RFC 5176 walk test discriminates its claims | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-01 | 3b09fdcb | docs(rfc): cite the producer behind every binds-another-role site | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |

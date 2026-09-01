@@ -302,7 +302,7 @@
       "quote": "If this is desired, cryptographic measures must be applied in addition.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the SP or customer that wants confidentiality: the section states that these methods do not themselves encrypt data or detect tampering, and that cryptographic measures are applied in addition if that is desired, pointing at [MPLS/BGP-IPsec]. The obligation falls on whoever deploys that additional layer, and ze provides no VPN data path over which to deploy it."
+      "reason": "Binds the SP or customer that wants confidentiality: the section states that these methods do not themselves encrypt data or detect tampering, and that cryptographic measures are applied in addition if that is desired, pointing at [MPLS/BGP-IPsec]. The obligation falls on whoever deploys that additional layer, and ze provides no VPN data path over which to deploy it. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "2:1",
@@ -323,28 +323,28 @@
       "quote": "Although the PE's conclusion that a particular packet arrived on a particular attachment circuit may be partially determined by the packet's layer 2 header, it must be impossible for a customer, by writing the header fields, to fool the SP into thinking that a packet that was received over one attachment circuit really arrived over a different one.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the SP's PE and the layer 2 access it controls: a customer must not be able to forge the attachment-circuit decision by writing the layer 2 header fields, the Frame Relay DLCI in the section's own example. Ze terminates no customer attachment circuit and makes no such decision."
+      "reason": "Binds the SP's PE and the layer 2 access it controls: a customer must not be able to forge the attachment-circuit decision by writing the layer 2 header fields, the Frame Relay DLCI in the section's own example. Ze terminates no customer attachment circuit and makes no such decision. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "3.2:3",
       "quote": "Rather, it must be set to a value specified by the SP, or else the packet cannot arrive at the PE router.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same SP-controlled attachment circuit as site 3.2:2: the layer 2 field is set to the value the SP specified or the packet does not reach the PE. It constrains the provisioning of the access link, and ze provisions none."
+      "reason": "Binds the same SP-controlled attachment circuit as site 3.2:2: the layer 2 field is set to the value the SP specified or the packet does not reach the PE. It constrains the provisioning of the access link, and ze provisions none. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "3.2:4",
       "quote": "If it is desired to have a particular host be in multiple virtual sites, then that host must determine, for each packet, which virtual site the packet is associated with.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the customer HOST that sits in several virtual sites: it decides, for each packet, which virtual site the packet belongs to, by sending on different VLANs or out different interfaces. Ze is neither that host nor the PE that reads its VLAN tag."
+      "reason": "Binds the customer HOST that sits in several virtual sites: it decides, for each packet, which virtual site the packet belongs to, by sending on different VLANs or out different interfaces. Ze is neither that host nor the PE that reads its VLAN tag. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "4:1",
       "quote": "Further, we must ensure that POLICY is used to determine which packets get sent on which routes; given that several such routes are installed by BGP, only one such must appear in any particular VRF.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the PE that maintains VRFs. The sentence is the authors stating the design goal the address family then meets ('Further, we must ensure that POLICY is used to determine which packets get sent on which routes'), and its operative constraint is on the VRF: of several routes BGP installs, only one appears in any particular VRF. Ze holds no VRF, so nothing applies the constraint. Its VPN-IPv4 routes are decoded and stored as raw NLRI, never installed into a per-VPN forwarding table."
+      "reason": "Binds the PE that maintains VRFs. The sentence is the authors stating the design goal the address family then meets ('Further, we must ensure that POLICY is used to determine which packets get sent on which routes'), and its operative constraint is on the VRF: of several routes BGP installs, only one appears in any particular VRF. Ze holds no VRF, so nothing applies the constraint. Its VPN-IPv4 routes are decoded and stored as raw NLRI, never installed into a per-VPN forwarding table. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "4.2:1",
@@ -358,35 +358,35 @@
       "quote": "If this ASN is from the public ASN space, it must have been assigned by the appropriate authority (use of ASN values from the private ASN space is strongly discouraged).",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the numbering authority and the enterprise it assigns to: an ASN from the public space in a type 0 RD has been assigned by the appropriate authority, and using a private-space value is strongly discouraged. Nothing here directs an encoder or a decoder, and ze never assigns an ASN."
+      "reason": "Binds the numbering authority and the enterprise it assigns to: an ASN from the public space in a type 0 RD has been assigned by the appropriate authority, and using a private-space value is strongly discouraged. Nothing here directs an encoder or a decoder, and ze never assigns an ASN. The producer that would act as it if ze did is the RD codec, `internal/core/bgp/nlri/rd.go`: it parses and formats the eight octets and assigns no number to anybody."
     },
     {
       "id": "4.2:3",
       "quote": "The Administrator subfield must contain an IP address.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The type 1 counterpart of site 4.2:1, binding the same assigning authority: the Administrator subfield carries an IP address held by the assigner. Ze decodes the six value octets of a type 1 RD without judging whose address they are."
+      "reason": "The type 1 counterpart of site 4.2:1, binding the same assigning authority: the Administrator subfield carries an IP address held by the assigner. Ze decodes the six value octets of a type 1 RD without judging whose address they are. The producer that would act as it if ze did is the RD codec, `internal/core/bgp/nlri/rd.go`: it parses and formats the eight octets and assigns no number to anybody."
     },
     {
       "id": "4.2:4",
       "quote": "If this IP address is from the public IP address space, it must have been assigned by an appropriate authority (use of addresses from the private IP address space is strongly discouraged).",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The type 1 counterpart of site 4.2:2: a public IP address in the Administrator subfield has been assigned by an appropriate authority, and private space is strongly discouraged. It binds the address registry and the assignee, neither of which ze is."
+      "reason": "The type 1 counterpart of site 4.2:2: a public IP address in the Administrator subfield has been assigned by an appropriate authority, and private space is strongly discouraged. It binds the address registry and the assignee, neither of which ze is. The producer that would act as it if ze did is the RD codec, `internal/core/bgp/nlri/rd.go`: it parses and formats the eight octets and assigns no number to anybody."
     },
     {
       "id": "4.2:5",
       "quote": "The Administrator subfield must contain a 4-byte Autonomous System number [BGP-AS4].",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The type 2 counterpart of site 4.2:1: the Administrator subfield carries a 4-byte Autonomous System number, assigned to whoever administers the RD. Ze decodes the field and assigns no number."
+      "reason": "The type 2 counterpart of site 4.2:1: the Administrator subfield carries a 4-byte Autonomous System number, assigned to whoever administers the RD. Ze decodes the field and assigns no number. The producer that would act as it if ze did is the RD codec, `internal/core/bgp/nlri/rd.go`: it parses and formats the eight octets and assigns no number to anybody."
     },
     {
       "id": "4.2:6",
       "quote": "If this ASN is from the public ASN space, it must have been assigned by the appropriate authority (use of ASN values from the private ASN space is strongly discouraged).",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The type 2 counterpart of site 4.2:2, binding the ASN registry and its assignee: a public 4-byte ASN has been assigned by the appropriate authority, and private-space values are strongly discouraged."
+      "reason": "The type 2 counterpart of site 4.2:2, binding the ASN registry and its assignee: a public 4-byte ASN has been assigned by the appropriate authority, and private-space values are strongly discouraged. The producer that would act as it if ze did is the RD codec, `internal/core/bgp/nlri/rd.go`: it parses and formats the eight octets and assigns no number to anybody."
     },
     {
       "id": "4.3.1:1",
@@ -421,14 +421,14 @@
       "quote": "When the PE looks up the label in its Label Information Base, it learns which VRF must be used.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same PE, on the receive side: looking the label up in its Label Information Base tells it which VRF to use. Ze keeps no Label Information Base for VPN labels and no VRF to select."
+      "reason": "Binds the same PE, on the receive side: looking the label up in its Label Information Base tells it which VRF to use. Ze keeps no Label Information Base for VPN labels and no VRF to select. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "4.3.2:3",
       "quote": "Then when the egress PE receives a packet with that label, it must look up the packet's IP destination address in that VRF (the packet's \"egress VRF\"), in order to determine the packet's egress attachment circuit and the corresponding data link encapsulation.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the egress PE under the per-VRF label strategy: on a packet carrying the VRF's single label it looks the destination address up in that VRF to find the egress attachment circuit and the data link encapsulation. Ze is not an egress PE and terminates no attachment circuit."
+      "reason": "Binds the egress PE under the per-VRF label strategy: on a packet carrying the VRF's single label it looks the destination address up in that VRF to find the egress attachment circuit and the data link encapsulation. Ze is not an egress PE and terminates no attachment circuit. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "4.3.2:4",
@@ -449,7 +449,7 @@
       "quote": "If a new Import Target is later added to one of the PE's VRFs (a \"VPN Join\" operation), it must then acquire the routes it may previously have discarded.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the PE managing its VRFs' Import Targets: after a VPN Join adds a new Import Target, the PE acquires the routes it previously discarded, which the section says can be done with the refresh mechanism of RFC 2918. Ze holds no VRF and no Import Target set, so no Join can occur. It does implement the mechanism the sentence names, ROUTE-REFRESH per RFC 2918 (rfc/short/rfc2918.md), which is a separate obligation and is discharged there."
+      "reason": "Binds the PE managing its VRFs' Import Targets: after a VPN Join adds a new Import Target, the PE acquires the routes it previously discarded, which the section says can be done with the refresh mechanism of RFC 2918. Ze holds no VRF and no Import Target set, so no Join can occur. It does implement the mechanism the sentence names, ROUTE-REFRESH per RFC 2918 (rfc/short/rfc2918.md), which is a separate obligation and is discharged there. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "4.3.3:1",
@@ -506,21 +506,21 @@
       "quote": "If MPLS is not being used as the tunneling technology, then filtering must be done to ensure that an MPLS-in-IP or MPLS-in-GRE packet can be accepted into the backbone only if the packet's IP destination address will cause it to be sent outside the backbone.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the backbone border router when the tunneling technology is not MPLS: it filters so an MPLS-in-IP or MPLS-in-GRE packet enters the backbone only when its IP destination address will send it back out. Ze operates no VPN backbone edge and accepts no MPLS-in-IP or MPLS-in-GRE packet; it has no MPLS-VPN forwarding path at all."
+      "reason": "Binds the backbone border router when the tunneling technology is not MPLS: it filters so an MPLS-in-IP or MPLS-in-GRE packet enters the backbone only when its IP destination address will send it back out. Ze operates no VPN backbone edge and accepts no MPLS-in-IP or MPLS-in-GRE packet; it has no MPLS-VPN forwarding path at all. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "7:1",
       "quote": "When RIP is configured in the CE, care must be taken to ensure that address prefixes from other sites (i.e., address prefixes learned by the CE router from the PE router) are never advertised to the PE.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the PE/CE RIP session: when RIP is configured in the CE, prefixes the CE learned from the PE are never advertised back to it. Ze implements no PE/CE routing protocol and runs no RIP at all, so it is neither end of this session."
+      "reason": "Binds the PE/CE RIP session: when RIP is configured in the CE, prefixes the CE learned from the PE are never advertised back to it. Ze implements no PE/CE routing protocol and runs no RIP at all, so it is neither end of this session. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "7:2",
       "quote": "More precisely: if a PE router, say, PE1, receives a VPN-IPv4 route R1, and as a result distributes an IPv4 route R2 to a CE, then R2 must not be distributed back from that CE's site to a PE router, say, PE2, (where PE1 and PE2 may be the same router or different routers), unless PE2 maps R2 to a VPN-IPv4 route that is different than (i.e., contains a different RD than) R1. 3.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same PE/CE route distribution, stated precisely: a route the PE derived from a VPN-IPv4 route and gave to a CE is not distributed back from that site to a PE unless that PE maps it to a VPN-IPv4 route with a different RD. Ze converts no VPN-IPv4 route into a CE route and holds no VRF in which the loop could form."
+      "reason": "Binds the same PE/CE route distribution, stated precisely: a route the PE derived from a VPN-IPv4 route and gave to a CE is not distributed back from that site to a PE unless that PE maps it to a VPN-IPv4 route with a different RD. Ze converts no VPN-IPv4 route into a CE route and holds no VRF in which the loop could form. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "7:3",
@@ -541,28 +541,28 @@
       "quote": "(For example, if a particular PE/CE protocol has \"split horizon\", certain routes in the VRF cannot be redistributed back to the CE.) We add one more restriction on the distribution of routes from PE to CE: if a route's Site of Origin attribute identifies a particular site, that route must never be redistributed to any CE at that site.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the PE distributing routes to a CE: a route whose Site of Origin attribute identifies a site is never redistributed to any CE at that site. Ze distributes no route to a CE and holds no VRF from which to do so."
+      "reason": "Binds the PE distributing routes to a CE: a route whose Site of Origin attribute identifies a site is never redistributed to any CE at that site. Ze distributes no route to a CE and holds no VRF from which to do so. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "9:1",
       "quote": "The PE must not distribute the same label to two different CEs unless one of the following conditions holds:",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the carriers' carrier PE distributing labels to its CE routers: it does not give the same label to two different CEs unless they share exactly the same set of VRFs, or it keeps a separate Incoming Label Map per CE. Ze distributes no per-CE labels and keeps no Incoming Label Map."
+      "reason": "Binds the carriers' carrier PE distributing labels to its CE routers: it does not give the same label to two different CEs unless they share exactly the same set of VRFs, or it keeps a separate Incoming Label Map per CE. Ze distributes no per-CE labels and keeps no Incoming Label Map. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "9:2",
       "quote": "Further, when the PE receives a labeled packet from a CE, it must verify that the top label is one that was distributed to that CE.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same carriers' carrier PE on the data path: on a labeled packet from a CE it verifies that the top label is one it distributed to that CE. Ze receives no labeled customer packet; MPLS packets are handled by the kernel AF_MPLS datapath or by VPP, which ze programs but does not sit in."
+      "reason": "Binds the same carriers' carrier PE on the data path: on a labeled packet from a CE it verifies that the top label is one it distributed to that CE. Ze receives no labeled customer packet; MPLS packets are handled by the kernel AF_MPLS datapath or by VPP, which ze programs but does not sit in. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "9:3",
       "quote": "- All the external routes must be known to the CE routers.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the CE routers of a carriers' carrier VPN: all the external routes are known to them, because they are the routers that resolve a packet's destination to an internal BGP next hop and label it. Ze is not a CE router in such a VPN."
+      "reason": "Binds the CE routers of a carriers' carrier VPN: all the external routes are known to them, because they are the routers that resolve a packet's destination to an internal BGP next hop and label it. Ze is not a CE router in such a VPN. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "9:4",
@@ -576,56 +576,56 @@
       "quote": "All that is required is that the external routes be known to whatever routers are responsible for putting the label stack on a hitherto unlabeled packet and that there be label switched path that leads from those routers to their BGP peers at other sites.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds whichever routers at the customer's site impose the label stack on a hitherto unlabeled packet, and the label switched path from them to their BGP peers at other sites. Ze is not a router of a carriers' carrier customer site and imposes no VPN label stack."
+      "reason": "Binds whichever routers at the customer's site impose the label stack on a hitherto unlabeled packet, and the label switched path from them to their BGP peers at other sites. Ze is not a router of a carriers' carrier customer site and imposes no VPN label stack. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "9:6",
       "quote": "In this case, for each internal route that a CE router distributes to a PE router, it must also distribute a label.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the CE router of the carriers' carrier customer in that same case: for each internal route it distributes to a PE router it also distributes a label. Ze plays no CE role and distributes no labels with its routes on any PE/CE session."
+      "reason": "Binds the CE router of the carriers' carrier customer in that same case: for each internal route it distributes to a PE router it also distributes a label. Ze plays no CE role and distributes no labels with its routes on any PE/CE session. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "10:1",
       "quote": "Hence the appropriate trust relationships must exist between and among the set of ASes along the path.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Service Providers whose ASes the label switched path crosses: the appropriate trust relationships exist between and among them. It is an inter-provider business arrangement, and the sentence directs no protocol behavior. Ze is a daemon, not a party to an SP agreement."
+      "reason": "Binds the Service Providers whose ASes the label switched path crosses: the appropriate trust relationships exist between and among them. It is an inter-provider business arrangement, and the sentence directs no protocol behavior. Ze is a daemon, not a party to an SP agreement. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "10:2",
       "quote": "Also, there must be agreement among the set of SPs as to which border routers need to receive routes with which Route Targets.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same set of Service Providers: they agree which border routers receive routes with which Route Targets. It is an inter-provider agreement rather than an implementation obligation."
+      "reason": "Binds the same set of Service Providers: they agree which border routers receive routes with which Route Targets. It is an inter-provider agreement rather than an implementation obligation. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "10:3",
       "quote": "An ASBR must maintain labeled IPv4 /32 routes to the PE routers within its AS.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the inter-AS VPN ASBR of method (c): it maintains labeled IPv4 /32 routes to the PE routers of its own AS and distributes them by EBGP, which builds the label switched path between the ingress and egress PEs. Ze is not a VPN ASBR: it originates no labeled /32 routes for PE loopbacks and takes no part in inter-provider VPN label stacking."
+      "reason": "Binds the inter-AS VPN ASBR of method (c): it maintains labeled IPv4 /32 routes to the PE routers of its own AS and distributes them by EBGP, which builds the label switched path between the ingress and egress PEs. Ze is not a VPN ASBR: it originates no labeled /32 routes for PE loopbacks and takes no part in inter-provider VPN label stacking. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "11:1",
       "quote": "In order to properly handle traffic from the Internet, the ISP must distribute, to the Internet, routes leading to addresses that are within the VPN.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the ISP that gives a VPN site its Internet access: it distributes to the Internet the routes leading to the addresses inside the VPN, which the section says is completely independent of the route distribution procedures of this document. Ze provides no Internet gateway for a VPN and holds no VPN address space to announce."
+      "reason": "Binds the ISP that gives a VPN site its Internet access: it distributes to the Internet the routes leading to the addresses inside the VPN, which the section says is completely independent of the route distribution procedures of this document. Ze provides no Internet gateway for a VPN and holds no VPN address space to announce. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "11:2",
       "quote": "In order for traffic to flow natively in the opposite direction (from Internet to VRF interface), some of the routes from the VRF must be exported to the Internet forwarding table.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the PE offering VRF Internet access: some of the VRF's routes are exported into the Internet forwarding table so traffic can flow natively from the Internet to the VRF interface. Ze holds neither a VRF nor a per-PE default forwarding table to export between."
+      "reason": "Binds the PE offering VRF Internet access: some of the VRF's routes are exported into the Internet forwarding table so traffic can flow natively from the Internet to the VRF interface. Ze holds neither a VRF nor a per-PE default forwarding table to export between. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "11:3",
       "quote": "Needless to say, any such routes must correspond to globally unique addresses.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same PE and the operator configuring it: any route exported from a VRF to the Internet forwarding table corresponds to a globally unique address. Ze exports nothing between a VRF and an Internet table, having neither."
+      "reason": "Binds the same PE and the operator configuring it: any route exported from a VRF to the Internet forwarding table corresponds to a globally unique address. Ze exports nothing between a VRF and an Internet table, having neither. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "13.1:1",
@@ -653,7 +653,7 @@
       "quote": "In the case where a number of CE routers attach to a PE router via a LAN interface, to ensure proper security, one of the following conditions must hold:",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the SP deploying a PE whose LAN interface carries several CE routers: either every CE on the LAN belongs to one VPN, or a trusted and secured LAN switch splits it into per-VPN VLANs and tags each packet before it reaches the PE. It constrains the access network and the switch in it, and ze operates neither."
+      "reason": "Binds the SP deploying a PE whose LAN interface carries several CE routers: either every CE on the LAN belongs to one VPN, or a trusted and secured LAN switch splits it into per-VPN VLANs and tags each packet before it reaches the PE. It constrains the access network and the switch in it, and ze operates neither. The producer that would act as it if ze did is the whole of ze's RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit."
     },
     {
       "id": "15:1",

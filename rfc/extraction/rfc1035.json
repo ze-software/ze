@@ -567,14 +567,14 @@
       "id": "3.5:1",
       "quote": "- Systems that use the domain database to initialize their routing tables must start with enough gateway information to guarantee that they can access the appropriate name server.",
       "disposition": "excluded",
-      "reason": "Section 3.5 IN-ADDR.ARPA, on a host that bootstraps its ROUTING TABLE from the domain database and must therefore already know a gateway. Ze's routing tables come from BGP, IS-IS, OSPF and the kernel; nothing in Ze reads DNS to build one.",
+      "reason": "Section 3.5 IN-ADDR.ARPA, on a host that bootstraps its ROUTING TABLE from the domain database and must therefore already know a gateway. Ze's routing tables come from BGP, IS-IS, OSPF and the kernel; nothing in Ze reads DNS to build one. The producer that would act as it if ze did is ze's only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.",
       "excluded-kind": "binds-another-role"
     },
     {
       "id": "3.6:1",
       "quote": "TYPE and CLASS values must be a proper subset of QTYPEs and QCLASSes respectively.",
       "disposition": "excluded",
-      "reason": "Section 3.6 Defining new types, classes, and special namespaces. It binds whoever DEFINES a new TYPE or CLASS, constraining the registry relationship between TYPE and QTYPE. Ze defines none.",
+      "reason": "Section 3.6 Defining new types, classes, and special namespaces. It binds whoever DEFINES a new TYPE or CLASS, constraining the registry relationship between TYPE and QTYPE. Ze defines none. The role is a registry act rather than an implementation, so no producer could perform it. Ze's DNS code is the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which reads whatever TYPE and CLASS values it is given.",
       "excluded-kind": "binds-another-role"
     },
     {
@@ -616,7 +616,7 @@
       "id": "4.2.1:1",
       "quote": "Queries sent using UDP may be lost, and hence a retransmission strategy is required.",
       "disposition": "excluded",
-      "reason": "The retransmission strategy for queries SENT over UDP. It binds the querier; this summary's declared scope is the authoritative-server surface (see 'Extraction scope' in rfc/short/rfc1035.md), which answers queries and originates none.",
+      "reason": "The retransmission strategy for queries SENT over UDP. It binds the querier; this summary's declared scope is the authoritative-server surface (see 'Extraction scope' in rfc/short/rfc1035.md), which answers queries and originates none. The producer that would act as it if ze did is ze's only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.",
       "excluded-kind": "binds-another-role"
     },
     {
@@ -630,7 +630,7 @@
       "id": "5.2:1",
       "quote": "If delegations are present and glue information is required, it should be present. 4.",
       "disposition": "excluded",
-      "reason": "Glue in a master file that defines a zone. Same role as the site above: Ze has no master-file path. Its own level is 'should' in any case.",
+      "reason": "Glue in a master file that defines a zone. Same role as the site above: Ze has no master-file path. Its own level is 'should' in any case. The producer that would act as it if ze did is ze's only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.",
       "excluded-kind": "binds-another-role"
     },
     {
@@ -672,21 +672,21 @@
       "id": "7.1:1",
       "quote": "Since a resolver must be able to multiplex multiple requests if it is to perform its function efficiently, each pending request is usually represented in some block of state information.",
       "disposition": "excluded",
-      "reason": "Section 7 RESOLVER IMPLEMENTATION: a resolver multiplexing concurrent client requests. The authoritative server this summary scopes serves one query per response and originates none.",
+      "reason": "Section 7 RESOLVER IMPLEMENTATION: a resolver multiplexing concurrent client requests. The authoritative server this summary scopes serves one query per response and originates none. The producer that would act as it if ze did is ze's only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.",
       "excluded-kind": "binds-another-role"
     },
     {
       "id": "7.1:2",
       "quote": "Note that when an RRs TTL indicates a relative time, the RR must be timely, since it is part of a zone.",
       "disposition": "excluded",
-      "reason": "Resolver cache timeliness for a relative-time TTL. Ze's authoritative server holds no resolver cache.",
+      "reason": "Resolver cache timeliness for a relative-time TTL. Ze's authoritative server holds no resolver cache. The producer that would act as it if ze did is ze's only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.",
       "excluded-kind": "binds-another-role"
     },
     {
       "id": "7.1:3",
       "quote": "The amount of work which a resolver will do in response to a client request must be limited to guard against errors in the database, such as circular CNAME references, and operational problems, such as network partition which prevents the resolver from accessing the name servers it needs.",
       "disposition": "excluded",
-      "reason": "A bound on the work a RESOLVER does per client request, to guard against errors in the database. Same role as above.",
+      "reason": "A bound on the work a RESOLVER does per client request, to guard against errors in the database. Same role as above. The producer that would act as it if ze did is ze's only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.",
       "excluded-kind": "binds-another-role"
     },
     {
@@ -700,14 +700,14 @@
       "id": "7.2:1",
       "quote": "Part of this step must deal with addresses which have no such history; in this case an expected round trip time of 5-10 seconds should be the worst case, with lower estimates for the same local network, etc.",
       "disposition": "excluded",
-      "reason": "Round-trip-time estimation when a resolver has no history for an address. A resolver obligation with no authoritative-server counterpart.",
+      "reason": "Round-trip-time estimation when a resolver has no history for an address. A resolver obligation with no authoritative-server counterpart. The producer that would act as it if ze did is ze's only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.",
       "excluded-kind": "binds-another-role"
     },
     {
       "id": "7.3:1",
       "quote": "However, if it is using the response to sample the round trip time to access the name server, it must be able to determine which transmission matches the response (and keep transmission times for each outgoing message), or only calculate round trip times based on initial transmissions.",
       "disposition": "excluded",
-      "reason": "Matching a response to its outstanding request in order to sample round-trip time. Again a resolver obligation: the authoritative server sends responses, never receives them.",
+      "reason": "Matching a response to its outstanding request in order to sample round-trip time. Again a resolver obligation: the authoritative server sends responses, never receives them. The producer that would act as it if ze did is ze's only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.",
       "excluded-kind": "binds-another-role"
     }
   ]

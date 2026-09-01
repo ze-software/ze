@@ -85,7 +85,7 @@
       "quote": "Network administrators must however respect address scope restrictions and should be aware that the concepts of a BGP-4 routing domain and \"site\" are orthogonal notions and that they may or may not coincide in a given situation.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The role is the network administrator, named as the subject of the sentence. The obligation is to respect address scope restrictions when planning a deployment, and the awareness clause is about how a person reasons about routing domains against sites. Neither is an act a BGP implementation performs; the sentence exists because section 2 has just declared that the document itself makes no distinction between global and site-local addresses, and it hands the distinction back to the operator."
+      "reason": "The role is the network administrator, named as the subject of the sentence. The obligation is to respect address scope restrictions when planning a deployment, and the awareness clause is about how a person reasons about routing domains against sites. Neither is an act a BGP implementation performs; the sentence exists because section 2 has just declared that the document itself makes no distinction between global and site-local addresses, and it hands the distinction back to the operator. The role is the AS operator, so no producer could act as it. Ze CONSUMES the operator's decision: the capability is negotiated per session in the reactor (`internal/component/bgp/reactor`), which advertises what it is configured to and decides no AS-wide policy."
     },
     {
       "id": "2:2",
@@ -127,7 +127,7 @@
       "quote": "Thus, when using TCP over IPv4 as a transport for IPv6 reachability information, additional explicit configuration of the peer's network address is required.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The role is the operator who configures the session. The sentence draws a consequence of the two before it: BGP-4 reads the peer's network address implicitly from the address that established the session, and the route dissemination procedure uses it, so an IPv4 transport carrying IPv6 reachability leaves that address undetermined and somebody has to supply it. What is required is a configuration act, not a wire behaviour or a decision procedure, and the sentence names no message, field or timer for a speaker to get right."
+      "reason": "The role is the operator who configures the session. The sentence draws a consequence of the two before it: BGP-4 reads the peer's network address implicitly from the address that established the session, and the route dissemination procedure uses it, so an IPv4 transport carrying IPv6 reachability leaves that address undetermined and somebody has to supply it. What is required is a configuration act, not a wire behaviour or a decision procedure, and the sentence names no message, field or timer for a speaker to get right. The role is the AS operator, so no producer could act as it. Ze CONSUMES the operator's decision: the capability is negotiated per session in the reactor (`internal/component/bgp/reactor`), which advertises what it is configured to and decides no AS-wide policy."
     },
     {
       "id": "4:2",

@@ -152,7 +152,7 @@
       "quote": "If an Autonomous System (AS) has multiple internal BGP speakers and also has multiple external BGP neighbors, care must be taken to ensure a consistent view within the AS in order to present a consistent external view.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The role is the AS operator, not a BGP speaker. The paragraph's own next sentences name that role: a consistent view is guaranteed only if all the iBGP speakers advertise the capability, and if that is not the case \"the operator should consider whether or not\" to advertise it to external peers. It is a deployment judgement about which speakers are configured to advertise, and no code path in a speaker can carry it."
+      "reason": "The role is the AS operator, not a BGP speaker. The paragraph's own next sentences name that role: a consistent view is guaranteed only if all the iBGP speakers advertise the capability, and if that is not the case \"the operator should consider whether or not\" to advertise it to external peers. It is a deployment judgement about which speakers are configured to advertise, and no code path in a speaker can carry it. The role is the AS operator, so no producer could act as it. Ze CONSUMES the operator's decision: the capability is negotiated per session in the reactor (`internal/component/bgp/reactor`), which advertises what it is configured to and decides no AS-wide policy."
     },
     {
       "id": "5:1",

@@ -351,7 +351,7 @@
       "quote": "To do both of these, the PE must have a means of identifying a VPLS and a means by which to communicate to all other PEs.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same VPLS PE role, stating what the two preceding sentences need: a means of identifying a VPLS and a means of communicating with every other PE. Ze plays no VPLS PE role, so it needs neither."
+      "reason": "Binds the same VPLS PE role, stating what the two preceding sentences need: a means of identifying a VPLS and a means of communicating with every other PE. Ze plays no VPLS PE role, so it needs neither. The producer that would act as it if ze did is the whole of ze's RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit."
     },
     {
       "id": "3.2:1",
@@ -414,7 +414,7 @@
       "quote": "To create a new VPLS, say VPLS foo, a network administrator must pick an RT for VPLS foo, say RT-foo.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the network administrator provisioning the service: to create a VPLS, an administrator must pick a Route Target for it, which every PE serving that VPLS then uses. It is a provisioning act by a person, not behavior of a protocol speaker, and ze offers no VPLS service to provision."
+      "reason": "Binds the network administrator provisioning the service: to create a VPLS, an administrator must pick a Route Target for it, which every PE serving that VPLS then uses. It is a provisioning act by a person, not behavior of a protocol speaker, and ze offers no VPLS service to provision. The producer that would act as it if ze did is the whole of ze's RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit."
     },
     {
       "id": "3.3:2",
@@ -442,7 +442,7 @@
       "quote": "In this case, the Spanning Tree Protocol (STP) [15], or some other means of loop detection and prevention, must be run on each VPLS that spans these ASes, so that a loop-free topology can be constructed in each VPLS.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the inter-AS VPLS ASBR and the PEs of method (a), which have to run the Spanning Tree Protocol or another loop-detection mechanism per VPLS when several links join the two ASes; the section itself puts how that is achieved out of scope. Ze runs no Spanning Tree Protocol and acts as neither a VPLS PE nor a VPLS ASBR."
+      "reason": "Binds the inter-AS VPLS ASBR and the PEs of method (a), which have to run the Spanning Tree Protocol or another loop-detection mechanism per VPLS when several links join the two ASes; the section itself puts how that is achieved out of scope. Ze runs no Spanning Tree Protocol and acts as neither a VPLS PE nor a VPLS ASBR. The producer that would act as it if ze did is the whole of ze's RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit."
     },
     {
       "id": "3.4.2:1",
@@ -463,7 +463,7 @@
       "quote": "ASBR2 must act similarly, except that it may not need a tunnel label if it is directly connected with ASBR1.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the second inter-AS VPLS ASBR of method (b), which acts as ASBR1 does except that a direct connection removes the need for a tunnel label. Ze plays no VPLS ASBR role."
+      "reason": "Binds the second inter-AS VPLS ASBR of method (b), which acts as ASBR1 does except that a direct connection removes the need for a tunnel label. Ze plays no VPLS ASBR role. The producer that would act as it if ze did is the whole of ze's RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit."
     },
     {
       "id": "3.5:1",
@@ -526,21 +526,21 @@
       "quote": "When a PE capable of flooding (say PEx) receives a broadcast Ethernet frame, or one with an unknown destination MAC address, it must flood the frame.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the flooding-capable VPLS PE: on a broadcast frame or one with an unknown destination MAC, it must flood. Ze is not a VPLS PE and floods no VPLS frame. The capitalised split-horizon prohibition that closes this section is site 4.2.5:4, mapped below because rfc/short/rfc4761.md declares it."
+      "reason": "Binds the flooding-capable VPLS PE: on a broadcast frame or one with an unknown destination MAC, it must flood. Ze is not a VPLS PE and floods no VPLS frame. The capitalised split-horizon prohibition that closes this section is site 4.2.5:4, mapped below because rfc/short/rfc4761.md declares it. The producer that would act as it if ze did is the whole of ze's RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit."
     },
     {
       "id": "4.2.5:2",
       "quote": "If the frame arrived from an attached CE, PEx must send a copy of the frame to every other attached CE, as well as to all other PEs participating in the VPLS.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same flooding-capable VPLS PE for a frame arriving from an attached CE: a copy goes to every other attached CE and to every other PE in the VPLS. Ze has no attached CE, no VPLS peer set and no VPLS forwarding path."
+      "reason": "Binds the same flooding-capable VPLS PE for a frame arriving from an attached CE: a copy goes to every other attached CE and to every other PE in the VPLS. Ze has no attached CE, no VPLS peer set and no VPLS forwarding path. The producer that would act as it if ze did is the whole of ze's RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit."
     },
     {
       "id": "4.2.5:3",
       "quote": "If, on the other hand, the frame arrived from another PE (say PEy), PEx must send a copy of the packet only to attached CEs.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same PE for a frame arriving from another PE: the copy goes only to attached CEs. Ze forwards no VPLS frame from any source."
+      "reason": "Binds the same PE for a frame arriving from another PE: the copy goes only to attached CEs. Ze forwards no VPLS frame from any source. The producer that would act as it if ze did is the whole of ze's RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit."
     },
     {
       "id": "4.2.5:4",
@@ -561,7 +561,7 @@
       "quote": "In deploying a network that supports VPLS, the SP must decide what functions the VPLS-aware device closest to the customer (the VE) supports.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the Service Provider deploying the network: the SP decides which functions the VPLS-aware device closest to the customer supports, that is whether the VE is the PE itself or a u-PE. It is a deployment decision by an operator, and ze deploys no VPLS service."
+      "reason": "Binds the Service Provider deploying the network: the SP decides which functions the VPLS-aware device closest to the customer supports, that is whether the VE is the PE itself or a u-PE. It is a deployment decision by an operator, and ze deploys no VPLS service. The producer that would act as it if ze did is the whole of ze's RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit."
     },
     {
       "id": "6:1",

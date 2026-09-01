@@ -508,7 +508,7 @@
       "quote": "New Subtype Code definitions must reference an existing Type Code to which the Subtype belongs.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The role is the author of a future MRT Subtype specification, and behind them the IANA registry that will refuse a Subtype naming no Type Code. Ze neither allocates MRT Subtype codes nor writes MRT specifications, so no MRT writer or reader in ze is bound by it."
+      "reason": "The role is the author of a future MRT Subtype specification, and behind them the IANA registry that will refuse a Subtype naming no Type Code. Ze neither allocates MRT Subtype codes nor writes MRT specifications, so no MRT writer or reader in ze is bound by it. The role is a specification author and the IANA registry behind them, so no producer could act as it. Ze only WRITES records under codes already assigned: `asyncWriter.Write` (`internal/plugins/mrt/async_writer.go`)."
     },
     {
       "id": "B.1:1",

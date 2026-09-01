@@ -172,7 +172,7 @@
       "quote": "The Non-Client peer must be fully meshed but the Client peers need not be fully meshed.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Terminology and Concepts. The role is the operator who designs the AS's iBGP topology. The sentence states which sessions have to exist, not what a speaker does with a message: non-clients stay fully meshed among themselves while clients need not be. A route reflector cannot create or police its non-clients' sessions with each other, and Ze reads client versus non-client from configuration. The corresponding wire behaviour, that a non-client's route is not reflected to another non-client, is section 6's rule and is mapped at site 6:1."
+      "reason": "Terminology and Concepts. The role is the operator who designs the AS's iBGP topology. The sentence states which sessions have to exist, not what a speaker does with a message: non-clients stay fully meshed among themselves while clients need not be. A route reflector cannot create or police its non-clients' sessions with each other, and Ze reads client versus non-client from configuration. The corresponding wire behaviour, that a non-client's route is not reflected to another non-client, is section 6's rule and is mapped at site 6:1. The role is a person designing a topology, so no producer could act as it. Ze CONSUMES the topology the operator built: the route reflector plugin (`internal/component/bgp/plugins/rr/register.go`) reflects over the sessions it is configured with and designs none."
     },
     {
       "id": "6:1",

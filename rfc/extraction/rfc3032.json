@@ -320,21 +320,21 @@
       "quote": "In order for a particular LSR to be able to generate an ICMP packet and have that packet sent to the source of the IP packet, two conditions must hold:",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the LSR that ORIGINATES an ICMP message for a labeled IP packet: the sentence states the two conditions that must hold for that LSR to build the ICMP packet and have it reach the IP source, and sites 2.3:2 and 2.3:3 are those two conditions. Ze originates no ICMP for a forwarded packet: TTL expiry and too-big handling for labeled packets are per-packet actions of the kernel AF_MPLS datapath or VPP, and no ze function builds an ICMP message on a forwarding path."
+      "reason": "Binds the LSR that ORIGINATES an ICMP message for a labeled IP packet: the sentence states the two conditions that must hold for that LSR to build the ICMP packet and have it reach the IP source, and sites 2.3:2 and 2.3:3 are those two conditions. Ze originates no ICMP for a forwarded packet: TTL expiry and too-big handling for labeled packets are per-packet actions of the kernel AF_MPLS datapath or VPP, and no ze function builds an ICMP message on a forwarding path. The producer that would act as it if ze did is ze's MPLS code, which reads the kernel's label forwarding entries (`dumpMPLSRoutes`, `internal/component/mpls/forwarding_linux.go`) and codes labeled NLRI. It switches no packet and builds no ICMP message."
     },
     {
       "id": "2.3:2",
       "quote": "1. it must be possible for that LSR to determine that a particular labeled packet is an IP packet;",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The first of the two conditions on the ICMP-originating LSR named by site 2.3:1: it must be possible for that LSR to determine that a particular labeled packet is an IP packet. Ze inspects no labeled packet and originates no ICMP; the kernel AF_MPLS datapath or VPP does both."
+      "reason": "The first of the two conditions on the ICMP-originating LSR named by site 2.3:1: it must be possible for that LSR to determine that a particular labeled packet is an IP packet. Ze inspects no labeled packet and originates no ICMP; the kernel AF_MPLS datapath or VPP does both. The producer that would act as it if ze did is ze's MPLS code, which reads the kernel's label forwarding entries (`dumpMPLSRoutes`, `internal/component/mpls/forwarding_linux.go`) and codes labeled NLRI. It switches no packet and builds no ICMP message."
     },
     {
       "id": "2.3:3",
       "quote": "2. it must be possible for that LSR to route to the packet's IP source address.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The second condition on the same ICMP-originating LSR: it must be possible for that LSR to route to the packet's IP source address. Ze originates no ICMP for a forwarded packet, so it never plays the role this condition qualifies."
+      "reason": "The second condition on the same ICMP-originating LSR: it must be possible for that LSR to route to the packet's IP source address. Ze originates no ICMP for a forwarded packet, so it never plays the role this condition qualifies. The producer that would act as it if ze did is ze's MPLS code, which reads the kernel's label forwarding entries (`dumpMPLSRoutes`, `internal/component/mpls/forwarding_linux.go`) and codes labeled NLRI. It switches no packet and builds no ICMP message."
     },
     {
       "id": "2.3.1:1",
@@ -348,7 +348,7 @@
       "quote": "When copying the label stack from the original packet to the ICMP message, the label values must be copied exactly, but the TTL values in the label stack should be set to the TTL value that is placed in the IP header of the ICMP message.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the LSR that builds an ICMP message for a labeled packet and label switches it: the sentence says how to copy the label stack, exactly for the label values and with the ICMP header's TTL for the TTL fields. Ze builds no such message. ICMP origination on the MPLS forwarding path belongs to the kernel AF_MPLS datapath or VPP, and no ze function copies a label stack onto an ICMP message."
+      "reason": "Binds the LSR that builds an ICMP message for a labeled packet and label switches it: the sentence says how to copy the label stack, exactly for the label values and with the ICMP header's TTL for the TTL fields. Ze builds no such message. ICMP origination on the MPLS forwarding path belongs to the kernel AF_MPLS datapath or VPP, and no ze function copies a label stack onto an ICMP message. The producer that would act as it if ze did is ze's MPLS code, which reads the kernel's label forwarding entries (`dumpMPLSRoutes`, `internal/component/mpls/forwarding_linux.go`) and codes labeled NLRI. It switches no packet and builds no ICMP message."
     },
     {
       "id": "2.4.2:1",
@@ -481,7 +481,7 @@
       "quote": "Before any labeled packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the MPLS Control Protocol must reach the Opened state.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same MPLS-over-PPP LSR role as site 4.1:2: before labeled packets are communicated, PPP must reach the Network-Layer Protocol phase and MPLSCP must reach the Opened state. Ze negotiates no MPLSCP and sends no labeled packet over a PPP link."
+      "reason": "Binds the same MPLS-over-PPP LSR role as site 4.1:2: before labeled packets are communicated, PPP must reach the Network-Layer Protocol phase and MPLSCP must reach the Opened state. Ze negotiates no MPLSCP and sends no labeled packet over a PPP link. The producer that would act as it if ze did is ze's MPLS code, which reads the kernel's label forwarding entries (`dumpMPLSRoutes`, `internal/component/mpls/forwarding_linux.go`) and codes labeled NLRI. It switches no packet and builds no ICMP message."
     },
     {
       "id": "11:1",

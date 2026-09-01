@@ -408,14 +408,14 @@
       "quote": "(See Figure 2.) Any encryption algorithm that requires such explicit, per-packet synchronization data MUST indicate the length, any structure for such data, and the location of this data as part of an RFC specifying how the algorithm is used with ESP.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of the RFC that specifies how an encryption algorithm is used with ESP: that document must state the length, structure and location of explicit per-packet synchronization data. Ze writes no algorithm specification."
+      "reason": "Binds the author of the RFC that specifies how an encryption algorithm is used with ESP: that document must state the length, structure and location of explicit per-packet synchronization data. Ze writes no algorithm specification. The role is a document author, so no producer could act as it. Ze CONSUMES such a specification: `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`) projects the negotiated algorithm and key onto the SA it installs, and the kernel applies whatever that document defined."
     },
     {
       "id": "2.3:2",
       "quote": "See Figure 2.) If such synchronization data is implicit, the algorithm for deriving the data MUST be part of the algorithm definition RFC.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of an algorithm-definition RFC, as site 2.3:1 does: implicit synchronization data must be derived by an algorithm the defining RFC states."
+      "reason": "Binds the author of an algorithm-definition RFC, as site 2.3:1 does: implicit synchronization data must be derived by an algorithm the defining RFC states. The role is a document author, so no producer could act as it. Ze CONSUMES such a specification: `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`) projects the negotiated algorithm and key onto the SA it installs, and the kernel applies whatever that document defined."
     },
     {
       "id": "2.3:3",
@@ -429,7 +429,7 @@
       "quote": "In these cases, the algorithm specification MUST address how alignment of the (real) ciphertext is to be achieved.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of an algorithm specification, which must say how ciphertext alignment is achieved when the receiver reads the IV separately."
+      "reason": "Binds the author of an algorithm specification, which must say how ciphertext alignment is achieved when the receiver reads the IV separately. The role is a document author, so no producer could act as it. Ze CONSUMES such a specification: `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`) projects the negotiated algorithm and key onto the SA it installs, and the kernel applies whatever that document defined."
     },
     {
       "id": "2.4:1",
@@ -450,14 +450,14 @@
       "quote": "If an encryption or combined mode algorithm imposes constraints on the values of the bytes used for padding, they MUST be specified by the RFC defining how the algorithm is employed with ESP.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of the RFC that defines how an encryption or combined mode algorithm is employed with ESP, which must specify any constraint on padding byte values."
+      "reason": "Binds the author of the RFC that defines how an encryption or combined mode algorithm is employed with ESP, which must specify any constraint on padding byte values. The role is a document author, so no producer could act as it. Ze CONSUMES such a specification: `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`) projects the negotiated algorithm and key onto the SA it installs, and the kernel applies whatever that document defined."
     },
     {
       "id": "2.4:4",
       "quote": "If the algorithm requires checking of the values of the bytes used for padding, this too MUST be specified in that RFC.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the same algorithm-definition RFC as site 2.4:3, which must say whether padding values are checked."
+      "reason": "Binds the same algorithm-definition RFC as site 2.4:3, which must say whether padding values are checked. The role is a document author, so no producer could act as it. Ze CONSUMES such a specification: `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`) projects the negotiated algorithm and key onto the SA it installs, and the kernel applies whatever that document defined."
     },
     {
       "id": "2.6:1",
@@ -486,21 +486,21 @@
       "quote": "(ESP trailer fields are located by counting back from the end of the ESP packet.) Accordingly, if TFC padding is added, the field containing the specification of the length of the IP datagram MUST NOT be modified to reflect this padding.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds an ESP transmitter that adds TFC padding. Ze implements none: dataplane.SAParams carries no TFC padding field and xfrmStateFromParams sets none, so no SA Ze installs can add TFC padding or modify a datagram length field."
+      "reason": "Binds an ESP transmitter that adds TFC padding. Ze implements none: dataplane.SAParams carries no TFC padding field and xfrmStateFromParams sets none, so no SA Ze installs can add TFC padding or modify a datagram length field. The producer that would act as it if ze did is `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`), which builds every SA ze installs and sets no TFC padding field on any of them."
     },
     {
       "id": "2.7:2",
       "quote": "However, because receivers may not have been prepared to deal with this padding, the SA management protocol MUST negotiate this service prior to a transmitter employing it, to ensure backward compatibility.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the SA management protocol only once a transmitter employs TFC padding, and Ze implements no such transmitter (site 2.7:1). dataplane.SAParams carries no TFC padding field, so no Ze-installed SA can employ the service that would trigger the negotiation."
+      "reason": "Binds the SA management protocol only once a transmitter employs TFC padding, and Ze implements no such transmitter (site 2.7:1). dataplane.SAParams carries no TFC padding field, so no Ze-installed SA can employ the service that would trigger the negotiation. The producer that would act as it if ze did is `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`), which builds every SA ze installs and sets no TFC padding field on any of them."
     },
     {
       "id": "2.8:1",
       "quote": "The integrity algorithm specification MUST specify the length of the ICV and the comparison rules and processing steps for validation.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of an integrity algorithm specification, which must state the ICV length and the comparison rules. Ze writes no algorithm specification; it projects the negotiated algorithm name and key onto the SA."
+      "reason": "Binds the author of an integrity algorithm specification, which must state the ICV length and the comparison rules. Ze writes no algorithm specification; it projects the negotiated algorithm name and key onto the SA. The role is a document author, so no producer could act as it. Ze CONSUMES such a specification: `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`) projects the negotiated algorithm and key onto the SA it installs, and the kernel applies whatever that document defined."
     },
     {
       "id": "3.2:1",
@@ -535,7 +535,7 @@
       "quote": "The location of any integrity fields, and the means by which the Sequence Number and SPI are included in the integrity computation, MUST be defined in an RFC that defines the use of the combined mode algorithm with ESP.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "Binds the author of the RFC that defines the use of a combined mode algorithm with ESP, which must state where the integrity fields sit and how the SPI and Sequence Number enter the computation."
+      "reason": "Binds the author of the RFC that defines the use of a combined mode algorithm with ESP, which must state where the integrity fields sit and how the SPI and Sequence Number enter the computation. The role is a document author, so no producer could act as it. Ze CONSUMES such a specification: `xfrmStateFromParams` (`internal/component/ike/dataplane/xfrm_linux.go`) projects the negotiated algorithm and key onto the SA it installs, and the kernel applies whatever that document defined."
     },
     {
       "id": "3.3.3:1",

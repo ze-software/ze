@@ -1794,7 +1794,7 @@
       "quote": "Implementations based on previous versions of IKE and ISAKMP MUST set the major version to 1.",
       "disposition": "excluded",
       "excluded-kind": "binds-another-role",
-      "reason": "The sentence sets the major version for implementations of previous IKE versions and of ISAKMP. Ze implements IKEv2 only, so the obligation binds an IKEv1 or ISAKMP implementation."
+      "reason": "The sentence sets the major version for implementations of previous IKE versions and of ISAKMP. Ze implements IKEv2 only, so the obligation binds an IKEv1 or ISAKMP implementation. The producer that would act as it if ze did is the IKE header codec, which writes and reads the version octet: `MajorVersion` (`internal/component/ike/wire/header.go`) is encoded at byte 17 and ze sets it for IKEv2 alone, so no IKEv1 or ISAKMP exchange exists here to carry the obligation."
     },
     {
       "id": "3.1:6",
