@@ -72,6 +72,14 @@ const (
 // answered zero would record a red for a reason nobody stated.
 const revertBody = `panic("BUG: ./le rfc discriminate-record disabled this producer to observe the red")`
 
+// revertMarker is the fragment of that halt which identifies it in a RUN'S
+// OUTPUT. A producer reached only from a goroutine the test does not own kills
+// the binary rather than failing it, and this is what says the break is why
+// (observationRunner.killedByTheBreak). It is a slice of the statement above
+// rather than a second copy of it, and TestRevertMarkerIsInsideTheHalt refuses
+// the two drifting apart.
+const revertMarker = "disabled this producer to observe the red"
+
 // interopScenarioRE reads the scenario a checker drives from its own body.
 //
 // The interop checkers declare it as `const name = "<scenario>"`, and the

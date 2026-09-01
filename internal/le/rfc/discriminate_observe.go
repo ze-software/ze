@@ -272,7 +272,36 @@ func (o *observationRunner) attributes(output string) bool {
 		return strings.Contains(output, o.names)
 	}
 	var tb textbuf.Buffer
-	return strings.Contains(output, tb.Str("--- FAIL: ").Str(o.unitName).String())
+	if strings.Contains(output, tb.Str("--- FAIL: ").Str(o.unitName).String()) {
+		return true
+	}
+	return o.killedByTheBreak(output)
+}
+
+// killedByTheBreak answers whether the run died executing the disabled body.
+//
+// A producer reached only from a goroutine the test does not own cannot print
+// `--- FAIL:` at all. The halt panics on that goroutine, which takes the test
+// binary down before the testing package attributes anything, so the output
+// carries a stack and no test name. `coaListener.serve` is the shape: it reads
+// the socket in its own goroutine, so every tag on the RFC 5176 walk test named
+// a producer this attribution could not reach.
+//
+// The interop branch above already settles the same question the same way, and
+// three facts make the answer safe here too. The run is SELECTED to one unit,
+// because argv passes `-run ^<unit>$` over one package directory, so no other
+// test could have been running. The panic text is the break's OWN, so a crash
+// the producer did not cause is not counted. And the unit has already passed
+// clean (requireCleanGreen) and has already been shown to execute this producer
+// (requireProducerReached), so the break engaged code the test reaches.
+//
+// The revert route only. A mutant substitutes an expression and never halts, so
+// a panic under one is a defect in the mutant rather than a proof.
+func (o *observationRunner) killedByTheBreak(output string) bool {
+	if o.record.Route != RouteRevert {
+		return false
+	}
+	return strings.Contains(output, revertMarker)
 }
 
 // argv answers the command that runs this tagged unit.

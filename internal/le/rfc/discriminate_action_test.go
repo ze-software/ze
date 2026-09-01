@@ -54,6 +54,20 @@ func Name(raw string) string {
 	}
 }
 
+// TestRevertMarkerIsInsideTheHalt pins the fragment the run's output is matched
+// on to the halt the break actually writes.
+//
+// VALIDATES: a crash the break caused is still recognized as the break's.
+// PREVENTS: the two drifting apart, which would leave killedByTheBreak matching
+// nothing and every goroutine-served producer unprovable again, with no failure
+// saying why.
+func TestRevertMarkerIsInsideTheHalt(t *testing.T) {
+	if !strings.Contains(revertBody, revertMarker) {
+		t.Errorf("the halt %q no longer carries the marker %q, so a run it kills is attributed to nothing",
+			revertBody, revertMarker)
+	}
+}
+
 // TestDropOrphanedImportsKeepsAnImportWithNoName asserts a blank and a dot
 // import survive, and that a file needing no prune is returned byte for byte.
 //
