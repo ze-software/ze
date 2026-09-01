@@ -1,4 +1,4 @@
-Document: RFC-0000-ISIS
+Document: RFC-SYNTHETIC-ISIS
 Category: Informational
 Date: September 2026
 Editor: Ze Software Project
@@ -4891,7 +4891,7 @@ E.1.  Independent Status and Source Boundary
    This text is an independently authored reconstruction.  It has not
    been submitted to, issued by, published by, or endorsed by ISO, IEC,
    the IETF, or IANA.  It claims no IETF stream or RFC publication
-   status.  The label RFC-0000-ISIS is a document identifier for this
+   status.  The label RFC-SYNTHETIC-ISIS identifies this
    reconstruction.
 
    ISO/IEC 10589:2002 is the authoritative source for formal ISO claims.
