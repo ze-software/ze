@@ -189,7 +189,15 @@ func TestEapfmtPeerResponseTypeIsNakOrMatchesRequest(t *testing.T) {
 	if res.Response != nil {
 		t.Fatalf("mismatched request drew a response of type %d", res.Response.Type)
 	}
-	if res.Err == nil {
-		t.Fatal("mismatched request drew no error")
+	// RFC 3748 Section 2.1 asks the peer to silently discard a Request of a Type
+	// other than the one under way. Until 2026-09-01 this drew an error, which
+	// the engine reads as a reason to kill the SA, so one unauthenticated packet
+	// ended the exchange. The property the case proves is unchanged: the
+	// mismatched Request draws no response.
+	if !res.Discarded {
+		t.Fatal("mismatched request was not discarded")
+	}
+	if res.Err != nil {
+		t.Fatalf("the discard must carry no error, or the packet ends the SA: %v", res.Err)
 	}
 }

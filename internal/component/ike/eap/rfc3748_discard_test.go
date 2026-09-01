@@ -293,3 +293,76 @@ func TestRFC3748UndefinedCodesAreSilentlyDiscarded(t *testing.T) {
 		t.Fatalf("the peer answered an EAP-Failure with %v, want ErrEAPFailure", res.Err)
 	}
 }
+
+// RFC requirement: RFC3748-4.1-11 positive -- the authenticator silently discards
+// a Response whose Type is neither the outstanding Request's nor a legacy Nak.
+//
+// RFC 3748 Section 4.1: "An EAP server receiving a Response not meeting these
+// requirements MUST silently discard it."
+func TestAuthenticatorDiscardsAResponseOfAnotherType(t *testing.T) {
+	s, err := NewSession(TypeMSCHAPv2, MethodConfig{Password: "p"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Begin()
+	if out := s.Process(&Packet{Code: CodeResponse, Identifier: 1, Type: TypeIdentity, TypeData: []byte("u")}); out == nil {
+		t.Fatal("the identity response must draw the method's first request")
+	}
+	s.identifier = 2
+
+	out := s.Process(&Packet{Code: CodeResponse, Identifier: 2, Type: TypeTLS, TypeData: []byte{0x20}})
+
+	if out != nil {
+		t.Fatalf("a Response of another Type drew %v, want a silent discard", out)
+	}
+	if s.Succeeded() {
+		t.Fatal("the discarded Response completed the exchange")
+	}
+}
+
+// RFC requirement: RFC3748-4.1-11 negative -- a Response carrying the method's
+// own Type IS processed, so the discard above is the Type check acting rather
+// than the authenticator refusing every Response.
+func TestAuthenticatorProcessesAResponseOfTheMethodType(t *testing.T) {
+	s := &Session{method: &doneMethod{}, state: stateMethod, identifier: 4}
+
+	out := s.Process(&Packet{Code: CodeResponse, Identifier: 4, Type: TypeMSCHAPv2})
+
+	if out == nil || out.Code != CodeSuccess {
+		t.Fatalf("a Response of the method's Type must be processed, got %v", out)
+	}
+}
+
+// RFC requirement: RFC3748-2.1-4 positive -- the peer silently discards a Request
+// of a Type other than the one under way, answering with no packet and no error.
+//
+// RFC 3748 Section 2.1: "Once a peer has sent a Response of the same Type as the
+// initial Request, an authenticator MUST NOT send a Request of a different Type
+// prior to completion of the final round of a given method."
+//
+// The error this replaced was read by handleEAPResponse
+// (internal/component/ike/engine/fsm.go) as a reason to set StateDead, so one
+// unauthenticated packet ended the exchange.
+func TestPeerDiscardsARequestOfAnotherType(t *testing.T) {
+	ps := NewPeerSession(TypeMSCHAPv2, "u", "p")
+
+	// The method must be UNDER WAY first. Section 2.1 binds from the moment the
+	// peer has answered the initial Request, so an unknown Type arriving in the
+	// identity state is a different obligation: RFC 3748 Section 5.3.1 owes it a
+	// legacy Nak, which plan/spec-eap-notification-and-nak.md owns.
+	if got := ps.Process(&Packet{Code: CodeRequest, Identifier: 1, Type: TypeIdentity}); got.Response == nil {
+		t.Fatal("the identity request must draw an identity response")
+	}
+
+	res := ps.Process(&Packet{Code: CodeRequest, Identifier: 2, Type: TypeTLS, TypeData: []byte{0x20}})
+
+	if !res.Discarded {
+		t.Fatal("a Request of another Type must be discarded")
+	}
+	if res.Err != nil {
+		t.Fatalf("the discard must carry no error, or the packet ends the SA: %v", res.Err)
+	}
+	if res.Response != nil {
+		t.Fatalf("the discard must draw no response, got type %d", res.Response.Type)
+	}
+}

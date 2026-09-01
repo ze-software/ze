@@ -248,8 +248,16 @@ func TestRFC3748OneMethodPerConversation(t *testing.T) {
 	auth.Process(&Packet{Code: CodeResponse, Identifier: 1, Type: TypeIdentity, TypeData: []byte("user")}) // -> method active
 	wrong := &Packet{Code: CodeResponse, Identifier: 2, Type: TypeTLS, TypeData: []byte{0x20}}
 	out := auth.Process(wrong)
-	if out == nil || out.Code != CodeFailure {
-		t.Fatalf("a second method Type was accepted mid-conversation: %v (want Failure)", out)
+	// RFC 3748 Section 4.1: "An EAP server receiving a Response not meeting
+	// these requirements MUST silently discard it." Until 2026-09-01 this drew
+	// an EAP-Failure, which ends the conversation on a packet the RFC says not
+	// to read. The property the case is named for is unchanged: the second
+	// method Type is not accepted, and now it is not answered either.
+	if out != nil {
+		t.Fatalf("a second method Type drew a packet mid-conversation: %v (want a silent discard)", out)
+	}
+	if auth.Succeeded() {
+		t.Fatal("the discarded Response completed the exchange")
 	}
 }
 

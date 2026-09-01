@@ -326,6 +326,18 @@ func (s *Session) handleMethod(response *Packet) *Packet {
 		return s.failure(response)
 	}
 
+	// RFC 3748 Section 4.1: "An EAP server receiving a Response not meeting
+	// these requirements MUST silently discard it." The requirement above it is
+	// that a Response answers the Request's Type or is a legacy Nak, and a Nak
+	// is the arm just handled. So a Response of any other Type is one this
+	// exchange never asked for, and the RFC asks for silence rather than an
+	// EAP-Failure: answering it lets anybody on the path end a conversation with
+	// one unauthenticated packet, which is the shape RFC3748-4-5 already closed
+	// for an undefined Code.
+	if response.Type != s.method.Type() {
+		return nil
+	}
+
 	result := s.method.Process(response)
 	if result.FinalRequest != nil {
 		return s.finalRequest(result)

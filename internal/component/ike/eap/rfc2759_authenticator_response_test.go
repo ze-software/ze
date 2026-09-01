@@ -170,9 +170,18 @@ func TestRFC2759PeerEndsSessionOnBadAuthenticatorResponse(t *testing.T) {
 			// Ending the session means the peer cannot be talked back into
 			// success: an EAP-Success arriving after the refusal MUST NOT hand
 			// out the MSK.
+			//
+			// The refusal is a DISCARD rather than an error, since 2026-09-01.
+			// RFC 3748 Section 4.2 states "The peer MUST silently discard Success
+			// packets", and an error there let the packet choose the moment the
+			// SA died. What this case exists to prove is unchanged and is
+			// asserted below: no MSK, no completion, no success.
 			after := peer.Process(&Packet{Code: CodeSuccess, Identifier: 5})
-			if after.Err == nil {
-				t.Fatal("an EAP-Success after the refusal was accepted, so the session did not end")
+			if !after.Discarded {
+				t.Fatal("an EAP-Success after the refusal was not discarded, so the session did not end")
+			}
+			if after.Err != nil {
+				t.Fatalf("the discard must carry no error, or the packet ends the SA: %v", after.Err)
 			}
 			if after.Done {
 				t.Fatal("the peer completed after refusing the Authenticator Response")

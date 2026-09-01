@@ -202,7 +202,13 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 	// session, and an EAP-Success is what a rogue authenticator sends after that
 	// refusal: answering it would hand out the MSK the refusal denied.
 	if ps.state == peerStateFailed {
-		return PeerResult{Err: errSessionEnded}
+		// RFC 3748 Section 4.2: "The peer MUST silently discard Success packets."
+		// A discard rather than errSessionEnded, because the engine reads a
+		// non-nil Err as a reason to kill the SA, and the session is already over
+		// by the refusal that set this state. The MSK is denied either way; what
+		// changes is that a rogue authenticator can no longer choose the moment
+		// the SA dies by sending one packet after the refusal.
+		return peerDiscard()
 	}
 
 	switch request.Code {
@@ -345,8 +351,13 @@ func (ps *PeerSession) handleMethodRequest(req *Packet) PeerResult {
 }
 
 func (ps *PeerSession) handleMSCHAPv2Request(req *Packet) PeerResult {
+	// RFC 3748 Section 2.1: "The peer MUST silently discard a Request of a Type
+	// other than the one under way." One method runs per conversation, so a
+	// Request naming another Type answers no state this peer holds. An error here
+	// killed the SA, which handed a packet nobody authenticated the power to end
+	// the exchange.
 	if req.Type != TypeMSCHAPv2 {
-		return PeerResult{Err: fmt.Errorf("eap: expected type %d, got %d", TypeMSCHAPv2, req.Type)}
+		return peerDiscard()
 	}
 	td := req.TypeData
 	if len(td) < 4 {
@@ -610,8 +621,8 @@ func parseMSCHAPv2Failure(td []byte) (*mschapv2FailureError, error) {
 	// in the appropriate charset and language", so it runs to the end of the
 	// Message rather than to the next space.
 	text := ""
-	if start := strings.Index(message, "M="); start >= 0 {
-		text = message[start+len("M="):]
+	if _, after, found := strings.Cut(message, "M="); found {
+		text = after
 	}
 
 	return &mschapv2FailureError{code: code, message: text}, nil
@@ -621,8 +632,8 @@ func parseMSCHAPv2Failure(td []byte) (*mschapv2FailureError, error) {
 // Failure Message, and reports whether the field is present.
 func mschapv2FailureField(message, prefix string) (string, bool) {
 	for field := range strings.SplitSeq(message, " ") {
-		if strings.HasPrefix(field, prefix) {
-			return strings.TrimPrefix(field, prefix), true
+		if value, found := strings.CutPrefix(field, prefix); found {
+			return value, true
 		}
 	}
 	return "", false
@@ -632,7 +643,8 @@ func mschapv2FailureField(message, prefix string) (string, bool) {
 // absent or is not 32 hexadecimal digits.
 //
 // RFC 2759 Section 6, on the C= field: "This field MUST be exactly 32 octets
-// long and MUST be present."
+// long and MUST be present." A Failure packet that breaks either half of that
+// mandate is refused with this error rather than read as an ordinary refusal.
 var errFailureChallenge = errors.New("eap-mschapv2: the Failure packet carries no conformant C= challenge")
 
 // mschapv2FailureError is the authenticator's refusal, read as an error so the
