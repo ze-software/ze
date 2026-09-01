@@ -366,3 +366,25 @@ func TestPeerDiscardsARequestOfAnotherType(t *testing.T) {
 		t.Fatalf("the discard must draw no response, got type %d", res.Response.Type)
 	}
 }
+
+// RFC requirement: RFC3748-2.1-4 negative -- a Request carrying the method's OWN
+// Type is processed while the method is under way, so the discard above is the
+// Type check acting rather than the peer refusing every Request mid-method.
+func TestPeerProcessesARequestOfTheMethodType(t *testing.T) {
+	ps := NewPeerSession(TypeMSCHAPv2, "u", "p")
+	if got := ps.Process(&Packet{Code: CodeRequest, Identifier: 1, Type: TypeIdentity}); got.Response == nil {
+		t.Fatal("the identity request must draw an identity response")
+	}
+
+	// An MS-CHAPv2 Challenge: opcode 1, identifier, 2-octet length, then a
+	// 16-octet challenge behind its own length octet.
+	td := append([]byte{1, 2, 0, 22, 16}, make([]byte, 16)...)
+	res := ps.Process(&Packet{Code: CodeRequest, Identifier: 2, Type: TypeMSCHAPv2, TypeData: td})
+
+	if res.Discarded {
+		t.Fatal("a Request of the method's own Type must not be discarded")
+	}
+	if res.Response == nil && res.Err == nil {
+		t.Fatal("a Request of the method's own Type must be answered or refused, not ignored")
+	}
+}

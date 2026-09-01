@@ -76,3 +76,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-01 | 5fed2ed5 | fix(ike): discard an EAP Response answering no outstanding Request | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-01 | 5fed2ed5 | fix(ike): answer with silence where RFC 3748 asks for a discard | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-01 | 5fed2ed5 | fix(ike): answer with silence where RFC 3748 asks for a discard | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-01 | 5fed2ed5 | feat(rfc): sign off RFC 3748, the last stem the gate was waiting on | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-01 | 5fed2ed5 | feat(rfc): sign off RFC 3748, the last stem the gate was waiting on | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
