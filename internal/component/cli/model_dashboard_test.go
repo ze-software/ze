@@ -218,25 +218,25 @@ func TestDashboardSortPeers(t *testing.T) {
 	}
 
 	// Sort by address ascending.
-	sorted := sortDashboardPeers(peers, sortColumnAddress, true)
+	sorted := sortDashboardPeers(peers, sortColumnAddress, true, noRates)
 	if sorted[0].Address != "10.0.0.1" || sorted[1].Address != "10.0.0.2" || sorted[2].Address != "10.0.0.3" {
 		t.Errorf("sort by address asc: got %s, %s, %s", sorted[0].Address, sorted[1].Address, sorted[2].Address)
 	}
 
 	// Sort by address descending.
-	sorted = sortDashboardPeers(peers, sortColumnAddress, false)
+	sorted = sortDashboardPeers(peers, sortColumnAddress, false, noRates)
 	if sorted[0].Address != "10.0.0.3" {
 		t.Errorf("sort by address desc: first got %s, want 10.0.0.3", sorted[0].Address)
 	}
 
 	// Sort by ASN ascending.
-	sorted = sortDashboardPeers(peers, sortColumnASN, true)
+	sorted = sortDashboardPeers(peers, sortColumnASN, true, noRates)
 	if sorted[0].RemoteAS != 65001 {
 		t.Errorf("sort by ASN asc: first got %d, want 65001", sorted[0].RemoteAS)
 	}
 
 	// Sort by updates-received descending.
-	sorted = sortDashboardPeers(peers, sortColumnRx, false)
+	sorted = sortDashboardPeers(peers, sortColumnRx, false, noRates)
 	if sorted[0].UpdatesReceived != 200 {
 		t.Errorf("sort by Rx desc: first got %d, want 200", sorted[0].UpdatesReceived)
 	}
@@ -333,7 +333,7 @@ func TestDashboardRenderPeerTable(t *testing.T) {
 	}
 	ds := &dashboardState{
 		selectedAddr: "10.0.0.1",
-		rates:        map[string]*peerRateEntry{"10.0.0.1": {rate: "5.0/s"}, "10.0.0.2": {rate: "--"}},
+		rates:        map[string]*peerRateEntry{"10.0.0.1": {value: 5.0, measured: true}, "10.0.0.2": {}},
 	}
 
 	table := renderDashboardPeerTable(peers, ds, sortColumnAddress, true, 120, 0)

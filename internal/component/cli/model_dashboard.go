@@ -130,10 +130,22 @@ func parseDashboardSnapshot(data string) (*dashboardSnapshot, error) {
 }
 
 // peerRateEntry tracks per-peer counter and timestamp for rate computation.
+//
+// The rate is held as the NUMBER measured, and the table formats it where it
+// prints it. It used to be held as the formatted string alone, which left the
+// Rate column sortable only by a stand-in. The sort ordered it by
+// updates-received, so two peers with one counter and two rates came out in an
+// order the column contradicted.
 type peerRateEntry struct {
 	counter   uint32
 	timestamp time.Time
-	rate      string // formatted rate or "--"
+	// value is updates per second over the last measured interval, and
+	// measured says whether one has been taken yet. A peer seen once, and a
+	// peer whose counter went backwards, have no rate rather than a rate of
+	// zero. The table prints "--" for both, and the sort orders them after
+	// every peer that has one.
+	value    float64
+	measured bool
 }
 
 // dashboardState holds the dashboard's mutable state.
@@ -171,7 +183,6 @@ func (ds *dashboardState) updateRates(snap *dashboardSnapshot, now time.Time) {
 			ds.rates[addr] = &peerRateEntry{
 				counter:   counter,
 				timestamp: now,
-				rate:      "--",
 			}
 			continue
 		}
@@ -187,15 +198,16 @@ func (ds *dashboardState) updateRates(snap *dashboardSnapshot, now time.Time) {
 			// Counter decreased (peer restart). Reset baseline.
 			prev.counter = counter
 			prev.timestamp = now
-			prev.rate = "--"
+			prev.value = 0
+			prev.measured = false
 			continue
 		}
 
 		diff := counter - prev.counter
-		rate := float64(diff) / elapsed
 		prev.counter = counter
 		prev.timestamp = now
-		prev.rate = fmt.Sprintf("%.1f/s", rate)
+		prev.value = float64(diff) / elapsed
+		prev.measured = true
 	}
 
 	// Remove entries for peers that disappeared.
@@ -208,10 +220,22 @@ func (ds *dashboardState) updateRates(snap *dashboardSnapshot, now time.Time) {
 
 // peerRate returns the formatted rate string for a peer, or "--" if unknown.
 func (ds *dashboardState) peerRate(addr string) string {
-	if entry, ok := ds.rates[addr]; ok {
-		return entry.rate
+	value, measured := ds.rateValue(addr)
+	if !measured {
+		return "--"
 	}
-	return "--"
+	return fmt.Sprintf("%.1f/s", value)
+}
+
+// rateValue answers the update rate measured for a peer, and whether one has
+// been measured. It is what the Rate column sorts on, so the order the column
+// shows is the order of the numbers it prints.
+func (ds *dashboardState) rateValue(addr string) (float64, bool) {
+	entry, known := ds.rates[addr]
+	if !known || !entry.measured {
+		return 0, false
+	}
+	return entry.value, true
 }
 
 // resolveSelectedIndex finds the index of the selected peer in the given slice.
@@ -231,7 +255,7 @@ func (ds *dashboardState) sortedPeers() []dashboardPeer {
 	if ds.snapshot == nil {
 		return nil
 	}
-	return sortDashboardPeers(ds.snapshot.Peers, ds.sortColumn, ds.sortAsc)
+	return sortDashboardPeers(ds.snapshot.Peers, ds.sortColumn, ds.sortAsc, ds.rateValue)
 }
 
 // followSelection keeps the highlight on the peer it was on after the table has

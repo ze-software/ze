@@ -52,12 +52,12 @@ func (c dashboardSortColumn) String() string {
 // The direction reverses the comparison rather than negating a boolean. A
 // boolean `!less` reports an equal pair as less in BOTH directions. That is not
 // an ordering, and a sort given one is free to permute those rows.
-func sortDashboardPeers(peers []dashboardPeer, col dashboardSortColumn, ascending bool) []dashboardPeer {
+func sortDashboardPeers(peers []dashboardPeer, col dashboardSortColumn, ascending bool, rate rateLookup) []dashboardPeer {
 	sorted := make([]dashboardPeer, len(peers))
 	copy(sorted, peers)
 
 	slices.SortStableFunc(sorted, func(a, b dashboardPeer) int {
-		order := comparePeers(a, b, col)
+		order := comparePeers(a, b, col, rate)
 		if !ascending {
 			return -order
 		}
@@ -74,7 +74,7 @@ func sortDashboardPeers(peers []dashboardPeer, col dashboardSortColumn, ascendin
 // The two that differ are the ones an operator notices first: 10.0.0.9 belongs
 // before 10.0.0.10, and an uptime of 59s belongs before one of 1m0s. Both come
 // out of the daemon as strings, and both order backwards when compared as text.
-func comparePeers(a, b dashboardPeer, col dashboardSortColumn) int {
+func comparePeers(a, b dashboardPeer, col dashboardSortColumn, rate rateLookup) int {
 	order := 0
 	switch col {
 	case sortColumnASN:
@@ -88,7 +88,7 @@ func comparePeers(a, b dashboardPeer, col dashboardSortColumn) int {
 	case sortColumnTx:
 		order = cmp.Compare(a.UpdatesSent, b.UpdatesSent)
 	case sortColumnRate:
-		order = cmp.Compare(a.UpdatesReceived, b.UpdatesReceived) // rate sort uses Rx as proxy
+		order = compareRate(a.Address, b.Address, rate)
 	case sortColumnAddress, numSortColumns:
 		order = 0 // the address is the tie-break below, so the column needs no case
 	}
@@ -116,6 +116,33 @@ func compareAddress(a, b string) int {
 		return 1
 	}
 	return strings.Compare(a, b)
+}
+
+// rateLookup answers the update rate measured for a peer, and whether one has
+// been measured yet (dashboardState.rateValue).
+//
+// The rate is not a field of the peer row. It is measured ACROSS two polls, and
+// it lives in the view state beside the table. The sort takes a lookup rather
+// than reaching into that state, and the column sorts on the number it prints.
+type rateLookup func(addr string) (float64, bool)
+
+// compareRate orders two peers by the update rate the table shows them at.
+//
+// A peer with no rate yet prints "--", and it orders after every peer that has
+// one. Reading it as a rate of zero would put a peer nobody has measured
+// beneath a peer measured at zero, which are different statements.
+func compareRate(a, b string, rate rateLookup) int {
+	rateA, measuredA := rate(a)
+	rateB, measuredB := rate(b)
+	switch {
+	case measuredA && measuredB:
+		return cmp.Compare(rateA, rateB)
+	case measuredA:
+		return -1
+	case measuredB:
+		return 1
+	}
+	return 0
 }
 
 // compareUptime orders two uptimes by the duration they measure.
