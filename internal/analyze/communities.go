@@ -194,23 +194,23 @@ type commFreq struct {
 }
 
 func commPrintYAML(st *commAnalysis, threshold float64, minRoutes int, postPolicy bool) {
-	fmt.Println("# Per-ASN community defaults from MRT analysis")
-	fmt.Println("#")
-	fmt.Println("# Communities that appear in nearly every route from a given ASN can be")
-	fmt.Println("# assumed as 'defaults' in a cache. Only exceptions (routes missing a")
-	fmt.Println("# default community) need explicit encoding, saving wire bytes.")
-	fmt.Println("#")
 	var tb textbuf.Buffer
-	fmt.Fprintf(os.Stdout, "# Source: %s\n", tb.Join(st.Files, ", ").String()) //nolint:errcheck // CLI output
-	fmt.Printf("# Total routes analyzed: %d\n", st.TotalRoutes)
-	fmt.Printf("# Threshold for defaults: %.0f%%\n", threshold*100)
-	fmt.Printf("# Minimum routes per ASN: %d\n", minRoutes)
+	tb.Str("# Per-ASN community defaults from MRT analysis\n")
+	tb.Str("#\n")
+	tb.Str("# Communities that appear in nearly every route from a given ASN can be\n")
+	tb.Str("# assumed as 'defaults' in a cache. Only exceptions (routes missing a\n")
+	tb.Str("# default community) need explicit encoding, saving wire bytes.\n")
+	tb.Str("#\n")
+	tb.Str("# Source: ").Join(st.Files, ", ").Byte('\n')
+	tb.Str("# Total routes analyzed: ").Uint(st.TotalRoutes).Byte('\n')
+	tb.Str("# Threshold for defaults: ").Float(threshold*100, 0).Str("%\n")
+	tb.Str("# Minimum routes per ASN: ").Int(int64(minRoutes)).Byte('\n')
 	if postPolicy {
-		fmt.Println("# Mode: POST-POLICY (action communities stripped)")
+		tb.Str("# Mode: POST-POLICY (action communities stripped)\n")
 	} else {
-		fmt.Println("# Mode: RAW (all communities as seen by route server)")
+		tb.Str("# Mode: RAW (all communities as seen by route server)\n")
 	}
-	fmt.Println()
+	tb.Byte('\n').StdOut() //nolint:errcheck // CLI output
 
 	type asnSort struct {
 		asn   uint32

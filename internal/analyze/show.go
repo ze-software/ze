@@ -57,9 +57,11 @@ func runShow(args []string) int {
 	handler := &mrt.Handler{
 		OnPeerIndex: func(_ mrt.Header, pit *mrt.PeerIndexTable) error {
 			peerIndex = pit
-			os.Stdout.WriteString("PEER_INDEX_TABLE: " + textbuf.StringUint(uint64(len(pit.Peers))) + " peers\n") //nolint:errcheck // output
+			var tb textbuf.Buffer
+			tb.Str("PEER_INDEX_TABLE: ").Uint(uint64(len(pit.Peers))).Str(" peers\n").StdOut() //nolint:errcheck // output
 			for i, p := range pit.Peers {
-				os.Stdout.WriteString("  [" + textbuf.StringUint(uint64(i)) + "] " + net.IP(p.IP).String() + " AS" + textbuf.StringUint32(p.ASN) + "\n") //nolint:errcheck // output
+				tb.Reset().Str("  [").Uint(uint64(i)).Str("] ").Str(net.IP(p.IP).String()).
+					Str(" AS").Uint32(p.ASN).Byte('\n').StdOut() //nolint:errcheck // output
 			}
 			return nil
 		},

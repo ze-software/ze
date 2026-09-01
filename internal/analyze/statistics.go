@@ -137,31 +137,32 @@ func runStatistics(args []string) int {
 }
 
 func printStatsSummary(st *mrtStats) {
-	w := os.Stderr
-	wf(w, "\nMRT Statistics Summary\n")
-	wf(w, "=====================\n\n")
-	wf(w, "Total records: %s\n", formatNumber(st.TotalRecords))
-	wf(w, "RIB entries:   %s\n", formatNumber(st.RIBEntries))
-	wf(w, "Peers:         %d\n", st.PeerCount)
-	wf(w, "Add-path:      %s\n", formatNumber(st.AddPathCount))
-	wf(w, "Timestamp range: %d - %d\n\n", st.MinTimestamp, st.MaxTimestamp)
+	var tb textbuf.Buffer
+	tb.Str("\nMRT Statistics Summary\n")
+	tb.Str("=====================\n\n")
+	tb.Str("Total records: ").Str(formatNumber(st.TotalRecords)).Byte('\n')
+	tb.Str("RIB entries:   ").Str(formatNumber(st.RIBEntries)).Byte('\n')
+	tb.Str("Peers:         ").Int(int64(st.PeerCount)).Byte('\n')
+	tb.Str("Add-path:      ").Str(formatNumber(st.AddPathCount)).Byte('\n')
+	tb.Str("Timestamp range: ").Uint32(st.MinTimestamp).Str(" - ").Uint32(st.MaxTimestamp).Str("\n\n")
 
-	wf(w, "Records by type:\n")
+	tb.Str("Records by type:\n")
 	for _, k := range sortedKeys(st.TypeCounts) {
-		wf(w, "  %-20s %s\n", k, formatNumber(st.TypeCounts[k]))
+		tb.Str("  ").PadRight(k, 20).Byte(' ').Str(formatNumber(st.TypeCounts[k])).Byte('\n')
 	}
 
-	wf(w, "\nAFI breakdown:\n")
+	tb.Str("\nAFI breakdown:\n")
 	for _, k := range sortedKeys(st.AFICounts) {
-		wf(w, "  %-20s %s\n", k, formatNumber(st.AFICounts[k]))
+		tb.Str("  ").PadRight(k, 20).Byte(' ').Str(formatNumber(st.AFICounts[k])).Byte('\n')
 	}
 
 	if len(st.BGPMsgTypes) > 0 {
-		wf(w, "\nBGP message types:\n")
+		tb.Str("\nBGP message types:\n")
 		for _, k := range sortedKeys(st.BGPMsgTypes) {
-			wf(w, "  %-20s %s\n", k, formatNumber(st.BGPMsgTypes[k]))
+			tb.Str("  ").PadRight(k, 20).Byte(' ').Str(formatNumber(st.BGPMsgTypes[k])).Byte('\n')
 		}
 	}
+	tb.StdErr() //nolint:errcheck // human-readable summary, a write failure is not actionable
 }
 
 func sortedKeys(m map[string]uint64) []string {
