@@ -82,3 +82,4 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 | 2026-09-01 | 5fed2ed5 | feat(rfc): arm the gate that refuses an unbounded Supported claim | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
 | 2026-09-01 | 5fed2ed5 | feat(rfc): arm the gate that refuses an unbounded Supported claim | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
 | 2026-09-01 | 5fed2ed5 | docs(rfc): the link-local capability row says Partial, not Supported | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
+| 2026-09-01 | 5fed2ed5 | test(rfc): record all 30 RFC 5176 proofs the ledger was owed | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
