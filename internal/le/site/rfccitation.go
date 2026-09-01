@@ -157,7 +157,7 @@ func rfcTestRows(requirement *rfcLedgerRequirement) []rfcTestRow {
 		rows = append(rows, rfcTestRow{Polarity: cover.Polarity, Carrier: carrier,
 			Cover: cover, Rank: rank, Ranked: ranked,
 			Sort: rfcCitationName(cover.Unit)})
-		if !bestFound || rfcRowIsBefore(rank, ranked, carrier, best, bestKnown, "") {
+		if !bestFound || rfcRowIsBefore(rank, ranked, best, bestKnown) {
 			best, bestKnown, bestFound = rank, ranked, true
 		}
 	}
@@ -189,16 +189,18 @@ func rfcTestRows(requirement *rfcLedgerRequirement) []rfcTestRow {
 
 // rfcRowIsBefore answers whether one carrier reads before another, which is how
 // the best carrier of a requirement is chosen for its absent-polarity rows.
-func rfcRowIsBefore(rank int, ranked bool, carrier string,
-	bestRank int, bestRanked bool, bestCarrier string,
-) bool {
+//
+// It carried a `carrier < bestCarrier` tie-break until 2026-09-01, which its
+// only caller could never reach: two ranked carriers of equal rank ARE the same
+// label, and the caller passed an empty name for the incumbent, so the
+// comparison answered false for every string (independent review). Two carriers
+// of equal rank now leave the incumbent in place, which is what the sort below
+// then orders by the name a reader sees.
+func rfcRowIsBefore(rank int, ranked bool, bestRank int, bestRanked bool) bool {
 	if ranked != bestRanked {
 		return ranked
 	}
-	if rank != bestRank {
-		return rank < bestRank
-	}
-	return carrier < bestCarrier
+	return rank < bestRank
 }
 
 // rfcPolarityRank orders the two directions as a reader reads them: what Ze

@@ -49,21 +49,9 @@ func rfcRequirementRefMirror(rid, text string) string {
 // These tables are wide by nature: a requirement row carries quoted RFC prose
 // beside a list of test paths, and a path is one unbreakable token. The
 // container scrolls, so the page body never does.
-func rfcTableHTML(head, rows string) string { return rfcTableClassHTML("", head, rows) }
-
-// rfcTableClassHTML wraps one table that needs a class of its own.
-//
-// One table needs it: the requirements table turns OFF the sticky bold first
-// column every other table wants. Its first cell is the level rather than the
-// row's identity -- the identity is the subject row above it -- so weight and
-// stickiness there emphasize the wrong thing.
-func rfcTableClassHTML(class, head, rows string) string {
-	table := "<table>"
-	if class != "" {
-		table = `<table class="` + class + `">`
-	}
-	return `<div class="rfc-table-wrap">` + "\n" + table + "\n<thead><tr>" + head +
-		"</tr></thead>\n<tbody>\n" + rows + "</tbody>\n</table>\n</div>"
+func rfcTableHTML(head, rows string) string {
+	return `<div class="rfc-table-wrap">` + "\n" + `<table class="rfc-table">` +
+		"\n<thead><tr>" + head + "</tr></thead>\n<tbody>\n" + rows + "</tbody>\n</table>\n</div>"
 }
 
 // rfcHeadCells answers one table's header row.
@@ -182,12 +170,13 @@ func rfcFoldMarkupMirror(label, prose, body string) string {
 	return "**" + label + "**\n\n" + body + "\n"
 }
 
-// rfcSpanRow answers one row whose single cell spans a whole table.
+// rfcSubjectRow answers one row whose first cell names the record and whose
+// second cell takes every remaining column.
 //
-// The column count comes from the header labels rather than from a number
-// written twice: this table gained and lost a column in one afternoon, and a
-// hardcoded colspan is wrong the moment either happens again.
-func rfcSpanRow(labels []string, cell string) string {
-	return `<tr class="rfc-span"><td colspan="` + strconv.Itoa(len(labels)) + `">` +
-		cell + "</td></tr>\n"
+// The span comes from the header labels rather than from a number written
+// twice: this table gained and lost a column three times in one afternoon, and
+// a hardcoded colspan is wrong the moment it happens again.
+func rfcSubjectRow(labels []string, lead, rest string) string {
+	return `<tr class="rfc-span"><td class="rfc-subject-id">` + lead + `</td><td colspan="` +
+		strconv.Itoa(len(labels)-1) + `">` + rest + "</td></tr>\n"
 }

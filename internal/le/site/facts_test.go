@@ -627,3 +627,42 @@ func manyRFCRequirements(total, gated int) rfc.Collected {
 	}
 	return collected
 }
+
+// VALIDATES: AC-70 -- no published provenance string names a GENERATED file as
+// an input.
+//
+// `_sources["rfc"]` said `internal/le/rfc.Collect, over rfc/short/*.md and
+// rfc/enrolled.txt` after Collect had stopped reading that file, which is now
+// generated from the same summaries (independent review, 2026-09-01). A false
+// provenance claim in machine-readable data is worse than a stale comment,
+// because a consumer acts on it. Every other entry in that map is built from
+// the constant its producer just read, so it cannot drift; these three paths
+// are the ones a hand-written sentence can name by mistake.
+func TestNoPublishedSourceNamesAGeneratedLedgerFile(t *testing.T) {
+	root := repositoryRoot(t)
+	output := t.TempDir()
+	writeArtifactFile(t, output, catalogFile, `[{"path":"show test","description":"Show rows","mode":"read-only"}]`)
+	writeArtifactFile(t, output, configTreeFile, `{"bgp":{"kind":"container","description":"BGP."}}`)
+	stubGitHubStars(t, 50, nil)
+
+	facts, err := deriveSiteFacts(Paths{
+		Repository: root, Source: filepath.Join(root, "website"), Output: output})
+	if err != nil {
+		t.Fatalf("this checkout cannot answer its own published facts: %v", err)
+	}
+	if len(facts.Sources) == 0 {
+		t.Fatal("the facts carry no _sources at all, so this proves nothing")
+	}
+	for key, source := range facts.Sources {
+		for _, generated := range []string{
+			"rfc/enrolled.txt", "rfc/not-enrolled.txt", "docs/features/rfc-status.md",
+		} {
+			if strings.Contains(source, generated) {
+				t.Errorf("_sources[%q] names %s as an input, and that file is GENERATED "+
+					"from rfc/short/*.md by ./le rfc index-update", key, generated)
+			}
+		}
+	}
+	t.Logf("%d published provenance strings, none naming a generated ledger file",
+		len(facts.Sources))
+}

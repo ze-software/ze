@@ -119,21 +119,21 @@ func rfcNoGapsText(entry *rfcLedgerStem) string {
 		"bound to it."
 }
 
-// rfcProofCounts is what one summary's tagged units and recorded verdicts add
-// up to.
+// rfcProofCounts is what one summary's recorded AUDIT verdicts add up to.
+//
+// It counted the tagged units too until 2026-09-01, and nothing read those
+// three fields: rfcLedgerCoverage already carries Units and Escapes, and the
+// proof card reads them from there (independent review).
 //
 // Every count here is also published as a list of requirement ids under the
 // Proof state heading, so no count on this page stands in for a list (AC-18).
 type rfcProofCounts struct {
-	Units      int
-	Unproven   int
-	Escapes    int
 	Unsound    int
 	NotCurrent int
 }
 
-// rfcProofCountsOf counts the tagged units that carry no proof and the recorded
-// verdicts that are unsound or no longer current.
+// rfcProofCountsOf counts the recorded verdicts that are unsound or no longer
+// current.
 func rfcProofCountsOf(entry *rfcLedgerStem) rfcProofCounts {
 	var counts rfcProofCounts
 	for index := range entry.Requirements {
@@ -144,16 +144,6 @@ func rfcProofCountsOf(entry *rfcLedgerStem) rfcProofCounts {
 			}
 			if requirement.Audit.Freshness != rfc.FreshState {
 				counts.NotCurrent++
-			}
-		}
-		for coverIndex := range requirement.Covers {
-			cover := &requirement.Covers[coverIndex]
-			counts.Units++
-			switch {
-			case cover.Proof == nil:
-				counts.Unproven++
-			case !cover.Proof.Proves:
-				counts.Escapes++
 			}
 		}
 	}

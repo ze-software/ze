@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -444,7 +445,10 @@ func TestAStemPageStatesItsEnrolmentAndItsPublicStatus(t *testing.T) {
 	_, declinedMirror := renderRFCDetail(t, declined, "rfc9997")
 	for _, fact := range []string{
 		rfcNoPublicRow,
-		"Not enrolled (backlog): the extraction is owed",
+		// The kind is stated WITH its meaning, because `backlog` is this
+		// project's word and a reader outside it cannot act on it alone.
+		"Not enrolled (backlog, " + rfcDispositionMeaning("backlog") +
+			"): the extraction is owed",
 		"no requirement declared, so no shard is generated",
 		"this checkout does not carry the RFC's own text",
 	} {
@@ -834,7 +838,11 @@ func TestTheSiteReadsItsRFCVocabularyFromThePackage(t *testing.T) {
 // relabeled, softened, shown as a blank cell, or counted as proven. If this
 // test goes red, the PAGE is what gets fixed.
 func TestEveryDisclosedStateAppearsUnderItsRequirementID(t *testing.T) {
-	_, text, mirror := disclosurePage(t)
+	ledger := disclosureLedger()
+	all := rfcAllRIDs(&ledger.Stems[0])
+	// The RAW page, not its visible text: the declaration markers that bound
+	// one requirement's block are the anchors, and text extraction drops them.
+	page, text, mirror := disclosurePage(t)
 	for _, one := range []struct{ state, rid, word string }{
 		{"a gated MUST with no test", "RFC9999-1-1", "no test"},
 		{"a weak audit verdict", "RFC9999-2-1", "weak"},
@@ -844,12 +852,17 @@ func TestEveryDisclosedStateAppearsUnderItsRequirementID(t *testing.T) {
 		{"a no-break record", "RFC9999-3-1", "no-break"},
 		{"a declared gap", "RFC9999-5-1", "{gap}"},
 	} {
-		for name, rendering := range map[string]string{"page": text, "mirror": mirror} {
-			if !strings.Contains(rendering, one.rid) {
-				t.Errorf("the %s does not name %s, which carries %s", name, one.rid, one.state)
-			}
-			if !strings.Contains(rendering, one.word) {
-				t.Errorf("the %s does not carry the word %q for %s", name, one.word, one.state)
+		if !strings.Contains(text, one.rid) {
+			t.Errorf("the page does not name %s, which carries %s", one.rid, one.state)
+			continue
+		}
+		for name, rendering := range map[string]string{"page": page, "mirror": mirror} {
+			// The word is held against the requirement's OWN block, never
+			// against the whole rendering: a page-wide search passes on a
+			// word another requirement disclosed.
+			if !strings.Contains(rfcDisclosureUnit(rendering, one.rid, all), one.word) {
+				t.Errorf("the %s does not carry the word %q under %s, which carries %s",
+					name, one.word, one.rid, one.state)
 			}
 		}
 	}
@@ -861,61 +874,77 @@ func TestEveryDisclosedStateAppearsUnderItsRequirementID(t *testing.T) {
 // A page that says "2 requirements carry no test" and does not name the two has
 // reproduced the aggregate this family exists to replace. The method is the
 // snapshot's own failing rows rather than the page's summary of them.
+
+// rfcBadState names one weakness a requirement carries and the WORD the page
+// owes for it under that requirement's own id.
+type rfcBadState struct{ family, word string }
+
+// rfcBadStates answers every weakness one requirement carries.
+//
+// One list, read by the fixture test and by the corpus test, so the two cannot
+// hold the page to different disclosures. The word is what the reader sees, so
+// a section that stopped rendering goes red here even though the requirement id
+// is still printed by the requirements table (independent review, 2026-09-01).
+func rfcBadStates(requirement *rfcLedgerRequirement) []rfcBadState {
+	var states []rfcBadState
+	if requirement.Gated && len(requirement.Covers) == 0 {
+		states = append(states, rfcBadState{"gated MUST with no test", "no test"})
+	}
+	if requirement.NightlyOnly {
+		states = append(states, rfcBadState{"nightly-only evidence", "nightly-only"})
+	}
+	if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationGap {
+		states = append(states, rfcBadState{"declared gap", "{" + rfc.AnnotationGap + "}"})
+	}
+	if requirement.Audit != nil && requirement.Audit.Verdict != rfc.VerdictEnforced {
+		states = append(states, rfcBadState{"verdict other than enforced",
+			requirement.Audit.Verdict})
+	}
+	if requirement.Audit != nil && requirement.Audit.Freshness != rfc.FreshState {
+		states = append(states, rfcBadState{"verdict no longer current",
+			requirement.Audit.Freshness})
+	}
+	for index := range requirement.Covers {
+		cover := &requirement.Covers[index]
+		if cover.Proof == nil {
+			states = append(states, rfcBadState{"tagged unit with no record", rfcUnproven})
+			continue
+		}
+		if !cover.Proof.Proves {
+			states = append(states, rfcBadState{"escape that is not a proof",
+				cover.Proof.Route + " escape"})
+		}
+	}
+	return states
+}
+
 func TestNoBadStateIsPublishedOnlyAsACount(t *testing.T) {
 	ledger := disclosureLedger()
 	entry := &ledger.Stems[0]
-	_, text, mirror := disclosurePage(t)
+	all := rfcAllRIDs(entry)
+	page, _, mirror := disclosurePage(t)
 
-	families := map[string][]string{}
+	held := 0
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
-		if requirement.Gated && len(requirement.Covers) == 0 {
-			families["gated MUST with no test"] = append(
-				families["gated MUST with no test"], requirement.RID)
-		}
-		if requirement.NightlyOnly {
-			families["nightly-only evidence"] = append(
-				families["nightly-only evidence"], requirement.RID)
-		}
-		if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationGap {
-			families["declared gap"] = append(families["declared gap"], requirement.RID)
-		}
-		if requirement.Audit != nil && requirement.Audit.Verdict != "enforced" {
-			families["verdict other than enforced"] = append(
-				families["verdict other than enforced"], requirement.RID)
-		}
-		if requirement.Audit != nil && requirement.Audit.Freshness != rfc.FreshState {
-			families["verdict no longer current"] = append(
-				families["verdict no longer current"], requirement.RID)
-		}
-		for _, cover := range requirement.Covers {
-			if cover.Proof == nil {
-				families["tagged unit with no record"] = append(
-					families["tagged unit with no record"], requirement.RID)
-			}
-			if cover.Proof != nil && !cover.Proof.Proves {
-				families["no-break escape"] = append(families["no-break escape"], requirement.RID)
+		for _, state := range rfcBadStates(requirement) {
+			held++
+			for name, rendering := range map[string]string{"page": page, "mirror": mirror} {
+				unit := rfcDisclosureUnit(rendering, requirement.RID, all)
+				if unit == "" {
+					t.Errorf("the %s counts %s and does not name %s",
+						name, state.family, requirement.RID)
+					continue
+				}
+				if !strings.Contains(unit, state.word) {
+					t.Errorf("the %s counts %s for %s and says %q nowhere under it",
+						name, state.family, requirement.RID, state.word)
+				}
 			}
 		}
 	}
-	if len(families) == 0 {
+	if held == 0 {
 		t.Fatal("the disclosure fixture carries no bad state, so this proves nothing")
-	}
-	for family, ids := range families {
-		if len(ids) == 0 {
-			continue
-		}
-		if !strings.Contains(text, strconv.Itoa(len(ids))) {
-			t.Logf("the page prints no count for %s, which is allowed: the list is what is owed", family)
-		}
-		for _, rid := range ids {
-			if !strings.Contains(text, rid) {
-				t.Errorf("the page counts %s and does not name %s", family, rid)
-			}
-			if !strings.Contains(mirror, rid) {
-				t.Errorf("the mirror counts %s and does not name %s", family, rid)
-			}
-		}
 	}
 }
 
@@ -985,13 +1014,17 @@ func TestEveryUntestedMustOfThisCheckoutIsNamedOnItsPage(t *testing.T) {
 		untested += len(owed)
 		mirror := rfcDetailMirror(entry)
 		body := rfcDetailBody(entry)
+		all := rfcAllRIDs(entry)
 		for _, rid := range owed {
-			if !strings.Contains(mirror, rid) {
-				t.Errorf("%s carries no test for %s and its mirror does not name it",
+			// "no test" under the id, not the id alone: every requirement id
+			// is emitted by the requirements table whatever else the page
+			// says, so naming it proves nothing about the disclosure.
+			if !strings.Contains(rfcDisclosureUnit(mirror, rid, all), "no test") {
+				t.Errorf("%s carries no test for %s and its mirror does not say so under it",
 					entry.Stem, rid)
 			}
-			if !strings.Contains(body, rid) {
-				t.Errorf("%s carries no test for %s and its page does not name it",
+			if !strings.Contains(rfcDisclosureUnit(body, rid, all), "no test") {
+				t.Errorf("%s carries no test for %s and its page does not say so under it",
 					entry.Stem, rid)
 			}
 		}
@@ -1015,43 +1048,23 @@ func TestNoBadStateOfThisCheckoutIsPublishedOnlyAsACount(t *testing.T) {
 	named := map[string]int{}
 	for index := range ledger.Stems {
 		entry := &ledger.Stems[index]
-		bad := map[string][]string{}
+		all := rfcAllRIDs(entry)
+		mirror := ""
 		for position := range entry.Requirements {
 			requirement := &entry.Requirements[position]
-			if requirement.Annotation != nil && requirement.Annotation.Kind == rfc.AnnotationGap {
-				bad["declared gap"] = append(bad["declared gap"], requirement.RID)
+			states := rfcBadStates(requirement)
+			if len(states) == 0 {
+				continue
 			}
-			if requirement.NightlyOnly {
-				bad["nightly-only"] = append(bad["nightly-only"], requirement.RID)
+			if mirror == "" {
+				mirror = rfcDetailMirror(entry)
 			}
-			if requirement.Audit != nil && requirement.Audit.Verdict != rfc.VerdictEnforced {
-				bad["verdict other than enforced"] = append(
-					bad["verdict other than enforced"], requirement.RID)
-			}
-			if requirement.Audit != nil && requirement.Audit.Freshness != rfc.FreshState {
-				bad["verdict no longer current"] = append(
-					bad["verdict no longer current"], requirement.RID)
-			}
-			for _, cover := range requirement.Covers {
-				if cover.Proof == nil {
-					bad["tagged unit with no record"] = append(
-						bad["tagged unit with no record"], requirement.RID)
-				}
-				if cover.Proof != nil && !cover.Proof.Proves {
-					bad["no-break escape"] = append(bad["no-break escape"], requirement.RID)
-				}
-			}
-		}
-		if len(bad) == 0 {
-			continue
-		}
-		mirror := rfcDetailMirror(entry)
-		for family, ids := range bad {
-			named[family] += len(ids)
-			for _, rid := range ids {
-				if !strings.Contains(mirror, rid) {
-					t.Errorf("%s carries %s for %s and the page does not name it",
-						entry.Stem, family, rid)
+			unit := rfcDisclosureUnit(mirror, requirement.RID, all)
+			for _, state := range states {
+				named[state.family]++
+				if !strings.Contains(unit, state.word) {
+					t.Errorf("%s carries %s for %s and the page says %q nowhere under it",
+						entry.Stem, state.family, requirement.RID, state.word)
 				}
 			}
 		}
@@ -1319,8 +1332,8 @@ func TestARequirementRowNamesItsSection(t *testing.T) {
 func TestEveryTableOnAStemPageScrollsInsideItsOwnContainer(t *testing.T) {
 	page, _, _ := disclosurePage(t)
 	body := mainContent(t, page)
-	tables := strings.Count(body, "<table>")
-	wrapped := strings.Count(body, `<div class="rfc-table-wrap">`+"\n<table>")
+	tables := strings.Count(body, `<table class="rfc-table">`)
+	wrapped := strings.Count(body, `<div class="rfc-table-wrap">`+"\n"+`<table class="rfc-table">`)
 	if tables == 0 {
 		t.Fatal("the page publishes no table, so this proves nothing")
 	}
@@ -1389,12 +1402,14 @@ func TestTheRequirementTextLeadsItsRow(t *testing.T) {
 	head := sliceBetween(t, body, "<h2>Requirements</h2>", "</thead>")
 
 	// The header is the metadata only: the subject is not a column.
-	for _, want := range []string{"<th>Level</th>", "<th>Section</th>", "<th>Tests</th>"} {
+	for _, want := range []string{
+		"<th>Requirement</th>", "<th>Level</th>", "<th>Section</th>", "<th>Tests</th>",
+	} {
 		if !strings.Contains(head, want) {
 			t.Errorf("the requirements table lost %s", want)
 		}
 	}
-	for _, gone := range []string{"<th>Requirement</th>", "<th>Text</th>", "<th>Note</th>"} {
+	for _, gone := range []string{"<th>Text</th>", "<th>Note</th>"} {
 		if strings.Contains(head, gone) {
 			t.Errorf("the requirements table still carries %s", gone)
 		}
@@ -1406,9 +1421,11 @@ func TestTheRequirementTextLeadsItsRow(t *testing.T) {
 	if !strings.Contains(text, sentence) {
 		t.Errorf("the page no longer carries %q at all", sentence)
 	}
-	if !strings.Contains(page,
-		`<code id="rfc9999-2-1">RFC9999-2-1</code> <span class="rfc-subject">`) {
-		t.Error("the id and its sentence do not lead the row together")
+	// The sentence sits BESIDE the id, in the cell next to it, so every
+	// sentence on the page starts at the same offset.
+	if !strings.Contains(page, `<td class="rfc-subject-id"><code id="rfc9999-2-1">`+
+		`RFC9999-2-1</code></td><td colspan="3"><span class="rfc-subject">`) {
+		t.Error("the sentence does not sit beside the id in its own cell")
 	}
 	if !strings.Contains(mirror, sentence) {
 		t.Errorf("the mirror no longer carries %q", sentence)
@@ -1876,11 +1893,12 @@ func TestBothPolaritiesShareOneColumn(t *testing.T) {
 // and the span is derived from the header rather than written beside it.
 func TestTheRequirementTextSpansTheWholeTable(t *testing.T) {
 	page, text, mirror := disclosurePage(t)
-	span := `<tr class="rfc-span"><td colspan="` +
-		strconv.Itoa(len(rfcRequirementColumns)) + `">`
+	span := `<tr class="rfc-span"><td class="rfc-subject-id">` +
+		`<code id="rfc9999-2-1">RFC9999-2-1</code></td><td colspan="` +
+		strconv.Itoa(len(rfcRequirementColumns)-1) + `">`
 
-	if !strings.Contains(page, span+`<code id="rfc9999-2-1">`) {
-		t.Errorf("the subject is not a spanning row: want %q", span)
+	if !strings.Contains(page, span) {
+		t.Errorf("the subject is not an id cell beside a spanning cell: want %q", span)
 	}
 	head := sliceBetween(t, mainContent(t, page), "<h2>Requirements</h2>", "</thead>")
 	if got := strings.Count(head, "<th>"); got != len(rfcRequirementColumns) {
@@ -1901,7 +1919,7 @@ func TestTheRequirementTextSpansTheWholeTable(t *testing.T) {
 		quiet.Stems[0].Requirements[index].Text = ""
 	}
 	quietPage, _, _ := renderRFCDetailPage(t, quiet)
-	if !strings.Contains(quietPage, span+`<code id="rfc9999-2-1">RFC9999-2-1</code></td>`) {
+	if !strings.Contains(quietPage, span+"</td>") {
 		t.Error("a requirement quoting nothing lost its anchored id row")
 	}
 	if strings.Contains(quietPage, `<span class="rfc-subject">`) {
@@ -2047,20 +2065,9 @@ func TestTheTestsReadInCarrierOrder(t *testing.T) {
 		t.Errorf("the tests read as %v, want %v", got, want)
 	}
 
-	// The order the code applies is the order internal/le/rfc declares.
-	last, first := -1, true
-	for _, kind := range rfc.CarrierKinds() {
-		for _, tier := range rfc.CarrierTiers() {
-			rank, ranked := rfc.CarrierRank(kind, tier)
-			if !ranked {
-				t.Fatalf("%s/%s is in the vocabulary and has no rank", kind, tier)
-			}
-			if !first && rank <= last {
-				t.Errorf("%s/%s ranks %d, which does not follow %d", kind, tier, rank, last)
-			}
-			last, first = rank, false
-		}
-	}
+	// That the declared order is itself total and ascending is held in the
+	// package that declares it, by TestTheReadingOrderIsTotalAndAscending.
+	// What this holds is that the page APPLIES it.
 	if rank, ranked := rfc.CarrierLabelRank("unit/verify"); !ranked || rank != 0 {
 		t.Errorf("unit/verify ranks (%d, %v), want first", rank, ranked)
 	}
@@ -2124,13 +2131,15 @@ func TestTheTestOrderIsTotalAndStable(t *testing.T) {
 func TestTheSubjectCarriesNoWeightOfItsOwn(t *testing.T) {
 	page, _, mirror := disclosurePage(t)
 
-	if !strings.Contains(page, `<table class="rfc-requirements">`) {
-		t.Error("the requirements table carries no class, so it cannot opt out of the bold")
+	// ONE convention for every table this family renders, rather than an
+	// opt-out for one of them: the page carried eleven tables and ten shared a
+	// look the eleventh did not (owner review, 2026-09-01).
+	body := mainContent(t, page)
+	if plain := strings.Count(body, "<table>"); plain != 0 {
+		t.Errorf("%d tables carry no family class, so the page has two conventions", plain)
 	}
-	if !strings.Contains(page,
-		".rfc-requirements td:first-child { position: static; background: transparent; "+
-			"font-weight: 400; }") {
-		t.Error("the requirements table does not turn off the site-wide first-column weight")
+	if !strings.Contains(page, ".rfc-table td:first-child { font-weight: 400; }") {
+		t.Error("the family does not turn off the site-wide first-column weight")
 	}
 	// Nothing in the subject row emits weight of its own.
 	subject := sliceBetween(t, mainContent(t, page), `<tr class="rfc-span">`, "</tr>")
@@ -2148,4 +2157,354 @@ func TestTheSubjectCarriesNoWeightOfItsOwn(t *testing.T) {
 			t.Errorf("the mirror bolds the requirement: %s", line)
 		}
 	}
+}
+
+// VALIDATES: AC-63 -- every table this family renders shares one look, on the
+// stem page and on the index.
+//
+// The requirements table opted out of the site-wide sticky bold first column in
+// an earlier pass, which left ten tables on the page looking one way and the
+// eleventh another, with no reason a reader could see (owner review,
+// 2026-09-01). The convention is now the family's rather than one table's:
+// every table carries the class, so consistency holds by construction rather
+// than by remembering to add it.
+//
+// The weight goes rather than the stickiness. Of the eleven first columns on a
+// stem page, eight are LABELS -- Card, Field, Bucket, Polarity, Field -- and
+// three are identities. The site rule bolds all of them alike, and weight on a
+// label emphasizes the question rather than the answer. Stickiness stays: these
+// tables scroll inside their own container, and it is what keeps a row's
+// identity visible while they do.
+func TestEveryTableOfThisFamilySharesOneLook(t *testing.T) {
+	stem, _, _ := disclosurePage(t)
+	index, _ := rfcCompliancePage(t, rfcCompliancePaths(t))
+
+	for name, page := range map[string]string{"stem": stem, "index": index} {
+		body := mainContent(t, page)
+		classed := strings.Count(body, `<table class="rfc-table">`)
+		plain := strings.Count(body, "<table>")
+		if classed == 0 {
+			t.Errorf("the %s page publishes no table of this family", name)
+		}
+		if plain != 0 {
+			t.Errorf("the %s page carries %d tables outside the family convention",
+				name, plain)
+		}
+		// Every one of them scrolls inside its own container too.
+		wrapped := strings.Count(body,
+			`<div class="rfc-table-wrap">`+"\n"+`<table class="rfc-table">`)
+		if wrapped != classed {
+			t.Errorf("the %s page wraps %d of %d tables", name, wrapped, classed)
+		}
+	}
+	// The rule is stated once, for the family.
+	if strings.Count(stem, ".rfc-table td:first-child") != 1 {
+		t.Error("the family's first-column rule is not stated exactly once")
+	}
+	if strings.Contains(stem, "rfc-requirements") {
+		t.Error("one table still carries a class of its own")
+	}
+}
+
+// rfcRefMarkers answers the strings this family writes where it DECLARES that
+// what follows is about one requirement.
+//
+// The id alone is not one of them. A requirement's own text can quote a sister
+// id -- RFC9069-x-6 names RFC9069-x-5 in its correction note -- so slicing on
+// the id closed that block before its proof table and lost the disclosure the
+// page really carries. Every renderer opens a requirement's row or block
+// through rfcMirrorRow, rfcRequirementRefMirror, rfcSubjectRow or
+// rfcRequirementRefHTML, and each of those four writes one of these.
+func rfcRefMarkers(rid string) []string {
+	anchor := rfcAnchor(rid)
+	return []string{
+		"| `" + rid + "` ",
+		"[`" + rid + "`](#" + anchor + ")",
+		`id="` + anchor + `"`,
+		`href="#` + anchor + `"`,
+	}
+}
+
+// rfcMarkerStarts answers every offset where a rendering declares a subject,
+// for any requirement of `all`, in reading order.
+func rfcMarkerStarts(rendering string, all []string) []int {
+	var starts []int
+	for _, rid := range all {
+		for _, marker := range rfcRefMarkers(rid) {
+			for at := 0; ; {
+				found := strings.Index(rendering[at:], marker)
+				if found < 0 {
+					break
+				}
+				starts = append(starts, found+at)
+				at = found + at + 1
+			}
+		}
+	}
+	sort.Ints(starts)
+	return starts
+}
+
+// rfcDisclosureUnit answers the parts of one rendering that belong to ONE
+// requirement: every stretch that opens where that requirement is declared the
+// subject and closes where the next requirement is.
+//
+// A page-wide Contains cannot tell "the word is disclosed for THIS requirement"
+// from "the word appears somewhere else on the page", so a whole section could
+// be deleted and a test written that way would stay green (independent review,
+// 2026-09-01).
+func rfcDisclosureUnit(rendering, rid string, all []string) string {
+	starts := rfcMarkerStarts(rendering, all)
+	var out strings.Builder
+	for _, marker := range rfcRefMarkers(rid) {
+		for at := 0; ; {
+			found := strings.Index(rendering[at:], marker)
+			if found < 0 {
+				break
+			}
+			found += at
+			at = found + 1
+			end := len(rendering)
+			for _, start := range starts {
+				if start > found {
+					end = start
+					break
+				}
+			}
+			out.WriteString(rendering[found:end])
+		}
+	}
+	return out.String()
+}
+
+// rfcAllRIDs answers every requirement id one summary carries.
+func rfcAllRIDs(entry *rfcLedgerStem) []string {
+	all := make([]string, 0, len(entry.Requirements))
+	for index := range entry.Requirements {
+		all = append(all, entry.Requirements[index].RID)
+	}
+	return all
+}
+
+// VALIDATES: AC-64 -- every stem page proves its own arithmetic, over this
+// checkout's whole corpus.
+//
+// The index cross-checks its buckets against the gate's own gated total. The
+// stem pages did not, and their bucket counts come from rfc.CoverageRows while
+// their membership lists come from a second walk over the same requirements
+// (independent review, 2026-09-01). Two walks can disagree, and a fourth
+// annotation kind can leave a requirement in no bucket at all, both with every
+// other test green. The method is the rendered page rather than the helper, so
+// dropping the total row goes red here.
+func TestEveryStemPageAccountsForItsGatedRequirements(t *testing.T) {
+	root := repositoryRoot(t)
+	ledger, err := collectRequirementLedger(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for index := range ledger.Stems {
+		entry := &ledger.Stems[index]
+		if entry.Coverage.Gated == 0 {
+			continue
+		}
+		checked++
+		buckets := rfcCoverageBuckets(entry)
+		if total := rfcCoverageTotal(buckets); total != entry.Coverage.Gated {
+			t.Errorf("%s holds %d gated MUSTs and its buckets account for %d",
+				entry.Stem, entry.Coverage.Gated, total)
+		}
+		for _, bucket := range buckets {
+			if len(bucket.IDs) != bucket.Count {
+				t.Errorf("%s: the gate counts %d for %q and the page names %d",
+					entry.Stem, bucket.Count, bucket.Label, len(bucket.IDs))
+			}
+		}
+		for name, rendering := range map[string]string{
+			"page": rfcDetailBody(entry), "mirror": rfcDetailMirror(entry),
+		} {
+			if !strings.Contains(rendering, rfcGatedBucketLabel) {
+				t.Errorf("the %s for %s states no accounting total", name, entry.Stem)
+			}
+			if !strings.Contains(rendering, "falls in exactly one bucket above") {
+				t.Errorf("the %s for %s does not say its buckets partition its population",
+					name, entry.Stem)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no summary carries a gated MUST, so this proves nothing")
+	}
+	t.Logf("%d stem pages account for their own gated population", checked)
+}
+
+// VALIDATES: AC-65 -- the index's accounting row compares two counts that were
+// produced independently, so its mismatch branch can execute.
+//
+// It compared the sum of the binding buckets against rfcBinding.Obligations,
+// which is that same sum, so the sentence saying the bucketing is incomplete
+// was unreachable (independent review, 2026-09-01). The method is a split whose
+// gated total does not agree with its buckets.
+func TestTheIndexAccountingRowCanSayTheBucketingIsIncomplete(t *testing.T) {
+	split := rfcBinding{Gated: 100, OutOfScope: 10, Obligations: 85}
+	if got := split.Binding(); got != 90 {
+		t.Fatalf("the binding population reads %d, want 90", got)
+	}
+	if note := rfcAccountedNote(85, split.Binding()); !strings.Contains(note, "incomplete") {
+		t.Errorf("85 of 90 accounted reads %q, which does not say the bucketing is incomplete",
+			note)
+	}
+	if note := rfcAccountedNote(90, split.Binding()); strings.Contains(note, "incomplete") {
+		t.Errorf("90 of 90 accounted reads %q, which calls a complete bucketing incomplete", note)
+	}
+}
+
+// VALIDATES: AC-66 -- the prose split and the prose renderer lose no character
+// of a cell whose SHAPE this corpus does not happen to carry yet.
+//
+// Two silent losses were found by reading rather than by a red bar, because no
+// cell in the tree has either shape today: a cell ending in a semicolon lost
+// that semicolon on rejoin, and a cell with an odd number of backticks lost one
+// backtick and marked its tail up as code (independent review, 2026-09-01). An
+// author can write either tomorrow, so the shapes are held here rather than
+// waited for.
+func TestProseOfAnyShapeIsPublishedWholeAndLosesNoCharacter(t *testing.T) {
+	for _, one := range []struct{ name, prose string }{
+		{"a trailing semicolon", "first claim; second claim;"},
+		{"only a semicolon", ";"},
+		{"two trailing semicolons", "first claim;;"},
+		{"an odd backtick", "the `medium flag is set here"},
+		{"an odd backtick after a claim", "one claim; the `medium flag"},
+		{"a semicolon inside a code span", "a `{ med; }` directive; and one more"},
+		{"a semicolon inside brackets", "a (first; second) pair; and one more"},
+		{"no semicolon at all", "one claim only"},
+	} {
+		items := rfcProseSplit(one.prose)
+		if got := rfcProseJoin(items); got != one.prose {
+			t.Errorf("%s: the split loses text\n got %q\nwant %q", one.name, got, one.prose)
+		}
+		// Balance is owed only where the AUTHOR balanced the cell. Prose with
+		// an odd backtick opens a span nothing closes, and no split of it can
+		// leave a balanced item.
+		if rfcProseBalanced(one.prose) {
+			for _, item := range items {
+				if !rfcProseBalanced(item) {
+					t.Errorf("%s: the split left an unbalanced item %q", one.name, item)
+				}
+			}
+		}
+		if got := rfcProseThemesJoin(rfcProseThemes(one.prose)); got != one.prose {
+			t.Errorf("%s: the theme split loses text\n got %q\nwant %q",
+				one.name, got, one.prose)
+		}
+		// The prose here names no requirement and no path, so the mirror of it
+		// is the prose itself. A renderer that ate a backtick reads short here.
+		if got := rfcProseMirror(one.prose, nil); got != one.prose {
+			t.Errorf("%s: the mirror rewrites the prose\n got %q\nwant %q",
+				one.name, got, one.prose)
+		}
+		// A closed code span becomes markup, so its backticks are meant to
+		// leave the page. An UNCLOSED one is text, and every character of it
+		// is owed to the reader.
+		if strings.Count(one.prose, "`")%2 == 1 {
+			if got := strings.Count(rfcProseHTML(one.prose, nil), "`"); got !=
+				strings.Count(one.prose, "`") {
+				t.Errorf("%s: the page carries %d backticks of the %d the author wrote",
+					one.name, got, strings.Count(one.prose, "`"))
+			}
+		}
+	}
+}
+
+// VALIDATES: AC-67 -- retiring a page deletes a page of THIS family and
+// nothing else under the same prefix.
+//
+// The removal was keyed on "a directory whose name is not a live stem", and the
+// output of a real build is the published checkout, so any directory another
+// producer or an author put under /quality/rfc-compliance/ was deleted
+// (independent review, 2026-09-01). The method is a retired page of this
+// family beside a directory that is not one.
+func TestRetiringAPageDeletesOnlyThisFamilysOwnPages(t *testing.T) {
+	output := t.TempDir()
+	root := filepath.Join(output, filepath.FromSlash(rfcComplianceDirectory))
+	entry := disclosureLedger().Stems[0]
+	for _, one := range []struct{ directory, page string }{
+		{"rfc9999", rfcDetailBody(&entry)},
+		{"rfc8888", rfcDetailBody(&entry)},
+		{"handbook", "<html><body>an authored page under the same prefix</body></html>"},
+	} {
+		if err := os.MkdirAll(filepath.Join(root, one.directory), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, one.directory, pageIndexFile),
+			[]byte(one.page), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(root, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := removeRetiredRFCPages(output, map[string]bool{"rfc9999": true}); err != nil {
+		t.Fatal(err)
+	}
+	for _, one := range []struct {
+		directory string
+		want      bool
+		why       string
+	}{
+		{"rfc9999", true, "this run wrote it"},
+		{"rfc8888", false, "this family wrote it and this run did not"},
+		{"handbook", true, "this family never wrote it"},
+		{"assets", true, "it carries no page at all"},
+	} {
+		_, err := os.Stat(filepath.Join(root, one.directory))
+		if held := err == nil; held != one.want {
+			t.Errorf("%s is present=%v, want %v: %s", one.directory, held, one.want, one.why)
+		}
+	}
+}
+
+// VALIDATES: AC-69 -- a page for a summary the gate does not hold never claims
+// the gate holds its requirements.
+//
+// evaluate skips every requirement of an un-enrolled RFC
+// (internal/le/rfc/check_core.go), and the population card said "the gate
+// HOLDS" on every page (independent review, 2026-09-01). The method is this
+// checkout's own un-enrolled summaries, of which there are eighteen.
+func TestAnUnenrolledPageNeverClaimsTheGateHoldsIt(t *testing.T) {
+	root := repositoryRoot(t)
+	ledger, err := collectRequirementLedger(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	declined, enrolled := 0, 0
+	for index := range ledger.Stems {
+		entry := &ledger.Stems[index]
+		if entry.Coverage.Gated == 0 {
+			continue
+		}
+		body := rfcDetailBody(entry)
+		if entry.Enrolled {
+			enrolled++
+			if !strings.Contains(body, "the gate HOLDS") {
+				t.Errorf("the %s page does not say the gate holds its requirements", entry.Stem)
+			}
+			continue
+		}
+		declined++
+		if strings.Contains(body, "the gate HOLDS") {
+			t.Errorf("%s is not enrolled and its page says the gate holds its requirements",
+				entry.Stem)
+		}
+		if !strings.Contains(body, "The gate holds none of them") {
+			t.Errorf("%s is not enrolled and its page does not say the gate holds none of it",
+				entry.Stem)
+		}
+	}
+	if declined == 0 || enrolled == 0 {
+		t.Fatalf("%d declined and %d enrolled summaries carry a MUST, so this proves nothing",
+			declined, enrolled)
+	}
+	t.Logf("%d enrolled and %d declined summaries carry MUST-level requirements",
+		enrolled, declined)
 }

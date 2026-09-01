@@ -38,3 +38,5 @@ the file, and carry no row for it.
 
 | Test | Reason |
 |------|--------|
+| TestTheTestsReadInCarrierOrder | The loop asserting the DECLARED order is itself total and ascending was removed from it. That property belongs to the package that declares the order and is held there by `TestTheReadingOrderIsTotalAndAscending` (`internal/le/rfc/carriers_test.go`), which reads `carrierKindOrder` and `carrierTierOrder` directly. What this test holds is unchanged: that the page APPLIES the order |
+| TestTheExclusionGroupsPartitionTheVocabulary | It called `rfc.ExclusionGroups()` to learn the two group names and now names `rfc.ExclusionScope` and `rfc.ExclusionDebt` directly. The function had no caller outside tests, which `./le doc wiring` refuses, so it is deleted; the constants it wrapped are unchanged and every other assertion in the test is unchanged |

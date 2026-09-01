@@ -32,6 +32,13 @@ const (
 	// sentence that says why is the legend above the table rather than a copy
 	// on every row.
 	rfcUnproven = "unproven"
+
+	// rfcGatedBucketLabel names the whole that the coverage buckets partition.
+	rfcGatedBucketLabel = "Gated MUST-level requirements"
+
+	// rfcDetailMarker is what a page of THIS family carries and no other page
+	// does. removeRetiredRFCPages keys its deletion on it.
+	rfcDetailMarker = ` id="rfc-detail-title"`
 	// rfcProofLegend is that sentence.
 	rfcProofLegend = "A tagged unit reads " + rfcUnproven + " where no discrimination record " +
 		"exists for it: nothing in this tree has been observed to break it, so the claim its " +
@@ -108,7 +115,7 @@ func rfcDetailBody(entry *rfcLedgerStem) string {
 	body.WriteString(`            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">` + "\n")
 	body.WriteString(pageHero(html.EscapeString(rfcDetailHeading(entry)),
 		html.EscapeString(rfcDetailLead(entry)), rfcDetailEyebrow(entry),
-		` id="rfc-detail-title"`, heroClasses) + "\n")
+		rfcDetailMarker, heroClasses) + "\n")
 	body.WriteString(rfcComplianceStyle)
 	for _, section := range rfcDetailSections {
 		body.WriteString("<section><h2>" + html.EscapeString(section.Heading) + "</h2>\n" +
@@ -171,11 +178,10 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 	proof := rfcProofCountsOf(entry)
 	unsoundWords := rfc.VerdictWeak + ", " + rfc.VerdictWrong + " or " + rfc.VerdictUnimplemented
 	cards := []rfcCard{
-		{Label: "Gated MUSTs", Value: groupThousands(coverage.Gated),
+		{Label: rfcGatedCardLabel(entry), Value: groupThousands(coverage.Gated),
 			Count: "of " + groupThousands(coverage.Requirements) + " this summary declares",
-			Note: "MUST-level requirements the gate HOLDS. A population, not a result: the " +
-				"shares beside it are what says how Ze stands",
-			Tone: rfcToneNeutral,
+			Note:  rfcGatedCardNote(entry),
+			Tone:  rfcToneNeutral,
 			Rule: "no color: a population is a scale, and a larger one is neither good news " +
 				"nor bad. It is the accounting total"},
 		{Label: "Out of scope", Value: groupThousands(coverage.NotApplicable),
@@ -198,6 +204,31 @@ func rfcDetailCards(entry *rfcLedgerStem) []rfcCard {
 			Rule: "RED on the first " + unsoundWords + " verdict, amber while a verdict is no " +
 				"longer current or a gated MUST is unjudged, green when every one is judged " +
 				"sound and current"})
+}
+
+// rfcGatedCardLabel and rfcGatedCardNote say what the population card counts,
+// which is NOT the same fact on an un-enrolled summary.
+//
+// `evaluate` skips every requirement of an RFC that is not enrolled
+// (internal/le/rfc/check_core.go), so the gate holds none of them. The card
+// said "MUST-level requirements the gate HOLDS" on all 190 pages, and on the
+// un-enrolled ones that sentence was false (independent review, 2026-09-01).
+func rfcGatedCardLabel(entry *rfcLedgerStem) string {
+	if entry.Enrolled {
+		return "Gated MUSTs"
+	}
+	return "MUSTs declared"
+}
+
+// rfcGatedCardNote is the sentence beneath it.
+func rfcGatedCardNote(entry *rfcLedgerStem) string {
+	if entry.Enrolled {
+		return "MUST-level requirements the gate HOLDS. A population, not a result: the " +
+			"shares beside it are what says how Ze stands"
+	}
+	return "MUST-level requirements this summary DECLARES. The gate holds none of them, " +
+		"because this RFC is not enrolled (" + entry.Disposition.Kind + "), so every share " +
+		"below reads what the summary records rather than what the gate enforces"
 }
 
 // rfcAuditTone says how the audit card reads: bad where a reader judged the
@@ -308,7 +339,24 @@ func rfcEnrolmentText(entry *rfcLedgerStem) string {
 	if entry.Enrolled {
 		return "Enrolled: " + entry.EnrolmentReason
 	}
-	return "Not enrolled (" + entry.Disposition.Kind + "): " + entry.Disposition.Reason
+	return "Not enrolled (" + entry.Disposition.Kind + ", " +
+		rfcDispositionMeaning(entry.Disposition.Kind) + "): " + entry.Disposition.Reason
+}
+
+// rfcDispositionMeaning answers what one un-enrolled kind says, in words a
+// reader outside this project can act on.
+//
+// The sentence comes from internal/le/rfc, which holds the closed set the
+// parser enforces. A kind spelled here would be a second declaration of that
+// set, and the sixth kind landed on 2026-09-01 with the page still naming five
+// (independent review). A kind the vocabulary does not know is NAMED rather
+// than passed off as explained (ai/rules/principles.md).
+func rfcDispositionMeaning(kind string) string {
+	meaning, held := rfc.DispositionKindMeaning(kind)
+	if !held {
+		return "a disposition this page has no published meaning for"
+	}
+	return meaning
 }
 
 // rfcEnrolmentHTML renders the enrolment reason as the paragraph it is.
@@ -377,6 +425,12 @@ func rfcClaimsHTML(label, prose string, declared map[string]bool) string {
 	var body strings.Builder
 	body.WriteString("<ul class=\"rfc-prose\">\n")
 	for _, item := range items {
+		// An empty item is the trailing semicolon the split keeps so that
+		// rejoining reproduces the cell. It carries no claim, so it gets no
+		// bullet.
+		if strings.TrimSpace(item) == "" {
+			continue
+		}
 		body.WriteString("<li>" + rfcProseHTML(strings.TrimSpace(item), declared) + "</li>\n")
 	}
 	body.WriteString("</ul>")
@@ -391,6 +445,9 @@ func rfcClaimsMirror(label, prose string, declared map[string]bool) string {
 	}
 	var body strings.Builder
 	for _, item := range items {
+		if strings.TrimSpace(item) == "" {
+			continue
+		}
 		body.WriteString("- " + rfcProseMirror(strings.TrimSpace(item), declared) + "\n")
 	}
 	return rfcFoldMarkupMirror(label, prose, body.String())
@@ -477,12 +534,17 @@ type rfcCoverageBucket struct {
 	Label string
 	Count int
 	IDs   []string
+	// Partitions says this bucket is one PART of the gated population, so its
+	// count belongs in the total. A bucket that is an overlay counts
+	// requirements a partitioning bucket already counted, and adding it would
+	// make the total exceed the population it is meant to equal.
+	Partitions bool
 }
 
 // rfcCoverageBuckets answers the six per-RFC counters with the ids behind each
 // weakness.
 func rfcCoverageBuckets(entry *rfcLedgerStem) []rfcCoverageBucket {
-	var one, missing, nightly, annotated []string
+	var both, one, missing, nightly, annotated []string
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
 		if !requirement.Gated {
@@ -495,6 +557,7 @@ func rfcCoverageBuckets(entry *rfcLedgerStem) []rfcCoverageBucket {
 		case requirement.Annotation != nil:
 			annotated = append(annotated, requirement.RID)
 		case rfcHasBothPolarities(requirement):
+			both = append(both, requirement.RID)
 		case len(requirement.Covers) != 0:
 			one = append(one, requirement.RID)
 		default:
@@ -502,12 +565,61 @@ func rfcCoverageBuckets(entry *rfcLedgerStem) []rfcCoverageBucket {
 		}
 	}
 	return []rfcCoverageBucket{
-		{Label: "Positive and negative tests", Count: entry.Coverage.Both},
-		{Label: "Annotated instead of tested", Count: entry.Coverage.Annotated, IDs: annotated},
-		{Label: "One polarity only", Count: entry.Coverage.One, IDs: one},
-		{Label: "No test and no annotation", Count: entry.Coverage.Missing, IDs: missing},
+		{Label: "Positive and negative tests", Count: entry.Coverage.Both, IDs: both,
+			Partitions: true},
+		{Label: "Annotated instead of tested", Count: entry.Coverage.Annotated, IDs: annotated,
+			Partitions: true},
+		{Label: "One polarity only", Count: entry.Coverage.One, IDs: one, Partitions: true},
+		{Label: "No test and no annotation", Count: entry.Coverage.Missing, IDs: missing,
+			Partitions: true},
 		{Label: "Evidence that runs nightly only", Count: entry.Coverage.NightlyOnly, IDs: nightly},
 	}
+}
+
+// rfcCoverageTotal answers what the partitioning buckets add up to.
+func rfcCoverageTotal(buckets []rfcCoverageBucket) int {
+	total := 0
+	for _, bucket := range buckets {
+		if bucket.Partitions {
+			total += bucket.Count
+		}
+	}
+	return total
+}
+
+// rfcCoverageWalkNote says whether the two counts of one bucket agree.
+//
+// The Count comes from rfc.CoverageRows, which walks the shard. The IDs come
+// from the walk rfcCoverageBuckets does over this page's own requirements. Two
+// walks over one population can disagree, and a page that printed only one of
+// them would publish shares that do not add up with every test green
+// (independent review, 2026-09-01). The `Positive and negative tests` bucket
+// names its members like the others, so no bucket escapes the comparison.
+func rfcCoverageWalkNote(bucket rfcCoverageBucket) string {
+	if len(bucket.IDs) == bucket.Count {
+		return ""
+	}
+	return " The gate counts " + strconv.Itoa(bucket.Count) + " and this page names " +
+		strconv.Itoa(len(bucket.IDs)) + ", so the two walks disagree."
+}
+
+// rfcCoverageAccountedNote says whether the parts add up to the whole.
+func rfcCoverageAccountedNote(total, gated int) string {
+	if total == gated {
+		return "every gated MUST falls in exactly one bucket above"
+	}
+	return "the buckets account for " + strconv.Itoa(total) + " of " + strconv.Itoa(gated) +
+		", so " + strconv.Itoa(gated-total) + " fall in none: the bucketing is incomplete"
+}
+
+// rfcCoverageRoleNote says what one bucket is: a part of the population, or an
+// overlay counted again inside one of the parts.
+func rfcCoverageRoleNote(bucket rfcCoverageBucket) string {
+	if bucket.Partitions {
+		return "one part of the gated population" + rfcCoverageWalkNote(bucket)
+	}
+	return "an overlay: each of these is also counted by the part it falls in" +
+		rfcCoverageWalkNote(bucket)
 }
 
 // rfcHasBothPolarities answers whether a requirement carries a tag in each
@@ -540,10 +652,17 @@ func rfcCoverageHTML(entry *rfcLedgerStem) string {
 	var rows strings.Builder
 	for _, bucket := range buckets {
 		rows.WriteString(rfcRowCells(html.EscapeString(bucket.Label),
-			"<strong>"+strconv.Itoa(bucket.Count)+"</strong>"))
+			"<strong>"+strconv.Itoa(bucket.Count)+"</strong>",
+			html.EscapeString(rfcCoverageRoleNote(bucket))))
 	}
+	rows.WriteString(`<tr class="rfc-total"><td><strong>` +
+		html.EscapeString(rfcGatedBucketLabel) + `</strong></td><td><strong>` +
+		strconv.Itoa(entry.Coverage.Gated) + "</strong></td><td>" +
+		html.EscapeString(rfcCoverageAccountedNote(rfcCoverageTotal(buckets),
+			entry.Coverage.Gated)) + "</td></tr>\n")
 	var out strings.Builder
-	out.WriteString(rfcTableHTML(rfcHeadCells("Bucket", "Count"), rows.String()))
+	out.WriteString(rfcTableHTML(rfcHeadCells("Bucket", "Count", "What it counts"),
+		rows.String()))
 	for _, bucket := range buckets {
 		if len(bucket.IDs) == 0 {
 			continue
@@ -563,10 +682,15 @@ func rfcCoverageMirror(entry *rfcLedgerStem) string {
 	}
 	buckets := rfcCoverageBuckets(entry)
 	var out strings.Builder
-	out.WriteString(rfcMirrorHead("Bucket", "Count"))
+	out.WriteString(rfcMirrorHead("Bucket", "Count", "What it counts"))
 	for _, bucket := range buckets {
-		out.WriteString(rfcMirrorRow(bucket.Label, strconv.Itoa(bucket.Count)))
+		out.WriteString(rfcMirrorRow(bucket.Label, strconv.Itoa(bucket.Count),
+			rfc.TableCell(rfcCoverageRoleNote(bucket))))
 	}
+	out.WriteString(rfcMirrorRow("**"+rfcGatedBucketLabel+"**",
+		"**"+strconv.Itoa(entry.Coverage.Gated)+"**",
+		rfc.TableCell(rfcCoverageAccountedNote(rfcCoverageTotal(buckets),
+			entry.Coverage.Gated))))
 	for _, bucket := range buckets {
 		if len(bucket.IDs) == 0 {
 			continue
@@ -629,7 +753,7 @@ func rfcSectionText(section string, names map[string]string) string {
 // The colspan of the subject row is derived from this rather than written
 // beside it: the table has changed shape three times, and a number repeated is
 // a number that goes wrong the next time.
-var rfcRequirementColumns = []string{"Level", "Section", "Tests"}
+var rfcRequirementColumns = []string{"Requirement", "Level", "Section", "Tests"}
 
 // rfcRequirementsHTML renders two rows per requirement: the SUBJECT, then its
 // attributes.
@@ -657,27 +781,30 @@ func rfcRequirementsHTML(entry *rfcLedgerStem) string {
 	var rows strings.Builder
 	for index := range entry.Requirements {
 		requirement := &entry.Requirements[index]
-		rows.WriteString(rfcSpanRow(rfcRequirementColumns,
+		rows.WriteString(rfcSubjectRow(rfcRequirementColumns,
+			`<code id="`+html.EscapeString(rfcAnchor(requirement.RID))+`">`+
+				html.EscapeString(requirement.RID)+"</code>",
 			rfcRequirementSubjectHTML(requirement)))
-		rows.WriteString(rfcRowCells(
+		// The metadata row continues the subject above it, so its identity cell
+		// is empty rather than repeating the id a reader just read.
+		rows.WriteString(rfcRowCells("",
 			html.EscapeString(requirement.Level),
 			html.EscapeString(rfcSectionText(requirement.Section, names)),
 			rfcRequirementTestsHTML(requirement, ambiguous)))
 	}
-	return rfcTableClassHTML("rfc-requirements", rfcHeadCells(rfcRequirementColumns...),
-		rows.String())
+	return rfcTableHTML(rfcHeadCells(rfcRequirementColumns...), rows.String())
 }
 
-// rfcRequirementSubjectHTML renders the id and the sentence it names.
+// rfcRequirementSubjectHTML renders the sentence that sits BESIDE the id.
 //
-// The id keeps the anchor every other mention on this page links to.
+// Beside rather than beneath: the id is its own narrow cell, so the eye reads
+// id then sentence across, and every sentence on the page starts at the same
+// offset instead of after an id of its own width (owner review, 2026-09-01).
 func rfcRequirementSubjectHTML(requirement *rfcLedgerRequirement) string {
-	out := `<code id="` + html.EscapeString(rfcAnchor(requirement.RID)) + `">` +
-		html.EscapeString(requirement.RID) + "</code>"
 	if requirement.Text == "" {
-		return out
+		return ""
 	}
-	return out + ` <span class="rfc-subject">` + html.EscapeString(requirement.Text) + "</span>"
+	return `<span class="rfc-subject">` + html.EscapeString(requirement.Text) + "</span>"
 }
 
 // rfcRequirementTestsHTML renders one requirement's tests as a GRID: one row

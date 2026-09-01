@@ -277,11 +277,13 @@ func stubLiveInputs(t *testing.T, catalog string) {
 	previousPlugins := livePluginRegistry
 	previousTree := liveYANGConfigTree
 	previousFacts := liveSiteFacts
+	previousLedger := liveRequirementLedger
 	t.Cleanup(func() {
 		liveCommandCatalog = previousCatalog
 		livePluginRegistry = previousPlugins
 		liveYANGConfigTree = previousTree
 		liveSiteFacts = previousFacts
+		liveRequirementLedger = previousLedger
 	})
 	liveCommandCatalog = func(string) ([]byte, error) { return []byte(catalog), nil }
 	livePluginRegistry = func(string) ([]inventory.Plugin, error) {
@@ -297,6 +299,10 @@ func stubLiveInputs(t *testing.T, catalog string) {
 		return siteFacts{Sources: map[string]string{"tests": "a test stated these"},
 			CLICommands: 1, Tests: factsTests{Unit: 1, UnitDisplay: "1"}}, nil
 	}
+	// The requirement ledger reads rfc/short and the three test roots of a real
+	// checkout, and derives the evidence tier from .github/workflows. A synthetic tree has none of them, so a build over one
+	// states the ledger the way it states the other four inputs.
+	liveRequirementLedger = func(string) (rfcLedger, error) { return twoStemLedger(), nil }
 }
 
 // VALIDATES: a normal full build snapshots the current Pages checkout before

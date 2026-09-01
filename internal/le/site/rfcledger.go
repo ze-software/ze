@@ -37,14 +37,18 @@ type rfcLedgerStem struct {
 	// name alone rather than a guess.
 	Title string `json:"title,omitempty"`
 	// Enrolled says the gate holds this RFC to every MUST it declares, and
-	// EnrolmentReason is the sentence rfc/enrolled.txt states beside it.
+	// EnrolmentReason is the sentence the summary's `| Enrolment reason |` Meta
+	// row states beside it.
 	Enrolled        bool   `json:"enrolled"`
 	EnrolmentReason string `json:"enrolment-reason,omitempty"`
-	// Disposition is why an un-enrolled summary is not enrolled, from
-	// rfc/not-enrolled.txt. It is absent for an enrolled stem.
+	// Disposition is why an un-enrolled summary is not enrolled: the kind and
+	// the reason of the same Meta rows. It is absent for an enrolled stem.
 	Disposition *rfcLedgerDisposition `json:"disposition,omitempty"`
-	// The three cells docs/features/rfc-status.md carries for this RFC. Each
-	// is empty when that page carries no row, which the page says in words.
+	// The three cells this RFC's row on docs/features/rfc-status.md carries.
+	// They are the summary's own `| Support status |`, `| Support coverage |`
+	// and `| Support remaining |` Meta rows, which that page is generated from.
+	// Each is empty when the summary declares `| Support | - |` and so renders
+	// no row, which the page says in words.
 	PublicStatus    string `json:"public-status,omitempty"`
 	PublicCoverage  string `json:"public-coverage,omitempty"`
 	PublicRemaining string `json:"public-remaining,omitempty"`
@@ -63,7 +67,9 @@ type rfcLedgerStem struct {
 	Extraction   *rfcLedgerExtraction   `json:"extraction,omitempty"`
 }
 
-// rfcLedgerDisposition is one rfc/not-enrolled.txt row.
+// rfcLedgerDisposition is the decision that keeps one summary out of the gate,
+// as its own Meta table declares it. It is what one row of the generated
+// rfc/not-enrolled.txt is rendered from, and never read back from that file.
 type rfcLedgerDisposition struct {
 	Kind   string `json:"kind"`
 	Reason string `json:"reason"`

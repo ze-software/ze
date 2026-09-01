@@ -94,10 +94,6 @@ const (
 	ExclusionDebt  = "debt"
 )
 
-// ExclusionGroups answers the two, debt first, because that is the one a
-// reader must not miss.
-func ExclusionGroups() []string { return []string{ExclusionDebt, ExclusionScope} }
-
 // exclusionKind is what one kind says and which of the two it means.
 type exclusionKind struct {
 	Meaning string
@@ -159,6 +155,38 @@ func ExclusionKindGroup(kind string) (string, bool) {
 // truth is usually "our problem, unbuilt". A page that published the count
 // without that context would repeat the flattery the ledger exists to prevent.
 func ExclusionPresumedWrong(kind string) bool { return kind == "binds-another-role" }
+
+// dispositionKinds is what each un-enrolled kind SAYS, for a reader outside
+// this project.
+//
+// The kinds themselves are declared once, in ledger.go, and enrolmentKinds in
+// meta.go is the closed set the parser holds authors to. What this adds is the
+// sentence, for the same reason exclusionKinds carries one: a published page
+// that prints `source-restricted` and stops has told a reader nothing.
+// TestEveryDispositionKindCarriesItsMeaning holds this set against the parser's.
+var dispositionKinds = map[string]string{
+	dispositionNonNormative: "the document imposes no MUST-level obligation on an " +
+		"implementation, so there is nothing to gate",
+	dispositionBacklog: "the requirements have not been extracted from the document yet; " +
+		"this is work owed rather than a decision",
+	dispositionBlocked: "something outside the summary stops the extraction, and it is " +
+		"named in the reason",
+	dispositionSourceRestricted: "the standard's own text may not be redistributed, so this " +
+		"repository cannot hold it and no checklist can ever be bounded against it",
+	dispositionOutOfScope: "the requirements ARE extracted and the owner decided not to " +
+		"offer the feature for now, so the absence is a scope decision rather than a " +
+		"conformance gap",
+}
+
+// DispositionKinds answers the un-enrolled kinds, sorted.
+func DispositionKinds() []string { return sortedKeysOf(dispositionKinds) }
+
+// DispositionKindMeaning answers what one un-enrolled kind says, and false for
+// a kind outside the vocabulary.
+func DispositionKindMeaning(kind string) (string, bool) {
+	meaning, held := dispositionKinds[kind]
+	return meaning, held
+}
 
 var sectionSkipKinds = map[string]bool{
 	"front-matter": true, "references": true, "iana": true,

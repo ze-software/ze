@@ -193,9 +193,17 @@ var rfcAnnotationBuckets = map[string]string{
 var rfcStatusOrder = []string{"Partial", "Experimental", "Supported", "Not supported", "Unsupported"}
 
 // rfcMissingRow is the status an RFC with a gap and no public row is counted
-// under. check_status_completeness refuses that tree; the page states it rather
-// than showing a blank cell.
-const rfcMissingRow = "Missing public row"
+// under.
+//
+// It reads as a DECISION rather than as an omission, because that is what it
+// now is. The public row is the summary's own `| Support |` Meta row, readSupport
+// (`internal/le/rfc/meta.go`) refuses a Meta table that carries no such row, and
+// a summary that writes `-` there declares that it renders no row. So a row is
+// never simply forgotten, and the cell says which of the two a reader is looking
+// at. It does NOT say the row is unguarded: whether a row may be DELETED from a
+// summary that keeps its enrolment is a question for the gate, not for this
+// page, and this page states no verdict on it.
+const rfcMissingRow = "No public row declared"
 
 // rfcGapClustersShown bounds the gap-cluster table. The tail is a long list of
 // RFCs with one or two gaps each, which says less than the ledger already does.
@@ -234,9 +242,6 @@ func renderRFCCompliance(paths Paths) ([]string, error) {
 	if err := writeNamedArtifact(paths.Output, rfcComplianceSnapshot, string(body)+"\n"); err != nil {
 		return nil, err
 	}
-	if err := removeRetiredRFCPages(paths.Output, ledger); err != nil {
-		return nil, err
-	}
 
 	const description = "Generated RFC gate report from requirement summaries, test tags, " +
 		"status ledger, audits, and the verification stages that run the gate."
@@ -255,12 +260,19 @@ func renderRFCCompliance(paths Paths) ([]string, error) {
 
 	routes := make([]string, 0, len(ledger.Stems)+1)
 	routes = append(routes, rfcComplianceRoute)
+	written := make(map[string]bool, len(ledger.Stems))
 	for index := range ledger.Stems {
 		route, err := writeRFCDetailPage(paths.Output, &ledger.Stems[index], links)
 		if err != nil {
 			return nil, err
 		}
+		written[ledger.Stems[index].Stem] = true
 		routes = append(routes, route)
+	}
+	// After the writing, so the live set is what this run PUT there rather
+	// than what it meant to.
+	if err := removeRetiredRFCPages(paths.Output, written); err != nil {
+		return nil, err
 	}
 	return routes, nil
 }
@@ -307,11 +319,13 @@ func loadRequirementLedger(output string) (rfcLedger, error) {
 //
 // A page that survives on the incremental seed alone is frozen content with a
 // fresh timestamp, and every other check the artifact carries passes it.
-func removeRetiredRFCPages(output string, ledger rfcLedger) error {
-	live := make(map[string]bool, len(ledger.Stems))
-	for index := range ledger.Stems {
-		live[ledger.Stems[index].Stem] = true
-	}
+//
+// The removal is keyed on the MARKER this family writes, never on a name that
+// is merely absent from the live set. The output of a real build is the
+// published checkout, so a name test deletes any directory under this prefix
+// that another producer, or an author, put there (independent review,
+// 2026-09-01).
+func removeRetiredRFCPages(output string, live map[string]bool) error {
 	root := filepath.Join(output, filepath.FromSlash(rfcComplianceDirectory))
 	directory, err := os.ReadDir(root)
 	if os.IsNotExist(err) {
@@ -322,6 +336,17 @@ func removeRetiredRFCPages(output string, ledger rfcLedger) error {
 	}
 	for _, entry := range directory {
 		if !entry.IsDir() || live[entry.Name()] {
+			continue
+		}
+		page, err := os.ReadFile(filepath.Join(root, entry.Name(), pageIndexFile)) //nolint:gosec // a site build reads the artifact it was pointed at
+		if err != nil {
+			// No page of ours to retire. On a real build the output is the
+			// published checkout, so a directory this producer never wrote is
+			// somebody else's work and it is left alone
+			// (ai/rules/never-destroy-work.md).
+			continue
+		}
+		if !strings.Contains(string(page), rfcDetailMarker) {
 			continue
 		}
 		if err := os.RemoveAll(filepath.Join(root, entry.Name())); err != nil {
@@ -517,7 +542,8 @@ func rfcGapsOf(requirements int, gapCounts map[string]int, gapOrder []string,
 	return gaps
 }
 
-// rfcPublicStatus answers what docs/features/rfc-status.md says about one stem.
+// rfcPublicStatus answers what the public page says about one stem, which is
+// what that stem's own `| Support |` Meta row declares.
 func rfcPublicStatus(rows map[string]rfc.LedgerRow, stem string) string {
 	row, held := rows[stem]
 	if !held || row.Status == "" {
@@ -880,6 +906,16 @@ type rfcBinding struct {
 	NoTest      int
 }
 
+// Binding answers the binding population the way the GATE counts it: its own
+// gated total, less what the buckets put out of scope.
+//
+// Obligations is the sum of the binding buckets, so holding the bucket sum
+// against it compares a number with itself and the mismatch branch below can
+// never run (independent review, 2026-09-01). Gated comes from the gate's own
+// GatedMust count, which no bucket produced, so this subtraction is the
+// independent answer the accounting row needs.
+func (b rfcBinding) Binding() int { return b.Gated - b.OutOfScope }
+
 // Bucket answers this summary's count for one index bucket key.
 //
 // It is the one translation between the two shapes the same partition is
@@ -1152,7 +1188,7 @@ func rfcSatisfactionRows(counted map[string]int, split rfcBinding) string {
 		html.EscapeString(rfcBindingLabel) + `</strong></td><td><strong>` +
 		groupThousands(accounted) + "</strong></td><td>" +
 		rfcPercentText(accounted, split.Obligations) + "</td><td>" +
-		html.EscapeString(rfcAccountedNote(accounted, split.Obligations)) + "</td></tr>\n")
+		html.EscapeString(rfcAccountedNote(accounted, split.Binding())) + "</td></tr>\n")
 	for _, bucket := range rfcSatisfaction {
 		if bucket.Binds {
 			continue
@@ -1212,13 +1248,14 @@ func rfcScopeNote(split rfcBinding) string {
 // rfcGapDisclosureHTML renders what the public page says about the RFCs
 // declaring a gap, and the Supported rows that still disclose one.
 func rfcGapDisclosureHTML(gaps rfcGaps) string {
-	var out strings.Builder
-	out.WriteString("<table>\n<thead><tr><th>Public status for RFCs with gaps</th><th>RFCs</th></tr></thead>\n<tbody>\n")
+	var rows strings.Builder
 	for _, row := range gaps.StatusCounts {
-		out.WriteString("<tr><td>" + html.EscapeString(row.Status) + "</td><td><strong>" +
-			groupThousands(row.Count) + "</strong></td></tr>\n")
+		rows.WriteString(rfcRowCells(html.EscapeString(row.Status),
+			"<strong>"+groupThousands(row.Count)+"</strong>"))
 	}
-	out.WriteString("</tbody>\n</table>")
+	var out strings.Builder
+	out.WriteString(rfcTableHTML(rfcHeadCells("Public status for RFCs with gaps", "RFCs"),
+		rows.String()))
 	if len(gaps.SupportedWithRemaining) == 0 {
 		return out.String()
 	}
@@ -1237,15 +1274,14 @@ func rfcGapClusterHTML(gaps rfcGaps) string {
 	if len(gaps.TopRFCs) == 0 {
 		return "<p>No RFC declares a gap.</p>"
 	}
-	var out strings.Builder
-	out.WriteString("<table>\n<thead><tr><th>RFC</th><th>Declared gaps</th><th>Public status</th></tr></thead>\n<tbody>\n")
+	var rows strings.Builder
 	for _, row := range gaps.TopRFCs {
-		out.WriteString("<tr><td><code>" + html.EscapeString(row.RFC) + "</code></td><td><strong>" +
-			groupThousands(row.Count) + "</strong></td><td>" + html.EscapeString(row.Status) +
-			"</td></tr>\n")
+		rows.WriteString(rfcRowCells("<code>"+html.EscapeString(row.RFC)+"</code>",
+			"<strong>"+groupThousands(row.Count)+"</strong>",
+			html.EscapeString(row.Status)))
 	}
-	out.WriteString("</tbody>\n</table>")
-	return out.String()
+	return rfcTableHTML(rfcHeadCells("RFC", rfcDeclaredGapsLabel, "Public status"),
+		rows.String())
 }
 
 // rfcCheckHTML renders the gate's open findings as a TABLE.
@@ -1430,7 +1466,7 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	}
 	mirror.WriteString("| **" + rfcBindingLabel + "** | **" + groupThousands(accounted) + "** | " +
 		rfcPercentText(accounted, split.Obligations) + " | " +
-		rfc.TableCell(rfcAccountedNote(accounted, split.Obligations)) + " |\n")
+		rfc.TableCell(rfcAccountedNote(accounted, split.Binding())) + " |\n")
 	for _, bucket := range rfcSatisfaction {
 		if bucket.Binds {
 			continue
@@ -1552,9 +1588,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 .rfc-fold { margin: .6rem 0; }
 .rfc-fold > summary { cursor: pointer; font-weight: 700; }
 .rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
-.rfc-requirements td:first-child { position: static; background: transparent; font-weight: 400; }
-.rfc-requirements .rfc-span > td { padding-top: .9rem; }
-.rfc-subject { display: block; margin-top: .25rem; max-width: 52rem; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
 .rfc-tests { display: grid; gap: .15rem .8rem; }
 .rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
 .rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
@@ -1603,7 +1640,11 @@ func rfcEnrolledIndexHTML(ledger rfcLedger) string {
 }
 
 // rfcDeclinedIndexHTML links every summary that is not enrolled, with the kind
-// and the reason rfc/not-enrolled.txt declares for it.
+// and the reason its own `## Meta` table declares.
+//
+// The legend above the table says what each kind MEANS, for the same reason the
+// exclusion section carries one: `source-restricted` and `out-of-scope` are
+// this project's words and a reader outside it cannot act on either.
 func rfcDeclinedIndexHTML(ledger rfcLedger) string {
 	rows := rfcIndexRows(ledger, false)
 	if len(rows) == 0 {
@@ -1618,7 +1659,52 @@ func rfcDeclinedIndexHTML(ledger rfcLedger) string {
 			html.EscapeString(rfcIndexDispositionKind(entry)),
 			html.EscapeString(rfcIndexDispositionReason(entry))))
 	}
-	return rfcTableHTML(rfcHeadCells("RFC", "Disposition", "Reason"), body.String())
+	return rfcDispositionLegendHTML(rows) +
+		rfcTableHTML(rfcHeadCells("RFC", "Disposition", "Reason"), body.String())
+}
+
+// rfcDispositionsUsed answers the kinds this index actually shows, in the
+// vocabulary's own order, so a kind nothing uses gets no line.
+func rfcDispositionsUsed(rows []*rfcLedgerStem) []string {
+	held := map[string]bool{}
+	for _, entry := range rows {
+		held[entry.Disposition.Kind] = true
+	}
+	var used []string
+	for _, kind := range rfc.DispositionKinds() {
+		if held[kind] {
+			used = append(used, kind)
+		}
+	}
+	for _, entry := range rows {
+		if _, known := rfc.DispositionKindMeaning(entry.Disposition.Kind); !known {
+			used = append(used, entry.Disposition.Kind)
+			break
+		}
+	}
+	return used
+}
+
+// rfcDispositionLegendHTML says what each kind on the table below means.
+func rfcDispositionLegendHTML(rows []*rfcLedgerStem) string {
+	var out strings.Builder
+	out.WriteString("<ul>\n")
+	for _, kind := range rfcDispositionsUsed(rows) {
+		out.WriteString("<li><code>" + html.EscapeString(kind) + "</code>: " +
+			html.EscapeString(rfcDispositionMeaning(kind)) + "</li>\n")
+	}
+	out.WriteString("</ul>\n")
+	return out.String()
+}
+
+// rfcDispositionLegendMirror states the same legend.
+func rfcDispositionLegendMirror(rows []*rfcLedgerStem) string {
+	var out strings.Builder
+	for _, kind := range rfcDispositionsUsed(rows) {
+		out.WriteString("- `" + kind + "`: " + rfcDispositionMeaning(kind) + "\n")
+	}
+	out.WriteString("\n")
+	return out.String()
 }
 
 // rfcIndexMirror states both link tables in the Markdown sibling.
@@ -1647,6 +1733,7 @@ func rfcIndexMirror(ledger rfcLedger) string {
 		out.WriteString("Every summary is enrolled.\n")
 		return out.String()
 	}
+	out.WriteString(rfcDispositionLegendMirror(declined))
 	out.WriteString("| RFC | Disposition | Reason |\n|---|---|---|\n")
 	for index := range declined {
 		entry := declined[index]

@@ -67,10 +67,6 @@ var (
 	carrierTierOrder = []string{tierVerify, tierNightly, tierUnrun}
 )
 
-// CarrierKinds and CarrierTiers answer the two vocabularies in reading order.
-func CarrierKinds() []string { return append([]string(nil), carrierKindOrder...) }
-func CarrierTiers() []string { return append([]string(nil), carrierTierOrder...) }
-
 // CarrierRank answers one sortable rank for a `kind/tier` pair, and false for a
 // pair this vocabulary does not declare.
 //

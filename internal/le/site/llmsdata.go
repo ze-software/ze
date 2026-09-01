@@ -21,8 +21,12 @@ const (
 // The artifact-relative data files llms.txt reads, beside the command catalog
 // and the vendor map that catalog.go and equivalents.go already name.
 const (
-	factsFile      = "data/site-facts.json"
-	pluginFile     = "data/plugin-registry.json"
+	factsFile  = "data/site-facts.json"
+	pluginFile = "data/plugin-registry.json"
+	// rfcLedgerFile is the per-requirement RFC ledger the quality pages read.
+	// It is derived once per build by publishRFCLedger and is itself the
+	// machine-readable form of what those pages publish.
+	rfcLedgerFile  = "data/rfc-requirements.json"
 	featuresFile   = "data/features.json"
 	configTreeFile = "data/yang-config-tree.json"
 	dependencyFile = "data/dependencies.json"

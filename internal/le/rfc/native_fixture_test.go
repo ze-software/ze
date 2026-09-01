@@ -145,6 +145,12 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// reads the vocabulary it was wrapping. No verdict moved and no behavior
 	// with it -- the kinds, their order and their groups are unchanged, and
 	// nothing in this package read the three deleted wrappers.
+	//
+	// The digest is over the TREE, so it was computed with another session's
+	// `checkPublicRowMonotonic` present in check.go and check_status.go. Two
+	// commits changing one package cannot each carry a standalone value:
+	// whichever lands second re-seals, and this note says which two changes the
+	// value here already covers.
 	// Re-sealed 2026-09-01 for the findings of an independent review of the
 	// ledger migration, and one of them was a real hole rather than a polish.
 	// `checkPublicRowMonotonic` restores the guard `checkStatusCompleteness`

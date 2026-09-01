@@ -393,7 +393,13 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	facts.RFC.MustDisplay = groupThousands(facts.RFC.Must)
 	facts.RFC.RequirementsDisplay = groupThousands(facts.RFC.Requirements)
 	facts.RFC.SummariesDisplay = groupThousands(facts.RFC.Summaries)
-	facts.Sources["rfc"] = "internal/le/rfc.Collect, over rfc/short/*.md and rfc/enrolled.txt"
+	// rfc/enrolled.txt was named here until 2026-09-01 and Collect had stopped
+	// reading it: enrolment is declared in each summary's `## Meta` table and
+	// that file is GENERATED from the same tables. A published _sources string
+	// naming an input its producer does not read is a false provenance claim in
+	// machine-readable data, which is worse than a stale comment
+	// (independent review; ai/rules/principles.md).
+	facts.Sources["rfc"] = "internal/le/rfc.Collect, over rfc/short/*.md"
 	return nil
 }
 

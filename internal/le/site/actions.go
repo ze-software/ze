@@ -15,10 +15,15 @@ import (
 
 const area = "site"
 
+// valueDirectory is the value name every action that takes a path spells. Three
+// of them do, so it is named once.
+const valueDirectory = "directory"
+
 var actions = leaction.New(area,
 	leaction.Action{Verb: "build", Why: "stage website sources and refresh the Pages artifact with native renderers", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: "directory"}, {Keyword: "partial"}}, AnswerArgs: runBuild},
-	leaction.Action{Verb: "check", Why: "verify that the Pages artifact contains no source-only website inputs", Answer: runCheck},
+		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory}, {Keyword: "partial"}}, AnswerArgs: runBuild},
+	leaction.Action{Verb: "check", Why: "verify that the Pages artifact contains no source-only website inputs",
+		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory}}, AnswerArgs: runCheck},
 	leaction.Action{Verb: "bundle", Why: "turn one presentation deck into a self-contained HTML file", Writes: true,
 		Parameters: []leaction.Parameter{{Keyword: keywordInput, Value: "html-file"}}, AnswerArgs: runBundle},
 	leaction.Action{Verb: "activity", Why: "render repository line and commit activity as a presentation-ready HTML page", Writes: true,
@@ -26,7 +31,7 @@ var actions = leaction.New(area,
 	leaction.Action{Verb: "update-talk", Why: "refresh one talk's live statistics, activity page, and standalone deck", Writes: true,
 		Parameters: []leaction.Parameter{{Keyword: "talk", Value: "slug"}, {Keyword: "bundle-only"}}, AnswerArgs: runUpdateTalk},
 	leaction.Action{Verb: "config-tree", Why: "extract the live YANG configuration tree for the public configuration reference", Writes: true,
-		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: "directory"}, {Keyword: "binary", Value: "ze-binary"}}, AnswerArgs: runConfigTree},
+		Parameters: []leaction.Parameter{{Keyword: keywordOutput, Value: valueDirectory}, {Keyword: "binary", Value: "ze-binary"}}, AnswerArgs: runConfigTree},
 )
 
 func Actions() leaction.List          { return actions.Actions() }
@@ -72,13 +77,19 @@ func (report checkReport) exit() int {
 	return 0
 }
 
-func runCheck() (any, int) {
+// runCheck judges one built artifact.
+//
+// It takes the SAME `output` keyword the build takes, and defaults to the same
+// published tree when the keyword is absent. A check that could only judge the
+// default artifact could not answer for the artifact a build was pointed at,
+// which is the one a session verifying its own work has just produced.
+func runCheck(arguments leaction.Arguments) (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2
 	}
-	paths, err := resolvePaths(root, "")
+	paths, err := resolvePaths(root, arguments[keywordOutput])
 	if err != nil {
 		leaction.ReportError(err)
 		return nil, 2

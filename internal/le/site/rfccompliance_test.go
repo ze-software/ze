@@ -3,6 +3,7 @@ package site
 
 import (
 	"encoding/json"
+	"html"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -154,7 +155,17 @@ func rfcCompliancePage(t *testing.T, paths Paths) (string, string) {
 func TestTheRFCComplianceSectionsReadAsThePublishedPage(t *testing.T) {
 	paths := rfcCompliancePaths(t)
 	page, text := rfcCompliancePage(t, paths)
-	published := visibleText(readFixture(t, "published-rfc-compliance-body.html"))
+	// The retired page wrote a row as one line, so text extraction read the
+	// last word of a cell and the first word of the next as one word
+	// ("Partial59"). Every table of this family now goes through
+	// rfcTableHTML, whose rows put each cell on its own line, so the same
+	// content extracts as "Partial 59". Re-spacing the fixture's cells the
+	// way the family spaces them holds the CONTENT of the section against
+	// the published page without freezing markup the family convention
+	// deliberately changed. Nothing else is normalized: every character, in
+	// order, and every other space still has to agree.
+	published := visibleText(strings.ReplaceAll(
+		readFixture(t, "published-rfc-compliance-body.html"), "</td>", "</td>\n"))
 
 	for _, chrome := range []string{
 		"<title>RFC Compliance Gate Report - Ze</title>",
@@ -946,8 +957,8 @@ func TestTheGateVerdictIsAStatusAndNotTerminalOutput(t *testing.T) {
 	// container, as every table on a detail page does. A stem row carries a
 	// title and a disposition reason, both of them prose.
 	for _, want := range []string{
-		`<div class="rfc-table-wrap">` + "\n<table>\n<thead><tr><th>RFC</th><th>Public status</th>",
-		`<div class="rfc-table-wrap">` + "\n<table>\n<thead><tr><th>RFC</th><th>Disposition</th>",
+		`<div class="rfc-table-wrap">` + "\n" + `<table class="rfc-table">` + "\n<thead><tr><th>RFC</th><th>Public status</th>",
+		`<div class="rfc-table-wrap">` + "\n" + `<table class="rfc-table">` + "\n<thead><tr><th>RFC</th><th>Disposition</th>",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the index carries a link table outside a scrolling container: %q", want)
@@ -1476,13 +1487,7 @@ func TestTheExclusionLedgerIsPublishedWithItsCoverage(t *testing.T) {
 // The split comes from the vocabulary, so a seventh kind lands in one group or
 // reddens here rather than defaulting to scope.
 func TestTheExclusionGroupsPartitionTheVocabulary(t *testing.T) {
-	groups := map[string]bool{}
-	for _, group := range rfc.ExclusionGroups() {
-		groups[group] = true
-	}
-	if !groups[rfc.ExclusionScope] || !groups[rfc.ExclusionDebt] {
-		t.Fatalf("the vocabulary answers groups %v, want scope and debt", rfc.ExclusionGroups())
-	}
+	groups := map[string]bool{rfc.ExclusionScope: true, rfc.ExclusionDebt: true}
 	for _, kind := range rfc.ExclusionKinds() {
 		group, held := rfc.ExclusionKindGroup(kind)
 		if !held || group == "" {
@@ -1563,4 +1568,45 @@ func publishedRFCComplianceRef(t *testing.T) *rfcCompliance {
 	t.Helper()
 	snapshot := publishedRFCCompliance(t)
 	return &snapshot
+}
+
+// VALIDATES: AC-68 -- every un-enrolled kind the index shows carries the
+// sentence that says what it means, read from the package that holds the
+// closed set rather than listed here.
+//
+// A sixth kind, `out-of-scope`, landed on 2026-09-01 and a page that spelled
+// its kinds would have printed a bare word for it. The method is the vocabulary
+// itself against the rendered index and the rendered stem page.
+func TestEveryDispositionKindOnTheIndexSaysWhatItMeans(t *testing.T) {
+	ledger := publishedLedgerOfThisCheckout(t)
+	rows := rfcIndexRows(ledger, false)
+	if len(rows) == 0 {
+		t.Fatal("no summary is declined, so this proves nothing")
+	}
+	page := rfcDeclinedIndexHTML(ledger)
+	mirror := rfcIndexMirror(ledger)
+	seen := map[string]bool{}
+	for _, entry := range rows {
+		kind := entry.Disposition.Kind
+		if seen[kind] {
+			continue
+		}
+		seen[kind] = true
+		meaning, held := rfc.DispositionKindMeaning(kind)
+		if !held {
+			t.Errorf("%s declares %q, which the vocabulary does not know",
+				entry.Stem, kind)
+			continue
+		}
+		if !strings.Contains(page, html.EscapeString(meaning)) {
+			t.Errorf("the index shows %q and does not say what it means", kind)
+		}
+		if !strings.Contains(mirror, meaning) {
+			t.Errorf("the mirror shows %q and does not say what it means", kind)
+		}
+		if !strings.Contains(rfcEnrolmentText(entry), meaning) {
+			t.Errorf("the %s page states %q without its meaning", entry.Stem, kind)
+		}
+	}
+	t.Logf("%d disposition kinds are in use, each with its meaning published", len(seen))
 }

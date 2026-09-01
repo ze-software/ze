@@ -43,8 +43,8 @@ func TestEveryCarrierTheVocabularyDeclaresIsRanked(t *testing.T) {
 // both precede every functional row.
 func TestTheReadingOrderIsTotalAndAscending(t *testing.T) {
 	last, first := 0, true
-	for _, kind := range CarrierKinds() {
-		for _, tier := range CarrierTiers() {
+	for _, kind := range carrierKindOrder {
+		for _, tier := range carrierTierOrder {
 			rank, ranked := CarrierRank(kind, tier)
 			if !ranked {
 				t.Fatalf("%s/%s is in the vocabulary and answers no rank", kind, tier)
@@ -67,5 +67,38 @@ func TestTheReadingOrderIsTotalAndAscending(t *testing.T) {
 	}
 	if _, ranked := CarrierLabelRank("unit"); ranked {
 		t.Error("a label with no tier answers a rank")
+	}
+}
+
+// VALIDATES: every un-enrolled kind an author can declare carries a published
+// meaning, and no meaning names a kind the parser refuses.
+//
+// The kinds are the parser's closed set and the meanings are a second table, so
+// the two can drift: a sixth kind was added on 2026-09-01 and a page that
+// listed five would have printed a bare word for it (independent review). This
+// is what keeps the second table honest.
+func TestEveryDispositionKindCarriesItsMeaning(t *testing.T) {
+	for _, kind := range enrolmentKindNames() {
+		if kind == enrolmentEnrolled {
+			continue
+		}
+		meaning, held := DispositionKindMeaning(kind)
+		if !held {
+			t.Errorf("an author can declare %q and no published meaning says what it means",
+				kind)
+			continue
+		}
+		if len(meaning) < 30 {
+			t.Errorf("the meaning of %q reads %q, which is too short to act on", kind, meaning)
+		}
+	}
+	for _, kind := range DispositionKinds() {
+		if !enrolmentKinds[kind] {
+			t.Errorf("a meaning is published for %q, which the parser refuses", kind)
+		}
+	}
+	if len(DispositionKinds()) != len(enrolmentKindNames())-1 {
+		t.Errorf("%d kinds carry a meaning and the parser accepts %d un-enrolled ones",
+			len(DispositionKinds()), len(enrolmentKindNames())-1)
 	}
 }

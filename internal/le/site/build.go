@@ -347,6 +347,9 @@ func refreshNativeSurfaces(paths Paths) error {
 	if err := publishPluginRegistry(paths); err != nil {
 		return err
 	}
+	if err := publishRFCLedger(paths); err != nil {
+		return err
+	}
 	if err := publishYANGConfigTree(paths); err != nil {
 		return err
 	}

@@ -14,6 +14,9 @@ A recording runs in a container this repository builds, so run
 start without it and names the action.
 Commit `../gh-pages` without source code.
 
+The media lives in the artifact tree at `../gh-pages/assets/demos`. A render
+writes it there, and a build reads it from there.
+
 ## Structure
 
 ```
@@ -176,7 +179,11 @@ artifact boundary and can seed it from the current complete Pages checkout.
   per summary stem at `/quality/rfc-compliance/<stem>/`. Every cell of a
   requirement row is `rfc.RequirementRows`, which is also what
   `rfc/requirements/<stem>.md` is rendered from, so the site and the repository
-  cannot state different things about one requirement.
+  cannot state different things about one requirement. The producer retires a
+  page AFTER it has written this run's, and it deletes only a directory carrying
+  a page this family wrote: on a real build the output is the published
+  checkout, so a removal keyed on "a name that is not a live stem" would take
+  any directory another producer or an author put under that prefix.
 - **The RFC family renders once for two outputs.** `rfcdetail.go` declares each
   section of a detail page as a heading and a PAIR of functions, one for the
   markup and one for the Markdown mirror, so a section cannot reach the page and

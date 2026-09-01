@@ -32,6 +32,9 @@ import (
 // depth counter is what keeps them whole. A cell with no top-level semicolon
 // answers itself, as one item.
 func rfcProseSplit(prose string) []string {
+	if prose == "" {
+		return nil
+	}
 	var out []string
 	var item strings.Builder
 	depth, quoted, coded := 0, false, false
@@ -55,9 +58,12 @@ func rfcProseSplit(prose string) []string {
 		}
 		item.WriteRune(letter)
 	}
-	if strings.TrimSpace(item.String()) != "" {
-		out = append(out, item.String())
-	}
+	// The tail is appended even when it is empty. A cell ending in a semicolon
+	// leaves nothing after the last cut, and dropping that empty tail loses the
+	// semicolon on rejoin -- one character of the disclosure (independent
+	// review, 2026-09-01). An empty item is punctuation rather than a claim, so
+	// rfcClaimsHTML skips it when it renders the list.
+	out = append(out, item.String())
 	return out
 }
 
@@ -213,6 +219,9 @@ func rfcLinkablePath(path string) bool {
 // wrote them: a link nobody can follow is worse than none (owner ruling,
 // 2026-09-01).
 func rfcProseHTML(prose string, declared map[string]bool) string {
+	if !rfcProseCodeSpansClose(prose) {
+		return rfcProseLinksHTML(prose, declared)
+	}
 	var out strings.Builder
 	for index, run := range strings.Split(prose, "`") {
 		if index%2 == 1 {
@@ -222,6 +231,19 @@ func rfcProseHTML(prose string, declared map[string]bool) string {
 		out.WriteString(rfcProseLinksHTML(run, declared))
 	}
 	return out.String()
+}
+
+// rfcProseCodeSpansClose answers whether every code span the author opened is
+// closed.
+//
+// The renderer reads the odd runs between backticks as code spans. An odd
+// NUMBER of backticks means the last one opens a span nothing closes, and the
+// split then reads the tail as code and deletes that backtick from the page:
+// one character of the disclosure lost, silently (independent review,
+// 2026-09-01). Prose in that shape is published as plain text, every character
+// of it, backticks included.
+func rfcProseCodeSpansClose(prose string) bool {
+	return strings.Count(prose, "`")%2 == 0
 }
 
 // rfcProseCodeHTML renders one code span, linked when it names a file.
@@ -291,6 +313,9 @@ func rfcNextToken(run string) rfcProseToken {
 // rfcProseMirror states the same run in Markdown: the text unchanged, with the
 // same ids and paths linked.
 func rfcProseMirror(prose string, declared map[string]bool) string {
+	if !rfcProseCodeSpansClose(prose) {
+		return rfcProseLinksMirror(prose, declared)
+	}
 	var out strings.Builder
 	for index, run := range strings.Split(prose, "`") {
 		if index%2 == 1 {

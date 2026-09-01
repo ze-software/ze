@@ -9,6 +9,15 @@ old source-only files there. It reuses matching demo artifacts. Run
 its tape, and publishes it beside the artifacts it did not record. The ids are in
 `demos/terminal/manifest.json`.
 
+A recording lives in the ARTIFACT tree, at `../gh-pages/assets/demos`. A render
+writes it there, and a build reads it from there for the `?v=` digest it stamps
+into every page that replays a demo. So one directory answers what the site
+serves and what the pages name. A build that rewrites the artifact keeps the
+media, because it lays the last published artifact down before any page is
+rendered. `TERMINAL_DEMO_OUTPUT` moves a render to another root.
+<!-- source: internal/le/site/demo.go -- (*demoCatalog).assetRoot -->
+<!-- source: internal/le/terminaldemo/actions.go -- renderEngine -->
+
 A recording runs in a container this repository builds and publishes to no
 registry, so build it once per checkout with `./le terminal-demo image-build`.
 It reads the image tag from `demos/terminal/manifest.json`, which is the tag the
@@ -235,7 +244,8 @@ Five shapes are load-bearing on that page:
   it.
 - **The requirement's sentence LEADS its row**, always visible, with no
   disclosure. Each requirement is two rows: the anchored id and its quoted
-  sentence spanning the table, then the level, the section and the tests. The
+  sentence beside it spanning the rest of the row, then the level, the section
+  and the tests. The
   sentence is what the row is ABOUT and everything else is metadata on it;
   hiding the subject while showing its attributes is inside out. It stays a
   TABLE rather than a block per requirement because the Proof state section
@@ -255,11 +265,38 @@ Five shapes are load-bearing on that page:
   sorts after every ranked one rather than at rank zero, and an absent-polarity
   row takes the rank of the requirement's best carrier so the gap shows inside
   the group the eye is already reading.
-- **The subject carries no weight of its own.** `.md-content td:first-child` is
-  bold and sticky for every table on the site and the subject row's spanning
-  cell is a first child, so the requirements table opts out by class. Position
-  marks the subject; weight on top of it is emphasis doing a job the layout
-  already does, and 228 bold rows read as shouting.
+- **The requirement id sits beside its sentence**, in a narrow left cell, with
+  the sentence in a cell spanning the rest of the row.
+- **One table convention for the whole family, and no opt-out.**
+  `.md-content td:first-child` is bold and sticky for every table on the site,
+  which reads an identity into a first column. Eight of the eleven tables this
+  family renders put a LABEL there instead, so the family drops the weight for
+  all of them and keeps the stickiness that earns its place in a horizontally
+  scrolling container. Every table goes through `rfcTableHTML`, which is what
+  makes that true by construction rather than by discipline; 228 bold rows read
+  as shouting, and two conventions on one page read as an accident.
+- **Each stem page proves its own arithmetic.** Its coverage table carries a
+  total row saying whether the partitioning buckets account for the gated
+  population, and each bucket says whether the count the gate produced and the
+  membership the page names agree. The counts come from `rfc.CoverageRows` and
+  the membership from a second walk over the same requirements, so the two can
+  disagree; the index carries the same shape of check against the gate's own
+  gated total.
+- **A page for a summary the gate does not hold never says it does.**
+  `evaluate` (`internal/le/rfc/check_core.go`) skips every requirement of an
+  un-enrolled RFC, so on those pages the population card names what the summary
+  DECLARES and states that the gate holds none of it.
+- **An un-enrolled kind is published with its meaning.** Six kinds exist:
+  `enrolled` and the five dispositions `non-normative`, `backlog`, `blocked`,
+  `source-restricted` and `out-of-scope`. The last says the extraction is DONE
+  and the owner declined the feature, which is a scope decision rather than a
+  conformance gap, and its public row may read only `Future` or `Unsupported`.
+  The sentence for each comes from `rfc.DispositionKindMeaning`, so a seventh
+  kind cannot print as a bare word.
+- **Retiring a page is keyed on the marker this family writes**, never on a
+  directory name absent from the live set. The output of a real build is the
+  `../gh-pages` checkout, so a name test would delete any directory under
+  `quality/rfc-compliance/` that another producer or an author put there.
 - **The tests are a grid of divs**, one row per citation: the polarity, the kind
   and tier, then the test. The TIER LEADS, because a fixed-width token in front
   of a variable-width name wraps cleanly and lets the tiers align down the page.
