@@ -3,12 +3,12 @@
 package verifyengine
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/runlog"
 )
 
 const (
@@ -16,8 +16,6 @@ const (
 	lintLineLimit    = 100
 	failureLineLimit = 80
 )
-
-var failureLine = regexp.MustCompile(`^(--- FAIL:|FAIL[[:space:]]|panic:|fatal error:|Error:|\[FAIL\])`)
 
 // FailureSummary is one stage block appended to the verification failure index.
 type FailureSummary struct {
@@ -41,9 +39,12 @@ func (s FailureSummary) Text() string {
 }
 
 // Summarize reads one stage log and extracts the lines its reader needs first.
+//
+// Which lines those are belongs to internal/le/runlog, so this index and a
+// quiet job (internal/le/job) name the same lines.
 func Summarize(stage, logPath string) (FailureSummary, error) {
 	summary := FailureSummary{Stage: stage, FullLog: logPath}
-	content, err := os.ReadFile(logPath) //nolint:gosec // the path is a verification artifact under the checkout root
+	file, err := os.Open(logPath) //nolint:gosec // the path is a verification artifact under the checkout root
 	if os.IsNotExist(err) {
 		summary.Missing = true
 		summary.KeyLines = []string{fmt.Sprintf("(stage log missing: %s)", logPath)}
@@ -52,23 +53,22 @@ func Summarize(stage, logPath string) (FailureSummary, error) {
 	if err != nil {
 		return FailureSummary{}, fmt.Errorf("read stage log %q: %w", logPath, err)
 	}
-	lines := splitLines(content)
+	defer file.Close() //nolint:errcheck // the log is only read
+
 	if stage == lintStage {
-		if len(lines) > lintLineLimit {
-			lines = lines[:lintLineLimit]
+		head, err := runlog.Head(file, lintLineLimit)
+		if err != nil {
+			return FailureSummary{}, fmt.Errorf("read stage log %q: %w", logPath, err)
 		}
-		summary.KeyLines = lines
+		summary.KeyLines = head
 		return summary, nil
 	}
-	for index, line := range lines {
-		if !failureLine.MatchString(line) {
-			continue
-		}
-		summary.KeyLines = append(summary.KeyLines, fmt.Sprintf("%d:%s", index+1, line))
-		if len(summary.KeyLines) == failureLineLimit {
-			break
-		}
+
+	key, err := runlog.Key(file, failureLineLimit)
+	if err != nil {
+		return FailureSummary{}, fmt.Errorf("read stage log %q: %w", logPath, err)
 	}
+	summary.KeyLines = key
 	if len(summary.KeyLines) == 0 {
 		summary.KeyLines = []string{"(no obvious FAIL lines found; see full log)"}
 	}
@@ -102,17 +102,4 @@ func AppendSummary(failuresPath, stage, logPath string) (FailureSummary, error) 
 		return FailureSummary{}, fmt.Errorf("close failure index %q: %w", failuresPath, closeErr)
 	}
 	return summary, nil
-}
-
-func splitLines(content []byte) []string {
-	content = bytes.TrimSuffix(content, []byte("\n"))
-	if len(content) == 0 {
-		return nil
-	}
-	raw := bytes.Split(content, []byte("\n"))
-	lines := make([]string, len(raw))
-	for index := range raw {
-		lines[index] = string(raw[index])
-	}
-	return lines
 }

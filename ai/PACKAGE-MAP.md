@@ -600,6 +600,7 @@ has a register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 | `internal/le/repository/trackedbuild` | COMPILES the repository as git holds it, which is the one population no other check in this repository compiles |  |
 | `internal/le/rfc` | binds every MUST-level requirement of an enrolled RFC to the tests that enforce it, and carries the ratchets in ai/rules/rfc-compliance.md |  |
 | `internal/le/rules` | owns the checks and reports for `ai/rules/` |  |
+| `internal/le/runlog` | TODO |  |
 | `internal/le/scratch` | keeps tmp and cache outside a checkout without overwriting paths that already hold user work |  |
 | `internal/le/session` | manage this development session's isolated state |  |
 | `internal/le/setup` | install and verify every tool a Ze dev or test workflow needs |  |

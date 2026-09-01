@@ -318,12 +318,43 @@ judges a tree in which no gated plugin registers.
 
 ```
 tags="ze_core $(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')"
-./le job run label unit-pkg command go test -race -tags "$tags" ./internal/component/ike/eap
-./le job run label unit-pkg command go test -race -tags "$tags" -run TestEAPTLS ./internal/component/ike/...
+./le job run label unit-pkg quiet command go test -race -tags "$tags" ./internal/component/ike/eap
+./le job run label unit-pkg quiet command go test -race -tags "$tags" -run TestEAPTLS ./internal/component/ike/...
 ```
 
 Drop `-race` while iterating if you must. A package tested without `-race` has
 not been tested the way the gate tests it, so put it back before the end.
+
+### `quiet`, and the pattern it replaces
+
+`quiet` sits between the label and the `command` keyword. It sends the child's
+merged output to `tmp/session/<date>-<id>/scratch/job-<label>.log` instead of
+the terminal, and answers three things: the exit code, that log's path, and up
+to twenty failure lines from it, each with its line number.
+
+```
+job unit-pkg: exit 1, log tmp/session/2026-09-01-abc/scratch/job-unit-pkg.log
+412:--- FAIL: TestEAPIdentity (0.00s)
+418:FAIL	github.com/ze-software/ze/internal/component/ike/eap	0.310s
+```
+
+Which lines those are is one declaration, `internal/le/runlog`, shared with the
+verification failure index, so a stage log and a quiet job name the same lines.
+
+Write no redirect of your own, and no `grep` over the result. A session that
+composes a scratch path, a redirect, an exit-code echo and a `grep` is writing
+this command by hand, and each hand-written copy picks a different set of lines
+to keep.
+
+The job log under `tmp/.ze-jobs/` is not that file. It is the breaker's
+liveness evidence and a follower's replay source, and `ticket.Release`
+(`internal/le/job/registry.go`) removes it when the job ends, so a reader who
+arrives after the run finds nothing. The quiet log is the session's own and
+stays until the session's scratch directory goes. Two runs of one label in one
+session overwrite it.
+
+An ordinary run still streams to the terminal, which is what every wrapped
+recipe needs.
 
 ## Which native action owns the documentation gate
 
