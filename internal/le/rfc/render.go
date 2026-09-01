@@ -88,8 +88,18 @@ func NewRenderInput(tree string, collected Collected, rows map[string]LedgerRow,
 	}
 	metas := collected.Metas
 	if metas == nil {
-		if metas, err = summaryMetas(tree, in.Stems); err != nil {
+		var problems map[string]string
+		if metas, problems, err = summaryMetas(tree, in.Stems); err != nil {
 			return RenderInput{}, err
+		}
+		// The write refuses on a parse error before it prunes anything, and
+		// this is the same class: a summary whose Meta table does not parse
+		// declares no enrolment and no row, so rendering over it would emit a
+		// ledger missing that RFC entirely.
+		if len(problems) > 0 {
+			return RenderInput{}, refuseToWrite(sortedValuesOf(problems),
+				"a summary's Meta table did not parse, so its enrolment and its public row are "+
+					"absent from this render. Fix the summary, then re-run")
 		}
 	}
 	in.Metas = metas

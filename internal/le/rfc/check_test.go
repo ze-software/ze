@@ -494,9 +494,12 @@ func TestSupportedRowsHaveDerivableScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
 	}
-	metas, err := summaryMetas(root, nil)
+	metas, metaProblems, err := summaryMetas(root, nil)
 	if err != nil {
 		t.Fatalf("read the summaries: %v", err)
+	}
+	if len(metaProblems) > 0 {
+		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
 	}
 
 	var mapped, rfcTables, draftTable []string
@@ -547,24 +550,43 @@ func TestOneSummaryRendersExactlyOneStatusRow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
 	}
-	metas, err := summaryMetas(root, nil)
+	metas, metaProblems, err := summaryMetas(root, nil)
 	if err != nil {
 		t.Fatalf("read the summaries: %v", err)
+	}
+	if len(metaProblems) > 0 {
+		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
 	}
 	placed, err := placeRows(metas)
 	if err != nil {
 		t.Fatalf("place the rows: %v", err)
 	}
-	seen := map[string]bool{}
 	rows := 0
 	for _, section := range placed {
-		for _, row := range section {
-			if seen[row.Stem] {
-				t.Errorf("%s renders more than one row", row.Stem)
-			}
-			seen[row.Stem] = true
+		for range section {
 			rows++
 		}
+	}
+
+	// The duplicate a summary CAN still write is a shared rank, and it is the
+	// one placeRows refuses. Two rows with one rank have no order, and a
+	// tie-break invented in the renderer would move the page's reading order
+	// out of the summaries that own it. Asserting "no stem appears twice" over
+	// the real corpus proves nothing: placeRows appends each stem once under
+	// its single Support key, so that loop cannot fail whatever the corpus
+	// says.
+	clash := map[string]Meta{
+		"rfc1000": {Enrolment: enrolmentEnrolled, EnrolmentReason: "gated",
+			Support: "bgp-base", Rank: 10, Area: "a", Status: "Partial",
+			Coverage: "c", Remaining: "r"},
+		"rfc1001": {Enrolment: enrolmentEnrolled, EnrolmentReason: "gated",
+			Support: "bgp-base", Rank: 10, Area: "a", Status: "Partial",
+			Coverage: "c", Remaining: "r"},
+	}
+	if _, err := placeRows(clash); err == nil {
+		t.Error("two summaries claiming one rank were placed, so the page's row order is undefined")
+	} else if !strings.Contains(err.Error(), "both claim rank 10") {
+		t.Errorf("the refusal does not name the clash: %v", err)
 	}
 	declared := 0
 	for _, meta := range metas {
@@ -1454,9 +1476,9 @@ func TestSourceRestrictedReasonMustNameWhatStopsTheCopy(t *testing.T) {
 		{"judges what ze owes", "Ze does not need this standard.", "judges what ZE owes"},
 	} {
 		t.Run(one.name, func(t *testing.T) {
-			errs := checkSummaryDisposition(map[string]Meta{"iso-iec-10589": {
+			errs := checkSummaryDisposition("", map[string]Meta{"iso-iec-10589": {
 				Enrolment: dispositionSourceRestricted, EnrolmentReason: one.reason,
-			}})
+			}}, gatedFixture())
 			if one.want == "" {
 				if len(errs) != 0 {
 					t.Fatalf("a checkable reason was refused: %v", errs)
@@ -1468,6 +1490,310 @@ func TestSourceRestrictedReasonMustNameWhatStopsTheCopy(t *testing.T) {
 			}
 			if !strings.Contains(errs[0], one.want) {
 				t.Errorf("the refusal does not say %q:\n%s", one.want, errs[0])
+			}
+		})
+	}
+}
+
+// preMigrationSummary is the fixture summary in the shape it had before
+// enrolment moved into the Meta table: a checklist and no `## Meta` at all.
+const preMigrationSummary = "# RFC 9999\n\n## Compliance Checklist\n\n" +
+	"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n"
+
+// postMigrationSummary is the same document after the move, declaring its own
+// enrolment and its own public row.
+const postMigrationSummary = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
+	"- [ ] [" + selftestRIDSend + "] [MUST] A speaker MUST send the widget (§2)\n"
+
+// VALIDATES: AC-6 and risk R-1 -- the four gated ratchets keep running across
+// the commit that moves enrolment into the summaries, so a coverage regression
+// carried by that commit is still reported.
+// PREVENTS: the hazard that made this the dangerous half of the change. `check`
+// runs checkRetiredRequirements, checkLevelRatchet, checkCoverageRatchet and
+// checkEvidenceRatchet only where the current enrolled set INTERSECTS the
+// baseline one. A baseline read from HEAD's summaries is EMPTY at the migration
+// commit, because HEAD's summaries predate the Meta field, so all four would
+// stop running over exactly the change they exist to judge -- and a run that
+// judges nothing looks identical to a run that found nothing.
+func TestRatchetsFireWhenEnrolmentMovesToMeta(t *testing.T) {
+	const carrier = "test/plugin/widget.ci"
+	both := "# RFC requirement: " + selftestRIDSend + " positive\n" +
+		"# RFC requirement: " + selftestRIDSend + " negative\n"
+
+	// HEAD carries the FILE shape: a summary with no Meta table, and the
+	// enrolment in rfc/enrolled.txt beside it. Written by hand rather than
+	// through checkFixtureTree, because that helper regenerates the ledger
+	// pages and a summary with no Meta table does not parse.
+	root := t.TempDir()
+	writeFixtureFiles(t, root, map[string]string{
+		selftestWorkflowRel:    selftestWorkflow,
+		selftestSummaryRel:     preMigrationSummary,
+		"rfc/enrolled.txt":     "# the retired shape\nrfc9999\tthe fixture RFC\n",
+		"rfc/full/rfc9999.txt": "A speaker MUST send the widget.\n",
+		"rfc/drain-budget.txt": "start 2026-07-29\nrate 0\n",
+		"feature-gates.txt":    "ze_widget  internal/widget\n",
+		carrier:                both,
+	})
+	gitFixture(t, root, []string{"init", "-q"})
+	commitFixture(t, root, "before the migration")
+
+	// The baseline reads that shape rather than answering empty, which is the
+	// one fact the ratchets stand on here.
+	baseline, known := baselineMetas(root)
+	if !known || !baseline[selftestStem].Enrolled() {
+		t.Fatalf("the baseline read %d stem(s) from HEAD's retired ledger, known=%v",
+			len(baseline), known)
+	}
+
+	// The working tree carries the META shape, and drops the negative tag with
+	// it. That is the regression the ratchet exists to catch.
+	writeFixtureFiles(t, root, map[string]string{
+		selftestSummaryRel: postMigrationSummary,
+		carrier:            "# RFC requirement: " + selftestRIDSend + " positive\n",
+	})
+	if _, err := IndexUpdate(root); err != nil {
+		t.Fatalf("regenerate the fixture ledger pages: %v", err)
+	}
+
+	report, code := Check(root)
+	if code == 0 {
+		t.Fatalf("the migration commit hid a coverage regression:\n%s", report.Text())
+	}
+	var found string
+	for _, violation := range report.Violations {
+		if strings.Contains(violation, selftestRIDSend) && strings.Contains(violation, PolarityNegative) {
+			found = violation
+		}
+	}
+	if found == "" {
+		t.Fatalf("no violation names %s losing its %s polarity:\n%s",
+			selftestRIDSend, PolarityNegative, report.Text())
+	}
+}
+
+// VALIDATES: AC-10 -- every refusal that states a property of ONE document
+// still fires after the move, on a fixture of its own.
+// PREVENTS: a migration that retires more than it meant to. Five refusals died
+// with the second copy they compared, and it would be easy to lose a sixth that
+// was never about agreement at all. Each case here is a property of a single
+// summary, so none of them could have been retired by having one copy.
+func TestSurvivingDispositionRefusalsStillFire(t *testing.T) {
+	gap := Requirement{
+		RFC: selftestStem, RID: selftestRIDSend, Level: levelMust, Text: "MUST send",
+		Section: "2", Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"},
+	}
+
+	for _, one := range []struct {
+		name string
+		errs []string
+		want string
+	}{
+		{
+			"a non-normative reason judging what ze owes",
+			checkSummaryDisposition("", map[string]Meta{selftestStem: {
+				Enrolment: dispositionNonNormative, EnrolmentReason: "ze does not implement it",
+			}}, gatedFixture()),
+			"judges what ZE owes",
+		},
+		{
+			"a non-normative reason citing nothing about the document",
+			checkSummaryDisposition("", map[string]Meta{selftestStem: {
+				Enrolment: dispositionNonNormative, EnrolmentReason: "nobody got to it",
+			}}, gatedFixture()),
+			"cites nothing about the DOCUMENT",
+		},
+		{
+			"a source-restricted reason naming no publisher",
+			checkSummaryDisposition("", map[string]Meta{selftestStem: {
+				Enrolment: dispositionSourceRestricted, EnrolmentReason: "we never fetched it",
+			}}, gatedFixture()),
+			"names nothing a reviewer can check",
+		},
+		{
+			"an out-of-scope summary claiming public support",
+			checkSummaryDisposition("", map[string]Meta{selftestStem: {
+				Enrolment: dispositionOutOfScope, EnrolmentReason: "declined 2026-09-01",
+				Support: "bgp-base", Status: "Supported",
+			}}, gatedFixture()),
+			"cannot be advertised as supported",
+		},
+		{
+			"a gap the public row does not disclose",
+			checkStatusAgreement([]Requirement{gap},
+				map[string]LedgerRow{selftestStem: {Status: "Supported", Coverage: "complete"}},
+				map[string]bool{selftestStem: true}),
+			"cannot be advertised as clean support",
+		},
+		{
+			"a gap on a summary that declares no public row",
+			checkStatusAgreement([]Requirement{gap}, map[string]LedgerRow{},
+				map[string]bool{selftestStem: true}),
+			"the public ledger must disclose it",
+		},
+		{
+			"a support claim over a summary declaring no MUST",
+			checkUnprovenSupport(nil, map[string]LedgerRow{selftestStem: {Status: "Partial"}},
+				map[string]bool{selftestStem: true}, map[string]Disposition{},
+				map[string]Extraction{}, map[string]string{}),
+			"declares no MUST-level requirement",
+		},
+		{
+			"a supported row no extraction sign-off bounds",
+			checkSupportedSignoff(map[string]LedgerRow{selftestStem: {Status: "Supported"}},
+				map[string]Extraction{}),
+			"is not a valid extraction sign-off",
+		},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			if len(one.errs) != 1 {
+				t.Fatalf("answered %d violation(s), want 1: %v", len(one.errs), one.errs)
+			}
+			if !strings.Contains(one.errs[0], one.want) {
+				t.Errorf("the refusal does not say %q:\n%s", one.want, one.errs[0])
+			}
+		})
+	}
+}
+
+// VALIDATES: AC-10 at the three counts that behave differently -- zero gaps, one
+// gap, and many.
+// PREVENTS: an off-by-one nobody would see at a single count. The spelled reader
+// maps a word to a number, so "one" and "twenty-one" take different branches of
+// spelledNumbers, and a row with no spelled number at all must leave the check
+// rather than be read as zero.
+func TestGapCountAgreementAcrossZeroOneAndMany(t *testing.T) {
+	gaps := func(count int) []Requirement {
+		var out []Requirement
+		for index := 0; index < count; index++ {
+			out = append(out, Requirement{
+				RFC: selftestStem, RID: selftestRIDSend, Level: levelMust,
+				Annotation: &Annotation{Kind: AnnotationGap, Reason: "not implemented"},
+			})
+		}
+		return out
+	}
+
+	for _, one := range []struct {
+		name      string
+		remaining string
+		gaps      int
+		refused   bool
+	}{
+		{"no spelled number leaves the check", "No tracked gap in current source anchors.", 3, false},
+		{"zero gaps and no claim", "No tracked gap in current source anchors.", 0, false},
+		{"one gap, agreeing", "One MUST-level gap remains.", 1, false},
+		{"one gap, disagreeing", "One MUST-level gap remains.", 0, true},
+		{"many gaps, agreeing", "Twenty-one MUSTs remain.", 21, false},
+		{"many gaps, disagreeing by one", "Twenty-one MUSTs remain.", 20, true},
+		{"a digit count is outside the check", "21 MUSTs remain.", 3, false},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			errs := checkGapCountAgreement(gaps(one.gaps),
+				map[string]LedgerRow{selftestStem: {Remaining: one.remaining}})
+			if one.refused && len(errs) != 1 {
+				t.Fatalf("answered %d violation(s), want 1: %v", len(errs), errs)
+			}
+			if !one.refused && len(errs) != 0 {
+				t.Fatalf("answered %d violation(s), want none: %v", len(errs), errs)
+			}
+		})
+	}
+}
+
+// gatedFixture answers one MUST-level requirement for the fixture stem, so a
+// disposition test that is not ABOUT the empty-checklist refusal does not trip
+// it. checkOutOfScope reds an out-of-scope summary declaring nothing.
+func gatedFixture() []Requirement {
+	return []Requirement{{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust}}
+}
+
+// VALIDATES: the guard an independent review found missing on 2026-09-01 -- a
+// public row that DISAPPEARS while its RFC stays enrolled is refused, and so is
+// a newly enrolled RFC that arrives with none.
+// PREVENTS: the cheapest way to silence a ledger check. A row is a summary's
+// `Support` declaration now, so deleting one is a single cell's edit; the stem
+// then leaves rowsFrom and every check reading the public page stops seeing it,
+// including the unsigned-support-claim refusal an author under pressure would
+// most want gone. checkRetiredRequirements does NOT cover it: that ratchet
+// compares requirement ids and never reads a Support cell, which the commit
+// message wrongly claimed it did.
+func TestAPublicRowCannotBeDeletedWhileItsRFCStaysEnrolled(t *testing.T) {
+	rowed := Meta{Enrolment: enrolmentEnrolled, EnrolmentReason: "gated",
+		Support: "bgp-base", Rank: 10, Status: "Partial"}
+	unrowed := Meta{Enrolment: enrolmentEnrolled, EnrolmentReason: "gated"}
+
+	deleted := checkPublicRowMonotonic(
+		map[string]Meta{selftestStem: unrowed}, map[string]Meta{selftestStem: rowed},
+		true, map[string]bool{})
+	if len(deleted) != 1 {
+		t.Fatalf("deleting a row answered %d violation(s), want 1: %v", len(deleted), deleted)
+	}
+	if !strings.Contains(deleted[0], "rendered a row") {
+		t.Errorf("the refusal does not name what was lost:\n%s", deleted[0])
+	}
+
+	// The same edit on a stem that never had a row is the grandfathered state,
+	// and stays silent: 32 enrolled RFCs have no public row by decision.
+	grandfathered := checkPublicRowMonotonic(
+		map[string]Meta{selftestStem: unrowed}, map[string]Meta{selftestStem: unrowed},
+		true, map[string]bool{})
+	if len(grandfathered) != 0 {
+		t.Errorf("an RFC that never had a row was billed: %v", grandfathered)
+	}
+
+	// A NEW enrolment owes one.
+	arriving := checkPublicRowMonotonic(
+		map[string]Meta{selftestStem: unrowed}, map[string]Meta{}, true,
+		map[string]bool{selftestStem: true})
+	if len(arriving) != 1 || !strings.Contains(arriving[0], "newly enrolled") {
+		t.Fatalf("a new enrolment with no row answered %d violation(s): %v",
+			len(arriving), arriving)
+	}
+
+	// Where git cannot answer, the HEAD comparison judges nothing rather than
+	// judging everything, exactly as the other ratchets do.
+	unknown := checkPublicRowMonotonic(
+		map[string]Meta{selftestStem: unrowed}, map[string]Meta{selftestStem: rowed},
+		false, map[string]bool{})
+	if len(unknown) != 0 {
+		t.Errorf("an unreadable baseline accused somebody: %v", unknown)
+	}
+}
+
+// VALIDATES: the two premises `out-of-scope` rests on are checked, in the
+// FAILING direction.
+// PREVENTS: an escape that costs nothing to write. checkNewSummaries asks an
+// out-of-scope summary for no enrolment, which is only right where the
+// obligations are written down, so a summary declaring none under it records
+// nothing and bills nobody. The date is the other half: a scope decision nobody
+// can age reads forever as one somebody still stands behind.
+func TestOutOfScopeMustCarryItsExtractionAndItsDate(t *testing.T) {
+	for _, one := range []struct {
+		name   string
+		reason string
+		gated  int
+		want   string
+	}{
+		{"dated, extracted", "declined by the owner 2026-09-01", 1, ""},
+		{"no date", "declined by the owner", 1, "carrying no date"},
+		{"no extraction", "declined by the owner 2026-09-01", 0, "NO MUST-level requirement"},
+		{"neither", "declined by the owner", 0, "NO MUST-level requirement"},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			errs := checkOutOfScope("rfc/short/rfc9999.md: ", Meta{
+				Enrolment: dispositionOutOfScope, EnrolmentReason: one.reason,
+			}, one.gated)
+			if one.want == "" {
+				if len(errs) != 0 {
+					t.Fatalf("a complete declaration was refused: %v", errs)
+				}
+				return
+			}
+			if len(errs) == 0 {
+				t.Fatalf("%s was accepted", one.name)
+			}
+			if !strings.Contains(strings.Join(errs, "\n"), one.want) {
+				t.Errorf("the refusal does not say %q:\n%v", one.want, errs)
 			}
 		})
 	}

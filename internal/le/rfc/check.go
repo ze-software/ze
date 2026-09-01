@@ -397,7 +397,9 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	}
 	findings = append(findings, notes(compileErrors)...)
 	findings = append(findings, notes(checkStatusAgreement(collected.Requirements, rows, collected.Enrolled))...)
-	findings = append(findings, notes(checkSummaryDisposition(collected.Metas))...)
+	findings = append(findings, notes(checkSummaryDisposition(tree, collected.Metas, collected.Requirements))...)
+	findings = append(findings, notes(checkPublicRowMonotonic(collected.Metas, baseMetas,
+		enrolledKnown, newly))...)
 	derived, err := derivedRegisters(deriver, signed, collected.Requirements)
 	if err != nil {
 		return CheckReport{}, err
@@ -409,10 +411,12 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	// would have redded this gate for every session sharing the checkout, and a
 	// gate everybody learns to ignore enforces nothing.
 	//
-	// checkUnprovenSupport, above, reads the SUMMARIES and so cannot see a claim
-	// whose stem has no summary at all; it says so in its own text. This one
-	// reads the ledger rows, which is the public page itself, so a Supported row
-	// with nothing behind it is visible to it and to nothing else.
+	// It reads the ROWS rather than the summaries, and since 2026-09-01 those
+	// are the same population: a row is a summary's own `Support` declaration,
+	// so a public claim whose stem has no summary cannot be written. What the
+	// two checks still divide is the QUESTION -- checkUnprovenSupport asks
+	// whether the checklist is empty, this one whether a walk of the source
+	// bounds what the checklist left out.
 	findings = append(findings, notes(checkSupportedSignoff(rows, signed))...)
 	findings = append(findings, notes(checkGapCountAgreement(collected.Requirements, rows))...)
 

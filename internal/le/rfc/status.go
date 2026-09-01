@@ -144,13 +144,17 @@ func Collect(tree string) (Collected, error) {
 	if err != nil {
 		return Collected{}, err
 	}
-	metas, err := summaryMetas(tree, stems)
+	metas, metaProblems, err := summaryMetas(tree, stems)
 	if err != nil {
 		return Collected{}, err
 	}
 	out := Collected{Metas: metas, Enrolled: enrolledFrom(metas),
 		EnrolmentReasons: enrolmentReasonsFrom(metas), Titles: titlesFrom(metas),
 		ParseByStem: map[string]string{}}
+	for _, stem := range sortedKeysOf(metaProblems) {
+		out.ParseErrors = append(out.ParseErrors, metaProblems[stem])
+		out.ParseByStem[stem] = metaProblems[stem]
+	}
 	for _, stem := range sortedSet(stems) {
 		var name textbuf.Buffer
 		path := treePath(tree, summaryRel, name.Str(stem).Str(".md").String())

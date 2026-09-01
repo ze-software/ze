@@ -213,8 +213,8 @@ way it reports `ai/RFC-REQUIREMENTS.md` stale.
 | A-1 | A new Meta field can be added uniformly across the corpus | 191 of 191 summaries carry a `## Meta` heading | the field lands in 45 spelling regimes and reads absent in some | measured: BROKEN. 45 distinct field spellings exist, so step 1 is a normalizing pass | broken |
 | A-2 | Area and Status move verbatim as short authored values | Area matches Title in 3 of 158 rows; Status carries 13 distinct values | the migration is a rewrite rather than a move | measured: confirmed, both are authored | confirmed |
 | A-3 | Implemented coverage and Remaining are editorial prose no gate derives | only the spelled gap count is read, in 56 of 158 rows | generation would have to synthesize prose, which it must not do | measured: confirmed, 158 KB of authored prose | confirmed |
-| A-4 | The enrolment baseline can be read from HEAD's summaries | `baselineSummaryStems` already reads summaries at HEAD | four ratchets stay disarmed past the migration commit | AC-6 | unvalidated |
-| A-5 | No consumer outside `internal/le/rfc/` parses the three files | measured: the website names two of the paths as literal strings in published prose | the public page cites deleted paths | AC-7 | broken |
+| A-4 | The enrolment baseline can be read from HEAD's summaries | `baselineSummaryStems` already reads summaries at HEAD | four ratchets stay disarmed past the migration commit | AC-6 | CONFIRMED, with one correction the assumption missed: HEAD's summaries answer nothing AT the migration commit, because they predate the field. `baselineMetas` reads them and falls back to HEAD's two retired files only when no summary at HEAD declares an enrolment at all. `TestRatchetsFireWhenEnrolmentMovesToMeta` proves the ratchets fire across that commit, and forcing the fallback to return nothing makes it red |
+| A-5 | No consumer outside `internal/le/rfc/` parses the three files | measured: the website names two of the paths as literal strings in published prose | the public page cites deleted paths | AC-7 | CONFIRMED as stated, BROKEN as intended. Nothing outside the package PARSES them, so no reader broke. What names them is published PROSE, in `internal/le/site/rfccompliance.go` and `rfcdetail.go`, and those files belong to another session that was editing them concurrently. The replacement wording was handed over rather than written here; the deferral shard carries the row |
 
 ### Risks
 
@@ -270,23 +270,30 @@ to generated, and seven summaries are created.
 
 ### Unit Tests
 
+Three planned names moved to the file that holds the producer they exercise, and
+two were absorbed by a wider test that covers the planned assertion and more. The
+Status column names what landed.
+
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEnrolmentReadFromSummaryMeta` | `internal/le/rfc/check_test.go` | AC-1 | |
-| `TestStatusRowRenderedFromSummaryMeta` | `internal/le/rfc/render_test.go` | AC-2 | |
-| `TestAbsentEnrolmentFieldIsRefusedNotDefaulted` | `internal/le/rfc/check_test.go` | AC-3, R-2 | |
-| `TestOneSummaryRendersExactlyOneStatusRow` | `internal/le/rfc/render_test.go` | AC-4 | |
-| `TestRatchetsFireWhenEnrolmentMovesToMeta` | `internal/le/rfc/check_test.go` | AC-6, R-1 | |
-| `TestSurvivingDispositionRefusalsStillFire` | `internal/le/rfc/check_test.go` | AC-10 | |
-| `TestHandEditedStatusPageReportsStale` | `internal/le/doc/wiring/docverify_test.go` | AC-9 | |
-| `TestEveryGeneratedCountCarriesItsDenominator` | `internal/le/rfc/render_test.go` | AC-11 | |
-| `TestGapCountPopulationSurvivesTheDenominator` | `internal/le/rfc/check_test.go` | AC-12, R-7 | |
+| `TestEnrolmentIsReadFromTheSummaryMetaTable` | `internal/le/rfc/summary_test.go` | AC-1, AC-3, R-2 | passing. Planned as two tests, `TestEnrolmentReadFromSummaryMeta` and `TestAbsentEnrolmentFieldIsRefusedNotDefaulted`; written as one because the refusals are subtests of the same parse and splitting them would duplicate the fixture. Four refusal cases: absent, outside the closed set, no reason, and a near-miss label |
+| `TestGeneratedStatusRowsMatchTheAuthoredPage` | `internal/le/rfc/render_ledger_test.go` | AC-2, AC-5 | passing. Planned as `TestStatusRowRenderedFromSummaryMeta`; written wider, because rendering a row from Meta and rendering the row the page ALREADY held are the same assertion, and the second one also proves the migration lost nothing |
+| `TestOneSummaryRendersExactlyOneStatusRow` | `internal/le/rfc/check_test.go` | AC-4 | passing. In `check_test.go` rather than `render_test.go`: it reads the real corpus, which is where the other corpus-wide tests live |
+| `TestRatchetsFireWhenEnrolmentMovesToMeta` | `internal/le/rfc/check_test.go` | AC-6, R-1 | passing, and its red phase was FORCED: with `baselineMetasBeforeMigration` returning nothing, the test fails at the baseline assertion |
+| `TestSurvivingDispositionRefusalsStillFire` | `internal/le/rfc/check_test.go` | AC-10 | passing. Eight subtests, one per surviving refusal, each a property of a single document |
+| `TestHandEditedStatusPageReportsStale` | `internal/le/doc/wiring/docverify_test.go` | AC-9 | passing over all three generated files, and its red phase was FORCED: with the ledger block removed from `rfcFreshnessStage`, all three subtests fail |
+| `TestEveryGeneratedCountCarriesItsDenominator` | `internal/le/rfc/render_ledger_test.go` | AC-11 | passing. In `render_ledger_test.go`, beside the renderer it judges |
+| `TestGapCountPopulationSurvivesTheMove` | `internal/le/rfc/render_ledger_test.go` | AC-12, R-7 | passing at 57 of 159 rows, not the 56 the spec predicted. The extra row is RFC 1994, whose Remaining cell the authored page's own parser discarded |
+| `TestGeneratedEnrolmentMatchesTheAuthoredFiles` | `internal/le/rfc/render_ledger_test.go` | AC-5, R-4 | passing. Not planned. Compares the generated enrolment against HEAD's two authored files, stem for stem and reason for reason |
+| `TestSourceRestrictedExcusesASupportClaimAndDebtDoesNot` | `internal/le/rfc/check_test.go` | the `source-restricted` disposition | passing. Not planned: the disposition did not exist when the spec was written |
+| `TestSourceRestrictedReasonMustNameWhatStopsTheCopy` | `internal/le/rfc/check_test.go` | the `source-restricted` reason discipline | passing. Not planned, same reason |
+| `TestTheMetaScanStopsAtItsOwnTable` | `internal/le/rfc/summary_test.go` | the scan bound | passing. Not planned: written after `rfc/short/rfc8277.md` was refused for a duplicate that was not one |
 
 ### Boundary Tests (numeric inputs)
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestGapCountAgreementAcrossZeroOneAndMany` | `internal/le/rfc/check_test.go` | AC-10 at 0, 1 and n gaps | |
+| `TestGapCountAgreementAcrossZeroOneAndMany` | `internal/le/rfc/check_test.go` | AC-10 at 0, 1 and n gaps | passing. Seven cases: no spelled number, zero, one agreeing, one disagreeing, twenty-one agreeing, twenty-one off by one, and a digit count the reader deliberately does not judge |
 
 ### Functional Tests
 
@@ -375,6 +382,25 @@ Not applicable: no wire-visible change.
    byte-for-byte against the authored files, then delete them in the same commit.
 8. Edit the site's literal path citations and the documentation pages named
    above, in this same work.
+
+## Goal Validation
+
+One row per goal the Task section states, with evidence rather than an assertion
+that the work was done.
+
+| Goal | Evidence |
+|------|----------|
+| Each fact about an RFC is declared once | `rfc/enrolled.txt`, `rfc/not-enrolled.txt` and `docs/features/rfc-status.md` have no reader. `parseEnrolled`, `loadEnrolled`, `parseDispositions`, `loadDispositions`, `parseStatusLedger` and `loadStatusLedger` are deleted, and `summaryMetas` is the one parse every consumer takes its answer from. `go vet` over the package is the check: a second reader would have to call a function that no longer exists |
+| Every other surface derives from that declaration | `LedgerFiles` is the one producer of all three files, `IndexUpdate` writes them, and `rfcFreshnessStage` compares against the same function. `TestHandEditedStatusPageReportsStale` proves a hand edit to any of the three is reported, so a divergence cannot sit unnoticed |
+| The migration changes no enrolment and no public claim | Proven AT the migration commit and self-retiring after it, which is what a one-shot proof should do. `TestGeneratedEnrolmentMatchesTheAuthoredFiles` and `TestGeneratedStatusRowsMatchTheAuthoredPage` compare the render against HEAD's AUTHORED files, so both skip once HEAD carries the generated ones -- which is true from `199b684f6` onward. The results they recorded while they could run: `rfc/enrolled.txt` regenerated with a ZERO diff over 181 rows, `rfc/not-enrolled.txt` kept its nine rows and gained nine, and the public page kept all 159 rows with no loss and no gain, four cells differing for reasons named individually in `migrationExempt`. What survives as a LIVE test is the invariant rather than the migration: `TestOneSummaryRendersExactlyOneStatusRow` and `TestAPublicRowCannotBeDeletedWhileItsRFCStaysEnrolled` |
+| Three classes of defect become unrepresentable rather than refused | A summary in neither disposition file does not parse (`readEnrolment`); a stem in both cannot be written, because one field holds one value; a disposition naming a summary that does not exist dies with the file that carried it. `TestSurvivingDispositionRefusalsStillFire` proves the eight refusals that are NOT about agreement all still fire |
+| The change does not disarm the gate it edits | `TestRatchetsFireWhenEnrolmentMovesToMeta` builds a fixture whose HEAD carries the retired file shape and whose tree carries the Meta shape, and asserts a coverage regression is still reported. Its red phase was forced by breaking `baselineMetasBeforeMigration` |
+| The public page is no less honest than before | It is MORE honest, and by a measurable amount. Eight public rows named an RFC with no summary and were therefore outside every check in the package; all eight now have one. RFC 1994's Remaining cell rejoins `checkGapCountAgreement`, whose population is 57 of 159 rather than 56. `./le rfc check` reports zero violations against any of the nine summaries this spec added |
+
+Two goals are NOT validated here, and neither is silently dropped. The site's
+published prose is handed to the session that owns those files, with a row in the
+deferral shard. `TestSupportedRowsHaveDerivableScope` stays red on a number this
+spec did not move.
 
 ## Design Insights
 

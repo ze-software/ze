@@ -23,10 +23,13 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// The four dispositions a summary can declare for itself. `enrolmentEnrolled`
-// gates that RFC's MUST-level requirements; the other three are the recorded
-// reason it is not gated, and only `dispositionNonNormative` claims anything
-// about conformance.
+// enrolmentEnrolled gates that RFC's MUST-level requirements. Every other
+// member of enrolmentKinds is the recorded reason it is not gated.
+//
+// Two of those make a claim about the DOCUMENT and therefore excuse a public
+// support claim: `non-normative` about what it obliges, `source-restricted`
+// about whether its text can be held here at all. One is a SCOPE decision,
+// `out-of-scope`. The remaining two are debt.
 const enrolmentEnrolled = "enrolled"
 
 // enrolmentKinds is the closed set, and the ONE declaration of it. The four
@@ -135,11 +138,20 @@ func metaSection(text, where string) (string, error) {
 	var block textbuf.Buffer
 	started := false
 	for line := range strings.SplitSeq(text[head[1]:], "\n") {
-		if !strings.HasPrefix(strings.TrimSpace(line), "|") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "|") {
 			if started {
 				break
 			}
-			continue
+			// Only blank lines separate the heading from its own table. Any
+			// other prose means the Meta table is absent and the next table
+			// belongs to a later section, so this stops rather than
+			// adopting it: reading a wire-format or AFI/SAFI table as the
+			// Meta table is how a summary silently declares nothing.
+			if trimmed == "" {
+				continue
+			}
+			break
 		}
 		started = true
 		block.Str(line).Byte('\n')
@@ -178,6 +190,15 @@ func metaRows(text, where string) ([]metaRow, error) {
 				Str("and nothing decides between them"))
 		}
 		seen[label] = true
+		if len(cells) > 2 {
+			var tb textbuf.Buffer
+			return nil, parseErr(tb.Str(where).Str(": Meta field `").Str(label).
+				Str("` holds an unescaped `|`, so its value would be truncated at ").
+				Str(pyRepr(truncateRunes(cells[1], 40))).
+				Str(" and the rest dropped in silence. Write it as `\\|`. This is the defect ").
+				Str("the authored public page carried: one coverage cell wrote `MD5(id||secret)` ").
+				Str("and the page's own parser discarded that row's whole remainder"))
+		}
 		rows = append(rows, metaRow{Label: label, Value: cells[1]})
 	}
 	return rows, nil
@@ -460,14 +481,23 @@ func RowName(stem string, meta Meta) string {
 // the LAST reference of a chain written oldest first, because that is the
 // document stating these obligations today.
 func successorFrom(values map[string]string, stem, where string) (string, error) {
+	// Sorted, and REFUSING a second forward label rather than taking whichever
+	// the map walk reached first. `Obsoleted by` and `Obsoleted by (in part)`
+	// are both spellings knownObsolescenceLabel accepts, so a summary carrying
+	// both would name a different successor on different runs.
 	value := ""
 	held := false
-	for label, cell := range values {
+	for _, label := range sortedKeysOf(values) {
 		if !strings.HasPrefix(strings.ToLower(label), "obsoleted") {
 			continue
 		}
-		value, held = cell, true
-		break
+		if held {
+			var tb textbuf.Buffer
+			return "", parseErr(tb.Str(where).
+				Str(": two Meta fields name the forward lineage, and nothing decides between ").
+				Str("them. Write one `Obsoleted by` row, with the chain oldest first"))
+		}
+		value, held = cell(values, label), true
 	}
 	if !held || noSuccessorValue(value) {
 		return "", nil
@@ -504,28 +534,37 @@ func sortMetaStems(in map[string]Meta) []string {
 // The ONE reader. Enrolment, the disposition, the public row, the title and the
 // forward lineage all come out of this map, so no two consumers can read the
 // same table and disagree about what it says.
-func summaryMetas(tree string, stems map[string]bool) (map[string]Meta, error) {
+func summaryMetas(tree string, stems map[string]bool) (map[string]Meta, map[string]string, error) {
 	if stems == nil {
 		var err error
 		if stems, err = summaryStems(tree); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	out := make(map[string]Meta, len(stems))
+	problems := map[string]string{}
 	for _, stem := range sortedSet(stems) {
 		var name textbuf.Buffer
 		rel := name.Str(summaryRel).Byte('/').Str(stem).Str(".md").String()
 		text, err := readFile(treePath(tree, rel), rel)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		meta, err := ParseMeta(text, stem, rel)
 		if err != nil {
-			return nil, err
+			// COLLECTED, not returned. Several sessions share this checkout,
+			// so one summary somebody is midway through editing would
+			// otherwise stop `./le rfc check` and `./le rfc index-update` for
+			// everybody, and a gate nobody can run enforces nothing. The stem
+			// is absent from the map, which takes it out of the gated
+			// population -- but LOUDLY, because its error travels with the
+			// other parse errors and every driver prints them.
+			problems[stem] = err.Error()
+			continue
 		}
 		out[stem] = meta
 	}
-	return out, nil
+	return out, problems, nil
 }
 
 // enrolledFrom answers the gated set.
@@ -609,3 +648,7 @@ func successorsFrom(metas map[string]Meta) map[string]string {
 	}
 	return out
 }
+
+// cell answers one Meta value, so successorFrom reads the map in sorted order
+// without indexing it inline twice.
+func cell(values map[string]string, label string) string { return values[label] }

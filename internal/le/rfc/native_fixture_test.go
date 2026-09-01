@@ -134,7 +134,34 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// verdict moved: the carrier table is byte-identical in Name, Kind, Tier,
 	// Prefix and Suffix, the two literals replaced spelled the same words, and
 	// the rank has no reader inside this package.
-	const want = "c946fe0f5406b5b4b7c09e19006ec41b821d13ebba53d1977382fba5a756e205"
+	// Re-sealed 2026-09-01 for the published disposition vocabulary and for
+	// three exported functions with no production caller. `dispositionKinds`
+	// states what each un-enrolled kind MEANS, beside `exclusionKinds` and for
+	// the same reason: a page printing `source-restricted` and stopping has
+	// told a reader nothing, and the sixth kind, `out-of-scope`, landed the
+	// same day. `DispositionKinds` and `DispositionKindMeaning` publish it.
+	// `CarrierKinds`, `CarrierTiers` and `ExclusionGroups` are gone: each was
+	// called by tests alone, which `./le doc wiring` refuses, and each test now
+	// reads the vocabulary it was wrapping. No verdict moved and no behavior
+	// with it -- the kinds, their order and their groups are unchanged, and
+	// nothing in this package read the three deleted wrappers.
+	// Re-sealed 2026-09-01 for the findings of an independent review of the
+	// ledger migration, and one of them was a real hole rather than a polish.
+	// `checkPublicRowMonotonic` restores the guard `checkStatusCompleteness`
+	// carried: a public row that DISAPPEARS while its RFC stays enrolled is a
+	// representable state, not an unrepresentable one, and the commit message
+	// that retired the check claimed `checkRetiredRequirements` covered it when
+	// that ratchet reads requirement ids and never a `Support` cell. With it,
+	// `out-of-scope` must declare the extraction its premise rests on,
+	// `source-restricted` may not be written over a source text that is in the
+	// tree, an unescaped pipe in a Meta value is refused rather than truncating
+	// it, the generated remainder counts every kind the parser accepts rather
+	// than a hand-written five, and `summaryMetas` COLLECTS its parse errors so
+	// one summary mid-edit no longer stops the gate for every session sharing
+	// this checkout. No audit verdict moved: the audit schema, its freshness and
+	// its ratchets are untouched, and what changed is which trees the gate
+	// refuses.
+	const want = "ce86633f3e1e2a24b7ab4f513ecd0d87545ef6c54793d37ca6aa29117d10f372"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list RFC sources: %v", err)

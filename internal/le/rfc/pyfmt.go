@@ -358,3 +358,13 @@ func pyIsSpace(r rune) bool { return unicode.IsSpace(r) || (r >= 0x1c && r <= 0x
 
 // pyLStrip is Python's str.lstrip() with no argument.
 func pyLStrip(s string) string { return strings.TrimLeftFunc(s, pyIsSpace) }
+
+// sortedValuesOf answers a map's values in key order, so a message built from
+// one names them the same way on every run.
+func sortedValuesOf(in map[string]string) []string {
+	out := make([]string, 0, len(in))
+	for _, key := range sortedKeysOf(in) {
+		out = append(out, in[key])
+	}
+	return out
+}

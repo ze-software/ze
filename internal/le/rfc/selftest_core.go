@@ -220,9 +220,9 @@ func runStatusSelftest() ([]leroot.SelftestResult, error) {
 		map[string]LedgerRow{selftestStem: {Status: "Supported", Coverage: "complete"}},
 		map[string]bool{selftestStem: true},
 	)
-	judged := checkSummaryDisposition(map[string]Meta{"rfc8888": {
+	judged := checkSummaryDisposition("", map[string]Meta{"rfc8888": {
 		Enrolment: dispositionNonNormative, EnrolmentReason: "ze does not implement it",
-	}})
+	}}, nil)
 	counted := checkGapCountAgreement([]Requirement{gap},
 		map[string]LedgerRow{selftestStem: {Remaining: "Two MUSTs remain"}})
 
@@ -304,7 +304,7 @@ var Gating = []string{suiteParse, suiteUI}
 	claimed := checkOutOfScope("rfc/short/rfc9999.md: ", Meta{
 		Enrolment: dispositionOutOfScope, EnrolmentReason: "declined 2026-09-01 by the owner",
 		Support: "bgp-base", Status: "Partial",
-	})
+	}, 1)
 	emptyEnrolment := checkEnrolment(root, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{})
 
 	return []leroot.SelftestResult{

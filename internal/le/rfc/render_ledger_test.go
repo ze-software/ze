@@ -15,9 +15,12 @@ func ledgerFixture(t *testing.T) (map[string]string, map[string]Meta, string) {
 	if err != nil {
 		t.Fatalf("resolve checkout: %v", err)
 	}
-	metas, err := summaryMetas(root, nil)
+	metas, metaProblems, err := summaryMetas(root, nil)
 	if err != nil {
 		t.Fatalf("read the summaries: %v", err)
+	}
+	if len(metaProblems) > 0 {
+		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
 	}
 	files, err := LedgerFiles(metas)
 	if err != nil {

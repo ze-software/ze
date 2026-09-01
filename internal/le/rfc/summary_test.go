@@ -329,9 +329,12 @@ func TestEverySummaryCarriesATitleRow(t *testing.T) {
 	if len(stems) == 0 {
 		t.Fatal("this checkout carries no summary, so this proves nothing")
 	}
-	metas, err := summaryMetas(root, stems)
+	metas, metaProblems, err := summaryMetas(root, stems)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(metaProblems) > 0 {
+		t.Fatalf("the corpus holds %d unparsable Meta table(s): %v", len(metaProblems), metaProblems)
 	}
 	titles := titlesFrom(metas)
 	var missing []string
@@ -343,5 +346,35 @@ func TestEverySummaryCarriesATitleRow(t *testing.T) {
 	if len(missing) != 0 {
 		t.Errorf("%d summary/summaries declare no Meta | Title | row: %s",
 			len(missing), strings.Join(missing, ", "))
+	}
+}
+
+// VALIDATES: an unescaped pipe inside a Meta value is REFUSED rather than
+// truncating the value.
+// PREVENTS: the RFC 1994 defect one level up. The authored public page wrote
+// `MD5(id||secret||challenge)` in a coverage cell, so its own parser cut that
+// row into nine cells, truncated the coverage and discarded the remainder
+// entirely. A Meta table that read the same shape the same way would reproduce
+// the loss on the surface that now feeds the page, and the freshness check
+// would call the result fresh, because it compares generation with generation.
+func TestAnUnescapedPipeInAMetaValueIsRefused(t *testing.T) {
+	const head = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
+		"| Enrolment | enrolled |\n| Enrolment reason | gated |\n| Support | - |\n"
+
+	_, err := ParseMeta(head+"| Title | MD5(id|secret) |\n", "rfc9999", "rfc/short/rfc9999.md")
+	if err == nil {
+		t.Fatal("an unescaped pipe was accepted, so the value was truncated in silence")
+	}
+	if !strings.Contains(err.Error(), "unescaped") {
+		t.Errorf("the refusal does not name the cause:\n%s", err)
+	}
+
+	// Escaped, it survives whole, which is what lets the row round-trip.
+	meta, err := ParseMeta(head+`| Title | MD5(id\|secret) |`+"\n", "rfc9999", "rfc/short/rfc9999.md")
+	if err != nil {
+		t.Fatalf("an escaped pipe was refused: %v", err)
+	}
+	if meta.Title != `MD5(id\|secret)` {
+		t.Errorf("the escaped value came back as %q", meta.Title)
 	}
 }

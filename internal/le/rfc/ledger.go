@@ -23,11 +23,13 @@ import (
 	"unicode/utf8"
 )
 
-// The four kinds a summary can declare itself under when it is not enrolled.
+// The five kinds a summary can declare itself under when it is not enrolled.
+//
 // Two are claims about the DOCUMENT -- dispositionNonNormative about what it
 // obliges, dispositionSourceRestricted about whether its text can be held here
-// at all -- and the other two are debt, which the rendered backlog says out
-// loud.
+// at all -- and both excuse a public support claim, so both have a reason a
+// reviewer can check. One is a SCOPE decision, dispositionOutOfScope. The
+// remaining two are debt, which the rendered backlog says out loud.
 const (
 	dispositionNonNormative = "non-normative"
 	dispositionBacklog      = "backlog"

@@ -173,10 +173,18 @@ func renderNotEnrolled(metas map[string]Meta) string {
 	tb.Str("#\n")
 	tb.Str("# columns: <rfc-stem>\\t<kind>\\t<why>\n")
 	tb.Str("#\n")
-	tb.Str("# KINDS -- a closed set. Only the first is a claim about conformance.\n")
+	tb.Str("# KINDS -- a closed set. The first two make a claim about the DOCUMENT and are the\n")
+	tb.Str("# only two that excuse a public support claim; the third is a scope decision; the\n")
+	tb.Str("# last two are debt.\n")
 	tb.Str("#\n")
-	for _, kind := range []string{dispositionNonNormative, dispositionSourceRestricted,
-		dispositionOutOfScope, dispositionBacklog, dispositionBlocked} {
+	// Derived from the closed set rather than listed here. A sixth kind added
+	// to enrolmentKinds and forgotten in a hand-written list would take rows in
+	// this file and no count line, which is the shape this whole change exists
+	// to remove.
+	for _, kind := range enrolmentKindNames() {
+		if kind == enrolmentEnrolled {
+			continue
+		}
 		tb.Str("#   ").Str(kind).Str(": ").Str(share(byKind[kind], len(stems), "summaries")).Byte('\n')
 	}
 	tb.Str("#\n")
@@ -235,7 +243,7 @@ func renderStatusPage(metas map[string]Meta) (string, error) {
 	tb.Str(generatedBanner("<!--", "./le rfc index-update")).Str(" -->\n\n")
 	tb.Str("# RFC Implementation Status\n\n")
 	tb.Str(statusPageIntro(len(metas)-rowed, len(metas)))
-	for index, section := range statusSections {
+	for _, section := range statusSections {
 		rows := placed[section.Key]
 		if len(rows) == 0 {
 			continue
@@ -259,11 +267,10 @@ func renderStatusPage(metas map[string]Meta) (string, error) {
 			}
 			tb.Str(" |\n")
 		}
-		_ = index
 	}
 	tb.Str("\n<!-- source: docs/features.md -- feature status vocabulary and draft-backed feature rows -->\n")
 	tb.Str("<!-- source: docs/features/bgp-protocol.md -- draft-backed BGP capability rows -->\n")
-	tb.Str("<!-- source: docs/guide/rpki.md -- ASPA draft verification behavior -->")
+	tb.Str("<!-- source: docs/guide/rpki.md -- ASPA draft verification behavior -->\n")
 	return tb.String(), nil
 }
 

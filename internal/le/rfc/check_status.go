@@ -49,8 +49,8 @@ func checkStatusAgreement(requirements []Requirement, rows map[string]LedgerRow,
 		}
 		var tb textbuf.Buffer
 		errs = append(errs, tb.Str(req.RID).Str(" is annotated {gap: ").Str(truncateRunes(req.Annotation.Reason, 50)).
-			Str("} but docs/features/rfc-status.md says ").Str(req.RFC).Str(" is '").Str(row.Status).
-			Str("' with '").Str(truncateRunes(row.Remaining, 40)).Str("'. A known unmet MUST cannot be advertised as clean support -- update the row's Status/Remaining").String())
+			Str("} but its public row says ").Str(req.RFC).Str(" is '").Str(row.Status).
+			Str("' with '").Str(truncateRunes(row.Remaining, 40)).Str("'. A known unmet MUST cannot be advertised as clean support -- correct `Support status` or `Support remaining` in the summary's own Meta table, then run ./le rfc index-update. A hand edit to docs/features/rfc-status.md is destroyed by the next run").String())
 	}
 	return errs
 }
@@ -87,18 +87,19 @@ func nonNormativeReasonCitesDocument(reason string) bool {
 // retires a check without weakening anything.
 //
 // What survives states a property of ONE document, and moves unchanged.
-func checkSummaryDisposition(metas map[string]Meta) []string {
+func checkSummaryDisposition(tree string, metas map[string]Meta, requirements []Requirement) []string {
+	gated := gatedCounts(requirements)
 	var errs []string
 	for _, stem := range sortMetaStems(metas) {
 		meta := metas[stem]
 		var where textbuf.Buffer
 		at := where.Str(summaryRel).Byte('/').Str(stem).Str(".md: ").String()
 		if meta.Enrolment == dispositionSourceRestricted {
-			errs = append(errs, checkSourceRestricted(at, meta.EnrolmentReason)...)
+			errs = append(errs, checkSourceRestricted(at, meta.EnrolmentReason, stem, tree)...)
 			continue
 		}
 		if meta.Enrolment == dispositionOutOfScope {
-			errs = append(errs, checkOutOfScope(at, meta)...)
+			errs = append(errs, checkOutOfScope(at, meta, gated[stem])...)
 			continue
 		}
 		if meta.Enrolment != dispositionNonNormative {
@@ -235,8 +236,8 @@ func checkGapCountAgreement(requirements []Requirement, rows map[string]LedgerRo
 			continue
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str("docs/features/rfc-status.md says ").Str(stem).Str(" has ").Int(int64(claimed)).
-			Str(" MUST-level gap(s), but rfc/short/").Str(stem).Str(".md carries ").Int(int64(gaps[stem])).
+		errs = append(errs, tb.Str("rfc/short/").Str(stem).Str(".md says in its `Support remaining` cell that it has ").Int(int64(claimed)).
+			Str(" MUST-level gap(s), and its own checklist carries ").Int(int64(gaps[stem])).
 			Str(" {gap} annotation(s). One of the two is wrong. Only a spelled number sitting immediately before MUST or SHALL is read as a gap count; a digit count, or a number further from the keyword, is outside this check").String())
 	}
 	return errs
@@ -328,7 +329,16 @@ var restrictedReasonRE = regexp.MustCompile(`(?i)\bISO\b|\bIEC\b|\bITU\b|\bIEEE\
 // Whether Ze must comply is a conformance judgement ai/rules/rfc-compliance.md
 // reserves to the owner, and a reason phrased that way would launder an
 // unextracted obligation into a decision.
-func checkSourceRestricted(at, reason string) []string {
+func checkSourceRestricted(at, reason, stem, tree string) []string {
+	if _, held := sourceKeywordCount(tree, stem); held {
+		var tb textbuf.Buffer
+		return []string{tb.Str(at).
+			Str("is declared source-restricted, which says the standard's own text may not be ").
+			Str("redistributed, but that text IS in this repository. The disposition excuses a ").
+			Str("public support claim, so it may not be written over a source a reviewer can ").
+			Str("open: extract the obligations, or record 'blocked' if something else stops the ").
+			Str("enrolment").String()}
+	}
 	if nonApplicabilityRE.MatchString(reason) {
 		var tb textbuf.Buffer
 		return []string{tb.Str(at).
@@ -365,8 +375,17 @@ var scopeDecisionRE = regexp.MustCompile(`\b20\d{2}-\d{2}-\d{2}\b`)
 // The second is an undateable reason. Scope decisions are revisited; a gap
 // recorded as out-of-scope in 2026 and never dated reads in 2030 as a decision
 // somebody still stands behind.
-func checkOutOfScope(at string, meta Meta) []string {
+func checkOutOfScope(at string, meta Meta, gated int) []string {
 	var errs []string
+	if gated == 0 {
+		var tb textbuf.Buffer
+		errs = append(errs, tb.Str(at).Str("is declared out-of-scope over a checklist declaring ").
+			Str("NO MUST-level requirement. This disposition's whole premise is that the extraction ").
+			Str("is DONE and only the feature was declined, so an empty checklist under it records ").
+			Str("nothing and bills nobody -- checkNewSummaries asks an out-of-scope summary for no ").
+			Str("enrolment, which is right only where the obligations are written down. Extract the ").
+			Str("RFC first (/ze-rfc), or record 'backlog', which says the extraction is owed").String())
+	}
 	if statusIsSupportClaim(meta.Status) && meta.HasRow() {
 		status := strings.TrimSpace(meta.Status)
 		if status == "" {
@@ -385,6 +404,57 @@ func checkOutOfScope(at string, meta Meta) []string {
 			Str(". This is the one disposition whose truth rests on a decision rather than on the ").
 			Str("document, so the reason must say when it was taken (YYYY-MM-DD) and by whom. A ").
 			Str("scope decision nobody can age reads forever as one somebody still stands behind").String())
+	}
+	return errs
+}
+
+// checkPublicRowMonotonic refuses a public row that DISAPPEARS while its RFC
+// stays gated, and a newly gated RFC that arrives with none.
+//
+// This is checkStatusCompleteness under a new name and over a new source, and
+// the rename is the whole lesson. The migration retired four refusals that
+// compared two copies of one fact, and this one LOOKED like a fifth: a row is a
+// summary's `Support` declaration now, so "the row is missing" and "the summary
+// says there is no row" are the same sentence. They are not the same CHECK.
+// Deleting a row is still one cell's edit, `Meta.HasRow` still goes false, the
+// stem still leaves rowsFrom, and every ledger check downstream still stops
+// seeing it -- including the one refusing an unsigned support claim, which is
+// exactly the refusal an author under pressure would want to silence.
+//
+// checkRetiredRequirements does not cover it. That ratchet compares requirement
+// IDS between HEAD and the tree and never reads a Support cell, so a summary
+// keeping every id while dropping its public row passes it untouched. Claiming
+// otherwise was wrong, and an independent review caught the claim before the
+// hole it described was reachable by accident.
+//
+// The baseline costs nothing: check() already holds HEAD's metas for the
+// ratchets, so the comparison is rowsFrom over a map it read anyway.
+func checkPublicRowMonotonic(metas, baseMetas map[string]Meta, baselineKnown bool,
+	newly map[string]bool) []string {
+	var errs []string
+	for _, stem := range sortedSet(newly) {
+		if metas[stem].HasRow() {
+			continue
+		}
+		var tb textbuf.Buffer
+		errs = append(errs, tb.Str(summaryRel).Byte('/').Str(stem).
+			Str(".md is newly enrolled and declares `| Support | - |`, so it renders no row on ").
+			Str(statusRel).
+			Str(". Enrolling gates its MUST-level requirements, so the public ledger must disclose the RFC: name a section and write its Area, Status, Implemented coverage and Remaining cells. RFCs enrolled before this ratchet existed are grandfathered and unaffected").String())
+	}
+	if !baselineKnown {
+		return errs
+	}
+	for _, stem := range sortMetaStems(metas) {
+		meta := metas[stem]
+		base, held := baseMetas[stem]
+		if !held || !meta.Enrolled() || !base.Enrolled() || !base.HasRow() || meta.HasRow() {
+			continue
+		}
+		var tb textbuf.Buffer
+		errs = append(errs, tb.Str(summaryRel).Byte('/').Str(stem).
+			Str(".md rendered a row on ").Str(statusRel).
+			Str(" at HEAD and declares `| Support | - |` now, while the RFC stays enrolled. Deleting the row retires a public claim without retiring the obligation behind it, and it takes the stem out of every check that reads the public page -- the unproven-support guard and the extraction sign-off guard among them. Restore the section, or correct the row's cells in place").String())
 	}
 	return errs
 }
