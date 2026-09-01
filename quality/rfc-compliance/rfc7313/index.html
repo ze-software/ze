@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 7313 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 7313: Enhanced Route Refresh Capability for BGP-4. 10 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 7313 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 7313: Enhanced Route Refresh Capability for BGP-4. 10 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 7313 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 7313: Enhanced Route Refresh Capability for BGP-4. 10 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc7313/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc7313/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 7313 - Enhanced Route Refresh Capability for BGP-4</h1>
+    <p>Every requirement this repository extracted from RFC 7313, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>30.0%</strong><b>3 of 10 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>30.0%</strong><b>3 of 10 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 23 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>10</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 10 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>40.0%</strong><b>4 of 10 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 10 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>16</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>10</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>10</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>4</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>23</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>23</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc7313.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc7313.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc7313.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Enhanced Route Refresh Capability for BGP-4: ten MUST-level requirements. Six are met in internal/component/bgp: 4-3 (the ROUTE-REFRESH Message Subtype selects normal/BoRR/EoRR handling), 5-1 (an invalid-length ROUTE-REFRESH is a NOTIFICATION Route-Refresh Error), and 5-3 (an unknown Message Subtype is ignored and the session stays Established) carry positive+negative tags; 4-1 (send a BoRR before re-advertising), 4-2 (send an EoRR after re-advertising), and 5-2 (the NOTIFICATION data carries the complete ROUTE-REFRESH message) are {single-polarity: positive}. Four are {gap}: 4-4 and 4-5 (a received BoRR/EoRR is log-only, so ze marks no Adj-RIB-In routes stale and purges none) and 4-6 and 4-7 (no Graceful-Restart End-of-RIB gate on BoRR emission or acceptance). Disclosed in the docs/features/rfc-status.md RFC 7313 row.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<p><strong>What the ledger says is covered:</strong></p>
+BoRR and EoRR support, capability checks, bounded route resend.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Four MUST-level receive-side gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc7313.md" target="_blank" rel="noopener"><code>rfc/short/rfc7313.md</code></a>: <a href="#rfc7313-4-4"><code>RFC7313-4-4</code></a>/4-5 -- a received BoRR/EoRR is log-only (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/rib.go</code></a>), so ze marks no Adj-RIB-In routes stale and purges none; and <a href="#rfc7313-4-6"><code>RFC7313-4-6</code></a>/4-7 -- neither the send nor receive path applies a Graceful-Restart End-of-RIB gate to BoRR emission or acceptance.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>3</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>7</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>10</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc7313-4-3"><code>RFC7313-4-3</code></a>, <a href="#rfc7313-5-1"><code>RFC7313-5-1</code></a>, <a href="#rfc7313-5-3"><code>RFC7313-5-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (7):</strong> <a href="#rfc7313-4-1"><code>RFC7313-4-1</code></a>, <a href="#rfc7313-4-2"><code>RFC7313-4-2</code></a>, <a href="#rfc7313-4-4"><code>RFC7313-4-4</code></a>, <a href="#rfc7313-4-5"><code>RFC7313-4-5</code></a>, <a href="#rfc7313-5-2"><code>RFC7313-5-2</code></a>, <a href="#rfc7313-4-6"><code>RFC7313-4-6</code></a>, <a href="#rfc7313-4-7"><code>RFC7313-4-7</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-1">RFC7313-4-1</code></td><td colspan="3"><span class="rfc-subject">Before starting a route refresh (locally initiated or in response to a normal route refresh request), the speaker MUST send a BoRR message (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go#L25" title="internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go" target="_blank" rel="noopener"><code>TestDispatchBGPPeerBoRR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_test.go#L59" title="internal/component/bgp/plugins/rib/rfc7313_test.go" target="_blank" rel="noopener"><code>TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L139" title="internal/component/bgp/message/routerefresh_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshSubtypes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze dispatches the BoRR before sendRoutes in one straight-line path (internal/component/bgp/plugins/rib/rib.go:1013-1014); there is no re-advertise-without-BoRR code path to drive a negative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-2">RFC7313-4-2</code></td><td colspan="3"><span class="rfc-subject">After completing the re-advertisement of the entire Adj-RIB-Out to the peer, the speaker MUST send an EoRR message (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go#L43" title="internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go" target="_blank" rel="noopener"><code>TestDispatchBGPPeerEoRR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_test.go#L61" title="internal/component/bgp/plugins/rib/rfc7313_test.go" target="_blank" rel="noopener"><code>TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L142" title="internal/component/bgp/message/routerefresh_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshSubtypes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze dispatches the EoRR after sendRoutes in one straight-line path (internal/component/bgp/plugins/rib/rib.go:1014-1015); there is no re-advertise-without-EoRR code path to drive a negative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-3">RFC7313-4-3</code></td><td colspan="3"><span class="rfc-subject">In processing a ROUTE-REFRESH message, the BGP speaker MUST examine the &#34;message subtype&#34; field and take appropriate actions (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2494" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2527" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshEoRR</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2562" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L410" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefresh_UnknownSubtype</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-4">RFC7313-4-4</code></td><td colspan="3"><span class="rfc-subject">When a BGP speaker receives a BoRR, it MUST mark all routes with that &lt;AFI, SAFI&gt; from that peer as stale (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze logs a received BoRR but does not mark the peer&#39;s Adj-RIB-In routes stale -- internal/component/bgp/plugins/rib/rib.go:751-753 handles a received BoRR as log-only and rib_structured.go:506 returns early for a non-zero subtype, so no stale-marking occurs</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-5">RFC7313-4-5</code></td><td colspan="3"><span class="rfc-subject">When a BGP speaker receives an EoRR, it MUST immediately remove any routes still marked as stale for that &lt;AFI, SAFI&gt; (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze logs a received EoRR but performs no stale-route removal -- internal/component/bgp/plugins/rib/rib.go:754-756 handles it as log-only, and because no BoRR stale-marking exists (RFC7313-4-4) there is nothing to purge</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-5-1">RFC7313-5-1</code></td><td colspan="3"><span class="rfc-subject">If the length (excluding fixed header) of a BoRR/EoRR message is not 4, send NOTIFICATION with Error Code 7, subcode 1 (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Error Handling</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L204" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthByMessageSubtype</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2345" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L208" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthByMessageSubtype</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L117" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthWithoutCapability70</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L268" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2423" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshValidLengthDelivered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L172" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-5-2">RFC7313-5-2</code></td><td colspan="3"><span class="rfc-subject">The Data field of the NOTIFICATION message MUST contain the complete ROUTE-REFRESH message (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Error Handling</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L206" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthByMessageSubtype</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2348" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> routeRefreshNotificationData (internal/component/bgp/reactor/session_handlers.go) always copies the entire received body after the header, so every ROUTE-REFRESH NOTIFICATION carries the complete message; there is no truncating code path to drive a negative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-5-3">RFC7313-5-3</code></td><td colspan="3"><span class="rfc-subject">When receiving a ROUTE-REFRESH with subtype other than 0, 1, or 2, the speaker MUST ignore the message (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Error Handling</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2593" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshReserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2560" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L266" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2497" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-6">RFC7313-4-6</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker supporting Graceful Restart MUST NOT send a BoRR for an &lt;AFI, SAFI&gt; before sending the EoR for that &lt;AFI, SAFI&gt; (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s sendRouteRefresh (internal/component/bgp/reactor/reactor_api_forward.go:112) applies no Graceful-Restart End-of-RIB gate, and rib.go:1008-1013 emits the BoRR without checking End-of-RIB state, so the GR/EoR interaction is not enforced</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-7">RFC7313-4-7</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that has received Graceful Restart Capability MUST ignore any BoRRs for an &lt;AFI, SAFI&gt; before receiving the EoR for that &lt;AFI, SAFI&gt; from the neighbor (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the received-BoRR path is log-only (internal/component/bgp/plugins/rib/rib.go:751-753) with no Graceful-Restart End-of-RIB gating, and it depends on the unimplemented stale-marking of RFC7313-4-4</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-8">RFC7313-4-8</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker supporting message subtypes and related procedures SHOULD advertise the Enhanced Route Refresh Capability (§4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-5-4">RFC7313-5-4</code></td><td colspan="3"><span class="rfc-subject">When receiving unknown subtype, the speaker SHOULD log an error for further analysis (§5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5 - Error Handling</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-9">RFC7313-4-9</code></td><td colspan="3"><span class="rfc-subject">When ignoring BoRR before EoR (Graceful Restart), the speaker SHOULD log an error of the condition (§4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-10">RFC7313-4-10</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MAY ignore any EoRR received without a prior receipt of an associated BoRR (§4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-11">RFC7313-4-11</code></td><td colspan="3"><span class="rfc-subject">Purged stale routes MAY be logged for future analysis (§4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7313-4-12">RFC7313-4-12</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY impose a locally configurable upper bound on how long it retains stale routes (§4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7313-4-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc7313-4-4"><code>RFC7313-4-4</code></a> When a BGP speaker receives a BoRR, it MUST mark all routes with that &lt;AFI, SAFI&gt; from that peer as stale (§4)</td>
+<td>{gap}, no test</td>
+<td>ze logs a received BoRR but does not mark the peer&#39;s Adj-RIB-In routes stale -- internal/component/bgp/plugins/rib/rib.go:751-753 handles a received BoRR as log-only and rib_structured.go:506 returns early for a non-zero subtype, so no stale-marking occurs</td>
+</tr>
+<tr><td><a href="#rfc7313-4-5"><code>RFC7313-4-5</code></a> When a BGP speaker receives an EoRR, it MUST immediately remove any routes still marked as stale for that &lt;AFI, SAFI&gt; (§4)</td>
+<td>{gap}, no test</td>
+<td>ze logs a received EoRR but performs no stale-route removal -- internal/component/bgp/plugins/rib/rib.go:754-756 handles it as log-only, and because no BoRR stale-marking exists (RFC7313-4-4) there is nothing to purge</td>
+</tr>
+<tr><td><a href="#rfc7313-4-6"><code>RFC7313-4-6</code></a> A BGP speaker supporting Graceful Restart MUST NOT send a BoRR for an &lt;AFI, SAFI&gt; before sending the EoR for that &lt;AFI, SAFI&gt; (§4)</td>
+<td>{gap}, no test</td>
+<td>ze&#39;s sendRouteRefresh (internal/component/bgp/reactor/reactor_api_forward.go:112) applies no Graceful-Restart End-of-RIB gate, and rib.go:1008-1013 emits the BoRR without checking End-of-RIB state, so the GR/EoR interaction is not enforced</td>
+</tr>
+<tr><td><a href="#rfc7313-4-7"><code>RFC7313-4-7</code></a> A BGP speaker that has received Graceful Restart Capability MUST ignore any BoRRs for an &lt;AFI, SAFI&gt; before receiving the EoR for that &lt;AFI, SAFI&gt; from the neighbor (§4)</td>
+<td>{gap}, no test</td>
+<td>the received-BoRR path is log-only (internal/component/bgp/plugins/rib/rib.go:751-753) with no Graceful-Restart End-of-RIB gating, and it depends on the unimplemented stale-marking of RFC7313-4-4</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc7313-4-1"><code>RFC7313-4-1</code></a></h3>
+<p>Before starting a route refresh (locally initiated or in response to a normal route refresh request), the speaker MUST send a BoRR message (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L139" title="internal/component/bgp/message/routerefresh_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshSubtypes</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_test.go#L59" title="internal/component/bgp/plugins/rib/rfc7313_test.go" target="_blank" rel="noopener"><code>TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go#L25" title="internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go" target="_blank" rel="noopener"><code>TestDispatchBGPPeerBoRR</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7313-4-2"><code>RFC7313-4-2</code></a></h3>
+<p>After completing the re-advertisement of the entire Adj-RIB-Out to the peer, the speaker MUST send an EoRR message (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/routerefresh_test.go#L142" title="internal/component/bgp/message/routerefresh_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshSubtypes</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7313_test.go#L61" title="internal/component/bgp/plugins/rib/rfc7313_test.go" target="_blank" rel="noopener"><code>TestRFC7313RefreshBracketsReadvertisementWithBoRRAndEoRR</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go#L43" title="internal/component/bgp/plugins/route_refresh/handler/dispatch_test.go" target="_blank" rel="noopener"><code>TestDispatchBGPPeerEoRR</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7313-4-3"><code>RFC7313-4-3</code></a></h3>
+<p>In processing a ROUTE-REFRESH message, the BGP speaker MUST examine the &#34;message subtype&#34; field and take appropriate actions (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_handlers_test.go#L410" title="internal/component/bgp/reactor/session_handlers_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefresh_UnknownSubtype</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2562" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2494" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2527" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshEoRR</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7313-4-4"><code>RFC7313-4-4</code></a></h3>
+<p>When a BGP speaker receives a BoRR, it MUST mark all routes with that &lt;AFI, SAFI&gt; from that peer as stale (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7313-4-4, so no unit is bound to it.</p>
+<h3><a href="#rfc7313-4-5"><code>RFC7313-4-5</code></a></h3>
+<p>When a BGP speaker receives an EoRR, it MUST immediately remove any routes still marked as stale for that &lt;AFI, SAFI&gt; (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7313-4-5, so no unit is bound to it.</p>
+<h3><a href="#rfc7313-5-1"><code>RFC7313-5-1</code></a></h3>
+<p>If the length (excluding fixed header) of a BoRR/EoRR message is not 4, send NOTIFICATION with Error Code 7, subcode 1 (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L208" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthByMessageSubtype</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L117" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthWithoutCapability70</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L268" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L172" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshWellFormedWithoutCapability70DrawsNoNotification</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2423" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshValidLengthDelivered</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L204" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthByMessageSubtype</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2345" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7313-5-2"><code>RFC7313-5-2</code></a></h3>
+<p>The Data field of the NOTIFICATION message MUST contain the complete ROUTE-REFRESH message (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L206" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshBadLengthByMessageSubtype</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2348" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshInvalidLengthNotDelivered</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7313-5-3"><code>RFC7313-5-3</code></a></h3>
+<p>When receiving a ROUTE-REFRESH with subtype other than 0, 1, or 2, the speaker MUST ignore the message (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2497" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshBoRR</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7313_error_scope_test.go#L266" title="internal/component/bgp/reactor/rfc7313_error_scope_test.go" target="_blank" rel="noopener"><code>TestRouteRefreshUnknownSubtypeIsIgnoredWhateverItsLength</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2593" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshReserved</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2560" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestHandleRouteRefreshUnknown</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7313-4-6"><code>RFC7313-4-6</code></a></h3>
+<p>A BGP speaker supporting Graceful Restart MUST NOT send a BoRR for an &lt;AFI, SAFI&gt; before sending the EoR for that &lt;AFI, SAFI&gt; (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7313-4-6, so no unit is bound to it.</p>
+<h3><a href="#rfc7313-4-7"><code>RFC7313-4-7</code></a></h3>
+<p>A BGP speaker that has received Graceful Restart Capability MUST ignore any BoRRs for an &lt;AFI, SAFI&gt; before receiving the EoR for that &lt;AFI, SAFI&gt; from the neighbor (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7313-4-7, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6 phase 5, rfc7313</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc7313.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>963962f4ec722372</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc7313.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>10</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>0</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates section 1 and states no obligation.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Indicative prose: why consistency validation is needed, what the document enhances, and that it updates RFC 2918 by redefining the ROUTE-REFRESH Reserved field. No sentence directs a speaker.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>Requirements Language</td>
+<td>0</td>
+<td>walked</td>
+<td>Requirements Language. The RFC 2119 key-words paragraph, which also states that the key words bind only when they appear in all upper case. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Protocol Extensions</td>
+<td>0</td>
+<td>walked</td>
+<td>Protocol Extensions. One sentence naming what sections 3.1 and 3.2 define: the Enhanced Route Refresh Capability and the ROUTE-REFRESH message subtypes. No directive.</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>Enhanced Route Refresh Capability</td>
+<td>0</td>
+<td>walked</td>
+<td>Enhanced Route Refresh Capability. Value assignment: Capability Code 70, Capability Length zero, and what advertising it conveys. Stated indicatively, so under this document&#39;s own section 2 it carries no RFC 2119 level. The obligation to advertise it is the SHOULD in section 4 (RFC7313-4-8); the wire values are carried by the Wire Formats and Constants tables of rfc/short/rfc7313.md.</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>Subtypes for ROUTE-REFRESH Message</td>
+<td>0</td>
+<td>walked</td>
+<td>Subtypes for ROUTE-REFRESH Message. Value assignment for subtypes 0, 1, 2 and 255, with the remaining values reserved for future use. A registry table, not a directive: the obligation to USE and to check each value is in sections 4 and 5.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Operation</td>
+<td>7</td>
+<td>walked</td>
+<td>Operation. The document&#39;s main normative section: seven capitalised MUST-level sites, all mapped below to RFC7313-4-1 through RFC7313-4-7. Its remaining directives are the SHOULD to advertise the capability, the SHOULD to log an ignored early BoRR, and three MAYs (log purged routes, ignore an unsolicited EoRR, bound stale-route retention); those are captured as the unsourced ids below. Two sentences the site scan cannot see are scoping, not obligations: &#34;The following procedures are applicable only if a BGP speaker has received the &#39;Enhanced Route Refresh Capability&#39; from a peer&#34; conditions RFC7313-4-1 through RFC7313-4-7 rather than adding a requirement, and the &#34;entire Adj-RIB-Out&#34; paragraph defines a term used by RFC7313-4-2. Both are indicative, so section 2 gives them no normative meaning.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Error Handling</td>
+<td>3</td>
+<td>walked</td>
+<td>Error Handling. Assigns NOTIFICATION Error Code 7 (&#34;ROUTE-REFRESH Message Error&#34;) and subcode 1 (&#34;Invalid Message Length&#34;) as value definitions, then states three capitalised MUSTs, mapped below to RFC7313-5-1 through RFC7313-5-3. Its one SHOULD (log an error on an unknown subtype) is the unsourced id below. As in section 4, the applicability sentence conditions the three MUSTs on having received the capability from the peer and is indicative.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. Records Capability Code 70, the new &#34;BGP Route Refresh Subcodes&#34; registry, the rename of &#34;BGP Error Codes&#34;, error code 7 and the &#34;BGP ROUTE-REFRESH Message Error subcodes&#34; registry. Binds IANA, not a speaker.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. States that RFC 4272 does not cover Route-Refresh and that this document does not significantly change the underlying security issues. No countermeasure is directed at a speaker.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>Acknowledgements</td>
+<td>0</td>
+<td>skipped (acknowledgements)</td>
+<td>Acknowledgements.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: RFC 2119, RFC 2918, RFC 4271, RFC 4272, RFC 4724, RFC 5291, RFC 5492.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<p>The walk over RFC 7313 declined no sentence: every site it found is mapped to a requirement.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 7313, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

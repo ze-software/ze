@@ -43,125 +43,1802 @@
         </div>
 
         <main id="top" class="has-page-sidebar" tabindex="-1">
-            <section aria-labelledby="rfc-compliance-title" class="md-content reveal cat-observe">
+            <section aria-labeledby="rfc-compliance-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Quality</span>
     <h1 id="rfc-compliance-title">RFC Compliance Gate Report</h1>
-    <p>Source: <code>internal/le/rfc</code>, <code>rfc/short/*.md</code>, <code>rfc/enrolled.txt</code>, <code>docs/features/rfc-status.md</code>, and <code>rfc/audit/*.json</code>.</p>
+    <p>Source: <code>internal/le/rfc</code>, <code>rfc/short/*.md</code>, and <code>rfc/audit/*.json</code>.</p>
 </div>
 <style>
-.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 1rem; margin: 1.25rem 0 1.6rem; }
-.rfc-card { border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
 .rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.rfc-card strong { display: block; margin: .3rem 0; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
-.rfc-card p { margin: 0; color: var(--muted); font-size: .92rem; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
 .rfc-ok { border-left: 7px solid var(--teal-base); }
-.rfc-info { border-left: 7px solid var(--sky-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
 .rfc-warn { border-left: 7px solid var(--gold-base); }
 .rfc-bad { border-left: 7px solid var(--danger-deep); }
-.rfc-tape { display: flex; min-height: 3.4rem; margin: 1rem 0 1.2rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
-.rfc-tape span { width: var(--w); min-width: 5.2rem; display: flex; flex-direction: column; justify-content: center; gap: .12rem; padding: .45rem .8rem; color: #241431; }
-.rfc-tape b { font-size: .82rem; line-height: 1; }
-.rfc-tape em { font-style: normal; font-size: .78rem; opacity: .78; }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
 .rfc-tape-both_polarities { background: var(--teal-chip); }
 .rfc-tape-single_polarity { background: var(--sky-chip); }
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
 .rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
 .rfc-note-box h3 { margin-top: 0; }
 .rfc-note-box ul { margin-bottom: 0; }
 .rfc-check-ok strong { color: var(--teal-deep); }
 .rfc-check-bad strong { color: var(--danger-deep); }
-.rfc-command { padding: .85rem 1rem; border-radius: 14px; background: var(--term-bg); color: var(--term-text); overflow-x: auto; }
-.rfc-command code { color: var(--term-text); }
-@media (max-width: 760px) {
-  .rfc-tape { flex-direction: column; border-radius: 18px; }
-  .rfc-tape span { width: 100% !important; }
-}
 </style>
+<h3>Overall</h3>
+<p>the populations every share below is taken over</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><p>2 open gate issues</p></article>
-<article class="rfc-card rfc-info"><span>Gated MUSTs</span><strong>3,037</strong><p>172 enrolled RFCs, 3,937 resolved test tags</p></article>
-<article class="rfc-card rfc-warn"><span>Declared gaps</span><strong>502</strong><p>Across 79 RFCs, all forced into the public ledger</p></article>
-<article class="rfc-card rfc-ok"><span>Pre-commit gate</span><strong>ON</strong><p>./le rfc check runs as 1 of 43 full-mode verify stages</p></article>
-<article class="rfc-card rfc-bad"><span>Semantic verdicts</span><strong>50</strong><p>0 shifted, 2 stale, 2,985 missing and therefore not claimed</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>3,264</strong><b>5,384 extracted from 198 summaries</b><p>MUST-level requirements the gate HOLDS, across 181 enrolled RFCs. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>834</strong><b>of 3,264 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
 </div>
-<div class="section-note reveal"><p><strong>Current gate output:</strong></p><pre class="rfc-command"><code>rfc-requirements: 2 violation(s)</code></pre></div>
-<section><h2>Requirement buckets</h2>
-<div class="rfc-tape" role="img" aria-label="RFC requirement satisfaction split">
-<span class="rfc-tape-both_polarities" style="--w: 43.892%"><b>Test pair</b><em>1,333</em></span>
-<span class="rfc-tape-single_polarity" style="--w: 12.051%"><b>Single polarity</b><em>366</em></span>
-<span class="rfc-tape-not_applicable" style="--w: 27.527%"><b>Not applicable</b><em>836</em></span>
-<span class="rfc-tape-gap" style="--w: 16.529%"><b>Gap</b><em>502</em></span>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>58.1%</strong><b>1,411 of 2,430 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>15.2%</strong><b>370 of 2,430 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 2,430 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>3.4%</strong><b>139 of 4,059 tagged units in enrolled RFCs</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
-<table>
-<thead><tr><th>Bucket</th><th>Count</th><th>Share</th><th>Source condition</th></tr></thead>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>50</strong><b>0 shifted, 2 stale, 3,212 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>26.7%</strong><b>649 of 2,430 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>Gate verdict</span><strong>RED</strong><b>152 open gate issues</b><p>whether ./le rfc check passes over this tree</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 2,430 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
 <tbody>
-<tr><td>Positive and negative tests</td><td><strong>1,333</strong></td><td>43.9%</td><td><code>positive tag + negative tag</code></td></tr>
-<tr><td>One polarity plus reason</td><td><strong>366</strong></td><td>12.1%</td><td><code>{single-polarity} annotation + required tag</code></td></tr>
-<tr><td>Not applicable</td><td><strong>836</strong></td><td>27.5%</td><td><code>{not-applicable} annotation</code></td></tr>
-<tr><td>Declared gap</td><td><strong>502</strong></td><td>16.5%</td><td><code>{gap} annotation + public ledger disclosure</code></td></tr>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Gate verdict</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>the verdict IS the value: green when the gate passes, red when it does not</td>
+</tr>
+<tr><td>Semantic verdicts</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a count of judgements recorded is a scale rather than an outcome, and the shifted and stale counts beside it are the states that need reading</td>
+</tr>
 </tbody>
 </table>
+</div>
+</details>
+<div class="rfc-verdict rfc-bad">
+<p><span>Gate verdict</span><strong>RED</strong></p>
+<p>152 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
+<p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 152 violation(s)</code>.</p>
+</div>
+<section><h2>Requirement buckets</h2>
+<div class="rfc-tape" role="img" aria-label="How the obligations that bind Ze are answered">
+<span class="rfc-tape-both_polarities" style="--w: 58.066%"></span>
+<span class="rfc-tape-single_polarity" style="--w: 15.226%"></span>
+<span class="rfc-tape-gap" style="--w: 20.617%"></span>
+<span class="rfc-tape-missing_unexcused" style="--w: 6.091%"></span>
+</div>
+<ul class="rfc-tape-key">
+<li><span class="rfc-swatch rfc-tape-both_polarities"></span> Positive and negative tests: <strong>1,411</strong> (58.1%)</li>
+<li><span class="rfc-swatch rfc-tape-single_polarity"></span> One polarity plus reason: <strong>370</strong> (15.2%)</li>
+<li><span class="rfc-swatch rfc-tape-gap"></span> Declared gap: <strong>501</strong> (20.6%)</li>
+<li><span class="rfc-swatch rfc-tape-missing_unexcused"></span> Missing, unexcused: <strong>148</strong> (6.1%)</li>
+</ul>
+<p>The bar is the 2,430 obligations that bind Ze. 834 further gated MUSTs are {not-applicable}: they do not bind Ze, they are not in the bar, and they are counted apart below.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>Share of binding</th><th>Source condition</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>1,411</strong></td>
+<td>58.1%</td>
+<td><code>positive tag + negative tag</code></td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><strong>370</strong></td>
+<td>15.2%</td>
+<td><code>{single-polarity} annotation + required tag</code></td>
+</tr>
+<tr><td>Declared gap</td>
+<td><strong>501</strong></td>
+<td>20.6%</td>
+<td><code>{gap} annotation + public ledger disclosure</code></td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><strong>0</strong></td>
+<td>0.0%</td>
+<td><code>tag without annotation</code></td>
+</tr>
+<tr><td>Missing, unexcused</td>
+<td><strong>148</strong></td>
+<td>6.1%</td>
+<td><code>no tag, no annotation</code></td>
+</tr>
+<tr class="rfc-total"><td><strong>Obligations that bind Ze</strong></td><td><strong>2,430</strong></td><td>100.0%</td><td>every obligation that binds Ze falls in exactly one bucket above</td></tr>
+<tr><td>Not applicable</td>
+<td><strong>834</strong></td>
+<td>-</td>
+<td><code>{not-applicable} annotation</code>: the obligation does not bind Ze, so it is scope rather than coverage</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>3,264</strong></td><td>-</td><td>the accounting total: 2,430 that bind Ze plus 834 that do not</td></tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Gap disclosure</h2>
-<table>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
 <thead><tr><th>Public status for RFCs with gaps</th><th>RFCs</th></tr></thead>
 <tbody>
-<tr><td>Partial</td><td><strong>59</strong></td></tr>
-<tr><td>Experimental</td><td><strong>14</strong></td></tr>
-<tr><td>Supported</td><td><strong>4</strong></td></tr>
-<tr><td>Not supported</td><td><strong>1</strong></td></tr>
-<tr><td>Unsupported</td><td><strong>1</strong></td></tr>
+<tr><td>Partial</td>
+<td><strong>60</strong></td>
+</tr>
+<tr><td>Experimental</td>
+<td><strong>14</strong></td>
+</tr>
+<tr><td>Supported</td>
+<td><strong>3</strong></td>
+</tr>
+<tr><td>Not supported</td>
+<td><strong>1</strong></td>
+</tr>
+<tr><td>Unsupported</td>
+<td><strong>1</strong></td>
+</tr>
+<tr><td>Supported within BMP sender scope</td>
+<td><strong>1</strong></td>
+</tr>
 </tbody>
 </table>
+</div>
 <div class="rfc-note-box">
 <h3>Supported rows that still disclose a gap</h3>
 <ul>
 <li><strong>RFC 1350</strong>: RFC1350-2-3 unmet (Sorcerer&#39;s Apprentice fix): sendAndWaitACK retransmits DATA on any non-matching ACK (handler.go) instead of silently ignoring a duplicate or stale ACK.</li>
-<li><strong>RFC 4301</strong>: One MUST gap (RFC4301-4.4.1.1-1): SPD selectors are limited to IP-prefix + next-layer-protocol; TCP/UDP/SCTP port and ICMP type/code selectors are not modeled or projected (internal/component/ike/dataplane/dataplane.go; engine/initiator.go tsToIPNet drops ports).</li>
 <li><strong>RFC 6396</strong>: One MUST gap gated in rfc/short/rfc6396.md [RFC6396-4.4.3-1]: the live BGP4MP writer always emits the BGP4MP_MESSAGE_AS4 subtype and records the on-wire message verbatim without checking the session&#39;s negotiated 4-byte-AS capability, so a message from an OLD (2-byte) peer carries a 2-byte AS_PATH mislabeled as AS4. RIB-path AS_PATH is unaffected (canonicalized to 4-byte).</li>
 <li><strong>RFC 7313</strong>: Four MUST-level receive-side gaps annotated in `rfc/short/rfc7313.md`: RFC7313-4-4/4-5 -- a received BoRR/EoRR is log-only (internal/component/bgp/plugins/rib/rib.go), so ze marks no Adj-RIB-In routes stale and purges none; and RFC7313-4-6/4-7 -- neither the send nor receive path applies a Graceful-Restart End-of-RIB gate to BoRR emission or acceptance.</li>
+<li><strong>RFC 8671</strong>: One MUST is a gap. Section 6.2 requires the O flag to be zero on a Statistics Report, and ze sends no Statistics Report at all: `senderSession.writeStatisticsReport` clears the flag correctly and has no non-test caller, and the `statistics-timeout` leaf drives no timer, so the obligation is never exercised (RFC8671-6.2-1). One feature is absent by decision, and it is not a conformance gap: ze exports the post-policy Adj-RIB-Out view only, and the pre-policy Adj-RIB-Out view is not built. RFC 7854 Section 5 leaves that choice to the implementation, so the obligations that hang on it do not bind ze (RFC8671-5.2-1). A later scope decision can revisit it and build the pre-policy view.</li>
 </ul></div>
 </section>
+<section><h2>Exclusion disclosure</h2>
+<p>A reviewer walks an RFC&#39;s own text sentence by sentence and decides which sentences become requirements. One that does not is EXCLUDED, with a kind and a reason, and it never reaches the gated ledger at all. That is a different mechanism from the Out of scope card above, which counts requirements that exist and carry a {not-applicable} annotation. Across the sign-offs done so far, 857 sentences were mapped to a requirement and 508 were declined. 13 of those declines are not scope at all: they are obligations Ze OWES, relocated to a named spec, and they are stated apart below.</p>
+<p>58 of 198 summaries carry an extraction sign-off, 56 of them among the 181 enrolled. The other 140 have no exclusion ledger at all, so what follows counts the walks that HAVE been done and is not the whole picture.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Excluded kind</th><th>Means</th><th>Sites</th><th>Summaries</th><th>What it means</th></tr></thead>
+<tbody>
+<tr><td><code>binds-another-role</code></td>
+<td>never bound Ze</td>
+<td><strong>223</strong></td>
+<td>21</td>
+<td>the obligation is addressed to a role Ze never acts as</td>
+</tr>
+<tr><td><code>duplicate-of</code></td>
+<td>never bound Ze</td>
+<td><strong>109</strong></td>
+<td>22</td>
+<td>the same obligation is already captured under another requirement id</td>
+</tr>
+<tr><td><code>not-a-requirement</code></td>
+<td>never bound Ze</td>
+<td><strong>96</strong></td>
+<td>35</td>
+<td>the sentence states a fact or describes another document, and directs no implementation</td>
+</tr>
+<tr><td><code>feature-out-of-scope</code></td>
+<td>never bound Ze</td>
+<td><strong>30</strong></td>
+<td>5</td>
+<td>the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+</tr>
+<tr><td><code>cross-document</code></td>
+<td>never bound Ze</td>
+<td><strong>24</strong></td>
+<td>16</td>
+<td>the obligation belongs to another document that this one only cites</td>
+</tr>
+<tr><td><code>advisory-in-context</code></td>
+<td>never bound Ze</td>
+<td><strong>13</strong></td>
+<td>7</td>
+<td>the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+</tr>
+<tr><td><code>relocated-to-spec</code></td>
+<td>Ze owes it</td>
+<td><strong>13</strong></td>
+<td>2</td>
+<td>the obligation is real and unbuilt, and a named spec owes it</td>
+</tr>
+<tr class="rfc-total"><td><strong>Sentences declined</strong></td><td>-</td><td><strong>508</strong></td><td>-</td><td>495 say the obligation never bound Ze and 13 say Ze owes it, of 1,365 normative sentences the walks found</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>binds-another-role (223):</strong> <a href="rfc1035/"><code>RFC 1035</code></a>, <a href="rfc1350/"><code>RFC 1350</code></a>, <a href="rfc1997/"><code>RFC 1997</code></a>, <a href="rfc2545/"><code>RFC 2545</code></a>, <a href="rfc2759/"><code>RFC 2759</code></a>, <a href="rfc2865/"><code>RFC 2865</code></a>, <a href="rfc2866/"><code>RFC 2866</code></a>, <a href="rfc2869/"><code>RFC 2869</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc4302/"><code>RFC 4302</code></a>, <a href="rfc4303/"><code>RFC 4303</code></a>, <a href="rfc4360/"><code>RFC 4360</code></a>, <a href="rfc4364/"><code>RFC 4364</code></a>, <a href="rfc4456/"><code>RFC 4456</code></a>, <a href="rfc4761/"><code>RFC 4761</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc6396/"><code>RFC 6396</code></a>, <a href="rfc7296/"><code>RFC 7296</code></a>, <a href="rfc7535/"><code>RFC 7535</code></a>, <a href="rfc8654/"><code>RFC 8654</code></a><br />ai/rules/rfc-compliance.md treats binds-another-role as PRESUMED WRONG until it is justified: Ze rarely implements one side of a protocol, so an obligation addressed to &#34;the sender&#34; or &#34;the receiver&#34; almost always binds it, and the label reads as &#34;not our problem&#34; where the truth is usually &#34;our problem, unbuilt&#34;. Each one is justified on its own RFC&#39;s page, under Extraction sign-off, and the justification MUST name the role, show Ze never acts as it, and cite the producer that would act as it if Ze did.</p>
+<p class="rfc-id-list"><strong>duplicate-of (109):</strong> <a href="rfc1035/"><code>RFC 1035</code></a>, <a href="rfc2759/"><code>RFC 2759</code></a>, <a href="rfc2865/"><code>RFC 2865</code></a>, <a href="rfc2866/"><code>RFC 2866</code></a>, <a href="rfc2869/"><code>RFC 2869</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc3948/"><code>RFC 3948</code></a>, <a href="rfc4302/"><code>RFC 4302</code></a>, <a href="rfc4303/"><code>RFC 4303</code></a>, <a href="rfc4364/"><code>RFC 4364</code></a>, <a href="rfc4456/"><code>RFC 4456</code></a>, <a href="rfc4760/"><code>RFC 4760</code></a>, <a href="rfc5549/"><code>RFC 5549</code></a>, <a href="rfc5798/"><code>RFC 5798</code></a>, <a href="rfc5880/"><code>RFC 5880</code></a>, <a href="rfc7296/"><code>RFC 7296</code></a>, <a href="rfc8671/"><code>RFC 8671</code></a>, <a href="rfc8950/"><code>RFC 8950</code></a>, <a href="rfc9003/"><code>RFC 9003</code></a>, <a href="rfc9069/"><code>RFC 9069</code></a>, <a href="rfc9234/"><code>RFC 9234</code></a></p>
+<p class="rfc-id-list"><strong>not-a-requirement (96):</strong> <a href="draft-abraitis-bgp-version-capability/"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</code></a>, <a href="draft-walton-bgp-hostname-capability/"><code>DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY</code></a>, <a href="rfc1035/"><code>RFC 1035</code></a>, <a href="rfc1350/"><code>RFC 1350</code></a>, <a href="rfc2347/"><code>RFC 2347</code></a>, <a href="rfc2385/"><code>RFC 2385</code></a>, <a href="rfc2545/"><code>RFC 2545</code></a>, <a href="rfc2759/"><code>RFC 2759</code></a>, <a href="rfc2865/"><code>RFC 2865</code></a>, <a href="rfc2869/"><code>RFC 2869</code></a>, <a href="rfc2918/"><code>RFC 2918</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc3765/"><code>RFC 3765</code></a>, <a href="rfc3948/"><code>RFC 3948</code></a>, <a href="rfc4303/"><code>RFC 4303</code></a>, <a href="rfc4360/"><code>RFC 4360</code></a>, <a href="rfc4364/"><code>RFC 4364</code></a>, <a href="rfc4456/"><code>RFC 4456</code></a>, <a href="rfc4761/"><code>RFC 4761</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc5282/"><code>RFC 5282</code></a>, <a href="rfc5301/"><code>RFC 5301</code></a>, <a href="rfc5492/"><code>RFC 5492</code></a>, <a href="rfc5798/"><code>RFC 5798</code></a>, <a href="rfc6286/"><code>RFC 6286</code></a>, <a href="rfc6396/"><code>RFC 6396</code></a>, <a href="rfc7296/"><code>RFC 7296</code></a>, <a href="rfc7534/"><code>RFC 7534</code></a>, <a href="rfc7535/"><code>RFC 7535</code></a>, <a href="rfc7911/"><code>RFC 7911</code></a>, <a href="rfc7999/"><code>RFC 7999</code></a>, <a href="rfc8654/"><code>RFC 8654</code></a>, <a href="rfc9384/"><code>RFC 9384</code></a>, <a href="rfc9687/"><code>RFC 9687</code></a></p>
+<p class="rfc-id-list"><strong>feature-out-of-scope (30):</strong> <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc5082/"><code>RFC 5082</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc8671/"><code>RFC 8671</code></a>, <a href="rfc9069/"><code>RFC 9069</code></a></p>
+<p class="rfc-id-list"><strong>cross-document (24):</strong> <a href="draft-abraitis-bgp-version-capability/"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</code></a>, <a href="rfc2545/"><code>RFC 2545</code></a>, <a href="rfc2869/"><code>RFC 2869</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc3948/"><code>RFC 3948</code></a>, <a href="rfc4303/"><code>RFC 4303</code></a>, <a href="rfc4364/"><code>RFC 4364</code></a>, <a href="rfc4761/"><code>RFC 4761</code></a>, <a href="rfc5082/"><code>RFC 5082</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a>, <a href="rfc5282/"><code>RFC 5282</code></a>, <a href="rfc5492/"><code>RFC 5492</code></a>, <a href="rfc7535/"><code>RFC 7535</code></a>, <a href="rfc8654/"><code>RFC 8654</code></a>, <a href="rfc9069/"><code>RFC 9069</code></a></p>
+<p class="rfc-id-list"><strong>advisory-in-context (13):</strong> <a href="rfc1035/"><code>RFC 1035</code></a>, <a href="rfc2866/"><code>RFC 2866</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3748/"><code>RFC 3748</code></a>, <a href="rfc3948/"><code>RFC 3948</code></a>, <a href="rfc4761/"><code>RFC 4761</code></a>, <a href="rfc5176/"><code>RFC 5176</code></a></p>
+<h3>Obligations relocated to a spec</h3>
+<p>These 13 sentences are NOT scope. Each is an obligation Ze owes and has not built, moved to a named spec that reserves a requirement id for it. ./le rfc check refuses the sign-off unless that spec exists and still reserves the id, so each row is tracked work rather than an obligation that went away.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Reserved id</th><th>The obligation</th><th>The spec that owes it</th></tr></thead>
+<tbody>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-1.7-3</code></td>
+<td>Implementations that conform to this document MUST ignore proposals that have configuration attribute type 5, the old value for INTERNAL_ADDRESS_EXPIRY.</td>
+<td><code>plan/spec-ipsec-remote-access.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-2.19-2</code></td>
+<td>Initiator Responder ------------------------------------------------------------------- HDR, SK {IDi, [CERT,] [CERTREQ,] [IDr,] AUTH, CP(CFG_REQUEST), SAi2, TSi, TSr} --&gt; &lt;-- HDR, SK {IDr, [CERT,] AUTH, CP(CFG_REPLY), SAr2, TSi, TSr} In all cases, the CP payload MUST be inserted before the SA payload.</td>
+<td><code>plan/spec-ipsec-remote-access.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-2.19-3</code></td>
+<td>In variations of the protocol where there are multiple IKE_AUTH exchanges, the CP payloads MUST be inserted in the messages containing the SA payloads.</td>
+<td><code>plan/spec-ipsec-remote-access.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-2.19-5</code></td>
+<td>The responder MUST NOT send a CFG_REPLY without having first received a CP(CFG_REQUEST) from the initiator, because we do not want the IRAS to perform an unnecessary configuration lookup if the IRAC cannot process the REPLY.</td>
+<td><code>plan/spec-ipsec-remote-access.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-2.19-6</code></td>
+<td>In the case where the IRAS&#39;s configuration requires that CP be used for a given identity IDi, but IRAC has failed to send a CP(CFG_REQUEST), IRAS MUST fail the request, and terminate the Child SA creation with a FAILED_CP_REQUIRED error.</td>
+<td><code>plan/spec-ipsec-remote-access.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-2.22-1</code></td>
+<td>These payloads MUST NOT occur in messages that do not contain SA payloads.</td>
+<td><code>plan/spec-ipsec-ipcomp.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-2.22-2</code></td>
+<td>Although there has been discussion of allowing multiple compression algorithms to be accepted and to have different compression algorithms available for the two directions of a Child SA, implementations of this specification MUST NOT accept an IPComp algorithm that was not proposed, MUST NOT accept more than one, and MUST NOT compress using an algorithm other than one proposed and accepted in the setup of the Child SA.</td>
+<td><code>plan/spec-ipsec-ipcomp.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-3.15.1-1</code></td>
+<td>Only one netmask is allowed in the request and response messages (e.g., 255.255.255.0), and it MUST be used only with an INTERNAL_IP4_ADDRESS attribute.</td>
+<td><code>plan/spec-ipsec-remote-access.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-3.15.1-3</code></td>
+<td>o SUPPORTED_ATTRIBUTES - When used within a Request, this attribute MUST be zero-length and specifies a query to the responder to reply back with all of the attributes that it supports.</td>
+<td><code>plan/spec-ipsec-remote-access.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-3.15.1-4</code></td>
+<td>Unrecognized or unsupported attributes MUST be ignored in both requests and responses.</td>
+<td><code>plan/spec-ipsec-remote-access.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-4-2</code></td>
+<td>If an implementation supports responding to such requests, it MUST parse the CP payload of type CFG_REQUEST in the first message in the IKE_AUTH exchange and recognize a field of type INTERNAL_IP4_ADDRESS or INTERNAL_IP6_ADDRESS.</td>
+<td><code>plan/spec-ipsec-remote-access.md</code></td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a></td>
+<td><code>RFC7296-4-3</code></td>
+<td>If it supports leasing an address of the appropriate type, it MUST return a CP payload of type CFG_REPLY containing an address of the requested type.</td>
+<td><code>plan/spec-ipsec-remote-access.md</code></td>
+</tr>
+<tr><td><a href="rfc7947/"><code>RFC 7947</code></a></td>
+<td><code>RFC7947-2.1-1</code></td>
+<td>A route server MUST accept all UPDATE messages received from each of its clients for inclusion in its Adj-RIB-In.</td>
+<td><code>plan/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section><h2>Top gap clusters</h2>
-<table>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
 <thead><tr><th>RFC</th><th>Declared gaps</th><th>Public status</th></tr></thead>
 <tbody>
-<tr><td><code>RFC 9012</code></td><td><strong>51</strong></td><td>Partial</td></tr>
-<tr><td><code>DRAFT-IETF-BESS-MUP-SAFI</code></td><td><strong>37</strong></td><td>Partial</td></tr>
-<tr><td><code>RFC 1661</code></td><td><strong>24</strong></td><td>Partial</td></tr>
-<tr><td><code>RFC 9830</code></td><td><strong>20</strong></td><td>Partial</td></tr>
-<tr><td><code>RFC 2131</code></td><td><strong>18</strong></td><td>Partial</td></tr>
-<tr><td><code>RFC 7166</code></td><td><strong>17</strong></td><td>Unsupported</td></tr>
-<tr><td><code>RFC 4577</code></td><td><strong>16</strong></td><td>Not supported</td></tr>
-<tr><td><code>RFC 4271</code></td><td><strong>15</strong></td><td>Partial</td></tr>
-<tr><td><code>RFC 7432</code></td><td><strong>15</strong></td><td>Partial</td></tr>
-<tr><td><code>RFC 5880</code></td><td><strong>14</strong></td><td>Partial</td></tr>
-<tr><td><code>RFC 8665</code></td><td><strong>14</strong></td><td>Partial</td></tr>
-<tr><td><code>RFC 9514</code></td><td><strong>13</strong></td><td>Partial</td></tr>
+<tr><td><code>RFC 9012</code></td>
+<td><strong>51</strong></td>
+<td>Partial</td>
+</tr>
+<tr><td><code>DRAFT-IETF-BESS-MUP-SAFI</code></td>
+<td><strong>37</strong></td>
+<td>Partial</td>
+</tr>
+<tr><td><code>RFC 1661</code></td>
+<td><strong>24</strong></td>
+<td>Partial</td>
+</tr>
+<tr><td><code>RFC 9830</code></td>
+<td><strong>20</strong></td>
+<td>Partial</td>
+</tr>
+<tr><td><code>RFC 2131</code></td>
+<td><strong>18</strong></td>
+<td>Partial</td>
+</tr>
+<tr><td><code>RFC 7166</code></td>
+<td><strong>17</strong></td>
+<td>Unsupported</td>
+</tr>
+<tr><td><code>RFC 4577</code></td>
+<td><strong>16</strong></td>
+<td>Not supported</td>
+</tr>
+<tr><td><code>RFC 4271</code></td>
+<td><strong>15</strong></td>
+<td>Partial</td>
+</tr>
+<tr><td><code>RFC 7432</code></td>
+<td><strong>15</strong></td>
+<td>Partial</td>
+</tr>
+<tr><td><code>RFC 5880</code></td>
+<td><strong>14</strong></td>
+<td>Partial</td>
+</tr>
+<tr><td><code>RFC 8665</code></td>
+<td><strong>14</strong></td>
+<td>Partial</td>
+</tr>
+<tr><td><code>RFC 9514</code></td>
+<td><strong>13</strong></td>
+<td>Partial</td>
+</tr>
 </tbody>
 </table>
+</div>
 </section>
-<section><h2>Gate inputs</h2>
-<table>
-<thead><tr><th>Input</th><th>Producer</th><th>Observed value</th></tr></thead>
+<section><h2>How this is checked</h2>
+<p>This gate runs before a commit is verified: ./le rfc check is 1 stage of the 43 that ./le verify current mode full runs.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Input</th><th>Producer</th><th>What it answered here</th></tr></thead>
 <tbody>
-<tr><td>Requirement source</td><td><code>rfc/short/*.md</code></td><td>3,037 gated MUST-level requirements</td></tr>
-<tr><td>Enrollment</td><td><code>rfc/enrolled.txt</code></td><td>172 enrolled RFCs</td></tr>
-<tr><td>Test tags</td><td><code>internal/, pkg/, test/</code></td><td>3,937 resolved tags</td></tr>
-<tr><td>Public ledger</td><td><code>docs/features/rfc-status.md</code></td><td>79 RFCs with gaps, 4 Supported with Remaining</td></tr>
-<tr><td>Semantic audits</td><td><code>rfc/audit/*.json</code></td><td>50 fresh, 0 shifted, 2 stale, 2,985 missing</td></tr>
-<tr><td>Pre-commit verification</td><td><code>internal/le/verify/engine/stages.go</code></td><td>./le rfc check, 1 of 43 full-mode stages</td></tr>
+<tr><td>Reproduce it</td>
+<td><code>./le rfc check</code></td>
+<td>1 of 43 full-mode verify stages run it</td>
+</tr>
+<tr><td>Requirement source</td>
+<td><code>rfc/short/*.md</code></td>
+<td>3,264 gated MUST-level requirements</td>
+</tr>
+<tr><td>Enrolment</td>
+<td><code>rfc/short/*.md</code>, the <code>| Enrolment |</code> Meta row</td>
+<td>181 enrolled RFCs</td>
+</tr>
+<tr><td>Test tags</td>
+<td><code>internal/</code>, <code>pkg/</code>, <code>test/</code></td>
+<td>4,156 resolved tags</td>
+</tr>
+<tr><td>Public ledger</td>
+<td><code>rfc/short/*.md</code>, the <code>| Support |</code> Meta row</td>
+<td>80 RFCs with gaps, 4 Supported with Remaining</td>
+</tr>
+<tr><td>Semantic audits</td>
+<td><code>rfc/audit/*.json</code></td>
+<td>50 fresh, 0 shifted, 2 stale, 3,212 missing</td>
+</tr>
+<tr><td>Pre-commit verification</td>
+<td><code>internal/le/verify/engine/stages.go</code></td>
+<td>./le rfc check, 1 of 43 full-mode stages</td>
+</tr>
+<tr><td>Published artifacts</td>
+<td><code>data/rfc-compliance.json</code>, <code>data/rfc-requirements.json</code></td>
+<td>the same answers this page renders, machine-readable</td>
+</tr>
 </tbody>
 </table>
+</div>
 </section>
 <section><h2>Check results</h2>
-<p>Generated artifacts: <a href="../../data/rfc-compliance.json"><code>data/rfc-compliance.json</code></a>, <code>quality/rfc-compliance/index.html</code>, and <code>quality/rfc-compliance/index.md</code>.</p>
-<ul>
-<li class="rfc-check-bad">rfc/short/rfc7606.md:331: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</li>
-<li class="rfc-check-bad">rfc/short/rfc7606.md:333: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)</li>
-</ul>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Requirement</th><th>Level</th><th>What is wrong</th><th>The requirement</th></tr></thead>
+<tbody>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-3-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled&#34; -- the configuration option half (§3)</td>
+</tr>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-3-2"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled&#34; -- the default-to-disabled half (§3)</td>
+</tr>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-3-3"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;The Capability Length for the Software Version Capability MUST be greater than zero&#34; (§3)</td>
+</tr>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-3-4"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4</code></a></td>
+<td>SHALL</td>
+<td>has no test and no annotation</td>
+<td>&#34;A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored&#34; -- the encoding-error half (§3)</td>
+</tr>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-3-5"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored&#34; -- the ignore half (§3)</td>
+</tr>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-3-6"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;The Version field MUST be encoded using UTF-8&#34; (§3)</td>
+</tr>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-3-7"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7</code></a></td>
+<td>MUST NOT</td>
+<td>has no test and no annotation</td>
+<td>&#34;A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences&#34; (§3)</td>
+</tr>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-3-8"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8</code></a></td>
+<td>MUST NOT</td>
+<td>has no test and no annotation</td>
+<td>&#34;A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier&#34; -- the MUST NOT half (§3)</td>
+</tr>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-3.1-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1</code></a></td>
+<td>REQUIRED</td>
+<td>has no test and no annotation</td>
+<td>&#34;Implementations of this specification are REQUIRED Extended Optional Parameters Length for BGP OPEN Message support as defined in [RFC9072]&#34; (§3.1)</td>
+</tr>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-4-1"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;The Software Version Capability MUST only be used for displaying the version of a BGP speaker&#39;s router daemon to make troubleshooting easier&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</td>
+<td><a href="draft-abraitis-bgp-version-capability/#draft-abraitis-bgp-version-capability-4-2"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-3-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field&#34; (§3)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-3-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;If an implementation intends to send both a IPv6 Global and Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field&#34; (§3)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-4-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-4-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2</code></a></td>
+<td>MUST NOT</td>
+<td>has no test and no annotation</td>
+<td>&#34;If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-4-3"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer&#39;s address, the next hop MUST include its own Link-Local IPv6 address&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-4-4"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4</code></a></td>
+<td>MUST NOT</td>
+<td>has no test and no annotation</td>
+<td>&#34;If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-4-5"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5</code></a></td>
+<td>MUST NOT</td>
+<td>has no test and no annotation</td>
+<td>&#34;A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-4-6"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-4-7"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7</code></a></td>
+<td>MUST NOT</td>
+<td>has no test and no annotation</td>
+<td>&#34;If no next hops are included, the route MUST NOT be announced (treat-as-withdraw)&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-4-8"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8</code></a></td>
+<td>MUST NOT</td>
+<td>has no test and no annotation</td>
+<td>&#34;Link-Local IPv6 next hops MUST NOT be included&#34; for an external peer that &#34;is multiple IP hops away from the speaker (aka \&#34;multihop EBGP\&#34;)&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-4-9"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9</code></a></td>
+<td>MUST NOT</td>
+<td>has no test and no annotation</td>
+<td>&#34;If a Global IPv6 next hop is not included, the route MUST NOT be advertised to the external peer (treat-as-withdraw)&#34; (§4)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-5-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets&#34; (§5)</td>
+</tr>
+<tr><td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</td>
+<td><a href="draft-ietf-idr-linklocal-capability/#draft-ietf-idr-linklocal-capability-6-1"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1</code></a></td>
+<td>MUST</td>
+<td>has no test and no annotation</td>
+<td>&#34;If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of \&#34;treat-as-withdraw\&#34;, as described in section 7.3 of [RFC7606]&#34; (§6)</td>
+</tr>
+<tr><td>RFC 3748</td>
+<td><a href="rfc3748/#rfc3748-2-3"><code>RFC3748-2-3</code></a></td>
+<td>MUST NOT</td>
+<td>has no test and no annotation</td>
+<td>The authenticator MUST NOT send a Success or Failure packet when retransmitting or when it fails to get a response from the peer (S2)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>127 further findings not shown here. The whole list is in data/rfc-compliance.json, and each one is on its own RFC&#39;s page under the requirement it names.</p>
+</section>
+<section><h2>Enrolled RFCs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Public status</th><th>Gated MUSTs</th><th>Declared gaps</th><th>Gated with no test</th></tr></thead>
+<tbody>
+<tr><td><a href="draft-abraitis-bgp-version-capability/"><code>DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</code></a> Software Version Capability for BGP</td>
+<td>Supported</td>
+<td>11</td>
+<td>0</td>
+<td>11</td>
+</tr>
+<tr><td><a href="draft-abraitis-idr-addpath-paths-limit/"><code>DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT</code></a> Scalability Considerations for ADD-PATH with PATHS-LIMIT</td>
+<td>Supported</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="draft-ietf-bess-mup-safi/"><code>DRAFT-IETF-BESS-MUP-SAFI</code></a> BGP Extensions for the Mobile User Plane (MUP) SAFI</td>
+<td>Partial</td>
+<td>40</td>
+<td>37</td>
+<td>0</td>
+</tr>
+<tr><td><a href="draft-ietf-idr-linklocal-capability/"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</code></a> Link-Local Next Hop Capability for BGP</td>
+<td>Partial</td>
+<td>13</td>
+<td>0</td>
+<td>13</td>
+</tr>
+<tr><td><a href="draft-ietf-sidrops-aspa-verification/"><code>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION</code></a> Verification of AS_PATH Using the Resource Certificate PKI and Autonomous System Provider Authorization</td>
+<td>Partial</td>
+<td>8</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr><td><a href="draft-walton-bgp-hostname-capability/"><code>DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY</code></a> Hostname Capability for BGP</td>
+<td>Supported</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc1071/"><code>RFC 1071</code></a> Computing the Internet Checksum</td>
+<td>No public row declared</td>
+<td>8</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc1195/"><code>RFC 1195</code></a> Use of OSI IS-IS for Routing in TCP/IP and Dual Environments</td>
+<td>Experimental</td>
+<td>10</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc1332/"><code>RFC 1332</code></a> The PPP Internet Protocol Control Protocol (IPCP)</td>
+<td>Partial</td>
+<td>6</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc1334/"><code>RFC 1334</code></a> PPP Authentication Protocols</td>
+<td>Partial</td>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc1350/"><code>RFC 1350</code></a> The TFTP Protocol (Revision 2)</td>
+<td>Supported</td>
+<td>11</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc1661/"><code>RFC 1661</code></a> The Point-to-Point Protocol (PPP)</td>
+<td>Partial</td>
+<td>66</td>
+<td>24</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc1877/"><code>RFC 1877</code></a> PPP Internet Protocol Control Protocol Extensions for Name Server Addresses</td>
+<td>Partial</td>
+<td>4</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc1994/"><code>RFC 1994</code></a> PPP Challenge Handshake Authentication Protocol (CHAP)</td>
+<td>Partial</td>
+<td>17</td>
+<td>3</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc1997/"><code>RFC 1997</code></a> BGP Communities Attribute</td>
+<td>Supported</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2003/"><code>RFC 2003</code></a> IP Encapsulation within IP</td>
+<td>No public row declared</td>
+<td>13</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2131/"><code>RFC 2131</code></a> Dynamic Host Configuration Protocol</td>
+<td>Partial</td>
+<td>64</td>
+<td>18</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2132/"><code>RFC 2132</code></a> DHCP Options and BOOTP Vendor Extensions</td>
+<td>Partial</td>
+<td>34</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2181/"><code>RFC 2181</code></a> Clarifications to the DNS Specification</td>
+<td>Partial</td>
+<td>23</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2205/"><code>RFC 2205</code></a> Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification</td>
+<td>Experimental</td>
+<td>6</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2328/"><code>RFC 2328</code></a> OSPF Version 2</td>
+<td>Partial</td>
+<td>25</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2347/"><code>RFC 2347</code></a> TFTP Option Extension</td>
+<td>Supported</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2348/"><code>RFC 2348</code></a> TFTP Blocksize Option</td>
+<td>No public row declared</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2349/"><code>RFC 2349</code></a> TFTP Timeout Interval and Transfer Size Options</td>
+<td>No public row declared</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2385/"><code>RFC 2385</code></a> Protection of BGP Sessions via the TCP MD5 Signature Option</td>
+<td>Supported on Linux; FreeBSD needs a `setkey(8)` SAD entry</td>
+<td>9</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2473/"><code>RFC 2473</code></a> Generic Packet Tunneling in IPv6 Specification</td>
+<td>No public row declared</td>
+<td>11</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2516/"><code>RFC 2516</code></a> A Method for Transmitting PPP Over Ethernet (PPPoE)</td>
+<td>Partial</td>
+<td>21</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2545/"><code>RFC 2545</code></a> Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing</td>
+<td>Supported</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2661/"><code>RFC 2661</code></a> Layer Two Tunneling Protocol &#34;L2TP&#34;</td>
+<td>Partial</td>
+<td>18</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2759/"><code>RFC 2759</code></a> Microsoft PPP CHAP Extensions, Version 2</td>
+<td>Supported</td>
+<td>12</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2782/"><code>RFC 2782</code></a> A DNS RR for specifying the location of services (DNS SRV)</td>
+<td>No public row declared</td>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2784/"><code>RFC 2784</code></a> Generic Routing Encapsulation (GRE)</td>
+<td>No public row declared</td>
+<td>11</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2865/"><code>RFC 2865</code></a> Remote Authentication Dial In User Service (RADIUS)</td>
+<td>Supported for subscriber access</td>
+<td>29</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2866/"><code>RFC 2866</code></a> RADIUS Accounting</td>
+<td>Supported for subscriber access</td>
+<td>16</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2869/"><code>RFC 2869</code></a> RADIUS Extensions</td>
+<td>Supported for subscriber access</td>
+<td>11</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2890/"><code>RFC 2890</code></a> Key and Sequence Number Extensions to GRE</td>
+<td>No public row declared</td>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2918/"><code>RFC 2918</code></a> Route Refresh Capability for BGP-4</td>
+<td>Supported</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc2966/"><code>RFC 2966</code></a> Domain-wide Prefix Distribution with Two-Level IS-IS</td>
+<td>Experimental</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3031/"><code>RFC 3031</code></a> Multiprotocol Label Switching Architecture</td>
+<td>No public row declared</td>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3032/"><code>RFC 3032</code></a> MPLS Label Stack Encoding</td>
+<td>Supported as dependency</td>
+<td>17</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3101/"><code>RFC 3101</code></a> The OSPF Not-So-Stubby Area (NSSA) Option</td>
+<td>Experimental</td>
+<td>16</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3209/"><code>RFC 3209</code></a> RSVP-TE: Extensions to RSVP for LSP Tunnels</td>
+<td>Experimental</td>
+<td>13</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3623/"><code>RFC 3623</code></a> Graceful OSPF Restart</td>
+<td>Experimental</td>
+<td>13</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3630/"><code>RFC 3630</code></a> Traffic Engineering (TE) Extensions to OSPF Version 2</td>
+<td>Experimental</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3748/"><code>RFC 3748</code></a> Extensible Authentication Protocol (EAP)</td>
+<td>Supported in IPsec</td>
+<td>61</td>
+<td>0</td>
+<td>15</td>
+</tr>
+<tr><td><a href="rfc3765/"><code>RFC 3765</code></a> NOPEER Community for Border Gateway Protocol (BGP) Route Scope Control</td>
+<td>Supported</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3768/"><code>RFC 3768</code></a> Virtual Router Redundancy Protocol (VRRP)</td>
+<td>Experimental</td>
+<td>39</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3786/"><code>RFC 3786</code></a> Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit</td>
+<td>No public row declared</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3787/"><code>RFC 3787</code></a> Recommendations for Interoperable IP Networks using Intermediate System to Intermediate System (IS-IS)</td>
+<td>Partial</td>
+<td>3</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3948/"><code>RFC 3948</code></a> UDP Encapsulation of IPsec ESP Packets</td>
+<td>Partial</td>
+<td>14</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc3954/"><code>RFC 3954</code></a> Cisco Systems NetFlow Services Export Version 9</td>
+<td>Experimental</td>
+<td>9</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4035/"><code>RFC 4035</code></a> Protocol Modifications for the DNS Security Extensions</td>
+<td>Partial</td>
+<td>108</td>
+<td>3</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4090/"><code>RFC 4090</code></a> Fast Reroute Extensions to RSVP-TE for LSP Tunnels</td>
+<td>Experimental</td>
+<td>12</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4213/"><code>RFC 4213</code></a> Basic Transition Mechanisms for IPv6 Hosts and Routers</td>
+<td>No public row declared</td>
+<td>23</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4271/"><code>RFC 4271</code></a> A Border Gateway Protocol 4 (BGP-4)</td>
+<td>Partial</td>
+<td>100</td>
+<td>15</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4301/"><code>RFC 4301</code></a> Security Architecture for the Internet Protocol</td>
+<td>Partial</td>
+<td>18</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4302/"><code>RFC 4302</code></a> IP Authentication Header</td>
+<td>Supported in OSPFv3 manual IPsec path</td>
+<td>34</td>
+<td>0</td>
+<td>34</td>
+</tr>
+<tr><td><a href="rfc4303/"><code>RFC 4303</code></a> IP Encapsulating Security Payload (ESP)</td>
+<td>Supported</td>
+<td>22</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4360/"><code>RFC 4360</code></a> BGP Extended Communities Attribute</td>
+<td>Supported</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4364/"><code>RFC 4364</code></a> BGP/MPLS IP Virtual Private Networks (VPNs)</td>
+<td>Supported</td>
+<td>8</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4456/"><code>RFC 4456</code></a> BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP)</td>
+<td>Supported</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4486/"><code>RFC 4486</code></a> Subcodes for BGP Cease NOTIFICATION Message</td>
+<td>Supported</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4552/"><code>RFC 4552</code></a> Authentication/Confidentiality for OSPFv3</td>
+<td>Experimental</td>
+<td>27</td>
+<td>5</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4555/"><code>RFC 4555</code></a> IKEv2 Mobility and Multihoming Protocol (MOBIKE)</td>
+<td>Unsupported</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4576/"><code>RFC 4576</code></a> Using a Link State Advertisement (LSA) Options Bit to Prevent Looping in BGP/MPLS IP Virtual Private Networks (VPNs)</td>
+<td>No public row declared</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4577/"><code>RFC 4577</code></a> OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs)</td>
+<td>Not supported</td>
+<td>36</td>
+<td>20</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4578/"><code>RFC 4578</code></a> Dynamic Host Configuration Protocol (DHCP) Options for the Intel Preboot eXecution Environment (PXE)</td>
+<td>Supported</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4659/"><code>RFC 4659</code></a> BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN</td>
+<td>Partial</td>
+<td>16</td>
+<td>3</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4684/"><code>RFC 4684</code></a> Constrained Route Distribution for Border Gateway Protocol/MultiProtocol Label Switching (BGP/MPLS) Internet Protocol (IP) Virtual Private Networks (VPNs)</td>
+<td>Partial</td>
+<td>4</td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4724/"><code>RFC 4724</code></a> Graceful Restart Mechanism for BGP</td>
+<td>Partial</td>
+<td>26</td>
+<td>8</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4760/"><code>RFC 4760</code></a> Multiprotocol Extensions for BGP-4</td>
+<td>Supported</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4761/"><code>RFC 4761</code></a> Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling</td>
+<td>Supported</td>
+<td>18</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc4862/"><code>RFC 4862</code></a> IPv6 Stateless Address Autoconfiguration</td>
+<td>No public row declared</td>
+<td>16</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5036/"><code>RFC 5036</code></a> LDP Specification</td>
+<td>Experimental</td>
+<td>14</td>
+<td>7</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5072/"><code>RFC 5072</code></a> IP Version 6 over PPP</td>
+<td>Partial</td>
+<td>15</td>
+<td>6</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5082/"><code>RFC 5082</code></a> The Generalized TTL Security Mechanism (GTSM)</td>
+<td>Supported on Linux</td>
+<td>4</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr><td><a href="rfc5176/"><code>RFC 5176</code></a> Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS)</td>
+<td>Supported for subscriber access</td>
+<td>22</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5187/"><code>RFC 5187</code></a> OSPFv3 Graceful Restart</td>
+<td>Experimental</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5216/"><code>RFC 5216</code></a> The EAP-TLS Authentication Protocol</td>
+<td>Partial</td>
+<td>21</td>
+<td>3</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5250/"><code>RFC 5250</code></a> The OSPF Opaque LSA Option</td>
+<td>Experimental</td>
+<td>9</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5282/"><code>RFC 5282</code></a> Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol</td>
+<td>Supported</td>
+<td>19</td>
+<td>0</td>
+<td>18</td>
+</tr>
+<tr><td><a href="rfc5286/"><code>RFC 5286</code></a> Basic Specification for IP Fast Reroute: Loop-Free Alternates</td>
+<td>Experimental</td>
+<td>6</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5301/"><code>RFC 5301</code></a> Dynamic Hostname Exchange Mechanism for IS-IS</td>
+<td>Supported</td>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5303/"><code>RFC 5303</code></a> Three-Way Handshake for IS-IS Point-to-Point Adjacencies</td>
+<td>Experimental</td>
+<td>18</td>
+<td>7</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5304/"><code>RFC 5304</code></a> IS-IS Cryptographic Authentication</td>
+<td>Experimental</td>
+<td>9</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5305/"><code>RFC 5305</code></a> IS-IS Extensions for Traffic Engineering</td>
+<td>Experimental</td>
+<td>8</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5308/"><code>RFC 5308</code></a> Routing IPv6 with IS-IS</td>
+<td>Experimental</td>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5310/"><code>RFC 5310</code></a> IS-IS Generic Cryptographic Authentication</td>
+<td>Experimental</td>
+<td>9</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5340/"><code>RFC 5340</code></a> OSPF for IPv6</td>
+<td>Partial</td>
+<td>23</td>
+<td>5</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5392/"><code>RFC 5392</code></a> OSPF Extensions in Support of Inter-Autonomous System (AS) MPLS and GMPLS Traffic Engineering</td>
+<td>Experimental</td>
+<td>12</td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5443/"><code>RFC 5443</code></a> LDP IGP Synchronization</td>
+<td>Experimental</td>
+<td>8</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5492/"><code>RFC 5492</code></a> Capabilities Advertisement with BGP-4</td>
+<td>Supported</td>
+<td>9</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5549/"><code>RFC 5549</code></a> Advertising IPv4 Network Layer Reachability Information with an IPv6 Next Hop</td>
+<td>Supported</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5561/"><code>RFC 5561</code></a> LDP Capabilities</td>
+<td>No public row declared</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5575/"><code>RFC 5575</code></a> Dissemination of Flow Specification Rules</td>
+<td>Partial</td>
+<td>12</td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5701/"><code>RFC 5701</code></a> IPv6 Address Specific BGP Extended Community Attribute</td>
+<td>Partial</td>
+<td>4</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5709/"><code>RFC 5709</code></a> OSPFv2 HMAC-SHA Cryptographic Authentication</td>
+<td>Experimental</td>
+<td>15</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5798/"><code>RFC 5798</code></a> Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</td>
+<td>Supported</td>
+<td>55</td>
+<td>0</td>
+<td>55</td>
+</tr>
+<tr><td><a href="rfc5838/"><code>RFC 5838</code></a> Support of Address Families in OSPFv3</td>
+<td>Experimental</td>
+<td>16</td>
+<td>8</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5880/"><code>RFC 5880</code></a> Bidirectional Forwarding Detection (BFD)</td>
+<td>Partial</td>
+<td>96</td>
+<td>14</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5881/"><code>RFC 5881</code></a> Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop)</td>
+<td>Partial</td>
+<td>23</td>
+<td>6</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5882/"><code>RFC 5882</code></a> Generic Application of Bidirectional Forwarding Detection (BFD)</td>
+<td>Partial</td>
+<td>3</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc5883/"><code>RFC 5883</code></a> Bidirectional Forwarding Detection (BFD) for Multihop Paths</td>
+<td>Partial</td>
+<td>8</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6071/"><code>RFC 6071</code></a> IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap</td>
+<td>No public row declared</td>
+<td>8</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6138/"><code>RFC 6138</code></a> LDP IGP Synchronization for Broadcast Networks</td>
+<td>No public row declared</td>
+<td>2</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6286/"><code>RFC 6286</code></a> Autonomous-System-Wide Unique BGP Identifier for BGP-4</td>
+<td>Supported</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6396/"><code>RFC 6396</code></a> Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format</td>
+<td>Supported</td>
+<td>13</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6397/"><code>RFC 6397</code></a> Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP) Routing Information Export Format with Geo-Location Extensions</td>
+<td>No public row declared</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6482/"><code>RFC 6482</code></a> A Profile for Route Origin Authorizations (ROAs)</td>
+<td>No public row declared</td>
+<td>9</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6549/"><code>RFC 6549</code></a> OSPFv2 Multi-Instance Extensions</td>
+<td>No public row declared</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6608/"><code>RFC 6608</code></a> Subcodes for BGP Finite State Machine Error</td>
+<td>Partial</td>
+<td>3</td>
+<td>3</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6793/"><code>RFC 6793</code></a> BGP Support for Four-Octet Autonomous System (AS) Number Space</td>
+<td>Partial</td>
+<td>30</td>
+<td>12</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6810/"><code>RFC 6810</code></a> The Resource Public Key Infrastructure (RPKI) to Router Protocol</td>
+<td>Partial</td>
+<td>39</td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6811/"><code>RFC 6811</code></a> BGP Prefix Origin Validation</td>
+<td>Supported</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc6996/"><code>RFC 6996</code></a> Autonomous System (AS) Reservation for Private Use</td>
+<td>No public row declared</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7011/"><code>RFC 7011</code></a> Specification of the IP Flow Information Export (IPFIX) Protocol for the Exchange of Flow Information</td>
+<td>Experimental</td>
+<td>19</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7012/"><code>RFC 7012</code></a> Information Model for IP Flow Information Export (IPFIX)</td>
+<td>No public row declared</td>
+<td>11</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7166/"><code>RFC 7166</code></a> Supporting Authentication Trailer for OSPFv3</td>
+<td>Unsupported</td>
+<td>17</td>
+<td>17</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7296/"><code>RFC 7296</code></a> Internet Key Exchange Protocol Version 2 (IKEv2)</td>
+<td>Partial</td>
+<td>222</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7311/"><code>RFC 7311</code></a> The Accumulated IGP Metric Attribute for BGP</td>
+<td>Partial</td>
+<td>4</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7313/"><code>RFC 7313</code></a> Enhanced Route Refresh Capability for BGP-4</td>
+<td>Supported</td>
+<td>10</td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7427/"><code>RFC 7427</code></a> Signature Authentication in the Internet Key Exchange Version 2 (IKEv2)</td>
+<td>No public row declared</td>
+<td>3</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7432/"><code>RFC 7432</code></a> BGP MPLS-Based Ethernet VPN</td>
+<td>Partial</td>
+<td>82</td>
+<td>15</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7440/"><code>RFC 7440</code></a> TFTP Windowsize Option</td>
+<td>No public row declared</td>
+<td>9</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7474/"><code>RFC 7474</code></a> Security Extensions for OSPFv2 when Using Manual Key Management</td>
+<td>Experimental</td>
+<td>10</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7534/"><code>RFC 7534</code></a> AS112 Nameserver Operations</td>
+<td>Supported</td>
+<td>3</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7535/"><code>RFC 7535</code></a> AS112 Redirection Using DNAME</td>
+<td>Supported</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7606/"><code>RFC 7606</code></a> Revised Error Handling for BGP UPDATE Messages</td>
+<td>Partial</td>
+<td>52</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7607/"><code>RFC 7607</code></a> Codification of AS 0 Processing</td>
+<td>Supported</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7611/"><code>RFC 7611</code></a> BGP ACCEPT_OWN Community Attribute</td>
+<td>No public row declared</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7684/"><code>RFC 7684</code></a> OSPFv2 Prefix/Link Attribute Advertisement</td>
+<td>Experimental</td>
+<td>8</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7752/"><code>RFC 7752</code></a> North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP</td>
+<td>Partial</td>
+<td>26</td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7770/"><code>RFC 7770</code></a> Extensions to OSPF for Advertising Optional Router Capabilities</td>
+<td>Experimental</td>
+<td>11</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7854/"><code>RFC 7854</code></a> BGP Monitoring Protocol (BMP)</td>
+<td>Partial</td>
+<td>13</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7858/"><code>RFC 7858</code></a> Specification for DNS over Transport Layer Security (TLS)</td>
+<td>Partial</td>
+<td>19</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7871/"><code>RFC 7871</code></a> Client Subnet in DNS Queries</td>
+<td>Partial</td>
+<td>38</td>
+<td>6</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7911/"><code>RFC 7911</code></a> Advertisement of Multiple Paths in BGP</td>
+<td>Supported</td>
+<td>9</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc792/"><code>RFC 792</code></a> Internet Control Message Protocol</td>
+<td>No public row declared</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7947/"><code>RFC 7947</code></a> Internet Exchange BGP Route Server</td>
+<td>Supported</td>
+<td>3</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7950/"><code>RFC 7950</code></a> The YANG 1.1 Data Modeling Language</td>
+<td>No public row declared</td>
+<td>9</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc7999/"><code>RFC 7999</code></a> BLACKHOLE Community</td>
+<td>Partial</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8050/"><code>RFC 8050</code></a> Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions</td>
+<td>Partial</td>
+<td>6</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8092/"><code>RFC 8092</code></a> BGP Large Communities Attribute</td>
+<td>Supported</td>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8097/"><code>RFC 8097</code></a> BGP Prefix Origin Validation State Extended Community</td>
+<td>No public row declared</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8203/"><code>RFC 8203</code></a> BGP Administrative Shutdown Communication</td>
+<td>Supported</td>
+<td>5</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8210/"><code>RFC 8210</code></a> The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1</td>
+<td>Partial</td>
+<td>56</td>
+<td>12</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8277/"><code>RFC 8277</code></a> Using BGP to Bind MPLS Labels to Address Prefixes</td>
+<td>Partial</td>
+<td>34</td>
+<td>10</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8414/"><code>RFC 8414</code></a> OAuth 2.0 Authorization Server Metadata</td>
+<td>Partial</td>
+<td>7</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8484/"><code>RFC 8484</code></a> DNS Queries over HTTPS (DoH)</td>
+<td>Partial</td>
+<td>16</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8571/"><code>RFC 8571</code></a> BGP - Link State (BGP-LS) Advertisement of IGP Traffic Engineering Performance Metric Extensions</td>
+<td>No public row declared</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8654/"><code>RFC 8654</code></a> Extended Message Support for BGP</td>
+<td>Supported</td>
+<td>12</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8665/"><code>RFC 8665</code></a> OSPF Extensions for Segment Routing</td>
+<td>Partial</td>
+<td>47</td>
+<td>14</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8666/"><code>RFC 8666</code></a> OSPFv3 Extensions for Segment Routing</td>
+<td>Partial</td>
+<td>31</td>
+<td>3</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8669/"><code>RFC 8669</code></a> Segment Routing Prefix Segment Identifier Extensions for BGP</td>
+<td>Partial</td>
+<td>25</td>
+<td>10</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8671/"><code>RFC 8671</code></a> Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP)</td>
+<td>Supported within BMP sender scope</td>
+<td>10</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr><td><a href="rfc8707/"><code>RFC 8707</code></a> Resource Indicators for OAuth 2.0</td>
+<td>No public row declared</td>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8907/"><code>RFC 8907</code></a> The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol</td>
+<td>Partial</td>
+<td>12</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8950/"><code>RFC 8950</code></a> Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop</td>
+<td>Supported</td>
+<td>6</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8955/"><code>RFC 8955</code></a> Dissemination of Flow Specification Rules</td>
+<td>Partial</td>
+<td>22</td>
+<td>5</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc8956/"><code>RFC 8956</code></a> Dissemination of Flow Specification Rules for IPv6</td>
+<td>Partial</td>
+<td>9</td>
+<td>7</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9003/"><code>RFC 9003</code></a> Extended BGP Administrative Shutdown Communication</td>
+<td>Supported</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9012/"><code>RFC 9012</code></a> The BGP Tunnel Encapsulation Attribute</td>
+<td>Partial</td>
+<td>75</td>
+<td>51</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc905/"><code>RFC 905</code></a> ISO Transport Protocol Specification (ISO DP 8073)</td>
+<td>No public row declared</td>
+<td>9</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9069/"><code>RFC 9069</code></a> Support for Local RIB in the BGP Monitoring Protocol (BMP)</td>
+<td>Supported</td>
+<td>15</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9072/"><code>RFC 9072</code></a> Extended Optional Parameters Length for BGP OPEN Message</td>
+<td>Partial</td>
+<td>9</td>
+<td>4</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9085/"><code>RFC 9085</code></a> Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing</td>
+<td>Partial</td>
+<td>12</td>
+<td>9</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9086/"><code>RFC 9086</code></a> Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing BGP Egress Peer Engineering</td>
+<td>Partial</td>
+<td>12</td>
+<td>10</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9136/"><code>RFC 9136</code></a> IP Prefix Advertisement in Ethernet VPN (EVPN)</td>
+<td>Partial</td>
+<td>14</td>
+<td>5</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9234/"><code>RFC 9234</code></a> Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages</td>
+<td>Supported</td>
+<td>19</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9252/"><code>RFC 9252</code></a> BGP Overlay Services Based on Segment Routing over IPv6 (SRv6)</td>
+<td>Partial</td>
+<td>19</td>
+<td>8</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9256/"><code>RFC 9256</code></a> Segment Routing Policy Architecture</td>
+<td>Partial</td>
+<td>22</td>
+<td>6</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9319/"><code>RFC 9319</code></a> The Use of maxLength in the Resource Public Key Infrastructure (RPKI)</td>
+<td>No public row declared</td>
+<td>4</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9494/"><code>RFC 9494</code></a> Long-Lived Graceful Restart for BGP</td>
+<td>Partial</td>
+<td>25</td>
+<td>5</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9514/"><code>RFC 9514</code></a> Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6)</td>
+<td>Partial</td>
+<td>13</td>
+<td>13</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9552/"><code>RFC 9552</code></a> Distribution of Link-State and Traffic Engineering Information Using BGP</td>
+<td>Partial</td>
+<td>48</td>
+<td>1</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9568/"><code>RFC 9568</code></a> Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</td>
+<td>Partial</td>
+<td>59</td>
+<td>2</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9582/"><code>RFC 9582</code></a> The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2</td>
+<td>Unsupported</td>
+<td>10</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9687/"><code>RFC 9687</code></a> Border Gateway Protocol 4 (BGP-4) Send Hold Timer</td>
+<td>Supported</td>
+<td>13</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9728/"><code>RFC 9728</code></a> OAuth 2.0 Protected Resource Metadata</td>
+<td>No public row declared</td>
+<td>7</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr><td><a href="rfc9830/"><code>RFC 9830</code></a> BGP Extensions for the Advertisement of Segment Routing (SR) Policies</td>
+<td>Partial</td>
+<td>96</td>
+<td>20</td>
+<td>0</td>
+</tr>
+<tr><td><a href="sflow-v5/"><code>SFLOW-V5</code></a> sFlow: A Method for Monitoring Traffic in Switched and Routed Networks</td>
+<td>Experimental</td>
+<td>16</td>
+<td>3</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Summaries that are not enrolled</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="draft-ietf-sidrops-8210bis/"><code>DRAFT-IETF-SIDROPS-8210BIS</code></a> The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2</td>
+<td>backlog</td>
+<td>The RPKI to Router Protocol, Version 2. Split out of rfc9582 on 2026-09-01 because the obligations below are stated by this draft and not by RFC 9582, which profiles the ROA certificate. It is not enrolled because its obligations are not yet proven and the draft is still in the RFC Editor queue, so a version bump can restate them.</td>
+</tr>
+<tr><td><a href="rfc1035/"><code>RFC 1035</code></a> Domain Names - Implementation and Specification</td>
+<td>backlog</td>
+<td>Domain Names: Implementation and Specification. Re-authored 2026-07-30 and it now declares 27 MUST-level obligations read from the indicative prose of a 1987 document (0 capitalised keywords, 23 lowercase must), so this is no longer an empty checklist. It is not enrolled because the obligations are not all proven and the unproven ones need an owner ruling, not an implementer&#39;s annotation. The obligation with no code path in Ze is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. The 512-octet UDP bound and the TC bit ARE enforced -- send calls Msg.Truncate(udpReplyLimit(r)) for a datagram reply in internal/core/dnsserver/handler.go, and udpReplyLimit holds the Section 2.3.4 floor while letting an RFC 6891 Section 6.2.3 OPT record raise it. An unsupported inverse query DOES draw Not Implemented: Authoritative branches on the opcode before any zone lookup, in the same file. It was the one obligation the 73-section walk found OUTSIDE the summary&#39;s declared scope and added to it. The response TTL is deliberately not raised to the SOA MINIMUM -- RFC 2308 Section 4 withdrew that rule, hdr in internal/plugins/geodns/server.go applies no floor, and TestRFC2308_NoZoneWideTTLFloor holds the decision. About 6 requirements admit only a positive polarity because miekg/dns owns the wire codec and no Ze-side change can break them. Escalated for scoping per OR-1b.</td>
+</tr>
+<tr><td><a href="rfc4762/"><code>RFC 4762</code></a> Virtual Private LAN Service (VPLS) Using Label Distribution Protocol (LDP) Signaling</td>
+<td>blocked</td>
+<td>VPLS using LDP signaling. Written 2026-09-01 so the public row this RFC has always carried is declared by a summary rather than authored on a page nobody could tie back to a document. It is not enrolled because there is no source text at rfc/full/rfc4762.txt: fetch https://www.rfc-editor.org/rfc/rfc4762.txt, then extract. Ze speaks the BGP-signalled VPLS of RFC 4761 and not this one, so the row claims Unsupported and no obligation here is gated.</td>
+</tr>
+<tr><td><a href="rfc5065/"><code>RFC 5065</code></a> Autonomous System Confederations for BGP</td>
+<td>blocked</td>
+<td>BGP confederations. Written 2026-09-01 for the same reason as the other six rows that had no summary: the public claim now lives in the document it is about. It is not enrolled because there is no source text at rfc/full/rfc5065.txt: fetch https://www.rfc-editor.org/rfc/rfc5065.txt, then extract. The row claims Unsupported, so no obligation here is gated.</td>
+</tr>
+<tr><td><a href="rfc5120/"><code>RFC 5120</code></a> M-ISIS: Multi Topology (MT) Routing in Intermediate System to Intermediate Systems (IS-ISs)</td>
+<td>blocked</td>
+<td>IS-IS multi-topology routing. Written 2026-09-01 so the public row is declared by a summary. It is not enrolled because there is no source text at rfc/full/rfc5120.txt: fetch https://www.rfc-editor.org/rfc/rfc5120.txt, then extract. Ze runs IS-IS single-topology dual-stack only and the row claims Unsupported, so no obligation here is gated.</td>
+</tr>
+<tr><td><a href="rfc5925/"><code>RFC 5925</code></a> The TCP Authentication Option</td>
+<td>blocked</td>
+<td>The TCP Authentication Option. Written 2026-09-01 so the public row is declared by a summary. It is not enrolled because there is no source text at rfc/full/rfc5925.txt: fetch https://www.rfc-editor.org/rfc/rfc5925.txt, then extract. Ze implements the RFC 2385 TCP MD5 signature option and not TCP-AO, and the row claims Unsupported, so no obligation here is gated.</td>
+</tr>
+<tr><td><a href="rfc6514/"><code>RFC 6514</code></a> BGP Encodings and Procedures for Multicast in MPLS/BGP IP VPNs</td>
+<td>out-of-scope</td>
+<td>BGP Encodings and Procedures for Multicast in MPLS/BGP IP VPNs. OUT OF SCOPE by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc6514.txt and this summary declares all 201 requirements, 133 of them MUST-level, so a later decision to build MVPN starts from the obligations rather than from nothing. What Ze has today is NLRI plumbing and nothing the RFC is about: the Section 4 route-type split (splitMVPN, internal/core/bgp/nlri/nlrisplit/mvpn.go), an NLRI codec, a config route parser for three of the seven route types, and opaque Adj-RIB-In storage. Exactly one MUST-level requirement is met and it is met vacuously -- RFC6514-9.1.1-10 says the Leaf Information Required flag &#34;MUST be set to zero and MUST be ignored on receipt&#34;, and Ze ignores it by never parsing a PMSI byte, because knownAttrParsers leaves attribute code 22 nil. Absent entirely: the PMSI Tunnel attribute, the PE Distinguisher Labels attribute (code 27 has no constant), the Source AS and VRF Route Import extended communities, auto-discovery, the C-multicast route exchange, S-PMSI routes, inter-AS and ASBR operation, upstream multicast hop selection (SAFI 129 is unregistered), and every protocol the document leans on -- PIM, mLDP, RSVP-TE P2MP and MSDP. No {gap} annotation is written for any of it: a gap is an ISSUE and this is a DECISION (ai/rules/rfc-compliance.md), and 132 gap rows would record a feature nobody chose to build as 132 conformance failures.</td>
+</tr>
+<tr><td><a href="rfc6987/"><code>RFC 6987</code></a> OSPF Stub Router Advertisement</td>
+<td>backlog</td>
+<td>OSPF Stub Router Advertisement. Its five obligations sit behind bare [LSA]-style category tags, which parse_checklist_line reads as prose rather than as requirements, so the summary captures zero at any level while the source is normative. Declared backlog and not non-normative on purpose: calling it non-normative would launder five unparsed obligations into a decision, which is exactly the shape D5 exists to expose.</td>
+</tr>
+<tr><td><a href="rfc7454/"><code>RFC 7454</code></a> BGP Operations and Security</td>
+<td>non-normative</td>
+<td>BGP Operations and Security, published as BCP 194 with IETF category Best Current Practice. A capitalised MUST / MUST NOT / SHALL / SHALL NOT scan over rfc/full/rfc7454.txt hits four keywords and all four sit inside the RFC 2119 key-words sentence of section 1.1, which tells a reader how to read the other sentences and states no obligation of its own. Outside that sentence the document uses no MUST-level keyword except one NOT REQUIRED in section 5.1, and that phrase negates a requirement instead of stating one. The summary written 2026-08-08 therefore captures 64 requirements and gates none of them: 42 SHOULD, 12 SHOULD NOT, 8 RECOMMENDED, 1 MAY, and the single NOT REQUIRED of section 5.1 recorded at the OPTIONAL level. The document also addresses network administrators rather than protocol implementers, and section 12 states that it &#34;does not aim to describe existing BGP implementations&#34;. A zero-MUST BCP can reach the public ledger two ways, as a non-normative disposition or as a manual-walk extraction sign-off with a register-reason, and that choice is a ledger judgement for the owner. Thomas made it on 2026-08-12: non-normative, on the grounds that the scan recorded above finds no MUST-level keyword outside the key-words sentence, so backlog overstated a debt this text does not create. The choice is no longer open.</td>
+</tr>
+<tr><td><a href="rfc7627/"><code>RFC 7627</code></a> Transport Layer Security (TLS) Session Hash and Extended Master Secret Extension</td>
+<td>backlog</td>
+<td>TLS Session Hash and Extended Master Secret Extension. Summary written 2026-08-24 against rfc/full/rfc7627.txt, which was fetched the same day. It declares 27 requirements: 17 MUST-level over 5 sections, 9 at SHOULD level (8 SHOULD / SHOULD NOT plus one NOT RECOMMENDED) and 1 MAY. It is NOT enrolled because not one of the 17 has a producer inside Ze, so neither route to enrolment is an implementer&#39;s to take: there is no Ze function a positive and a negative test could tag, and annotating the remainder is a conformance judgement ai/rules/rfc-compliance.md reserves to the owner. WHERE THE OBLIGATIONS ARE DISCHARGED. Go&#39;s crypto/tls owns the extension end to end. Its client sets extendedMasterSecret on every ClientHello it builds (makeClientHello, crypto/tls/handshake_client.go), clearing it only for an ECH inner hello; its server copies the client&#39;s bit into the ServerHello (serverHandshakeState.processClientHello, crypto/tls/handshake_server.go); the negotiated result lands on Conn.extMasterSecret; and the Section 5.3 abbreviated-handshake mismatch rules are enforced in clientHandshakeState.processServerHello and serverHandshakeState.checkForResumption. Ze holds no ClientHello or ServerHello encoder and no master-secret derivation, so RFC7627-5.1-1, 5.2-1, 5.2-2, 5.2-4, 5.2-6, 5.3-3, 5.3-4, 5.3-6, 5.3-8, 5.3-9, 5.3-10 and 6.4-2 have no Ze-side producer at all. The Section 5.4 downgrade containment (RFC7627-5.4-1 to 5.4-4 and 5.4-6) is enforced below Ze too: Conn.connectionStateLocked selects noEKMBecauseNoEMS on `c.vers != VersionTLS13 &amp;&amp; !c.extMasterSecret` (Conn.connectionStateLocked, crypto/tls/conn.go), which is the MUST NOT of RFC7627-5.4-1 executed by the library rather than by its caller. Ze sets no tls.Config.Renegotiation and computes no tls-unique -- the sha256(TLSUnique) fallback was removed from tlsMethod.deriveMSK -- and the authenticator config sets SessionTicketsDisabled so it offers no abbreviated handshake to resume (newTLSMethod, internal/component/ike/eap/eap_tls.go). WHAT ZE ACTUALLY PRODUCES is the refusal path, and it is two functions in internal/component/ike/eap/eap_tls.go: exportEAPTLSMSK returns the crypto/tls error rather than a zero MSK, and eapTLS12ExportRefused names the peer, the negotiated version, RFC 7627 and the operator&#39;s three remedies (move the peer to TLS 1.3 per RFC 9190, add RFC 7627 to its TLS 1.2 stack, or configure another EAP method). RFC 5216 Section 2.3 defines the EAP-TLS MSK as that export, so a TLS 1.2 peer whose session carries no extended master secret cannot authenticate. strongSwan 5.9.14 reaches that state by DEFAULT rather than by limitation: charon ships version_max = 1.2 and negotiates no RFC 7627, while charon.tls.version_max = 1.3 on the same build reaches an established SA (test/interop-ipsec/scenarios/eap-tls13/strongswan.conf, and the failing counterpart is test/interop-ipsec/scenarios/eap-tls). TWO FACTS AN OWNER RULING HAS TO ABSORB. First, RFC 7627 IS OBSOLETE. RFC 9846 (The Transport Layer Security (TLS) Protocol Version 1.3, July 2026) obsoletes RFC 5077, 5246, 6961, 7627, 8422 and 8446; its Appendix D renames the extension to Extended Main Secret and the code point to extended_main_secret, and leaves the Section 4 PRF label unchanged for compatibility; its Appendix E states the only obligation it adds about the extension, a SHOULD that an implementation supporting both TLS 1.3 and earlier versions indicate the use of the Extended Main Secret extension in its APIs whenever TLS 1.3 is used. ai/rules/rfc-compliance.md says the lineage that matters runs FORWARD, so the document that states what Ze owes today is RFC 9846, and rfc/full/rfc9846.txt is not in this repository. Enrolling rfc7627 would gate a superseded text. Second, the tlsunsafeekm override is GONE from this checkout, as of the toolchain bump on 2026-08-25. go.mod pins `toolchain go1.27.0`, whose internal/godebugs/table.go carries `{Name: &#34;tlsunsafeekm&#34;, Removed: 27, Old: one}`, so a process that sets it to its old value raises a fatal error before main() rather than getting the unsafe export. crypto/tls agrees at the other end: noEKMBecauseNoEMS (crypto/tls/prf.go) now returns the bare sentence with no override clause at all. So the claim cmd/ze/main.go and the RFC 5216 row of docs/features/rfc-status.md both make, that no override remains, is true of what this tree builds; it was false while the toolchain was 1.26. Escalated for a scoping ruling, per the route rfc1035 and rfc9190 took.</td>
+</tr>
+<tr><td><a href="rfc8195/"><code>RFC 8195</code></a> Use of BGP Large Communities</td>
+<td>non-normative</td>
+<td>Use of BGP Large Communities, IETF category Informational. A capitalised MUST / MUST NOT / SHALL / SHALL NOT / REQUIRED scan over rfc/full/rfc8195.txt hits zero keywords, and the document invokes neither RFC 2119 nor RFC 8174 nor BCP 14 anywhere, so it declares no key-words machinery for a reader to read its prose by. Its own abstract calls it examples and inspiration for operator application of BGP Large Communities. The summary written against it captures 3 requirements and gates none: RFC8195-2-1, RFC8195-2.2-1 and RFC8195-4.3.3-1, all at SHOULD. Section 3.2 and Section 4.1.1 both say an AS could assign a function number, which states a convention rather than an obligation. Thomas ruled on 2026-08-12 that this is non-normative rather than backlog.</td>
+</tr>
+<tr><td><a href="rfc8326/"><code>RFC 8326</code></a> Graceful BGP Session Shutdown</td>
+<td>blocked</td>
+<td>Graceful BGP Session Shutdown. No source text at rfc/full/rfc8326.txt or rfc/drafts/rfc8326.txt, so check_enrolment refuses the enrolment. Fetch https://www.rfc-editor.org/rfc/rfc8326.txt, then extract.</td>
+</tr>
+<tr><td><a href="rfc8362/"><code>RFC 8362</code></a> OSPFv3 Link State Advertisement (LSA) Extensibility</td>
+<td>out-of-scope</td>
+<td>OSPFv3 Link State Advertisement (LSA) Extensibility. OUT OF SCOPE as a document by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc8362.txt and this summary declares all 50 requirements, 38 of them MUST-level. What Ze has is a by-product of RFC 8666 Segment Routing rather than the framework this document defines: three of the seven Extended LSA types are originated, and only when segment routing is enabled (v6OriginateSR, internal/plugins/ospf/sr_origination_v6.go); receipt decoding is reached from one place and reads Prefix-SIDs alone (v6ReceivedPrefixSIDs, sr_reception_v6.go); no SPF calculation reads an Extended LSA, because the base Router-LSA remains the sole SPF vertex; and there is no RFC 8362 configuration surface and none of its Appendix A or B migration machinery. Nine MUST-level requirements are genuinely unmet and 20 more are met only because Ze performs no action on their subject. The most serious is RFC8362-2-1: the seven LS type constants carry the U-bit clear where Section 2 requires it set, which is recorded as a defect in plan/journal/declared-format-contradicts-payload.md and is a fix rather than a scope question. No {gap} annotation is written here, because the scope decision covers the document and the U-bit defect is tracked where a fix is owed.</td>
+</tr>
+<tr><td><a href="rfc8538/"><code>RFC 8538</code></a> Notification Message Support for BGP Graceful Restart</td>
+<td>blocked</td>
+<td>Notification message support for BGP graceful restart. Written 2026-09-01 so the public row is declared by a summary. It is not enrolled because there is no source text at rfc/full/rfc8538.txt: fetch https://www.rfc-editor.org/rfc/rfc8538.txt, then extract. The row claims Unsupported, so no obligation here is gated.</td>
+</tr>
+<tr><td><a href="rfc9129/"><code>RFC 9129</code></a> YANG Data Model for the OSPF Protocol</td>
+<td>blocked</td>
+<td>YANG Data Model for the OSPF Protocol. No source text at rfc/full/rfc9129.txt or rfc/drafts/rfc9129.txt, so check_enrolment refuses the enrolment. Fetch https://www.rfc-editor.org/rfc/rfc9129.txt, then extract.</td>
+</tr>
+<tr><td><a href="rfc9190/"><code>RFC 9190</code></a> EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3</td>
+<td>backlog</td>
+<td>EAP-TLS 1.3: Using EAP with TLS 1.3. Summary written 2026-08-01 and it declares 51 MUST-level obligations over 19 sections. It is NOT enrolled because 49 of them are not yet proven by a tagged test, and the two routes to enrolment are both closed to an implementer: proving all 51 in both polarities is spec-sized work, and annotating the remainder is a conformance judgement ai/rules/rfc-compliance.md reserves to the owner. What Ze does implement today is the Section 2.3 key derivation and the Section 2.5 protected success result indication. exportEAPTLSMSK (internal/component/ike/eap/eap_tls.go) selects the exporter label EXPORTER_EAP_TLS_Key_Material, the Type-Code context and the 128-octet length whenever the negotiated version is TLS 1.3, and test/interop-ipsec/scenarios/eap-tls13 exercises that path against strongSwan. tlsMethod.indicateSuccess (same file, added 2026-08-12) writes the encrypted TLS record carrying application data 0x00 in the round that completes the handshake, so RFC9190-2.5-1 and RFC9190-2.5-2 now carry both polarities; test/interop-ipsec/scenarios/responder-eap-tls13 proves it with Ze in the EAP-TLS SERVER role, and with the write reverted strongSwan logs missing protected success indication for EAP-TLS with TLS 1.3 and the SA never establishes. PeerSession.handleTLSRequest still does not CONSUME the indication: it answers the record with the no-data EAP-Response Section 2.5 step 4 asks for, but never decrypts it, so a Ze peer cannot tell a server that sent one from a server that did not. The published RFC states no peer-side obligation and errata 7577, which proposes one, is Reported rather than Verified. Escalated for a scoping ruling rather than decided, per the same route rfc1035 and rfc5301 took.</td>
+</tr>
+<tr><td><a href="rfc9384/"><code>RFC 9384</code></a> A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD)</td>
+<td>non-normative</td>
+<td>A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD), IETF category Standards Track. The document carries the RFC 2119 / RFC 8174 key-words paragraph at Section 2, and a capitalised MUST / MUST NOT / SHALL / SHALL NOT / REQUIRED scan over rfc/full/rfc9384.txt hits those five words on one line only, line 101, which is the key-words sentence itself. That sentence tells a reader how to read the other sentences and states no obligation of its own. Outside it the text uses no MUST-level keyword anywhere. The summary written 2026-09-01 therefore captures three requirements and gates none: RFC9384-3-1 at Section 3, and RFC9384-4-1 and RFC9384-4-2 at Section 4, all three at SHOULD. Section 5 says the subcode &#34;is purely informational and has no impact on the BGP Finite State Machine beyond that already documented by [RFC4271], Sections 6.6 and 6.7&#34;, so the document adds one registry value and three recommendations about using it. A zero-MUST document can reach the public ledger two ways, as this disposition or as a manual-walk extraction sign-off with a register-reason. This disposition is the route taken, because the sign-off at rfc/extraction/rfc9384.json declares the register the source derives, prose, and the second route would need it to declare the weaker manual-walk grade instead. That sign-off bounds the three-row checklist against the source text.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -196,7 +1873,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 21:47 UTC</span>
                 </div>
             </div>
         </footer>

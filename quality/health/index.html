@@ -66,12 +66,12 @@
 .th-card table { font-size: .85rem; margin-top: .6rem; }
 .th-card td, .th-card th, .th-attention td, .th-attention th, .th-trends td, .th-trends th { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid rgba(0,0,0,.08); }
 </style>
-<section class="th-attention"><h2>Needs attention</h2><table><thead><tr><th>Metric</th><th>Question</th><th>Value</th><th>What to do</th></tr></thead><tbody><tr><td>Enrolled RFCs with zero test-proven requirements</td><td>Q2</td><td><strong>33 / 171</strong></td><td>Pick the largest and complete a pair, or accept it is a single-polarity claim.</td></tr><tr><td>Logged known-failing tests</td><td>Q3</td><td><strong>2</strong></td><td>Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</td></tr></tbody></table></section>
+<section class="th-attention"><h2>Needs attention</h2><table><thead><tr><th>Metric</th><th>Question</th><th>Value</th><th>What to do</th></tr></thead><tbody><tr><td>RFC MUST requirements proven by a positive+negative test pair</td><td>Q2</td><td><strong>1411 / 3264</strong></td><td>Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.</td></tr><tr><td>Enrolled RFCs with zero test-proven requirements</td><td>Q2</td><td><strong>37 / 179</strong></td><td>Pick the largest and complete a pair, or accept it is a single-polarity claim.</td></tr><tr><td>Logged known-failing tests</td><td>Q3</td><td><strong>2</strong></td><td>Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</td></tr></tbody></table></section>
 <section><h2>Sensitivity</h2><p><em>If the code were wrong, would something go red?</em></p>
 <article class="th-card th-ok">
   <h3>Tests with no reachable failure call</h3>
-  <p class="th-value">132 / 26932 (floor 132) <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="132 of 26932"><span class="th-meter-fill" style="width:0.5%"></span></div><p class="th-meter-note">132 of 26932 (0.5%)</p>
+  <p class="th-value">132 / 27245 (floor 132) <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="132 of 27245"><span class="th-meter-fill" style="width:0.5%"></span></div><p class="th-meter-note">132 of 27245 (0.5%)</p>
   <p>These execute code and pass unconditionally. Breaking the code under test would not turn them red.</p>
   <p class="th-action"><strong>If this degrades:</strong> Add a real assertion, or annotate with `// test-asserts-nothing: &lt;why&gt;` when the oracle is genuinely implicit (a must-not-panic smoke test).</p>
   <table><thead><tr><th>file</th><th>test</th></tr></thead><tbody><tr><td><code>internal/chaos/chaos_test.go</code></td><td><code>TestChaosConcurrency</code></td></tr><tr><td><code>internal/chaos/watchdog/watchdog_test.go</code></td><td><code>TestWatchdogRouteRegression</code></td></tr><tr><td><code>internal/component/bfd/api/registry_test.go</code></td><td><code>TestSetGetService_ConcurrentNoRace</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestMetricsHookStateChangeCounters</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestRefreshSessionsGauge</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestBMPPeerUpSkippedOnCacheMiss</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestHandleSenderNoSenders</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_ShortUpdate_Skipped</code></td></tr><tr><td><code>internal/component/bgp/plugins/filter_irr/filter_irr_test.go</code></td><td><code>TestRefreshSwapsAtomically</code></td></tr></tbody></table>
@@ -87,33 +87,33 @@
 </section>
 <section><h2>Intent coverage</h2><p><em>Are the things that matter checked, or only the happy path?</em></p>
 <article class="th-card th-warn">
+  <h3>RFC MUST requirements proven by a positive+negative test pair</h3>
+  <p class="th-value">1411 / 3264 <span class="th-status">Needs attention</span></p>
+  <div class="th-meter" role="img" aria-label="1411 of 3264"><span class="th-meter-fill" style="width:43.2%"></span></div><p class="th-meter-note">1411 of 3264 (43.2%)</p>
+  <p>43.2% carry both polarities. Of the remaining 1853: 834 not-applicable (ze deliberately does not do it, so no test is owed), 501 known gap (unimplemented, genuinely untested), 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- and 148 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work.</p>
+  <p class="th-action"><strong>If this degrades:</strong> Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.</p>
+  <table><thead><tr><th>gated</th><th>rfc</th></tr></thead><tbody><tr><td><code>55</code></td><td><code>rfc5798</code></td></tr><tr><td><code>38</code></td><td><code>rfc7871</code></td></tr><tr><td><code>34</code></td><td><code>rfc2132</code></td></tr><tr><td><code>34</code></td><td><code>rfc4302</code></td></tr><tr><td><code>23</code></td><td><code>rfc4213</code></td></tr><tr><td><code>18</code></td><td><code>rfc4761</code></td></tr><tr><td><code>17</code></td><td><code>rfc3032</code></td></tr><tr><td><code>17</code></td><td><code>rfc7166</code></td></tr><tr><td><code>16</code></td><td><code>rfc4862</code></td></tr><tr><td><code>13</code></td><td><code>rfc2003</code></td></tr></tbody></table>
+</article>
+<article class="th-card th-warn">
   <h3>Enrolled RFCs with zero test-proven requirements</h3>
-  <p class="th-value">33 / 171 <span class="th-status">Needs attention</span></p>
-  <div class="th-meter" role="img" aria-label="33 of 171"><span class="th-meter-fill" style="width:19.3%"></span></div><p class="th-meter-note">33 of 171 (19.3%)</p>
+  <p class="th-value">37 / 179 <span class="th-status">Needs attention</span></p>
+  <div class="th-meter" role="img" aria-label="37 of 179"><span class="th-meter-fill" style="width:20.7%"></span></div><p class="th-meter-note">37 of 179 (20.7%)</p>
   <p>Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.</p>
   <p class="th-action"><strong>If this degrades:</strong> Pick the largest and complete a pair, or accept it is a single-polarity claim.</p>
   
 </article>
 <article class="th-card th-ok">
-  <h3>RFC MUST requirements proven by a positive+negative test pair</h3>
-  <p class="th-value">1333 / 3037 <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="1333 of 3037"><span class="th-meter-fill" style="width:43.9%"></span></div><p class="th-meter-note">1333 of 3037 (43.9%)</p>
-  <p>43.9% carry both polarities. Of the remaining 1704: 836 not-applicable (ze deliberately does not do it, so no test is owed), 502 known gap (unimplemented, genuinely untested), and 366 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.</p>
-  <p class="th-action"><strong>If this degrades:</strong> Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.</p>
-  <table><thead><tr><th>gated</th><th>rfc</th></tr></thead><tbody><tr><td><code>38</code></td><td><code>rfc7871</code></td></tr><tr><td><code>34</code></td><td><code>rfc2132</code></td></tr><tr><td><code>23</code></td><td><code>rfc4213</code></td></tr><tr><td><code>18</code></td><td><code>rfc4761</code></td></tr><tr><td><code>17</code></td><td><code>rfc3032</code></td></tr><tr><td><code>17</code></td><td><code>rfc7166</code></td></tr><tr><td><code>16</code></td><td><code>rfc4862</code></td></tr><tr><td><code>13</code></td><td><code>rfc2003</code></td></tr><tr><td><code>13</code></td><td><code>rfc9514</code></td></tr><tr><td><code>12</code></td><td><code>rfc9085</code></td></tr></tbody></table>
-</article>
-<article class="th-card th-ok">
   <h3>In-repo test inventory</h3>
-  <p class="th-value">26963 test functions <span class="th-status">Within threshold</span></p>
+  <p class="th-value">27276 test functions <span class="th-status">Within threshold</span></p>
   
-  <p>3624 Go test files, 79 fuzz targets, 132 benchmarks, 1800 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
+  <p>3657 Go test files, 79 fuzz targets, 132 benchmarks, 1807 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
   <p class="th-action"><strong>If this degrades:</strong> This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.</p>
   
 </article>
 <article class="th-card th-ok">
   <h3>Test files that expect a specific error</h3>
-  <p class="th-value">1282 / 3624 <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="1282 of 3624"><span class="th-meter-fill" style="width:35.4%"></span></div><p class="th-meter-note">1282 of 3624 (35.4%)</p>
+  <p class="th-value">1294 / 3657 <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="1294 of 3657"><span class="th-meter-fill" style="width:35.4%"></span></div><p class="th-meter-note">1294 of 3657 (35.4%)</p>
   <p>Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.</p>
   <p class="th-action"><strong>If this degrades:</strong> Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</p>
   <table><thead><tr><th>area</th><th>files</th><th>negative</th><th>percent</th></tr></thead><tbody><tr><td><code>internal/chaos/report</code></td><td><code>6</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/chaos/web</code></td><td><code>10</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/rib</code></td><td><code>11</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/stats</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/completion</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/test/mock</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/component/doctor</code></td><td><code>17</code></td><td><code>1</code></td><td><code>5.9</code></td></tr><tr><td><code>internal/component/lg</code></td><td><code>17</code></td><td><code>1</code></td><td><code>5.9</code></td></tr><tr><td><code>internal/component/sysrib</code></td><td><code>12</code></td><td><code>1</code></td><td><code>8.3</code></td></tr><tr><td><code>internal/chaos/peer</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr></tbody></table>
@@ -124,7 +124,7 @@
   
   <p>A technique adopted only forward from its introduction shows here as a step: recent buckets carry it, older ones never do.</p>
   <p class="th-action"><strong>If this degrades:</strong> Back-fill the oldest bucket, or record the uncovered remainder as tracked backlog (ai/rules/testing.md, Back-Fill New Test Types).</p>
-  <table><thead><tr><th>Package first commit</th><th>Packages with tests</th><th>With a fuzz target</th><th>With an RFC-tagged test</th><th>With a .ci scenario</th></tr></thead><tbody><tr><td>2025</td><td>1</td><td>0</td><td>0</td><td>0</td></tr><tr><td>2026</td><td>610</td><td>31</td><td>99</td><td>31</td></tr></tbody></table>
+  <table><thead><tr><th>Package first commit</th><th>Packages with tests</th><th>With a fuzz target</th><th>With an RFC-tagged test</th><th>With a .ci scenario</th></tr></thead><tbody><tr><td>2025</td><td>1</td><td>0</td><td>0</td><td>0</td></tr><tr><td>2026</td><td>611</td><td>31</td><td>101</td><td>31</td></tr></tbody></table>
 </article>
 </section>
 <section><h2>Integrity</h2><p><em>When something goes red, does it stop the line?</em></p>
@@ -179,7 +179,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 20:40 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 21:47 UTC</span>
                 </div>
             </div>
         </footer>

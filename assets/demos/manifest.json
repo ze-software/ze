@@ -21,9 +21,9 @@
     "cli-dashboard": {
       "assets": {
         "cast": {
-          "bytes": 14653,
+          "bytes": 14619,
           "path": "cli-dashboard.cast",
-          "sha256": "3dda17bc16813282d4caa6da5fcc80557ec1fa33261394a20f1b2c665398f1fa"
+          "sha256": "b5aa861b35846a81fddb96061233c195fd655ab15e46a30b05764940e8ef62ee"
         },
         "transcript": {
           "bytes": 258,
@@ -31,10 +31,10 @@
           "sha256": "86542601ebff2186dc62874ec3cd82a7730d3be27988972ce3d42cdafe4438b3"
         }
       },
-      "binary-sha256": "d685a2916490515f6b6386944d2656abbfd986b3ba9af3f2b08361b44fe91483",
+      "binary-sha256": "a2e3c29b0ced2e950ad97f55ec298f7532b637cb0bf31dbca1002e467cedafc0",
       "definition-sha256": "9c16da67e4a830c0f0a10426b7f3ee04fb55421b5aa5c9dcee285be9060a982d",
-      "release": "26.08.31",
-      "source-sha256": "ef3c6ee5b6af5c8c460dc951f02bf4aa8f8f47ae63af7b22c8b41e98b19c6277"
+      "release": "26.09.01",
+      "source-sha256": "33d2c7d5b25809297601467ac9dbb5b2c0f685d9067ad3da7b21be9864867daa"
     },
     "commit-confirmed": {
       "assets": {

@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 905 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 905: ISO Transport Protocol Specification (ISO DP 8073). 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 905 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 905: ISO Transport Protocol Specification (ISO DP 8073). 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 905 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 905: ISO Transport Protocol Specification (ISO DP 8073). 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc905/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc905/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">No row in the public ledger</span>
+    <h1 id="rfc-detail-title">RFC 905 - ISO Transport Protocol Specification (ISO DP 8073)</h1>
+    <p>Every requirement this repository extracted from RFC 905, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>6 of 6 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 6 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 19 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 10 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 6 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>No row in the public ledger</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>10</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>9</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>6</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>3</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>19</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>19</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc905.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc905.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc905.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: ISO Transport Protocol: nine MUST-level requirements. The six that ze realizes are the Annex B Fletcher checksum (mod-255 arithmetic, two-pass generation, verify-both-sums-zero, OSPF LSA checksum excluding LS Age, encode+decode vectors) -- x-1,x-2,x-3,x-4,x-6,x-7 -- each bound with positive+negative tags on the IS-IS (internal/plugins/isis/packet/checksum.go) and OSPF (internal/plugins/ospf/types/checksum.go, ospf/packet/checksum.go) checksum tests. The three ISO Transport TPDU MUSTs (6.17.3-1 generation, 6.17.3-2 receive/verify-and-discard, 13.2.3.1-1 0xC3 checksum parameter) are {not-applicable}: ze has no ISO Transport TPDU sender/receiver and no 0xC3 transport-checksum-parameter code path.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 905.</p>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>6</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>3</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>9</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc905-x-1"><code>RFC905-x-1</code></a>, <a href="#rfc905-x-2"><code>RFC905-x-2</code></a>, <a href="#rfc905-x-3"><code>RFC905-x-3</code></a>, <a href="#rfc905-x-4"><code>RFC905-x-4</code></a>, <a href="#rfc905-x-6"><code>RFC905-x-6</code></a>, <a href="#rfc905-x-7"><code>RFC905-x-7</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc905-6.17.3-1"><code>RFC905-6.17.3-1</code></a>, <a href="#rfc905-6.17.3-2"><code>RFC905-6.17.3-2</code></a>, <a href="#rfc905-13.2.3.1-1"><code>RFC905-13.2.3.1-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-6.17.3-1">RFC905-6.17.3-1</code></td><td colspan="3"><span class="rfc-subject">Sender sets the checksum so SUM(a[i]) == 0 and SUM(i*a[i]) == 0, both mod 255, over octets 1..L (Section 6.17.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.17.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-6.17.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU generator that sets a transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-6.17.3-2">RFC905-6.17.3-2</code></td><td colspan="3"><span class="rfc-subject">Receiver (when checksum agreed) discards a TPDU that does not satisfy both checksum formulas (Section 6.17.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.17.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-6.17.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU receiver that verifies and discards a transport TPDU (grep for TPDU/TP4/0xC3 across internal/ is empty)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-x-1">RFC905-x-1</code></td><td colspan="3"><span class="rfc-subject">Use modulo-255 (one&#39;s-complement) arithmetic, NOT modulo 256, for both running sums (Annex B.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-x-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L70" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumFixedVector</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L132" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumModulus</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L95" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumDetectsCorruption</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-x-2">RFC905-x-2</code></td><td colspan="3"><span class="rfc-subject">Generation pass 1: zero the checksum field, then run C0 += octet, C1 += C0 over i = 1..L (Annex B.3.1-B.3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-x-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L16" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumVectors</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L96" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumDetectsCorruption</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-x-3">RFC905-x-3</code></td><td colspan="3"><span class="rfc-subject">Generation pass 2: X = -C1 + (L-n)*C0 ; Y = C1 - (L-n+1)*C0 (mod 255), placed at octets n and n+1 (Annex B.3.4-B.3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-x-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L69" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumFixedVector</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L17" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumVectors</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L97" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumDetectsCorruption</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-x-4">RFC905-x-4</code></td><td colspan="3"><span class="rfc-subject">Verification: run C0 += octet, C1 += C0 over the whole TPDU INCLUDING the checksum octets; both C0 and C1 MUST be zero (Annex B.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-x-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L18" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumVectors</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L94" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumDetectsCorruption</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L100" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksumExcludesAge</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-x-5">RFC905-x-5</code></td><td colspan="3"><span class="rfc-subject">Treat a computed octet of 0 as 255 so the field cannot collide with the reserved all-zero &#34;no checksum&#34; value (Annex B.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-x-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-13.2.3.1-1">RFC905-13.2.3.1-1</code></td><td colspan="3"><span class="rfc-subject">Encode the checksum parameter as code 0xC3, length 2, value = the two octets X, Y (Section 13.2.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13.2.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-13.2.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol code path that encodes the 0xC3 transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-x-6">RFC905-x-6</code></td><td colspan="3"><span class="rfc-subject">(OSPF reuse) Compute the LSA Fletcher-16 over the LSA starting at the Options field, EXCLUDING the 2-byte LS Age, with the LS Checksum field zeroed during the forward computation (RFC 2328 Section 12.1.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-x-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L46" title="internal/plugins/ospf/types/checksum_test.go" target="_blank" rel="noopener"><code>TestFletcherIgnoresLSAge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L26" title="internal/plugins/ospf/types/checksum_test.go" target="_blank" rel="noopener"><code>TestFletcherRFC905Vectors</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L73" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L99" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksumExcludesAge</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc905-x-7">RFC905-x-7</code></td><td colspan="3"><span class="rfc-subject">(OSPF reuse) Test BOTH encode (X,Y placement) and decode (verify-to-zero) against vectors; a common bug is encode-correct / verify-wrong, which passes self-interop but fails cross-interop</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC905-x-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L27" title="internal/plugins/ospf/types/checksum_test.go" target="_blank" rel="noopener"><code>TestFletcherRFC905Vectors</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L19" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumVectors</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L74" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L101" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksumExcludesAge</code></a></span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc905-6.17.3-1"><code>RFC905-6.17.3-1</code></a> Sender sets the checksum so SUM(a[i]) == 0 and SUM(i*a[i]) == 0, both mod 255, over octets 1..L (Section 6.17.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU generator that sets a transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty)</td>
+</tr>
+<tr><td><a href="#rfc905-6.17.3-2"><code>RFC905-6.17.3-2</code></a> Receiver (when checksum agreed) discards a TPDU that does not satisfy both checksum formulas (Section 6.17.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol TPDU receiver that verifies and discards a transport TPDU (grep for TPDU/TP4/0xC3 across internal/ is empty)</td>
+</tr>
+<tr><td><a href="#rfc905-13.2.3.1-1"><code>RFC905-13.2.3.1-1</code></a> Encode the checksum parameter as code 0xC3, length 2, value = the two octets X, Y (Section 13.2.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze implements the RFC 905 Annex B Fletcher checksum (reused by IS-IS at internal/plugins/isis/packet/checksum.go and OSPF at internal/plugins/ospf/types/checksum.go) but has no ISO Transport Protocol code path that encodes the 0xC3 transport checksum parameter (grep for TPDU/TP4/0xC3 across internal/ is empty)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc905-6.17.3-1"><code>RFC905-6.17.3-1</code></a></h3>
+<p>Sender sets the checksum so SUM(a[i]) == 0 and SUM(i*a[i]) == 0, both mod 255, over octets 1..L (Section 6.17.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC905-6.17.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc905-6.17.3-2"><code>RFC905-6.17.3-2</code></a></h3>
+<p>Receiver (when checksum agreed) discards a TPDU that does not satisfy both checksum formulas (Section 6.17.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC905-6.17.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc905-x-1"><code>RFC905-x-1</code></a></h3>
+<p>Use modulo-255 (one&#39;s-complement) arithmetic, NOT modulo 256, for both running sums (Annex B.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L95" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumDetectsCorruption</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L70" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumFixedVector</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L132" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumModulus</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc905-x-2"><code>RFC905-x-2</code></a></h3>
+<p>Generation pass 1: zero the checksum field, then run C0 += octet, C1 += C0 over i = 1..L (Annex B.3.1-B.3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L96" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumDetectsCorruption</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L16" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumVectors</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc905-x-3"><code>RFC905-x-3</code></a></h3>
+<p>Generation pass 2: X = -C1 + (L-n)*C0 ; Y = C1 - (L-n+1)*C0 (mod 255), placed at octets n and n+1 (Annex B.3.4-B.3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L97" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumDetectsCorruption</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L69" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumFixedVector</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L17" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumVectors</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc905-x-4"><code>RFC905-x-4</code></a></h3>
+<p>Verification: run C0 += octet, C1 += C0 over the whole TPDU INCLUDING the checksum octets; both C0 and C1 MUST be zero (Annex B.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L94" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumDetectsCorruption</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L100" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksumExcludesAge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L18" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumVectors</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc905-13.2.3.1-1"><code>RFC905-13.2.3.1-1</code></a></h3>
+<p>Encode the checksum parameter as code 0xC3, length 2, value = the two octets X, Y (Section 13.2.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC905-13.2.3.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc905-x-6"><code>RFC905-x-6</code></a></h3>
+<p>(OSPF reuse) Compute the LSA Fletcher-16 over the LSA starting at the Options field, EXCLUDING the 2-byte LS Age, with the LS Checksum field zeroed during the forward computation (RFC 2328 Section 12.1.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L99" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksumExcludesAge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L73" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksum</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L46" title="internal/plugins/ospf/types/checksum_test.go" target="_blank" rel="noopener"><code>TestFletcherIgnoresLSAge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L26" title="internal/plugins/ospf/types/checksum_test.go" target="_blank" rel="noopener"><code>TestFletcherRFC905Vectors</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc905-x-7"><code>RFC905-x-7</code></a></h3>
+<p>(OSPF reuse) Test BOTH encode (X,Y placement) and decode (verify-to-zero) against vectors; a common bug is encode-correct / verify-wrong, which passes self-interop but fails cross-interop</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L101" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksumExcludesAge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/checksum_test.go#L19" title="internal/plugins/isis/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestISISChecksumVectors</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L74" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksum</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L27" title="internal/plugins/ospf/types/checksum_test.go" target="_blank" rel="noopener"><code>TestFletcherRFC905Vectors</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 905, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 905, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

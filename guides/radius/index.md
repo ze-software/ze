@@ -51,7 +51,7 @@ system {
 | `radius.timeout` | uint16 (1-60) | 3 | Per-server request timeout in seconds |
 | `radius.retries` | uint8 (0-10) | 3 | Transmit attempts per server before failover |
 | `radius.source-address` | ip-address | none | Local source IP for outbound RADIUS UDP |
-| `radius.profile-attribute` | enum `filter-id` \| `class` | `filter-id` | Access-Accept reply attribute carrying profile name(s) |
+| `radius.profile-attribute` | enum `filter-id` | `filter-id` | Access-Accept reply attribute carrying profile name(s) |
 | `radius.default-profile` | leaf-list | none | Profiles applied when the Access-Accept carries no `profile-attribute` |
 
 <!-- source: internal/component/radius/yang/ze-radius-conf.yang -- system.authentication.radius -->
@@ -100,7 +100,9 @@ mapped to one or more locally-defined `system.authorization.profile` entries.
 - The backend reads the configured `profile-attribute` from the Access-Accept.
   With the default `filter-id`, each Filter-Id attribute (RFC 2865 §5.11)
   supplies one profile name; multiple Filter-Id attributes yield multiple
-  profiles. `class` reads the Class attribute (§5.25) the same way.
+  profiles. Filter-Id is the only value: RFC 2865 §5.25 says of the Class
+  attribute that "the client MUST NOT interpret the attribute locally", so ze
+  reads no profile name out of it.
 - When the Access-Accept carries no such attribute, the `default-profile`
   leaf-list applies.
 - When neither is present the login resolves to no profile and is **rejected**,

@@ -1,0 +1,1280 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 2132 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 2132: DHCP Options and BOOTP Vendor Extensions. 34 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 2132 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 2132: DHCP Options and BOOTP Vendor Extensions. 34 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 2132 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 2132: DHCP Options and BOOTP Vendor Extensions. 34 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc2132/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc2132/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 2132 - DHCP Options and BOOTP Vendor Extensions</h1>
+    <p>Every requirement this repository extracted from RFC 2132, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 9 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>88.9%</strong><b>8 of 9 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>34</strong><b>of 68 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>25</strong><b>of 34 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>11.1%</strong><b>1 of 9 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 9 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>68</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>34</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>9</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>25</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>1</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>8</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>8</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc2132.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc2132.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc2132.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: DHCP Options and BOOTP Vendor Extensions (RFC 2132): DHCP server option TLV encoding. 8 single-polarity positive (subnet mask before router, router/DNS length multiple of 4, every option carries a length octet, unrecognized vendor-specific/class-specific info ignored, PXE class prefix-match) + 1 gap (RFC2132-9.8-1 Parameter Request List option 55 not honored, fixed option order) + 25 not-applicable (length MUSTs for options ze never emits, client-identifier uniqueness is a client obligation)</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>DHCP server encodes options 1, 3, 6, 15, 51, 53, 54, 58, 59 and PXE options 43/60/66/67</li>
+<li>it parses received message type (53), requested IP (50), server identifier (54), and PXE class/arch (60/77/93). Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc2132.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc2132.md</code></a>.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+One MUST gap, tracked in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2132.md" target="_blank" rel="noopener"><code>rfc/short/rfc2132.md</code></a>: <a href="#rfc2132-9.8-1"><code>RFC2132-9.8-1</code></a> -- the server emits a fixed option set in a fixed order (buildReply <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler.go" target="_blank" rel="noopener"><code>internal/plugins/dhcpserver/handler.go</code></a>) and never reads the client Parameter Request List (option 55), so it does not honor the client-requested option order.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>34</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>34</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Annotated instead of tested (34):</strong> <a href="#rfc2132-3.3-1"><code>RFC2132-3.3-1</code></a>, <a href="#rfc2132-3.5-1"><code>RFC2132-3.5-1</code></a>, <a href="#rfc2132-3.6-1"><code>RFC2132-3.6-1</code></a>, <a href="#rfc2132-3.7-1"><code>RFC2132-3.7-1</code></a>, <a href="#rfc2132-3.8-1"><code>RFC2132-3.8-1</code></a>, <a href="#rfc2132-3.9-1"><code>RFC2132-3.9-1</code></a>, <a href="#rfc2132-3.10-1"><code>RFC2132-3.10-1</code></a>, <a href="#rfc2132-3.11-1"><code>RFC2132-3.11-1</code></a>, <a href="#rfc2132-3.12-1"><code>RFC2132-3.12-1</code></a>, <a href="#rfc2132-3.13-1"><code>RFC2132-3.13-1</code></a>, <a href="#rfc2132-8.2-1"><code>RFC2132-8.2-1</code></a>, <a href="#rfc2132-8.3-1"><code>RFC2132-8.3-1</code></a>, <a href="#rfc2132-8.9-1"><code>RFC2132-8.9-1</code></a>, <a href="#rfc2132-8.10-1"><code>RFC2132-8.10-1</code></a>, <a href="#rfc2132-8.12-1"><code>RFC2132-8.12-1</code></a>, <a href="#rfc2132-8.13-1"><code>RFC2132-8.13-1</code></a>, <a href="#rfc2132-8.14-1"><code>RFC2132-8.14-1</code></a>, <a href="#rfc2132-8.15-1"><code>RFC2132-8.15-1</code></a>, <a href="#rfc2132-8.16-1"><code>RFC2132-8.16-1</code></a>, <a href="#rfc2132-8.17-1"><code>RFC2132-8.17-1</code></a>, <a href="#rfc2132-8.18-1"><code>RFC2132-8.18-1</code></a>, <a href="#rfc2132-8.19-1"><code>RFC2132-8.19-1</code></a>, <a href="#rfc2132-8.20-1"><code>RFC2132-8.20-1</code></a>, <a href="#rfc2132-8.21-1"><code>RFC2132-8.21-1</code></a>, <a href="#rfc2132-4.7-1"><code>RFC2132-4.7-1</code></a>, <a href="#rfc2132-4.3-1"><code>RFC2132-4.3-1</code></a>, <a href="#rfc2132-5.8-1"><code>RFC2132-5.8-1</code></a>, <a href="#rfc2132-2-1"><code>RFC2132-2-1</code></a>, <a href="#rfc2132-2-2"><code>RFC2132-2-2</code></a>, <a href="#rfc2132-2-3"><code>RFC2132-2-3</code></a>, <a href="#rfc2132-8.4-1"><code>RFC2132-8.4-1</code></a>, <a href="#rfc2132-9.13-1"><code>RFC2132-9.13-1</code></a>, <a href="#rfc2132-9.8-1"><code>RFC2132-9.8-1</code></a>, <a href="#rfc2132-9.14-1"><code>RFC2132-9.14-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.3-1">RFC2132-3.3-1</code></td><td colspan="3"><span class="rfc-subject">If both subnet mask and router option are specified in a DHCP reply, the subnet mask option MUST be first (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1331" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestOptionSubnetMaskBeforeRouter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze constructs every OFFER/ACK with the subnet mask (option 1) emitted before the router (option 3) in fixed code order (buildReply internal/plugins/dhcpserver/handler.go:251 then :255); no code path emits them reversed, so there is no out-of-order output to assert as a negative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.5-1">RFC2132-3.5-1</code></td><td colspan="3"><span class="rfc-subject">Router option length MUST always be a multiple of 4 (§3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1354" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze emits option 3 from a single netip.Addr via As4() = exactly 4 octets (buildReply internal/plugins/dhcpserver/handler.go:255), so the router option length is always a multiple of 4 and no code path can emit a non-multiple-of-4 router option to test negatively</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.6-1">RFC2132-3.6-1</code></td><td colspan="3"><span class="rfc-subject">Time server option length MUST always be a multiple of 4 (§3.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Time Server option (code 4), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.7-1">RFC2132-3.7-1</code></td><td colspan="3"><span class="rfc-subject">Name server option length MUST always be a multiple of 4 (§3.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Name Server option (code 5), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.8-1">RFC2132-3.8-1</code></td><td colspan="3"><span class="rfc-subject">Domain name server option length MUST always be a multiple of 4 (§3.8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1363" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze emits option 6 by concatenating 4-octet As4() addresses (buildReply internal/plugins/dhcpserver/handler.go:258-264), so the DNS option length is always 4*n and no code path can emit a non-multiple-of-4 DNS option to test negatively</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.9-1">RFC2132-3.9-1</code></td><td colspan="3"><span class="rfc-subject">Log server option length MUST always be a multiple of 4 (§3.9)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Log Server option (code 7), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.10-1">RFC2132-3.10-1</code></td><td colspan="3"><span class="rfc-subject">Cookie server option length MUST always be a multiple of 4 (§3.10)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.10-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Cookie Server option (code 8), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.11-1">RFC2132-3.11-1</code></td><td colspan="3"><span class="rfc-subject">LPR server option length MUST always be a multiple of 4 (§3.11)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.11-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the LPR Server option (code 9), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.12-1">RFC2132-3.12-1</code></td><td colspan="3"><span class="rfc-subject">Impress server option length MUST always be a multiple of 4 (§3.12)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.12-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Impress Server option (code 10), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.13-1">RFC2132-3.13-1</code></td><td colspan="3"><span class="rfc-subject">Resource location server option length MUST always be a multiple of 4 (§3.13)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.13-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Resource Location Server option (code 11), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.2-1">RFC2132-8.2-1</code></td><td colspan="3"><span class="rfc-subject">NIS servers option length MUST be a multiple of 4 (§8.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS Servers option (code 41), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.3-1">RFC2132-8.3-1</code></td><td colspan="3"><span class="rfc-subject">NTP servers option length MUST be a multiple of 4 (§8.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NTP Servers option (code 42), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.9-1">RFC2132-8.9-1</code></td><td colspan="3"><span class="rfc-subject">X Window Font Server option length MUST be a multiple of 4 (§8.9)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the X Window Font Server option (code 48), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.10-1">RFC2132-8.10-1</code></td><td colspan="3"><span class="rfc-subject">X Window Display Manager option length MUST be a multiple of 4 (§8.10)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.10-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the X Window Display Manager option (code 49), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.12-1">RFC2132-8.12-1</code></td><td colspan="3"><span class="rfc-subject">NIS+ Servers option length MUST be a multiple of 4 (§8.12)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.12-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS+ Servers option (code 65), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.13-1">RFC2132-8.13-1</code></td><td colspan="3"><span class="rfc-subject">Mobile IP Home Agent option length MUST be a multiple of 4 (§8.13)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.13-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Mobile IP Home Agent option (code 68), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.14-1">RFC2132-8.14-1</code></td><td colspan="3"><span class="rfc-subject">SMTP server option length MUST always be a multiple of 4 (§8.14)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.14</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.14-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the SMTP Server option (code 69), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.15-1">RFC2132-8.15-1</code></td><td colspan="3"><span class="rfc-subject">POP3 server option length MUST always be a multiple of 4 (§8.15)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.15</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.15-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the POP3 Server option (code 70), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.16-1">RFC2132-8.16-1</code></td><td colspan="3"><span class="rfc-subject">NNTP server option length MUST always be a multiple of 4 (§8.16)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.16</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.16-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NNTP Server option (code 71), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.17-1">RFC2132-8.17-1</code></td><td colspan="3"><span class="rfc-subject">WWW server option length MUST always be a multiple of 4 (§8.17)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.17</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.17-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the WWW Server option (code 72), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.18-1">RFC2132-8.18-1</code></td><td colspan="3"><span class="rfc-subject">Finger server option length MUST always be a multiple of 4 (§8.18)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.18</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.18-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Finger Server option (code 73), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.19-1">RFC2132-8.19-1</code></td><td colspan="3"><span class="rfc-subject">IRC server option length MUST always be a multiple of 4 (§8.19)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.19</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.19-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the IRC Server option (code 74), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.20-1">RFC2132-8.20-1</code></td><td colspan="3"><span class="rfc-subject">StreetTalk server option length MUST always be a multiple of 4 (§8.20)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.20</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.20-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the StreetTalk Server option (code 75), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.21-1">RFC2132-8.21-1</code></td><td colspan="3"><span class="rfc-subject">STDA server option length MUST always be a multiple of 4 (§8.21)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.21</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.21-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the STDA Server option (code 76), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-4.7-1">RFC2132-4.7-1</code></td><td colspan="3"><span class="rfc-subject">Path MTU plateau table option length MUST be a multiple of 2 (§4.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-4.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Path MTU Plateau Table option (code 25), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-4.3-1">RFC2132-4.3-1</code></td><td colspan="3"><span class="rfc-subject">Policy filter option length MUST be a multiple of 8 (§4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Policy Filter option (code 21), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-5.8-1">RFC2132-5.8-1</code></td><td colspan="3"><span class="rfc-subject">Static route option length MUST be a multiple of 8 (§5.8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-5.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Static Route option (code 33), so this sender length constraint binds no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-2-1">RFC2132-2-1</code></td><td colspan="3"><span class="rfc-subject">Any options defined subsequent to this document MUST contain a length octet even if fixed or zero (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEveryEmittedOptionHasLengthOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> every option ze emits goes through safeAppendOption, which always writes a length octet (internal/plugins/dhcpserver/handler.go:361-363); only the exempt Pad/End markers are written without one, so ze emits no length-octet-less option to test negatively</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-2-2">RFC2132-2-2</code></td><td colspan="3"><span class="rfc-subject">Receiver MUST be prepared to delete trailing nulls from ASCII options (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1452" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze reads ASCII-carrying options 60 and 77 only by fixed-prefix match (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498), so a trailing NUL never corrupts interpretation; no ze receive path rejects or mishandles ASCII option data because of a trailing NUL, so there is no negative case</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-2-3">RFC2132-2-3</code></td><td colspan="3"><span class="rfc-subject">Receiver MUST NOT require that a trailing null be included in ASCII data (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1444" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s ASCII-option receiver prefix-matches options 60 and 77 (isPXEClient internal/plugins/dhcpserver/handler.go:493, isIPXE handler.go:498) and so never requires a trailing NUL; option data without one is accepted, and there is no ze path that demands a trailing NUL to test negatively</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.4-1">RFC2132-8.4-1</code></td><td colspan="3"><span class="rfc-subject">Servers not equipped to interpret vendor-specific information MUST ignore it (§8.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1501" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresClientVendorSpecificOption43</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze never reads a received option 43 -- vendor-specific information appears only in ze&#39;s Tx path (handler.go:325) and the option-parse loop skips any code it does not request (parseMsgType/parseOptionBytes advance past unrequested options, internal/plugins/dhcpserver/handler.go:367-403), so ze ignores client vendor-specific info and no code path interprets or rejects it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-9.13-1">RFC2132-9.13-1</code></td><td colspan="3"><span class="rfc-subject">Servers not equipped to interpret class-specific information MUST ignore it (§9.13)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>9.13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-9.13-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1548" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresUnknownVendorClass</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze inspects option 60 only for the &#34;PXEClient:&#34; prefix (isPXEClient internal/plugins/dhcpserver/handler.go:493-496); any other vendor class yields false and no class-specific handling, so an unrecognized class is ignored and no code path rejects a packet on class content to test negatively</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-9.8-1">RFC2132-9.8-1</code></td><td colspan="3"><span class="rfc-subject">Server MUST try to insert requested options in the order requested by the client (§9.8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>9.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-9.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze emits a fixed option set in a fixed order (buildReply internal/plugins/dhcpserver/handler.go:245-285) and never reads the client Parameter Request List (option 55 is defined at handler.go:52 but parsed nowhere in production), so it does not try to insert requested options in the client&#39;s requested order</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-9.14-1">RFC2132-9.14-1</code></td><td colspan="3"><span class="rfc-subject">Each client&#39;s client-identifier MUST be unique among identifiers on the subnet (§9.14)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>9.14</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-9.14-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the uniqueness obligation binds the client&#39;s choice of client-identifier (option 61); ze is a server that keys leases and pool allocations by hardware address/chaddr (extractMAC internal/plugins/dhcpserver/handler.go:456, pool.allocate pool.go:64, leaseTable byMAC lease.go:23) and never reads or generates option 61, so it neither produces client-identifiers nor can enforce cross-client uniqueness</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-2-4">RFC2132-2-4</code></td><td colspan="3"><span class="rfc-subject">Options containing NVT ASCII data SHOULD NOT include a trailing NULL (§2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.5-2">RFC2132-3.5-2</code></td><td colspan="3"><span class="rfc-subject">Routers SHOULD be listed in order of preference (§3.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.6-2">RFC2132-3.6-2</code></td><td colspan="3"><span class="rfc-subject">Time servers SHOULD be listed in order of preference (§3.6)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.7-2">RFC2132-3.7-2</code></td><td colspan="3"><span class="rfc-subject">Name servers SHOULD be listed in order of preference (§3.7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.8-2">RFC2132-3.8-2</code></td><td colspan="3"><span class="rfc-subject">Domain name servers SHOULD be listed in order of preference (§3.8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.8-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.9-2">RFC2132-3.9-2</code></td><td colspan="3"><span class="rfc-subject">Log servers SHOULD be listed in order of preference (§3.9)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.9-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.10-2">RFC2132-3.10-2</code></td><td colspan="3"><span class="rfc-subject">Cookie servers SHOULD be listed in order of preference (§3.10)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.10-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.11-2">RFC2132-3.11-2</code></td><td colspan="3"><span class="rfc-subject">LPR servers SHOULD be listed in order of preference (§3.11)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.11-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.12-2">RFC2132-3.12-2</code></td><td colspan="3"><span class="rfc-subject">Impress servers SHOULD be listed in order of preference (§3.12)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.12-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-3.13-2">RFC2132-3.13-2</code></td><td colspan="3"><span class="rfc-subject">Resource location servers SHOULD be listed in order of preference (§3.13)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-3.13-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.2-2">RFC2132-8.2-2</code></td><td colspan="3"><span class="rfc-subject">NIS servers SHOULD be listed in order of preference (§8.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.3-2">RFC2132-8.3-2</code></td><td colspan="3"><span class="rfc-subject">NTP servers SHOULD be listed in order of preference (§8.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.4-2">RFC2132-8.4-2</code></td><td colspan="3"><span class="rfc-subject">Clients not receiving desired vendor-specific information SHOULD make an attempt to operate without it (§8.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.9-2">RFC2132-8.9-2</code></td><td colspan="3"><span class="rfc-subject">X Window Font servers SHOULD be listed in order of preference (§8.9)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.9-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.10-2">RFC2132-8.10-2</code></td><td colspan="3"><span class="rfc-subject">X Window Display Manager addresses SHOULD be listed in order of preference (§8.10)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.10-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.12-2">RFC2132-8.12-2</code></td><td colspan="3"><span class="rfc-subject">NIS+ servers SHOULD be listed in order of preference (§8.12)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.12-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.13-2">RFC2132-8.13-2</code></td><td colspan="3"><span class="rfc-subject">Mobile IP home agents SHOULD be listed in order of preference (§8.13)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.13-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.14-2">RFC2132-8.14-2</code></td><td colspan="3"><span class="rfc-subject">SMTP servers SHOULD be listed in order of preference (§8.14)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.14</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.14-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.15-2">RFC2132-8.15-2</code></td><td colspan="3"><span class="rfc-subject">POP3 servers SHOULD be listed in order of preference (§8.15)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.15</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.15-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.16-2">RFC2132-8.16-2</code></td><td colspan="3"><span class="rfc-subject">NNTP servers SHOULD be listed in order of preference (§8.16)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.16</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.16-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.17-2">RFC2132-8.17-2</code></td><td colspan="3"><span class="rfc-subject">WWW servers SHOULD be listed in order of preference (§8.17)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.17</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.17-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.18-2">RFC2132-8.18-2</code></td><td colspan="3"><span class="rfc-subject">Finger servers SHOULD be listed in order of preference (§8.18)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.18</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.18-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.19-2">RFC2132-8.19-2</code></td><td colspan="3"><span class="rfc-subject">IRC servers SHOULD be listed in order of preference (§8.19)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.19</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.19-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.20-2">RFC2132-8.20-2</code></td><td colspan="3"><span class="rfc-subject">StreetTalk servers SHOULD be listed in order of preference (§8.20)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.20</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.20-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.21-2">RFC2132-8.21-2</code></td><td colspan="3"><span class="rfc-subject">STDA servers SHOULD be listed in order of preference (§8.21)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.21</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.21-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-9.13-2">RFC2132-9.13-2</code></td><td colspan="3"><span class="rfc-subject">Servers responding to vendor class identifier SHOULD only use option 43 to return vendor-specific information (§9.13)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9.13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-9.13-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-9.14-2">RFC2132-9.14-2</code></td><td colspan="3"><span class="rfc-subject">Client identifiers SHOULD be treated as opaque objects by DHCP servers (§9.14)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9.14</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-9.14-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-9.14-3">RFC2132-9.14-3</code></td><td colspan="3"><span class="rfc-subject">Client identifier type field SHOULD be one of the ARP hardware types from STD 2 (§9.14)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9.14</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-9.14-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.4-3">RFC2132-8.4-3</code></td><td colspan="3"><span class="rfc-subject">Vendor SHOULD encode multiple items in vendor-specific information using encapsulated vendor-specific options (§8.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.4-4">RFC2132-8.4-4</code></td><td colspan="3"><span class="rfc-subject">Encapsulated vendor-specific extensions SHOULD NOT contain a magic cookie field (§8.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>8.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.4-5">RFC2132-8.4-5</code></td><td colspan="3"><span class="rfc-subject">Encapsulated vendor-specific option codes SHOULD conform to the tag-length-value syntax (§8.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.4-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-9.8-2">RFC2132-9.8-2</code></td><td colspan="3"><span class="rfc-subject">Client MAY list options in order of preference in Parameter Request List (§9.8)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>9.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-9.8-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-9.14-4">RFC2132-9.14-4</code></td><td colspan="3"><span class="rfc-subject">Client identifier MAY consist of type-value pairs similar to htype/chaddr (§9.14)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>9.14</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-9.14-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2132-8.4-6">RFC2132-8.4-6</code></td><td colspan="3"><span class="rfc-subject">Vendor-specific option codes other than 0 or 255 MAY be redefined within the encapsulated field (§8.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2132-8.4-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc2132-3.6-1"><code>RFC2132-3.6-1</code></a> Time server option length MUST always be a multiple of 4 (§3.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Time Server option (code 4), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-3.7-1"><code>RFC2132-3.7-1</code></a> Name server option length MUST always be a multiple of 4 (§3.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Name Server option (code 5), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-3.9-1"><code>RFC2132-3.9-1</code></a> Log server option length MUST always be a multiple of 4 (§3.9)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Log Server option (code 7), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-3.10-1"><code>RFC2132-3.10-1</code></a> Cookie server option length MUST always be a multiple of 4 (§3.10)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Cookie Server option (code 8), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-3.11-1"><code>RFC2132-3.11-1</code></a> LPR server option length MUST always be a multiple of 4 (§3.11)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the LPR Server option (code 9), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-3.12-1"><code>RFC2132-3.12-1</code></a> Impress server option length MUST always be a multiple of 4 (§3.12)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Impress Server option (code 10), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-3.13-1"><code>RFC2132-3.13-1</code></a> Resource location server option length MUST always be a multiple of 4 (§3.13)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Resource Location Server option (code 11), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.2-1"><code>RFC2132-8.2-1</code></a> NIS servers option length MUST be a multiple of 4 (§8.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS Servers option (code 41), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.3-1"><code>RFC2132-8.3-1</code></a> NTP servers option length MUST be a multiple of 4 (§8.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NTP Servers option (code 42), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.9-1"><code>RFC2132-8.9-1</code></a> X Window Font Server option length MUST be a multiple of 4 (§8.9)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the X Window Font Server option (code 48), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.10-1"><code>RFC2132-8.10-1</code></a> X Window Display Manager option length MUST be a multiple of 4 (§8.10)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the X Window Display Manager option (code 49), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.12-1"><code>RFC2132-8.12-1</code></a> NIS+ Servers option length MUST be a multiple of 4 (§8.12)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NIS+ Servers option (code 65), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.13-1"><code>RFC2132-8.13-1</code></a> Mobile IP Home Agent option length MUST be a multiple of 4 (§8.13)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Mobile IP Home Agent option (code 68), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.14-1"><code>RFC2132-8.14-1</code></a> SMTP server option length MUST always be a multiple of 4 (§8.14)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the SMTP Server option (code 69), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.15-1"><code>RFC2132-8.15-1</code></a> POP3 server option length MUST always be a multiple of 4 (§8.15)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the POP3 Server option (code 70), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.16-1"><code>RFC2132-8.16-1</code></a> NNTP server option length MUST always be a multiple of 4 (§8.16)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the NNTP Server option (code 71), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.17-1"><code>RFC2132-8.17-1</code></a> WWW server option length MUST always be a multiple of 4 (§8.17)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the WWW Server option (code 72), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.18-1"><code>RFC2132-8.18-1</code></a> Finger server option length MUST always be a multiple of 4 (§8.18)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Finger Server option (code 73), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.19-1"><code>RFC2132-8.19-1</code></a> IRC server option length MUST always be a multiple of 4 (§8.19)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the IRC Server option (code 74), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.20-1"><code>RFC2132-8.20-1</code></a> StreetTalk server option length MUST always be a multiple of 4 (§8.20)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the StreetTalk Server option (code 75), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-8.21-1"><code>RFC2132-8.21-1</code></a> STDA server option length MUST always be a multiple of 4 (§8.21)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the STDA Server option (code 76), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-4.7-1"><code>RFC2132-4.7-1</code></a> Path MTU plateau table option length MUST be a multiple of 2 (§4.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Path MTU Plateau Table option (code 25), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-4.3-1"><code>RFC2132-4.3-1</code></a> Policy filter option length MUST be a multiple of 8 (§4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Policy Filter option (code 21), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-5.8-1"><code>RFC2132-5.8-1</code></a> Static route option length MUST be a multiple of 8 (§5.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCP server emits only options 1/3/6/15/51/53/54/58/59 and PXE 43/60/66/67 (buildReply internal/plugins/dhcpserver/handler.go:245-285, appendPXEOptions handler.go:298-325); it never emits the Static Route option (code 33), so this sender length constraint binds no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2132-9.8-1"><code>RFC2132-9.8-1</code></a> Server MUST try to insert requested options in the order requested by the client (§9.8)</td>
+<td>{gap}, no test</td>
+<td>ze emits a fixed option set in a fixed order (buildReply internal/plugins/dhcpserver/handler.go:245-285) and never reads the client Parameter Request List (option 55 is defined at handler.go:52 but parsed nowhere in production), so it does not try to insert requested options in the client&#39;s requested order</td>
+</tr>
+<tr><td><a href="#rfc2132-9.14-1"><code>RFC2132-9.14-1</code></a> Each client&#39;s client-identifier MUST be unique among identifiers on the subnet (§9.14)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the uniqueness obligation binds the client&#39;s choice of client-identifier (option 61); ze is a server that keys leases and pool allocations by hardware address/chaddr (extractMAC internal/plugins/dhcpserver/handler.go:456, pool.allocate pool.go:64, leaseTable byMAC lease.go:23) and never reads or generates option 61, so it neither produces client-identifiers nor can enforce cross-client uniqueness</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc2132-3.3-1"><code>RFC2132-3.3-1</code></a></h3>
+<p>If both subnet mask and router option are specified in a DHCP reply, the subnet mask option MUST be first (§3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1331" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestOptionSubnetMaskBeforeRouter</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2132-3.5-1"><code>RFC2132-3.5-1</code></a></h3>
+<p>Router option length MUST always be a multiple of 4 (§3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1354" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2132-3.6-1"><code>RFC2132-3.6-1</code></a></h3>
+<p>Time server option length MUST always be a multiple of 4 (§3.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-3.6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-3.7-1"><code>RFC2132-3.7-1</code></a></h3>
+<p>Name server option length MUST always be a multiple of 4 (§3.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-3.7-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-3.8-1"><code>RFC2132-3.8-1</code></a></h3>
+<p>Domain name server option length MUST always be a multiple of 4 (§3.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1363" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEmittedIPListOptionLengthsMultipleOfFour</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2132-3.9-1"><code>RFC2132-3.9-1</code></a></h3>
+<p>Log server option length MUST always be a multiple of 4 (§3.9)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-3.9-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-3.10-1"><code>RFC2132-3.10-1</code></a></h3>
+<p>Cookie server option length MUST always be a multiple of 4 (§3.10)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-3.10-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-3.11-1"><code>RFC2132-3.11-1</code></a></h3>
+<p>LPR server option length MUST always be a multiple of 4 (§3.11)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-3.11-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-3.12-1"><code>RFC2132-3.12-1</code></a></h3>
+<p>Impress server option length MUST always be a multiple of 4 (§3.12)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-3.12-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-3.13-1"><code>RFC2132-3.13-1</code></a></h3>
+<p>Resource location server option length MUST always be a multiple of 4 (§3.13)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-3.13-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.2-1"><code>RFC2132-8.2-1</code></a></h3>
+<p>NIS servers option length MUST be a multiple of 4 (§8.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.3-1"><code>RFC2132-8.3-1</code></a></h3>
+<p>NTP servers option length MUST be a multiple of 4 (§8.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.9-1"><code>RFC2132-8.9-1</code></a></h3>
+<p>X Window Font Server option length MUST be a multiple of 4 (§8.9)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.9-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.10-1"><code>RFC2132-8.10-1</code></a></h3>
+<p>X Window Display Manager option length MUST be a multiple of 4 (§8.10)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.10-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.12-1"><code>RFC2132-8.12-1</code></a></h3>
+<p>NIS+ Servers option length MUST be a multiple of 4 (§8.12)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.12-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.13-1"><code>RFC2132-8.13-1</code></a></h3>
+<p>Mobile IP Home Agent option length MUST be a multiple of 4 (§8.13)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.13-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.14-1"><code>RFC2132-8.14-1</code></a></h3>
+<p>SMTP server option length MUST always be a multiple of 4 (§8.14)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.14-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.15-1"><code>RFC2132-8.15-1</code></a></h3>
+<p>POP3 server option length MUST always be a multiple of 4 (§8.15)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.15-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.16-1"><code>RFC2132-8.16-1</code></a></h3>
+<p>NNTP server option length MUST always be a multiple of 4 (§8.16)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.16-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.17-1"><code>RFC2132-8.17-1</code></a></h3>
+<p>WWW server option length MUST always be a multiple of 4 (§8.17)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.17-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.18-1"><code>RFC2132-8.18-1</code></a></h3>
+<p>Finger server option length MUST always be a multiple of 4 (§8.18)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.18-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.19-1"><code>RFC2132-8.19-1</code></a></h3>
+<p>IRC server option length MUST always be a multiple of 4 (§8.19)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.19-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.20-1"><code>RFC2132-8.20-1</code></a></h3>
+<p>StreetTalk server option length MUST always be a multiple of 4 (§8.20)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.20-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-8.21-1"><code>RFC2132-8.21-1</code></a></h3>
+<p>STDA server option length MUST always be a multiple of 4 (§8.21)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-8.21-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-4.7-1"><code>RFC2132-4.7-1</code></a></h3>
+<p>Path MTU plateau table option length MUST be a multiple of 2 (§4.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-4.7-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-4.3-1"><code>RFC2132-4.3-1</code></a></h3>
+<p>Policy filter option length MUST be a multiple of 8 (§4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-4.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-5.8-1"><code>RFC2132-5.8-1</code></a></h3>
+<p>Static route option length MUST be a multiple of 8 (§5.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-5.8-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-2-1"><code>RFC2132-2-1</code></a></h3>
+<p>Any options defined subsequent to this document MUST contain a length octet even if fixed or zero (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1413" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestEveryEmittedOptionHasLengthOctet</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2132-2-2"><code>RFC2132-2-2</code></a></h3>
+<p>Receiver MUST be prepared to delete trailing nulls from ASCII options (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1452" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2132-2-3"><code>RFC2132-2-3</code></a></h3>
+<p>Receiver MUST NOT require that a trailing null be included in ASCII data (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1444" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestASCIIOptionParsingTolerantOfTrailingNull</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2132-8.4-1"><code>RFC2132-8.4-1</code></a></h3>
+<p>Servers not equipped to interpret vendor-specific information MUST ignore it (§8.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1501" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresClientVendorSpecificOption43</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2132-9.13-1"><code>RFC2132-9.13-1</code></a></h3>
+<p>Servers not equipped to interpret class-specific information MUST ignore it (§9.13)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L1548" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestIgnoresUnknownVendorClass</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2132-9.8-1"><code>RFC2132-9.8-1</code></a></h3>
+<p>Server MUST try to insert requested options in the order requested by the client (§9.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-9.8-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2132-9.14-1"><code>RFC2132-9.14-1</code></a></h3>
+<p>Each client&#39;s client-identifier MUST be unique among identifiers on the subnet (§9.14)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2132-9.14-1, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 2132, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 2132, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

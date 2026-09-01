@@ -578,8 +578,10 @@ with a reason (a bare annotation is rejected).</li>
 requirements. One id per line, polarity mandatory. The tag is the only authored
 half of the binding, so it dies with the test.</li>
 <li><strong>A NEW tag owes a discrimination proof in the same change.</strong> <code>./le rfc check</code>
-refuses a tagged unit that is in the tree, absent at HEAD, and carries no
-recorded break under which that unit itself goes red. Record one with
+refuses a tagged unit the tip commit added against <code>HEAD^</code> and that carries no
+recorded break under which that unit itself goes red. Both sides are
+committed, so the violation reaches you at your own commit rather than every
+other session at theirs. Record one with
 <code>./le rfc discriminate-record</code>; <code>./le rfc discriminate stem &lt;stem&gt;</code> proposes
 the candidates. The full contract is <code>rfc/discrimination/README.md</code>.</li>
 <li><strong>The prose after the polarity is the CLAIM, and it is fingerprinted.</strong> It is
@@ -667,29 +669,36 @@ prints the <code>mv</code> that ends the walk.</li>
 <li><code>./le rfc extraction-status</code> prints the sign-off counts.</li>
 <li><code>./le rfc reseal</code> re-stamps an audit verdict after a mechanical edit.</li>
 </ul>
-<p>For an enrolled RFC (<code>rfc/enrolled.txt</code>), the gate fails unless every MUST has
-its pair or a reasoned annotation. Writing a summary does not enroll an RFC.</p>
+<p>For an enrolled RFC the gate fails unless every MUST has its pair or a
+reasoned annotation. Writing a summary does not enrol an RFC.</p>
 <!-- source: internal/le/rfc/actions.go -- Actions -->
 </li>
 <li>
-<p><strong>Enrol it, or declare why not.</strong> Every summary under <code>rfc/short/</code> is in
-<code>rfc/enrolled.txt</code> or in <code>rfc/not-enrolled.txt</code>. One in neither reds the gate.
-Un-enrolment used to be the one state that carried no information. So "the RFC
+<p><strong>Declare enrolment in the summary, and the public row with it.</strong> Both live in
+the <code>## Meta</code> table of <code>rfc/short/&lt;stem&gt;.md</code>, and nowhere else.
+<code>rfc/enrolled.txt</code>, <code>rfc/not-enrolled.txt</code> and <code>docs/features/rfc-status.md</code> are
+generated from those tables by <code>./le rfc index-update</code>. A hand edit to one of the
+three is lost at the next run. Write <code>| Enrolment | &lt;kind&gt; |</code> beside
+<code>| Enrolment reason | &lt;why&gt; |</code>, kind one of <code>enrolled</code>, <code>non-normative</code>,
+<code>backlog</code>, <code>blocked</code> or <code>source-restricted</code>. A summary that declares neither row
+does not parse, so the state that used to red the gate cannot be written now.</p>
+<p>Un-enrolment used to be the one state that carried no information. So "the RFC
 imposes nothing", "nobody extracted it" and "we do not even have the text" all
-looked identical. A disposition row is <code>&lt;stem&gt;</code> TAB <code>&lt;kind&gt;</code> TAB <code>&lt;reason&gt;</code>, with
-kind one of <code>non-normative</code>, <code>backlog</code> or <code>blocked</code>.</p>
+looked identical.</p>
 <p>Only <code>non-normative</code> is a claim about conformance. Its reason must state a property
 of the DOCUMENT: its category, a missing RFC 2119 section, a keyword scan. It must
-never say the obligation does not apply to Ze. <code>backlog</code> and <code>blocked</code> are debt,
-and the ledger renders them as debt. A row leaves the file only by arriving in
-<code>rfc/enrolled.txt</code>.</p>
-<p>Two related reds come from the same place. First, a <code>docs/features/rfc-status.md</code>
-row that claims support over a summary with zero gated requirements. The escape is
-evidence that zero is real: a <code>non-normative</code> disposition, or a <code>manual-walk</code>
-extraction sign-off whose <code>register-reason</code> says why. Second, a Remaining cell that
-spells a gap count immediately before MUST or SHALL must agree with the summary's
-<code>{gap}</code> count.</p>
-<!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkUnprovenSupport, checkGapCountAgreement -->
+never say the obligation does not apply to Ze. <code>source-restricted</code> is the permanent
+kind: the standard's own text cannot be redistributed, so no enrolment is ever
+reachable. Its reason names the publishing body or the license. <code>backlog</code> and
+<code>blocked</code> are debt, and the ledger renders them as debt.</p>
+<p>Two related reds come from the same place. First, a public row that claims support
+over a summary with zero gated requirements. The escape is evidence that zero is
+real: a <code>non-normative</code> or <code>source-restricted</code> disposition, or a <code>manual-walk</code>
+extraction sign-off whose <code>register-reason</code> says why. Second, a <code>Support remaining</code>
+cell that spells a gap count immediately before MUST or SHALL must agree with the
+summary's <code>{gap}</code> count.</p>
+<!-- source: internal/le/rfc/meta.go -- ParseMeta, readEnrolment, readSupport -->
+<!-- source: internal/le/rfc/check_status.go -- checkSummaryDisposition, checkSourceRestricted, checkUnprovenSupport, checkGapCountAgreement -->
 </li>
 <li>
 <p><strong>Audit letter and spirit with <code>/ze-rfc-audit &lt;rfc&gt;</code>.</strong> The gate proves a link
@@ -718,7 +727,7 @@ moved: a line shift, a sibling test, or a rewritten import. Run
 <code>rfc/audit/</code>, and that is deliberate. A check that also wrote cannot be trusted
 to report. And a regen target that wrote evidence would re-stamp hand-authored
 judgements during unrelated work.</p>
-<!-- source: internal/le/rfc/freshness.go -- AuditFreshness -->
+<!-- source: internal/le/rfc/freshness.go -- auditFreshness -->
 <!-- source: internal/le/rfc/reseal.go -- resealTree -->
 </li>
 <li>
@@ -738,8 +747,8 @@ weakening check reads the file and blocks the edit until a row names the test.</
 <p>Full rules: <code>ai/skills/ze-rfc.md</code>; audit method: <code>ai/skills/ze-rfc-audit.md</code>.</p>
 <pre><code>[ ] Every MUST-level line in rfc/short/rfcNNNN.md has an id (allocated by /ze-rfc)
 [ ] Each gated MUST has a positive AND a negative tagged test, or a reasoned annotation
-[ ] ./le rfc check passes; rfc/enrolled.txt lists the RFC once its tests exist
-[ ] If not enrolled: rfc/not-enrolled.txt carries a kind and a reason for it
+[ ] ./le rfc check passes; the summary's Meta table declares Enrolment: enrolled once its tests exist
+[ ] If not enrolled: that same row carries the kind, and Enrolment reason says why
 </code></pre>
 <hr>
 <h2 id="phase-10-documentation">Phase 10: Documentation</h2>
@@ -922,7 +931,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 20:21 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 12:40 UTC</span>
                 </div>
             </div>
         </footer>

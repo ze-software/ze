@@ -1,32 +1,1524 @@
 {
   "gate": {
     "ok": false,
-    "error-count": 2,
-    "gated-must": 3037,
-    "enrolled-rfcs": 172,
-    "test-tags": 3937,
-    "message": "rfc-requirements: 2 violation(s)",
+    "error-count": 152,
+    "gated-must": 3264,
+    "enrolled-rfcs": 181,
+    "test-tags": 4156,
+    "message": "rfc-requirements: 152 violation(s)",
     "violations": [
-      "rfc/short/rfc7606.md:331: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
-      "rfc/short/rfc7606.md:333: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      "rfc/short/draft-abraitis-bgp-version-capability.md:70: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
+      "rfc/short/draft-abraitis-bgp-version-capability.md:71: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
+      "rfc/short/draft-abraitis-bgp-version-capability.md:72: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3 [MUST] has no test and no annotation: \"The Capability Length for the Software Version Capability MUST be gre",
+      "rfc/short/draft-abraitis-bgp-version-capability.md:73: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4 [SHALL] has no test and no annotation: \"A value of zero SHALL be treated as an encoding error and the Capabil",
+      "rfc/short/draft-abraitis-bgp-version-capability.md:74: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5 [MUST] has no test and no annotation: \"A value of zero SHALL be treated as an encoding error and the Capabil",
+      "rfc/short/draft-abraitis-bgp-version-capability.md:75: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6 [MUST] has no test and no annotation: \"The Version field MUST be encoded using UTF-8\" (§3)",
+      "rfc/short/draft-abraitis-bgp-version-capability.md:76: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7 [MUST NOT] has no test and no annotation: \"A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences\" (",
+      "rfc/short/draft-abraitis-bgp-version-capability.md:77: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8 [MUST NOT] has no test and no annotation: \"A sender SHOULD limit generated product identifiers to what is necess",
+      "rfc/short/draft-abraitis-bgp-version-capability.md:82: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1 [REQUIRED] has no test and no annotation: \"Implementations of this specification are REQUIRED Extended Optional ",
+      "rfc/short/draft-abraitis-bgp-version-capability.md:83: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 [MUST] has no test and no annotation: \"The Software Version Capability MUST only be used for displaying the ",
+      "rfc/short/draft-abraitis-bgp-version-capability.md:84: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2 [MUST] has no test and no annotation: \"Enabling (i.e., turning on) this capability requires bouncing all exi",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:82: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1 [MUST] has no test and no annotation: \"If an implementation intends to send a single IPv6 Link-Local forward",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:83: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2 [MUST] has no test and no annotation: \"If an implementation intends to send both a IPv6 Global and Link-Loca",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:84: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1 [MUST] has no test and no annotation: \"If, after completing these procedures, there are no IPv6 next hop add",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:85: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2 [MUST NOT] has no test and no annotation: \"If the internal peer is more than one IP hop away, the BGP speaker MU",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:86: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 [MUST] has no test and no annotation: \"If the route is directly connected to the speaker, or if the interfac",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:87: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4 [MUST NOT] has no test and no annotation: \"If, after evaluating the above procedures, there are no IPv6 next hop",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:88: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5 [MUST NOT] has no test and no annotation: \"A Route Reflector (RR) reflecting a route with a link-local-only next",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:89: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6 [MUST] has no test and no annotation: \"For all other clients, the RR MUST either rewrite the next hop to its",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:90: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7 [MUST NOT] has no test and no annotation: \"If no next hops are included, the route MUST NOT be announced (treat-",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:91: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 [MUST NOT] has no test and no annotation: \"Link-Local IPv6 next hops MUST NOT be included\" for an external peer ",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:92: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9 [MUST NOT] has no test and no annotation: \"If a Global IPv6 next hop is not included, the route MUST NOT be adve",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:98: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1 [MUST] has no test and no annotation: \"When this combination has not been negotiated, a sender MUST follow t",
+      "rfc/short/draft-ietf-idr-linklocal-capability.md:99: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 [MUST] has no test and no annotation: \"If the Next Hop field is malformed, the implementation MUST handle th",
+      "rfc/short/rfc3748.md:289: RFC3748-2-3 [MUST NOT] has no test and no annotation: The authenticator MUST NOT send a Success or Failure packet when retra",
+      "rfc/short/rfc3748.md:290: RFC3748-2.2-1 [MUST NOT] has no test and no annotation: The Success, Failure, Nak Response and Notification Request/Response m",
+      "rfc/short/rfc3748.md:291: RFC3748-4.1-6 [MUST] has no test and no annotation: Additional Request packets MUST be sent until a valid Response packet ",
+      "rfc/short/rfc3748.md:292: RFC3748-4.1-7 [MUST] has no test and no annotation: The peer MUST send a Response packet in reply to a valid Request packe",
+      "rfc/short/rfc3748.md:293: RFC3748-4.1-8 [MUST] has no test and no annotation: Requests MUST be processed in the order that they are received, and MU",
+      "rfc/short/rfc3748.md:294: RFC3748-4.1-9 [MUST] has no test and no annotation: A single Type MUST be specified for each EAP Request or Response (S4.1",
+      "rfc/short/rfc3748.md:298: RFC3748-4.2-15 [MUST] has no test and no annotation: The peer MUST silently discard a Success packet that arrives after the",
+      "rfc/short/rfc3748.md:299: RFC3748-4.2-10 [MUST NOT] has no test and no annotation: Success and Failure packets MUST NOT be sent by an EAP authenticator i",
+      "rfc/short/rfc3748.md:300: RFC3748-4.2-11 [MUST] has no test and no annotation: A peer MUST allow for the circumstance that a Success or Failure packe",
+      "rfc/short/rfc3748.md:301: RFC3748-4.2-12 [MUST] has no test and no annotation: After the authenticator sends a failure result indication to the peer,",
+      "rfc/short/rfc3748.md:302: RFC3748-4.2-13 [MUST] has no test and no annotation: After the authenticator sends a success result indication to the peer ",
+      "rfc/short/rfc3748.md:303: RFC3748-4.2-14 [MUST] has no test and no annotation: If the peer attempts to authenticate to the authenticator and fails to",
+      "rfc/short/rfc3748.md:304: RFC3748-7.10-5 [MUST NOT] has no test and no annotation: The MSK and EMSK MUST NOT be used directly to protect data (S7.10)",
+      "rfc/short/rfc3748.md:305: RFC3748-7.10-6 [MUST] has no test and no annotation: The EMSK MUST remain on the EAP peer and EAP server where it is derive",
+      "rfc/short/rfc3748.md:306: RFC3748-7.10-7 [MUST] has no test and no annotation: EAP peers, authenticators and authentication servers MUST be prepared ",
+      "rfc/short/rfc4302.md:246: RFC4302-2-1 [SHALL] has no test and no annotation: The protocol header immediately preceding the AH header SHALL contain ",
+      "rfc/short/rfc4302.md:247: RFC4302-2-2 [MUST] has no test and no annotation: AH carries no version number, so backward-compatibility concerns MUST ",
+      "rfc/short/rfc4302.md:248: RFC4302-2.3-1 [MUST] has no test and no annotation: The RESERVED field MUST be set to zero by the sender (§2.3)",
+      "rfc/short/rfc4302.md:249: RFC4302-2.4-1 [MUST] has no test and no annotation: The SPI field is mandatory, and the mechanism for mapping inbound traf",
+      "rfc/short/rfc4302.md:250: RFC4302-2.4-2 [MUST] has no test and no annotation: An implementation that supports multicast MUST support multicast SAs u",
+      "rfc/short/rfc4302.md:251: RFC4302-2.4-3 [MUST] has no test and no annotation: A multicast-capable implementation MUST correctly de-multiplex inbound",
+      "rfc/short/rfc4302.md:252: RFC4302-2.4-4 [MUST] has no test and no annotation: An accelerated SAD search MUST be functionally equivalent, in external",
+      "rfc/short/rfc4302.md:253: RFC4302-2.4-5 [MUST] has no test and no annotation: Whether source and destination address matching is required to map inb",
+      "rfc/short/rfc4302.md:254: RFC4302-2.4-6 [MUST NOT] has no test and no annotation: The SPI value zero is reserved for local implementation-specific use a",
+      "rfc/short/rfc4302.md:255: RFC4302-2.5-1 [MUST] has no test and no annotation: For a unicast SA or a single-sender multicast SA the sender MUST incre",
+      "rfc/short/rfc4302.md:256: RFC4302-2.5-2 [MUST] has no test and no annotation: The Sequence Number field is mandatory and MUST always be present and ",
+      "rfc/short/rfc4302.md:257: RFC4302-2.5-3 [MUST] has no test and no annotation: All AH implementations MUST be capable of performing the sequence numb",
+      "rfc/short/rfc4302.md:258: RFC4302-2.5-5 [MUST] has no test and no annotation: The sender's and receiver's counters MUST be reset, by establishing a ",
+      "rfc/short/rfc4302.md:259: RFC4302-2.5.1-1 [MUST] has no test and no annotation: Use of an Extended Sequence Number MUST be negotiated by an SA managem",
+      "rfc/short/rfc4302.md:260: RFC4302-2.6-1 [MUST] has no test and no annotation: All implementations MUST support explicit ICV padding and MUST insert ",
+      "rfc/short/rfc4302.md:261: RFC4302-3.3.2-1 [MUST NOT] has no test and no annotation: The sender MUST NOT send a packet on an SA if doing so would cause the",
+      "rfc/short/rfc4302.md:262: RFC4302-3.3.3.1-1 [MUST] has no test and no annotation: For the ICV computation a field that may be modified in transit is set",
+      "rfc/short/rfc4302.md:263: RFC4302-3.3.3.2.2-1 [MUST] has no test and no annotation: When the packet length does not match the integrity algorithm's blocks",
+      "rfc/short/rfc4302.md:264: RFC4302-3.3.3.2.2-2 [MUST] has no test and no annotation: The implicit padding octets MUST have a value of zero (§3.3.3.2.2)",
+      "rfc/short/rfc4302.md:265: RFC4302-3.3.3.2.2-3 [MUST] has no test and no annotation: The document defining the integrity algorithm MUST be consulted to dec",
+      "rfc/short/rfc4302.md:266: RFC4302-3.3.3.2.2-4 [MUST] has no test and no annotation: When that document gives no answer, implicit padding is assumed to be ",
+      "rfc/short/rfc4302.md:267: RFC4302-3.3.4-1 [MUST] has no test and no annotation: An AH implementation MUST support generation of ICMP PMTU messages, or",
+      "rfc/short/rfc4302.md:268: RFC4302-3.4.1-1 [MUST] has no test and no annotation: A packet offered to AH that appears to be an IP fragment MUST be disca",
+      "rfc/short/rfc4302.md:269: RFC4302-3.4.2-1 [MUST] has no test and no annotation: When no valid Security Association exists for a packet the receiver MU",
+      "rfc/short/rfc4302.md:270: RFC4302-3.4.3-1 [MUST] has no test and no annotation: All AH implementations MUST support the anti-replay service, whose use",
+      "rfc/short/rfc4302.md:271: RFC4302-3.4.3-2 [MUST] has no test and no annotation: When anti-replay is enabled for an SA the receive packet counter MUST ",
+      "rfc/short/rfc4302.md:272: RFC4302-3.4.3-3 [MUST] has no test and no annotation: For each received packet the receiver MUST verify that the Sequence Nu",
+      "rfc/short/rfc4302.md:273: RFC4302-3.4.3-4 [MUST] has no test and no annotation: When ICV validation fails the receiver MUST discard the datagram as in",
+      "rfc/short/rfc4302.md:274: RFC4302-3.4.3-5 [MUST] has no test and no annotation: A minimum replay window size of 32 packets MUST be supported (§3.4.3)",
+      "rfc/short/rfc4302.md:275: RFC4302-4-1 [MUST] has no test and no annotation: When AH is incorporated into a system that supports auditing, the AH i",
+      "rfc/short/rfc4302.md:276: RFC4302-5-1 [MUST] has no test and no annotation: An implementation claiming conformance MUST fully implement the AH syn",
+      "rfc/short/rfc4302.md:277: RFC4302-5-2 [MUST] has no test and no annotation: An implementation claiming to support multicast traffic MUST comply wi",
+      "rfc/short/rfc4302.md:278: RFC4302-A2-1 [MUST] has no test and no annotation: When the IP implementation leaves a Fragmentation Extension Header in ",
+      "rfc/short/rfc4302.md:279: RFC4302-A2-2 [MUST] has no test and no annotation: When the IP implementation hands AH a send-side packet carrying a Frag",
+      "rfc/short/rfc5082.md:189: RFC5082-3-2 [MUST] has no test and no annotation: The TTL 255 transmit and verify rule also applies to the related ICMP ",
+      "rfc/short/rfc5282.md:265: RFC5282-3-1 [MUST] has no test and no annotation: The recipient MUST accept any amount of Padding up to 255 octets (§3)",
+      "rfc/short/rfc5282.md:266: RFC5282-3.1-1 [MUST] has no test and no annotation: The Initialization Vector MUST be eight octets (§3.1)",
+      "rfc/short/rfc5282.md:267: RFC5282-3.1-2 [MUST] has no test and no annotation: The IV MUST be chosen by the encryptor in a manner that ensures the sa",
+      "rfc/short/rfc5282.md:268: RFC5282-3.2-1 [MUST] has no test and no annotation: AES GCM implementations MUST support a full-length 16 octet ICV (§3.2)",
+      "rfc/short/rfc5282.md:269: RFC5282-3.2-2 [MUST NOT] has no test and no annotation: AES GCM implementations MUST NOT support ICV lengths other than 16, 8 ",
+      "rfc/short/rfc5282.md:270: RFC5282-3.2-3 [MUST] has no test and no annotation: AES CCM implementations MUST support ICV sizes of 8 octets and 16 octe",
+      "rfc/short/rfc5282.md:271: RFC5282-3.2-4 [MUST NOT] has no test and no annotation: AES CCM implementations MUST NOT support ICV lengths other than 8, 16 ",
+      "rfc/short/rfc5282.md:272: RFC5282-4-1 [MUST] has no test and no annotation: For AES GCM the default nonce format MUST be used, the salt concatenat",
+      "rfc/short/rfc5282.md:273: RFC5282-4-2 [MUST] has no test and no annotation: For AES GCM a 12 octet nonce MUST be used (§4)",
+      "rfc/short/rfc5282.md:274: RFC5282-4-3 [MUST] has no test and no annotation: For AES CCM the default nonce format MUST be used, the salt concatenat",
+      "rfc/short/rfc5282.md:275: RFC5282-4-4 [MUST] has no test and no annotation: For AES CCM an 11 octet nonce MUST be used (§4)",
+      "rfc/short/rfc5282.md:276: RFC5282-5.1-1 [MUST] has no test and no annotation: The associated data MUST consist of the message from the first octet o",
+      "rfc/short/rfc5282.md:277: RFC5282-5.1-2 [MUST NOT] has no test and no annotation: The Initialization Vector and Ciphertext fields MUST NOT be included i",
+      "rfc/short/rfc5282.md:278: RFC5282-7.1-1 [MUST] has no test and no annotation: With an AEAD cipher the SK_ai and SK_ar integrity keys are unused, and",
+      "rfc/short/rfc5282.md:279: RFC5282-7.1-2 [MUST] has no test and no annotation: Each of SK_ei and SK_er MUST have the size and format of the KEYMAT fo",
+      "rfc/short/rfc5282.md:280: RFC5282-7.3-1 [MUST] has no test and no annotation: The Key Length attribute MUST be specified whenever an AES GCM or AES ",
+      "rfc/short/rfc5282.md:281: RFC5282-7.3-2 [MUST] has no test and no annotation: The Key Length attribute MUST have a value of 128, 192, or 256 (§7.3)",
+      "rfc/short/rfc5282.md:282: RFC5282-8-1 [MUST NOT] has no test and no annotation: When an authenticated encryption algorithm is selected as the encrypti",
+      "rfc/short/rfc5798.md:190: RFC5798-5.1.1.2-1 [MUST NOT] has no test and no annotation: Never forward a datagram destined to 224.0.0.18, regardless of its TTL",
+      "rfc/short/rfc5798.md:191: RFC5798-5.1.1.3-1 [MUST] has no test and no annotation: Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)",
+      "rfc/short/rfc5798.md:192: RFC5798-5.1.1.3-2 [MUST] has no test and no annotation: Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7",
+      "rfc/short/rfc5798.md:193: RFC5798-5.1.2.2-1 [MUST NOT] has no test and no annotation: Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless o",
+      "rfc/short/rfc5798.md:194: RFC5798-5.1.2.3-1 [MUST] has no test and no annotation: Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3)",
+      "rfc/short/rfc5798.md:195: RFC5798-5.1.2.3-2 [MUST] has no test and no annotation: Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2",
+      "rfc/short/rfc5798.md:196: RFC5798-5.2.2-1 [MUST] has no test and no annotation: Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type",
+      "rfc/short/rfc5798.md:197: RFC5798-5.2.4-1 [MUST] has no test and no annotation: Use Priority 255 for the VRRP router that owns the IPvX address associ",
+      "rfc/short/rfc5798.md:198: RFC5798-5.2.4-2 [MUST] has no test and no annotation: Use Priority values 1-254 for VRRP routers backing up a virtual router",
+      "rfc/short/rfc5798.md:199: RFC5798-5.2.6-1 [MUST] has no test and no annotation: Set the rsvd field to zero on transmission and ignore it on reception ",
+      "rfc/short/rfc5798.md:200: RFC5798-5.2.8-1 [MUST] has no test and no annotation: Compute and verify the checksum as the 16-bit one's complement of the ",
+      "rfc/short/rfc5798.md:201: RFC5798-5.2.9-1 [MUST] has no test and no annotation: Send the IPv6 link-local address associated with the virtual router as",
+      "rfc/short/rfc5798.md:202: RFC5798-5.2.9-2 [MUST NOT] has no test and no annotation: Never carry IPv4 and IPv6 addresses together in one IPvX Address field",
+      "rfc/short/rfc5798.md:203: RFC5798-6.1-1 [MUST NOT] has no test and no annotation: Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements whe",
+      "rfc/short/rfc5798.md:204: RFC5798-6.4.2-1 [MUST NOT] has no test and no annotation: Backup: never respond to ARP requests for the IPv4 address(es) associa",
+      "rfc/short/rfc5798.md:205: RFC5798-6.4.2-2 [MUST NOT] has no test and no annotation: Backup: never respond to ND Neighbor Solicitation messages for the IPv",
+      "rfc/short/rfc5798.md:206: RFC5798-6.4.2-3 [MUST NOT] has no test and no annotation: Backup: never send ND Router Advertisement messages for the virtual ro",
+      "rfc/short/rfc5798.md:207: RFC5798-6.4.2-4 [MUST] has no test and no annotation: Backup: discard packets with a destination link-layer MAC address equa",
+      "rfc/short/rfc5798.md:208: RFC5798-6.4.2-5 [MUST NOT] has no test and no annotation: Backup: never accept packets addressed to the IPvX address(es) associa",
+      "rfc/short/rfc5798.md:209: RFC5798-6.4.2-6 [MUST] has no test and no annotation: Backup: on a Shutdown event, cancel the Master_Down_Timer and transiti",
+      "rfc/short/rfc5798.md:210: RFC5798-6.4.2-7 [MUST] has no test and no annotation: Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broad",
+      "rfc/short/rfc5798.md:211: RFC5798-6.4.2-8 [MUST] has no test and no annotation: Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer",
+      "rfc/short/rfc5798.md:212: RFC5798-6.4.2-9 [MUST] has no test and no annotation: Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is Fal",
+      "rfc/short/rfc5798.md:213: RFC5798-6.4.2-10 [MUST] has no test and no annotation: Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True an",
+      "rfc/short/rfc5798.md:214: RFC5798-6.4.3-1 [MUST] has no test and no annotation: Master: respond to ARP requests for the IPv4 address(es) associated wi",
+      "rfc/short/rfc5798.md:215: RFC5798-6.4.3-2 [MUST] has no test and no annotation: Master: be a member of the Solicited-Node multicast address for the IP",
+      "rfc/short/rfc5798.md:216: RFC5798-6.4.3-3 [MUST] has no test and no annotation: Master: respond to ND Neighbor Solicitation messages for the IPv6 addr",
+      "rfc/short/rfc5798.md:217: RFC5798-6.4.3-4 [MUST] has no test and no annotation: Master: send ND Router Advertisements for the virtual router (§6.4.3)",
+      "rfc/short/rfc5798.md:218: RFC5798-6.4.3-5 [MUST] has no test and no annotation: Master: forward packets with a destination link-layer MAC address equa",
+      "rfc/short/rfc5798.md:219: RFC5798-6.4.3-6 [MUST] has no test and no annotation: Master: accept packets addressed to the IPvX address(es) associated wi",
+      "rfc/short/rfc5798.md:220: RFC5798-6.4.3-7 [MUST NOT] has no test and no annotation: Master: never accept those packets when it is neither the address owne",
+      "rfc/short/rfc5798.md:221: RFC5798-6.4.3-8 [MUST] has no test and no annotation: Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISE",
+      "rfc/short/rfc5798.md:222: RFC5798-6.4.3-9 [MUST] has no test and no annotation: Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset th",
+      "rfc/short/rfc5798.md:223: RFC5798-6.4.3-10 [MUST] has no test and no annotation: Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and",
+      "rfc/short/rfc5798.md:224: RFC5798-6.4.3-11 [MUST] has no test and no annotation: Master: on an ADVERTISEMENT with a higher Priority, or an equal Priori",
+      "rfc/short/rfc5798.md:225: RFC5798-6.4.3-12 [MUST] has no test and no annotation: Master: on a losing ADVERTISEMENT, one with a lower Priority or an equ",
+      "rfc/short/rfc5798.md:226: RFC5798-7.1-1 [MUST] has no test and no annotation: Rx: verify that the VRRP version is 3 (§7.1)",
+      "rfc/short/rfc5798.md:227: RFC5798-7.1-2 [MUST] has no test and no annotation: Rx: verify that the received packet contains the complete VRRP packet,",
+      "rfc/short/rfc5798.md:228: RFC5798-7.1-3 [MUST] has no test and no annotation: Rx: verify that the VRID is configured on the receiving interface and ",
+      "rfc/short/rfc5798.md:229: RFC5798-7.1-4 [MUST] has no test and no annotation: Rx: discard the packet when any mandatory receive check fails (§7.1)",
+      "rfc/short/rfc5798.md:230: RFC5798-7.2-1 [MUST] has no test and no annotation: Tx: fill in the VRRP packet fields from the virtual router configurati",
+      "rfc/short/rfc5798.md:231: RFC5798-7.2-2 [MUST] has no test and no annotation: Tx: set the source MAC address to the virtual router MAC address (§7.2",
+      "rfc/short/rfc5798.md:232: RFC5798-7.2-3 [MUST] has no test and no annotation: Tx: set the source IPv4 address to the interface primary IPv4 address,",
+      "rfc/short/rfc5798.md:233: RFC5798-7.2-4 [MUST] has no test and no annotation: Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX",
+      "rfc/short/rfc5798.md:234: RFC5798-7.4-1 [MUST] has no test and no annotation: Create the Interface Identifiers of an IPv6 router running VRRP in the",
+      "rfc/short/rfc5798.md:235: RFC5798-7.4-2 [MUST NOT] has no test and no annotation: Never use the virtual router MAC address to create the Modified Extend",
+      "rfc/short/rfc5798.md:236: RFC5798-8.1.2-1 [MUST NOT] has no test and no annotation: Master: never respond to a host ARP request for a virtual router IPv4 ",
+      "rfc/short/rfc5798.md:237: RFC5798-8.1.3-1 [MUST] has no test and no annotation: Advertise the virtual router MAC address in the Proxy ARP message when",
+      "rfc/short/rfc5798.md:238: RFC5798-8.2.2-1 [MUST NOT] has no test and no annotation: Master: never respond to an ND Neighbor Solicitation for a virtual rou",
+      "rfc/short/rfc5798.md:239: RFC5798-8.2.2-2 [MUST] has no test and no annotation: Master: include the virtual router MAC address in the source link-laye",
+      "rfc/short/rfc5798.md:240: RFC5798-8.2.2-3 [MUST NOT] has no test and no annotation: Master: never use its physical MAC address in that source link-layer a",
+      "rfc/short/rfc5798.md:241: RFC5798-8.2.2-4 [MUST] has no test and no annotation: At system boot, delay every ND Router Advertisement, Neighbor Advertis",
+      "rfc/short/rfc5798.md:242: RFC5798-8.2.3-1 [MUST] has no test and no annotation: Configure Backup routers to send the same Router Advertisement options",
+      "rfc/short/rfc5798.md:243: RFC5798-8.4.2-1 [MUST] has no test and no annotation: Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at th",
+      "rfc/short/rfc5798.md:244: RFC5798-A.2-1 [MUST] has no test and no annotation: Token Ring: implement the functional-address mode of operation when su",
+      "rfc/short/rfc8671.md:125: RFC8671-5.2-1 [MUST] has no test and no annotation: The L flag MUST be set to 0 to indicate pre-policy (§5.2)",
+      "docs/features/rfc-status.md claims rfc8671 is 'Supported within BMP sender scope', but rfc/extraction/rfc8671.json is not a valid extraction sign-off, so nothing bounds what rfc/short/rfc8671.md left out: an obligation nobody extracted is owed no test, and this gate stays green for it forever. Walk the source and classify every site: ./le rfc extraction-create stem rfc8671. A generated skeleton is not a sign-off -- an unclassified site earns no credit here. Only a status that PROMISES conformance is asked for one; 'Partial', 'Experimental', 'Unsupported' and 'Future' disclose the gap instead and are outside this check",
+      "rfc/short/rfc7606.md:338: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/short/rfc7606.md:340: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)",
+      "rfc/extraction/rfc8671.json: RFC8671-5.2-1 [MUST] is declared by rfc/short/rfc8671.md but no source site maps to it and no section lists it in unsourced-ids: The L flag MUST be set to 0 to indicate pre-policy (§5.2). Either it is backed by a site the walk should map, or it was read from indicative prose -- say which"
+    ],
+    "findings": [
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:70: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:70",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1",
+        "level": "MUST",
+        "section": "3",
+        "text": "\"If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled\" -- the configuration option half (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:71: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2 [MUST] has no test and no annotation: \"If an implementation supports the inclusion of the capability, the im",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:71",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-2",
+        "level": "MUST",
+        "section": "3",
+        "text": "\"If an implementation supports the inclusion of the capability, the implementation MUST include a configuration option to enable or disable its use, and MUST default to disabled\" -- the default-to-disabled half (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:72: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3 [MUST] has no test and no annotation: \"The Capability Length for the Software Version Capability MUST be gre",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:72",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-3",
+        "level": "MUST",
+        "section": "3",
+        "text": "\"The Capability Length for the Software Version Capability MUST be greater than zero\" (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:73: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4 [SHALL] has no test and no annotation: \"A value of zero SHALL be treated as an encoding error and the Capabil",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:73",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-4",
+        "level": "SHALL",
+        "section": "3",
+        "text": "\"A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored\" -- the encoding-error half (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:74: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5 [MUST] has no test and no annotation: \"A value of zero SHALL be treated as an encoding error and the Capabil",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:74",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-5",
+        "level": "MUST",
+        "section": "3",
+        "text": "\"A value of zero SHALL be treated as an encoding error and the Capability MUST be ignored\" -- the ignore half (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:75: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6 [MUST] has no test and no annotation: \"The Version field MUST be encoded using UTF-8\" (§3)",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:75",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-6",
+        "level": "MUST",
+        "section": "3",
+        "text": "\"The Version field MUST be encoded using UTF-8\" (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:76: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7 [MUST NOT] has no test and no annotation: \"A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences\" (",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:76",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-7",
+        "level": "MUST NOT",
+        "section": "3",
+        "text": "\"A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences\" (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:77: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8 [MUST NOT] has no test and no annotation: \"A sender SHOULD limit generated product identifiers to what is necess",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:77",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-8",
+        "level": "MUST NOT",
+        "section": "3",
+        "text": "\"A sender SHOULD limit generated product identifiers to what is necessary to identify the product; a sender MUST NOT generate advertising or other nonessential information within the product identifier\" -- the MUST NOT half (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:82: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1 [REQUIRED] has no test and no annotation: \"Implementations of this specification are REQUIRED Extended Optional ",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:82",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1",
+        "level": "REQUIRED",
+        "section": "3.1",
+        "text": "\"Implementations of this specification are REQUIRED Extended Optional Parameters Length for BGP OPEN Message support as defined in [RFC9072]\" (§3.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:83: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1 [MUST] has no test and no annotation: \"The Software Version Capability MUST only be used for displaying the ",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:83",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
+        "level": "MUST",
+        "section": "4",
+        "text": "\"The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-abraitis-bgp-version-capability.md:84: DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2 [MUST] has no test and no annotation: \"Enabling (i.e., turning on) this capability requires bouncing all exi",
+        "where": "rfc/short/draft-abraitis-bgp-version-capability.md:84",
+        "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-2",
+        "level": "MUST",
+        "section": "4",
+        "text": "\"Enabling (i.e., turning on) this capability requires bouncing all existing BGP sessions and the feature MUST be explicitly configured before an implementation advertizes the Software Version Capability\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:82: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1 [MUST] has no test and no annotation: \"If an implementation intends to send a single IPv6 Link-Local forward",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:82",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-1",
+        "level": "MUST",
+        "section": "3",
+        "text": "\"If an implementation intends to send a single IPv6 Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 16 and include only the IPv6 Link-Local address in the Next Hop field\" (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:83: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2 [MUST] has no test and no annotation: \"If an implementation intends to send both a IPv6 Global and Link-Loca",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:83",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-3-2",
+        "level": "MUST",
+        "section": "3",
+        "text": "\"If an implementation intends to send both a IPv6 Global and Link-Local forwarding address in the Next Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop field to 32 and include both the IPv6 Global and Link-Local addresses in the Next Hop field\" (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:84: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1 [MUST] has no test and no annotation: \"If, after completing these procedures, there are no IPv6 next hop add",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:84",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-1",
+        "level": "MUST",
+        "section": "4",
+        "text": "\"If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:85: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2 [MUST NOT] has no test and no annotation: \"If the internal peer is more than one IP hop away, the BGP speaker MU",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:85",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-2",
+        "level": "MUST NOT",
+        "section": "4",
+        "text": "\"If the internal peer is more than one IP hop away, the BGP speaker MUST NOT include a Link-Local IPv6 next hop\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:86: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3 [MUST] has no test and no annotation: \"If the route is directly connected to the speaker, or if the interfac",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:86",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-3",
+        "level": "MUST",
+        "section": "4",
+        "text": "\"If the route is directly connected to the speaker, or if the interface address of the router through which the announced network is reachable for the speaker is the internal peer's address, the next hop MUST include its own Link-Local IPv6 address\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:87: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4 [MUST NOT] has no test and no annotation: \"If, after evaluating the above procedures, there are no IPv6 next hop",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:87",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-4",
+        "level": "MUST NOT",
+        "section": "4",
+        "text": "\"If, after evaluating the above procedures, there are no IPv6 next hops included with the route, the route MUST NOT be announced to the remote BGP speaker\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:88: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5 [MUST NOT] has no test and no annotation: \"A Route Reflector (RR) reflecting a route with a link-local-only next",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:88",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-5",
+        "level": "MUST NOT",
+        "section": "4",
+        "text": "\"A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:89: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6 [MUST] has no test and no annotation: \"For all other clients, the RR MUST either rewrite the next hop to its",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:89",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-6",
+        "level": "MUST",
+        "section": "4",
+        "text": "\"For all other clients, the RR MUST either rewrite the next hop to its own address (next-hop-self) or consider the route ineligible for advertisement to that specific peer\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:90: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7 [MUST NOT] has no test and no annotation: \"If no next hops are included, the route MUST NOT be announced (treat-",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:90",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-7",
+        "level": "MUST NOT",
+        "section": "4",
+        "text": "\"If no next hops are included, the route MUST NOT be announced (treat-as-withdraw)\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:91: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8 [MUST NOT] has no test and no annotation: \"Link-Local IPv6 next hops MUST NOT be included\" for an external peer ",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:91",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-8",
+        "level": "MUST NOT",
+        "section": "4",
+        "text": "\"Link-Local IPv6 next hops MUST NOT be included\" for an external peer that \"is multiple IP hops away from the speaker (aka \\\"multihop EBGP\\\")\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:92: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9 [MUST NOT] has no test and no annotation: \"If a Global IPv6 next hop is not included, the route MUST NOT be adve",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:92",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-9",
+        "level": "MUST NOT",
+        "section": "4",
+        "text": "\"If a Global IPv6 next hop is not included, the route MUST NOT be advertised to the external peer (treat-as-withdraw)\" (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:98: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1 [MUST] has no test and no annotation: \"When this combination has not been negotiated, a sender MUST follow t",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:98",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-5-1",
+        "level": "MUST",
+        "section": "5",
+        "text": "\"When this combination has not been negotiated, a sender MUST follow the rules in Section 3 of [RFC8950] and encode the Next Hop as 32 octets\" (§5)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/draft-ietf-idr-linklocal-capability.md:99: DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1 [MUST] has no test and no annotation: \"If the Next Hop field is malformed, the implementation MUST handle th",
+        "where": "rfc/short/draft-ietf-idr-linklocal-capability.md:99",
+        "rid": "DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-6-1",
+        "level": "MUST",
+        "section": "6",
+        "text": "\"If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of \\\"treat-as-withdraw\\\", as described in section 7.3 of [RFC7606]\" (§6)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:289: RFC3748-2-3 [MUST NOT] has no test and no annotation: The authenticator MUST NOT send a Success or Failure packet when retra",
+        "where": "rfc/short/rfc3748.md:289",
+        "rid": "RFC3748-2-3",
+        "level": "MUST NOT",
+        "section": "2",
+        "text": "The authenticator MUST NOT send a Success or Failure packet when retransmitting or when it fails to get a response from the peer (S2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:290: RFC3748-2.2-1 [MUST NOT] has no test and no annotation: The Success, Failure, Nak Response and Notification Request/Response m",
+        "where": "rfc/short/rfc3748.md:290",
+        "rid": "RFC3748-2.2-1",
+        "level": "MUST NOT",
+        "section": "2.2",
+        "text": "The Success, Failure, Nak Response and Notification Request/Response messages MUST NOT be used to carry data destined for delivery to other EAP methods (S2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:291: RFC3748-4.1-6 [MUST] has no test and no annotation: Additional Request packets MUST be sent until a valid Response packet ",
+        "where": "rfc/short/rfc3748.md:291",
+        "rid": "RFC3748-4.1-6",
+        "level": "MUST",
+        "section": "4.1",
+        "text": "Additional Request packets MUST be sent until a valid Response packet is received, an optional retry counter expires, or a lower layer failure indication is received (S4.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:292: RFC3748-4.1-7 [MUST] has no test and no annotation: The peer MUST send a Response packet in reply to a valid Request packe",
+        "where": "rfc/short/rfc3748.md:292",
+        "rid": "RFC3748-4.1-7",
+        "level": "MUST",
+        "section": "4.1",
+        "text": "The peer MUST send a Response packet in reply to a valid Request packet (S4.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:293: RFC3748-4.1-8 [MUST] has no test and no annotation: Requests MUST be processed in the order that they are received, and MU",
+        "where": "rfc/short/rfc3748.md:293",
+        "rid": "RFC3748-4.1-8",
+        "level": "MUST",
+        "section": "4.1",
+        "text": "Requests MUST be processed in the order that they are received, and MUST be processed to their completion before inspecting the next Request (S4.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:294: RFC3748-4.1-9 [MUST] has no test and no annotation: A single Type MUST be specified for each EAP Request or Response (S4.1",
+        "where": "rfc/short/rfc3748.md:294",
+        "rid": "RFC3748-4.1-9",
+        "level": "MUST",
+        "section": "4.1",
+        "text": "A single Type MUST be specified for each EAP Request or Response (S4.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:298: RFC3748-4.2-15 [MUST] has no test and no annotation: The peer MUST silently discard a Success packet that arrives after the",
+        "where": "rfc/short/rfc3748.md:298",
+        "rid": "RFC3748-4.2-15",
+        "level": "MUST",
+        "section": "4.2",
+        "text": "The peer MUST silently discard a Success packet that arrives after the peer has ended the session (S4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:299: RFC3748-4.2-10 [MUST NOT] has no test and no annotation: Success and Failure packets MUST NOT be sent by an EAP authenticator i",
+        "where": "rfc/short/rfc3748.md:299",
+        "rid": "RFC3748-4.2-10",
+        "level": "MUST NOT",
+        "section": "4.2",
+        "text": "Success and Failure packets MUST NOT be sent by an EAP authenticator if the specification of the given method does not explicitly permit the method to finish at that point (S4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:300: RFC3748-4.2-11 [MUST] has no test and no annotation: A peer MUST allow for the circumstance that a Success or Failure packe",
+        "where": "rfc/short/rfc3748.md:300",
+        "rid": "RFC3748-4.2-11",
+        "level": "MUST",
+        "section": "4.2",
+        "text": "A peer MUST allow for the circumstance that a Success or Failure packet, being unacknowledged, can be lost (S4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:301: RFC3748-4.2-12 [MUST] has no test and no annotation: After the authenticator sends a failure result indication to the peer,",
+        "where": "rfc/short/rfc3748.md:301",
+        "rid": "RFC3748-4.2-12",
+        "level": "MUST",
+        "section": "4.2",
+        "text": "After the authenticator sends a failure result indication to the peer, regardless of the response from the peer, it MUST subsequently send a Failure packet (S4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:302: RFC3748-4.2-13 [MUST] has no test and no annotation: After the authenticator sends a success result indication to the peer ",
+        "where": "rfc/short/rfc3748.md:302",
+        "rid": "RFC3748-4.2-13",
+        "level": "MUST",
+        "section": "4.2",
+        "text": "After the authenticator sends a success result indication to the peer and receives a success result indication from the peer, it MUST subsequently send a Success packet (S4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:303: RFC3748-4.2-14 [MUST] has no test and no annotation: If the peer attempts to authenticate to the authenticator and fails to",
+        "where": "rfc/short/rfc3748.md:303",
+        "rid": "RFC3748-4.2-14",
+        "level": "MUST",
+        "section": "4.2",
+        "text": "If the peer attempts to authenticate to the authenticator and fails to do so, the authenticator MUST send a Failure packet and MUST NOT grant access by sending a Success packet (S4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:304: RFC3748-7.10-5 [MUST NOT] has no test and no annotation: The MSK and EMSK MUST NOT be used directly to protect data (S7.10)",
+        "where": "rfc/short/rfc3748.md:304",
+        "rid": "RFC3748-7.10-5",
+        "level": "MUST NOT",
+        "section": "7.10",
+        "text": "The MSK and EMSK MUST NOT be used directly to protect data (S7.10)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:305: RFC3748-7.10-6 [MUST] has no test and no annotation: The EMSK MUST remain on the EAP peer and EAP server where it is derive",
+        "where": "rfc/short/rfc3748.md:305",
+        "rid": "RFC3748-7.10-6",
+        "level": "MUST",
+        "section": "7.10",
+        "text": "The EMSK MUST remain on the EAP peer and EAP server where it is derived, and MUST NOT be transported to, shared with, or used to derive keys for additional parties (S7.10)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc3748.md:306: RFC3748-7.10-7 [MUST] has no test and no annotation: EAP peers, authenticators and authentication servers MUST be prepared ",
+        "where": "rfc/short/rfc3748.md:306",
+        "rid": "RFC3748-7.10-7",
+        "level": "MUST",
+        "section": "7.10",
+        "text": "EAP peers, authenticators and authentication servers MUST be prepared for situations in which one of the parties discards the key state, which remains valid on another party (S7.10)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:246: RFC4302-2-1 [SHALL] has no test and no annotation: The protocol header immediately preceding the AH header SHALL contain ",
+        "where": "rfc/short/rfc4302.md:246",
+        "rid": "RFC4302-2-1",
+        "level": "SHALL",
+        "section": "2",
+        "text": "The protocol header immediately preceding the AH header SHALL contain the value 51 in its Protocol or Next Header field (§2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:247: RFC4302-2-2 [MUST] has no test and no annotation: AH carries no version number, so backward-compatibility concerns MUST ",
+        "where": "rfc/short/rfc4302.md:247",
+        "rid": "RFC4302-2-2",
+        "level": "MUST",
+        "section": "2",
+        "text": "AH carries no version number, so backward-compatibility concerns MUST be addressed by a signaling mechanism between the two peers, an SA management protocol or an out-of-band configuration mechanism (§2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:248: RFC4302-2.3-1 [MUST] has no test and no annotation: The RESERVED field MUST be set to zero by the sender (§2.3)",
+        "where": "rfc/short/rfc4302.md:248",
+        "rid": "RFC4302-2.3-1",
+        "level": "MUST",
+        "section": "2.3",
+        "text": "The RESERVED field MUST be set to zero by the sender (§2.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:249: RFC4302-2.4-1 [MUST] has no test and no annotation: The SPI field is mandatory, and the mechanism for mapping inbound traf",
+        "where": "rfc/short/rfc4302.md:249",
+        "rid": "RFC4302-2.4-1",
+        "level": "MUST",
+        "section": "2.4",
+        "text": "The SPI field is mandatory, and the mechanism for mapping inbound traffic to unicast SAs MUST be supported by all AH implementations (§2.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:250: RFC4302-2.4-2 [MUST] has no test and no annotation: An implementation that supports multicast MUST support multicast SAs u",
+        "where": "rfc/short/rfc4302.md:250",
+        "rid": "RFC4302-2.4-2",
+        "level": "MUST",
+        "section": "2.4",
+        "text": "An implementation that supports multicast MUST support multicast SAs using the SAD search order this section gives (§2.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:251: RFC4302-2.4-3 [MUST] has no test and no annotation: A multicast-capable implementation MUST correctly de-multiplex inbound",
+        "where": "rfc/short/rfc4302.md:251",
+        "rid": "RFC4302-2.4-3",
+        "level": "MUST",
+        "section": "2.4",
+        "text": "A multicast-capable implementation MUST correctly de-multiplex inbound traffic even in the context of SPI collisions (§2.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:252: RFC4302-2.4-4 [MUST] has no test and no annotation: An accelerated SAD search MUST be functionally equivalent, in external",
+        "where": "rfc/short/rfc4302.md:252",
+        "rid": "RFC4302-2.4-4",
+        "level": "MUST",
+        "section": "2.4",
+        "text": "An accelerated SAD search MUST be functionally equivalent, in externally visible behavior, to searching the SAD in the order given (§2.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:253: RFC4302-2.4-5 [MUST] has no test and no annotation: Whether source and destination address matching is required to map inb",
+        "where": "rfc/short/rfc4302.md:253",
+        "rid": "RFC4302-2.4-5",
+        "level": "MUST",
+        "section": "2.4",
+        "text": "Whether source and destination address matching is required to map inbound traffic to an SA MUST be set as a side effect of manual SA configuration or by an SA management protocol (§2.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:254: RFC4302-2.4-6 [MUST NOT] has no test and no annotation: The SPI value zero is reserved for local implementation-specific use a",
+        "where": "rfc/short/rfc4302.md:254",
+        "rid": "RFC4302-2.4-6",
+        "level": "MUST NOT",
+        "section": "2.4",
+        "text": "The SPI value zero is reserved for local implementation-specific use and MUST NOT be sent on the wire (§2.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:255: RFC4302-2.5-1 [MUST] has no test and no annotation: For a unicast SA or a single-sender multicast SA the sender MUST incre",
+        "where": "rfc/short/rfc4302.md:255",
+        "rid": "RFC4302-2.5-1",
+        "level": "MUST",
+        "section": "2.5",
+        "text": "For a unicast SA or a single-sender multicast SA the sender MUST increment the Sequence Number for every transmitted packet (§2.5)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:256: RFC4302-2.5-2 [MUST] has no test and no annotation: The Sequence Number field is mandatory and MUST always be present and ",
+        "where": "rfc/short/rfc4302.md:256",
+        "rid": "RFC4302-2.5-2",
+        "level": "MUST",
+        "section": "2.5",
+        "text": "The Sequence Number field is mandatory and MUST always be present and transmitted, even when the receiver does not enable anti-replay (§2.5)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:257: RFC4302-2.5-3 [MUST] has no test and no annotation: All AH implementations MUST be capable of performing the sequence numb",
+        "where": "rfc/short/rfc4302.md:257",
+        "rid": "RFC4302-2.5-3",
+        "level": "MUST",
+        "section": "2.5",
+        "text": "All AH implementations MUST be capable of performing the sequence number generation and the sequence number verification this document describes (§2.5)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:258: RFC4302-2.5-5 [MUST] has no test and no annotation: The sender's and receiver's counters MUST be reset, by establishing a ",
+        "where": "rfc/short/rfc4302.md:258",
+        "rid": "RFC4302-2.5-5",
+        "level": "MUST",
+        "section": "2.5",
+        "text": "The sender's and receiver's counters MUST be reset, by establishing a new SA and a new key, before the 2^32nd packet is transmitted on an SA (§2.5)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:259: RFC4302-2.5.1-1 [MUST] has no test and no annotation: Use of an Extended Sequence Number MUST be negotiated by an SA managem",
+        "where": "rfc/short/rfc4302.md:259",
+        "rid": "RFC4302-2.5.1-1",
+        "level": "MUST",
+        "section": "2.5.1",
+        "text": "Use of an Extended Sequence Number MUST be negotiated by an SA management protocol (§2.5.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:260: RFC4302-2.6-1 [MUST] has no test and no annotation: All implementations MUST support explicit ICV padding and MUST insert ",
+        "where": "rfc/short/rfc4302.md:260",
+        "rid": "RFC4302-2.6-1",
+        "level": "MUST",
+        "section": "2.6",
+        "text": "All implementations MUST support explicit ICV padding and MUST insert only enough padding to satisfy the IPv4 or IPv6 alignment requirement (§2.6)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:261: RFC4302-3.3.2-1 [MUST NOT] has no test and no annotation: The sender MUST NOT send a packet on an SA if doing so would cause the",
+        "where": "rfc/short/rfc4302.md:261",
+        "rid": "RFC4302-3.3.2-1",
+        "level": "MUST NOT",
+        "section": "3.3.2",
+        "text": "The sender MUST NOT send a packet on an SA if doing so would cause the Sequence Number to cycle (§3.3.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:262: RFC4302-3.3.3.1-1 [MUST] has no test and no annotation: For the ICV computation a field that may be modified in transit is set",
+        "where": "rfc/short/rfc4302.md:262",
+        "rid": "RFC4302-3.3.3.1-1",
+        "level": "MUST",
+        "section": "3.3.3.1",
+        "text": "For the ICV computation a field that may be modified in transit is set to zero, a mutable but predictable field is set to the value it will have at the receiver, and the ICV field itself is set to zero (§3.3.3.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:263: RFC4302-3.3.3.2.2-1 [MUST] has no test and no annotation: When the packet length does not match the integrity algorithm's blocks",
+        "where": "rfc/short/rfc4302.md:263",
+        "rid": "RFC4302-3.3.3.2.2-1",
+        "level": "MUST",
+        "section": "3.3.3.2.2",
+        "text": "When the packet length does not match the integrity algorithm's blocksize, implicit padding MUST be appended to the end of the packet before the ICV is computed (§3.3.3.2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:264: RFC4302-3.3.3.2.2-2 [MUST] has no test and no annotation: The implicit padding octets MUST have a value of zero (§3.3.3.2.2)",
+        "where": "rfc/short/rfc4302.md:264",
+        "rid": "RFC4302-3.3.3.2.2-2",
+        "level": "MUST",
+        "section": "3.3.3.2.2",
+        "text": "The implicit padding octets MUST have a value of zero (§3.3.3.2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:265: RFC4302-3.3.3.2.2-3 [MUST] has no test and no annotation: The document defining the integrity algorithm MUST be consulted to dec",
+        "where": "rfc/short/rfc4302.md:265",
+        "rid": "RFC4302-3.3.3.2.2-3",
+        "level": "MUST",
+        "section": "3.3.3.2.2",
+        "text": "The document defining the integrity algorithm MUST be consulted to decide whether implicit padding is required (§3.3.3.2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:266: RFC4302-3.3.3.2.2-4 [MUST] has no test and no annotation: When that document gives no answer, implicit padding is assumed to be ",
+        "where": "rfc/short/rfc4302.md:266",
+        "rid": "RFC4302-3.3.3.2.2-4",
+        "level": "MUST",
+        "section": "3.3.3.2.2",
+        "text": "When that document gives no answer, implicit padding is assumed to be required and its octets MUST have a value of zero (§3.3.3.2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:267: RFC4302-3.3.4-1 [MUST] has no test and no annotation: An AH implementation MUST support generation of ICMP PMTU messages, or",
+        "where": "rfc/short/rfc4302.md:267",
+        "rid": "RFC4302-3.3.4-1",
+        "level": "MUST",
+        "section": "3.3.4",
+        "text": "An AH implementation MUST support generation of ICMP PMTU messages, or the equivalent internal signaling for a native host implementation (§3.3.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:268: RFC4302-3.4.1-1 [MUST] has no test and no annotation: A packet offered to AH that appears to be an IP fragment MUST be disca",
+        "where": "rfc/short/rfc4302.md:268",
+        "rid": "RFC4302-3.4.1-1",
+        "level": "MUST",
+        "section": "3.4.1",
+        "text": "A packet offered to AH that appears to be an IP fragment MUST be discarded, and that is an auditable event (§3.4.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:269: RFC4302-3.4.2-1 [MUST] has no test and no annotation: When no valid Security Association exists for a packet the receiver MU",
+        "where": "rfc/short/rfc4302.md:269",
+        "rid": "RFC4302-3.4.2-1",
+        "level": "MUST",
+        "section": "3.4.2",
+        "text": "When no valid Security Association exists for a packet the receiver MUST discard it, and that is an auditable event (§3.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:270: RFC4302-3.4.3-1 [MUST] has no test and no annotation: All AH implementations MUST support the anti-replay service, whose use",
+        "where": "rfc/short/rfc4302.md:270",
+        "rid": "RFC4302-3.4.3-1",
+        "level": "MUST",
+        "section": "3.4.3",
+        "text": "All AH implementations MUST support the anti-replay service, whose use the receiver enables or disables per SA (§3.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:271: RFC4302-3.4.3-2 [MUST] has no test and no annotation: When anti-replay is enabled for an SA the receive packet counter MUST ",
+        "where": "rfc/short/rfc4302.md:271",
+        "rid": "RFC4302-3.4.3-2",
+        "level": "MUST",
+        "section": "3.4.3",
+        "text": "When anti-replay is enabled for an SA the receive packet counter MUST be initialized to zero as the SA is established (§3.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:272: RFC4302-3.4.3-3 [MUST] has no test and no annotation: For each received packet the receiver MUST verify that the Sequence Nu",
+        "where": "rfc/short/rfc4302.md:272",
+        "rid": "RFC4302-3.4.3-3",
+        "level": "MUST",
+        "section": "3.4.3",
+        "text": "For each received packet the receiver MUST verify that the Sequence Number does not duplicate one already received on this SA (§3.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:273: RFC4302-3.4.3-4 [MUST] has no test and no annotation: When ICV validation fails the receiver MUST discard the datagram as in",
+        "where": "rfc/short/rfc4302.md:273",
+        "rid": "RFC4302-3.4.3-4",
+        "level": "MUST",
+        "section": "3.4.3",
+        "text": "When ICV validation fails the receiver MUST discard the datagram as invalid (§3.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:274: RFC4302-3.4.3-5 [MUST] has no test and no annotation: A minimum replay window size of 32 packets MUST be supported (§3.4.3)",
+        "where": "rfc/short/rfc4302.md:274",
+        "rid": "RFC4302-3.4.3-5",
+        "level": "MUST",
+        "section": "3.4.3",
+        "text": "A minimum replay window size of 32 packets MUST be supported (§3.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:275: RFC4302-4-1 [MUST] has no test and no annotation: When AH is incorporated into a system that supports auditing, the AH i",
+        "where": "rfc/short/rfc4302.md:275",
+        "rid": "RFC4302-4-1",
+        "level": "MUST",
+        "section": "4",
+        "text": "When AH is incorporated into a system that supports auditing, the AH implementation MUST also support auditing and MUST allow an administrator to enable or disable auditing for AH (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:276: RFC4302-5-1 [MUST] has no test and no annotation: An implementation claiming conformance MUST fully implement the AH syn",
+        "where": "rfc/short/rfc4302.md:276",
+        "rid": "RFC4302-5-1",
+        "level": "MUST",
+        "section": "5",
+        "text": "An implementation claiming conformance MUST fully implement the AH syntax and processing for unicast traffic, and MUST comply with all requirements of the Security Architecture document (§5)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:277: RFC4302-5-2 [MUST] has no test and no annotation: An implementation claiming to support multicast traffic MUST comply wi",
+        "where": "rfc/short/rfc4302.md:277",
+        "rid": "RFC4302-5-2",
+        "level": "MUST",
+        "section": "5",
+        "text": "An implementation claiming to support multicast traffic MUST comply with the additional requirements specified for such traffic (§5)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:278: RFC4302-A2-1 [MUST] has no test and no annotation: When the IP implementation leaves a Fragmentation Extension Header in ",
+        "where": "rfc/short/rfc4302.md:278",
+        "rid": "RFC4302-A2-1",
+        "level": "MUST",
+        "section": "A2",
+        "text": "When the IP implementation leaves a Fragmentation Extension Header in place after reassembly, AH MUST remove or skip it and repair the preceding Next Header before ICV processing (§A2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc4302.md:279: RFC4302-A2-2 [MUST] has no test and no annotation: When the IP implementation hands AH a send-side packet carrying a Frag",
+        "where": "rfc/short/rfc4302.md:279",
+        "rid": "RFC4302-A2-2",
+        "level": "MUST",
+        "section": "A2",
+        "text": "When the IP implementation hands AH a send-side packet carrying a Fragmentation Extension Header with Offset zero and More Fragments zero, AH MUST remove or skip it and repair the preceding Next Header before ICV processing (§A2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5082.md:189: RFC5082-3-2 [MUST] has no test and no annotation: The TTL 255 transmit and verify rule also applies to the related ICMP ",
+        "where": "rfc/short/rfc5082.md:189",
+        "rid": "RFC5082-3-2",
+        "level": "MUST",
+        "section": "3",
+        "text": "The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:265: RFC5282-3-1 [MUST] has no test and no annotation: The recipient MUST accept any amount of Padding up to 255 octets (§3)",
+        "where": "rfc/short/rfc5282.md:265",
+        "rid": "RFC5282-3-1",
+        "level": "MUST",
+        "section": "3",
+        "text": "The recipient MUST accept any amount of Padding up to 255 octets (§3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:266: RFC5282-3.1-1 [MUST] has no test and no annotation: The Initialization Vector MUST be eight octets (§3.1)",
+        "where": "rfc/short/rfc5282.md:266",
+        "rid": "RFC5282-3.1-1",
+        "level": "MUST",
+        "section": "3.1",
+        "text": "The Initialization Vector MUST be eight octets (§3.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:267: RFC5282-3.1-2 [MUST] has no test and no annotation: The IV MUST be chosen by the encryptor in a manner that ensures the sa",
+        "where": "rfc/short/rfc5282.md:267",
+        "rid": "RFC5282-3.1-2",
+        "level": "MUST",
+        "section": "3.1",
+        "text": "The IV MUST be chosen by the encryptor in a manner that ensures the same IV value is used only once for a given key (§3.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:268: RFC5282-3.2-1 [MUST] has no test and no annotation: AES GCM implementations MUST support a full-length 16 octet ICV (§3.2)",
+        "where": "rfc/short/rfc5282.md:268",
+        "rid": "RFC5282-3.2-1",
+        "level": "MUST",
+        "section": "3.2",
+        "text": "AES GCM implementations MUST support a full-length 16 octet ICV (§3.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:269: RFC5282-3.2-2 [MUST NOT] has no test and no annotation: AES GCM implementations MUST NOT support ICV lengths other than 16, 8 ",
+        "where": "rfc/short/rfc5282.md:269",
+        "rid": "RFC5282-3.2-2",
+        "level": "MUST NOT",
+        "section": "3.2",
+        "text": "AES GCM implementations MUST NOT support ICV lengths other than 16, 8 and 12 octets (§3.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:270: RFC5282-3.2-3 [MUST] has no test and no annotation: AES CCM implementations MUST support ICV sizes of 8 octets and 16 octe",
+        "where": "rfc/short/rfc5282.md:270",
+        "rid": "RFC5282-3.2-3",
+        "level": "MUST",
+        "section": "3.2",
+        "text": "AES CCM implementations MUST support ICV sizes of 8 octets and 16 octets (§3.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:271: RFC5282-3.2-4 [MUST NOT] has no test and no annotation: AES CCM implementations MUST NOT support ICV lengths other than 8, 16 ",
+        "where": "rfc/short/rfc5282.md:271",
+        "rid": "RFC5282-3.2-4",
+        "level": "MUST NOT",
+        "section": "3.2",
+        "text": "AES CCM implementations MUST NOT support ICV lengths other than 8, 16 and 12 octets (§3.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:272: RFC5282-4-1 [MUST] has no test and no annotation: For AES GCM the default nonce format MUST be used, the salt concatenat",
+        "where": "rfc/short/rfc5282.md:272",
+        "rid": "RFC5282-4-1",
+        "level": "MUST",
+        "section": "4",
+        "text": "For AES GCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:273: RFC5282-4-2 [MUST] has no test and no annotation: For AES GCM a 12 octet nonce MUST be used (§4)",
+        "where": "rfc/short/rfc5282.md:273",
+        "rid": "RFC5282-4-2",
+        "level": "MUST",
+        "section": "4",
+        "text": "For AES GCM a 12 octet nonce MUST be used (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:274: RFC5282-4-3 [MUST] has no test and no annotation: For AES CCM the default nonce format MUST be used, the salt concatenat",
+        "where": "rfc/short/rfc5282.md:274",
+        "rid": "RFC5282-4-3",
+        "level": "MUST",
+        "section": "4",
+        "text": "For AES CCM the default nonce format MUST be used, the salt concatenated with the IV in that order (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:275: RFC5282-4-4 [MUST] has no test and no annotation: For AES CCM an 11 octet nonce MUST be used (§4)",
+        "where": "rfc/short/rfc5282.md:275",
+        "rid": "RFC5282-4-4",
+        "level": "MUST",
+        "section": "4",
+        "text": "For AES CCM an 11 octet nonce MUST be used (§4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:276: RFC5282-5.1-1 [MUST] has no test and no annotation: The associated data MUST consist of the message from the first octet o",
+        "where": "rfc/short/rfc5282.md:276",
+        "rid": "RFC5282-5.1-1",
+        "level": "MUST",
+        "section": "5.1",
+        "text": "The associated data MUST consist of the message from the first octet of the Fixed IKE Header through the last octet of the Encrypted Payload's Payload Header, including any payloads between them (§5.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:277: RFC5282-5.1-2 [MUST NOT] has no test and no annotation: The Initialization Vector and Ciphertext fields MUST NOT be included i",
+        "where": "rfc/short/rfc5282.md:277",
+        "rid": "RFC5282-5.1-2",
+        "level": "MUST NOT",
+        "section": "5.1",
+        "text": "The Initialization Vector and Ciphertext fields MUST NOT be included in the associated data (§5.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:278: RFC5282-7.1-1 [MUST] has no test and no annotation: With an AEAD cipher the SK_ai and SK_ar integrity keys are unused, and",
+        "where": "rfc/short/rfc5282.md:278",
+        "rid": "RFC5282-7.1-1",
+        "level": "MUST",
+        "section": "7.1",
+        "text": "With an AEAD cipher the SK_ai and SK_ar integrity keys are unused, and each MUST be treated as having a size of zero octets (§7.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:279: RFC5282-7.1-2 [MUST] has no test and no annotation: Each of SK_ei and SK_er MUST have the size and format of the KEYMAT fo",
+        "where": "rfc/short/rfc5282.md:279",
+        "rid": "RFC5282-7.1-2",
+        "level": "MUST",
+        "section": "7.1",
+        "text": "Each of SK_ei and SK_er MUST have the size and format of the KEYMAT for the AES key size in use, the cipher key followed by the salt (§7.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:280: RFC5282-7.3-1 [MUST] has no test and no annotation: The Key Length attribute MUST be specified whenever an AES GCM or AES ",
+        "where": "rfc/short/rfc5282.md:280",
+        "rid": "RFC5282-7.3-1",
+        "level": "MUST",
+        "section": "7.3",
+        "text": "The Key Length attribute MUST be specified whenever an AES GCM or AES CCM encryption transform identifier is used (§7.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:281: RFC5282-7.3-2 [MUST] has no test and no annotation: The Key Length attribute MUST have a value of 128, 192, or 256 (§7.3)",
+        "where": "rfc/short/rfc5282.md:281",
+        "rid": "RFC5282-7.3-2",
+        "level": "MUST",
+        "section": "7.3",
+        "text": "The Key Length attribute MUST have a value of 128, 192, or 256 (§7.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5282.md:282: RFC5282-8-1 [MUST NOT] has no test and no annotation: When an authenticated encryption algorithm is selected as the encrypti",
+        "where": "rfc/short/rfc5282.md:282",
+        "rid": "RFC5282-8-1",
+        "level": "MUST NOT",
+        "section": "8",
+        "text": "When an authenticated encryption algorithm is selected as the encryption algorithm for any SA, an integrity algorithm MUST NOT be selected for that SA (§8)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:190: RFC5798-5.1.1.2-1 [MUST NOT] has no test and no annotation: Never forward a datagram destined to 224.0.0.18, regardless of its TTL",
+        "where": "rfc/short/rfc5798.md:190",
+        "rid": "RFC5798-5.1.1.2-1",
+        "level": "MUST NOT",
+        "section": "5.1.1.2",
+        "text": "Never forward a datagram destined to 224.0.0.18, regardless of its TTL (§5.1.1.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:191: RFC5798-5.1.1.3-1 [MUST] has no test and no annotation: Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)",
+        "where": "rfc/short/rfc5798.md:191",
+        "rid": "RFC5798-5.1.1.3-1",
+        "level": "MUST",
+        "section": "5.1.1.3",
+        "text": "Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:192: RFC5798-5.1.1.3-2 [MUST] has no test and no annotation: Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7",
+        "where": "rfc/short/rfc5798.md:192",
+        "rid": "RFC5798-5.1.1.3-2",
+        "level": "MUST",
+        "section": "5.1.1.3",
+        "text": "Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:193: RFC5798-5.1.2.2-1 [MUST NOT] has no test and no annotation: Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless o",
+        "where": "rfc/short/rfc5798.md:193",
+        "rid": "RFC5798-5.1.2.2-1",
+        "level": "MUST NOT",
+        "section": "5.1.2.2",
+        "text": "Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:194: RFC5798-5.1.2.3-1 [MUST] has no test and no annotation: Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3)",
+        "where": "rfc/short/rfc5798.md:194",
+        "rid": "RFC5798-5.1.2.3-1",
+        "level": "MUST",
+        "section": "5.1.2.3",
+        "text": "Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:195: RFC5798-5.1.2.3-2 [MUST] has no test and no annotation: Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2",
+        "where": "rfc/short/rfc5798.md:195",
+        "rid": "RFC5798-5.1.2.3-2",
+        "level": "MUST",
+        "section": "5.1.2.3",
+        "text": "Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:196: RFC5798-5.2.2-1 [MUST] has no test and no annotation: Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type",
+        "where": "rfc/short/rfc5798.md:196",
+        "rid": "RFC5798-5.2.2-1",
+        "level": "MUST",
+        "section": "5.2.2",
+        "text": "Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:197: RFC5798-5.2.4-1 [MUST] has no test and no annotation: Use Priority 255 for the VRRP router that owns the IPvX address associ",
+        "where": "rfc/short/rfc5798.md:197",
+        "rid": "RFC5798-5.2.4-1",
+        "level": "MUST",
+        "section": "5.2.4",
+        "text": "Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:198: RFC5798-5.2.4-2 [MUST] has no test and no annotation: Use Priority values 1-254 for VRRP routers backing up a virtual router",
+        "where": "rfc/short/rfc5798.md:198",
+        "rid": "RFC5798-5.2.4-2",
+        "level": "MUST",
+        "section": "5.2.4",
+        "text": "Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:199: RFC5798-5.2.6-1 [MUST] has no test and no annotation: Set the rsvd field to zero on transmission and ignore it on reception ",
+        "where": "rfc/short/rfc5798.md:199",
+        "rid": "RFC5798-5.2.6-1",
+        "level": "MUST",
+        "section": "5.2.6",
+        "text": "Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:200: RFC5798-5.2.8-1 [MUST] has no test and no annotation: Compute and verify the checksum as the 16-bit one's complement of the ",
+        "where": "rfc/short/rfc5798.md:200",
+        "rid": "RFC5798-5.2.8-1",
+        "level": "MUST",
+        "section": "5.2.8",
+        "text": "Compute and verify the checksum as the 16-bit one's complement of the one's complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:201: RFC5798-5.2.9-1 [MUST] has no test and no annotation: Send the IPv6 link-local address associated with the virtual router as",
+        "where": "rfc/short/rfc5798.md:201",
+        "rid": "RFC5798-5.2.9-1",
+        "level": "MUST",
+        "section": "5.2.9",
+        "text": "Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase \"must\" in the RFC)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:202: RFC5798-5.2.9-2 [MUST NOT] has no test and no annotation: Never carry IPv4 and IPv6 addresses together in one IPvX Address field",
+        "where": "rfc/short/rfc5798.md:202",
+        "rid": "RFC5798-5.2.9-2",
+        "level": "MUST NOT",
+        "section": "5.2.9",
+        "text": "Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:203: RFC5798-6.1-1 [MUST NOT] has no test and no annotation: Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements whe",
+        "where": "rfc/short/rfc5798.md:203",
+        "rid": "RFC5798-6.1-1",
+        "level": "MUST NOT",
+        "section": "6.1",
+        "text": "Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:204: RFC5798-6.4.2-1 [MUST NOT] has no test and no annotation: Backup: never respond to ARP requests for the IPv4 address(es) associa",
+        "where": "rfc/short/rfc5798.md:204",
+        "rid": "RFC5798-6.4.2-1",
+        "level": "MUST NOT",
+        "section": "6.4.2",
+        "text": "Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:205: RFC5798-6.4.2-2 [MUST NOT] has no test and no annotation: Backup: never respond to ND Neighbor Solicitation messages for the IPv",
+        "where": "rfc/short/rfc5798.md:205",
+        "rid": "RFC5798-6.4.2-2",
+        "level": "MUST NOT",
+        "section": "6.4.2",
+        "text": "Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:206: RFC5798-6.4.2-3 [MUST NOT] has no test and no annotation: Backup: never send ND Router Advertisement messages for the virtual ro",
+        "where": "rfc/short/rfc5798.md:206",
+        "rid": "RFC5798-6.4.2-3",
+        "level": "MUST NOT",
+        "section": "6.4.2",
+        "text": "Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:207: RFC5798-6.4.2-4 [MUST] has no test and no annotation: Backup: discard packets with a destination link-layer MAC address equa",
+        "where": "rfc/short/rfc5798.md:207",
+        "rid": "RFC5798-6.4.2-4",
+        "level": "MUST",
+        "section": "6.4.2",
+        "text": "Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:208: RFC5798-6.4.2-5 [MUST NOT] has no test and no annotation: Backup: never accept packets addressed to the IPvX address(es) associa",
+        "where": "rfc/short/rfc5798.md:208",
+        "rid": "RFC5798-6.4.2-5",
+        "level": "MUST NOT",
+        "section": "6.4.2",
+        "text": "Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:209: RFC5798-6.4.2-6 [MUST] has no test and no annotation: Backup: on a Shutdown event, cancel the Master_Down_Timer and transiti",
+        "where": "rfc/short/rfc5798.md:209",
+        "rid": "RFC5798-6.4.2-6",
+        "level": "MUST",
+        "section": "6.4.2",
+        "text": "Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:210: RFC5798-6.4.2-7 [MUST] has no test and no annotation: Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broad",
+        "where": "rfc/short/rfc5798.md:210",
+        "rid": "RFC5798-6.4.2-7",
+        "level": "MUST",
+        "section": "6.4.2",
+        "text": "Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:211: RFC5798-6.4.2-8 [MUST] has no test and no annotation: Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer",
+        "where": "rfc/short/rfc5798.md:211",
+        "rid": "RFC5798-6.4.2-8",
+        "level": "MUST",
+        "section": "6.4.2",
+        "text": "Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:212: RFC5798-6.4.2-9 [MUST] has no test and no annotation: Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is Fal",
+        "where": "rfc/short/rfc5798.md:212",
+        "rid": "RFC5798-6.4.2-9",
+        "level": "MUST",
+        "section": "6.4.2",
+        "text": "Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:213: RFC5798-6.4.2-10 [MUST] has no test and no annotation: Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True an",
+        "where": "rfc/short/rfc5798.md:213",
+        "rid": "RFC5798-6.4.2-10",
+        "level": "MUST",
+        "section": "6.4.2",
+        "text": "Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:214: RFC5798-6.4.3-1 [MUST] has no test and no annotation: Master: respond to ARP requests for the IPv4 address(es) associated wi",
+        "where": "rfc/short/rfc5798.md:214",
+        "rid": "RFC5798-6.4.3-1",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:215: RFC5798-6.4.3-2 [MUST] has no test and no annotation: Master: be a member of the Solicited-Node multicast address for the IP",
+        "where": "rfc/short/rfc5798.md:215",
+        "rid": "RFC5798-6.4.3-2",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:216: RFC5798-6.4.3-3 [MUST] has no test and no annotation: Master: respond to ND Neighbor Solicitation messages for the IPv6 addr",
+        "where": "rfc/short/rfc5798.md:216",
+        "rid": "RFC5798-6.4.3-3",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.3, §8.2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:217: RFC5798-6.4.3-4 [MUST] has no test and no annotation: Master: send ND Router Advertisements for the virtual router (§6.4.3)",
+        "where": "rfc/short/rfc5798.md:217",
+        "rid": "RFC5798-6.4.3-4",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: send ND Router Advertisements for the virtual router (§6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:218: RFC5798-6.4.3-5 [MUST] has no test and no annotation: Master: forward packets with a destination link-layer MAC address equa",
+        "where": "rfc/short/rfc5798.md:218",
+        "rid": "RFC5798-6.4.3-5",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:219: RFC5798-6.4.3-6 [MUST] has no test and no annotation: Master: accept packets addressed to the IPvX address(es) associated wi",
+        "where": "rfc/short/rfc5798.md:219",
+        "rid": "RFC5798-6.4.3-6",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:220: RFC5798-6.4.3-7 [MUST NOT] has no test and no annotation: Master: never accept those packets when it is neither the address owne",
+        "where": "rfc/short/rfc5798.md:220",
+        "rid": "RFC5798-6.4.3-7",
+        "level": "MUST NOT",
+        "section": "6.4.3",
+        "text": "Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:221: RFC5798-6.4.3-8 [MUST] has no test and no annotation: Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISE",
+        "where": "rfc/short/rfc5798.md:221",
+        "rid": "RFC5798-6.4.3-8",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:222: RFC5798-6.4.3-9 [MUST] has no test and no annotation: Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset th",
+        "where": "rfc/short/rfc5798.md:222",
+        "rid": "RFC5798-6.4.3-9",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:223: RFC5798-6.4.3-10 [MUST] has no test and no annotation: Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and",
+        "where": "rfc/short/rfc5798.md:223",
+        "rid": "RFC5798-6.4.3-10",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:224: RFC5798-6.4.3-11 [MUST] has no test and no annotation: Master: on an ADVERTISEMENT with a higher Priority, or an equal Priori",
+        "where": "rfc/short/rfc5798.md:224",
+        "rid": "RFC5798-6.4.3-11",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:225: RFC5798-6.4.3-12 [MUST] has no test and no annotation: Master: on a losing ADVERTISEMENT, one with a lower Priority or an equ",
+        "where": "rfc/short/rfc5798.md:225",
+        "rid": "RFC5798-6.4.3-12",
+        "level": "MUST",
+        "section": "6.4.3",
+        "text": "Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:226: RFC5798-7.1-1 [MUST] has no test and no annotation: Rx: verify that the VRRP version is 3 (§7.1)",
+        "where": "rfc/short/rfc5798.md:226",
+        "rid": "RFC5798-7.1-1",
+        "level": "MUST",
+        "section": "7.1",
+        "text": "Rx: verify that the VRRP version is 3 (§7.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:227: RFC5798-7.1-2 [MUST] has no test and no annotation: Rx: verify that the received packet contains the complete VRRP packet,",
+        "where": "rfc/short/rfc5798.md:227",
+        "rid": "RFC5798-7.1-2",
+        "level": "MUST",
+        "section": "7.1",
+        "text": "Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:228: RFC5798-7.1-3 [MUST] has no test and no annotation: Rx: verify that the VRID is configured on the receiving interface and ",
+        "where": "rfc/short/rfc5798.md:228",
+        "rid": "RFC5798-7.1-3",
+        "level": "MUST",
+        "section": "7.1",
+        "text": "Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:229: RFC5798-7.1-4 [MUST] has no test and no annotation: Rx: discard the packet when any mandatory receive check fails (§7.1)",
+        "where": "rfc/short/rfc5798.md:229",
+        "rid": "RFC5798-7.1-4",
+        "level": "MUST",
+        "section": "7.1",
+        "text": "Rx: discard the packet when any mandatory receive check fails (§7.1)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:230: RFC5798-7.2-1 [MUST] has no test and no annotation: Tx: fill in the VRRP packet fields from the virtual router configurati",
+        "where": "rfc/short/rfc5798.md:230",
+        "rid": "RFC5798-7.2-1",
+        "level": "MUST",
+        "section": "7.2",
+        "text": "Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:231: RFC5798-7.2-2 [MUST] has no test and no annotation: Tx: set the source MAC address to the virtual router MAC address (§7.2",
+        "where": "rfc/short/rfc5798.md:231",
+        "rid": "RFC5798-7.2-2",
+        "level": "MUST",
+        "section": "7.2",
+        "text": "Tx: set the source MAC address to the virtual router MAC address (§7.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:232: RFC5798-7.2-3 [MUST] has no test and no annotation: Tx: set the source IPv4 address to the interface primary IPv4 address,",
+        "where": "rfc/short/rfc5798.md:232",
+        "rid": "RFC5798-7.2-3",
+        "level": "MUST",
+        "section": "7.2",
+        "text": "Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:233: RFC5798-7.2-4 [MUST] has no test and no annotation: Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX",
+        "where": "rfc/short/rfc5798.md:233",
+        "rid": "RFC5798-7.2-4",
+        "level": "MUST",
+        "section": "7.2",
+        "text": "Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:234: RFC5798-7.4-1 [MUST] has no test and no annotation: Create the Interface Identifiers of an IPv6 router running VRRP in the",
+        "where": "rfc/short/rfc5798.md:234",
+        "rid": "RFC5798-7.4-1",
+        "level": "MUST",
+        "section": "7.4",
+        "text": "Create the Interface Identifiers of an IPv6 router running VRRP in the normal manner, as in Transmission of IPv6 Packets over Ethernet Networks (§7.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:235: RFC5798-7.4-2 [MUST NOT] has no test and no annotation: Never use the virtual router MAC address to create the Modified Extend",
+        "where": "rfc/short/rfc5798.md:235",
+        "rid": "RFC5798-7.4-2",
+        "level": "MUST NOT",
+        "section": "7.4",
+        "text": "Never use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers (§7.4)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:236: RFC5798-8.1.2-1 [MUST NOT] has no test and no annotation: Master: never respond to a host ARP request for a virtual router IPv4 ",
+        "where": "rfc/short/rfc5798.md:236",
+        "rid": "RFC5798-8.1.2-1",
+        "level": "MUST NOT",
+        "section": "8.1.2",
+        "text": "Master: never respond to a host ARP request for a virtual router IPv4 address with its physical MAC address (§8.1.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:237: RFC5798-8.1.3-1 [MUST] has no test and no annotation: Advertise the virtual router MAC address in the Proxy ARP message when",
+        "where": "rfc/short/rfc5798.md:237",
+        "rid": "RFC5798-8.1.3-1",
+        "level": "MUST",
+        "section": "8.1.3",
+        "text": "Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase \"must\" in the RFC)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:238: RFC5798-8.2.2-1 [MUST NOT] has no test and no annotation: Master: never respond to an ND Neighbor Solicitation for a virtual rou",
+        "where": "rfc/short/rfc5798.md:238",
+        "rid": "RFC5798-8.2.2-1",
+        "level": "MUST NOT",
+        "section": "8.2.2",
+        "text": "Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:239: RFC5798-8.2.2-2 [MUST] has no test and no annotation: Master: include the virtual router MAC address in the source link-laye",
+        "where": "rfc/short/rfc5798.md:239",
+        "rid": "RFC5798-8.2.2-2",
+        "level": "MUST",
+        "section": "8.2.2",
+        "text": "Master: include the virtual router MAC address in the source link-layer address option of a Neighbor Solicitation it sends for a host's IPv6 address, when it sends that option (§8.2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:240: RFC5798-8.2.2-3 [MUST NOT] has no test and no annotation: Master: never use its physical MAC address in that source link-layer a",
+        "where": "rfc/short/rfc5798.md:240",
+        "rid": "RFC5798-8.2.2-3",
+        "level": "MUST NOT",
+        "section": "8.2.2",
+        "text": "Master: never use its physical MAC address in that source link-layer address option (§8.2.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:241: RFC5798-8.2.2-4 [MUST] has no test and no annotation: At system boot, delay every ND Router Advertisement, Neighbor Advertis",
+        "where": "rfc/short/rfc5798.md:241",
+        "rid": "RFC5798-8.2.2-4",
+        "level": "MUST",
+        "section": "8.2.2",
+        "text": "At system boot, delay every ND Router Advertisement, Neighbor Advertisement and Neighbor Solicitation until both the IPv6 address and the virtual router MAC address are configured (§8.2.2; lowercase \"must\" in the RFC)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:242: RFC5798-8.2.3-1 [MUST] has no test and no annotation: Configure Backup routers to send the same Router Advertisement options",
+        "where": "rfc/short/rfc5798.md:242",
+        "rid": "RFC5798-8.2.3-1",
+        "level": "MUST",
+        "section": "8.2.3",
+        "text": "Configure Backup routers to send the same Router Advertisement options as the address owner (§8.2.3; lowercase \"must\" in the RFC)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:243: RFC5798-8.4.2-1 [MUST] has no test and no annotation: Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at th",
+        "where": "rfc/short/rfc5798.md:243",
+        "rid": "RFC5798-8.4.2-1",
+        "level": "MUST",
+        "section": "8.4.2",
+        "text": "Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at the configured rate, even when it is sub-second (§8.4.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc5798.md:244: RFC5798-A.2-1 [MUST] has no test and no annotation: Token Ring: implement the functional-address mode of operation when su",
+        "where": "rfc/short/rfc5798.md:244",
+        "rid": "RFC5798-A.2-1",
+        "level": "MUST",
+        "section": "A.2",
+        "text": "Token Ring: implement the functional-address mode of operation when supporting VRRP on Token Ring (§A.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "rfc/short/rfc8671.md:125: RFC8671-5.2-1 [MUST] has no test and no annotation: The L flag MUST be set to 0 to indicate pre-policy (§5.2)",
+        "where": "rfc/short/rfc8671.md:125",
+        "rid": "RFC8671-5.2-1",
+        "level": "MUST",
+        "section": "5.2",
+        "text": "The L flag MUST be set to 0 to indicate pre-policy (§5.2)",
+        "issue": "has no test and no annotation"
+      },
+      {
+        "message": "docs/features/rfc-status.md claims rfc8671 is 'Supported within BMP sender scope', but rfc/extraction/rfc8671.json is not a valid extraction sign-off, so nothing bounds what rfc/short/rfc8671.md left out: an obligation nobody extracted is owed no test, and this gate stays green for it forever. Walk the source and classify every site: ./le rfc extraction-create stem rfc8671. A generated skeleton is not a sign-off -- an unclassified site earns no credit here. Only a status that PROMISES conformance is asked for one; 'Partial', 'Experimental', 'Unsupported' and 'Future' disclose the gap instead and are outside this check"
+      },
+      {
+        "message": "rfc/short/rfc7606.md:338: RFC7606-5.1-3 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606MixedUpdate (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/short/rfc7606.md:340: RFC7606-5.4-1 has a STALE audit verdict -- what it judged changed: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard (func-scoped). This is NOT a line shift and ./le rfc reseal will refuse it. Re-read rfc7606 with the ze-rfc-audit skill (ai/skills/ze-rfc-audit.md)"
+      },
+      {
+        "message": "rfc/extraction/rfc8671.json: RFC8671-5.2-1 [MUST] is declared by rfc/short/rfc8671.md but no source site maps to it and no section lists it in unsourced-ids: The L flag MUST be set to 0 to indicate pre-policy (§5.2). Either it is backed by a site the walk should map, or it was read from indicative prose -- say which"
+      }
     ]
   },
   "satisfaction": [
     {
       "key": "both_polarities",
-      "count": 1333
+      "count": 1411
     },
     {
       "key": "single_polarity",
-      "count": 366
-    },
-    {
-      "key": "not_applicable",
-      "count": 836
+      "count": 370
     },
     {
       "key": "gap",
-      "count": 502
+      "count": 501
     },
     {
       "key": "one_polarity_unexcused",
@@ -34,16 +1526,20 @@
     },
     {
       "key": "missing_unexcused",
-      "count": 0
+      "count": 148
+    },
+    {
+      "key": "not_applicable",
+      "count": 834
     }
   ],
   "gaps": {
-    "requirements": 502,
-    "rfcs": 79,
+    "requirements": 501,
+    "rfcs": 80,
     "status-counts": [
       {
         "status": "Partial",
-        "count": 59
+        "count": 60
       },
       {
         "status": "Experimental",
@@ -51,7 +1547,7 @@
       },
       {
         "status": "Supported",
-        "count": 4
+        "count": 3
       },
       {
         "status": "Not supported",
@@ -59,6 +1555,10 @@
       },
       {
         "status": "Unsupported",
+        "count": 1
+      },
+      {
+        "status": "Supported within BMP sender scope",
         "count": 1
       }
     ],
@@ -68,16 +1568,16 @@
         "remaining": "RFC1350-2-3 unmet (Sorcerer's Apprentice fix): sendAndWaitACK retransmits DATA on any non-matching ACK (handler.go) instead of silently ignoring a duplicate or stale ACK."
       },
       {
-        "rfc": "RFC 4301",
-        "remaining": "One MUST gap (RFC4301-4.4.1.1-1): SPD selectors are limited to IP-prefix + next-layer-protocol; TCP/UDP/SCTP port and ICMP type/code selectors are not modeled or projected (internal/component/ike/dataplane/dataplane.go; engine/initiator.go tsToIPNet drops ports)."
-      },
-      {
         "rfc": "RFC 6396",
         "remaining": "One MUST gap gated in rfc/short/rfc6396.md [RFC6396-4.4.3-1]: the live BGP4MP writer always emits the BGP4MP_MESSAGE_AS4 subtype and records the on-wire message verbatim without checking the session's negotiated 4-byte-AS capability, so a message from an OLD (2-byte) peer carries a 2-byte AS_PATH mislabeled as AS4. RIB-path AS_PATH is unaffected (canonicalized to 4-byte)."
       },
       {
         "rfc": "RFC 7313",
         "remaining": "Four MUST-level receive-side gaps annotated in `rfc/short/rfc7313.md`: RFC7313-4-4/4-5 -- a received BoRR/EoRR is log-only (internal/component/bgp/plugins/rib/rib.go), so ze marks no Adj-RIB-In routes stale and purges none; and RFC7313-4-6/4-7 -- neither the send nor receive path applies a Graceful-Restart End-of-RIB gate to BoRR emission or acceptance."
+      },
+      {
+        "rfc": "RFC 8671",
+        "remaining": "One MUST is a gap. Section 6.2 requires the O flag to be zero on a Statistics Report, and ze sends no Statistics Report at all: `senderSession.writeStatisticsReport` clears the flag correctly and has no non-test caller, and the `statistics-timeout` leaf drives no timer, so the obligation is never exercised (RFC8671-6.2-1). One feature is absent by decision, and it is not a conformance gap: ze exports the post-policy Adj-RIB-Out view only, and the pre-policy Adj-RIB-Out view is not built. RFC 7854 Section 5 leaves that choice to the implementation, so the obligations that hang on it do not bind ze (RFC8671-5.2-1). A later scope decision can revisit it and build the pre-policy view."
       }
     ],
     "top-rfcs": [
@@ -148,7 +1648,7 @@
     "fresh": 50,
     "shifted": 0,
     "stale": 2,
-    "missing": 2985
+    "missing": 3212
   },
   "verify": {
     "command": "./le rfc check",

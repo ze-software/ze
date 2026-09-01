@@ -163,7 +163,7 @@ Accounting-Request carries.</p>
 </tr>
 <tr>
 <td><code>radius.profile-attribute</code></td>
-<td>enum <code>filter-id</code> | <code>class</code></td>
+<td>enum <code>filter-id</code></td>
 <td><code>filter-id</code></td>
 <td>Access-Accept reply attribute carrying profile name(s)</td>
 </tr>
@@ -217,7 +217,9 @@ mapped to one or more locally-defined <code>system.authorization.profile</code> 
 <li>The backend reads the configured <code>profile-attribute</code> from the Access-Accept.
 With the default <code>filter-id</code>, each Filter-Id attribute (RFC 2865 §5.11)
 supplies one profile name; multiple Filter-Id attributes yield multiple
-profiles. <code>class</code> reads the Class attribute (§5.25) the same way.</li>
+profiles. Filter-Id is the only value: RFC 2865 §5.25 says of the Class
+attribute that "the client MUST NOT interpret the attribute locally", so ze
+reads no profile name out of it.</li>
 <li>When the Access-Accept carries no such attribute, the <code>default-profile</code>
 leaf-list applies.</li>
 <li>When neither is present the login resolves to no profile and is <strong>rejected</strong>,
@@ -340,7 +342,7 @@ Local summary: <code>rfc/short/rfc2865.md</code>.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 02:44 UTC</span>
                 </div>
             </div>
         </footer>

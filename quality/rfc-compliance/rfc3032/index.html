@@ -1,0 +1,1029 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 3032 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 3032: MPLS Label Stack Encoding. 17 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 3032 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 3032: MPLS Label Stack Encoding. 17 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 3032 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 3032: MPLS Label Stack Encoding. 17 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc3032/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc3032/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported as dependency</span>
+    <h1 id="rfc-detail-title">RFC 3032 - MPLS Label Stack Encoding</h1>
+    <p>Every requirement this repository extracted from RFC 3032, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>17</strong><b>of 23 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>17</strong><b>of 17 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>No card above is a share of a population, so there is nothing to add up.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported as dependency</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>23</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>17</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>0</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>17</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>0</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>0</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc3032.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc3032.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc3032.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: MPLS Label Stack Encoding (RFC 3032): all 17 gated MUSTs not-applicable -- data-plane (TTL processing, S-bit-on-wire, fragmentation, MTU, ICMP, disposition) is kernel AF_MPLS / VPP; ze is an MPLS control plane (encodes label values, validates, programs the FIB). Same pattern as rfc3031/rfc4364</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported as dependency</p>
+<p><strong>What the ledger says is covered:</strong></p>
+20-bit label stack encoding and validation used by labeled unicast and VPN NLRI.
+<p><strong>What the ledger says remains:</strong></p>
+No tracked gap in current source anchors.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>17</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>17</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Annotated instead of tested (17):</strong> <a href="#rfc3032-1-1"><code>RFC3032-1-1</code></a>, <a href="#rfc3032-2.2-1"><code>RFC3032-2.2-1</code></a>, <a href="#rfc3032-2.2-2"><code>RFC3032-2.2-2</code></a>, <a href="#rfc3032-2.2-3"><code>RFC3032-2.2-3</code></a>, <a href="#rfc3032-2.4.2-1"><code>RFC3032-2.4.2-1</code></a>, <a href="#rfc3032-2.4.2-2"><code>RFC3032-2.4.2-2</code></a>, <a href="#rfc3032-2.4.2-3"><code>RFC3032-2.4.2-3</code></a>, <a href="#rfc3032-2.4.3-1"><code>RFC3032-2.4.3-1</code></a>, <a href="#rfc3032-3.3-1"><code>RFC3032-3.3-1</code></a>, <a href="#rfc3032-3.3-2"><code>RFC3032-3.3-2</code></a>, <a href="#rfc3032-3.4-1"><code>RFC3032-3.4-1</code></a>, <a href="#rfc3032-3.4-2"><code>RFC3032-3.4-2</code></a>, <a href="#rfc3032-3.4-3"><code>RFC3032-3.4-3</code></a>, <a href="#rfc3032-3.5-1"><code>RFC3032-3.5-1</code></a>, <a href="#rfc3032-3.5-2"><code>RFC3032-3.5-2</code></a>, <a href="#rfc3032-3.6-1"><code>RFC3032-3.6-1</code></a>, <a href="#rfc3032-3.6-2"><code>RFC3032-3.6-2</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-1-1">RFC3032-1-1</code></td><td colspan="3"><span class="rfc-subject">When top labels use different encoding (e.g., ATM), this encoding MUST be used for additional label stack entries (S1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>1 - Introduction</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no ATM/Frame-Relay MPLS top-label path so the condition never arises, and the on-wire shim for additional entries is built by the kernel/VPP dataplane; ze&#39;s only shim encoder is the 3-octet BGP NLRI (internal/core/bgp/nlri/helpers.go:61), which carries no TTL</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.2-1">RFC3032-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Network layer protocol MUST be inferable from the label value at bottom of stack and/or inspection of the network layer header (S2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2 - Determining the Network Layer Protocol</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> disposition-time protocol identification when the stack empties is performed by the kernel AF_MPLS route (loopback re-injection into the IP path) or VPP dataplane, not by any ze control-plane function (internal/plugins/fib/kernel/mplsentry_linux.go:44)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.2-2">RFC3032-2.2-2</code></td><td colspan="3"><span class="rfc-subject">When the first label is pushed, it MUST be used ONLY for packets of a particular network layer, OR ONLY for a specified set distinguishable by header inspection (S2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2 - Determining the Network Layer Protocol</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze binds every label to a single FEC within one address family by construction, but the operative used-only-for-one-protocol forwarding disposition is realized by the kernel&#39;s per-in-label AF_MPLS entry, with no dedicated ze guard (internal/plugins/fib/kernel/mplsentry.go:69)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.2-3">RFC3032-2.2-3</code></td><td colspan="3"><span class="rfc-subject">If a packet cannot be forwarded and its network layer protocol cannot be identified or no protocol-dependent error rules exist, the packet MUST be silently discarded (S2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2 - Determining the Network Layer Protocol</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the discard-on-unidentifiable-protocol decision is a forwarding-plane action of the kernel/VPP MPLS datapath; ze forwards no MPLS packets in-process</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.2-1">RFC3032-2.4.2-1</code></td><td colspan="3"><span class="rfc-subject">If outgoing TTL is 0, the labeled packet MUST NOT be further forwarded (S2.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.4.2 - Protocol-independent rules</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TTL decrement and TTL-zero discard are per-packet forwarding operations performed by the kernel AF_MPLS path or VPP dataplane; no TTL logic exists in any ze MPLS Go path (internal/plugins/fib/kernel/)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.2-2">RFC3032-2.4.2-2</code></td><td colspan="3"><span class="rfc-subject">When TTL=0, the label stack MUST NOT be stripped off and the packet forwarded as unlabeled (S2.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.4.2 - Protocol-independent rules</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the TTL-expiry no-strip-and-forward decision is the same forwarding action executed by the kernel/VPP dataplane, not by ze&#39;s control plane</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.2-3">RFC3032-2.4.2-3</code></td><td colspan="3"><span class="rfc-subject">When forwarding, the TTL field of the top label stack entry MUST be set to the outgoing TTL value (S2.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.4.2 - Protocol-independent rules</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> rewriting the shim TTL on a swapped/forwarded packet is a dataplane write done by the kernel/VPP; ze passes only label values (and a static VPP route TTL), never per-packet TTL (internal/plugins/fib/vpp/mpls.go:75)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.3-1">RFC3032-2.4.3-1</code></td><td colspan="3"><span class="rfc-subject">When an IP packet is first labeled, the label TTL field MUST be set to the value of the IP TTL field (S2.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.4.3 - IP-dependent rules</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> copying IP TTL into the imposed shim at ingress is a dataplane operation of the kernel/VPP push path; ze&#39;s push programming carries no TTL propagation (internal/plugins/fib/kernel/mplsentry.go:88)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.3-1">RFC3032-3.3-1</code></td><td colspan="3"><span class="rfc-subject">A labeled packet that is not &#34;too big&#34; MUST be transmitted without fragmentation (S3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> MTU comparison and non-fragmentation of a not-too-big labeled packet are forwarding-plane behaviors of the kernel/VPP; ze has no labeled-packet transmit path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.3-2">RFC3032-3.3-2</code></td><td colspan="3"><span class="rfc-subject">A labeled IP datagram whose size exceeds the True Maximum Frame Payload Size MUST be considered &#34;too big&#34; (S3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the too-big MTU determination on forwarded labeled datagrams is a dataplane classification made by the kernel/VPP, not by ze</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-1">RFC3032-3.4-1</code></td><td colspan="3"><span class="rfc-subject">If a labeled IPv4 datagram is too big and has the DF bit set, the LSR MUST execute the strip/fragment/ICMP algorithm (S3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.4 - Processing Labeled IPv4 Datagrams which are Too Big</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> strip-labels/fragment/emit-ICMP for a too-big DF-set IPv4 datagram is entirely the kernel/VPP IPv4 forwarding path; ze neither fragments nor originates ICMP for forwarded packets</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-2">RFC3032-3.4-2</code></td><td colspan="3"><span class="rfc-subject">Each IPv4 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.4 - Processing Labeled IPv4 Datagrams which are Too Big</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> fragment sizing during labeled-packet forwarding is a dataplane computation performed by the kernel/VPP; ze has no fragmentation code</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-3">RFC3032-3.4-3</code></td><td colspan="3"><span class="rfc-subject">If the DF bit is set and packet is too big, the datagram MUST NOT be forwarded (S3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.4 - Processing Labeled IPv4 Datagrams which are Too Big</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the DF-set too-big drop decision is a forwarding-plane action of the kernel/VPP datapath</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.5-1">RFC3032-3.5-1</code></td><td colspan="3"><span class="rfc-subject">To process a labeled IPv6 datagram that is too big, the LSR MUST execute the specified algorithm (S3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5 - Processing Labeled IPv6 Datagrams which are Too Big</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the IPv6 too-big strip/ICMP-Packet-Too-Big/fragment algorithm is the kernel/VPP IPv6 forwarding path; ze runs no such path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.5-2">RFC3032-3.5-2</code></td><td colspan="3"><span class="rfc-subject">Each IPv6 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5 - Processing Labeled IPv6 Datagrams which are Too Big</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> IPv6 fragment sizing during forwarding is a dataplane computation of the kernel/VPP, absent from ze</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.6-1">RFC3032-3.6-1</code></td><td colspan="3"><span class="rfc-subject">The tunnel transmitting endpoint MUST be able to determine the MTU of the tunnel as a whole (S3.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.6 - Implications with respect to Path MTU Discovery</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> LSP-tunnel MTU/PMTU determination is a forwarding-plane concern of the kernel/VPP tunnel ingress; ze&#39;s RSVP-TE/LDP signaling sets up the LSP but runs no in-process tunnel MTU discovery</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.6-2">RFC3032-3.6-2</code></td><td colspan="3"><span class="rfc-subject">The tunnel transmitting endpoint MUST send ICMP Destination Unreachable when a DF-set packet exceeds tunnel MTU (S3.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.6 - Implications with respect to Path MTU Discovery</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> generating ICMP Destination Unreachable for oversized DF-set packets entering a tunnel is a kernel/VPP forwarding-plane action; ze originates no such ICMP</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.3-2">RFC3032-2.4.3-2</code></td><td colspan="3"><span class="rfc-subject">When the last label is popped (stack empty), the IP TTL field SHOULD be replaced with the outgoing TTL value (S2.4.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.4.3 - IP-dependent rules</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.4.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.2-1">RFC3032-3.2-1</code></td><td colspan="3"><span class="rfc-subject">LSR SHOULD support a &#34;Maximum Initially Labeled IP Datagram Size&#34; configuration parameter (S3.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.2 - Maximum Initially Labeled IP Datagram Size</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-2.4.2-4">RFC3032-2.4.2-4</code></td><td colspan="3"><span class="rfc-subject">When outgoing TTL is 0, the packet MAY be simply discarded or passed to the network layer for error processing depending on the label value (S2.4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.4.2 - Protocol-independent rules</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-2.4.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.3-3">RFC3032-3.3-3</code></td><td colspan="3"><span class="rfc-subject">A labeled IP datagram exceeding the Conventional Maximum Frame Payload Size MAY be considered &#34;too big&#34; (S3.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.4-4">RFC3032-3.4-4</code></td><td colspan="3"><span class="rfc-subject">If a labeled IPv4 datagram is too big and DF is not set, the LSR MAY silently discard it (S3.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.4 - Processing Labeled IPv4 Datagrams which are Too Big</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3032-3.6-3">RFC3032-3.6-3</code></td><td colspan="3"><span class="rfc-subject">The tunnel endpoint MAY determine tunnel MTU by sending packets and performing Path MTU Discovery (S3.6)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.6 - Implications with respect to Path MTU Discovery</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3032-3.6-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc3032-1-1"><code>RFC3032-1-1</code></a> When top labels use different encoding (e.g., ATM), this encoding MUST be used for additional label stack entries (S1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze has no ATM/Frame-Relay MPLS top-label path so the condition never arises, and the on-wire shim for additional entries is built by the kernel/VPP dataplane; ze&#39;s only shim encoder is the 3-octet BGP NLRI (internal/core/bgp/nlri/helpers.go:61), which carries no TTL</td>
+</tr>
+<tr><td><a href="#rfc3032-2.2-1"><code>RFC3032-2.2-1</code></a> Network layer protocol MUST be inferable from the label value at bottom of stack and/or inspection of the network layer header (S2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: disposition-time protocol identification when the stack empties is performed by the kernel AF_MPLS route (loopback re-injection into the IP path) or VPP dataplane, not by any ze control-plane function (internal/plugins/fib/kernel/mplsentry_linux.go:44)</td>
+</tr>
+<tr><td><a href="#rfc3032-2.2-2"><code>RFC3032-2.2-2</code></a> When the first label is pushed, it MUST be used ONLY for packets of a particular network layer, OR ONLY for a specified set distinguishable by header inspection (S2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze binds every label to a single FEC within one address family by construction, but the operative used-only-for-one-protocol forwarding disposition is realized by the kernel&#39;s per-in-label AF_MPLS entry, with no dedicated ze guard (internal/plugins/fib/kernel/mplsentry.go:69)</td>
+</tr>
+<tr><td><a href="#rfc3032-2.2-3"><code>RFC3032-2.2-3</code></a> If a packet cannot be forwarded and its network layer protocol cannot be identified or no protocol-dependent error rules exist, the packet MUST be silently discarded (S2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the discard-on-unidentifiable-protocol decision is a forwarding-plane action of the kernel/VPP MPLS datapath; ze forwards no MPLS packets in-process</td>
+</tr>
+<tr><td><a href="#rfc3032-2.4.2-1"><code>RFC3032-2.4.2-1</code></a> If outgoing TTL is 0, the labeled packet MUST NOT be further forwarded (S2.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TTL decrement and TTL-zero discard are per-packet forwarding operations performed by the kernel AF_MPLS path or VPP dataplane; no TTL logic exists in any ze MPLS Go path (internal/plugins/fib/kernel/)</td>
+</tr>
+<tr><td><a href="#rfc3032-2.4.2-2"><code>RFC3032-2.4.2-2</code></a> When TTL=0, the label stack MUST NOT be stripped off and the packet forwarded as unlabeled (S2.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the TTL-expiry no-strip-and-forward decision is the same forwarding action executed by the kernel/VPP dataplane, not by ze&#39;s control plane</td>
+</tr>
+<tr><td><a href="#rfc3032-2.4.2-3"><code>RFC3032-2.4.2-3</code></a> When forwarding, the TTL field of the top label stack entry MUST be set to the outgoing TTL value (S2.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: rewriting the shim TTL on a swapped/forwarded packet is a dataplane write done by the kernel/VPP; ze passes only label values (and a static VPP route TTL), never per-packet TTL (internal/plugins/fib/vpp/mpls.go:75)</td>
+</tr>
+<tr><td><a href="#rfc3032-2.4.3-1"><code>RFC3032-2.4.3-1</code></a> When an IP packet is first labeled, the label TTL field MUST be set to the value of the IP TTL field (S2.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: copying IP TTL into the imposed shim at ingress is a dataplane operation of the kernel/VPP push path; ze&#39;s push programming carries no TTL propagation (internal/plugins/fib/kernel/mplsentry.go:88)</td>
+</tr>
+<tr><td><a href="#rfc3032-3.3-1"><code>RFC3032-3.3-1</code></a> A labeled packet that is not &#34;too big&#34; MUST be transmitted without fragmentation (S3.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: MTU comparison and non-fragmentation of a not-too-big labeled packet are forwarding-plane behaviors of the kernel/VPP; ze has no labeled-packet transmit path</td>
+</tr>
+<tr><td><a href="#rfc3032-3.3-2"><code>RFC3032-3.3-2</code></a> A labeled IP datagram whose size exceeds the True Maximum Frame Payload Size MUST be considered &#34;too big&#34; (S3.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the too-big MTU determination on forwarded labeled datagrams is a dataplane classification made by the kernel/VPP, not by ze</td>
+</tr>
+<tr><td><a href="#rfc3032-3.4-1"><code>RFC3032-3.4-1</code></a> If a labeled IPv4 datagram is too big and has the DF bit set, the LSR MUST execute the strip/fragment/ICMP algorithm (S3.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: strip-labels/fragment/emit-ICMP for a too-big DF-set IPv4 datagram is entirely the kernel/VPP IPv4 forwarding path; ze neither fragments nor originates ICMP for forwarded packets</td>
+</tr>
+<tr><td><a href="#rfc3032-3.4-2"><code>RFC3032-3.4-2</code></a> Each IPv4 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: fragment sizing during labeled-packet forwarding is a dataplane computation performed by the kernel/VPP; ze has no fragmentation code</td>
+</tr>
+<tr><td><a href="#rfc3032-3.4-3"><code>RFC3032-3.4-3</code></a> If the DF bit is set and packet is too big, the datagram MUST NOT be forwarded (S3.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the DF-set too-big drop decision is a forwarding-plane action of the kernel/VPP datapath</td>
+</tr>
+<tr><td><a href="#rfc3032-3.5-1"><code>RFC3032-3.5-1</code></a> To process a labeled IPv6 datagram that is too big, the LSR MUST execute the specified algorithm (S3.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the IPv6 too-big strip/ICMP-Packet-Too-Big/fragment algorithm is the kernel/VPP IPv6 forwarding path; ze runs no such path</td>
+</tr>
+<tr><td><a href="#rfc3032-3.5-2"><code>RFC3032-3.5-2</code></a> Each IPv6 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: IPv6 fragment sizing during forwarding is a dataplane computation of the kernel/VPP, absent from ze</td>
+</tr>
+<tr><td><a href="#rfc3032-3.6-1"><code>RFC3032-3.6-1</code></a> The tunnel transmitting endpoint MUST be able to determine the MTU of the tunnel as a whole (S3.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: LSP-tunnel MTU/PMTU determination is a forwarding-plane concern of the kernel/VPP tunnel ingress; ze&#39;s RSVP-TE/LDP signaling sets up the LSP but runs no in-process tunnel MTU discovery</td>
+</tr>
+<tr><td><a href="#rfc3032-3.6-2"><code>RFC3032-3.6-2</code></a> The tunnel transmitting endpoint MUST send ICMP Destination Unreachable when a DF-set packet exceeds tunnel MTU (S3.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: generating ICMP Destination Unreachable for oversized DF-set packets entering a tunnel is a kernel/VPP forwarding-plane action; ze originates no such ICMP</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc3032-1-1"><code>RFC3032-1-1</code></a></h3>
+<p>When top labels use different encoding (e.g., ATM), this encoding MUST be used for additional label stack entries (S1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-2.2-1"><code>RFC3032-2.2-1</code></a></h3>
+<p>Network layer protocol MUST be inferable from the label value at bottom of stack and/or inspection of the network layer header (S2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-2.2-2"><code>RFC3032-2.2-2</code></a></h3>
+<p>When the first label is pushed, it MUST be used ONLY for packets of a particular network layer, OR ONLY for a specified set distinguishable by header inspection (S2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-2.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-2.2-3"><code>RFC3032-2.2-3</code></a></h3>
+<p>If a packet cannot be forwarded and its network layer protocol cannot be identified or no protocol-dependent error rules exist, the packet MUST be silently discarded (S2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-2.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-2.4.2-1"><code>RFC3032-2.4.2-1</code></a></h3>
+<p>If outgoing TTL is 0, the labeled packet MUST NOT be further forwarded (S2.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-2.4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-2.4.2-2"><code>RFC3032-2.4.2-2</code></a></h3>
+<p>When TTL=0, the label stack MUST NOT be stripped off and the packet forwarded as unlabeled (S2.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-2.4.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-2.4.2-3"><code>RFC3032-2.4.2-3</code></a></h3>
+<p>When forwarding, the TTL field of the top label stack entry MUST be set to the outgoing TTL value (S2.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-2.4.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-2.4.3-1"><code>RFC3032-2.4.3-1</code></a></h3>
+<p>When an IP packet is first labeled, the label TTL field MUST be set to the value of the IP TTL field (S2.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-2.4.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-3.3-1"><code>RFC3032-3.3-1</code></a></h3>
+<p>A labeled packet that is not &#34;too big&#34; MUST be transmitted without fragmentation (S3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-3.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-3.3-2"><code>RFC3032-3.3-2</code></a></h3>
+<p>A labeled IP datagram whose size exceeds the True Maximum Frame Payload Size MUST be considered &#34;too big&#34; (S3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-3.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-3.4-1"><code>RFC3032-3.4-1</code></a></h3>
+<p>If a labeled IPv4 datagram is too big and has the DF bit set, the LSR MUST execute the strip/fragment/ICMP algorithm (S3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-3.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-3.4-2"><code>RFC3032-3.4-2</code></a></h3>
+<p>Each IPv4 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-3.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-3.4-3"><code>RFC3032-3.4-3</code></a></h3>
+<p>If the DF bit is set and packet is too big, the datagram MUST NOT be forwarded (S3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-3.4-3, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-3.5-1"><code>RFC3032-3.5-1</code></a></h3>
+<p>To process a labeled IPv6 datagram that is too big, the LSR MUST execute the specified algorithm (S3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-3.5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-3.5-2"><code>RFC3032-3.5-2</code></a></h3>
+<p>Each IPv6 fragment MUST be at least N bytes less than the Effective Maximum Frame Payload Size (S3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-3.5-2, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-3.6-1"><code>RFC3032-3.6-1</code></a></h3>
+<p>The tunnel transmitting endpoint MUST be able to determine the MTU of the tunnel as a whole (S3.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-3.6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3032-3.6-2"><code>RFC3032-3.6-2</code></a></h3>
+<p>The tunnel transmitting endpoint MUST send ICMP Destination Unreachable when a DF-set packet exceeds tunnel MTU (S3.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3032-3.6-2, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6, rfc3032</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc3032.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>4907c7ce709476f7</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc3032.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>16</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>21</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>Title block, Status of this Memo, Copyright Notice, Abstract and Table of Contents. Walked rather than skipped because the site scan attributes two sites here: both are Abstract sentences, and both are classified below. The Abstract restates section 1 -- MPLS needs procedures for augmenting network layer packets with label stacks, and this document specifies the encoding on PPP and LAN data links.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>2</td>
+<td>walked</td>
+<td>Introduction. States why the encoding is needed, what the document specifies (the encoding on PPP and LAN links, plus protocol-independent and IPv4/IPv6-dependent field-processing rules), and closes with the one obligation this section places on an implementation: an LSR using a different encoding for the top one or two entries, as an ATM switch does, still uses this encoding for the additional entries. Site 1:2 carries that obligation and is mapped to RFC3032-1-1; site 1:1 is the indicative premise sentence and is excluded below.</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>Specification of Requirements</td>
+<td>0</td>
+<td>walked</td>
+<td>Specification of Requirements. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>The Label Stack</td>
+<td>0</td>
+<td>walked</td>
+<td>The Label Stack. A heading with no body text of its own; sections 2.1 to 2.4 carry the content.</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>Encoding the Label Stack</td>
+<td>2</td>
+<td>walked</td>
+<td>Encoding the Label Stack. The document&#39;s wire-format section: the 4-octet label stack entry with its 20-bit Label, 3-bit Exp, 1-bit S and 8-bit TTL fields, the ordering rule that the top of the stack appears earliest and the network layer packet follows the entry with S set, what a successful top-label lookup yields, and the reserved label values 0 to 15. Written entirely in the indicative, and the layout, the ordering and the reserved values are carried by the Wire Formats, Encoding Rules and Constants tables of rfc/short/rfc3032.md. Its two sites both state the disposition of an Explicit NULL label and are excluded below. Ze&#39;s shim encoder is the 3-octet BGP NLRI form of internal/core/bgp/nlri.WriteLabelStack, which carries the Label and the S bit and no TTL; the 4-octet on-wire entry is built by the kernel or by VPP.</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>Determining the Network Layer Protocol</td>
+<td>6</td>
+<td>walked</td>
+<td>Determining the Network Layer Protocol. The document&#39;s protocol-identification rules: the LSR that pops the last label must be able to identify the network layer protocol, the identity must be inferable from the bottom label and possibly the network layer header, a first-pushed label and every label that replaces it must meet that criterion, and a packet that cannot be forwarded whose protocol cannot be identified is silently discarded. Sites 2.2:2, 2.2:3 and 2.2:6 carry the three obligations rfc/short/rfc3032.md declares as RFC3032-2.2-1, RFC3032-2.2-2 and RFC3032-2.2-3 and are mapped below; 2.2:1 and 2.2:4 restate two of them and 2.2:5 sits inside a desirability construction.</td>
+</tr>
+<tr><td><code>2.3</code></td>
+<td>Generating ICMP Messages for Labeled IP Packets</td>
+<td>3</td>
+<td>walked</td>
+<td>Generating ICMP Messages for Labeled IP Packets. States the two conditions that must hold for an LSR to send an ICMP packet to the source of a labeled IP packet, points at section 2.2 for the first, at 2.3.1 and 2.3.2 for the second, and records that in some cases the second does not hold at all and no ICMP message can be generated. All three sites bind the LSR that originates ICMP for a labeled packet and are excluded below.</td>
+</tr>
+<tr><td><code>2.3.1</code></td>
+<td>Tunneling through a Transit Routing Domain</td>
+<td>1</td>
+<td>walked</td>
+<td>Tunneling through a Transit Routing Domain. A deployment discussion: when external routes are not leaked into a transit domain&#39;s interior routers, only an ASBR knows how to route to an arbitrary source, and injecting default into the IGP lets an unlabeled ICMP packet reach a router with full routing information. It offers a network design, not an implementation rule; its one site is excluded below.</td>
+</tr>
+<tr><td><code>2.3.2</code></td>
+<td>Tunneling Private Addresses through a Public Backbone</td>
+<td>1</td>
+<td>walked</td>
+<td>Tunneling Private Addresses through a Public Backbone. The alternative when the source address cannot be routed at all: copy the label stack from the original packet onto the ICMP message and label switch it, so the message leaves the MPLS domain where the source is routable. Its one site directs the LSR that builds such an ICMP message and is excluded below.</td>
+</tr>
+<tr><td><code>2.4</code></td>
+<td>Processing the Time to Live Field</td>
+<td>0</td>
+<td>walked</td>
+<td>Processing the Time to Live Field. A heading with no body text of its own; sections 2.4.1 to 2.4.4 carry the content.</td>
+</tr>
+<tr><td><code>2.4.1</code></td>
+<td>Definitions</td>
+<td>0</td>
+<td>walked</td>
+<td>Definitions. Defines the incoming TTL as the TTL field of the top label stack entry on receipt, and the outgoing TTL as the larger of one less than the incoming TTL and zero. Definitions, not directives.</td>
+</tr>
+<tr><td><code>2.4.2</code></td>
+<td>Protocol-independent rules</td>
+<td>2</td>
+<td>walked</td>
+<td>Protocol-independent rules. Two capitalised MUST-level sites, mapped below to RFC3032-2.4.2-1 and RFC3032-2.4.2-3. Two further declared rows are read from the same paragraphs and are listed as unsourced ids: RFC3032-2.4.2-2 is the second clause of the sentence site 2.4.2:1 quotes, &#39;nor may the label stack be stripped off and the packet forwarded as an unlabeled packet&#39;, which the splitter keeps in one site because it is one sentence; RFC3032-2.4.2-4 is the MAY that follows, &#39;the packet MAY be simply discarded, or it may be passed to the appropriate &#34;ordinary&#34; network layer for error processing&#39;. The closing paragraph, that the outgoing TTL is a function solely of the incoming TTL and that a non-top entry&#39;s TTL has no significance, is indicative.</td>
+</tr>
+<tr><td><code>2.4.3</code></td>
+<td>IP-dependent rules</td>
+<td>1</td>
+<td>walked</td>
+<td>IP-dependent rules. Defines the IP TTL as the IPv4 TTL or the IPv6 Hop Limit, states the one capitalised MUST mapped below to RFC3032-2.4.3-1, and then the SHOULD listed as an unsourced id: &#39;the value of the IP TTL field SHOULD BE replaced with the outgoing TTL value&#39; when a pop empties the stack, which in IPv4 also requires modifying the header checksum. It closes by recognizing that an administration may prefer a single IPv4 TTL decrement across an MPLS domain, which is an observation and not a directive.</td>
+</tr>
+<tr><td><code>2.4.4</code></td>
+<td>Translating Between Different Encapsulations</td>
+<td>0</td>
+<td>walked</td>
+<td>Translating Between Different Encapsulations. States where the incoming and outgoing TTL values come from when one side of the LSR uses a different encapsulation, such as LC-ATM, and defers to that encapsulation&#39;s own procedures. Indicative throughout, and no site.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Fragmentation and Path MTU Discovery</td>
+<td>1</td>
+<td>walked</td>
+<td>Fragmentation and Path MTU Discovery. Introduces the problem: a received packet can be too large for its output link, and pushing labels can make a packet that fitted no longer fit. It then states what the section provides, namely rules that let Path MTU Discovery hosts and IPv6 hosts avoid fragmentation, and discusses which hosts are at risk. Its one site is a parenthetical remark about likelihood and is excluded below.</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>Terminology</td>
+<td>0</td>
+<td>walked</td>
+<td>Terminology. Defines Frame Payload, Conventional Maximum Frame Payload Size, True Maximum Frame Payload Size, Effective Maximum Frame Payload Size for Labeled Packets, Initially Labeled IP Datagram and Previously Labeled IP Datagram. Definitions, not directives, and no site.</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>Maximum Initially Labeled IP Datagram Size</td>
+<td>1</td>
+<td>walked</td>
+<td>Maximum Initially Labeled IP Datagram Size. One SHOULD, listed as the unsourced id below: an LSR that can receive an unlabeled IP datagram, add a label stack and forward the result &#39;SHOULD support a configuration parameter known as the &#34;Maximum Initially Labeled IP Datagram Size&#34;&#39;. The rest of the section states what a zero and a positive setting do, and its one site is the positive setting&#39;s fragment-before-labeling behavior, which sits inside that SHOULD and is excluded below.</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>When are Labeled IP Datagrams Too Big? Two capitalised MUST-level sites, mapped below to RFC3032-3.3-2 and RFC3032-3.3-1. Its MAY, &#39;A labeled IP datagram whose size exceeds the Conventional Maximum Frame Payload Size ... MAY be considered to be &#34;too big&#34;&#39;, is the unsourced id below.</td>
+</tr>
+<tr><td><code>3.4</code></td>
+<td>Processing Labeled IPv4 Datagrams which are Too Big</td>
+<td>4</td>
+<td>walked</td>
+<td>Processing Labeled IPv4 Datagrams which are Too Big. The five-step algorithm an LSR runs on a too-big labeled IPv4 datagram: strip the stack, compute N, fragment and relabel when DF is clear, and when DF is set do not forward, build an ICMP Destination Unreachable with the Fragmentation Required code and a Next-Hop MTU of the Effective Maximum Frame Payload Size less N, and transmit it if possible. Sites 3.4:1, 3.4:2 and 3.4:3 carry the three MUSTs and are mapped below to RFC3032-3.4-1, RFC3032-3.4-2 and RFC3032-3.4-3. Site 3.4:4 is the ICMP Code field value and is excluded below. The opening MAY, &#39;the LSR MAY silently discard the datagram&#39; when DF is not set, is the unsourced id.</td>
+</tr>
+<tr><td><code>3.5</code></td>
+<td>Processing Labeled IPv6 Datagrams which are Too Big</td>
+<td>2</td>
+<td>walked</td>
+<td>Processing Labeled IPv6 Datagrams which are Too Big. The IPv6 algorithm: strip the stack, compute N, send an ICMP Packet Too Big and discard when the datagram exceeds 1280 bytes or has no fragment header, otherwise fragment, relabel and forward. Its two capitalised MUST-level sites are mapped below to RFC3032-3.5-1 and RFC3032-3.5-2, and every remaining step is an unnumbered clause of the algorithm those two ids gate.</td>
+</tr>
+<tr><td><code>3.6</code></td>
+<td>Implications with respect to Path MTU Discovery</td>
+<td>3</td>
+<td>walked</td>
+<td>Implications with respect to Path MTU Discovery. States what the too-big rules mean for RFC 1191 Path MTU Discovery, then the tunnel case: when an ICMP message cannot be forwarded out of an MPLS tunnel to the source, the transmitting endpoint must know the tunnel MTU and must send the ICMP Destination Unreachable itself. Sites 3.6:2 and 3.6:3 carry those two obligations and are mapped below to RFC3032-3.6-1 and RFC3032-3.6-2; site 3.6:1 is the conditional lead-in and is excluded. The MAY that offers Path MTU Discovery through the tunnel as the way to learn the tunnel MTU is the unsourced id.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Transporting Labeled Packets over PPP</td>
+<td>0</td>
+<td>walked</td>
+<td>Transporting Labeled Packets over PPP. One paragraph naming what section 4 defines: the PPP Network Control Protocol for establishing and configuring label switching over PPP. No directive and no site.</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>Introduction</td>
+<td>2</td>
+<td>walked</td>
+<td>Introduction. Names PPP&#39;s three components and states the link-establishment sequence: LCP first, then the MPLS Control Protocol, then labeled packets once MPLSCP reaches the Opened state. Its two sites are excluded below, the first to RFC 1661 and the second to the MPLS-over-PPP role.</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>A PPP Network Control Protocol for MPLS</td>
+<td>0</td>
+<td>walked</td>
+<td>A PPP Network Control Protocol for MPLS. Defines MPLSCP as LCP with five exceptions: negotiated frame modifications, PPP Protocol field 0x8281, only Codes 1 through 7, the timeout advice, and no configuration option types. Its directives are lowercase &#39;should&#39; recommendations about discarding early packets and Code-Rejecting other codes, which the site scan does not read as MUST-level and rfc/short/rfc3032.md does not declare; the values are carried by its Transport Encapsulations table. Ze runs no MPLSCP: no source file names the protocol or the 0x8281 PPP type.</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>Sending Labeled Packets</td>
+<td>1</td>
+<td>walked</td>
+<td>Sending Labeled Packets. States the precondition for sending labeled packets over PPP, the PPP Protocol field values 0x0281 for unicast and 0x0283 for multicast, the maximum length, and that the Information field format is the one from section 2. Its one site is the precondition and is excluded below; the values are carried by the Transport Encapsulations table of rfc/short/rfc3032.md.</td>
+</tr>
+<tr><td><code>4.4</code></td>
+<td>Label Switching Control Protocol Configuration Options</td>
+<td>0</td>
+<td>walked</td>
+<td>Label Switching Control Protocol Configuration Options. One sentence: there are no configuration options. No site.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Transporting Labeled Packets over LAN Media</td>
+<td>0</td>
+<td>walked</td>
+<td>Transporting Labeled Packets over LAN Media. Value assignment: one labeled packet per frame, the label stack entries immediately precede the network layer header and follow every data link header including 802.1Q, ethertype 0x8847 for unicast and 0x8848 for multicast, usable with either the ethernet or the 802.3 LLC/SNAP encapsulation. Indicative throughout, and the values are carried by the Transport Encapsulations and Constants tables of rfc/short/rfc3032.md.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. Records that label values 0-15 have special meaning, that 0-3 are specified in section 2.1, and that 4-15 may be assigned by IANA on IETF Consensus. Binds IANA, not a speaker.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. States that the encapsulation raises no security issue not already present in the MPLS architecture or in the encapsulated network layer protocol, then names two inherited considerations: a fixed-offset security check fails against a variable-size encapsulation, and the label stack carries no identity of the label writer, so accepting labels from untrusted sources can route packets illegitimately. No countermeasure is directed at a speaker and no site.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>Intellectual Property</td>
+<td>0</td>
+<td>walked</td>
+<td>Intellectual Property. The IETF&#39;s standard statement about intellectual property rights covering the technology: the IETF takes no position on validity or scope, and points a reader at BCP 11 and the IETF Executive Director. No obligation on an implementation and no site.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>Authors&#39; Addresses</td>
+<td>0</td>
+<td>walked</td>
+<td>Authors&#39; Addresses. Postal and electronic addresses for the eight authors. No site.</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References: RFC 3031, RFC 2119, RFC 792, RFC 1191, RFC 2113, RFC 1661, RFC 2460, RFC 1885, and the ATM and Frame Relay label switching documents.</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>Full Copyright Statement</td>
+<td>1</td>
+<td>walked</td>
+<td>Full Copyright Statement. The Internet Society boilerplate governing copying and translation of the document, and, because no numbered heading follows it, the Acknowledgement block that closes the document. Walked rather than skipped because the prose scan attributes one site here; that site is boilerplate and is excluded below.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the LSR data-link transmit path: the sentence says an LSR must support an encoding technique that, given a label stack and a network layer packet, PRODUCES a labeled packet on a data link. Ze produces no labeled packet on a wire. It is an MPLS control plane: it programs AF_MPLS swap and pop entries and label-imposing routes through fibkernel.handleMPLSEntry (internal/plugins/fib/kernel/mpls.go), reads the kernel forwarding table for `show mpls forwarding` (internal/component/mpls.dumpMPLSRoutes), and its only label encoder is the 3-octet BGP NLRI form of internal/core/bgp/nlri.WriteLabelStack, which is RFC 8277 and carries no TTL. The 4-octet on-wire entry this sentence demands is built by the kernel AF_MPLS datapath or by VPP. This is the Abstract&#39;s copy of the sentence that reappears as site 1:1.</td>
+<td>In order to transmit a labeled packet on a particular data link, an LSR must support an encoding technique which, given a label stack and a network layer packet, produces a labeled packet.</td>
+</tr>
+<tr><td><code>front:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The Abstract&#39;s copy of the section 1 obligation that additional label stack entries use this encoding when the top entries use another. Site 1:2 maps the section 1 sentence to RFC3032-1-1; this one restates it in the Abstract with no new obligation.</td>
+<td>On some data links, the label at the top of the stack may be encoded in a different manner, but the techniques described here MUST be used to encode the remainder of the label stack.</td>
+</tr>
+<tr><td><code>1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the LSR data-link transmit path, the same role as site front:1: the LSR must support an encoding technique that produces a labeled packet from a label stack and a network layer packet. Ze builds no labeled packet for transmission; the kernel AF_MPLS datapath or VPP does, and ze only programs the entries that drive it (internal/plugins/fib/kernel/mpls.go, addMPLSSwap and the rich-route push path).</td>
+<td>In order to transmit a labeled packet on a particular data link, an LSR must support an encoding technique which, given a label stack and a network layer packet, produces a labeled packet.</td>
+</tr>
+<tr><td><code>2.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the LSR label-disposition role: the sentence says what an IPv4 Explicit NULL label at the bottom of the stack INDICATES to the LSR that receives it, namely that the stack is popped and forwarding then follows the IPv4 header. Popping a stack and forwarding on the exposed IP header is a per-packet action of the kernel AF_MPLS datapath or VPP; no ze function forwards a labeled packet. Ze&#39;s own use of label 0 is control-plane signaling of the value (internal/plugins/ospf/sr.ExplicitNullV4, internal/plugins/ldp/wire.ExplicitNull), and the value assignment itself is carried by the Constants table of rfc/short/rfc3032.md rather than by any gated row.</td>
+<td>It indicates that the label stack must be popped, and the forwarding of the packet must then be based on the IPv4 header.</td>
+</tr>
+<tr><td><code>2.1:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The IPv6 Explicit NULL counterpart of site 2.1:1, binding the same LSR label-disposition role: pop the stack, forward on the IPv6 header. That disposition is performed by the kernel AF_MPLS datapath or VPP. Ze signals the value from its control plane (internal/plugins/ospf/sr.ExplicitNullV6) and forwards no labeled packet.</td>
+<td>It indicates that the label stack must be popped, and the forwarding of the packet must then be based on the IPv6 header.</td>
+</tr>
+<tr><td><code>2.2:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates the protocol-identification obligation as a consequence: the LSR that pops the last label must be able to identify the network layer protocol. The document then says how, in the sentence site 2.2:2 quotes, which is mapped to RFC3032-2.2-1. Same obligation, stated once as the need and once as the mechanism.</td>
+<td>The LSR which pops the last label off the stack must therefore be able to identify the packet&#39;s network layer protocol.</td>
+</tr>
+<tr><td><code>2.2:4</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Extends the first-label criterion of site 2.2:3 to every label that replaces it in transit: &#39;the new value must also be one which meets the same criteria&#39;. It restates RFC3032-2.2-2, which site 2.2:3 maps, for the swap case and adds no separate obligation.</td>
+<td>Furthermore, whenever that label is replaced by another label value during a packet&#39;s transit, the new value must also be one which meets the same criteria.</td>
+</tr>
+<tr><td><code>2.2:5</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>The enclosing construction makes it advisory: &#39;Adherence to these conditions does not necessarily enable intermediate nodes to identify a packet&#39;s network layer protocol. Under ordinary conditions, this is not necessary, but there are error conditions under which it is desirable. For instance, if an intermediate LSR determines that a labeled packet is undeliverable, it may be desirable for that LSR to generate error messages which are specific to the packet&#39;s network layer.&#39; The site&#39;s own sentence keeps that frame (&#39;So if intermediate nodes are to be able to generate protocol-specific error messages&#39;), so the lowercase &#39;must&#39; states what follows from a desirable capability rather than an obligation on every speaker, and rfc/short/rfc3032.md declares no row for it.</td>
+<td>So if intermediate nodes are to be able to generate protocol-specific error messages for labeled packets, all labels in the stack must meet the criteria specified above for labels which appear at the bottom of the stack.</td>
+</tr>
+<tr><td><code>2.3:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the LSR that ORIGINATES an ICMP message for a labeled IP packet: the sentence states the two conditions that must hold for that LSR to build the ICMP packet and have it reach the IP source, and sites 2.3:2 and 2.3:3 are those two conditions. Ze originates no ICMP for a forwarded packet: TTL expiry and too-big handling for labeled packets are per-packet actions of the kernel AF_MPLS datapath or VPP, and no ze function builds an ICMP message on a forwarding path. The producer that would act as it if ze did is ze&#39;s MPLS code, which reads the kernel&#39;s label forwarding entries (`dumpMPLSRoutes`, `internal/component/mpls/forwarding_linux.go`) and codes labeled NLRI. It switches no packet and builds no ICMP message.</td>
+<td>In order for a particular LSR to be able to generate an ICMP packet and have that packet sent to the source of the IP packet, two conditions must hold:</td>
+</tr>
+<tr><td><code>2.3:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The first of the two conditions on the ICMP-originating LSR named by site 2.3:1: it must be possible for that LSR to determine that a particular labeled packet is an IP packet. Ze inspects no labeled packet and originates no ICMP; the kernel AF_MPLS datapath or VPP does both. The producer that would act as it if ze did is ze&#39;s MPLS code, which reads the kernel&#39;s label forwarding entries (`dumpMPLSRoutes`, `internal/component/mpls/forwarding_linux.go`) and codes labeled NLRI. It switches no packet and builds no ICMP message.</td>
+<td>1. it must be possible for that LSR to determine that a particular labeled packet is an IP packet;</td>
+</tr>
+<tr><td><code>2.3:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The second condition on the same ICMP-originating LSR: it must be possible for that LSR to route to the packet&#39;s IP source address. Ze originates no ICMP for a forwarded packet, so it never plays the role this condition qualifies. The producer that would act as it if ze did is ze&#39;s MPLS code, which reads the kernel&#39;s label forwarding entries (`dumpMPLSRoutes`, `internal/component/mpls/forwarding_linux.go`) and codes labeled NLRI. It switches no packet and builds no ICMP message.</td>
+<td>2. it must be possible for that LSR to route to the packet&#39;s IP source address.</td>
+</tr>
+<tr><td><code>2.3.1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the sentence describes what a deployment choice would ACHIEVE, not what an implementation does. Its subject is the ASBRs injecting default into the IGP, and the lowercase &#39;must&#39; sits in a relative clause qualifying which packets are affected (&#39;any unlabeled packet which must leave the domain (such as an ICMP packet)&#39;), so it describes a packet rather than directing a speaker. The paragraph offers one network design and the next paragraph names its limits.</td>
+<td>(N.B.: this does NOT require that there be a &#34;default&#34; carried by BGP.) This would then ensure that any unlabeled packet which must leave the domain (such as an ICMP packet) gets sent to a router which has full routing information.</td>
+</tr>
+<tr><td><code>2.3.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the LSR that builds an ICMP message for a labeled packet and label switches it: the sentence says how to copy the label stack, exactly for the label values and with the ICMP header&#39;s TTL for the TTL fields. Ze builds no such message. ICMP origination on the MPLS forwarding path belongs to the kernel AF_MPLS datapath or VPP, and no ze function copies a label stack onto an ICMP message. The producer that would act as it if ze did is ze&#39;s MPLS code, which reads the kernel&#39;s label forwarding entries (`dumpMPLSRoutes`, `internal/component/mpls/forwarding_linux.go`) and codes labeled NLRI. It switches no packet and builds no ICMP message.</td>
+<td>When copying the label stack from the original packet to the ICMP message, the label values must be copied exactly, but the TTL values in the label stack should be set to the TTL value that is placed in the IP header of the ICMP message.</td>
+</tr>
+<tr><td><code>3:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the sentence is a parenthetical estimate of LIKELIHOOD, &#39;(Even so, fragmentation is not likely unless the packet must traverse an ethernet of some sort between the time it first gets labeled and the time it gets unlabeled.)&#39;, closing a paragraph about hosts that send 1500-byte datagrams within a classful network number. The lowercase &#39;must&#39; qualifies the path a packet takes, and the sentence directs nobody.</td>
+<td>(Even so, fragmentation is not likely unless the packet must traverse an ethernet of some sort between the time it first gets labeled and the time it gets unlabeled.)</td>
+</tr>
+<tr><td><code>3.2:1</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>The enclosing construction is a SHOULD: &#39;Every LSR which is capable of a) receiving an unlabeled IP datagram, b) adding a label stack to the datagram, and c) forwarding the resulting labeled packet, SHOULD support a configuration parameter known as the &#34;Maximum Initially Labeled IP Datagram Size&#34;, which can be set to a non-negative value.&#39; This site is the parameter&#39;s effect when it is set to a positive value (&#39;If it is set to a positive value, it is used in the following way&#39;), so its lowercase &#39;must&#39; describes the behavior of an optional parameter rather than an independent obligation. rfc/short/rfc3032.md declares the enclosing SHOULD as RFC3032-3.2-1, listed in this section&#39;s unsourced ids.</td>
+<td>a) an unlabeled IP datagram is received, and b) that datagram does not have the DF bit set in its IP header, and c) that datagram needs to be labeled before being forwarded, and d) the size of the datagram (before labeling) exceeds the value of the parameter, then a) the datagram must be broken into fragments, each of whose size is no greater than the value of the parameter, and b) each fragment must be labeled and then forwarded.</td>
+</tr>
+<tr><td><code>3.4:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the keyword is inside a quoted VALUE NAME, not a directive. The step reads &#39;set its Code field [3] to &#34;Fragmentation Required and DF Set&#34;&#39;, and &#39;Fragmentation Required and DF Set&#39; is the name of ICMP Destination Unreachable code 4 as RFC 792 and RFC 1191 spell it. The case-insensitive prose scan sees &#39;Required&#39; inside that quoted name. The step itself is one clause of the algorithm gated by RFC3032-3.4-1, which site 3.4:1 maps.</td>
+<td>i. set its Code field [3] to &#34;Fragmentation Required and DF Set&#34;,</td>
+</tr>
+<tr><td><code>3.6:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the sentence is the conditional lead-in that scopes the two bulleted obligations, and it ends in a colon rather than stating one. Its lowercase &#39;must&#39; sits in a relative clause describing the packets (&#39;packets that must go through the tunnel, but are too large to pass through the tunnel unfragmented&#39;), and the obligations it introduces are sites 3.6:2 and 3.6:3, mapped below.</td>
+<td>If it is not possible to forward an ICMP message from within an MPLS &#34;tunnel&#34; to a packet&#39;s source address, but the network configuration makes it possible for the LSR at the transmitting end of the tunnel to receive packets that must go through the tunnel, but are too large to pass through the tunnel unfragmented, then:</td>
+</tr>
+<tr><td><code>4.1:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation belongs to RFC 1661, the Point-to-Point Protocol, which this section cites as [6] and whose link-establishment procedure the sentence restates as background: each end sends LCP packets to configure and test the data link before communications are established. It is not an MPLS rule, and rfc/short/rfc3032.md declares no row for it. Ze does implement LCP under RFC 1661, in internal/component/l2tp/ppp, for L2TP and PPPoE subscriber access; what it does not implement is this section&#39;s MPLSCP, which sites 4.1:2 and 4.3:1 govern.</td>
+<td>In order to establish communications over a point-to-point link, each end of the PPP link must first send LCP packets to configure and test the data link.</td>
+</tr>
+<tr><td><code>4.1:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the MPLS-over-PPP LSR role, the PPP endpoint that runs the MPLS Control Protocol so labeled packets can be transmitted on the link. Ze does not play it: no source file names MPLSCP or the 0x8281 PPP protocol type, and ze&#39;s PPP implementation (internal/component/l2tp/ppp) carries L2TP and PPPoE subscriber sessions, never labeled packets. Its MPLS forwarding entries are programmed into the kernel AF_MPLS datapath or VPP, which owns whatever link encapsulation the packets then take.</td>
+<td>After the link has been established and optional facilities have been negotiated as needed by the LCP, PPP must send &#34;MPLS Control Protocol&#34; packets to enable the transmission of labeled packets.</td>
+</tr>
+<tr><td><code>4.3:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same MPLS-over-PPP LSR role as site 4.1:2: before labeled packets are communicated, PPP must reach the Network-Layer Protocol phase and MPLSCP must reach the Opened state. Ze negotiates no MPLSCP and sends no labeled packet over a PPP link. The producer that would act as it if ze did is ze&#39;s MPLS code, which reads the kernel&#39;s label forwarding entries (`dumpMPLSRoutes`, `internal/component/mpls/forwarding_linux.go`) and codes labeled NLRI. It switches no packet and builds no ICMP message.</td>
+<td>Before any labeled packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the MPLS Control Protocol must reach the Opened state.</td>
+</tr>
+<tr><td><code>11:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: this is the Internet Society&#39;s Full Copyright Statement, which the derivation attributes to section 11. The sentence governs how the DOCUMENT may be copied and translated, saying it may not be modified except as needed for developing Internet standards or for translation. It states nothing about an implementation.</td>
+<td>However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 3032, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

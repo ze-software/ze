@@ -397,7 +397,7 @@
 <tr>
 <td>IPsec EAP Authentication</td>
 <td>Supported</td>
-<td>EAP-MSCHAPv2 (type 26) and EAP-TLS (type 13) authentication for road warrior VPN clients inside IKEv2 IKE_AUTH exchange. MS-CHAPv2 crypto (NtPasswordHash, ChallengeResponse, MPPE key derivation), TLS handshake in EAP with fragmentation, MSK derivation feeding IKEv2 AUTH payload. Virtual IP pool with dual-stack allocation (IPv4 + IPv6), DNS push via Configuration Payload. <!-- source: internal/component/ike/eap/ -- EAP framework, MSCHAPv2, TLS, pool --></td>
+<td>EAP-MSCHAPv2 (type 26), EAP-TLS (type 13) and EAP MD5-Challenge (type 4) authentication for road warrior VPN clients inside IKEv2 IKE_AUTH exchange. <code>authentication { mode eap-md5 }</code> selects type 4, and it is never a default. Its AUTH payloads come from SK_pi and SK_pr, because the method derives no MSK. Adopting it writes one warning quoting the RFC 7296 Section 2.16 sentence against a method that establishes no shared key. MS-CHAPv2 crypto (NtPasswordHash, ChallengeResponse, MPPE key derivation), TLS handshake in EAP with fragmentation, MSK derivation feeding IKEv2 AUTH payload. Virtual IP pool with dual-stack allocation (IPv4 + IPv6), DNS push via Configuration Payload. As the EAP peer, Ze negotiates the method instead of failing: a Request for an authentication type it does not run draws an RFC 3748 Section 5.3.1 legacy Nak (type 3) naming the configured method, and a Notification Request (type 2) draws a Notification Response with its message in the daemon log. <!-- source: internal/component/ike/eap/ -- EAP framework, MSCHAPv2, TLS, MD5-Challenge, pool --> <!-- source: internal/component/ike/engine/eap_auth.go -- eapMethodType, warnKeylessEAPModes --></td>
 </tr>
 <tr>
 <td>IPsec NAT Traversal</td>
@@ -669,6 +669,11 @@
 <td>Supported</td>
 <td>Automatic config migration and plugin bridge The bridge plugin and the <code>ze exabgp</code> command are compile-out-able with the <code>ze_exabgp</code> build tag (default-on in <code>ZE_FEATURES</code>); <code>ze config migrate</code> stays in every build (the migration library is always-on, only the runtime bridge gates). <!-- source: feature-gates.txt -- ze_exabgp --></td>
 </tr>
+<tr>
+<td><a href="../rfcs/">Published RFC conformance ledger</a></td>
+<td>Supported</td>
+<td>Every requirement this repository extracted from an RFC is published, one page per summary under <code>/quality/rfc-compliance/&lt;stem&gt;/</code>, 190 pages today. Each page carries the requirement text, its level and section, the tests bound to it and the carrier that runs them, the audit verdict a reader recorded and how current it is, the recorded break each tagged unit was seen to fail under, and the extraction sign-off that decided which sentences became requirements. The disclosure is full: a gated MUST with no test, a <code>weak</code>, <code>wrong</code> or <code>unimplemented</code> verdict, a stale or shifted verdict, a tagged unit with no discrimination record, and a <code>no-break</code> record are each named under their own requirement id rather than folded into a count. <!-- source: internal/le/site/rfcledger.go -- collectRequirementLedger --> <!-- source: internal/le/site/rfcdetail.go -- writeRFCDetailPage --></td>
+</tr>
 </tbody>
 </table>
 
@@ -681,7 +686,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 21:01 UTC</span>
                 </div>
             </div>
         </footer>

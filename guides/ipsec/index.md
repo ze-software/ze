@@ -13,7 +13,7 @@ The IPsec stack is split across several packages:
 | `internal/component/ike/wire` | IKEv2 wire format codec for RFC 7296 payloads |
 | `internal/component/ike/crypto` | DH groups, PRFs, integrity, encryption, and key derivation |
 | `internal/component/ike/transport` | UDP transport with NAT-T keepalives and port 4500 encapsulation |
-| `internal/component/ike/eap` | EAP-MSCHAPv2 and EAP-TLS authentication |
+| `internal/component/ike/eap` | EAP-MSCHAPv2, EAP-TLS and EAP MD5-Challenge authentication |
 | `internal/component/ike/engine` | IKE_SA_INIT, IKE_AUTH, CREATE_CHILD_SA, and INFORMATIONAL state machines for initiator and responder roles, rekeying, and DPD |
 | `internal/component/ike/ipsec` | YANG schema, configuration, and validation |
 | `internal/component/ike/dataplane` | XFRM policy and state programming through netlink |
@@ -179,7 +179,7 @@ vpn {
 }
 ```
 
-For a road-warrior EAP server, set `authentication { mode eap-mschapv2 }` or `eap-tls`, then reference a device `certificate` and `ca-certificate` from the PKI store. Configure the client as a `site-to-site` peer.
+For a road-warrior EAP server, set `authentication { mode eap-mschapv2 }`, `eap-tls` or `eap-md5`, then reference a device `certificate` and `ca-certificate` from the PKI store. Configure the client as a `site-to-site` peer. Read the EAP MD5-Challenge section below before you select `eap-md5`.
 
 The `remote-access` container is not wired yet. It parses, and no session reads
 it, so a `pool` assigns no address and an `eap-user` list authenticates nobody.
@@ -374,6 +374,61 @@ anchor. EAP-TLS has no server hostname, so the check validates the chain without
 DNS-name matching.
 
 <!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, startTLSClient -->
+
+## EAP method negotiation
+
+The far end chooses the EAP method, and `authentication { mode ... }` sets the one
+Ze runs. When the far end asks for a different authentication method, Ze answers
+with an EAP Nak that names the configured method (RFC 3748 Section 5.3.1) rather
+than ending the exchange. A concentrator that also runs that method then offers
+it, and the tunnel establishes with no configuration change. A concentrator that
+runs no other method ends the exchange, and Ze logs `ike: EAP failed`. Change
+`mode` to a method both ends run.
+
+The far end can also send an EAP Notification, which is how a concentrator
+reports something such as an expiring password. Ze logs it as `ike: EAP
+notification from the authenticator` with the message, and the authentication
+continues. The message is unauthenticated: it is chosen by whoever sent the
+packet, so read it as a claim.
+
+When Ze is the EAP server and the client refuses the offered method, the
+`ike: EAP authentication failed` line names the types the client asked for and
+the type Ze offered.
+
+<!-- source: internal/component/ike/eap/peer.go -- handleRequest, nakResponse, notificationResponse -->
+<!-- source: internal/component/ike/engine/fsm.go -- handleEAPResponse -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- the EAP authentication failed line -->
+
+## EAP MD5-Challenge
+
+`authentication { mode eap-md5 }` runs EAP Type 4, the CHAP exchange of RFC 1994
+carried inside EAP (RFC 3748 Section 5.4). Both ends read the `pre-shared-secret`
+leaf as the CHAP secret. Ze runs it as the authenticator and as the peer.
+
+It is discouraged, and the daemon says so. RFC 7296 Section 2.16: "EAP methods
+that do not establish a shared key SHOULD NOT be used, as they are subject to a
+number of man-in-the-middle attacks". The daemon writes one warning for each peer
+that carries the mode. It writes it when the configuration is applied, and not
+for each handshake.
+
+What it costs you, against the two other EAP modes:
+
+| Property | `eap-md5` | `eap-mschapv2` and `eap-tls` |
+|----------|-----------|------------------------------|
+| Key derivation | None. RFC 3748 Section 5.4 records "Key derivation: No" | An MSK of 64 octets |
+| IKEv2 AUTH payloads | Keyed by SK_pi and SK_pr, which every party completing IKE_SA_INIT holds | Keyed by the EAP MSK |
+| Who is authenticated by EAP | The client only | Both ends, for `eap-tls` |
+| Secret at rest | The CHAP secret, needed in the clear on both ends | The same for `eap-mschapv2`; a private key for `eap-tls` |
+
+The responder still authenticates itself with a public-key signature, because
+RFC 7296 Section 2.16 requires one whichever EAP method runs. So `eap-md5` needs
+the same `certificate` and `ca-certificate` every other EAP mode needs. Select it
+when the client runs no other method, and prefer `eap-tls` or `eap-mschapv2`
+everywhere else.
+
+<!-- source: internal/component/ike/eap/eap_md5challenge.go -- md5ChallengeMethod, md5ChallengeResponse -->
+<!-- source: internal/component/ike/eap/peer.go -- handleMD5ChallengeRequest -->
+<!-- source: internal/component/ike/engine/eap_auth.go -- eapMethodType, warnKeylessEAPModes, eapAuthSecret -->
 
 ## EAP-TLS with TLS 1.3
 
@@ -779,7 +834,7 @@ carries no encrypted traffic` when this happens.
 
 The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
 image. The infrastructure in `test/interop-ipsec/` drives strongSwan containers as remote
-IKE peers. Sixteen scenarios run today:
+IKE peers. Twenty-four scenarios run today:
 
 | Area | Scenarios |
 |---|---|
@@ -788,11 +843,13 @@ IKE peers. Sixteen scenarios run today:
 | Rekey and teardown | Child SA rekey with make-before-break, `clear vpn ipsec sa` and re-establishment, and a Delete sent while the one request window is held |
 | Negotiation | The INVALID_KE_PAYLOAD retry and the COOKIE challenge |
 | Dataplane | A live Child SA whose peer changes ESP form mid-session, and BGP routes exchanged with FRR over the tunnel |
+| NAT traversal | Transport mode and tunnel mode with ESP in UDP 4500, each measuring what Ze's stack does with the inner TCP and UDP checksum after decapsulation (RFC 3948 Section 3.1.2) |
+| Traffic selectors | Child SA rekey narrowing, an answer that narrows the initiator's proposal, ESN offered both ways, and a peer reload that narrows |
 
 There is no certificate-only (`mode x509`) scenario. The certificate paths are proven by
 unit tests and by the EAP-TLS scenarios, which authenticate both ends with certificates.
 
-<!-- source: test/interop-ipsec/scenarios -- the sixteen strongSwan scenarios -->
+<!-- source: test/interop-ipsec/scenarios -- the strongSwan scenario directories -->
 
 Ze holds every gated MUST-level requirement extracted from RFC 7296 in
 `rfc/short/rfc7296.md`. That is 222 of the summary's 227 rows, each proven in both

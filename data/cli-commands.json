@@ -155,7 +155,7 @@
     "long-help": "The match components come from ze-flowspec-cmd, which\naugments this container. They are the FlowSpec codec vocabulary, and the plugin\nthat owns it declares them, so this module never restates another plugin's\nwords. An augmented container carries no declaration order, so the components\nsort by name and land in front of the action and the options declared here.",
     "mode": "daemon",
     "wire-method": "ze-bgp:announce-flowspec",
-    "usage": "announce flowspec [destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] [destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] [fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] [next-header <value> ...] [packet-length <value> ...] [port <value> ...] [protocol <value> ...] [rd <value>] [source-ipv4 <prefix> ...] [source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] [community <value>] [rate-limit <bytes-per-second>] [discard] [tag <key> <value>] [for <duration>]",
+    "usage": "announce flowspec [destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] [destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] [fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] [next-header <value> ...] [packet-length <value> ...] [port <value> ...] [protocol <value> ...] [rd <value>] [source-ipv4 <prefix> ...] [source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] (community <value>|rate-limit <bytes-per-second>|discard) [tag <key> <value>] [for <duration>]",
     "grammar": [
       {
         "text": "announce",
@@ -336,28 +336,34 @@
         "kind": "group-repeat"
       },
       {
-        "text": "community",
+        "text": "action",
         "group": [
           {
-            "text": "value",
-            "kind": "value"
-          }
-        ],
-        "kind": "group"
-      },
-      {
-        "text": "rate-limit",
-        "group": [
+            "text": "community",
+            "group": [
+              {
+                "text": "value",
+                "kind": "value"
+              }
+            ],
+            "kind": "group"
+          },
           {
-            "text": "bytes-per-second",
-            "kind": "value"
+            "text": "rate-limit",
+            "group": [
+              {
+                "text": "bytes-per-second",
+                "kind": "value"
+              }
+            ],
+            "kind": "group"
+          },
+          {
+            "text": "discard",
+            "kind": "group"
           }
         ],
-        "kind": "group"
-      },
-      {
-        "text": "discard",
-        "kind": "group"
+        "kind": "group-one-of"
       },
       {
         "text": "tag",
@@ -478,11 +484,10 @@
       }
     ],
     "subcommands": [
-      "community",
+      "action",
       "destination-ipv4",
       "destination-ipv6",
       "destination-port",
-      "discard",
       "dscp",
       "flow-label",
       "for",
@@ -493,7 +498,6 @@
       "packet-length",
       "port",
       "protocol",
-      "rate-limit",
       "rd",
       "source-ipv4",
       "source-ipv6",
@@ -6769,7 +6773,7 @@
         "mandatory": true
       }
     ],
-    "usage": "peer <selector> announce flowspec [destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] [destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] [fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] [next-header <value> ...] [packet-length <value> ...] [port <value> ...] [protocol <value> ...] [rd <value>] [source-ipv4 <prefix> ...] [source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] [community <value>] [rate-limit <bytes-per-second>] [discard] [tag <key> <value>] [for <duration>]",
+    "usage": "peer <selector> announce flowspec [destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] [destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] [fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] [next-header <value> ...] [packet-length <value> ...] [port <value> ...] [protocol <value> ...] [rd <value>] [source-ipv4 <prefix> ...] [source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] (community <value>|rate-limit <bytes-per-second>|discard) [tag <key> <value>] [for <duration>]",
     "grammar": [
       {
         "text": "peer",
@@ -6958,28 +6962,34 @@
         "kind": "group-repeat"
       },
       {
-        "text": "community",
+        "text": "action",
         "group": [
           {
-            "text": "value",
-            "kind": "value"
-          }
-        ],
-        "kind": "group"
-      },
-      {
-        "text": "rate-limit",
-        "group": [
+            "text": "community",
+            "group": [
+              {
+                "text": "value",
+                "kind": "value"
+              }
+            ],
+            "kind": "group"
+          },
           {
-            "text": "bytes-per-second",
-            "kind": "value"
+            "text": "rate-limit",
+            "group": [
+              {
+                "text": "bytes-per-second",
+                "kind": "value"
+              }
+            ],
+            "kind": "group"
+          },
+          {
+            "text": "discard",
+            "kind": "group"
           }
         ],
-        "kind": "group"
-      },
-      {
-        "text": "discard",
-        "kind": "group"
+        "kind": "group-one-of"
       },
       {
         "text": "tag",
@@ -7100,11 +7110,10 @@
       }
     ],
     "subcommands": [
-      "community",
+      "action",
       "destination-ipv4",
       "destination-ipv6",
       "destination-port",
-      "discard",
       "dscp",
       "flow-label",
       "for",
@@ -7115,7 +7124,6 @@
       "packet-length",
       "port",
       "protocol",
-      "rate-limit",
       "rd",
       "source-ipv4",
       "source-ipv6",

@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 9136 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 9136: IP Prefix Advertisement in Ethernet VPN (EVPN). 14 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 9136 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 9136: IP Prefix Advertisement in Ethernet VPN (EVPN). 14 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 9136 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 9136: IP Prefix Advertisement in Ethernet VPN (EVPN). 14 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc9136/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc9136/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 9136 - IP Prefix Advertisement in Ethernet VPN (EVPN)</h1>
+    <p>Every requirement this repository extracted from RFC 9136, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>22.2%</strong><b>2 of 9 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>22.2%</strong><b>2 of 9 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 9 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>14</strong><b>of 20 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>5</strong><b>of 14 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>55.6%</strong><b>5 of 9 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 9 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>20</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>14</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>9</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>5</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>5</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>10</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>9</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc9136.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc9136.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc9136.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: EVPN IP Prefix / RT-5 (RFC 9136): full RT-5 wire codec; 2 MET (length 34/58, prefix-length bound) + 2 single-polarity positive (same-family, RD/etag) + 5 gap (overlay-index validations) + 5 not-applicable (forwarding/install/Router&#39;s-MAC EC)</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+RT-5 (IP Prefix) NLRI encode/decode for IPv4 (len 34) and IPv6 (len 58): RD, ESI, Ethernet Tag, prefix-length bounds (&lt;=32/&lt;=128), prefix, gateway, and MPLS label stack, with length-field and prefix-length validation (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/evpn/types.go</code></a>).
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9136.md" target="_blank" rel="noopener"><code>rfc/short/rfc9136.md</code></a> (<a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a>/3.1-6 ESI/GW-IP zero-unless-overlay-index, 3.2-1 ESI/GW mutual exclusion, 3.1-7/3.1-9 zero-label-without-overlay-index treat-as-withdraw): ze models no overlay index. Five further MUSTs (3.1-8, 3.2-2, 3-1, 3.2-3, 3.2-4) bind the ingress-NVE/PE forwarding, IP-VRF install, and EVPN Router&#39;s-MAC Extended Community roles ze does not play.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>2</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>12</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>14</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc9136-3.1-1"><code>RFC9136-3.1-1</code></a>, <a href="#rfc9136-3.1-5"><code>RFC9136-3.1-5</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (12):</strong> <a href="#rfc9136-3.1-2"><code>RFC9136-3.1-2</code></a>, <a href="#rfc9136-3.1-3"><code>RFC9136-3.1-3</code></a>, <a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a>, <a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a>, <a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a>, <a href="#rfc9136-3.1-7"><code>RFC9136-3.1-7</code></a>, <a href="#rfc9136-3.1-8"><code>RFC9136-3.1-8</code></a>, <a href="#rfc9136-3.1-9"><code>RFC9136-3.1-9</code></a>, <a href="#rfc9136-3.2-2"><code>RFC9136-3.2-2</code></a>, <a href="#rfc9136-3-1"><code>RFC9136-3-1</code></a>, <a href="#rfc9136-3.2-3"><code>RFC9136-3.2-3</code></a>, <a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-1">RFC9136-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Length field MUST be either 34 (IPv4) or 58 (IPv6) (S3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L142" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L177" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L205" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5InvalidLength</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-2">RFC9136-3.1-2</code></td><td colspan="3"><span class="rfc-subject">IP prefix and gateway IP address MUST be from the same IP address family (S3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L849" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L880" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the single Length field fixes both prefix and gateway to one family on decode and encode, so a cross-family pair is unrepresentable on the wire and has no negative case to reject (internal/component/bgp/plugins/nlri/evpn/types.go:780-800)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-3">RFC9136-3.1-3</code></td><td colspan="3"><span class="rfc-subject">Route Distinguisher (RD) and Ethernet Tag ID MUST be used as defined in RFC 7432 and RFC 8365 (S3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L144" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> RD (8 octets) and Ethernet Tag (uint32) are decoded, carried, and re-encoded per the RFC 7432/8365 wire layout, and any uint32 tag is valid so there is no malformed-input negative for the field ze handles (internal/component/bgp/plugins/nlri/evpn/types.go:763-774)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-4">RFC9136-3.1-4</code></td><td colspan="3"><span class="rfc-subject">ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise (S3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze decodes and carries the 10-octet ESI but models no overlay-index concept, so it never enforces the zero-unless-used-as-overlay-index constraint (internal/component/bgp/plugins/nlri/evpn/types.go:770)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-5">RFC9136-3.1-5</code></td><td colspan="3"><span class="rfc-subject">IP Prefix Length value MUST NOT be greater than 128 (S3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L143" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L178" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L235" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5PrefixLengthTooLong</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-6">RFC9136-3.1-6</code></td><td colspan="3"><span class="rfc-subject">GW IP field MUST be all bytes zero if not used as an Overlay Index (S3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze decodes and re-encodes the gateway field verbatim but has no overlay-index model, so it never enforces gateway-zero-unless-used-as-overlay-index (internal/component/bgp/plugins/nlri/evpn/types.go:788, :798, :854, :863)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-1">RFC9136-3.2-1</code></td><td colspan="3"><span class="rfc-subject">ESI and GW IP MUST NOT both be non-zero simultaneously (S3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> parseEVPNType5 reads both ESI and gateway without any mutual-exclusion validation, so it never treats a both-non-zero RT-5 as a withdraw (internal/component/bgp/plugins/nlri/evpn/types.go:770, :788-800)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-7">RFC9136-3.1-7</code></td><td colspan="3"><span class="rfc-subject">If received label is zero, route MUST contain an Overlay Index (S3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze parses the label and the overlay-candidate fields but never validates that a zero label is accompanied by an overlay index (internal/component/bgp/plugins/nlri/evpn/types.go:808-814)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-8">RFC9136-3.1-8</code></td><td colspan="3"><span class="rfc-subject">If received label is zero, ingress NVE/PE MUST perform recursive resolution (S3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> recursive resolution to an egress NVE/PE is a forwarding/IP-VRF role ze does not play; ze propagates RT-5 without resolving or installing it (sysrib/fib carry no EVPN handling)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-9">RFC9136-3.1-9</code></td><td colspan="3"><span class="rfc-subject">If received label is zero and no Overlay Index, MUST treat as withdraw (S3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> this receive-side content validation could be applied to the parsed NLRI, but ze performs no treat-as-withdraw for a zero-label / no-overlay-index RT-5 (internal/component/bgp/plugins/nlri/evpn/types.go:754-814)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-2">RFC9136-3.2-2</code></td><td colspan="3"><span class="rfc-subject">If no IGP or BGP route to BGP next hop of RT-5, MUST NOT install even if Overlay Index resolves (S3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze never installs RT-5 into a FIB/IP-VRF, so a next-hop-reachability install gate binds a role it does not play (internal/component/sysrib and internal/plugins/fib carry no EVPN handling)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3-1">RFC9136-3-1</code></td><td colspan="3"><span class="rfc-subject">NVEs attached to different BDs of same tenant MUST support RT-5 for proper inter-subnet forwarding (S3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the requirement binds NVEs performing inter-subnet forwarding between broadcast domains; ze supports RT-5 on the wire but performs no such forwarding (internal/component/bgp/plugins/nlri/evpn/types.go:743)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-3">RFC9136-3.2-3</code></td><td colspan="3"><span class="rfc-subject">MAC address encoding MUST be 6-octet MAC address per IEEE 802.1Q (S3.2, Table 1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this constrains the MAC inside the EVPN Router&#39;s MAC Extended Community (the optional MAC overlay-index feature), which ze does not implement or interpret</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-4">RFC9136-3.2-4</code></td><td colspan="3"><span class="rfc-subject">Route MUST be treat as withdraw if MAC address is broadcast or multicast (S3.2, Table 1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> detecting a broadcast/multicast MAC requires interpreting the Router&#39;s MAC Extended Community, an optional feature ze neither parses nor validates</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-10">RFC9136-3.1-10</code></td><td colspan="3"><span class="rfc-subject">Label value SHOULD be zero if recursive resolution via Overlay Index is used (S3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-5">RFC9136-3.2-5</code></td><td colspan="3"><span class="rfc-subject">Route with non-zero GW IP and non-zero ESI simultaneously SHOULD be treat as withdraw (S3.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-6">RFC9136-3.2-6</code></td><td colspan="3"><span class="rfc-subject">Route where ESI, GW IP, MAC, and Label are all zero SHOULD be treat as withdraw (S3.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-7">RFC9136-3.2-7</code></td><td colspan="3"><span class="rfc-subject">Advertising NVE/PE SHOULD advertise RT-2 for MAC Overlay Index if receivers use MAC as Overlay Index (S3.2, Table 1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.2-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-11">RFC9136-3.1-11</code></td><td colspan="3"><span class="rfc-subject">IP Prefix route MAY be sent with EVPN Router&#39;s MAC Extended Community (S3.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.1-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-8">RFC9136-3.2-8</code></td><td colspan="3"><span class="rfc-subject">Support of MAC Overlay Index in IP-VRF-to-IP-VRF model is OPTIONAL (S3.2, Table 1)</span></td></tr>
+<tr><td></td>
+<td>OPTIONAL</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.2-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a> ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise (S3.1)</td>
+<td>{gap}, no test</td>
+<td>ze decodes and carries the 10-octet ESI but models no overlay-index concept, so it never enforces the zero-unless-used-as-overlay-index constraint (internal/component/bgp/plugins/nlri/evpn/types.go:770)</td>
+</tr>
+<tr><td><a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a> GW IP field MUST be all bytes zero if not used as an Overlay Index (S3.1)</td>
+<td>{gap}, no test</td>
+<td>ze decodes and re-encodes the gateway field verbatim but has no overlay-index model, so it never enforces gateway-zero-unless-used-as-overlay-index (internal/component/bgp/plugins/nlri/evpn/types.go:788, :798, :854, :863)</td>
+</tr>
+<tr><td><a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a> ESI and GW IP MUST NOT both be non-zero simultaneously (S3.2)</td>
+<td>{gap}, no test</td>
+<td>parseEVPNType5 reads both ESI and gateway without any mutual-exclusion validation, so it never treats a both-non-zero RT-5 as a withdraw (internal/component/bgp/plugins/nlri/evpn/types.go:770, :788-800)</td>
+</tr>
+<tr><td><a href="#rfc9136-3.1-7"><code>RFC9136-3.1-7</code></a> If received label is zero, route MUST contain an Overlay Index (S3.1)</td>
+<td>{gap}, no test</td>
+<td>ze parses the label and the overlay-candidate fields but never validates that a zero label is accompanied by an overlay index (internal/component/bgp/plugins/nlri/evpn/types.go:808-814)</td>
+</tr>
+<tr><td><a href="#rfc9136-3.1-8"><code>RFC9136-3.1-8</code></a> If received label is zero, ingress NVE/PE MUST perform recursive resolution (S3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: recursive resolution to an egress NVE/PE is a forwarding/IP-VRF role ze does not play; ze propagates RT-5 without resolving or installing it (sysrib/fib carry no EVPN handling)</td>
+</tr>
+<tr><td><a href="#rfc9136-3.1-9"><code>RFC9136-3.1-9</code></a> If received label is zero and no Overlay Index, MUST treat as withdraw (S3.1)</td>
+<td>{gap}, no test</td>
+<td>this receive-side content validation could be applied to the parsed NLRI, but ze performs no treat-as-withdraw for a zero-label / no-overlay-index RT-5 (internal/component/bgp/plugins/nlri/evpn/types.go:754-814)</td>
+</tr>
+<tr><td><a href="#rfc9136-3.2-2"><code>RFC9136-3.2-2</code></a> If no IGP or BGP route to BGP next hop of RT-5, MUST NOT install even if Overlay Index resolves (S3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze never installs RT-5 into a FIB/IP-VRF, so a next-hop-reachability install gate binds a role it does not play (internal/component/sysrib and internal/plugins/fib carry no EVPN handling)</td>
+</tr>
+<tr><td><a href="#rfc9136-3-1"><code>RFC9136-3-1</code></a> NVEs attached to different BDs of same tenant MUST support RT-5 for proper inter-subnet forwarding (S3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the requirement binds NVEs performing inter-subnet forwarding between broadcast domains; ze supports RT-5 on the wire but performs no such forwarding (internal/component/bgp/plugins/nlri/evpn/types.go:743)</td>
+</tr>
+<tr><td><a href="#rfc9136-3.2-3"><code>RFC9136-3.2-3</code></a> MAC address encoding MUST be 6-octet MAC address per IEEE 802.1Q (S3.2, Table 1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: this constrains the MAC inside the EVPN Router&#39;s MAC Extended Community (the optional MAC overlay-index feature), which ze does not implement or interpret</td>
+</tr>
+<tr><td><a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a> Route MUST be treat as withdraw if MAC address is broadcast or multicast (S3.2, Table 1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: detecting a broadcast/multicast MAC requires interpreting the Router&#39;s MAC Extended Community, an optional feature ze neither parses nor validates</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc9136-3.1-1"><code>RFC9136-3.1-1</code></a></h3>
+<p>Length field MUST be either 34 (IPv4) or 58 (IPv6) (S3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L205" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5InvalidLength</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L142" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L177" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv6</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9136-3.1-2"><code>RFC9136-3.1-2</code></a></h3>
+<p>IP prefix and gateway IP address MUST be from the same IP address family (S3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L849" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L880" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5RoundTripIPv6</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9136-3.1-3"><code>RFC9136-3.1-3</code></a></h3>
+<p>Route Distinguisher (RD) and Ethernet Tag ID MUST be used as defined in RFC 7432 and RFC 8365 (S3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L144" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9136-3.1-4"><code>RFC9136-3.1-4</code></a></h3>
+<p>ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise (S3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9136-3.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9136-3.1-5"><code>RFC9136-3.1-5</code></a></h3>
+<p>IP Prefix Length value MUST NOT be greater than 128 (S3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L235" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5PrefixLengthTooLong</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L143" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L178" title="internal/component/bgp/plugins/nlri/evpn/types_test.go" target="_blank" rel="noopener"><code>TestEVPNType5IPv6</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9136-3.1-6"><code>RFC9136-3.1-6</code></a></h3>
+<p>GW IP field MUST be all bytes zero if not used as an Overlay Index (S3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9136-3.1-6, so no unit is bound to it.</p>
+<h3><a href="#rfc9136-3.2-1"><code>RFC9136-3.2-1</code></a></h3>
+<p>ESI and GW IP MUST NOT both be non-zero simultaneously (S3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9136-3.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9136-3.1-7"><code>RFC9136-3.1-7</code></a></h3>
+<p>If received label is zero, route MUST contain an Overlay Index (S3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9136-3.1-7, so no unit is bound to it.</p>
+<h3><a href="#rfc9136-3.1-8"><code>RFC9136-3.1-8</code></a></h3>
+<p>If received label is zero, ingress NVE/PE MUST perform recursive resolution (S3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9136-3.1-8, so no unit is bound to it.</p>
+<h3><a href="#rfc9136-3.1-9"><code>RFC9136-3.1-9</code></a></h3>
+<p>If received label is zero and no Overlay Index, MUST treat as withdraw (S3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9136-3.1-9, so no unit is bound to it.</p>
+<h3><a href="#rfc9136-3.2-2"><code>RFC9136-3.2-2</code></a></h3>
+<p>If no IGP or BGP route to BGP next hop of RT-5, MUST NOT install even if Overlay Index resolves (S3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9136-3.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9136-3-1"><code>RFC9136-3-1</code></a></h3>
+<p>NVEs attached to different BDs of same tenant MUST support RT-5 for proper inter-subnet forwarding (S3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9136-3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9136-3.2-3"><code>RFC9136-3.2-3</code></a></h3>
+<p>MAC address encoding MUST be 6-octet MAC address per IEEE 802.1Q (S3.2, Table 1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9136-3.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a></h3>
+<p>Route MUST be treat as withdraw if MAC address is broadcast or multicast (S3.2, Table 1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9136-3.2-4, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 9136, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 9136, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,1158 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 6396 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 6396: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format. 13 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 6396 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 6396: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format. 13 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 6396 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 6396: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format. 13 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc6396/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc6396/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 6396 - Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format</h1>
+    <p>Every requirement this repository extracted from RFC 6396, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>12.5%</strong><b>1 of 8 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>75.0%</strong><b>6 of 8 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 8 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 9 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 25 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>5</strong><b>of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>12.5%</strong><b>1 of 8 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 8 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>25</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>13</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>8</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>5</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>1</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>9</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>9</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc6396.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc6396.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc6396.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: MRT Routing Information Export Format (RFC 6396): both-way encoder/decoder; 7 single-polarity positive + 1 gap (BGP4MP_MESSAGE_AS4 mislabels 2-byte-peer AS_PATH) + 5 not-applicable</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<p><strong>What the ledger says is covered:</strong></p>
+Daemon-side MRT recording, TABLE_DUMP_V2 snapshots, BGP4MP messages, analysis tools.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc6396.md" target="_blank" rel="noopener"><code>rfc/short/rfc6396.md</code></a> [<a href="#rfc6396-4.4.3-1"><code>RFC6396-4.4.3-1</code></a>]: the live BGP4MP writer always emits the BGP4MP_MESSAGE_AS4 subtype and records the on-wire message verbatim without checking the session&#39;s negotiated 4-byte-AS capability, so a message from an OLD (2-byte) peer carries a 2-byte AS_PATH mislabeled as AS4. RIB-path AS_PATH is unaffected (canonicalized to 4-byte).
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>12</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>13</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc6396-4.3.4-1"><code>RFC6396-4.3.4-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (12):</strong> <a href="#rfc6396-4.2-1"><code>RFC6396-4.2-1</code></a>, <a href="#rfc6396-4.2-2"><code>RFC6396-4.2-2</code></a>, <a href="#rfc6396-4.3.1-1"><code>RFC6396-4.3.1-1</code></a>, <a href="#rfc6396-4.3.1-2"><code>RFC6396-4.3.1-2</code></a>, <a href="#rfc6396-4.3.1-3"><code>RFC6396-4.3.1-3</code></a>, <a href="#rfc6396-4.3.4-2"><code>RFC6396-4.3.4-2</code></a>, <a href="#rfc6396-4.4.2-1"><code>RFC6396-4.4.2-1</code></a>, <a href="#rfc6396-4.4.2-2"><code>RFC6396-4.4.2-2</code></a>, <a href="#rfc6396-4.4.3-1"><code>RFC6396-4.4.3-1</code></a>, <a href="#rfc6396-1-1"><code>RFC6396-1-1</code></a>, <a href="#rfc6396-5.1-1"><code>RFC6396-5.1-1</code></a>, <a href="#rfc6396-b.1-1"><code>RFC6396-B.1-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.2-1">RFC6396-4.2-1</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP: AS_PATH attribute must only consist of 2-byte AS numbers (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2 - TABLE_DUMP Type</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s RIB export always emits TABLE_DUMP_V2 (the Section 4.2 mandate) and never operationally writes TABLE_DUMP, so the 2-byte-AS_PATH-in-TABLE_DUMP obligation binds a writer role ze does not play (internal/mrt/encode.go:185 has no production caller)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.2-2">RFC6396-4.2-2</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP_V2 must be used when 4-byte AS numbers are needed or when peer/prefix AFI differ (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2 - TABLE_DUMP Type</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L17" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestRibSubtype</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s RIB dumper unconditionally emits TABLE_DUMP_V2 with AS4 peer entries, so it always satisfies the use-V2 mandate and there is no path that emits TABLE_DUMP to reject (internal/plugins/mrt/dump.go:113, :206)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.3.1-1">RFC6396-4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP_V2 PEER_INDEX_TABLE: View Name Length must be set to 0 if no view name is present (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1 - PEER_INDEX_TABLE Subtype</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L162" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the encoder writes View Name Length as len(viewName) and the producer always passes an empty name, so the length is 0 by construction (internal/mrt/encode.go:48, internal/plugins/mrt/dump.go:199)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.3.1-2">RFC6396-4.3.1-2</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP_V2 PEER_INDEX_TABLE: View Name encoding must follow UTF-8 (RFC 3629) (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1 - PEER_INDEX_TABLE Subtype</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L167" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s PEER_INDEX_TABLE writer always emits an empty view name, which is trivially valid UTF-8, and no code path produces a non-UTF-8 view name (internal/plugins/mrt/dump.go:199, internal/mrt/encode.go:48-50)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.3.1-3">RFC6396-4.3.1-3</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP_V2: RIB entry MRT records must immediately follow the PEER_INDEX_TABLE MRT record (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1 - PEER_INDEX_TABLE Subtype</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L213" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2PeerIndexBeforeFirstRIBEntry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the RIB dump writes the PEER_INDEX_TABLE on the first OnRoute callback, before that route&#39;s RIB entry and before any other RIB record, guaranteeing the ordering (internal/plugins/mrt/dump.go:149-152)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.3.4-1">RFC6396-4.3.4-1</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP_V2 RIB entries: all AS numbers in the AS_PATH attribute must be encoded as 4-byte AS numbers (§4.3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.4 - RIB Entries</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L244" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2RIBEntryASPathIs4Byte</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6396_mrt_aspath_test.go#L45" title="internal/component/bgp/plugins/rib/storage/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6396_mrt_aspath_test.go#L80" title="internal/component/bgp/plugins/rib/storage/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.3.4-2">RFC6396-4.3.4-2</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP_V2 RIB entries: MP_REACH_NLRI attribute must only include Next Hop Address Length and Next Hop Address fields (AFI, SAFI, NLRI, Reserved omitted) (§4.3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.4 - RIB Entries</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s TABLE_DUMP_V2 RIB writer reconstructs a NEXT_HOP (type 3) attribute and never emits an MP_REACH_NLRI attribute in RIB entries, so the abbreviation obligation never binds ze&#39;s producer (internal/component/bgp/plugins/rib/rib_mrt.go:127-153)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.4.2-1">RFC6396-4.4.2-1</code></td><td colspan="3"><span class="rfc-subject">BGP4MP_MESSAGE: AS_PATH must only consist of 2-byte AS numbers (§4.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.2 - BGP4MP_MESSAGE Subtype</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s live capture unconditionally emits the AS4 BGP4MP message subtype and never writes the 2-byte BGP4MP_MESSAGE (subtype 1), so the 2-byte-AS_PATH obligation binds a writer variant ze does not produce (internal/plugins/mrt/dump.go:240-250)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.4.2-2">RFC6396-4.4.2-2</code></td><td colspan="3"><span class="rfc-subject">BGP4MP_MESSAGE: only one BGP message shall be encoded per record (§4.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.2 - BGP4MP_MESSAGE Subtype</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/component_test.go#L84" title="internal/plugins/mrt/component_test.go" target="_blank" rel="noopener"><code>TestOneBGPMessagePerBGP4MPRecord</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> OnBGPMessage is invoked once per BGP message and writes exactly one message into each BGP4MP record, so records always carry a single message (internal/plugins/mrt/component.go:99-142)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.4.3-1">RFC6396-4.4.3-1</code></td><td colspan="3"><span class="rfc-subject">BGP4MP_MESSAGE_AS4: AS_PATH must only consist of 4-byte AS numbers (§4.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.3 - BGP4MP_MESSAGE_AS4 Subtype</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the live writer hardcodes the AS4 subtype and copies the on-wire message verbatim without checking negotiated AS4 capability, so a 2-byte (OLD-peer) session&#39;s 2-byte AS_PATH is mislabeled as AS4 (internal/plugins/mrt/dump.go:240-250, component.go:123; ze supports 2-byte sessions per internal/component/bgp/plugins/rib/storage/attrparse.go:18-24)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-1-1">RFC6396-1-1</code></td><td colspan="3"><span class="rfc-subject">All multi-octet numeric values must be encoded in network byte order (big-endian) (§1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>1 - Introduction</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L24" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestCommonHeaderRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> all MRT encode and decode use binary.BigEndian throughout and round-trip byte-for-byte, with no alternate-endianness path (internal/mrt/encode.go:7, decode.go)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-5.1-1">RFC6396-5.1-1</code></td><td colspan="3"><span class="rfc-subject">New Type Codes must be allocated starting at 65 (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1 - Type Codes</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-5.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this is an IANA registry allocation policy binding specification and registry authors; ze does not allocate MRT type codes</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-b.1-1">RFC6396-B.1-1</code></td><td colspan="3"><span class="rfc-subject">Deprecated informational types: message string encoding must follow UTF-8 (§B.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>B.1 - Deprecated MRT Informational Types</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-B.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze does not define or produce the deprecated informational types (codes 0-4); its type table starts at OSPFv2 (11) (internal/mrt/types.go:6-16)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.2-3">RFC6396-4.2-3</code></td><td colspan="3"><span class="rfc-subject">New implementations should use TABLE_DUMP_V2 instead of TABLE_DUMP (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2 - TABLE_DUMP Type</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.2-4">RFC6396-4.2-4</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP: Sequence Number should wrap back to zero when exceeding 16-bit bounds (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2 - TABLE_DUMP Type</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.2-5">RFC6396-4.2-5</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP: Status field should be set to 1 (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2 - TABLE_DUMP Type</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.3.3-1">RFC6396-4.3.3-1</code></td><td colspan="3"><span class="rfc-subject">RIB_GENERIC: an implementation that does not recognize particular AFI and SAFI values should discard the remainder of the MRT record (§4.3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.3 - RIB_GENERIC Subtype</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-b.1-2">RFC6396-B.1-2</code></td><td colspan="3"><span class="rfc-subject">Deprecated informational types: Subtype field should be set to 0 (§B.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>B.1 - Deprecated MRT Informational Types</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-B.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-b.1.3-1">RFC6396-B.1.3-1</code></td><td colspan="3"><span class="rfc-subject">DIE Type: remote MRT repository should stop accepting messages upon receiving DIE (§B.1.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>B.1.3 - DIE Type</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-B.1.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-b.2.1.5-1">RFC6396-B.2.1.5-1</code></td><td colspan="3"><span class="rfc-subject">BGP_SYNC Subtype should be ignored (no known implementations) (§B.2.1.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>B.2.1.5 - BGP_SYNC Subtype</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-B.2.1.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-b.2.2-1">RFC6396-B.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Deprecated routing types (RIP, RIPNG): Subtype field should be set to 0 (§B.2.2, §B.2.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>B.2.2 - RIP Type</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-B.2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.2-6">RFC6396-4.2-6</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP: MRT decoding applications may wish to support this type (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2 - TABLE_DUMP Type</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.2-7">RFC6396-4.2-7</code></td><td colspan="3"><span class="rfc-subject">TABLE_DUMP: View Number may be used to distinguish multiple RIB views (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2 - TABLE_DUMP Type</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.2-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.4.1-1">RFC6396-4.4.1-1</code></td><td colspan="3"><span class="rfc-subject">BGP4MP_STATE_CHANGE: Peer AS Number may be set to zero if undefined (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.4.1 - BGP4MP_STATE_CHANGE Subtype</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6396-4.4.1-2">RFC6396-4.4.1-2</code></td><td colspan="3"><span class="rfc-subject">BGP4MP: Interface Index value may be zero if unknown or unsupported (§4.4.1, §4.4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.4.1 - BGP4MP_STATE_CHANGE Subtype</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6396-4.4.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc6396-4.2-1"><code>RFC6396-4.2-1</code></a> TABLE_DUMP: AS_PATH attribute must only consist of 2-byte AS numbers (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s RIB export always emits TABLE_DUMP_V2 (the Section 4.2 mandate) and never operationally writes TABLE_DUMP, so the 2-byte-AS_PATH-in-TABLE_DUMP obligation binds a writer role ze does not play (internal/mrt/encode.go:185 has no production caller)</td>
+</tr>
+<tr><td><a href="#rfc6396-4.3.4-2"><code>RFC6396-4.3.4-2</code></a> TABLE_DUMP_V2 RIB entries: MP_REACH_NLRI attribute must only include Next Hop Address Length and Next Hop Address fields (AFI, SAFI, NLRI, Reserved omitted) (§4.3.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s TABLE_DUMP_V2 RIB writer reconstructs a NEXT_HOP (type 3) attribute and never emits an MP_REACH_NLRI attribute in RIB entries, so the abbreviation obligation never binds ze&#39;s producer (internal/component/bgp/plugins/rib/rib_mrt.go:127-153)</td>
+</tr>
+<tr><td><a href="#rfc6396-4.4.2-1"><code>RFC6396-4.4.2-1</code></a> BGP4MP_MESSAGE: AS_PATH must only consist of 2-byte AS numbers (§4.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s live capture unconditionally emits the AS4 BGP4MP message subtype and never writes the 2-byte BGP4MP_MESSAGE (subtype 1), so the 2-byte-AS_PATH obligation binds a writer variant ze does not produce (internal/plugins/mrt/dump.go:240-250)</td>
+</tr>
+<tr><td><a href="#rfc6396-4.4.3-1"><code>RFC6396-4.4.3-1</code></a> BGP4MP_MESSAGE_AS4: AS_PATH must only consist of 4-byte AS numbers (§4.4.3)</td>
+<td>{gap}, no test</td>
+<td>the live writer hardcodes the AS4 subtype and copies the on-wire message verbatim without checking negotiated AS4 capability, so a 2-byte (OLD-peer) session&#39;s 2-byte AS_PATH is mislabeled as AS4 (internal/plugins/mrt/dump.go:240-250, component.go:123; ze supports 2-byte sessions per internal/component/bgp/plugins/rib/storage/attrparse.go:18-24)</td>
+</tr>
+<tr><td><a href="#rfc6396-5.1-1"><code>RFC6396-5.1-1</code></a> New Type Codes must be allocated starting at 65 (§5.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: this is an IANA registry allocation policy binding specification and registry authors; ze does not allocate MRT type codes</td>
+</tr>
+<tr><td><a href="#rfc6396-b.1-1"><code>RFC6396-B.1-1</code></a> Deprecated informational types: message string encoding must follow UTF-8 (§B.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze does not define or produce the deprecated informational types (codes 0-4); its type table starts at OSPFv2 (11) (internal/mrt/types.go:6-16)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc6396-4.2-1"><code>RFC6396-4.2-1</code></a></h3>
+<p>TABLE_DUMP: AS_PATH attribute must only consist of 2-byte AS numbers (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6396-4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6396-4.2-2"><code>RFC6396-4.2-2</code></a></h3>
+<p>TABLE_DUMP_V2 must be used when 4-byte AS numbers are needed or when peer/prefix AFI differ (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L17" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestRibSubtype</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6396-4.3.1-1"><code>RFC6396-4.3.1-1</code></a></h3>
+<p>TABLE_DUMP_V2 PEER_INDEX_TABLE: View Name Length must be set to 0 if no view name is present (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L162" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6396-4.3.1-2"><code>RFC6396-4.3.1-2</code></a></h3>
+<p>TABLE_DUMP_V2 PEER_INDEX_TABLE: View Name encoding must follow UTF-8 (RFC 3629) (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L167" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestPeerIndexTableEmptyViewName</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6396-4.3.1-3"><code>RFC6396-4.3.1-3</code></a></h3>
+<p>TABLE_DUMP_V2: RIB entry MRT records must immediately follow the PEER_INDEX_TABLE MRT record (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L213" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2PeerIndexBeforeFirstRIBEntry</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6396-4.3.4-1"><code>RFC6396-4.3.4-1</code></a></h3>
+<p>TABLE_DUMP_V2 RIB entries: all AS numbers in the AS_PATH attribute must be encoded as 4-byte AS numbers (§4.3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6396_mrt_aspath_test.go#L80" title="internal/component/bgp/plugins/rib/storage/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathFourByteSessionUnchanged</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/rfc6396_mrt_aspath_test.go#L45" title="internal/component/bgp/plugins/rib/storage/rfc6396_mrt_aspath_test.go" target="_blank" rel="noopener"><code>TestRFC6396RIBEntryASPathStoredFourByte</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/dump_test.go#L244" title="internal/plugins/mrt/dump_test.go" target="_blank" rel="noopener"><code>TestDumpV2RIBEntryASPathIs4Byte</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6396-4.3.4-2"><code>RFC6396-4.3.4-2</code></a></h3>
+<p>TABLE_DUMP_V2 RIB entries: MP_REACH_NLRI attribute must only include Next Hop Address Length and Next Hop Address fields (AFI, SAFI, NLRI, Reserved omitted) (§4.3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6396-4.3.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc6396-4.4.2-1"><code>RFC6396-4.4.2-1</code></a></h3>
+<p>BGP4MP_MESSAGE: AS_PATH must only consist of 2-byte AS numbers (§4.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6396-4.4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6396-4.4.2-2"><code>RFC6396-4.4.2-2</code></a></h3>
+<p>BGP4MP_MESSAGE: only one BGP message shall be encoded per record (§4.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/component_test.go#L84" title="internal/plugins/mrt/component_test.go" target="_blank" rel="noopener"><code>TestOneBGPMessagePerBGP4MPRecord</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6396-4.4.3-1"><code>RFC6396-4.4.3-1</code></a></h3>
+<p>BGP4MP_MESSAGE_AS4: AS_PATH must only consist of 4-byte AS numbers (§4.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6396-4.4.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6396-1-1"><code>RFC6396-1-1</code></a></h3>
+<p>All multi-octet numeric values must be encoded in network byte order (big-endian) (§1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L24" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestCommonHeaderRoundTrip</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6396-5.1-1"><code>RFC6396-5.1-1</code></a></h3>
+<p>New Type Codes must be allocated starting at 65 (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6396-5.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6396-b.1-1"><code>RFC6396-B.1-1</code></a></h3>
+<p>Deprecated informational types: message string encoding must follow UTF-8 (§B.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6396-B.1-1, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6, rfc6396</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc6396.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>e2d04c91ecd5e7f4</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc6396.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>11</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>4</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. Its one site is the IETF Trust Legal Provisions paragraph, excluded below.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Indicative history of the MRT format, the projects that extended it, and the note that codes 0 through 10 are deprecated and documented in Appendix B. Its closing paragraph states the byte order, &#34;Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet&#34;, with no modal verb at all, so the site scan sees nothing to classify. The summary reads that sentence as a gated obligation, which is the unsourced id below.</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>Specification of Requirements</td>
+<td>0</td>
+<td>walked</td>
+<td>Specification of Requirements. The RFC 2119 key-words paragraph. It binds no writer or reader and the derivation excludes it from the site inventory.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>MRT Common Header</td>
+<td>0</td>
+<td>walked</td>
+<td>MRT Common Header. Field definitions for Timestamp, Type, Subtype, Length and Message, all indicative, plus the note that a post-2038 implementation will need an alternate epoch whose mechanism is out of scope. No modal verb in any case appears, so the prose scan derives no site. The field widths are carried by the Wire Formats table of rfc/short/rfc6396.md.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Extended Timestamp MRT Header</td>
+<td>0</td>
+<td>walked</td>
+<td>Extended Timestamp MRT Header. Defines the Microsecond Timestamp field, where it sits, and that it counts toward the Length. Indicative throughout, with no modal verb in any case.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>MRT Types</td>
+<td>0</td>
+<td>walked</td>
+<td>MRT Types. The Type Code list (11 OSPFv2 through 49 OSPFv3_ET) and the sentence explaining the _ET suffix. A value table, not a directive.</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>OSPFv2 Type</td>
+<td>0</td>
+<td>walked</td>
+<td>OSPFv2 Type. Wire format of the OSPFv2 message field and what Remote IP Address, Local IP Address and OSPF Message Contents hold. Indicative; ze does not write this type.</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>TABLE_DUMP Type</td>
+<td>2</td>
+<td>walked</td>
+<td>TABLE_DUMP Type. Two capitalised MUST-level sites, mapped below to RFC6396-4.2-2 and RFC6396-4.2-1. Its remaining directives are advisory and carry no site: the RECOMMENDED to use TABLE_DUMP_V2 in new implementations, the MAY for decoding applications to support TABLE_DUMP, the MAY to use View Number to separate RIB views, the SHOULD to wrap the 16-bit Sequence Number, and the SHOULD to set the unused Status octet to 1. Those five are the unsourced ids below.</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>TABLE_DUMP_V2 Type</td>
+<td>0</td>
+<td>walked</td>
+<td>TABLE_DUMP_V2 Type. States what V2 adds over TABLE_DUMP and lists subtypes 1 through 6. A value table with no directive.</td>
+</tr>
+<tr><td><code>4.3.1</code></td>
+<td>PEER_INDEX_TABLE Subtype</td>
+<td>3</td>
+<td>walked</td>
+<td>PEER_INDEX_TABLE Subtype. Three capitalised MUST-level sites, mapped below to RFC6396-4.3.1-3, -1 and -2. The rest is field definition: the Collector BGP ID, the Peer Count, and the Peer Entry fields Peer Type, Peer BGP ID, Peer IP Address and Peer AS, with the A and I bits of Peer Type and the rule that the peer index begins at 0. Every one of those is stated indicatively, so no site of this section obligates a WRITER about the VALUE it puts in a peer entry field, the Peer BGP ID included. They are carried by the Wire Formats table of rfc/short/rfc6396.md.</td>
+</tr>
+<tr><td><code>4.3.2</code></td>
+<td>AFI/SAFI-Specific RIB Subtypes</td>
+<td>0</td>
+<td>walked</td>
+<td>AFI/SAFI-Specific RIB Subtypes. Defines the RIB Entry Header and states that Prefix Length and Prefix follow the BGP NLRI encoding with irrelevant trailing bits. Indicative.</td>
+</tr>
+<tr><td><code>4.3.3</code></td>
+<td>RIB_GENERIC Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>RIB_GENERIC Subtype. Defines the RIB_GENERIC Entry Header. Its one directive is the SHOULD to discard the remainder of an MRT record whose AFI and SAFI the implementation does not recognize, which is advisory and carries no site: the unsourced id below.</td>
+</tr>
+<tr><td><code>4.3.4</code></td>
+<td>RIB Entries</td>
+<td>1</td>
+<td>walked</td>
+<td>RIB Entries. One capitalised MUST-level site, mapped below to RFC6396-4.3.4-1. The MP_REACH_NLRI abbreviation is stated indicatively, &#34;only the Next Hop Address Length and Next Hop Address fields are included. The Reserved field is omitted&#34;, with no modal verb, so the scan derives no site for it. The summary reads it as a gated obligation, which is the unsourced id below.</td>
+</tr>
+<tr><td><code>4.4</code></td>
+<td>BGP4MP Type</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP4MP Type. Names the six BGP4MP subtypes and their codes. A value table with no directive.</td>
+</tr>
+<tr><td><code>4.4.1</code></td>
+<td>BGP4MP_STATE_CHANGE Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP4MP_STATE_CHANGE Subtype. Wire format, the six FSM state values from RFC 4271 Section 8.2.2, and the AFI values. Its two directives are advisory and carry no site: the MAY to set an undefined Peer AS Number to zero and the MAY for an unknown or unsupported Interface Index to be zero. Those are the unsourced ids below.</td>
+</tr>
+<tr><td><code>4.4.2</code></td>
+<td>BGP4MP_MESSAGE Subtype</td>
+<td>2</td>
+<td>walked</td>
+<td>BGP4MP_MESSAGE Subtype. Two capitalised MUST-level sites, mapped below to RFC6396-4.4.2-1 and RFC6396-4.4.2-2. The Interface Index MAY is a repeat of the section 4.4.1 statement and is carried by RFC6396-4.4.1-2, which section 4.4.1 lists as unsourced.</td>
+</tr>
+<tr><td><code>4.4.3</code></td>
+<td>BGP4MP_MESSAGE_AS4 Subtype</td>
+<td>1</td>
+<td>walked</td>
+<td>BGP4MP_MESSAGE_AS4 Subtype. One capitalised MUST-level site, mapped below to RFC6396-4.4.3-1. The rest states that the subtype is otherwise identical to BGP4MP_MESSAGE and shows the fields.</td>
+</tr>
+<tr><td><code>4.4.4</code></td>
+<td>BGP4MP_STATE_CHANGE_AS4 Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP4MP_STATE_CHANGE_AS4 Subtype. States that it is BGP4MP_STATE_CHANGE with 4-byte Peer and Local AS fields, and shows the format. Indicative.</td>
+</tr>
+<tr><td><code>4.4.5</code></td>
+<td>BGP4MP_MESSAGE_LOCAL Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP4MP_MESSAGE_LOCAL Subtype. States that the subtype marks a locally generated BGP message and that the Local fields name the collector while the Peer fields name the recipient. Indicative.</td>
+</tr>
+<tr><td><code>4.4.6</code></td>
+<td>BGP4MP_MESSAGE_AS4_LOCAL Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP4MP_MESSAGE_AS4_LOCAL Subtype. States that the fields are identical to BGP4MP_MESSAGE_AS4 and that the record marks a locally generated message. Indicative.</td>
+</tr>
+<tr><td><code>4.5</code></td>
+<td>ISIS Type</td>
+<td>0</td>
+<td>walked</td>
+<td>ISIS Type. States that the IS-IS PDU follows the MRT Common Header directly, that there is no type-specific header, and that the Subtype code is undefined. Indicative.</td>
+</tr>
+<tr><td><code>4.6</code></td>
+<td>OSPFv3 Type</td>
+<td>0</td>
+<td>walked</td>
+<td>OSPFv3 Type. Wire format of the OSPFv3 message field, extending OSPFv2 with variable-length addresses. Indicative.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>IANA Considerations</td>
+<td>1</td>
+<td>walked</td>
+<td>IANA Considerations. Registration guidance under BCP 26 for the Type Code and Subtype Code name spaces. Binds IANA and the authors of future MRT specifications, not an MRT writer or reader. Its one site is the BCP 26 policy-name sentence, excluded below.</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>Type Codes</td>
+<td>2</td>
+<td>walked</td>
+<td>Type Codes. The allocation policy for the Type Code registry: 0-64 reserved, new codes from 65, IETF Review to 511, Specification Required to 2047, First Come First Served to 64511, Experimental Use to 65534, and 65535 reserved. Site 5.1:1 carries the allocation floor and maps to RFC6396-5.1-1, which rfc/short/rfc6396.md declares; site 5.1:2 is a policy-name match the case-insensitive scan made and is excluded below.</td>
+</tr>
+<tr><td><code>5.2</code></td>
+<td>Subtype Codes</td>
+<td>1</td>
+<td>walked</td>
+<td>Subtype Codes. States that Subtype definitions are specific to a Type Code and that Subtype assignments follow the rules of their Type Code. Its one site binds the author of a future MRT Subtype definition and is excluded below.</td>
+</tr>
+<tr><td><code>5.3</code></td>
+<td>Defined Type Codes</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>Defined Type Codes. The registry table of the twenty Type Codes this document defines, each pointing at the section that specifies it.</td>
+</tr>
+<tr><td><code>5.4</code></td>
+<td>Defined BGP, BGP4PLUS, and BGP4PLUS_01 Subtype Codes</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>Defined BGP, BGP4PLUS, and BGP4PLUS_01 Subtype Codes. A registry table for the deprecated BGP Type&#39;s eight subtypes.</td>
+</tr>
+<tr><td><code>5.5</code></td>
+<td>Defined TABLE_DUMP Subtype Codes</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>Defined TABLE_DUMP Subtype Codes. A registry table: AFI_IPv4 is 1 and AFI_IPv6 is 2.</td>
+</tr>
+<tr><td><code>5.6</code></td>
+<td>Defined TABLE_DUMP_V2 Subtype Codes</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>Defined TABLE_DUMP_V2 Subtype Codes. A registry table: PEER_INDEX_TABLE 1 through RIB_GENERIC 6.</td>
+</tr>
+<tr><td><code>5.7</code></td>
+<td>Defined BGP4MP and BGP4MP_ET Subtype Codes</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>Defined BGP4MP and BGP4MP_ET Subtype Codes. A registry table for the six BGP4MP subtypes, and the closing note that BGP4MP_ET shares them.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. States that the MRT fields are descriptive and induce no behavior in the recipient application, that peer IP addresses, next hops and path attributes can be sensitive, and that an organization publishing MRT dumps beyond its domain should check with the peers whose information is included. That last direction binds the operator publishing an archive rather than the MRT writer, it carries no RFC 2119 keyword, and the summary declares no requirement for it.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References. The heading itself, with the two subsections below carrying the entries.</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: IANA-AF, RFC 791, RFC 1195, RFC 2119, RFC 2328, RFC 2460, RFC 3629, RFC 4271, RFC 4760, RFC 5226, RFC 5340.</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative References: GEOMRT, MRT_PROG_GUIDE, POSIX, RFC 4272.</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>MRT Encoding Examples</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>MRT Encoding Examples. The appendix says so in its own first sentence, &#34;This appendix, which is not normative, contains MRT encoding examples&#34;. It shows one BGP4MP_MESSAGE_AS4 record and one TABLE_DUMP_V2 pair in hexadecimal.</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>Deprecated MRT Types</td>
+<td>0</td>
+<td>walked</td>
+<td>Deprecated MRT Types. Two indicative sentences: the appendix lists deprecated types, and they are documented for informational purposes. The subsections below carry what text there is.</td>
+</tr>
+<tr><td><code>B.1</code></td>
+<td>Deprecated MRT Informational Types</td>
+<td>1</td>
+<td>walked</td>
+<td>Deprecated MRT Informational Types. Codes 0 through 4, which the section itself says are not known to be implemented. One capitalised MUST-level site, mapped below to RFC6396-B.1-1. Its one advisory directive, the SHOULD to set the unused Subtype field to 0, carries no site and is the unsourced id below.</td>
+</tr>
+<tr><td><code>B.1.1</code></td>
+<td>NULL Type</td>
+<td>0</td>
+<td>walked</td>
+<td>NULL Type. One sentence: the NULL Type message causes no operation.</td>
+</tr>
+<tr><td><code>B.1.2</code></td>
+<td>START Type</td>
+<td>0</td>
+<td>walked</td>
+<td>START Type. One sentence: the record indicates that a collector is about to begin generating MRT records.</td>
+</tr>
+<tr><td><code>B.1.3</code></td>
+<td>DIE Type</td>
+<td>0</td>
+<td>walked</td>
+<td>DIE Type. One sentence, carrying the advisory SHOULD that a remote MRT repository stop accepting messages. It is advisory, so the scan derives no site; the summary declares it as the unsourced id below.</td>
+</tr>
+<tr><td><code>B.1.4</code></td>
+<td>I_AM_DEAD Type</td>
+<td>0</td>
+<td>walked</td>
+<td>I_AM_DEAD Type. One sentence: the record indicates that a collector has shut down and stopped generating MRT records.</td>
+</tr>
+<tr><td><code>B.1.5</code></td>
+<td>PEER_DOWN Type</td>
+<td>0</td>
+<td>walked</td>
+<td>PEER_DOWN Type. States what the record was intended for and that the BGP state change types duplicate the function. Indicative.</td>
+</tr>
+<tr><td><code>B.2</code></td>
+<td>Other Deprecated MRT Types</td>
+<td>0</td>
+<td>walked</td>
+<td>Other Deprecated MRT Types. The code list 5 through 10: BGP, RIP, IDRP, RIPNG, BGP4PLUS and BGP4PLUS_01. A value table.</td>
+</tr>
+<tr><td><code>B.2.1</code></td>
+<td>BGP Type</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP Type. States that the Message field carries BGP routing information, that the content depends on the Subtype, and that the type and all its subtypes are deprecated by BGP4MP. Indicative.</td>
+</tr>
+<tr><td><code>B.2.1.1</code></td>
+<td>BGP_NULL Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP_NULL Subtype. One sentence: the subtype is unused and deprecated.</td>
+</tr>
+<tr><td><code>B.2.1.2</code></td>
+<td>BGP_UPDATE Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP_UPDATE Subtype. Wire format of the deprecated BGP_UPDATE record and its Peer AS, Peer IP, Local AS, Local IP and BGP UPDATE fields. Indicative.</td>
+</tr>
+<tr><td><code>B.2.1.3</code></td>
+<td>BGP_PREF_UPDATE Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP_PREF_UPDATE Subtype. States that the format was never fully specified and is not known to be implemented. Indicative.</td>
+</tr>
+<tr><td><code>B.2.1.4</code></td>
+<td>BGP_STATE_CHANGE Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP_STATE_CHANGE Subtype. Wire format of the deprecated state-change record and the note that the AS and IP fields are 2-byte and IPv4. Indicative.</td>
+</tr>
+<tr><td><code>B.2.1.5</code></td>
+<td>BGP_SYNC Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP_SYNC Subtype. Describes a record whose use is unclear with no known implementations. Its one advisory statement, that the subtype should be ignored, carries no capitalised keyword site and is the unsourced id below.</td>
+</tr>
+<tr><td><code>B.2.1.6</code></td>
+<td>BGP_OPEN Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP_OPEN Subtype. States that the record encodes a received BGP OPEN message in the BGP_UPDATE format. Indicative.</td>
+</tr>
+<tr><td><code>B.2.1.7</code></td>
+<td>BGP_NOTIFY Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP_NOTIFY Subtype. States that the record encodes a received BGP NOTIFICATION message in the BGP_UPDATE format. Indicative.</td>
+</tr>
+<tr><td><code>B.2.1.8</code></td>
+<td>BGP_KEEPALIVE Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP_KEEPALIVE Subtype. States that the record encodes a received BGP KEEPALIVE message in the BGP_UPDATE format. Indicative.</td>
+</tr>
+<tr><td><code>B.2.2</code></td>
+<td>RIP Type</td>
+<td>0</td>
+<td>walked</td>
+<td>RIP Type. States that the Message field carries a RIP packet and that the type is deprecated. Its advisory statement that the unused Subtype field should be set to 0 covers this section and B.2.4, carries no capitalised keyword site, and is the unsourced id below.</td>
+</tr>
+<tr><td><code>B.2.3</code></td>
+<td>IDRP Type</td>
+<td>0</td>
+<td>walked</td>
+<td>IDRP Type. States that the type was intended to carry IDRP information, that the format was never fully specified, and that no implementation is known. Indicative.</td>
+</tr>
+<tr><td><code>B.2.4</code></td>
+<td>RIPNG Type</td>
+<td>0</td>
+<td>walked</td>
+<td>RIPNG Type. States that the Message field carries a RIPng packet and that the type is deprecated. Its unused-Subtype statement is the one RFC6396-B.2.2-1 covers, listed as unsourced on section B.2.2.</td>
+</tr>
+<tr><td><code>B.2.5</code></td>
+<td>BGP4PLUS and BGP4PLUS_01 Types</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP4PLUS and BGP4PLUS_01 Types. States that the two types encode BGP with multiprotocol extensions in early Zebra releases and are deprecated by BGP4MP. Indicative.</td>
+</tr>
+<tr><td><code>B.2.6</code></td>
+<td>Deprecated BGP4MP Subtypes</td>
+<td>0</td>
+<td>walked</td>
+<td>Deprecated BGP4MP Subtypes. Names subtypes 2 and 3, BGP4MP_ENTRY and BGP4MP_SNAPSHOT, as deprecated. A value table.</td>
+</tr>
+<tr><td><code>B.2.6.1</code></td>
+<td>BGP4MP_ENTRY Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP4MP_ENTRY Subtype. Wire format of the deprecated RIB entry record, deprecated by TABLE_DUMP_V2. Indicative.</td>
+</tr>
+<tr><td><code>B.2.6.2</code></td>
+<td>BGP4MP_SNAPSHOT Subtype</td>
+<td>0</td>
+<td>walked</td>
+<td>BGP4MP_SNAPSHOT Subtype. Describes a record pointing at an external dump file, with the note that it is not known to be implemented. Indicative.</td>
+</tr>
+<tr><td><code>C</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (acknowledgements)</td>
+<td>Acknowledgements, and with it the unnumbered Authors&#39; Addresses block, which carries no section number and so stays in this body under the heading derivation.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The IETF Trust Legal Provisions paragraph of the Copyright Notice, which the boilerplate filter does not strip because it names the Simplified BSD License rather than RFC 2119. Its &#34;must&#34; binds a person who extracts a code component from the document, and it states a licensing condition rather than a protocol obligation.</td>
+<td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
+</tr>
+<tr><td><code>5:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A sentence naming the four BCP 26 registration policies this document uses. The prose scan matches it on &#34;Required&#34; inside the policy name &#34;Specification Required&#34;, which is a proper name quoted from BCP 26 and not a directive to anyone.</td>
+<td>The following policies are used here with the meanings defined in BCP 26: &#34;Specification Required&#34;, &#34;IETF Consensus&#34;, &#34;Experimental Use&#34;, &#34;First Come First Served&#34;.</td>
+</tr>
+<tr><td><code>5.1:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A registry allocation statement: Type Codes 512 to 2047 are handed out under the BCP 26 &#34;Specification Required&#34; policy. The prose scan matches it on &#34;Required&#34; inside that policy name. The sentence is indicative and directs nobody.</td>
+<td>Type Codes 512-2047 are assigned based on Specification Required.</td>
+</tr>
+<tr><td><code>5.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The role is the author of a future MRT Subtype specification, and behind them the IANA registry that will refuse a Subtype naming no Type Code. Ze neither allocates MRT Subtype codes nor writes MRT specifications, so no MRT writer or reader in ze is bound by it. The role is a specification author and the IANA registry behind them, so no producer could act as it. Ze only WRITES records under codes already assigned: `asyncWriter.Write` (`internal/plugins/mrt/async_writer.go`).</td>
+<td>New Subtype Code definitions must reference an existing Type Code to which the Subtype belongs.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 6396, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

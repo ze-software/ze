@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY requirement ledger - Ze</title>
+        <meta name="description" content="DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY: Hostname Capability for BGP. 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY requirement ledger - Ze" />
+        <meta property="og:description" content="DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY: Hostname Capability for BGP. 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY requirement ledger - Ze" />
+        <meta name="twitter:description" content="DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY: Hostname Capability for BGP. 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/draft-walton-bgp-hostname-capability/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/draft-walton-bgp-hostname-capability/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY - Hostname Capability for BGP</h1>
+    <p>Every requirement this repository extracted from DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>0</strong><b>of 0 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>0</strong><b>of 1 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 0 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>No card above is a share of a population, so there is nothing to add up.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>1</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>0</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>0</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>0</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>0</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/draft-walton-bgp-hostname-capability.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/draft-walton-bgp-hostname-capability.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/drafts/draft-walton-bgp-hostname-capability.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: FQDN capability for BGP (code 73). The draft states NO MUST-level obligation: its only RFC 2119 keyword outside the Section 2 key-words paragraph is one SHOULD in Section 4, so the summary declares zero gated rows and rfc/extraction/draft-walton-bgp-hostname-capability.json signs off under &#39;manual-walk&#39; with the register-reason that says why zero is a property of the document. Ze sends the capability from per-peer config (encodeValue, internal/component/bgp/plugins/hostname/hostname.go), encodes it with (*FQDN).WriteTo and parses a received one with parseFQDN (internal/core/bgp/capability/capability.go).</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>The draft states no MUST-level obligation: its only RFC 2119 keyword outside the Section 2 key-words paragraph is one SHOULD in Section 4, which is why <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/draft-walton-bgp-hostname-capability.json" target="_blank" rel="noopener"><code>rfc/extraction/draft-walton-bgp-hostname-capability.json</code></a> signs off under <code>manual-walk</code>. Capability code 73, decode support, and per-peer hostname and domain advertisement (<code>FQDN</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability.go" target="_blank" rel="noopener"><code>internal/core/bgp/capability/capability.go</code></a>). Carried as <code>RFC 8516</code> in the table above until 2026-08-30</li>
+<li>RFC 8516 is the CoAP &#34;Too Many Requests&#34; response code and has nothing to do with BGP. IANA names this draft as the reference for code 73, and the scoped config keys the capability emits had always spelled it.</li>
+</ul>
+</details>
+<p><strong>What the ledger says remains:</strong></p>
+-
+</section>
+<section><h2>Coverage</h2>
+<p>DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY declares no MUST-level requirement, so the gate counts nothing here.</p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-walton-bgp-hostname-capability-4-1">DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier&#34; (§4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<p>DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY declares no gap, and every gated MUST it carries has a test bound to it.</p>
+</section>
+<section><h2>Proof state</h2>
+<p>DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY carries no gated, tagged or audited requirement, so there is no proof state to state.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6 draft walk, draft-walton-bgp-hostname-capability</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-01</td>
+</tr>
+<tr><td>Register</td>
+<td>manual-walk</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/drafts/draft-walton-bgp-hostname-capability.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>83f56181a3009274</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/draft-walton-bgp-hostname-capability.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>0</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>1</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Abstract, Status of This Memo and Copyright Notice. The Abstract says the document introduces a BGP capability carrying a speaker&#39;s hostname. It directs no speaker. The one site the scan raises here is the Copyright Notice sentence, excluded below.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Says BGP is used inside the data center, that displaying a speaker&#39;s hostname eases troubleshooting, and that this document defines a capability exchanging a speaker&#39;s FQDN. Indicative throughout; no keyword site and no obligation.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>Specification of Requirements</td>
+<td>0</td>
+<td>walked</td>
+<td>Specification of Requirements. The RFC 2119 key-words paragraph. It tells a reader how to read the rest and binds nobody, which is why the derivation excludes it from the capitalised site inventory.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>FQDN Capability</td>
+<td>0</td>
+<td>walked</td>
+<td>FQDN Capability. Defines the wire format: Hostname Length, Hostname, Domain Name Length, Domain Name, with the two strings &#39;encoded via UTF-8&#39; and the capability code deferred to the IANA Considerations section. Every sentence is a field definition in indicative prose, carried by the Wire Format table of rfc/short/draft-walton-bgp-hostname-capability.md. No RFC 2119 keyword and no obligation on a speaker.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Operation</td>
+<td>0</td>
+<td>walked</td>
+<td>Operation. Carries the document&#39;s one normative sentence, the SHOULD captured as DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY-4-1: &#39;The FQDN Capability SHOULD only be used for displaying the hostname and/or domain name of a speaker in order to make troubleshooting easier.&#39; The scan raises no site for it because the row is advisory and the sentence sits below the gated levels this artifact counts, so the id is declared unsourced here. The rest of the section is two pages of sample &#39;cl-bgp summary&#39; output and the sentence that the hostname and domain are assumed to be taken from the ones set on the device.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. Records that IANA has assigned capability number 73 in the BGP Capability Codes registry. Binds IANA, not a speaker.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. One sentence: the document &#39;introduces no new security concerns to BGP or other specifications referenced in this document&#39;. No countermeasure is directed at a speaker.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References. The heading over sections 7.1 and 7.2.</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>Normative References: RFC 5492 and RFC 2119</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: RFC 5492 and RFC 2119.</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Implementation References: the Quagga BGP FQDN Capability commit.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>IETF Trust boilerplate the splitter did not strip. The sentence binds a person who extracts Code Components from the document into other software and tells them to carry the Simplified BSD License text; it directs no BGP speaker and describes no protocol behavior. Its &#39;must&#39; is lowercase, so it is raised only by the case-insensitive modal scan the &#39;prose&#39; register uses.</td>
+<td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes DRAFT-WALTON-BGP-HOSTNAME-CAPABILITY, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

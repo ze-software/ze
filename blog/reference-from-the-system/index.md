@@ -40,7 +40,7 @@ The table is useful because the same pattern repeats across enough of the projec
 | Configuration reference | YANG schema from<br>`ze yang tree` | 36 top-level sections<br>27 from plugins | The page follows the schema when a plugin adds a leaf. |
 | Plugin catalogue | Plugin registry and metadata | 90 runtime plugins<br>6 fixtures | Names, purposes, config roots and source paths come from registration. |
 | Dependencies | `go.mod`<br>plus written reasons | 48<br>direct dependencies | Versions come from Go, while the reason stays human-written. |
-| RFC status | RFC requirement ledger | 4,818 requirements<br>across 179 summaries | Public support claims stay tied to tests, gaps and annotations. |
+| RFC status | RFC requirement ledger | 5,384 requirements<br>across 192 summaries | Public support claims stay tied to tests, gaps and annotations. |
 
 The page can still be readable. It can group commands, add search, explain why a dependency exists, or warn that an RFC is partial. The fact itself still comes from the place that changes when the product changes.
 

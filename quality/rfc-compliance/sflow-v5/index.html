@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>SFLOW-V5 requirement ledger - Ze</title>
+        <meta name="description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 16 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta property="og:title" content="SFLOW-V5 requirement ledger - Ze" />
+        <meta property="og:description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 16 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="SFLOW-V5 requirement ledger - Ze" />
+        <meta name="twitter:description" content="SFLOW-V5: sFlow: A Method for Monitoring Traffic in Switched and Routed Networks. 16 gated MUST-level requirements, 3 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/sflow-v5/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/sflow-v5/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Experimental</span>
+    <h1 id="rfc-detail-title">SFLOW-V5 - sFlow: A Method for Monitoring Traffic in Switched and Routed Networks</h1>
+    <p>Every requirement this repository extracted from SFLOW-V5, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>6.7%</strong><b>1 of 15 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>73.3%</strong><b>11 of 15 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 15 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>16</strong><b>of 24 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 16 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>20.0%</strong><b>3 of 15 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 15 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Experimental</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>24</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>16</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>15</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>1</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>3</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>13</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>13</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/sflow-v5.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/sflow-v5.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/sflow-v5.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at configured interval) + 11 single-polarity positive (version=5, agent addr, sub-agent seq space, MTU bound, no &gt;1s hold, XDR big-endian, count-prefixed arrays, actual rate, sample_pool, cumulative counters) + 3 gap (split datagram seq, no expanded types, no unavailable sentinel) + 1 not-applicable (collector skip)</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Experimental</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>Flow export protocol alongside NetFlow v9 and IPFIX. Three MUST gaps in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/sflow-v5.md" target="_blank" rel="noopener"><code>rfc/short/sflow-v5.md</code></a>: datagram-level sequence numbers split across two independent counters per sub-agent (SFLOW-V5-x-9)</li>
+<li>no expanded sample types, so ifIndex &gt; 2^24-1 is truncated by the 24-bit source_id mask (SFLOW-V5-x-12)</li>
+<li>unavailable if_counters fields are exported as 0 instead of the max-value unavailable sentinel (SFLOW-V5-x-16).</li>
+</ul>
+</details>
+<p><strong>What the ledger says remains:</strong></p>
+-
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>15</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>16</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#sflow-v5-x-14"><code>SFLOW-V5-x-14</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (15):</strong> <a href="#sflow-v5-x-1"><code>SFLOW-V5-x-1</code></a>, <a href="#sflow-v5-x-2"><code>SFLOW-V5-x-2</code></a>, <a href="#sflow-v5-x-3"><code>SFLOW-V5-x-3</code></a>, <a href="#sflow-v5-x-4"><code>SFLOW-V5-x-4</code></a>, <a href="#sflow-v5-x-5"><code>SFLOW-V5-x-5</code></a>, <a href="#sflow-v5-x-6"><code>SFLOW-V5-x-6</code></a>, <a href="#sflow-v5-x-7"><code>SFLOW-V5-x-7</code></a>, <a href="#sflow-v5-x-8"><code>SFLOW-V5-x-8</code></a>, <a href="#sflow-v5-x-9"><code>SFLOW-V5-x-9</code></a>, <a href="#sflow-v5-x-10"><code>SFLOW-V5-x-10</code></a>, <a href="#sflow-v5-x-11"><code>SFLOW-V5-x-11</code></a>, <a href="#sflow-v5-x-12"><code>SFLOW-V5-x-12</code></a>, <a href="#sflow-v5-x-13"><code>SFLOW-V5-x-13</code></a>, <a href="#sflow-v5-x-15"><code>SFLOW-V5-x-15</code></a>, <a href="#sflow-v5-x-16"><code>SFLOW-V5-x-16</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-1">SFLOW-V5-x-1</code></td><td colspan="3"><span class="rfc-subject">Datagram version field MUST be set to 5 (Datagram Format)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L11" title="internal/plugins/flowexport/sflow/encoder_test.go" target="_blank" rel="noopener"><code>TestSFlowDatagramHeaderIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> WriteDatagramHeader unconditionally writes the compile-time constant Version=5 into every datagram, so there is no other-version code path to reject (internal/plugins/flowexport/sflow/encoder.go:40, :14)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-2">SFLOW-V5-x-2</code></td><td colspan="3"><span class="rfc-subject">Agent address MUST be a stable IP (e.g., loopback) that uniquely identifies the device across reboots (Agent Architecture)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L12" title="internal/plugins/flowexport/sflow/encoder_test.go" target="_blank" rel="noopener"><code>TestSFlowDatagramHeaderIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the operator-configured agent address is written verbatim into every datagram header and validated as a well-formed IP; stability/uniqueness is a config-value property with no exporter reject path (internal/plugins/flowexport/sflow/encoder.go:43-57, internal/plugins/flowexport/config.go:379-383)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-3">SFLOW-V5-x-3</code></td><td colspan="3"><span class="rfc-subject">Agent address + sub_agent_id MUST uniquely identify a sampling entity (Agent Architecture)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L53" title="internal/plugins/flowexport/sflow/encoder_test.go" target="_blank" rel="noopener"><code>TestSFlowDatagramHeaderIPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> both agent_address and sub_agent_id are emitted in every datagram header by construction, and tuple uniqueness is an operator-config obligation (internal/plugins/flowexport/sflow/encoder.go:59, :43-57)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-4">SFLOW-V5-x-4</code></td><td colspan="3"><span class="rfc-subject">Each sub-agent MUST maintain its own sequence number space (Agent Architecture)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L93" title="internal/plugins/flowexport/sflow/encoder_test.go" target="_blank" rel="noopener"><code>TestSFlowMultiInterface</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> each encoder instance is bound to one collector/sub_agent_id and owns private datagramSeq and per-source seqNums fields, so distinct sub-agents never share sequence state (internal/plugins/flowexport/sflow/adapter.go:18-19, flow_adapter.go:32-33)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-5">SFLOW-V5-x-5</code></td><td colspan="3"><span class="rfc-subject">Datagram size MUST NOT exceed path MTU (Transport)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L94" title="internal/plugins/flowexport/sflow/encoder_test.go" target="_blank" rel="noopener"><code>TestSFlowMultiInterface</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> every datagram is bounded to MaxDatagramSize=1400 by construction (counter batching flushes before overflow, the flow encoder truncates the captured header to fit), so no code path emits an oversized datagram (internal/plugins/flowexport/sender.go:14, internal/plugins/flowexport/sflow/encoder.go:120, flow_adapter.go:67-71)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-6">SFLOW-V5-x-6</code></td><td colspan="3"><span class="rfc-subject">Samples MUST NOT be held more than 1 second before sending (Transport)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L148" title="internal/plugins/flowexport/exporter_test.go" target="_blank" rel="noopener"><code>TestExportFlowSampleDispatch</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> counter and flow samples are encoded and sent synchronously with no buffering queue, so a sample is never held beyond a sub-millisecond encode and there is no holding timer to test negatively (internal/plugins/flowexport/exporter.go:204, internal/plugins/flowexport/sflow/adapter.go:47-51)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-7">SFLOW-V5-x-7</code></td><td colspan="3"><span class="rfc-subject">All structures MUST use XDR encoding: 4-byte alignment, big-endian (Datagram Format)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counter_test.go#L35" title="internal/plugins/flowexport/sflow/counter_test.go" target="_blank" rel="noopener"><code>TestSFlowIfCounters</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> every field is written via binary.BigEndian with 4-byte-aligned opaque padding, exporter-only with no decode path to reject a wrong endianness (internal/plugins/flowexport/sflow/counter.go:36, flow.go:123-128)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-8">SFLOW-V5-x-8</code></td><td colspan="3"><span class="rfc-subject">Variable-length arrays and opaque data MUST be prefixed by a 4-byte count and padded to 4-byte boundary (XDR Encoding)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L70" title="internal/plugins/flowexport/sflow/flow_test.go" target="_blank" rel="noopener"><code>TestSFlowSampledHeader</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the sampled_header opaque and the extended_gateway arrays are all written with a 4-byte count prefix and zero-padded to a 4-byte boundary by construction (internal/plugins/flowexport/sflow/flow.go:116-128, :187-208)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-9">SFLOW-V5-x-9</code></td><td colspan="3"><span class="rfc-subject">Sequence numbers MUST be per-agent (datagram-level) and per-source (sample-level), unsigned 32-bit, wrapping (Transport)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> per-source sample-level sequences are correct, but for one sub-agent the counter-datagram and flow-datagram streams keep two independent datagramSeq counters, so a collector sees two overlapping datagram-level sequence spaces instead of one (internal/plugins/flowexport/sflow/adapter.go:18, flow_adapter.go:32)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-10">SFLOW-V5-x-10</code></td><td colspan="3"><span class="rfc-subject">flow_sample MUST include the actual sampling_rate used by the agent (Flow Sample)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L9" title="internal/plugins/flowexport/sflow/flow_test.go" target="_blank" rel="noopener"><code>TestSFlowFlowSample</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> EncodeFlowSample writes the kernel-reported actual rate into every flow_sample, emitted unconditionally with no reject path (internal/plugins/flowexport/sflow/flow_adapter.go:78-79, flow.go:52)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-11">SFLOW-V5-x-11</code></td><td colspan="3"><span class="rfc-subject">sample_pool MUST track total packets seen by the data source (Flow Sample)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_adapter_test.go#L52" title="internal/plugins/flowexport/sflow/flow_adapter_test.go" target="_blank" rel="noopener"><code>TestSFlowFlowSamplePoolTracksTotal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> EncodeFlowSample computes sample_pool as the saturated product of cumulative samples and rate and writes it into every flow_sample, exporter-only with no negative form (internal/plugins/flowexport/sflow/flow_adapter.go:73-79, flow.go:56)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-12">SFLOW-V5-x-12</code></td><td colspan="3"><span class="rfc-subject">Expanded sample types MUST be used when ifIndex exceeds 2^24-1 or 2^30-1 (Expanded Flow/Counter Sample)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no flow_sample_expanded (format 3) or counters_sample_expanded (format 4); a large ifIndex is silently truncated by a 24-bit mask on source_id rather than switching to the expanded encoding (internal/plugins/flowexport/sflow/counter.go:49, flow.go:48)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-13">SFLOW-V5-x-13</code></td><td colspan="3"><span class="rfc-subject">Unknown record formats MUST be skipped using the opaque length prefix (Record Wrappers)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-13">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> skipping unknown formats on receive is a collector behavior; ze is an sFlow exporter only with no sFlow decode path, though it does emit the length prefixes that let a collector skip (internal/plugins/flowexport/sflow/counter.go:60-61, flow.go:131-132)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-14">SFLOW-V5-x-14</code></td><td colspan="3"><span class="rfc-subject">Counter samples MUST be produced at the configured polling interval for each data source (Counter Polling)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-14">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L276" title="internal/plugins/flowexport/exporter_test.go" target="_blank" rel="noopener"><code>TestSFlowCounterPollAtInterval</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L295" title="internal/plugins/flowexport/exporter_test.go" target="_blank" rel="noopener"><code>TestSFlowCounterPollBeforeInterval</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-15">SFLOW-V5-x-15</code></td><td colspan="3"><span class="rfc-subject">All counters MUST be cumulative since boot (Counter Polling)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/register_test.go#L128" title="internal/plugins/flowexport/register_test.go" target="_blank" rel="noopener"><code>TestInterfaceCountersFromCumulative</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> interfaceCountersFrom copies the raw cumulative kernel counters straight through with no differencing, so exported if_counters are cumulative by construction (internal/plugins/flowexport/register.go:343-358, snapshot.go:10-13)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-16">SFLOW-V5-x-16</code></td><td colspan="3"><span class="rfc-subject">Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for u32, 0xFFFFFFFFFFFFFFFF for u64) (Implementation Guidance)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-16">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> interfaceCountersFrom leaves fields the kernel does not expose (ifInUnknownProtos, ifInBroadcastPkts, ifOutMulticastPkts, ifOutBroadcastPkts) at zero rather than the required max-value unavailable sentinel, so a collector cannot distinguish true-zero from unavailable (internal/plugins/flowexport/register.go:343-361)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-17">SFLOW-V5-x-17</code></td><td colspan="3"><span class="rfc-subject">Default datagram max size SHOULD be 1400 bytes (Transport)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-17">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-18">SFLOW-V5-x-18</code></td><td colspan="3"><span class="rfc-subject">Default max header size SHOULD be 128 bytes for sampled_header (Raw Packet Header)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-18">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-19">SFLOW-V5-x-19</code></td><td colspan="3"><span class="rfc-subject">Counter polls SHOULD be staggered across sources with randomized initial offset (Counter Polling)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-19">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-20">SFLOW-V5-x-20</code></td><td colspan="3"><span class="rfc-subject">Per-source skip counter SHOULD be initialized to random value in [1, 2*N-1] for 1-in-N sampling (Packet Sampling)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-20">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-21">SFLOW-V5-x-21</code></td><td colspan="3"><span class="rfc-subject">UDP port 6343 SHOULD be used (IANA-assigned) (Transport)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-21">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-22">SFLOW-V5-x-22</code></td><td colspan="3"><span class="rfc-subject">Multiple sFlow instances MAY exist per data source (Agent Architecture)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-22">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-23">SFLOW-V5-x-23</code></td><td colspan="3"><span class="rfc-subject">Counter samples MAY piggyback on flow sample datagrams when space permits (Counter Polling)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-23">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="sflow-v5-x-24">SFLOW-V5-x-24</code></td><td colspan="3"><span class="rfc-subject">Agents MAY adjust sampling rates to hardware-supported values; actual rate MUST be reported in each flow sample (Packet Sampling)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to SFLOW-V5-x-24">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#sflow-v5-x-9"><code>SFLOW-V5-x-9</code></a> Sequence numbers MUST be per-agent (datagram-level) and per-source (sample-level), unsigned 32-bit, wrapping (Transport)</td>
+<td>{gap}, no test</td>
+<td>per-source sample-level sequences are correct, but for one sub-agent the counter-datagram and flow-datagram streams keep two independent datagramSeq counters, so a collector sees two overlapping datagram-level sequence spaces instead of one (internal/plugins/flowexport/sflow/adapter.go:18, flow_adapter.go:32)</td>
+</tr>
+<tr><td><a href="#sflow-v5-x-12"><code>SFLOW-V5-x-12</code></a> Expanded sample types MUST be used when ifIndex exceeds 2^24-1 or 2^30-1 (Expanded Flow/Counter Sample)</td>
+<td>{gap}, no test</td>
+<td>ze implements no flow_sample_expanded (format 3) or counters_sample_expanded (format 4); a large ifIndex is silently truncated by a 24-bit mask on source_id rather than switching to the expanded encoding (internal/plugins/flowexport/sflow/counter.go:49, flow.go:48)</td>
+</tr>
+<tr><td><a href="#sflow-v5-x-13"><code>SFLOW-V5-x-13</code></a> Unknown record formats MUST be skipped using the opaque length prefix (Record Wrappers)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: skipping unknown formats on receive is a collector behavior; ze is an sFlow exporter only with no sFlow decode path, though it does emit the length prefixes that let a collector skip (internal/plugins/flowexport/sflow/counter.go:60-61, flow.go:131-132)</td>
+</tr>
+<tr><td><a href="#sflow-v5-x-16"><code>SFLOW-V5-x-16</code></a> Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for u32, 0xFFFFFFFFFFFFFFFF for u64) (Implementation Guidance)</td>
+<td>{gap}, no test</td>
+<td>interfaceCountersFrom leaves fields the kernel does not expose (ifInUnknownProtos, ifInBroadcastPkts, ifOutMulticastPkts, ifOutBroadcastPkts) at zero rather than the required max-value unavailable sentinel, so a collector cannot distinguish true-zero from unavailable (internal/plugins/flowexport/register.go:343-361)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#sflow-v5-x-1"><code>SFLOW-V5-x-1</code></a></h3>
+<p>Datagram version field MUST be set to 5 (Datagram Format)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L11" title="internal/plugins/flowexport/sflow/encoder_test.go" target="_blank" rel="noopener"><code>TestSFlowDatagramHeaderIPv4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-2"><code>SFLOW-V5-x-2</code></a></h3>
+<p>Agent address MUST be a stable IP (e.g., loopback) that uniquely identifies the device across reboots (Agent Architecture)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L12" title="internal/plugins/flowexport/sflow/encoder_test.go" target="_blank" rel="noopener"><code>TestSFlowDatagramHeaderIPv4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-3"><code>SFLOW-V5-x-3</code></a></h3>
+<p>Agent address + sub_agent_id MUST uniquely identify a sampling entity (Agent Architecture)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L53" title="internal/plugins/flowexport/sflow/encoder_test.go" target="_blank" rel="noopener"><code>TestSFlowDatagramHeaderIPv6</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-4"><code>SFLOW-V5-x-4</code></a></h3>
+<p>Each sub-agent MUST maintain its own sequence number space (Agent Architecture)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L93" title="internal/plugins/flowexport/sflow/encoder_test.go" target="_blank" rel="noopener"><code>TestSFlowMultiInterface</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-5"><code>SFLOW-V5-x-5</code></a></h3>
+<p>Datagram size MUST NOT exceed path MTU (Transport)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/encoder_test.go#L94" title="internal/plugins/flowexport/sflow/encoder_test.go" target="_blank" rel="noopener"><code>TestSFlowMultiInterface</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-6"><code>SFLOW-V5-x-6</code></a></h3>
+<p>Samples MUST NOT be held more than 1 second before sending (Transport)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L148" title="internal/plugins/flowexport/exporter_test.go" target="_blank" rel="noopener"><code>TestExportFlowSampleDispatch</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-7"><code>SFLOW-V5-x-7</code></a></h3>
+<p>All structures MUST use XDR encoding: 4-byte alignment, big-endian (Datagram Format)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/counter_test.go#L35" title="internal/plugins/flowexport/sflow/counter_test.go" target="_blank" rel="noopener"><code>TestSFlowIfCounters</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-8"><code>SFLOW-V5-x-8</code></a></h3>
+<p>Variable-length arrays and opaque data MUST be prefixed by a 4-byte count and padded to 4-byte boundary (XDR Encoding)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L70" title="internal/plugins/flowexport/sflow/flow_test.go" target="_blank" rel="noopener"><code>TestSFlowSampledHeader</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-9"><code>SFLOW-V5-x-9</code></a></h3>
+<p>Sequence numbers MUST be per-agent (datagram-level) and per-source (sample-level), unsigned 32-bit, wrapping (Transport)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries SFLOW-V5-x-9, so no unit is bound to it.</p>
+<h3><a href="#sflow-v5-x-10"><code>SFLOW-V5-x-10</code></a></h3>
+<p>flow_sample MUST include the actual sampling_rate used by the agent (Flow Sample)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_test.go#L9" title="internal/plugins/flowexport/sflow/flow_test.go" target="_blank" rel="noopener"><code>TestSFlowFlowSample</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-11"><code>SFLOW-V5-x-11</code></a></h3>
+<p>sample_pool MUST track total packets seen by the data source (Flow Sample)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/flow_adapter_test.go#L52" title="internal/plugins/flowexport/sflow/flow_adapter_test.go" target="_blank" rel="noopener"><code>TestSFlowFlowSamplePoolTracksTotal</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-12"><code>SFLOW-V5-x-12</code></a></h3>
+<p>Expanded sample types MUST be used when ifIndex exceeds 2^24-1 or 2^30-1 (Expanded Flow/Counter Sample)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries SFLOW-V5-x-12, so no unit is bound to it.</p>
+<h3><a href="#sflow-v5-x-13"><code>SFLOW-V5-x-13</code></a></h3>
+<p>Unknown record formats MUST be skipped using the opaque length prefix (Record Wrappers)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries SFLOW-V5-x-13, so no unit is bound to it.</p>
+<h3><a href="#sflow-v5-x-14"><code>SFLOW-V5-x-14</code></a></h3>
+<p>Counter samples MUST be produced at the configured polling interval for each data source (Counter Polling)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L295" title="internal/plugins/flowexport/exporter_test.go" target="_blank" rel="noopener"><code>TestSFlowCounterPollBeforeInterval</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L276" title="internal/plugins/flowexport/exporter_test.go" target="_blank" rel="noopener"><code>TestSFlowCounterPollAtInterval</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-15"><code>SFLOW-V5-x-15</code></a></h3>
+<p>All counters MUST be cumulative since boot (Counter Polling)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/register_test.go#L128" title="internal/plugins/flowexport/register_test.go" target="_blank" rel="noopener"><code>TestInterfaceCountersFromCumulative</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#sflow-v5-x-16"><code>SFLOW-V5-x-16</code></a></h3>
+<p>Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for u32, 0xFFFFFFFFFFFFFFFF for u64) (Implementation Guidance)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries SFLOW-V5-x-16, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for SFLOW-V5, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes SFLOW-V5, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

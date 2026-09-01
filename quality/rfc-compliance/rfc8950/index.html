@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 8950 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 8950: Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop. 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 8950 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 8950: Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop. 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 8950 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 8950: Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop. 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc8950/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc8950/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 8950 - Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop</h1>
+    <p>Every requirement this repository extracted from RFC 8950, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.0%</strong><b>3 of 6 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>50.0%</strong><b>3 of 6 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 6 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>6</strong><b>of 8 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 6 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 6 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>8</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>6</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>6</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>13</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>13</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc8950.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc8950.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc8950.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Advertising IPv4 NLRI with an IPv6 Next Hop (extended next-hop encoding, capability code 5): six MUST-level requirements, all met. 4-1 (cross-family IPv6 next-hop honored only when the extended-next-hop capability is negotiated), 4-2 (a tuple is negotiated only if both peers advertise the same NLRI-AFI/SAFI/next-hop-AFI), and 3-1 (a 16- or 32-octet next-hop is decoded as IPv6 regardless of the NLRI AFI) carry positive+negative tags. 4-3 (capability code 5), 3-2 (VPN next-hop carries an 8-octet RD set to zero), and 5-1 (a reflected next-hop encoding is not rewritten) are {single-polarity: positive}, bound to code-constant, RD-zeroing, and reflection-byte-identical tests in internal/core/bgp/attribute and internal/component/bgp/reactor.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<p><strong>What the ledger says is covered:</strong></p>
+IPv6 next-hop for IPv4 NLRI and negotiated extended next-hop lookup.
+<p><strong>What the ledger says remains:</strong></p>
+No tracked gap in current source anchors.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>3</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>3</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>6</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc8950-4-1"><code>RFC8950-4-1</code></a>, <a href="#rfc8950-4-2"><code>RFC8950-4-2</code></a>, <a href="#rfc8950-3-1"><code>RFC8950-3-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc8950-4-3"><code>RFC8950-4-3</code></a>, <a href="#rfc8950-5-1"><code>RFC8950-5-1</code></a>, <a href="#rfc8950-3-2"><code>RFC8950-3-2</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8950-4-1">RFC8950-4-1</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a peer if it has ascertained via BGP Capability Advertisement that the peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - Use of BGP Capability Advertisement</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8950-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1143" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1174" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1198" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8950-4-2">RFC8950-4-2</code></td><td colspan="3"><span class="rfc-subject">MUST use the Capability Advertisement procedures defined in RFC 5492 with the Extended Next Hop Encoding capability (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - Use of BGP Capability Advertisement</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8950-4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L283" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateExtendedNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L322" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateExtendedNextHopMismatch</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8950-4-3">RFC8950-4-3</code></td><td colspan="3"><span class="rfc-subject">The Capability Code field MUST be set to 5 (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - Use of BGP Capability Advertisement</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8950-4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L535" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze binds the Extended Next Hop Encoding capability to the constant CodeExtendedNextHop = 5 (internal/core/bgp/capability/capability.go:70); Code() returns it (capability.go:640) and WriteTo emits it (capability.go:644-646). The code is a fixed constant with no alternate-value code path, so there is no wrong-code case to reject as a negative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8950-3-1">RFC8950-3-1</code></td><td colspan="3"><span class="rfc-subject">The BGP speaker receiving the advertisement MUST use the Length of Next Hop Address field to determine which network-layer protocol the next-hop address belongs to (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8950-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L338" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_ExtendedNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L442" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_ExtendedNextHop_DualStack</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L488" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_InvalidNextHopLength</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8950-5-1">RFC8950-5-1</code></td><td colspan="3"><span class="rfc-subject">When a next-hop address needs to be passed along unchanged (e.g., as a Route Reflector), its encoding MUST NOT be changed (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5 - Operations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8950-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L230" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesExtendedNextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> on the reflection path ze rewrites the next-hop only under an explicit next-hop-self/explicit override (nhMode != nhModeNone); the default nhModeNone leaves the next-hop untouched (internal/component/bgp/reactor/peer_forward_facts.go:226-229) and the MP re-encode changes an attribute only when the NLRI framing differs between encoding contexts (internal/component/bgp/reactor/forward_body.go:217), so a reflected next-hop is carried verbatim and there is no ze code path that rewrites an unchanged-passthrough next-hop to assert as a negative. The positive is proven byte-identical in TestReactorForwardRRPreservesExtendedNextHop</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8950-3-2">RFC8950-3-2</code></td><td colspan="3"><span class="rfc-subject">For VPN-IPv4 NLRI with IPv6 next hop, the Route Distinguisher in the next hop MUST be set to zero (8 zero bytes) (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8950-3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L674" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestMPReachNLRI_RoundTrip_VPN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L576" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_VPNWithIPv6NextHop</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> on encode ze always writes an all-zero 8-byte Route Distinguisher before a VPN next-hop (internal/core/bgp/attribute/mpnlri.go:170-176) and on decode it skips the 8 RD bytes without validating their value (mpnlri.go:438-443), so ze never emits a nonzero RD and never rejects one -- there is no negative case</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8950-5-2">RFC8950-5-2</code></td><td colspan="3"><span class="rfc-subject">If a BGP session is running over IPvx and the speaker is setting itself as next hop, the next-hop address SHOULD be specified as an IPvx address (§5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5 - Operations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8950-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8950-5-3">RFC8950-5-3</code></td><td colspan="3"><span class="rfc-subject">Default next-hop address family selection may be overridden by policy (§5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5 - Operations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8950-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<p>RFC 8950 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc8950-4-1"><code>RFC8950-4-1</code></a></h3>
+<p>A BGP speaker MUST only advertise IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a peer if it has ascertained via BGP Capability Advertisement that the peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1174" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_CrossFamilyNoCap</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1198" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_NilSendCtx</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_test.go#L1143" title="internal/component/bgp/reactor/peer_test.go" target="_blank" rel="noopener"><code>TestCanUseNextHopFor_ExtendedNH</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8950-4-2"><code>RFC8950-4-2</code></a></h3>
+<p>MUST use the Capability Advertisement procedures defined in RFC 5492 with the Extended Next Hop Encoding capability (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L322" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateExtendedNextHopMismatch</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L283" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateExtendedNextHop</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8950-4-3"><code>RFC8950-4-3</code></a></h3>
+<p>The Capability Code field MUST be set to 5 (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L502" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopCapability</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L535" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestExtendedNextHopRoundTrip</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8950-3-1"><code>RFC8950-3-1</code></a></h3>
+<p>The BGP speaker receiving the advertisement MUST use the Length of Next Hop Address field to determine which network-layer protocol the next-hop address belongs to (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L488" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_InvalidNextHopLength</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L338" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_ExtendedNextHop</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L442" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_ExtendedNextHop_DualStack</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8950-5-1"><code>RFC8950-5-1</code></a></h3>
+<p>When a next-hop address needs to be passed along unchanged (e.g., as a Route Reflector), its encoding MUST NOT be changed (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L230" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesExtendedNextHop</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8950-3-2"><code>RFC8950-3-2</code></a></h3>
+<p>For VPN-IPv4 NLRI with IPv6 next hop, the Route Distinguisher in the next hop MUST be set to zero (8 zero bytes) (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L674" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestMPReachNLRI_RoundTrip_VPN</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L576" title="internal/core/bgp/attribute/mpnlri_test.go" target="_blank" rel="noopener"><code>TestParseMPReachNLRI_VPNWithIPv6NextHop</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6 phase 5, rfc8950</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc8950.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>b1b27252ca8688aa</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc8950.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>5</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>1</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates the Introduction and states no obligation.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Indicative prose: which AFI/SAFI pairs already let the next hop belong to another address family, that RFC 4798 and RFC 4659 solve the IPv6 NLRI with an IPv4 next hop direction, that no solution existed for the reverse direction, and what this document adds. The last sentence records that the document obsoletes RFC 5549. No sentence directs a speaker.</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>Requirements Language</td>
+<td>0</td>
+<td>walked</td>
+<td>Requirements Language. The BCP 14 key-words paragraph of RFC 2119 and RFC 8174, which binds the key words only when they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>Changes Compared to RFC 5549</td>
+<td>0</td>
+<td>walked</td>
+<td>Changes Compared to RFC 5549. Two changes, both stated indicatively. The next hop for AFI/SAFI &lt;1/128&gt; is now encoded as a VPN-IPv6 address of 24 or 48 octets, in place of the 16 or 32 octets of RFC 5549, which answers Erratum ID 5253. AFI/SAFI &lt;1/129&gt; can now use an IPv6 underlay with the same encoding and procedures as &lt;1/128&gt;. Both sentences describe what sections 3, 6.2 and 6.3 define and direct no speaker. The lengths are carried by the MP_REACH_NLRI Next Hop Encoding tables of rfc/short/rfc8950.md.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>Extension of AFI/SAFI Definitions for the IPv4 Address Family. One capitalised MUST-level site, mapped below to RFC8950-3-1. The rest of the section is value assignment written as bullet lists: AFI 1 with SAFI 1, 2 or 4 takes a Length of Next Hop Address of 16 or 32 and the address is then of type IPv6, AFI 1 with SAFI 128 or 129 takes 24 or 48 and the address is then of type VPN-IPv6. Those bullets carry no RFC 2119 level, and the Wire Formats and Decoding Rules tables of rfc/short/rfc8950.md hold the values. One obligation inside them the site scan cannot see is the unsourced id below: the 8-octet Route Distinguisher of a VPN-IPv6 next hop is set to zero. A second bullet, &#34;This field is to be constructed as per Section 3 of [RFC2545]&#34;, delegates the global and link-local construction to RFC 2545, which carries its own summary and its own sign-off. The closing note that RFC 4684 and RFC 6074 use the same length method is a comparison, not a directive.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Use of BGP Capability Advertisement</td>
+<td>4</td>
+<td>walked</td>
+<td>Use of BGP Capability Advertisement. Four capitalised MUST-level sites: the RFC 5492 procedures (RFC8950-4-2), the lead-in to the field list (excluded as a duplicate below), Capability Code 5 (RFC8950-4-3), and the precondition that a speaker advertises an IPv6 next hop for IPv4 or VPN-IPv4 NLRI only after it has ascertained peer support for the relevant AFI/SAFI pair (RFC8950-4-1). The Capability Value format, its &lt;NLRI AFI, NLRI SAFI, Nexthop AFI&gt; triples and the values this document allows (NLRI AFI 1, NLRI SAFI 1, 2, 4, 128 or 129, Nexthop AFI 2) are value assignment, held by the Wire Formats and Constants tables of rfc/short/rfc8950.md. Three sentences the site scan cannot see are scoping rather than obligations: that this document does not specify the capability for any other combination, that new AFIs/SAFIs are not expected to use it, and that the capability says how a next hop is encoded while the Multiprotocol Extensions capability of RFC 4760 decides whether the AFI/SAFI is allowed at all. Each is indicative, so section 1.1 gives it no normative level.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Operations</td>
+<td>1</td>
+<td>walked</td>
+<td>Operations. One capitalised MUST-level site, mapped below to RFC8950-5-1. The two remaining directives are the SHOULD to give the next hop as an IPvx address when the session runs over IPvx and the speaker puts its own address in, and the MAY that policy overrides that default. Both are the unsourced ids below. The closing sentences state a consequence rather than an obligation: an RR client that cannot handle an encoding, as determined by the BGP Capability Advertisement, does not get the NLRI, which is what RFC8950-4-1 already requires of the sender, and sound routing in some designs needs every RR client to handle whatever encodings any of them generate.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>Usage Examples</td>
+<td>0</td>
+<td>walked</td>
+<td>Usage Examples. A heading with no text of its own. Sections 6.1, 6.2 and 6.3 carry the three examples.</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>IPv4 over IPv6 Core</td>
+<td>0</td>
+<td>walked</td>
+<td>IPv4 over IPv6 Core. An illustrative encoding for the interconnection of IPv4 islands over an IPv6 backbone as described in RFC 5565: AFI 1, SAFI 1, Length of Next Hop Address field 16 or 32, an IPv6 next hop, and the capability triple &lt;NLRI AFI 1, NLRI SAFI 1, Nexthop AFI 2&gt;. Written as &#34;may be used&#34; and &#34;would include&#34;, so it directs no speaker; the values repeat sections 3 and 4.</td>
+</tr>
+<tr><td><code>6.2</code></td>
+<td>IPv4 VPN Unicast over IPv6 Core</td>
+<td>0</td>
+<td>walked</td>
+<td>IPv4 VPN Unicast over IPv6 Core. The same illustrative shape for SAFI 128: Length of Next Hop Address field 24 or 48, a VPN-IPv6 next hop whose Route Distinguisher is zero, and the capability triple &lt;NLRI AFI 1, NLRI SAFI 128, Nexthop AFI 2&gt;. This is the example section 2 points at for the encoding change against RFC 5549. No directive.</td>
+</tr>
+<tr><td><code>6.3</code></td>
+<td>IPv4 VPN Multicast over IPv6 Core</td>
+<td>0</td>
+<td>walked</td>
+<td>IPv4 VPN Multicast over IPv6 Core. The same illustrative shape for SAFI 129, which this document adds: Length of Next Hop Address field 24 or 48, a VPN-IPv6 next hop whose Route Distinguisher is zero, and the capability triple &lt;NLRI AFI 1, NLRI SAFI 129, Nexthop AFI 2&gt;. No directive.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. Records that this document defines no new code point, and that IANA updated the &#34;Extended Next Hop Encoding&#34; entry of the Capability Codes registry, value 5, to refer to this document in place of RFC 5549. Binds IANA, not a speaker.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. States that the document raises no security issue beyond BGP-4 and the Multiprotocol Extensions, that the ability to advertise an IPv6 next hop widens the reach of the traffic diversion attacks RFC 4272 describes, and that the IPv6 next hop can be an IPv4-mapped IPv6 address of RFC 4291. The last point addresses the network operator who configures next-hop security checks, states no capitalised keyword, and directs no speaker.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References. A heading whose two lists are sections 9.1 and 9.2.</td>
+</tr>
+<tr><td><code>9.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: RFC 2119, RFC 2545, RFC 4291, RFC 4364, RFC 4760, RFC 5492, RFC 8174 and RFC 8277.</td>
+</tr>
+<tr><td><code>9.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative References: Erratum ID 5253, the IANA Address Family Numbers, Capability Codes and SAFI Parameters registries, RFC 4272, RFC 4659, RFC 4684, RFC 4798, RFC 4925, RFC 5549, RFC 5565, RFC 6074, RFC 6513 and RFC 6514. The unnumbered Acknowledgments and Authors&#39; Addresses that close the document fall into this section, because the derivation opens a section only on a numbered heading at column 0. Neither states an obligation.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>4:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The lead-in to the field list of the Capabilities Optional Parameter. Of the three bullets it introduces, only the Capability Code bullet carries an RFC 2119 keyword, and site 4:3 maps it to RFC8950-4-3; the Capability Length bullet and the Capability Value format bullet are written indicatively. The sentence therefore restates the obligation site 4:3 already carries and adds no separate one.</td>
+<td>The fields in the Capabilities Optional Parameter MUST be set as follows:</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 8950, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

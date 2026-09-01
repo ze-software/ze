@@ -10,10 +10,11 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
-| Enrolled RFCs with zero test-proven requirements | Q2 | **33 / 171** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| RFC MUST requirements proven by a positive+negative test pair | Q2 | **1411 / 3264** (attention) | Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test. |
+| Enrolled RFCs with zero test-proven requirements | Q2 | **37 / 179** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
 | Logged known-failing tests | Q3 | **2** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
-7 further metric(s) are within threshold and are listed in full below.
+6 further metric(s) are within threshold and are listed in full below.
 
 ## Sensitivity
 
@@ -21,7 +22,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**132 / 26932 (floor 132)** (ok)
+**132 / 27245 (floor 132)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -52,46 +53,46 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 *Are the things that matter checked, or only the happy path?*
 
-### Enrolled RFCs with zero test-proven requirements
-
-**33 / 171** (attention)
-
-Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.
-
-*Action if this degrades:* Pick the largest and complete a pair, or accept it is a single-polarity claim.
-
 ### RFC MUST requirements proven by a positive+negative test pair
 
-**1333 / 3037** (ok)
+**1411 / 3264** (attention)
 
-43.9% carry both polarities. Of the remaining 1704: 836 not-applicable (ze deliberately does not do it, so no test is owed), 502 known gap (unimplemented, genuinely untested), and 366 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.
+43.2% carry both polarities. Of the remaining 1853: 834 not-applicable (ze deliberately does not do it, so no test is owed), 501 known gap (unimplemented, genuinely untested), 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- and 148 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work.
 
 *Action if this degrades:* Convert a {gap} or {single-polarity} annotation into a test pair. Not-applicable needs no test.
 
 | rfc | gated |
 |---|---|
+| rfc5798 | 55 |
 | rfc7871 | 38 |
 | rfc2132 | 34 |
+| rfc4302 | 34 |
 | rfc4213 | 23 |
 | rfc4761 | 18 |
 | rfc3032 | 17 |
 | rfc7166 | 17 |
 | rfc4862 | 16 |
 | rfc2003 | 13 |
-| rfc9514 | 13 |
-| rfc9085 | 12 |
+
+### Enrolled RFCs with zero test-proven requirements
+
+**37 / 179** (attention)
+
+Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.
+
+*Action if this degrades:* Pick the largest and complete a pair, or accept it is a single-polarity claim.
 
 ### In-repo test inventory
 
-**26963 test functions** (ok)
+**27276 test functions** (ok)
 
-3624 Go test files, 79 fuzz targets, 132 benchmarks, 1800 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+3657 Go test files, 79 fuzz targets, 132 benchmarks, 1807 .ci scenarios, 166 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**1282 / 3624** (ok)
+**1294 / 3657** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -121,7 +122,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 | package first commit | packages with tests | with a fuzz target | with an RFC-tagged test | with a .ci scenario |
 |---|---|---|---|---|
 | 2025 | 1 | 0 | 0 | 0 |
-| 2026 | 610 | 31 | 99 | 31 |
+| 2026 | 611 | 31 | 101 | 31 |
 
 ## Integrity
 

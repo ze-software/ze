@@ -1,0 +1,1076 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 8955 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 8955: Dissemination of Flow Specification Rules. 22 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 8955 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 8955: Dissemination of Flow Specification Rules. 22 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 8955 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 8955: Dissemination of Flow Specification Rules. 22 gated MUST-level requirements, 5 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc8955/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc8955/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 8955 - Dissemination of Flow Specification Rules</h1>
+    <p>Every requirement this repository extracted from RFC 8955, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>42.9%</strong><b>9 of 21 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>33.3%</strong><b>7 of 21 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 21 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 41 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>22</strong><b>of 34 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 22 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>23.8%</strong><b>5 of 21 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 21 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>34</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>22</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>21</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>1</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>5</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>41</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>41</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc8955.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc8955.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc8955.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Dissemination of Flow Specification Rules</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>IPv4 FlowSpec and FlowSpec VPN NLRI encoding, decoding, route config, filters, and action communities: (AFI 1, SAFI 133/134) Multiprotocol capability negotiation, ascending component ordering, first-operator AND-bit handling on encode and decode, single-octet TCP-flags/DSCP/fragment encodings, bitmask and fragment reserved bits ignored on decode, traffic-rate encode rejection of negative rates and decode clamping to zero, traffic-action unused bits zero on encode and ignored on decode, traffic-marking reserved bits ignored on decode, and lowering to the firewall</li>
+<li>tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc8955.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc8955.md</code></a>.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Five MUST-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8955.md" target="_blank" rel="noopener"><code>rfc/short/rfc8955.md</code></a>: <a href="#rfc8955-4-3"><code>RFC8955-4-3</code></a> -- the MP_REACH next-hop length is taken from the configured next-hop instead of being forced to 0 for SAFI 133/134; <a href="#rfc8955-4.2.1.1-3"><code>RFC8955-4.2.1.1-3</code></a> -- the numeric-operator decoder keeps reserved bit 4, so an operator carrying it decodes as <code>=</code>; <a href="#rfc8955-6-1"><code>RFC8955-6-1</code></a> -- no feasibility validation of a FlowSpec against the unicast RIB; <a href="#rfc8955-6-2"><code>RFC8955-6-2</code></a> -- no eBGP leftmost-neighbor-AS enforcement; and <a href="#rfc8955-6-3"><code>RFC8955-6-3</code></a> -- no revalidation when unicast routes change.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>9</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>13</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>22</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc8955-4.2-1"><code>RFC8955-4.2-1</code></a>, <a href="#rfc8955-4.2-2"><code>RFC8955-4.2-2</code></a>, <a href="#rfc8955-4.2.1.1-2"><code>RFC8955-4.2.1.1-2</code></a>, <a href="#rfc8955-4.2.1.2-1"><code>RFC8955-4.2.1.2-1</code></a>, <a href="#rfc8955-4.2.2.12-2"><code>RFC8955-4.2.2.12-2</code></a>, <a href="#rfc8955-7.1-1"><code>RFC8955-7.1-1</code></a>, <a href="#rfc8955-7.1-2"><code>RFC8955-7.1-2</code></a>, <a href="#rfc8955-7.3-1"><code>RFC8955-7.3-1</code></a>, <a href="#rfc8955-7.5-1"><code>RFC8955-7.5-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (13):</strong> <a href="#rfc8955-4-1"><code>RFC8955-4-1</code></a>, <a href="#rfc8955-4-2"><code>RFC8955-4-2</code></a>, <a href="#rfc8955-4-3"><code>RFC8955-4-3</code></a>, <a href="#rfc8955-4-4"><code>RFC8955-4-4</code></a>, <a href="#rfc8955-4.2.1.1-1"><code>RFC8955-4.2.1.1-1</code></a>, <a href="#rfc8955-4.2.1.1-3"><code>RFC8955-4.2.1.1-3</code></a>, <a href="#rfc8955-4.2.2.9-1"><code>RFC8955-4.2.2.9-1</code></a>, <a href="#rfc8955-4.2.2.11-1"><code>RFC8955-4.2.2.11-1</code></a>, <a href="#rfc8955-4.2.2.12-1"><code>RFC8955-4.2.2.12-1</code></a>, <a href="#rfc8955-6-1"><code>RFC8955-6-1</code></a>, <a href="#rfc8955-6-2"><code>RFC8955-6-2</code></a>, <a href="#rfc8955-6-3"><code>RFC8955-6-3</code></a>, <a href="#rfc8955-12-1"><code>RFC8955-12-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4-1">RFC8955-4-1</code></td><td colspan="3"><span class="rfc-subject">Implementations wishing to exchange Flow Specification MUST use BGP&#39;s Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L846" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv4FlowSpecNegotiatesMultiprotocolCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the flowspec plugin unconditionally maps each declared FlowSpec family to a Multiprotocol (Code 1) capability during OPEN, so there is no wrong input the negotiation path rejects (internal/component/bgp/plugins/nlri/flowspec/register.go, types.go:47)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4-2">RFC8955-4-2</code></td><td colspan="3"><span class="rfc-subject">The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be (AFI=1, SAFI=133) for IPv4 Flow Specification and (AFI=1, SAFI=134) for VPNv4 Flow Specification (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L647" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L847" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv4FlowSpecNegotiatesMultiprotocolCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the (AFI 1, SAFI 133) and (AFI 1, SAFI 134) pairs are family-registration constants, not an input guard, so only the positive assignment is assertable (internal/component/bgp/plugins/nlri/flowspec/types.go:47-50)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4-3">RFC8955-4-3</code></td><td colspan="3"><span class="rfc-subject">Length of the Next-Hop Network Address MUST be set to 0 (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> buildMPReachPlugin writes the MP_REACH next-hop length from the configured next-hop with no SAFI 133/134 special case (internal/component/bgp/message/update_build_plugin.go:140,:147), and the FlowSpec config parser passes the operator&#39;s next-hop straight through (internal/component/bgp/plugins/nlri/flowspec/config.go:94 -&gt; internal/component/bgp/reactor/peer_static_routes.go:22), so a FlowSpec route configured with a next-hop encodes a 4- or 16-octet length; buildMPReachFlowSpec does the same (internal/component/bgp/message/update_build_flowspec.go:148,:180)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4-4">RFC8955-4-4</code></td><td colspan="3"><span class="rfc-subject">Network Address of the Next-Hop field MUST be ignored (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/bridge_test.go#L264" title="internal/plugins/flowspec-firewall/bridge_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the FlowSpec receive path lowers an UPDATE to firewall Terms from the NLRI components and action communities alone and no code in internal/plugins/flowspec-firewall reads a next-hop, so the field is ignored and there is no next-hop value to reject (internal/plugins/flowspec-firewall/translate.go:38, engine.go:106)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2-1">RFC8955-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Components MUST follow strict type ordering by increasing numerical order (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1228" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecComponentsAscendingOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1270" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecJoinsRepeatedTypeIntoOneComponent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1387" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestAddComponentRefusesASecondPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1307" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestParseFlowSpecRefusesRepeatedComponentType</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1367" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestParseFlowSpecVPNRefusesRepeatedComponentType</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2-2">RFC8955-4.2-2</code></td><td colspan="3"><span class="rfc-subject">If a component is present, it MUST precede any component of higher numeric type value (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1229" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecComponentsAscendingOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestParseFlowSpecRefusesDescendingComponentType</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.1-1">RFC8955-4.2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">In the first operator octet of a sequence, the AND bit MUST be encoded as unset (§4.2.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.1.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1542" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitEncodedUnset</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> parseFlowMatches derives the AND bit purely from the position inside a &#39;&amp;&#39;-joined expression (isAnd := i &gt; 0), so the first operator-value pair is always encoded with the AND bit clear and no input sets it (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:220,:252)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.1-2">RFC8955-4.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">First operator AND bit MUST be treated as always unset on decoding (§4.2.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.1.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1573" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1577" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.1-3">RFC8955-4.2.1.1-3</code></td><td colspan="3"><span class="rfc-subject">Numeric operator reserved bit (bit 4) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.1.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> parseNumericComponent masks off only the end-of-list, AND and length bits (op &amp;^ 0xF0), so reserved bit 4 (0x08) survives into FlowMatch.Op and formatWithOperator&#39;s switch then falls through to the &#39;=&#39; default -- a received &#39;&gt;&#39; operator with the reserved bit set decodes as &#39;=&#39; instead of being ignored (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:322, plugin_decode.go:247-265)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.1.2-1">RFC8955-4.2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Bitmask operator reserved bits (bits 4-5) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.1.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1450" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecBitmaskOperatorReservedBitsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1611" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.9-1">RFC8955-4.2.2.9-1</code></td><td colspan="3"><span class="rfc-subject">Type 9 (TCP Flags) component bitmasks MUST be encoded as 1- or 2-octet bitmask (§4.2.2.9)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.2.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1671" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955TCPFlagsBitmaskSingleOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> parseFlowTCPFlagMatches resolves flag names to 8-bit values and numericComponent.Bytes() selects the 1-octet length code for any value &lt;= 0xFF, so an emitted Type-9 bitmask is always 1 octet and no over-long bitmask can be produced to reject (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:414-446, types_numeric.go:47-55)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.11-1">RFC8955-4.2.2.11-1</code></td><td colspan="3"><span class="rfc-subject">Type 11 (DSCP) component values MUST be encoded as single octet (§4.2.2.11)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.2.11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.11-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1699" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955DSCPValueSingleOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> parseFlowOctets parses DSCP values as uint8 and NewFlowDSCPComponent stores them, so numericComponent.Bytes() always selects the 1-octet length code and no multi-octet DSCP encoding exists to reject (internal/component/bgp/plugins/nlri/flowspec/config_builder.go:261-273, types_numeric.go:473-479)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.12-1">RFC8955-4.2.2.12-1</code></td><td colspan="3"><span class="rfc-subject">Type 12 (Fragment) component bitmask MUST be encoded as single octet bitmask (§4.2.2.12)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.2.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.12-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1726" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentBitmaskSingleOctet</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> fragment values come from the four low-nibble FlowFragmentFlag constants, so numericComponent.Bytes() always selects the 1-octet length code and no multi-octet fragment bitmask can be produced to reject (internal/component/bgp/plugins/nlri/flowspec/types.go:201-206, types_numeric.go:481-491)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.12-2">RFC8955-4.2.2.12-2</code></td><td colspan="3"><span class="rfc-subject">Fragment bitmask reserved bits MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.2.12)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.2.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.12-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1479" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecFragmentReservedHighNibbleZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1644" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentReservedBitsIgnoredOnDecode</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-1">RFC8955-6-1</code></td><td colspan="3"><span class="rfc-subject">Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all validation conditions are true (§6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze decodes a received FlowSpec NLRI and lowers it to the firewall with no feasibility validation against the unicast RIB; no code implements the Section 6 procedure (internal/component/bgp/plugins/nlri/flowspec/types.go:351, internal/plugins/flowspec-firewall/translate.go:38)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-2">RFC8955-6-2</code></td><td colspan="3"><span class="rfc-subject">BGP implementations MUST enforce that AS_PATH attribute of a route received via eBGP contains the neighboring AS in the left-most position (§6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze runs no eBGP leftmost-neighbor-AS enforcement; the only AS_PATH ingress guard is RFC 4271 Section 9 loop detection and firstASInPath serves MED neighbor comparison only (internal/component/bgp/reactor/filter/loop_metrics.go:31, internal/component/bgp/plugins/rib/bestpath.go:544)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-3">RFC8955-6-3</code></td><td colspan="3"><span class="rfc-subject">Revalidation of the Flow Specification NLRI MUST be performed whenever unicast routes change (§6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-6-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> with no Section 6 validation implemented there is nothing to revalidate; the flowspec-firewall bridge rebuilds rules only on FlowSpec UPDATE and peer-down events, never on a unicast route change (internal/plugins/flowspec-firewall/engine.go:70-79)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.1-1">RFC8955-7.1-1</code></td><td colspan="3"><span class="rfc-subject">traffic-rate (bytes and packets) MUST NOT be negative on encoding (§7.1, §7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-7.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/route/route_parse_test.go#L1234" title="internal/component/bgp/route/route_parse_test.go" target="_blank" rel="noopener"><code>TestParseExtendedCommunitiesTrafficRatePackets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/route/route_parse_test.go#L1235" title="internal/component/bgp/route/route_parse_test.go" target="_blank" rel="noopener"><code>TestParseExtendedCommunitiesTrafficRatePackets</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.1-2">RFC8955-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Negative traffic-rate values on decoding MUST be treated as zero (discard all traffic) (§7.1, §7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-7.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1465" title="internal/component/bgp/cli/decode_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficRateNegativeDecodesAsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1473" title="internal/component/bgp/cli/decode_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficRateNegativeDecodesAsZero</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.3-1">RFC8955-7.3-1</code></td><td colspan="3"><span class="rfc-subject">traffic-action unused bits MUST be set to 0 on encoding and MUST be ignored during decoding (§7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-7.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L228" title="internal/core/bgp/attribute/extcomm_decoded_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficActionBitsDecoded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1510" title="internal/component/bgp/cli/decode_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L207" title="internal/component/bgp/config/routeattr_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficActionUnusedBitsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L242" title="internal/core/bgp/attribute/extcomm_decoded_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficActionBitsDecoded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1517" title="internal/component/bgp/cli/decode_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L16" title="test/plugin/community-attributes-json.ci" target="_blank" rel="noopener"><code>community-attributes-json.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L17" title="test/plugin/community-attributes-json.ci" target="_blank" rel="noopener"><code>community-attributes-json.ci</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.5-1">RFC8955-7.5-1</code></td><td colspan="3"><span class="rfc-subject">traffic-marking reserved bits MUST be set to 0 on encoding and MUST be ignored during decoding (§7.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-7.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L53" title="internal/component/bgp/plugins/nlri/flowspec/encode_test.go" target="_blank" rel="noopener"><code>TestEncodeRouteEmitsZeroValuedActions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L86" title="internal/component/bgp/plugins/nlri/flowspec/encode_test.go" target="_blank" rel="noopener"><code>TestEncodeRouteMarkKeepsReservedBitsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_flowspec_test.go#L34" title="internal/component/bgp/config/routeattr_flowspec_test.go" target="_blank" rel="noopener"><code>TestParseExtendedCommunityMarkDSCPBound</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L194" title="internal/core/bgp/attribute/extcomm_decoded_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficMarkingReservedBitsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L92" title="internal/component/bgp/plugins/nlri/flowspec/encode_test.go" target="_blank" rel="noopener"><code>TestEncodeRouteMarkKeepsReservedBitsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_flowspec_test.go#L56" title="internal/component/bgp/config/routeattr_flowspec_test.go" target="_blank" rel="noopener"><code>TestParseExtendedCommunityMarkDSCPBound</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L201" title="internal/core/bgp/attribute/extcomm_decoded_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficMarkingReservedBitsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L14" title="test/plugin/community-attributes-json.ci" target="_blank" rel="noopener"><code>community-attributes-json.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L15" title="test/plugin/community-attributes-json.ci" target="_blank" rel="noopener"><code>community-attributes-json.ci</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-12-1">RFC8955-12-1</code></td><td colspan="3"><span class="rfc-subject">Specifications relaxing the validation restrictions MUST contain security considerations with details on required additional filtering (§12)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-12-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> this obligation binds IETF documents that relax the Section 6 validation restrictions, not implementations; ze publishes no such specification and offers no validation-relaxation knob -- grep -rni &#39;relax&#39; over internal/component/bgp/plugins/nlri/flowspec and internal/plugins/flowspec-firewall returns no producer, and no Section 6 validation exists to relax</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.3-1">RFC8955-4.2.2.3-1</code></td><td colspan="3"><span class="rfc-subject">Type 3 (IP Protocol) values SHOULD be encoded as single octet (§4.2.2.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2.2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.4-1">RFC8955-4.2.2.4-1</code></td><td colspan="3"><span class="rfc-subject">Type 4-6, 10 (Port, Dst Port, Src Port, Packet Length) values SHOULD be encoded as 1- or 2-octet quantities (§4.2.2.4-6, §4.2.2.10)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2.2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.7-1">RFC8955-4.2.2.7-1</code></td><td colspan="3"><span class="rfc-subject">Type 7-8 (ICMP Type, ICMP Code) values SHOULD be encoded as single octet (§4.2.2.7-8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2.2.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2.2.11-2">RFC8955-4.2.2.11-2</code></td><td colspan="3"><span class="rfc-subject">DSCP extra bits SHOULD be treated as 0 (§4.2.2.11)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2.2.11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2.2.11-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7-1">RFC8955-7-1</code></td><td colspan="3"><span class="rfc-subject">Multiple Traffic Filtering Actions present for a single Flow Specification SHOULD be applied to the traffic flow (§7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.1-3">RFC8955-7.1-3</code></td><td colspan="3"><span class="rfc-subject">The 2-octet AS id in traffic-rate-bytes/packets is purely informational and SHOULD NOT be interpreted by the implementation (§7.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-7.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2-3">RFC8955-4.2-3</code></td><td colspan="3"><span class="rfc-subject">Impossible combinations (e.g., ICMP Type AND Port) SHOULD NOT be propagated by BGP (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-9-1">RFC8955-9-1</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD provide a mechanism to log the packet header of filtered traffic (§9)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-9-2">RFC8955-9-2</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD provide a mechanism to count the number of matches for a given Flow Specification rule (§9)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-9-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-7.7-1">RFC8955-7.7-1</code></td><td colspan="3"><span class="rfc-subject">Implementors SHOULD document the behavior of their implementation for interfering Traffic Filtering Actions (§7.7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-7.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-6-4">RFC8955-6-4</code></td><td colspan="3"><span class="rfc-subject">Rule a (destination prefix requirement) MAY be relaxed by explicit configuration; if so, rules b and c MUST be disregarded (§6)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-6-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8955-4.2-4">RFC8955-4.2-4</code></td><td colspan="3"><span class="rfc-subject">A given component type MAY appear exactly once (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8955-4.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc8955-4-3"><code>RFC8955-4-3</code></a> Length of the Next-Hop Network Address MUST be set to 0 (§4)</td>
+<td>{gap}, no test</td>
+<td>buildMPReachPlugin writes the MP_REACH next-hop length from the configured next-hop with no SAFI 133/134 special case (internal/component/bgp/message/update_build_plugin.go:140,:147), and the FlowSpec config parser passes the operator&#39;s next-hop straight through (internal/component/bgp/plugins/nlri/flowspec/config.go:94 -&gt; internal/component/bgp/reactor/peer_static_routes.go:22), so a FlowSpec route configured with a next-hop encodes a 4- or 16-octet length; buildMPReachFlowSpec does the same (internal/component/bgp/message/update_build_flowspec.go:148,:180)</td>
+</tr>
+<tr><td><a href="#rfc8955-4.2.1.1-3"><code>RFC8955-4.2.1.1-3</code></a> Numeric operator reserved bit (bit 4) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1)</td>
+<td>{gap}, no test</td>
+<td>parseNumericComponent masks off only the end-of-list, AND and length bits (op &amp;^ 0xF0), so reserved bit 4 (0x08) survives into FlowMatch.Op and formatWithOperator&#39;s switch then falls through to the &#39;=&#39; default -- a received &#39;&gt;&#39; operator with the reserved bit set decodes as &#39;=&#39; instead of being ignored (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:322, plugin_decode.go:247-265)</td>
+</tr>
+<tr><td><a href="#rfc8955-6-1"><code>RFC8955-6-1</code></a> Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all validation conditions are true (§6)</td>
+<td>{gap}, no test</td>
+<td>ze decodes a received FlowSpec NLRI and lowers it to the firewall with no feasibility validation against the unicast RIB; no code implements the Section 6 procedure (internal/component/bgp/plugins/nlri/flowspec/types.go:351, internal/plugins/flowspec-firewall/translate.go:38)</td>
+</tr>
+<tr><td><a href="#rfc8955-6-2"><code>RFC8955-6-2</code></a> BGP implementations MUST enforce that AS_PATH attribute of a route received via eBGP contains the neighboring AS in the left-most position (§6)</td>
+<td>{gap}, no test</td>
+<td>ze runs no eBGP leftmost-neighbor-AS enforcement; the only AS_PATH ingress guard is RFC 4271 Section 9 loop detection and firstASInPath serves MED neighbor comparison only (internal/component/bgp/reactor/filter/loop_metrics.go:31, internal/component/bgp/plugins/rib/bestpath.go:544)</td>
+</tr>
+<tr><td><a href="#rfc8955-6-3"><code>RFC8955-6-3</code></a> Revalidation of the Flow Specification NLRI MUST be performed whenever unicast routes change (§6)</td>
+<td>{gap}, no test</td>
+<td>with no Section 6 validation implemented there is nothing to revalidate; the flowspec-firewall bridge rebuilds rules only on FlowSpec UPDATE and peer-down events, never on a unicast route change (internal/plugins/flowspec-firewall/engine.go:70-79)</td>
+</tr>
+<tr><td><a href="#rfc8955-12-1"><code>RFC8955-12-1</code></a> Specifications relaxing the validation restrictions MUST contain security considerations with details on required additional filtering (§12)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: this obligation binds IETF documents that relax the Section 6 validation restrictions, not implementations; ze publishes no such specification and offers no validation-relaxation knob -- grep -rni &#39;relax&#39; over internal/component/bgp/plugins/nlri/flowspec and internal/plugins/flowspec-firewall returns no producer, and no Section 6 validation exists to relax</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc8955-4-1"><code>RFC8955-4-1</code></a></h3>
+<p>Implementations wishing to exchange Flow Specification MUST use BGP&#39;s Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L846" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv4FlowSpecNegotiatesMultiprotocolCapability</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4-2"><code>RFC8955-4-2</code></a></h3>
+<p>The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be (AFI=1, SAFI=133) for IPv4 Flow Specification and (AFI=1, SAFI=134) for VPNv4 Flow Specification (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L847" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv4FlowSpecNegotiatesMultiprotocolCapability</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L647" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecVPNFamily</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4-3"><code>RFC8955-4-3</code></a></h3>
+<p>Length of the Next-Hop Network Address MUST be set to 0 (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8955-4-3, so no unit is bound to it.</p>
+<h3><a href="#rfc8955-4-4"><code>RFC8955-4-4</code></a></h3>
+<p>Network Address of the Next-Hop field MUST be ignored (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/bridge_test.go#L264" title="internal/plugins/flowspec-firewall/bridge_test.go" target="_blank" rel="noopener"><code>TestRFC8955NextHopIgnoredForFlowSpec</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4.2-1"><code>RFC8955-4.2-1</code></a></h3>
+<p>Components MUST follow strict type ordering by increasing numerical order (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1387" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestAddComponentRefusesASecondPrefix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1307" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestParseFlowSpecRefusesRepeatedComponentType</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1367" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestParseFlowSpecVPNRefusesRepeatedComponentType</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1228" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecComponentsAscendingOrder</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1270" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecJoinsRepeatedTypeIntoOneComponent</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4.2-2"><code>RFC8955-4.2-2</code></a></h3>
+<p>If a component is present, it MUST precede any component of higher numeric type value (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestParseFlowSpecRefusesDescendingComponentType</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1229" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecComponentsAscendingOrder</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4.2.1.1-1"><code>RFC8955-4.2.1.1-1</code></a></h3>
+<p>In the first operator octet of a sequence, the AND bit MUST be encoded as unset (§4.2.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1542" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitEncodedUnset</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4.2.1.1-2"><code>RFC8955-4.2.1.1-2</code></a></h3>
+<p>First operator AND bit MUST be treated as always unset on decoding (§4.2.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1577" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1573" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FirstOperatorAndBitTreatedUnsetOnDecode</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4.2.1.1-3"><code>RFC8955-4.2.1.1-3</code></a></h3>
+<p>Numeric operator reserved bit (bit 4) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8955-4.2.1.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc8955-4.2.1.2-1"><code>RFC8955-4.2.1.2-1</code></a></h3>
+<p>Bitmask operator reserved bits (bits 4-5) MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1611" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955BitmaskOperatorReservedBitsIgnoredOnDecode</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1450" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecBitmaskOperatorReservedBitsZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4.2.2.9-1"><code>RFC8955-4.2.2.9-1</code></a></h3>
+<p>Type 9 (TCP Flags) component bitmasks MUST be encoded as 1- or 2-octet bitmask (§4.2.2.9)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1671" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955TCPFlagsBitmaskSingleOctet</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4.2.2.11-1"><code>RFC8955-4.2.2.11-1</code></a></h3>
+<p>Type 11 (DSCP) component values MUST be encoded as single octet (§4.2.2.11)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1699" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955DSCPValueSingleOctet</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4.2.2.12-1"><code>RFC8955-4.2.2.12-1</code></a></h3>
+<p>Type 12 (Fragment) component bitmask MUST be encoded as single octet bitmask (§4.2.2.12)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1726" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentBitmaskSingleOctet</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-4.2.2.12-2"><code>RFC8955-4.2.2.12-2</code></a></h3>
+<p>Fragment bitmask reserved bits MUST be set to 0 on NLRI encoding and MUST be ignored during decoding (§4.2.2.12)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1644" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestRFC8955FragmentReservedBitsIgnoredOnDecode</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1479" title="internal/component/bgp/plugins/nlri/flowspec/types_test.go" target="_blank" rel="noopener"><code>TestFlowSpecFragmentReservedHighNibbleZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-6-1"><code>RFC8955-6-1</code></a></h3>
+<p>Flow Specification NLRI MUST be validated such that it is considered feasible if and only if all validation conditions are true (§6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8955-6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8955-6-2"><code>RFC8955-6-2</code></a></h3>
+<p>BGP implementations MUST enforce that AS_PATH attribute of a route received via eBGP contains the neighboring AS in the left-most position (§6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8955-6-2, so no unit is bound to it.</p>
+<h3><a href="#rfc8955-6-3"><code>RFC8955-6-3</code></a></h3>
+<p>Revalidation of the Flow Specification NLRI MUST be performed whenever unicast routes change (§6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8955-6-3, so no unit is bound to it.</p>
+<h3><a href="#rfc8955-7.1-1"><code>RFC8955-7.1-1</code></a></h3>
+<p>traffic-rate (bytes and packets) MUST NOT be negative on encoding (§7.1, §7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/route/route_parse_test.go#L1235" title="internal/component/bgp/route/route_parse_test.go" target="_blank" rel="noopener"><code>TestParseExtendedCommunitiesTrafficRatePackets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/route/route_parse_test.go#L1234" title="internal/component/bgp/route/route_parse_test.go" target="_blank" rel="noopener"><code>TestParseExtendedCommunitiesTrafficRatePackets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-7.1-2"><code>RFC8955-7.1-2</code></a></h3>
+<p>Negative traffic-rate values on decoding MUST be treated as zero (discard all traffic) (§7.1, §7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1473" title="internal/component/bgp/cli/decode_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficRateNegativeDecodesAsZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1465" title="internal/component/bgp/cli/decode_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficRateNegativeDecodesAsZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-7.3-1"><code>RFC8955-7.3-1</code></a></h3>
+<p>traffic-action unused bits MUST be set to 0 on encoding and MUST be ignored during decoding (§7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1517" title="internal/component/bgp/cli/decode_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L242" title="internal/core/bgp/attribute/extcomm_decoded_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficActionBitsDecoded</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L17" title="test/plugin/community-attributes-json.ci" target="_blank" rel="noopener"><code>community-attributes-json.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1510" title="internal/component/bgp/cli/decode_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L207" title="internal/component/bgp/config/routeattr_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficActionUnusedBitsZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L228" title="internal/core/bgp/attribute/extcomm_decoded_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficActionBitsDecoded</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L16" title="test/plugin/community-attributes-json.ci" target="_blank" rel="noopener"><code>community-attributes-json.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-7.5-1"><code>RFC8955-7.5-1</code></a></h3>
+<p>traffic-marking reserved bits MUST be set to 0 on encoding and MUST be ignored during decoding (§7.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_flowspec_test.go#L56" title="internal/component/bgp/config/routeattr_flowspec_test.go" target="_blank" rel="noopener"><code>TestParseExtendedCommunityMarkDSCPBound</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L92" title="internal/component/bgp/plugins/nlri/flowspec/encode_test.go" target="_blank" rel="noopener"><code>TestEncodeRouteMarkKeepsReservedBitsZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L201" title="internal/core/bgp/attribute/extcomm_decoded_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficMarkingReservedBitsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L15" title="test/plugin/community-attributes-json.ci" target="_blank" rel="noopener"><code>community-attributes-json.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_flowspec_test.go#L34" title="internal/component/bgp/config/routeattr_flowspec_test.go" target="_blank" rel="noopener"><code>TestParseExtendedCommunityMarkDSCPBound</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L53" title="internal/component/bgp/plugins/nlri/flowspec/encode_test.go" target="_blank" rel="noopener"><code>TestEncodeRouteEmitsZeroValuedActions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L86" title="internal/component/bgp/plugins/nlri/flowspec/encode_test.go" target="_blank" rel="noopener"><code>TestEncodeRouteMarkKeepsReservedBitsZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L194" title="internal/core/bgp/attribute/extcomm_decoded_test.go" target="_blank" rel="noopener"><code>TestRFC8955TrafficMarkingReservedBitsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L14" title="test/plugin/community-attributes-json.ci" target="_blank" rel="noopener"><code>community-attributes-json.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8955-12-1"><code>RFC8955-12-1</code></a></h3>
+<p>Specifications relaxing the validation restrictions MUST contain security considerations with details on required additional filtering (§12)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8955-12-1, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 8955, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 8955, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,1152 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 9256 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 9256: Segment Routing Policy Architecture. 22 gated MUST-level requirements, 6 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 9256 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 9256: Segment Routing Policy Architecture. 22 gated MUST-level requirements, 6 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 9256 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 9256: Segment Routing Policy Architecture. 22 gated MUST-level requirements, 6 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc9256/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc9256/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 9256 - Segment Routing Policy Architecture</h1>
+    <p>Every requirement this repository extracted from RFC 9256, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>11.1%</strong><b>1 of 9 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>22.2%</strong><b>2 of 9 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 4 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>22</strong><b>of 68 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>13</strong><b>of 22 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>66.7%</strong><b>6 of 9 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 9 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>68</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>22</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>9</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>13</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>6</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>4</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>4</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc9256.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc9256.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc9256.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Segment Routing Policy Architecture</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+Ze is an SR Policy originator, not a headend: it builds the SR Policy identification tuple into the NLRI key (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/types.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/srpolicy/types.go</code></a>), parses it back (types.go), and encodes a candidate path&#39;s preference, priority, MPLS and SRv6 binding SID, weighted segment lists of Type A and Type B segments, and the policy and candidate-path names into the Tunnel Encapsulation attribute (config.go). Symbolic names stay out of the NLRI key, and the segment encoder admits only Type A and Type B. Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9256.md" target="_blank" rel="noopener"><code>rfc/short/rfc9256.md</code></a>.
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Six MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9256.md" target="_blank" rel="noopener"><code>rfc/short/rfc9256.md</code></a>, all from ze holding no SR Policy state: <a href="#rfc9256-2.6-1"><code>RFC9256-2.6-1</code></a> -- the only candidate-path identity is the RFC 9830 distinguisher in the NLRI key and no candidate-path store resolves add, delete or modify; <a href="#rfc9256-4-6"><code>RFC9256-4-6</code></a> -- no code turns a segment list into a label stack or an SRv6 SID list, and a received Tunnel Encapsulation attribute stays raw TLV bytes with only the Preference sub-TLV decoded (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/tunnel_encap.go" target="_blank" rel="noopener"><code>internal/core/bgp/attribute/tunnel_encap.go</code></a>); <a href="#rfc9256-5.1-2"><code>RFC9256-5.1-2</code></a> and <a href="#rfc9256-5.1-5"><code>RFC9256-5.1-5</code></a> -- parseSegmentList determines no segment-list validity (empty list, weight 0 and mixed SR-MPLS/SRv6 lists are all accepted) and ze resolves no SID, so first-SID reachability is never established; and <a href="#rfc9256-6.1-3"><code>RFC9256-6.1-3</code></a> and <a href="#rfc9256-6.2-4"><code>RFC9256-6.2-4</code></a> -- the binding SID is encoded from configuration with no allocation table, no SRLB availability check and no alert. Headend obligations (composite candidate paths, Originator sub-TLV, candidate-path selection, active-path forwarding, dynamic candidate paths, Specified-BSID-only, policy state reporting) are annotated not-applicable: ze instantiates no policy.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>21</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>22</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc9256-2.6-3"><code>RFC9256-2.6-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (21):</strong> <a href="#rfc9256-2.1-1"><code>RFC9256-2.1-1</code></a>, <a href="#rfc9256-2.1-2"><code>RFC9256-2.1-2</code></a>, <a href="#rfc9256-2.1-3"><code>RFC9256-2.1-3</code></a>, <a href="#rfc9256-2.2-1"><code>RFC9256-2.2-1</code></a>, <a href="#rfc9256-2.2-2"><code>RFC9256-2.2-2</code></a>, <a href="#rfc9256-2.2-3"><code>RFC9256-2.2-3</code></a>, <a href="#rfc9256-2.4-1"><code>RFC9256-2.4-1</code></a>, <a href="#rfc9256-2.4-2"><code>RFC9256-2.4-2</code></a>, <a href="#rfc9256-2.6-1"><code>RFC9256-2.6-1</code></a>, <a href="#rfc9256-2.9-1"><code>RFC9256-2.9-1</code></a>, <a href="#rfc9256-2.11-1"><code>RFC9256-2.11-1</code></a>, <a href="#rfc9256-4-6"><code>RFC9256-4-6</code></a>, <a href="#rfc9256-5.1-2"><code>RFC9256-5.1-2</code></a>, <a href="#rfc9256-5.1-4"><code>RFC9256-5.1-4</code></a>, <a href="#rfc9256-5.1-5"><code>RFC9256-5.1-5</code></a>, <a href="#rfc9256-5.2-1"><code>RFC9256-5.2-1</code></a>, <a href="#rfc9256-6.1-3"><code>RFC9256-6.1-3</code></a>, <a href="#rfc9256-6.2-4"><code>RFC9256-6.2-4</code></a>, <a href="#rfc9256-6.2.3-3"><code>RFC9256-6.2.3-3</code></a>, <a href="#rfc9256-6.2.3-4"><code>RFC9256-6.2.3-4</code></a>, <a href="#rfc9256-7-1"><code>RFC9256-7-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-1">RFC9256-2.1-1</code></td><td colspan="3"><span class="rfc-subject">An SR Policy MUST be identified through the tuple &lt;Headend, Color, Endpoint&gt; (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the three-element tuple is headend-scoped identification, and ze holds no headend. SRPolicy carries distinguisher, color, endpoint and afi and no headend field (internal/component/bgp/plugins/nlri/srpolicy/types.go:35-40), and grep -rni headend --include=*.go over internal/ and pkg/ matches only internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go. What ze does implement -- identification by &lt;Color, Endpoint&gt; within one headend&#39;s context -- is the separate RFC9256-2.1-2, which the NLRI key does satisfy; this line is the same not-applicable shape as RFC9256-2.1-3, RFC9256-2.9-1 and RFC9256-7-1, which already record that ze instantiates no policy at a headend</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-2">RFC9256-2.1-2</code></td><td colspan="3"><span class="rfc-subject">In the context of a specific headend, an SR Policy MUST be identified by the &lt;Color, Endpoint&gt; tuple (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go#L48" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go" target="_blank" rel="noopener"><code>TestRFC9256IdentificationTuple</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> every &lt;Color, Endpoint&gt; pair identifies a policy, so no conforming input exists that identification must REFUSE, and a counter-pole would have to assert a non-identification that the requirement never mandates. The discrimination against a key that ignores its inputs is inside the positive test: a different color and a different endpoint each change the key, while a changed preference does not</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-3">RFC9256-2.1-3</code></td><td colspan="3"><span class="rfc-subject">The headend is specified as an IPv4 or IPv6 address and MUST resolve to a unique node in the SR domain (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze originates and parses SR Policy NLRI but instantiates no policy at a headend; grep for headend or head-end across internal/component/bgp and internal/component/mpls matches nothing, and the SR Policy plugin carries no headend field to specify or resolve (internal/component/bgp/plugins/nlri/srpolicy/types.go:35)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.2-1">RFC9256-2.2-1</code></td><td colspan="3"><span class="rfc-subject">The endpoints of the constituent SR Policies and the parent SR Policy MUST be identical (§2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> composite candidate paths have no producer; grep -rniE composite over internal, pkg and cmd matches only report subjects and capability sub-components, and parseConfigRoute accepts no constituent-policy keyword (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.2-2">RFC9256-2.2-2</code></td><td colspan="3"><span class="rfc-subject">The colors of each of the constituent SR Policies and the parent SR Policy MUST be different (§2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> composite candidate paths have no producer; parseConfigRoute&#39;s keyword switch has no constituent-policy or composite spelling, so ze never forms a parent policy whose constituents could share a color (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.2-3">RFC9256-2.2-3</code></td><td colspan="3"><span class="rfc-subject">The constituent SR Policies MUST NOT use composite candidate paths (§2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> composite candidate paths have no producer; grep -rniE composite over internal, pkg and cmd finds no SR Policy match, so ze forms no constituent policy that could carry one (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.4-1">RFC9256-2.4-1</code></td><td colspan="3"><span class="rfc-subject">For the Originator ASN, if 2-byte ASNs are in use the low-order 16 bits MUST be used and the high-order bits MUST be set to 0 (§2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze encodes no Originator sub-TLV; the SR Policy sub-TLV constant set is preference, binding-sid, priority, srv6-binding-sid, segment-list and the two name sub-TLVs only, and grep for ProtocolOrigin or OriginatorASN over internal, pkg and cmd matches nothing (internal/component/bgp/plugins/nlri/srpolicy/config.go:23)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.4-2">RFC9256-2.4-2</code></td><td colspan="3"><span class="rfc-subject">For the Originator node address, IPv4 addresses MUST be encoded in the lowest 32 bits and the high-order bits MUST be set to 0 (§2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze encodes no Originator sub-TLV, so it writes no originator node address; buildTunnelEncap emits only the preference, BSID, priority, segment-list and name sub-TLVs (internal/component/bgp/plugins/nlri/srpolicy/config.go:339)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.6-1">RFC9256-2.6-1</code></td><td colspan="3"><span class="rfc-subject">The identity of a candidate path MUST be uniquely established in the context of an SR Policy &lt;Headend, Color, Endpoint&gt; to handle add, delete, or modify operations unambiguously (§2.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the only candidate-path identity ze produces is the RFC 9830 distinguisher in the NLRI key, written by (*SRPolicy).WriteTo (internal/component/bgp/plugins/nlri/srpolicy/types.go:91); ze keeps no candidate-path store, so an add, delete or modify is never resolved against a candidate-path identity, and neither a protocol origin nor an originator is carried</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.6-3">RFC9256-2.6-3</code></td><td colspan="3"><span class="rfc-subject">Symbolic candidate-path names MUST NOT be considered as identifiers for a candidate path (§2.6)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.6-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go#L106" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go" target="_blank" rel="noopener"><code>TestRFC9256SymbolicNamesAreNotIdentifiers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go#L117" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go" target="_blank" rel="noopener"><code>TestRFC9256SymbolicNamesAreNotIdentifiers</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.9-1">RFC9256-2.9-1</code></td><td colspan="3"><span class="rfc-subject">Whenever a new path is learned, an active path is deleted, an existing path&#39;s validity changes, or an existing path is changed, the candidate-path selection process MUST be re-executed (§2.9)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze runs no candidate-path selection; there is no candidate-path store and no preference comparison anywhere (grep for protocol-origin or active candidate over internal matches nothing), and the SR Policy plugin registers only an NLRI codec and a config route encoder (internal/component/bgp/plugins/nlri/srpolicy/register.go:29)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.11-1">RFC9256-2.11-1</code></td><td colspan="3"><span class="rfc-subject">Only the active candidate path MUST be used for forwarding traffic steered onto that policy, except in scenarios such as fast reroute where a backup candidate path may be used (§2.11)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.11-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> no SR Policy reaches forwarding; SAFI 73 appears only in the family registry and the NLRI codec (internal/core/family/family.go:93, internal/component/bgp/plugins/nlri/srpolicy/types.go:74), and grep for SAFISRPolicy over internal/plugins/fib and internal/component/resolve matches nothing</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-6">RFC9256-4-6</code></td><td colspan="3"><span class="rfc-subject">When building the label stack or SRv6 SID list, the node instantiating the policy MUST interpret the first segment as the topmost MPLS label / first SRv6 SID and the last segment as the bottommost label / last SID (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-4-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no code converts an SR Policy segment list into a label stack or an SRv6 SID list; buildSegmentListSubTLV only serializes the configured segments in their configured order (internal/component/bgp/plugins/nlri/srpolicy/config.go:428), and a received Tunnel Encapsulation attribute is kept as raw TLV bytes of which only the Preference sub-TLV is ever decoded (internal/core/bgp/attribute/tunnel_encap.go:39 and :137)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-2">RFC9256-5.1-2</code></td><td colspan="3"><span class="rfc-subject">A segment list of an explicit candidate path MUST be declared invalid when it is empty, its weight is 0, it mixes SR-MPLS and SRv6 segment types, the headend cannot resolve the first SID to outgoing interface(s)/next-hop(s), it cannot resolve any non-first SID of type C-K to an MPLS label or SRv6 SID, or verification fails for any SID for which verification was requested (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-5.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> parseSegmentList builds a segment list with no validity determination; it accepts a list with zero segments, accepts weight 0, and appends Type A and Type B segments into one list without a data-plane check (internal/component/bgp/plugins/nlri/srpolicy/config.go:267), and ze resolves no SID to an outgoing interface or next hop</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-4">RFC9256-5.1-4</code></td><td colspan="3"><span class="rfc-subject">Types A or B MUST be used for the SIDs whose reachability cannot be verified (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-5.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go#L130" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go" target="_blank" rel="noopener"><code>TestRFC9256SegmentTypesAreAOrB</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the segment encoder accepts only type-a and type-b and returns an error for every other segment spelling (internal/component/bgp/plugins/nlri/srpolicy/config.go:276), so every SID ze emits already carries its value outright; ze holds no SID verification state whose failure could produce a violating segment to reject</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-5">RFC9256-5.1-5</code></td><td colspan="3"><span class="rfc-subject">The first SID MUST always be reachable regardless of its type (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-5.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze resolves no SID; the first segment of a segment list is encoded straight from configuration with no reachability lookup (internal/component/bgp/plugins/nlri/srpolicy/config.go:276), and grep for SAFISRPolicy over internal/component/resolve and internal/plugins/fib matches nothing, so first-SID reachability is never established</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.2-1">RFC9256-5.2-1</code></td><td colspan="3"><span class="rfc-subject">If no solution is found to the optimization objective and constraints, the dynamic candidate path MUST be declared invalid (§5.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-5.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze signals only explicit segment lists and has no dynamic candidate path; parseSegmentList takes literal MPLS labels and SRv6 SIDs (internal/component/bgp/plugins/nlri/srpolicy/config.go:276) and grep for OptimizationObjective over internal, pkg and cmd matches nothing</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.1-3">RFC9256-6.1-3</code></td><td colspan="3"><span class="rfc-subject">Candidate paths of different SR Policies MUST NOT have the same BSID (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> buildBindingSIDSubTLV encodes whatever label the configuration names (internal/component/bgp/plugins/nlri/srpolicy/config.go:381) and ze keeps no BSID allocation table, so two SR Policies configured with the same BSID are both encoded and advertised</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-4">RFC9256-6.2-4</code></td><td colspan="3"><span class="rfc-subject">When the specified BSID is not available (optionally not in the SRLB), an alert message MUST be generated via mechanisms like syslog (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze performs no BSID availability check; buildBindingSIDSubTLV encodes the configured label unconditionally (internal/component/bgp/plugins/nlri/srpolicy/config.go:381) and the only SRLB allocator in ze belongs to OSPF Adj-SIDs (internal/plugins/ospf/sr_adjsid.go:115), which no SR Policy code consults, so no alert is raised</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-3">RFC9256-6.2.3-3</code></td><td colspan="3"><span class="rfc-subject">Under Specified-BSID-only behavior, when a candidate path has an unspecified or unavailable BSID it is considered invalid and an alert MUST be triggered via mechanisms like syslog (§6.2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements no Specified-BSID-only behavior; grep for specified-bsid or SpecifiedBSID over internal, pkg and cmd matches nothing and parseConfigRoute&#39;s keyword switch has no spelling for it (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-4">RFC9256-6.2.3-4</code></td><td colspan="3"><span class="rfc-subject">Under Specified-BSID-only behavior, other candidate paths MUST then be evaluated for becoming the active candidate path (§6.2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze implements no Specified-BSID-only behavior and no candidate-path selection, so there is no evaluation of other candidate paths to perform; the SR Policy plugin registers only an NLRI codec and a config route encoder (internal/component/bgp/plugins/nlri/srpolicy/register.go:29)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-7-1">RFC9256-7-1</code></td><td colspan="3"><span class="rfc-subject">The SR Policy state MUST also reflect the reason when a policy and/or its candidate path is not active due to validation errors or not being preferred (§7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze keeps no SR Policy state; grep for SRPolicyState or policyState over internal, pkg and cmd matches nothing, grep for sr-policy over internal/component/cli matches nothing, and an SR Policy route is an ordinary BGP NLRI carried in the RIB (internal/component/bgp/plugins/nlri/srpolicy/register.go:29)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-4">RFC9256-2.1-4</code></td><td colspan="3"><span class="rfc-subject">The endpoint is specified as an IPv4 or IPv6 address and SHOULD resolve to a unique node in the domain (§2.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.3-1">RFC9256-2.3-1</code></td><td colspan="3"><span class="rfc-subject">The RECOMMENDED default Protocol-Origin values are PCEP=10, BGP SR Policy=20, and Via Configuration=30 (§2.3)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.7-1">RFC9256-2.7-1</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that each candidate path of a given SR Policy has a different Preference (§2.7)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.8-1">RFC9256-2.8-1</code></td><td colspan="3"><span class="rfc-subject">The RECOMMENDED candidate-path validity criterion is the validity of at least one of its constituent segment lists (§2.8)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-4">RFC9256-4-4</code></td><td colspan="3"><span class="rfc-subject">When the algorithm is not specified for SID types that allow it, the headend SHOULD use the Strict Shortest Path algorithm if available and otherwise SHOULD use the default Shortest Path algorithm (§4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4.1-1">RFC9256-4.1-1</code></td><td colspan="3"><span class="rfc-subject">When an &#34;IPv6 Explicit NULL label&#34; is not present as the bottom label, the headend SHOULD automatically impose one (§4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.1-2">RFC9256-6.1-2</code></td><td colspan="3"><span class="rfc-subject">Candidate paths of the same SR Policy SHOULD have the same BSID (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-6">RFC9256-6.2-6</code></td><td colspan="3"><span class="rfc-subject">Dynamically bound BSIDs SHOULD use an available SID outside the SRLB (§6.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-9">RFC9256-6.2-9</code></td><td colspan="3"><span class="rfc-subject">The BSID SHOULD NOT be used as an identification of an SR Policy (§6.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-5">RFC9256-2.1-5</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY allow the assignment of a symbolic name of printable ASCII characters to an SR Policy for debugging/troubleshooting (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-6">RFC9256-2.1-6</code></td><td colspan="3"><span class="rfc-subject">The SR Policy name MAY also be signaled along with a candidate path of the SR Policy (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.1-7">RFC9256-2.1-7</code></td><td colspan="3"><span class="rfc-subject">An SR Policy MAY have multiple names associated with it when different names arrive with different candidate paths (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.3-2">RFC9256-2.3-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY allow modifications of the default Protocol-Origin values, similar to a routing administrative distance (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.4-3">RFC9256-2.4-3</code></td><td colspan="3"><span class="rfc-subject">When provisioning is via configuration, the Originator ASN and node address MAY be set to either the headend or the provisioning controller/node ASN and address (§2.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.6-2">RFC9256-2.6-2</code></td><td colspan="3"><span class="rfc-subject">Candidate paths MAY also be assigned or signaled with a symbolic name of printable ASCII characters for debugging/troubleshooting (§2.6)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.12-1">RFC9256-2.12-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY provide a per-policy priority configuration governing the order in which policies are re-computed (§2.12)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.12-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-2.12-2">RFC9256-2.12-2</code></td><td colspan="3"><span class="rfc-subject">A candidate path MAY be signaled with a priority value (§2.12)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-2.12-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-1">RFC9256-4-1</code></td><td colspan="3"><span class="rfc-subject">A Type A SID MAY be any MPLS label, including special-purpose labels such as explicit-null (§4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-2">RFC9256-4-2</code></td><td colspan="3"><span class="rfc-subject">For SRv6 SID types (B, I, J, K), the SRv6 SID behavior and structure MAY also be provided for the headend to validate the SID (§4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-3">RFC9256-4-3</code></td><td colspan="3"><span class="rfc-subject">For SID types that resolve to a Prefix/Adjacency SID (C, D, I, J, K), the SR Algorithm to be used MAY also be provided (§4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-4-5">RFC9256-4-5</code></td><td colspan="3"><span class="rfc-subject">For SID types C through K, a SID value MAY also be optionally provided to the headend for verification (§4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-4-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-1">RFC9256-5.1-1</code></td><td colspan="3"><span class="rfc-subject">An explicit candidate path MAY consist of a single explicit segment list containing only an implicit-null label to indicate pop-and-forward behavior (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-5.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-3">RFC9256-5.1-3</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY provide a local configuration option to enable SID verification on a global, per-policy, or per-candidate-path basis (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-5.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-6">RFC9256-5.1-6</code></td><td colspan="3"><span class="rfc-subject">A segment list MAY be declared invalid when its last segment is neither a Prefix SID advertised by the endpoint node nor an Adjacency SID of a link terminating on the endpoint node (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-5.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-5.1-7">RFC9256-5.1-7</code></td><td colspan="3"><span class="rfc-subject">An explicit candidate path MAY be declared invalid when its constituent segment lists use segment types of different SR data planes (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-5.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.1-1">RFC9256-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Each candidate path MAY be defined with a BSID (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-1">RFC9256-6.2-1</code></td><td colspan="3"><span class="rfc-subject">In the case of SR-MPLS, SRv6 BSIDs (e.g., End.BM) MAY be associated with the SR Policy in addition to the MPLS BSID (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-2">RFC9256-6.2-2</code></td><td colspan="3"><span class="rfc-subject">In the case of SRv6, multiple SRv6 BSIDs (e.g., End.B6.Encaps and End.B6.Encaps.Red) MAY be associated with the SR Policy (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-3">RFC9256-6.2-3</code></td><td colspan="3"><span class="rfc-subject">A headend MAY optionally check that the BSID is available within the given SID range, i.e., the SRLB (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-5">RFC9256-6.2-5</code></td><td colspan="3"><span class="rfc-subject">When no BSID is available, the SR Policy MAY dynamically bind a BSID to itself (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-7">RFC9256-6.2-7</code></td><td colspan="3"><span class="rfc-subject">When a new active path has no specified or available BSID, the SR Policy MAY keep the previous BSID (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2-8">RFC9256-6.2-8</code></td><td colspan="3"><span class="rfc-subject">The association of an SR Policy with a BSID MAY change over the life of the SR Policy (e.g., upon active path change) (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.1-1">RFC9256-6.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When all candidate paths have an unspecified BSID, a BSID MAY be dynamically bound to the SR Policy as soon as the first valid candidate path is received (§6.2.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-1">RFC9256-6.2.3-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY support configuring the Specified-BSID-only restrictive behavior for all or individual SR Policies (§6.2.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.2.3-2">RFC9256-6.2.3-2</code></td><td colspan="3"><span class="rfc-subject">The Specified-BSID-only restrictive behavior MAY also be signaled on a per-SR-Policy basis to the headend (§6.2.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.2.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-6.4-1">RFC9256-6.4-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY choose to associate a Binding SID with any type of interface or tunnel (§6.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-6.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-7-2">RFC9256-7-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY support an administrative state to control locally provisioned policies via mechanisms like CLI or NETCONF (§7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.2-1">RFC9256-8.2-1</code></td><td colspan="3"><span class="rfc-subject">An SR Policy MAY be enabled for the Drop-Upon-Invalid behavior (§8.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-8.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.4-1">RFC9256-8.4-1</code></td><td colspan="3"><span class="rfc-subject">In a BGP multi-path scenario, the BGP route MAY be resolved over a mix of paths steered over SR Policies and paths resolved via normal BGP next-hop resolution (§8.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-8.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.4-2">RFC9256-8.4-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MAY provide options to prefer one type of path over the other, or other local policy, to select the paths (§8.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-8.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.6-1">RFC9256-8.6-1</code></td><td colspan="3"><span class="rfc-subject">A headend MAY support options to apply per-flow steering only for traffic matching specific prefixes (§8.6)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-8.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-8.7-1">RFC9256-8.7-1</code></td><td colspan="3"><span class="rfc-subject">Headend H MAY be configured with a local routing policy that overrides any BGP/IGP path and steers a specified packet on an SR Policy (§8.7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-8.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-1">RFC9256-9.3-1</code></td><td colspan="3"><span class="rfc-subject">A lower-preference candidate path MAY be designated as the backup for a specific or all active candidate path(s) (§9.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>9.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-9.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-2">RFC9256-9.3-2</code></td><td colspan="3"><span class="rfc-subject">The headend MAY compute a priori and validate backup candidate paths and provision them into the forwarding plane as backup for the active path (§9.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>9.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-9.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-3">RFC9256-9.3-3</code></td><td colspan="3"><span class="rfc-subject">A fast-reroute mechanism MAY be used to trigger sub-50 msec switchover from the active to the backup candidate path (§9.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>9.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-9.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9256-9.3-4">RFC9256-9.3-4</code></td><td colspan="3"><span class="rfc-subject">Mechanisms like BFD MAY be used for fast detection of such failures (§9.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>9.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9256-9.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc9256-2.1-1"><code>RFC9256-2.1-1</code></a> An SR Policy MUST be identified through the tuple &lt;Headend, Color, Endpoint&gt; (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the three-element tuple is headend-scoped identification, and ze holds no headend. SRPolicy carries distinguisher, color, endpoint and afi and no headend field (internal/component/bgp/plugins/nlri/srpolicy/types.go:35-40), and grep -rni headend --include=*.go over internal/ and pkg/ matches only internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go. What ze does implement -- identification by &lt;Color, Endpoint&gt; within one headend&#39;s context -- is the separate RFC9256-2.1-2, which the NLRI key does satisfy; this line is the same not-applicable shape as RFC9256-2.1-3, RFC9256-2.9-1 and RFC9256-7-1, which already record that ze instantiates no policy at a headend</td>
+</tr>
+<tr><td><a href="#rfc9256-2.1-3"><code>RFC9256-2.1-3</code></a> The headend is specified as an IPv4 or IPv6 address and MUST resolve to a unique node in the SR domain (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze originates and parses SR Policy NLRI but instantiates no policy at a headend; grep for headend or head-end across internal/component/bgp and internal/component/mpls matches nothing, and the SR Policy plugin carries no headend field to specify or resolve (internal/component/bgp/plugins/nlri/srpolicy/types.go:35)</td>
+</tr>
+<tr><td><a href="#rfc9256-2.2-1"><code>RFC9256-2.2-1</code></a> The endpoints of the constituent SR Policies and the parent SR Policy MUST be identical (§2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: composite candidate paths have no producer; grep -rniE composite over internal, pkg and cmd matches only report subjects and capability sub-components, and parseConfigRoute accepts no constituent-policy keyword (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</td>
+</tr>
+<tr><td><a href="#rfc9256-2.2-2"><code>RFC9256-2.2-2</code></a> The colors of each of the constituent SR Policies and the parent SR Policy MUST be different (§2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: composite candidate paths have no producer; parseConfigRoute&#39;s keyword switch has no constituent-policy or composite spelling, so ze never forms a parent policy whose constituents could share a color (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</td>
+</tr>
+<tr><td><a href="#rfc9256-2.2-3"><code>RFC9256-2.2-3</code></a> The constituent SR Policies MUST NOT use composite candidate paths (§2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: composite candidate paths have no producer; grep -rniE composite over internal, pkg and cmd finds no SR Policy match, so ze forms no constituent policy that could carry one (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</td>
+</tr>
+<tr><td><a href="#rfc9256-2.4-1"><code>RFC9256-2.4-1</code></a> For the Originator ASN, if 2-byte ASNs are in use the low-order 16 bits MUST be used and the high-order bits MUST be set to 0 (§2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze encodes no Originator sub-TLV; the SR Policy sub-TLV constant set is preference, binding-sid, priority, srv6-binding-sid, segment-list and the two name sub-TLVs only, and grep for ProtocolOrigin or OriginatorASN over internal, pkg and cmd matches nothing (internal/component/bgp/plugins/nlri/srpolicy/config.go:23)</td>
+</tr>
+<tr><td><a href="#rfc9256-2.4-2"><code>RFC9256-2.4-2</code></a> For the Originator node address, IPv4 addresses MUST be encoded in the lowest 32 bits and the high-order bits MUST be set to 0 (§2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze encodes no Originator sub-TLV, so it writes no originator node address; buildTunnelEncap emits only the preference, BSID, priority, segment-list and name sub-TLVs (internal/component/bgp/plugins/nlri/srpolicy/config.go:339)</td>
+</tr>
+<tr><td><a href="#rfc9256-2.6-1"><code>RFC9256-2.6-1</code></a> The identity of a candidate path MUST be uniquely established in the context of an SR Policy &lt;Headend, Color, Endpoint&gt; to handle add, delete, or modify operations unambiguously (§2.6)</td>
+<td>{gap}, no test</td>
+<td>the only candidate-path identity ze produces is the RFC 9830 distinguisher in the NLRI key, written by (*SRPolicy).WriteTo (internal/component/bgp/plugins/nlri/srpolicy/types.go:91); ze keeps no candidate-path store, so an add, delete or modify is never resolved against a candidate-path identity, and neither a protocol origin nor an originator is carried</td>
+</tr>
+<tr><td><a href="#rfc9256-2.9-1"><code>RFC9256-2.9-1</code></a> Whenever a new path is learned, an active path is deleted, an existing path&#39;s validity changes, or an existing path is changed, the candidate-path selection process MUST be re-executed (§2.9)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze runs no candidate-path selection; there is no candidate-path store and no preference comparison anywhere (grep for protocol-origin or active candidate over internal matches nothing), and the SR Policy plugin registers only an NLRI codec and a config route encoder (internal/component/bgp/plugins/nlri/srpolicy/register.go:29)</td>
+</tr>
+<tr><td><a href="#rfc9256-2.11-1"><code>RFC9256-2.11-1</code></a> Only the active candidate path MUST be used for forwarding traffic steered onto that policy, except in scenarios such as fast reroute where a backup candidate path may be used (§2.11)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: no SR Policy reaches forwarding; SAFI 73 appears only in the family registry and the NLRI codec (internal/core/family/family.go:93, internal/component/bgp/plugins/nlri/srpolicy/types.go:74), and grep for SAFISRPolicy over internal/plugins/fib and internal/component/resolve matches nothing</td>
+</tr>
+<tr><td><a href="#rfc9256-4-6"><code>RFC9256-4-6</code></a> When building the label stack or SRv6 SID list, the node instantiating the policy MUST interpret the first segment as the topmost MPLS label / first SRv6 SID and the last segment as the bottommost label / last SID (§4)</td>
+<td>{gap}, no test</td>
+<td>no code converts an SR Policy segment list into a label stack or an SRv6 SID list; buildSegmentListSubTLV only serializes the configured segments in their configured order (internal/component/bgp/plugins/nlri/srpolicy/config.go:428), and a received Tunnel Encapsulation attribute is kept as raw TLV bytes of which only the Preference sub-TLV is ever decoded (internal/core/bgp/attribute/tunnel_encap.go:39 and :137)</td>
+</tr>
+<tr><td><a href="#rfc9256-5.1-2"><code>RFC9256-5.1-2</code></a> A segment list of an explicit candidate path MUST be declared invalid when it is empty, its weight is 0, it mixes SR-MPLS and SRv6 segment types, the headend cannot resolve the first SID to outgoing interface(s)/next-hop(s), it cannot resolve any non-first SID of type C-K to an MPLS label or SRv6 SID, or verification fails for any SID for which verification was requested (§5.1)</td>
+<td>{gap}, no test</td>
+<td>parseSegmentList builds a segment list with no validity determination; it accepts a list with zero segments, accepts weight 0, and appends Type A and Type B segments into one list without a data-plane check (internal/component/bgp/plugins/nlri/srpolicy/config.go:267), and ze resolves no SID to an outgoing interface or next hop</td>
+</tr>
+<tr><td><a href="#rfc9256-5.1-5"><code>RFC9256-5.1-5</code></a> The first SID MUST always be reachable regardless of its type (§5.1)</td>
+<td>{gap}, no test</td>
+<td>ze resolves no SID; the first segment of a segment list is encoded straight from configuration with no reachability lookup (internal/component/bgp/plugins/nlri/srpolicy/config.go:276), and grep for SAFISRPolicy over internal/component/resolve and internal/plugins/fib matches nothing, so first-SID reachability is never established</td>
+</tr>
+<tr><td><a href="#rfc9256-5.2-1"><code>RFC9256-5.2-1</code></a> If no solution is found to the optimization objective and constraints, the dynamic candidate path MUST be declared invalid (§5.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze signals only explicit segment lists and has no dynamic candidate path; parseSegmentList takes literal MPLS labels and SRv6 SIDs (internal/component/bgp/plugins/nlri/srpolicy/config.go:276) and grep for OptimizationObjective over internal, pkg and cmd matches nothing</td>
+</tr>
+<tr><td><a href="#rfc9256-6.1-3"><code>RFC9256-6.1-3</code></a> Candidate paths of different SR Policies MUST NOT have the same BSID (§6.1)</td>
+<td>{gap}, no test</td>
+<td>buildBindingSIDSubTLV encodes whatever label the configuration names (internal/component/bgp/plugins/nlri/srpolicy/config.go:381) and ze keeps no BSID allocation table, so two SR Policies configured with the same BSID are both encoded and advertised</td>
+</tr>
+<tr><td><a href="#rfc9256-6.2-4"><code>RFC9256-6.2-4</code></a> When the specified BSID is not available (optionally not in the SRLB), an alert message MUST be generated via mechanisms like syslog (§6.2)</td>
+<td>{gap}, no test</td>
+<td>ze performs no BSID availability check; buildBindingSIDSubTLV encodes the configured label unconditionally (internal/component/bgp/plugins/nlri/srpolicy/config.go:381) and the only SRLB allocator in ze belongs to OSPF Adj-SIDs (internal/plugins/ospf/sr_adjsid.go:115), which no SR Policy code consults, so no alert is raised</td>
+</tr>
+<tr><td><a href="#rfc9256-6.2.3-3"><code>RFC9256-6.2.3-3</code></a> Under Specified-BSID-only behavior, when a candidate path has an unspecified or unavailable BSID it is considered invalid and an alert MUST be triggered via mechanisms like syslog (§6.2.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze implements no Specified-BSID-only behavior; grep for specified-bsid or SpecifiedBSID over internal, pkg and cmd matches nothing and parseConfigRoute&#39;s keyword switch has no spelling for it (internal/component/bgp/plugins/nlri/srpolicy/config.go:72)</td>
+</tr>
+<tr><td><a href="#rfc9256-6.2.3-4"><code>RFC9256-6.2.3-4</code></a> Under Specified-BSID-only behavior, other candidate paths MUST then be evaluated for becoming the active candidate path (§6.2.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze implements no Specified-BSID-only behavior and no candidate-path selection, so there is no evaluation of other candidate paths to perform; the SR Policy plugin registers only an NLRI codec and a config route encoder (internal/component/bgp/plugins/nlri/srpolicy/register.go:29)</td>
+</tr>
+<tr><td><a href="#rfc9256-7-1"><code>RFC9256-7-1</code></a> The SR Policy state MUST also reflect the reason when a policy and/or its candidate path is not active due to validation errors or not being preferred (§7)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze keeps no SR Policy state; grep for SRPolicyState or policyState over internal, pkg and cmd matches nothing, grep for sr-policy over internal/component/cli matches nothing, and an SR Policy route is an ordinary BGP NLRI carried in the RIB (internal/component/bgp/plugins/nlri/srpolicy/register.go:29)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc9256-2.1-1"><code>RFC9256-2.1-1</code></a></h3>
+<p>An SR Policy MUST be identified through the tuple &lt;Headend, Color, Endpoint&gt; (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-2.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-2.1-2"><code>RFC9256-2.1-2</code></a></h3>
+<p>In the context of a specific headend, an SR Policy MUST be identified by the &lt;Color, Endpoint&gt; tuple (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go#L48" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go" target="_blank" rel="noopener"><code>TestRFC9256IdentificationTuple</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9256-2.1-3"><code>RFC9256-2.1-3</code></a></h3>
+<p>The headend is specified as an IPv4 or IPv6 address and MUST resolve to a unique node in the SR domain (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-2.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-2.2-1"><code>RFC9256-2.2-1</code></a></h3>
+<p>The endpoints of the constituent SR Policies and the parent SR Policy MUST be identical (§2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-2.2-2"><code>RFC9256-2.2-2</code></a></h3>
+<p>The colors of each of the constituent SR Policies and the parent SR Policy MUST be different (§2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-2.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-2.2-3"><code>RFC9256-2.2-3</code></a></h3>
+<p>The constituent SR Policies MUST NOT use composite candidate paths (§2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-2.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-2.4-1"><code>RFC9256-2.4-1</code></a></h3>
+<p>For the Originator ASN, if 2-byte ASNs are in use the low-order 16 bits MUST be used and the high-order bits MUST be set to 0 (§2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-2.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-2.4-2"><code>RFC9256-2.4-2</code></a></h3>
+<p>For the Originator node address, IPv4 addresses MUST be encoded in the lowest 32 bits and the high-order bits MUST be set to 0 (§2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-2.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-2.6-1"><code>RFC9256-2.6-1</code></a></h3>
+<p>The identity of a candidate path MUST be uniquely established in the context of an SR Policy &lt;Headend, Color, Endpoint&gt; to handle add, delete, or modify operations unambiguously (§2.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-2.6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-2.6-3"><code>RFC9256-2.6-3</code></a></h3>
+<p>Symbolic candidate-path names MUST NOT be considered as identifiers for a candidate path (§2.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go#L117" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go" target="_blank" rel="noopener"><code>TestRFC9256SymbolicNamesAreNotIdentifiers</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go#L106" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go" target="_blank" rel="noopener"><code>TestRFC9256SymbolicNamesAreNotIdentifiers</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9256-2.9-1"><code>RFC9256-2.9-1</code></a></h3>
+<p>Whenever a new path is learned, an active path is deleted, an existing path&#39;s validity changes, or an existing path is changed, the candidate-path selection process MUST be re-executed (§2.9)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-2.9-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-2.11-1"><code>RFC9256-2.11-1</code></a></h3>
+<p>Only the active candidate path MUST be used for forwarding traffic steered onto that policy, except in scenarios such as fast reroute where a backup candidate path may be used (§2.11)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-2.11-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-4-6"><code>RFC9256-4-6</code></a></h3>
+<p>When building the label stack or SRv6 SID list, the node instantiating the policy MUST interpret the first segment as the topmost MPLS label / first SRv6 SID and the last segment as the bottommost label / last SID (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-4-6, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-5.1-2"><code>RFC9256-5.1-2</code></a></h3>
+<p>A segment list of an explicit candidate path MUST be declared invalid when it is empty, its weight is 0, it mixes SR-MPLS and SRv6 segment types, the headend cannot resolve the first SID to outgoing interface(s)/next-hop(s), it cannot resolve any non-first SID of type C-K to an MPLS label or SRv6 SID, or verification fails for any SID for which verification was requested (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-5.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-5.1-4"><code>RFC9256-5.1-4</code></a></h3>
+<p>Types A or B MUST be used for the SIDs whose reachability cannot be verified (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go#L130" title="internal/component/bgp/plugins/nlri/srpolicy/rfc9256_test.go" target="_blank" rel="noopener"><code>TestRFC9256SegmentTypesAreAOrB</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9256-5.1-5"><code>RFC9256-5.1-5</code></a></h3>
+<p>The first SID MUST always be reachable regardless of its type (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-5.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-5.2-1"><code>RFC9256-5.2-1</code></a></h3>
+<p>If no solution is found to the optimization objective and constraints, the dynamic candidate path MUST be declared invalid (§5.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-5.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-6.1-3"><code>RFC9256-6.1-3</code></a></h3>
+<p>Candidate paths of different SR Policies MUST NOT have the same BSID (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-6.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-6.2-4"><code>RFC9256-6.2-4</code></a></h3>
+<p>When the specified BSID is not available (optionally not in the SRLB), an alert message MUST be generated via mechanisms like syslog (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-6.2-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-6.2.3-3"><code>RFC9256-6.2.3-3</code></a></h3>
+<p>Under Specified-BSID-only behavior, when a candidate path has an unspecified or unavailable BSID it is considered invalid and an alert MUST be triggered via mechanisms like syslog (§6.2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-6.2.3-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-6.2.3-4"><code>RFC9256-6.2.3-4</code></a></h3>
+<p>Under Specified-BSID-only behavior, other candidate paths MUST then be evaluated for becoming the active candidate path (§6.2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-6.2.3-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9256-7-1"><code>RFC9256-7-1</code></a></h3>
+<p>The SR Policy state MUST also reflect the reason when a policy and/or its candidate path is not active due to validation errors or not being preferred (§7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9256-7-1, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 9256, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 9256, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

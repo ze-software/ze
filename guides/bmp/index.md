@@ -93,7 +93,7 @@ bgp {
 | `route-monitoring-policy` | all | `pre-policy` (Adj-RIB-In), `post-policy` (Adj-RIB-Out, RFC 8671), or `all` |
 | `route-mirroring` | false | Stream verbatim copies of every BGP message as Route Mirroring (RFC 7854 Section 4.7) |
 | `loc-rib` | false | Stream local RIB best-path changes as Loc-RIB Route Monitoring (RFC 9069, Peer Type 3) |
-| `statistics-timeout` | 0 | Seconds between statistics reports (0 = disabled) |
+| `statistics-timeout` | 0 | Seconds between statistics reports. Read by nothing today: the sender has no statistics timer |
 
 The sender reconnects automatically with exponential backoff (30s to 720s)
 per RFC 7854 recommendations.
@@ -103,7 +103,7 @@ per RFC 7854 recommendations.
 | Command | Description |
 |---------|-------------|
 | `ze show bmp sessions` | Show active BMP receiver sessions (router address, sysName, uptime) |
-| `ze show bmp peers` | Show monitored BGP peers (AS, BGP ID, up/down status) |
+| `ze show bmp peers` | Show monitored BGP peers (AS, BGP ID, up/down status, and the address families their Peer Up OPEN advertised) |
 | `ze show bmp collectors` | Show sender collector connection status |
 
 ## Protocol Details
@@ -119,7 +119,7 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 | Peer Up (3) | Tracks monitored peer | Sends on BGP Established |
 | Peer Down (2) | Marks peer down | Sends on BGP session close |
 | Route Monitoring (0) | Decodes inner BGP UPDATE | Wraps received UPDATEs |
-| Statistics Report (1) | Stores per-peer counters | Periodic (if configured) |
+| Statistics Report (1) | Stores per-peer counters | Encoder only, with the O flag cleared (RFC 8671 Section 6.2); no timer sends one yet |
 | Route Mirroring (6) | Logs raw BGP PDUs | Wraps every BGP PDU when `route-mirroring` is on |
 
 ### Receiver Behavior
@@ -140,12 +140,35 @@ Ze handles all 7 BMP message types defined in RFC 7854:
 - With `route-mirroring true`, wraps every BGP message (OPEN, UPDATE, NOTIFICATION,
   KEEPALIVE, ROUTE-REFRESH, both directions) as Route Mirroring (RFC 7854 Section 4.7).
   The O flag follows the direction, as it does for Route Monitoring
+- Clears the O flag on a Statistics Report, which RFC 8671 Section 6.2 requires
+  because the report belongs to neither RIB
 - Route-monitoring-policy controls which direction(s) are streamed
 - With `loc-rib true`, streams local RIB best-path changes as Loc-RIB Route
-  Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance with
-  zero-length OPENs and the local router-id as Peer BGP ID, a full-table dump,
-  and a Loc-RIB Peer Down with reason code 6 (RFC 9069 Section 5.3) on shutdown
-  and on the commit that turns `loc-rib` off
+  Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance
+  carrying a fabricated BGP OPEN in both the sent and the received field, the
+  router's own 4-octet ASN as Peer AS and the local router-id as Peer BGP ID, a
+  full-table dump, and a Loc-RIB Peer Down with reason code 6 (RFC 9069
+  Section 5.3) on shutdown and on the commit that turns `loc-rib` off. RFC 9069
+  Section 5.2 requires that OPEN and its capabilities: "This is a fabricated BGP
+  OPEN message. Capabilities MUST include the 4-octet ASN and all necessary
+  capabilities to represent the Loc-RIB Route Monitoring messages." Ze
+  advertises the 4-octet ASN capability and one address-family capability per
+  family the dump delivers, and nothing else
+- Names that Loc-RIB `global` in a VRF/Table Name Information TLV (type 3) on
+  the Peer Up, and repeats the TLV after reason code 6 on the Peer Down. RFC
+  9069 Section 5.2.1: "The default value of "global" MUST be used for the
+  default Loc-RIB instance with a zero-filled distinguisher", and Section 5.3:
+  "The VRF/Table Name informational TLV MUST be included if it was in the Peer
+  Up." Ze runs one Loc-RIB, the default instance, and its distinguisher is zero
+- Timestamps a Loc-RIB message with the time its routes entered the Loc-RIB, and
+  with ZERO where that time is unknown. RFC 9069 Section 5.1: "If zero, the time
+  is unavailable." An incremental best change is delivered on the goroutine that
+  installed it, so it carries a real time; the initial full-table dump, the Peer
+  Up, the Peer Down and the End-of-RIB marker each carry zero rather than a
+  wall-clock read that would date every replayed route to the collector's
+  connection
+
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- locRIBPeerHeader, fabricateLocRIBOpen, ensureLocRIBPeerUp, sendLocRIBPeerDown -->
 
 #### A Config Change Bounces the Peers, Not the Session
 

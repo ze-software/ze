@@ -124,7 +124,7 @@ All of that is ordinary engineering judgement, and judgement is the part an agen
 | A configuration reload | a scenario driven by SIGHUP | `test/reload/` |
 | Plugin behaviour | a scenario exercising the plugin API | `test/plugin/` |
 
-The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,800 `.ci` scenarios and 160+ editor `.et` scenarios are what that produces, next to the Go unit tests.
+The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around 1,800+ `.ci` scenarios and 160+ editor `.et` scenarios are what that produces, next to the Go unit tests.
 
 The test comes first and has to fail before the implementation is written. Each one carries `VALIDATES:` and `PREVENTS:` comments, so a later reader learns what the test proves and which regression it was written against.
 

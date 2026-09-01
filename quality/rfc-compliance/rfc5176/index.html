@@ -1,0 +1,1392 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 5176 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 5176: Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS). 22 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 5176 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 5176: Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS). 22 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 5176 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 5176: Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS). 22 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc5176/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc5176/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported for subscriber access</span>
+    <h1 id="rfc-detail-title">RFC 5176 - Dynamic Authorization Extensions to Remote Authentication Dial In User Service (RADIUS)</h1>
+    <p>Every requirement this repository extracted from RFC 5176, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>95.5%</strong><b>21 of 22 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.5%</strong><b>1 of 22 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 22 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 22 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>57.7%</strong><b>30 of 52 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>22</strong><b>of 23 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 22 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 22 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported for subscriber access</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>23</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>22</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>22</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>52</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>52</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>30</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc5176.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc5176.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc5176.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: RADIUS Dynamic Authorization Extensions (CoA/Disconnect): five MUST-level requirements, all met by ze&#39;s Dynamic Authorization Server (internal/component/l2tp/plugins/authradius/coa.go, wired at register.go). 3.5-1 (verify Request Authenticator before processing), 3.5-2 (silently discard invalid authenticators), 3.3-1 (require at least one session-identification attribute), and 3.5-4 (Request Authenticator = MD5 over the RFC 2865 fields) each carry positive+negative tags on the CoA listener and packet tests. 3.5-3 (Response Authenticator per RFC 2865) is {single-polarity: positive}: ze only emits responses, so there is no inbound Response Authenticator to reject.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported for subscriber access</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+CoA/DM listener for RADIUS-initiated changes and disconnects: Request Authenticator and optional Message-Authenticator verification, source-address allow list, duplicate detection and cached replay, Event-Timestamp window, mandatory-attribute handling with Error-Cause 401, Service-Type refusal with 405, multiple-match refusal with 508, and Proxy-State and State echoed unread. Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5176.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc5176.md</code></a>, and the checklist is bounded by <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc5176.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc5176.json</code></a>. &lt;!-- source: <a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa.go" target="_blank" rel="noopener"><code>internal/component/l2tp/plugins/authradius/coa.go</code></a> -- handlePacket/handleCoA/handleDisconnect/sendResponse --&gt;
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Scoped to subscriber access. Two OPTIONAL features of the RFC are out of scope, so the obligations conditional on them are excluded rather than gated: the Section 3.2 &#34;Authorize Only&#34; Service-Type exchange, which ze answers with a CoA-NAK and Error-Cause 405, and the RFC 2865 Section 5.29 Termination-Action re-authorization, for which ze sends no Access-Request.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>21</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>22</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (21):</strong> <a href="#rfc5176-3.5-1"><code>RFC5176-3.5-1</code></a>, <a href="#rfc5176-3.5-2"><code>RFC5176-3.5-2</code></a>, <a href="#rfc5176-3.3-1"><code>RFC5176-3.3-1</code></a>, <a href="#rfc5176-3.5-4"><code>RFC5176-3.5-4</code></a>, <a href="#rfc5176-2.3-1"><code>RFC5176-2.3-1</code></a>, <a href="#rfc5176-2.3-2"><code>RFC5176-2.3-2</code></a>, <a href="#rfc5176-2.3-3"><code>RFC5176-2.3-3</code></a>, <a href="#rfc5176-2.3-4"><code>RFC5176-2.3-4</code></a>, <a href="#rfc5176-2.3-5"><code>RFC5176-2.3-5</code></a>, <a href="#rfc5176-2.3-6"><code>RFC5176-2.3-6</code></a>, <a href="#rfc5176-2.3-7"><code>RFC5176-2.3-7</code></a>, <a href="#rfc5176-3.1-1"><code>RFC5176-3.1-1</code></a>, <a href="#rfc5176-3.2-1"><code>RFC5176-3.2-1</code></a>, <a href="#rfc5176-3.3-2"><code>RFC5176-3.3-2</code></a>, <a href="#rfc5176-3.4-1"><code>RFC5176-3.4-1</code></a>, <a href="#rfc5176-3.4-2"><code>RFC5176-3.4-2</code></a>, <a href="#rfc5176-3.4-3"><code>RFC5176-3.4-3</code></a>, <a href="#rfc5176-3.5-5"><code>RFC5176-3.5-5</code></a>, <a href="#rfc5176-3.6-1"><code>RFC5176-3.6-1</code></a>, <a href="#rfc5176-6.1-1"><code>RFC5176-6.1-1</code></a>, <a href="#rfc5176-6.3-1"><code>RFC5176-6.3-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc5176-3.5-3"><code>RFC5176-3.5-3</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.5-1">RFC5176-3.5-1</code></td><td colspan="3"><span class="rfc-subject">A CoA-Request or Disconnect-Request MUST have its Request Authenticator verified before any attribute of it is acted on (anchored §3.5; the sentence it enforces is at §2.3, &#34;The Authenticator field MUST be calculated in the same way as is specified for an Accounting-Request in [RFC2866]&#34;, and a value nobody checks authenticates nothing)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L337" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestCoAListenerUnknownSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L250" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestCoAListenerInvalidAuth</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.5-2">RFC5176-3.5-2</code></td><td colspan="3"><span class="rfc-subject">A CoA-Request or Disconnect-Request whose Request Authenticator does not match MUST be discarded with no response emitted (anchored §3.5; a sender that cannot compute the Authenticator holds no shared secret, so §6.1, &#34;A Dynamic Authorization Server MUST silently discard Disconnect-Request or CoA-Request packets from untrusted sources&#34;, covers it)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L252" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestCoAListenerInvalidAuth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L339" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestCoAListenerUnknownSession</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.3-1">RFC5176-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The combination of NAS and session identification attributes in a CoA-Request or Disconnect-Request MUST match at least one session for the request to succeed, and a request matching none MUST be answered with a CoA-NAK or a Disconnect-NAK (anchored §3.3; stated at §3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L402" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestDisconnectReplayReturnsCachedResponse</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L25" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestRFC5176NoSessionIdNotActedOn</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.5-3">RFC5176-3.5-3</code></td><td colspan="3"><span class="rfc-subject">Response Authenticator MUST be computed per RFC 2865 Section 3 (§3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L66" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestRFC5176ResponseAuthenticator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the NAS only emits CoA/Disconnect responses and never receives one, so there is no inbound Response Authenticator to reject; correctness is proven by verifying the emitted authenticator against radius.ResponseAuthenticator (internal/component/radius/packet.go:145)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.5-4">RFC5176-3.5-4</code></td><td colspan="3"><span class="rfc-subject">Request Authenticator MUST be computed as MD5(Code + Identifier + Length + 16-zero-octets + Attributes + Secret) (§3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L183" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoARequestAuthenticatorMatchesTheFormula</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L352" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyCoARequestAuth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L218" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoARequestAuthenticatorCoversEveryNamedField</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L358" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyCoARequestAuth</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-2.3-1">RFC5176-2.3-1</code></td><td colspan="3"><span class="rfc-subject">A packet received with an invalid Code field MUST be silently discarded (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L133" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176InvalidCodeDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L136" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176InvalidCodeDiscarded</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-2.3-2">RFC5176-2.3-2</code></td><td colspan="3"><span class="rfc-subject">A Dynamic Authorization Server MUST detect a duplicate request carrying the same source address, Identifier and Request Authenticator within a short span of time, and MUST answer it with the response the first copy earned (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-2.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L155" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176DuplicateRequestAnsweredFromCache</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L158" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176DuplicateRequestAnsweredFromCache</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-2.3-3">RFC5176-2.3-3</code></td><td colspan="3"><span class="rfc-subject">Octets outside the range of the Length field MUST be treated as padding and ignored on reception, and a packet shorter than its Length field indicates MUST be silently discarded (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-2.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L192" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176LengthFieldGovernsTheOctetsRead</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L194" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176LengthFieldGovernsTheOctetsRead</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-2.3-4">RFC5176-2.3-4</code></td><td colspan="3"><span class="rfc-subject">The Dynamic Authorization Server MUST use the source IP address of the RADIUS UDP packet to decide which shared secret to use (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-2.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L216" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176SharedSecretChosenBySourceAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L219" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176SharedSecretChosenBySourceAddress</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-2.3-5">RFC5176-2.3-5</code></td><td colspan="3"><span class="rfc-subject">Every attribute of a CoA-Request or Disconnect-Request MUST be treated as mandatory, so a request carrying an attribute the NAS does not support MUST be answered with a CoA-NAK or a Disconnect-NAK; a Disconnect-Request MUST carry only NAS and session identification attributes (§2.3, restated at §3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-2.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L255" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UnsupportedAttributeNAKed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L259" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UnsupportedAttributeNAKed</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-2.3-6">RFC5176-2.3-6</code></td><td colspan="3"><span class="rfc-subject">A CoA-Request whose authorization changes cannot all be carried out MUST be answered with a CoA-NAK and MUST leave the matching session unchanged, and a Disconnect-Request that cannot terminate the matching session MUST be answered with a Disconnect-NAK (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-2.3-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L293" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L295" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-2.3-7">RFC5176-2.3-7</code></td><td colspan="3"><span class="rfc-subject">When the identification attributes match more than one session, a NAS that supports multi-session requests MUST apply the request to all of them, and a NAS that does not MUST answer with a CoA-NAK or a Disconnect-NAK (§2.3, with the apply-to-all branch stated at §3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-2.3-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L325" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L328" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.1-1">RFC5176-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The Dynamic Authorization Server MUST include the request&#39;s Proxy-State attributes in its response, unmodified, in the order they arrived, and treated as opaque data (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L363" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L365" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.2-1">RFC5176-3.2-1</code></td><td colspan="3"><span class="rfc-subject">A NAS MUST answer a CoA-Request carrying a Service-Type Attribute whose value it does not support, &#34;Authorize Only&#34; included, with a CoA-NAK, and MUST NOT answer it with a CoA-ACK (§3.2, with the unsupported-value branch stated at §2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L397" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L400" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.3-2">RFC5176-3.3-2</code></td><td colspan="3"><span class="rfc-subject">The Dynamic Authorization Server MUST NOT interpret the State Attribute locally, and MUST send it unmodified in the ACK or NAK it returns (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L427" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L429" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.4-1">RFC5176-3.4-1</code></td><td colspan="3"><span class="rfc-subject">When the HMAC-MD5 message integrity check of a CoA-Request or Disconnect-Request is calculated, the Request Authenticator field and the Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L456" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>radius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176MessageAuthenticatorRefusesEveryOtherStream</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L460" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.4-2">RFC5176-3.4-2</code></td><td colspan="3"><span class="rfc-subject">The Message-Authenticator Attribute is calculated and inserted in the packet before the Request Authenticator is calculated, so the Request Authenticator MUST cover the Message-Authenticator value as sent (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L218" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L239" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.4-3">RFC5176-3.4-3</code></td><td colspan="3"><span class="rfc-subject">A Dynamic Authorization Server receiving a CoA-Request or Disconnect-Request with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L26" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176ListenerAcceptsConformantMessageAuthenticator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L52" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176ListenerDiscardsWrongMessageAuthenticator</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L71" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go" target="_blank" rel="noopener"><code>TestRFC5176WrongMessageAuthenticatorDiscardedWhenNotRequired</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.4-4">RFC5176-3.4-4</code></td><td colspan="3"><span class="rfc-subject">The Message-Authenticator Attribute MAY be used to authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK, Disconnect-Request, Disconnect-ACK and Disconnect-NAK packets in order to prevent spoofing, so a request that carries none is answered rather than discarded; the `require-message-authenticator` leaf turns its absence into a discard for an operator who wants the Blast-RADIUS mitigation (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L26" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go" target="_blank" rel="noopener"><code>TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L307" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.5-5">RFC5176-3.5-5</code></td><td colspan="3"><span class="rfc-subject">An Error-Cause value in the 200-299 range MUST NOT be sent within a CoA-NAK or Disconnect-NAK, a value in the 400-599 range MUST NOT be sent within a CoA-ACK or Disconnect-ACK, 202 MUST NOT be sent by an implementation of this specification, 502 MUST NOT be sent by a NAS, 201 MUST NOT leave a packet other than a Disconnect-ACK and 504 MUST NOT leave a packet other than a Disconnect-NAK (§3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.5-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L496" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L499" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-3.6-1">RFC5176-3.6-1</code></td><td colspan="3"><span class="rfc-subject">NAS and session identification attributes MUST NOT be used for a purpose other than identification, and the same Vendor-Specific Attribute MUST NOT serve identification and authorization change at the same time (§3.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-3.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L604" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L607" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-6.1-1">RFC5176-6.1-1</code></td><td colspan="3"><span class="rfc-subject">A Dynamic Authorization Server MUST silently discard Disconnect-Request or CoA-Request packets from untrusted sources, so a source that is not a configured Dynamic Authorization Client is refused; an EMPTY allow list means no configured server resolved and refuses every source rather than accepting all of them (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-6.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L119" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestCoASourceFilterDiscardsWhenNoServerResolved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L652" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L173" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestCoASourceFilterAnswersAConfiguredClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L655" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5176-6.3-1">RFC5176-6.3-1</code></td><td colspan="3"><span class="rfc-subject">When an Event-Timestamp Attribute is present the Dynamic Authorization Server MUST check that it is current within an acceptable time window, and MUST silently discard the packet when it is not; that window MUST be the one used for duplicate detection (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5176-6.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L710" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L714" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<p>RFC 5176 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc5176-3.5-1"><code>RFC5176-3.5-1</code></a></h3>
+<p>A CoA-Request or Disconnect-Request MUST have its Request Authenticator verified before any attribute of it is acted on (anchored §3.5; the sentence it enforces is at §2.3, &#34;The Authenticator field MUST be calculated in the same way as is specified for an Accounting-Request in [RFC2866]&#34;, and a value nobody checks authenticates nothing)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L250" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestCoAListenerInvalidAuth</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L337" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestCoAListenerUnknownSession</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.5-2"><code>RFC5176-3.5-2</code></a></h3>
+<p>A CoA-Request or Disconnect-Request whose Request Authenticator does not match MUST be discarded with no response emitted (anchored §3.5; a sender that cannot compute the Authenticator holds no shared secret, so §6.1, &#34;A Dynamic Authorization Server MUST silently discard Disconnect-Request or CoA-Request packets from untrusted sources&#34;, covers it)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L339" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestCoAListenerUnknownSession</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L252" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestCoAListenerInvalidAuth</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.3-1"><code>RFC5176-3.3-1</code></a></h3>
+<p>The combination of NAS and session identification attributes in a CoA-Request or Disconnect-Request MUST match at least one session for the request to succeed, and a request matching none MUST be answered with a CoA-NAK or a Disconnect-NAK (anchored §3.3; stated at §3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L25" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestRFC5176NoSessionIdNotActedOn</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L402" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestDisconnectReplayReturnsCachedResponse</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.5-3"><code>RFC5176-3.5-3</code></a></h3>
+<p>Response Authenticator MUST be computed per RFC 2865 Section 3 (§3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L66" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestRFC5176ResponseAuthenticator</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.5-4"><code>RFC5176-3.5-4</code></a></h3>
+<p>Request Authenticator MUST be computed as MD5(Code + Identifier + Length + 16-zero-octets + Attributes + Secret) (§3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L358" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyCoARequestAuth</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L218" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoARequestAuthenticatorCoversEveryNamedField</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L352" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyCoARequestAuth</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L183" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoARequestAuthenticatorMatchesTheFormula</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-2.3-1"><code>RFC5176-2.3-1</code></a></h3>
+<p>A packet received with an invalid Code field MUST be silently discarded (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L136" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176InvalidCodeDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L133" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176InvalidCodeDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-2.3-2"><code>RFC5176-2.3-2</code></a></h3>
+<p>A Dynamic Authorization Server MUST detect a duplicate request carrying the same source address, Identifier and Request Authenticator within a short span of time, and MUST answer it with the response the first copy earned (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L158" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176DuplicateRequestAnsweredFromCache</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L155" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176DuplicateRequestAnsweredFromCache</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-2.3-3"><code>RFC5176-2.3-3</code></a></h3>
+<p>Octets outside the range of the Length field MUST be treated as padding and ignored on reception, and a packet shorter than its Length field indicates MUST be silently discarded (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L194" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176LengthFieldGovernsTheOctetsRead</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L192" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176LengthFieldGovernsTheOctetsRead</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-2.3-4"><code>RFC5176-2.3-4</code></a></h3>
+<p>The Dynamic Authorization Server MUST use the source IP address of the RADIUS UDP packet to decide which shared secret to use (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L219" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176SharedSecretChosenBySourceAddress</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L216" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176SharedSecretChosenBySourceAddress</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-2.3-5"><code>RFC5176-2.3-5</code></a></h3>
+<p>Every attribute of a CoA-Request or Disconnect-Request MUST be treated as mandatory, so a request carrying an attribute the NAS does not support MUST be answered with a CoA-NAK or a Disconnect-NAK; a Disconnect-Request MUST carry only NAS and session identification attributes (§2.3, restated at §3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L259" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UnsupportedAttributeNAKed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L255" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UnsupportedAttributeNAKed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-2.3-6"><code>RFC5176-2.3-6</code></a></h3>
+<p>A CoA-Request whose authorization changes cannot all be carried out MUST be answered with a CoA-NAK and MUST leave the matching session unchanged, and a Disconnect-Request that cannot terminate the matching session MUST be answered with a Disconnect-NAK (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L295" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L293" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-2.3-7"><code>RFC5176-2.3-7</code></a></h3>
+<p>When the identification attributes match more than one session, a NAS that supports multi-session requests MUST apply the request to all of them, and a NAS that does not MUST answer with a CoA-NAK or a Disconnect-NAK (§2.3, with the apply-to-all branch stated at §3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L328" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L325" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176MultipleMatchingSessionsNAKed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.1-1"><code>RFC5176-3.1-1</code></a></h3>
+<p>The Dynamic Authorization Server MUST include the request&#39;s Proxy-State attributes in its response, unmodified, in the order they arrived, and treated as opaque data (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L365" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L363" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateReturnedUnmodified</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.2-1"><code>RFC5176-3.2-1</code></a></h3>
+<p>A NAS MUST answer a CoA-Request carrying a Service-Type Attribute whose value it does not support, &#34;Authorize Only&#34; included, with a CoA-NAK, and MUST NOT answer it with a CoA-ACK (§3.2, with the unsupported-value branch stated at §2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L400" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L397" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.3-2"><code>RFC5176-3.3-2</code></a></h3>
+<p>The Dynamic Authorization Server MUST NOT interpret the State Attribute locally, and MUST send it unmodified in the ACK or NAK it returns (§3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L429" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L427" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateReturnedUnmodified</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.4-1"><code>RFC5176-3.4-1</code></a></h3>
+<p>When the HMAC-MD5 message integrity check of a CoA-Request or Disconnect-Request is calculated, the Request Authenticator field and the Message-Authenticator Attribute MUST each be considered to be sixteen octets of zero (§3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L460" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176MessageAuthenticatorRefusesEveryOtherStream</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L456" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>radius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.4-2"><code>RFC5176-3.4-2</code></a></h3>
+<p>The Message-Authenticator Attribute is calculated and inserted in the packet before the Request Authenticator is calculated, so the Request Authenticator MUST cover the Message-Authenticator value as sent (§3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L239" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L218" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.4-3"><code>RFC5176-3.4-3</code></a></h3>
+<p>A Dynamic Authorization Server receiving a CoA-Request or Disconnect-Request with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent (§3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L71" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go" target="_blank" rel="noopener"><code>TestRFC5176WrongMessageAuthenticatorDiscardedWhenNotRequired</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L52" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176ListenerDiscardsWrongMessageAuthenticator</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L26" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176ListenerAcceptsConformantMessageAuthenticator</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.4-4"><code>RFC5176-3.4-4</code></a></h3>
+<p>The Message-Authenticator Attribute MAY be used to authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK, Disconnect-Request, Disconnect-ACK and Disconnect-NAK packets in order to prevent spoofing, so a request that carries none is answered rather than discarded; the `require-message-authenticator` leaf turns its absence into a discard for an operator who wants the Blast-RADIUS mitigation (§3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/coa_test.go#L307" title="internal/component/l2tp/plugins/authradius/coa_test.go" target="_blank" rel="noopener"><code>TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L26" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go" target="_blank" rel="noopener"><code>TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.5-5"><code>RFC5176-3.5-5</code></a></h3>
+<p>An Error-Cause value in the 200-299 range MUST NOT be sent within a CoA-NAK or Disconnect-NAK, a value in the 400-599 range MUST NOT be sent within a CoA-ACK or Disconnect-ACK, 202 MUST NOT be sent by an implementation of this specification, 502 MUST NOT be sent by a NAS, 201 MUST NOT leave a packet other than a Disconnect-ACK and 504 MUST NOT leave a packet other than a Disconnect-NAK (§3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L499" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L496" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-3.6-1"><code>RFC5176-3.6-1</code></a></h3>
+<p>NAS and session identification attributes MUST NOT be used for a purpose other than identification, and the same Vendor-Specific Attribute MUST NOT serve identification and authorization change at the same time (§3.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L607" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L604" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-6.1-1"><code>RFC5176-6.1-1</code></a></h3>
+<p>A Dynamic Authorization Server MUST silently discard Disconnect-Request or CoA-Request packets from untrusted sources, so a source that is not a configured Dynamic Authorization Client is refused; an EMPTY allow list means no configured server resolved and refuses every source rather than accepting all of them (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L173" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestCoASourceFilterAnswersAConfiguredClient</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L655" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L119" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestCoASourceFilterDiscardsWhenNoServerResolved</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L652" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc5176-6.3-1"><code>RFC5176-6.3-1</code></a></h3>
+<p>When an Event-Timestamp Attribute is present the Dynamic Authorization Server MUST check that it is current within an acceptable time window, and MUST silently discard the packet when it is not; that window MUST be the one used for duplicate detection (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L714" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L710" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-implement agent, spec-rfcgate-6-supported-extraction-signoff, RFC 5176 conformance package</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-01</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc5176.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>4852faf09c5bbdd6</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc5176.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>44</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>28</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>Title, status, copyright and table of contents</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Title, status, copyright and table of contents.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.3</code></td>
+<td>not stated</td>
+<td>19</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>11</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>7</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.4</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.5</code></td>
+<td>not stated</td>
+<td>7</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.6</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations: it allocates Error-Cause values 407 and 508 and binds IANA, not an implementation.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.3</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>Reference list</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Reference list.</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>Normative references</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative references.</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>Informative references</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative references.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>Acknowledgments</td>
+<td>0</td>
+<td>skipped (acknowledgements)</td>
+<td>Acknowledgments.</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>Appendix A, Changes from RFC 3576: a change log against the obsoleted document.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>2.3:4</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Identifier management by the sender. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them</td>
+<td>The Identifier field MUST be changed whenever the content of the Attributes field changes, or whenever a valid reply has been received for a previous request.</td>
+</tr>
+<tr><td><code>2.3:5</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Identifier reuse on retransmission by the sender. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them</td>
+<td>For retransmissions where the contents are identical, the Identifier MUST remain unchanged.</td>
+</tr>
+<tr><td><code>2.3:6</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Retransmission by the sender. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them</td>
+<td>If the Dynamic Authorization Client is retransmitting a Disconnect-Request or CoA-Request to the same Dynamic Authorization Server as before, and the attributes haven&#39;t changed, the same Request Authenticator, Identifier, and source port MUST be used.</td>
+</tr>
+<tr><td><code>2.3:7</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Authenticator and Identifier choice by the sender. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them</td>
+<td>If any attributes have changed, a new Authenticator and Identifier MUST be used.</td>
+</tr>
+<tr><td><code>2.3:8</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Failover to a secondary DAS by the sender. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them</td>
+<td>Since this represents a new request, a new Request Authenticator and Identifier MUST be used.</td>
+</tr>
+<tr><td><code>3:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>What a Disconnect-Request MUST contain, an obligation on the composer. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them. The receive-side counterpart is site 3:4, which binds ze and maps to RFC5176-2.3-5</td>
+<td>A Disconnect-Request MUST contain only NAS and session identification attributes.</td>
+</tr>
+<tr><td><code>3.1:5</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range</td>
+<td>The forwarding proxy MUST NOT modify any other Proxy-State attributes that were in the packet; it may choose not to forward them, but it MUST NOT change their contents.</td>
+</tr>
+<tr><td><code>3.1:6</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range</td>
+<td>If the forwarding proxy omits the Proxy-State attributes in the request, it MUST attach them to the response before sending it.</td>
+</tr>
+<tr><td><code>3.1:7</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range</td>
+<td>When the proxy forwards a Disconnect-Request or CoA-Request, it MAY add a Proxy-State Attribute, but it MUST NOT add more than one.</td>
+</tr>
+<tr><td><code>3.1:8</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range</td>
+<td>If a Proxy-State Attribute is added to a packet when forwarding the packet, the Proxy-State Attribute MUST be added after any existing Proxy-State attributes.</td>
+</tr>
+<tr><td><code>3.1:9</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range</td>
+<td>The forwarding proxy MUST NOT change the order of any attributes of the same type, including Proxy-State.</td>
+</tr>
+<tr><td><code>3.1:10</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range</td>
+<td>When the proxy receives a response to a CoA-Request or Disconnect- Request, it MUST remove its own Proxy-State Attribute (the last Proxy-State in the packet) before forwarding the response.</td>
+</tr>
+<tr><td><code>3.1:11</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the RADIUS forwarding proxy. ze forwards no CoA or Disconnect packet: coaListener.handlePacket (internal/component/l2tp/plugins/authradius/coa.go) dispatches to handleCoA or handleDisconnect and both answer locally, and no other file in the tree emits a code in the 40-45 range</td>
+<td>Since Disconnect and CoA responses are authenticated on the entire packet contents, the stripping of the Proxy-State Attribute invalidates the integrity check, so the proxy MUST recompute it.</td>
+</tr>
+<tr><td><code>3.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>What a Disconnect-Request MUST NOT contain, an obligation on the composer. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them. The receive side is disconnectSupportedAttrs (internal/component/l2tp/plugins/authradius/coa.go), which omits Service-Type so such a request is answered with a Disconnect-NAK under RFC5176-2.3-5</td>
+<td>A Service-Type Attribute MUST NOT be included within a Disconnect-Request.</td>
+</tr>
+<tr><td><code>3.2:4</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>What an Authorize Only CoA-Request MUST contain, an obligation on the composer. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them. The receive-side counterpart is site 3.2:5, which maps to RFC5176-3.2-1</td>
+<td>A CoA-Request containing a Service-Type Attribute with value &#34;Authorize Only&#34; MUST in addition contain only NAS or session identification attributes, as well as a State Attribute.</td>
+</tr>
+<tr><td><code>3.2:6</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>RFC 5176 Section 3.2: &#34;Support for a CoA-Request including a Service-Type Attribute with value \&#34;Authorize Only\&#34; is OPTIONAL on the NAS and Dynamic Authorization Client.&#34; The owner declined the feature on 2026-08-31, and handlePacket (internal/component/l2tp/plugins/authradius/coa.go) shows it: every CoA-Request carrying a Service-Type is answered with a CoA-NAK and Error-Cause 405 before any authorization change is read, so no Authorize Only exchange ever starts. The absent feature is disclosed in the RFC 5176 row of docs/features/rfc-status.md</td>
+<td>If a CoA-Request packet including a Service-Type value of &#34;Authorize Only&#34; is successfully processed, the NAS MUST respond with a CoA-NAK containing a Service-Type Attribute with value &#34;Authorize Only&#34;, and an Error-Cause Attribute with value 507 (Request Initiated).</td>
+</tr>
+<tr><td><code>3.2:7</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>RFC 5176 Section 3.2: &#34;Support for a CoA-Request including a Service-Type Attribute with value \&#34;Authorize Only\&#34; is OPTIONAL on the NAS and Dynamic Authorization Client.&#34; The owner declined the feature on 2026-08-31, and handlePacket (internal/component/l2tp/plugins/authradius/coa.go) shows it: every CoA-Request carrying a Service-Type is answered with a CoA-NAK and Error-Cause 405 before any authorization change is read, so no Authorize Only exchange ever starts. The absent feature is disclosed in the RFC 5176 row of docs/features/rfc-status.md</td>
+<td>The NAS then MUST send an Access-Request to the RADIUS server including a Service-Type Attribute with value &#34;Authorize Only&#34;, along with a State Attribute.</td>
+</tr>
+<tr><td><code>3.3:2</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>Block-quoted RFC 2865 Section 5.44, introduced by &#34;[RFC2865], Section 5.44 states:&#34;. The obligation is RFC 2865&#39;s and is carried by rfc/short/rfc2865.md</td>
+<td>An Access-Request MUST contain either a User-Password or a CHAP-Password or State.</td>
+</tr>
+<tr><td><code>3.3:3</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The second sentence of the same block quote of RFC 2865 Section 5.44. The obligation is RFC 2865&#39;s</td>
+<td>An Access-Request MUST NOT contain both a User-Password and a CHAP-Password.</td>
+</tr>
+<tr><td><code>3.3:4</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>RFC 5176 Section 3.2: &#34;Support for a CoA-Request including a Service-Type Attribute with value \&#34;Authorize Only\&#34; is OPTIONAL on the NAS and Dynamic Authorization Client.&#34; The owner declined the feature on 2026-08-31, and handlePacket (internal/component/l2tp/plugins/authradius/coa.go) shows it: every CoA-Request carrying a Service-Type is answered with a CoA-NAK and Error-Cause 405 before any authorization change is read, so no Authorize Only exchange ever starts. The absent feature is disclosed in the RFC 5176 row of docs/features/rfc-status.md. ze sends no Access-Request carrying Service-Type Authorize Only</td>
+<td>In order to satisfy the requirements of [RFC2865], Section 5.44, an Access-Request with Service-Type Attribute with value &#34;Authorize Only&#34; MUST contain a State Attribute.</td>
+</tr>
+<tr><td><code>3.3:5</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>RFC 5176 Section 3.2: &#34;Support for a CoA-Request including a Service-Type Attribute with value \&#34;Authorize Only\&#34; is OPTIONAL on the NAS and Dynamic Authorization Client.&#34; The owner declined the feature on 2026-08-31, and handlePacket (internal/component/l2tp/plugins/authradius/coa.go) shows it: every CoA-Request carrying a Service-Type is answered with a CoA-NAK and Error-Cause 405 before any authorization change is read, so no Authorize Only exchange ever starts. The absent feature is disclosed in the RFC 5176 row of docs/features/rfc-status.md. Its first clause binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them, and its second is conditioned on &#34;the resulting Access-Request, if any&#34;, which ze never sends</td>
+<td>In order to provide a State Attribute to the NAS, a Dynamic Authorization Client sending a CoA-Request with a Service-Type Attribute with a value of &#34;Authorize Only&#34; MUST include a State Attribute, and the NAS MUST send the State Attribute unmodified to the RADIUS server in the resulting Access-Request, if any.</td>
+</tr>
+<tr><td><code>3.3:7</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>RFC 2865 Section 5.29 makes the feature optional: &#34;If the Value is set to RADIUS-Request, upon termination of the specified service the NAS MAY send a new Access-Request to the RADIUS server, including the State attribute if any.&#34; ze performs no Termination-Action: the three non-test Access-Request producers in the tree are buildAuthAttrs (internal/component/l2tp/plugins/authradius/handler.go), (*radiusAuthenticator).Authenticate (internal/component/radius/authenticator.go) and the two doctor probes, and each builds an Access-Request at authentication time only. No code names attribute 29. The absent feature is disclosed in the RFC 5176 row of docs/features/rfc-status.md</td>
+<td>If the NAS performs the Termination-Action by sending a new Access- Request upon termination of the current session, it MUST include the State Attribute unchanged in that Access-Request.</td>
+</tr>
+<tr><td><code>3.3:9</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>A packet-shape rule on the CoA-Request the sender builds; RFC 5176 Section 3.6 states the same bound as the 0-1 column for State. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them</td>
+<td>A CoA-Request packet MUST have only zero or one State Attribute.</td>
+</tr>
+<tr><td><code>3.4:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Verification of a CoA/Disconnect-ACK or -NAK, a packet ze emits and never receives. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them</td>
+<td>A Dynamic Authorization Client receiving a CoA/Disconnect-ACK or CoA/Disconnect-NAK with a Message-Authenticator Attribute present MUST calculate the correct value of the Message-Authenticator and silently discard the packet if it does not match the value sent.</td>
+</tr>
+<tr><td><code>3.4:4</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>The response-direction Message-Authenticator, whose enclosing construction is RFC 5176 Section 3.4: &#34;The Message-Authenticator Attribute MAY be used to authenticate and integrity-protect CoA-Request, CoA-ACK, CoA-NAK, Disconnect-Request, Disconnect-ACK, and Disconnect-NAK packets in order to prevent spoofing.&#34; coaListener.sendResponse (internal/component/l2tp/plugins/authradius/coa.go) includes no Message-Authenticator in a CoA-ACK, CoA-NAK, Disconnect-ACK or Disconnect-NAK, which the MAY permits, so the computation rule has no packet to govern</td>
+<td>When the HMAC-MD5 message integrity check is calculated, the Message-Authenticator Attribute MUST be considered to be sixteen octets of zero.</td>
+</tr>
+<tr><td><code>3.6:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The legend of the Section 3.6 table of attributes. The keywords define what the 0, 0+, 0-1 and 1 columns MEAN; they state no obligation on an implementation. The obligations the table expresses are its rows</td>
+<td>0 This attribute MUST NOT be present in packet. 0+ Zero or more instances of this attribute MAY be present in packet. 0-1 Zero or one instance of this attribute MAY be present in packet. 1 Exactly one instance of this attribute MUST be present in packet.</td>
+</tr>
+<tr><td><code>4:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The Diameter-considerations restatement of Section 3.2&#39;s rule on what a Disconnect-Request may carry. Binds the Dynamic Authorization Client, the entity originating CoA-Request and Disconnect-Request packets (RFC 5176 Section 1.3). ze originates neither: coaListener (internal/component/l2tp/plugins/authradius/coa.go) is the only site in the tree that names radius.CodeCoARequest or radius.CodeDisconnectRequest, and it only receives them</td>
+<td>As a result, as noted in Section 3.2, the Service-Type Attribute MUST NOT be used within a Disconnect-Request.</td>
+</tr>
+<tr><td><code>6.1:2</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>The else-branch of an optional check. Its enclosing construction is RFC 5176 Section 6.1: &#34;In situations where the Dynamic Authorization Client is co-resident with a RADIUS authentication or accounting server, a proxy MAY perform a \&#34;reverse path forwarding\&#34; (RPF) check to verify that a Disconnect-Request or CoA-Request originates from an authorized Dynamic Authorization Client.&#34; ze performs no RPF check and maintains no realm routing table, which the same section says makes an RPF check impossible for a NAS</td>
+<td>If the source address of the Disconnect-Request or CoA-Request is within this set, then the CoA-Request or Disconnect-Request is forwarded; otherwise it MUST be silently discarded.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 5176, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

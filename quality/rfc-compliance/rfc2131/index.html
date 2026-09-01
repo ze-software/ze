@@ -1,0 +1,1969 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 2131 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 2131: Dynamic Host Configuration Protocol. 64 gated MUST-level requirements, 18 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 2131 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 2131: Dynamic Host Configuration Protocol. 64 gated MUST-level requirements, 18 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 2131 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 2131: Dynamic Host Configuration Protocol. 64 gated MUST-level requirements, 18 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc2131/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc2131/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 2131 - Dynamic Host Configuration Protocol</h1>
+    <p>Every requirement this repository extracted from RFC 2131, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>40.5%</strong><b>15 of 37 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.8%</strong><b>4 of 37 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 37 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 34 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>64</strong><b>of 101 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>27</strong><b>of 64 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>48.6%</strong><b>18 of 37 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 37 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>101</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>64</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>37</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>27</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>18</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>34</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>34</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc2131.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc2131.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc2131.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Dynamic Host Configuration Protocol</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+Both roles. Server: DORA, leases, static mappings, PXE support -- every OFFER/ACK/NAK carries the server identifier, OFFER and ACK carry the lease time and ordered T1/T2 timers, no client-only option (50, 55, 57, 61) is ever echoed back, a NAK carries nothing beyond the message type and server identifier, the magic cookie is required on input and emitted on output, and options are read and written strictly inside the options field. Client: the <code>iface-dhcp</code> plugin (<code>internal/plugins/iface/dhcp/</code>) runs a long-lived DHCPv4 client per interface unit -- ze owns the lease state machine (T1/T2 arithmetic, renewal, expiry teardown, address and default-route installation) and authors options 12 and 61, while DORA and RENEWING message construction belong to the vendored <code>nclient4</code> library. Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2131.md" target="_blank" rel="noopener"><code>rfc/short/rfc2131.md</code></a>.
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+<p>Eighteen MUST gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2131.md" target="_blank" rel="noopener"><code>rfc/short/rfc2131.md</code></a>.</p>
+<p class="rfc-prose"><strong>Server:</strong> DHCPNAK delivery (<a href="#rfc2131-4.3.2-1"><code>RFC2131-4.3.2-1</code></a> unicasts to a non-zero ciaddr instead of broadcasting, <a href="#rfc2131-4.3.2-2"><code>RFC2131-4.3.2-2</code></a> never forces the broadcast bit behind a relay); INIT-REBOOT for an unknown client draws an ACK rather than silence (<a href="#rfc2131-4.3.2-3"><code>RFC2131-4.3.2-3</code></a>); a declined address is handed back to the client that declined it (<a href="#rfc2131-4.3.3-1"><code>RFC2131-4.3.3-1</code></a>); only one address per subnet is accepted as the server identifier (<a href="#rfc2131-4.1-1"><code>RFC2131-4.1-1</code></a>); with no default-router configured the server identifier falls back to a pool address or the subnet network address, neither of which the server answers on (<a href="#rfc2131-4.1-2"><code>RFC2131-4.1-2</code></a>); the client identifier option 61 is never read, so every client is keyed by chaddr (<a href="#rfc2131-4.2-1"><code>RFC2131-4.2-1</code></a>); the Parameter Request List is never parsed, so the section 4.3.1 selection rules govern no code path (<a href="#rfc2131-4.3.1-1"><code>RFC2131-4.3.1-1</code></a>, 4.3.1-3, 4.3.1-5); and the vendor class is matched by &#34;PXEClient:&#34; prefix rather than exactly (<a href="#rfc2131-4.3.1-7"><code>RFC2131-4.3.1-7</code></a>).</p>
+<p class="rfc-prose"><strong>Client:</strong> option 61 is sent at acquisition and omitted on every renewal (<a href="#rfc2131-2-2"><code>RFC2131-2-2</code></a>); the configured client-id is emitted with no uniqueness check (<a href="#rfc2131-2-1"><code>RFC2131-2-1</code></a>); an address found in use is kept rather than declined, and no DHCPDECLINE path exists (<a href="#rfc2131-3.1-7"><code>RFC2131-3.1-7</code></a>); retransmission doubles the timeout with no randomization (<a href="#rfc2131-4.1-8"><code>RFC2131-4.1-8</code></a>); the renewal is broadcast rather than unicast to the server identifier (<a href="#rfc2131-4.1-10"><code>RFC2131-4.1-10</code></a>); the lease default route survives around 70 seconds past expiry because blocking renewal attempts add to a fixed sleep budget (<a href="#rfc2131-4.4.5-1"><code>RFC2131-4.4.5-1</code></a>); and a renewal ACK carrying a different yiaddr leaves the previous address installed (<a href="#rfc2131-4.4.5-5"><code>RFC2131-4.4.5-5</code></a>). DHCPINFORM is answered by no code path and sent by none, option overload (52) is neither emitted nor honored, and the remaining client-role MUSTs are not-applicable because ze produces none of the governed bytes: the vendored nclient4 library constructs them, or ze never enters the state (INIT-REBOOT, DECLINE, RELEASE, INFORM).</p>
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>15</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>49</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>64</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (15):</strong> <a href="#rfc2131-4.3-4"><code>RFC2131-4.3-4</code></a>, <a href="#rfc2131-4.3-5"><code>RFC2131-4.3-5</code></a>, <a href="#rfc2131-4.3-6"><code>RFC2131-4.3-6</code></a>, <a href="#rfc2131-4.3-7"><code>RFC2131-4.3-7</code></a>, <a href="#rfc2131-4.3-8"><code>RFC2131-4.3-8</code></a>, <a href="#rfc2131-4.3-9"><code>RFC2131-4.3-9</code></a>, <a href="#rfc2131-4.2-2"><code>RFC2131-4.2-2</code></a>, <a href="#rfc2131-3-1"><code>RFC2131-3-1</code></a>, <a href="#rfc2131-4.1-3"><code>RFC2131-4.1-3</code></a>, <a href="#rfc2131-4.1-6"><code>RFC2131-4.1-6</code></a>, <a href="#rfc2131-2-3"><code>RFC2131-2-3</code></a>, <a href="#rfc2131-4.4.5-2"><code>RFC2131-4.4.5-2</code></a>, <a href="#rfc2131-4.4.5-3"><code>RFC2131-4.4.5-3</code></a>, <a href="#rfc2131-4.3.1-4"><code>RFC2131-4.3.1-4</code></a>, <a href="#rfc2131-4.3.1-6"><code>RFC2131-4.3.1-6</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (49):</strong> <a href="#rfc2131-4.3-1"><code>RFC2131-4.3-1</code></a>, <a href="#rfc2131-4.3-2"><code>RFC2131-4.3-2</code></a>, <a href="#rfc2131-4.3-3"><code>RFC2131-4.3-3</code></a>, <a href="#rfc2131-4.3.5-1"><code>RFC2131-4.3.5-1</code></a>, <a href="#rfc2131-4.3.2-1"><code>RFC2131-4.3.2-1</code></a>, <a href="#rfc2131-4.3.2-2"><code>RFC2131-4.3.2-2</code></a>, <a href="#rfc2131-4.3.2-3"><code>RFC2131-4.3.2-3</code></a>, <a href="#rfc2131-4.3.3-1"><code>RFC2131-4.3.3-1</code></a>, <a href="#rfc2131-4.1-1"><code>RFC2131-4.1-1</code></a>, <a href="#rfc2131-4.1-2"><code>RFC2131-4.1-2</code></a>, <a href="#rfc2131-4.2-1"><code>RFC2131-4.2-1</code></a>, <a href="#rfc2131-2-1"><code>RFC2131-2-1</code></a>, <a href="#rfc2131-2-2"><code>RFC2131-2-2</code></a>, <a href="#rfc2131-3.1-1"><code>RFC2131-3.1-1</code></a>, <a href="#rfc2131-3.1-2"><code>RFC2131-3.1-2</code></a>, <a href="#rfc2131-3.1-3"><code>RFC2131-3.1-3</code></a>, <a href="#rfc2131-3.1-4"><code>RFC2131-3.1-4</code></a>, <a href="#rfc2131-3.1-5"><code>RFC2131-3.1-5</code></a>, <a href="#rfc2131-3.2-1"><code>RFC2131-3.2-1</code></a>, <a href="#rfc2131-3.1-6"><code>RFC2131-3.1-6</code></a>, <a href="#rfc2131-3.1-7"><code>RFC2131-3.1-7</code></a>, <a href="#rfc2131-4.4.5-1"><code>RFC2131-4.4.5-1</code></a>, <a href="#rfc2131-4.1-4"><code>RFC2131-4.1-4</code></a>, <a href="#rfc2131-4.1-5"><code>RFC2131-4.1-5</code></a>, <a href="#rfc2131-4.1-7"><code>RFC2131-4.1-7</code></a>, <a href="#rfc2131-4.1-8"><code>RFC2131-4.1-8</code></a>, <a href="#rfc2131-4.1-9"><code>RFC2131-4.1-9</code></a>, <a href="#rfc2131-4.1-10"><code>RFC2131-4.1-10</code></a>, <a href="#rfc2131-3.4-1"><code>RFC2131-3.4-1</code></a>, <a href="#rfc2131-2-4"><code>RFC2131-2-4</code></a>, <a href="#rfc2131-3.5-1"><code>RFC2131-3.5-1</code></a>, <a href="#rfc2131-3.1-8"><code>RFC2131-3.1-8</code></a>, <a href="#rfc2131-4.3.1-1"><code>RFC2131-4.3.1-1</code></a>, <a href="#rfc2131-4.3.1-2"><code>RFC2131-4.3.1-2</code></a>, <a href="#rfc2131-4.3.1-3"><code>RFC2131-4.3.1-3</code></a>, <a href="#rfc2131-4.3.1-5"><code>RFC2131-4.3.1-5</code></a>, <a href="#rfc2131-4.3.1-7"><code>RFC2131-4.3.1-7</code></a>, <a href="#rfc2131-4.4.1-1"><code>RFC2131-4.4.1-1</code></a>, <a href="#rfc2131-4.4.2-1"><code>RFC2131-4.4.2-1</code></a>, <a href="#rfc2131-4.4.2-2"><code>RFC2131-4.4.2-2</code></a>, <a href="#rfc2131-4.4.3-1"><code>RFC2131-4.4.3-1</code></a>, <a href="#rfc2131-4.3.2-5"><code>RFC2131-4.3.2-5</code></a>, <a href="#rfc2131-4.4.5-5"><code>RFC2131-4.4.5-5</code></a>, <a href="#rfc2131-4.4.5-6"><code>RFC2131-4.4.5-6</code></a>, <a href="#rfc2131-4.4.5-7"><code>RFC2131-4.4.5-7</code></a>, <a href="#rfc2131-3.2-3"><code>RFC2131-3.2-3</code></a>, <a href="#rfc2131-4.4-1"><code>RFC2131-4.4-1</code></a>, <a href="#rfc2131-4.4-2"><code>RFC2131-4.4-2</code></a>, <a href="#rfc2131-4.4-3"><code>RFC2131-4.4-3</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3-1">RFC2131-4.3-1</code></td><td colspan="3"><span class="rfc-subject">Server identifier MUST be included in DHCPOFFER, DHCPACK, and DHCPNAK (§4.3, Table 3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L169" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestServerIdentifierInEveryReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> every reply path appends option 54 unconditionally -- buildReply at internal/plugins/dhcpserver/handler.go:246 and buildNak at handler.go:349 -- so no input suppresses the server identifier and there is no omission to assert negatively</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3-2">RFC2131-4.3-2</code></td><td colspan="3"><span class="rfc-subject">IP address lease time MUST be included in DHCPOFFER (§4.3, Table 3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L194" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestLeaseTimeInOfferAndAck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the lease time is appended to every OFFER and ACK unconditionally (buildReply internal/plugins/dhcpserver/handler.go:271-273, inside the OFFER/ACK branch opened at handler.go:248), so no input yields a DHCPOFFER without option 51 to assert negatively</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3-3">RFC2131-4.3-3</code></td><td colspan="3"><span class="rfc-subject">IP address lease time MUST be included in DHCPACK for DHCPREQUEST (§4.3, Table 3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L198" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestLeaseTimeInOfferAndAck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the lease time is appended to every OFFER and ACK unconditionally (buildReply internal/plugins/dhcpserver/handler.go:271-273, inside the OFFER/ACK branch opened at handler.go:248), so no DHCPREQUEST yields a DHCPACK without option 51 to assert negatively</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3-4">RFC2131-4.3-4</code></td><td colspan="3"><span class="rfc-subject">IP address lease time MUST NOT be included in DHCPNAK (§4.3, Table 3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L245" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L333" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3-5">RFC2131-4.3-5</code></td><td colspan="3"><span class="rfc-subject">Requested IP address option MUST NOT be included in DHCPOFFER, DHCPACK, or DHCPNAK (§4.3, Table 3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L224" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L312" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3-6">RFC2131-4.3-6</code></td><td colspan="3"><span class="rfc-subject">Client identifier MUST NOT be included in DHCPOFFER or DHCPACK (§4.3, Table 3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L239" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L327" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3-7">RFC2131-4.3-7</code></td><td colspan="3"><span class="rfc-subject">Parameter request list MUST NOT be included in DHCPOFFER, DHCPACK, or DHCPNAK (§4.3, Table 3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L228" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L316" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3-8">RFC2131-4.3-8</code></td><td colspan="3"><span class="rfc-subject">Maximum message size MUST NOT be included in DHCPOFFER, DHCPACK, or DHCPNAK (§4.3, Table 3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L232" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L320" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3-9">RFC2131-4.3-9</code></td><td colspan="3"><span class="rfc-subject">Options other than message MUST NOT be included in DHCPNAK (§4.3, Table 3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L249" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L337" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.5-1">RFC2131-4.3.5-1</code></td><td colspan="3"><span class="rfc-subject">Server MUST NOT send lease expiration time for DHCPINFORM (§4.3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze answers no DHCPINFORM at all -- the message-type switch in handle (internal/plugins/dhcpserver/handler.go:121-134) dispatches DISCOVER, REQUEST, RELEASE and DECLINE, and every other type including msgInform (handler.go:37) falls to the default branch that returns nil, so ze builds no DHCPINFORM response at all</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.2-1">RFC2131-4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">When giaddr is 0x0, server MUST broadcast DHCPNAK to 0xFFFFFFFF (§4.3.2, §3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> with giaddr zero the delivery path unicasts a DHCPNAK to a non-zero ciaddr instead of broadcasting -- responseAddr tests giaddr, then ciaddr, before it ever reaches the broadcast decision (internal/plugins/dhcpserver/register.go:275-298) and never special-cases the NAK message type, so a REQUEST whose ciaddr is on-subnet and whose requested address is off-subnet is NAKed to ciaddr:68</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.2-2">RFC2131-4.3.2-2</code></td><td colspan="3"><span class="rfc-subject">When giaddr is set in DHCPNAK, server MUST set the broadcast bit (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> buildNak copies the client&#39;s flags word verbatim (internal/plugins/dhcpserver/handler.go:339) and never forces the BROADCAST bit, so a DHCPNAK relayed through a non-zero giaddr leaves the server with the broadcast bit clear whenever the client left it clear</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.2-3">RFC2131-4.3.2-3</code></td><td colspan="3"><span class="rfc-subject">If server has no record of client in INIT-REBOOT, server MUST remain silent (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the INIT-REBOOT branch commits a binding for any in-subnet requested address without consulting the lease table (handleRequest internal/plugins/dhcpserver/handler.go:178-183 calls commitBinding at handler.go:194), so a client the server holds no record of draws a DHCPACK rather than silence</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.3-1">RFC2131-4.3.3-1</code></td><td colspan="3"><span class="rfc-subject">Server MUST mark the network address as unavailable on DHCPDECLINE (§4.3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> markUnavailable sets the pool bit and the static set for the declined address (internal/plugins/dhcpserver/pool.go:144-163), but the declining client&#39;s MAC-to-address cache entry survives -- pool.release returns early for a staticSet address (pool.go:174-177) -- so pool.allocate hands that same declined address back to that client on its next DISCOVER (pool.go:68-72)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-1">RFC2131-4.1-1</code></td><td colspan="3"><span class="rfc-subject">A server with multiple network addresses MUST be prepared to accept any of its addresses as identifying that server (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> each handler accepts exactly one address as its server identifier -- handleRequest discards a REQUEST whose option 54 differs from its own serverIP (internal/plugins/dhcpserver/handler.go:167-169) -- and that address is the single per-subnet value derived at register.go:93-101, so a REQUEST naming another of the server&#39;s own addresses is silently dropped</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-2">RFC2131-4.1-2</code></td><td colspan="3"><span class="rfc-subject">Server MUST choose a server identifier address reachable from the client (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> with no default-router configured for a subnet the server identifier is not an address the server answers on -- register.go:93 prefers sub.DefaultRouter, which parseSubnet leaves unset when the leaf is absent (internal/plugins/dhcpserver/config.go:189-195), and falls back to the first pool address (internal/plugins/dhcpserver/register.go:95-97), which the server itself hands out to a client, or to the subnet network address (register.go:99-101), which is no host at all; buildReply then emits that value as option 54 (internal/plugins/dhcpserver/handler.go:246), so a client unicasting to it reaches nothing</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.2-1">RFC2131-4.2-1</code></td><td colspan="3"><span class="rfc-subject">If client supplies a client identifier, server MUST use it to identify the client (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze never reads the client identifier -- option 61 is absent from the option codes at internal/plugins/dhcpserver/handler.go:41-61 and no parse call asks for it -- and keys every binding on the hardware address instead (extractMAC handler.go:456, leaseTable byMAC lease.go:23, pool.macToAddr pool.go:22), so a client that supplies a client identifier is still identified by chaddr</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.2-2">RFC2131-4.2-2</code></td><td colspan="3"><span class="rfc-subject">If client does not provide a client identifier, server MUST use chaddr to identify the client (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L366" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestChaddrIdentifiesClientWithoutClientIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L390" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestUnidentifiableClientRejected</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-2-1">RFC2131-2-1</code></td><td colspan="3"><span class="rfc-subject">Client identifier MUST be unique within the subnet (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s client emits the operator-configured client identifier verbatim and nothing derives or checks it -- v4RequestModifiers appends OptClientIdentifier([]byte(c.config.ClientID)) (internal/plugins/iface/dhcp/dhcp_v4_linux.go:304-306) from the config leaf read at internal/component/iface/config.go:1267-1269 and carried at internal/component/iface/register.go:891, and no validator constrains the value, so two units on one subnet configured with the same client-id emit colliding identifiers</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-2-2">RFC2131-2-2</code></td><td colspan="3"><span class="rfc-subject">If client uses a client identifier in one message, it MUST use the same identifier in all subsequent messages (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s client sends option 61 at acquisition and omits it on every renewal -- the DORA call passes v4RequestModifiers() (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48, built at :299-308) while renewV4 calls client.Renew(ctx, lease) with no modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:143), and the renewal REQUEST is built by NewRenewFromAck (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:275-290) whose WithReply copies only opcode, HW type, xid, chaddr and flags (vendor/github.com/insomniacslk/dhcp/dhcpv4/modifiers.go:56-68) and never an option, so the identifier the server bound at acquisition is absent from every later message</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-1">RFC2131-3.1-1</code></td><td colspan="3"><span class="rfc-subject">DHCPREQUEST in SELECTING state MUST include the server identifier option (§3.1, Table 4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze hands SELECTING message construction to the vendored library -- runV4 calls client.Request (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48), which builds the REQUEST in NewRequestFromOffer (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:256-270) where the server identifier is copied from the OFFER at dhcpv4.go:263; ze contributes only hostname and client-id modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:299-308) and authors none of those bytes</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-2">RFC2131-3.1-2</code></td><td colspan="3"><span class="rfc-subject">DHCPREQUEST in SELECTING state MUST include the requested IP address option (§3.1, Table 4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze hands SELECTING message construction to the vendored library -- runV4 calls client.Request (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48), which builds the REQUEST in NewRequestFromOffer (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:256-270) where the requested IP address option is set from the OFFER&#39;s yiaddr at dhcpv4.go:261; ze contributes only hostname and client-id modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:299-308) and authors none of those bytes</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-3">RFC2131-3.1-3</code></td><td colspan="3"><span class="rfc-subject">DHCPREQUEST in INIT-REBOOT state MUST include the requested IP address option (§3.1, Table 4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCPv4 client never enters INIT-REBOOT -- every acquisition is a full DORA (client.Request internal/plugins/iface/dhcp/dhcp_v4_linux.go:48) and every renewal is a RENEWING request built from the stored ACK (client.Renew internal/plugins/iface/dhcp/dhcp_v4_linux.go:143); no ze code path caches an address to reboot with, so ze produces no INIT-REBOOT REQUEST</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-4">RFC2131-3.1-4</code></td><td colspan="3"><span class="rfc-subject">DHCPREQUEST in INIT-REBOOT state MUST NOT include the server identifier option (§3.1, Table 4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCPv4 client never enters INIT-REBOOT -- every acquisition is a full DORA (client.Request internal/plugins/iface/dhcp/dhcp_v4_linux.go:48) and every renewal is a RENEWING request built from the stored ACK (client.Renew internal/plugins/iface/dhcp/dhcp_v4_linux.go:143); no ze code path caches an address to reboot with, so ze produces no INIT-REBOOT REQUEST</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-5">RFC2131-3.1-5</code></td><td colspan="3"><span class="rfc-subject">DHCPREQUEST in RENEWING/REBINDING MUST NOT include server identifier or requested IP address (§3.1, Table 4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the RENEWING/REBINDING REQUEST is constructed entirely inside the vendored library -- renewV4 calls client.Renew with no modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:143) and NewRenewFromAck sets message type, ciaddr, the broadcast flag and a requested-options list only (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:275-290), adding neither a server identifier nor a requested IP address; ze authors none of those bytes</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.2-1">RFC2131-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Client in INIT-REBOOT MUST NOT fill in ciaddr (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCPv4 client never enters INIT-REBOOT -- every acquisition is a full DORA (client.Request internal/plugins/iface/dhcp/dhcp_v4_linux.go:48) and every renewal is a RENEWING request built from the stored ACK (client.Renew internal/plugins/iface/dhcp/dhcp_v4_linux.go:143); no ze code path caches an address to reboot with, so ze produces no INIT-REBOOT REQUEST</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-6">RFC2131-3.1-6</code></td><td colspan="3"><span class="rfc-subject">Client MUST use same client identifier in DHCPRELEASE as used to obtain the lease (§3.1, §3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCPv4 client sends no DHCPRELEASE, so no ze path builds the message whose fields this governs -- runV4 ends a lease by removing the address locally (internal/plugins/iface/dhcp/dhcp_v4_linux.go:120, 211-235), and nclient4&#39;s Release (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/lease.go:26) is called nowhere in ze</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-7">RFC2131-3.1-7</code></td><td colspan="3"><span class="rfc-subject">If client detects allocated address is already in use, it MUST send DHCPDECLINE (§3.1, §3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s client installs the ACKed address without checking it is free and has no DHCPDECLINE path -- handleV4Lease goes straight from the ACK to ReplaceAddressWithLifetime (internal/plugins/iface/dhcp/dhcp_v4_linux.go:158-184) with no probe of the address, and neither ze nor the vendored nclient4 client contains a DECLINE producer, so an address found in use is kept rather than declined</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-1">RFC2131-4.4.5-1</code></td><td colspan="3"><span class="rfc-subject">Client MUST stop network processing when lease expires (§4.4.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze tears the lease down late -- runV4 budgets fixed sleeps of lease/2, 3*lease/8 and lease/8 (internal/plugins/iface/dhcp/dhcp_v4_linux.go:80-118) and calls renewV4 between them, so the blocking renewal attempts add to that budget: each failed renewal spends the vendored retry schedule of 5 seconds doubling over 3 tries (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:32, 35, retryFn 649-669), leaving the lease&#39;s default route (internal/plugins/iface/dhcp/dhcp_v4_linux.go:190) installed for around 70 seconds past expiry before removeV4Addr runs (internal/plugins/iface/dhcp/dhcp_v4_linux.go:120, 228-235); only the address itself leaves on time, because the kernel holds the lease duration as its valid lifetime (internal/plugins/iface/dhcp/dhcp_v4_linux.go:180, internal/plugins/iface/netlink/manage_linux.go:268-286)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3-1">RFC2131-3-1</code></td><td colspan="3"><span class="rfc-subject">Options field MUST start with magic cookie 0x63825363 (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L423" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestMagicCookieRequiredAndEmitted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L431" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestMagicCookieRequiredAndEmitted</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-3">RFC2131-4.1-3</code></td><td colspan="3"><span class="rfc-subject">Options field MUST end with end option (255) (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L453" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOptionsTerminatedByEnd</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L471" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOptionsTerminatedByEnd</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-4">RFC2131-4.1-4</code></td><td colspan="3"><span class="rfc-subject">If option overload is used, it MUST appear in the options field (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze neither emits nor honors option overload (52) -- buildReply and buildNak leave sname and file zeroed (internal/plugins/dhcpserver/handler.go:220-290 and 333-354) and every option reader starts at pkt[240:], the options field alone (parseMsgType handler.go:367, parseOptionAddr handler.go:386, parseOptionBytes handler.go:471), so no option ever lives in the sname or file field</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-5">RFC2131-4.1-5</code></td><td colspan="3"><span class="rfc-subject">Options in sname/file fields MUST begin with the first octet, be terminated by end option, and be followed by pad (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze neither emits nor honors option overload (52) -- buildReply and buildNak leave sname and file zeroed (internal/plugins/dhcpserver/handler.go:220-290 and 333-354) and every option reader starts at pkt[240:], the options field alone (parseMsgType handler.go:367, parseOptionAddr handler.go:386, parseOptionBytes handler.go:471), so no option ever lives in the sname or file field</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-6">RFC2131-4.1-6</code></td><td colspan="3"><span class="rfc-subject">Each option MUST be entirely contained in its field (options/sname/file) (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L492" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestOptionsContainedWithinTheirField</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L515" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestOptionsContainedWithinTheirField</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-7">RFC2131-4.1-7</code></td><td colspan="3"><span class="rfc-subject">Options field MUST be interpreted first, then file, then sname (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze neither emits nor honors option overload (52) -- buildReply and buildNak leave sname and file zeroed (internal/plugins/dhcpserver/handler.go:220-290 and 333-354) and every option reader starts at pkt[240:], the options field alone (parseMsgType handler.go:367, parseOptionAddr handler.go:386, parseOptionBytes handler.go:471), so no option ever lives in the sname or file field; ze reads options from the options field only, so it holds no second option stream to order against it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-8">RFC2131-4.1-8</code></td><td colspan="3"><span class="rfc-subject">Client MUST adopt a retransmission strategy with randomized exponential backoff (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s client retransmits on a doubling timeout with no randomization -- runV4 and renewV4 build the client with no ClientOpt (internal/plugins/iface/dhcp/dhcp_v4_linux.go:37, 128), so it runs the vendored defaults of a 5 second timeout over 3 tries (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:32, 35, 183) through retryFn, which only doubles the timeout between tries (client.go:649-669)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-9">RFC2131-4.1-9</code></td><td colspan="3"><span class="rfc-subject">Client MUST choose xid values to minimize collision with other clients (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the transaction ID is drawn inside the vendored library -- every message ze&#39;s client sends is built through dhcpv4.New (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:144-150), which takes the xid from crypto/rand via GenerateTransactionID (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:121-139); ze calls only client.Request and client.Renew (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48, 143) and authors no xid</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-10">RFC2131-4.1-10</code></td><td colspan="3"><span class="rfc-subject">Client MUST use the IP address from the server identifier option for unicast requests (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze&#39;s renewal is not unicast to the server identifier -- renewV4 creates the client with nclient4.New(c.ifaceName) and no WithServerAddr (internal/plugins/iface/dhcp/dhcp_v4_linux.go:128), so serverAddr keeps the library default of 255.255.255.255:67 (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:50-53, assigned at client.go:183) and Renew sends the RENEWING REQUEST to that broadcast address (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/lease.go:60) instead of to the server identifier the ACK carried</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.4-1">RFC2131-3.4-1</code></td><td colspan="3"><span class="rfc-subject">Server MUST NOT check for existing lease when responding to DHCPINFORM (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze answers no DHCPINFORM at all -- the message-type switch in handle (internal/plugins/dhcpserver/handler.go:121-134) dispatches DISCOVER, REQUEST, RELEASE and DECLINE, and every other type including msgInform (handler.go:37) falls to the default branch that returns nil, so ze builds no DHCPINFORM response at all, so no response path exists that could consult an existing lease</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-2-3">RFC2131-2-3</code></td><td colspan="3"><span class="rfc-subject">Flags field bits 1-15 MUST be set to zero by clients and ignored by servers/relay agents (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L549" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestFlagsReservedBitsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L560" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestFlagsReservedBitsIgnored</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-2-4">RFC2131-2-4</code></td><td colspan="3"><span class="rfc-subject">Client MUST be prepared to receive DHCP messages with options field of at least 312 octets (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze reads no DHCP bytes itself -- the receive path is the vendored library&#39;s receiveLoop, which reads each datagram into a MaxMessageSize (1500 octet) buffer before decoding (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:256-271, MaxMessageSize at client.go:38), and ze only consumes the decoded result of client.Request and client.Renew (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48, 143)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.5-1">RFC2131-3.5-1</code></td><td colspan="3"><span class="rfc-subject">If client includes a parameter request list in DHCPDISCOVER, it MUST include that list in subsequent DHCPREQUEST messages (§3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the parameter request list is written by the vendored library, the same list in both messages -- NewDiscovery (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:198-209) and NewRequestFromOffer (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:256-270) each add the identical WithRequestedOptions set, and ze passes only hostname and client-id modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:299-308), so it authors no request list</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-2">RFC2131-4.4.5-2</code></td><td colspan="3"><span class="rfc-subject">T1 MUST be earlier than T2 (§4.4.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L603" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestRenewalTimersOrderedWithinLease</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L630" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestShortLeaseTimeRejected</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-3">RFC2131-4.4.5-3</code></td><td colspan="3"><span class="rfc-subject">T2 MUST be earlier than lease expiry (§4.4.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L607" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestRenewalTimersOrderedWithinLease</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L635" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestShortLeaseTimeRejected</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-8">RFC2131-3.1-8</code></td><td colspan="3"><span class="rfc-subject">DHCPREQUEST in SELECTING MUST use the same secs field and broadcast address as the original DHCPDISCOVER (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the secs field and the broadcast flag of the SELECTING REQUEST are the vendored library&#39;s -- it leaves secs zero in both the DISCOVER and the REQUEST (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:164-180 sets no secs) and copies the flags word across with WithReply (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:258, vendor/github.com/insomniacslk/dhcp/dhcpv4/modifiers.go:56-68), while ze&#39;s DORA call and its modifiers touch neither (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48, 299-308)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-9">RFC2131-3.1-9</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD probe offered address (e.g., ICMP Echo) before allocating (§3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.4-1">RFC2131-4.3.4-1</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD retain released client parameters for possible reuse (§4.3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-10">RFC2131-3.1-10</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD mark offered address as available if no DHCPREQUEST received (§3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.2-4">RFC2131-4.3.2-4</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD respond with DHCPNAK to wrong-subnet INIT-REBOOT client (§4.3.2, §3.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.3-2">RFC2131-4.3.3-2</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD notify administrator on DHCPDECLINE (§4.3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.5-2">RFC2131-4.3.5-2</code></td><td colspan="3"><span class="rfc-subject">DHCPINFORM response SHOULD NOT fill in yiaddr (§4.3.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>4.3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.4-2">RFC2131-3.4-2</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD unicast DHCPACK for DHCPINFORM to ciaddr (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.4-3">RFC2131-3.4-3</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD check network address in DHCPINFORM for consistency (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-11">RFC2131-3.1-11</code></td><td colspan="3"><span class="rfc-subject">DHCPACK parameters SHOULD NOT conflict with earlier DHCPOFFER (§3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-12">RFC2131-3.1-12</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD NOT check offered network address again at DHCPREQUEST time (§3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-13">RFC2131-3.1-13</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD perform final check on parameters (e.g., ARP) after DHCPACK (§3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-13">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-14">RFC2131-3.1-14</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD wait minimum 10 seconds before restarting after DHCPDECLINE (§3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-14">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-15">RFC2131-3.1-15</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD notify the user when initialization fails and restarts (§3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.5-2">RFC2131-3.5-2</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD include maximum DHCP message size option (§3.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.7-1">RFC2131-3.7-1</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD use DHCP to reacquire/verify IP address at boot time or after disconnection (§3.7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-2-5">RFC2131-2-5</code></td><td colspan="3"><span class="rfc-subject">TCP/IP software SHOULD accept and forward IP packets to the IP layer before address is configured (§2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-11">RFC2131-4.1-11</code></td><td colspan="3"><span class="rfc-subject">Client unable to receive unicast SHOULD set BROADCAST bit (§4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-12">RFC2131-4.1-12</code></td><td colspan="3"><span class="rfc-subject">Server/relay SHOULD examine BROADCAST bit and broadcast when set (§4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-4">RFC2131-4.4.5-4</code></td><td colspan="3"><span class="rfc-subject">T1 and T2 SHOULD include random fuzz to avoid synchronization (§4.4.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-13">RFC2131-4.1-13</code></td><td colspan="3"><span class="rfc-subject">Retransmission delay SHOULD start at 4 seconds with +/-1 randomization and double up to 64 seconds (§4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-13">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-2.2-1">RFC2131-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Allocating server SHOULD probe reused address before allocating (§2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-2.2-2">RFC2131-2.2-2</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD probe newly received address (e.g., with ARP) (§2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-16">RFC2131-3.1-16</code></td><td colspan="3"><span class="rfc-subject">DHCPDISCOVER MAY include options suggesting address and lease duration (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-16">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.1-17">RFC2131-3.1-17</code></td><td colspan="3"><span class="rfc-subject">Server MAY choose to mark offered addresses as unavailable (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.1-17">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.2-3">RFC2131-4.2-3</code></td><td colspan="3"><span class="rfc-subject">Server MAY refuse to allocate even when addresses are available (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.1-14">RFC2131-4.1-14</code></td><td colspan="3"><span class="rfc-subject">Server MAY use any of its network addresses in outgoing DHCP messages (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.1-14">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.2-2">RFC2131-3.2-2</code></td><td colspan="3"><span class="rfc-subject">Client MAY choose to use previously allocated address for remainder of unexpired lease if no response (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.1-1">RFC2131-4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">Server MUST select configuration parameters by applying rules in specified order (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze applies no parameter-selection procedure -- buildReply emits one fixed option set in one fixed order (internal/plugins/dhcpserver/handler.go:245-285) and the parameter request list is never parsed (optParamReqList is defined at handler.go:52 and read nowhere in production), so the ordered rules of Section 4.3.1 govern no ze code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.1-2">RFC2131-4.3.1-2</code></td><td colspan="3"><span class="rfc-subject">If server has an explicitly configured default value for a requested parameter, it MUST include that value (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L697" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestUnconfiguredParametersOmitted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze emits its configured values unconditionally (buildReply internal/plugins/dhcpserver/handler.go:245-285), so a configured value is present whether or not the client asked for it and no input suppresses one to assert negatively</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.1-3">RFC2131-4.3.1-3</code></td><td colspan="3"><span class="rfc-subject">If server recognizes a parameter defined in the Host Requirements Document, it MUST include the default value (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze returns only the values its own subnet configuration holds (buildReply internal/plugins/dhcpserver/handler.go:245-285); it reads no parameter request list (optParamReqList handler.go:52 is parsed nowhere in production) and carries no Host Requirements defaults, so a recognized parameter the client requests draws no default value</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.1-4">RFC2131-4.3.1-4</code></td><td colspan="3"><span class="rfc-subject">If server has no value for a requested parameter, it MUST NOT return a value for that parameter (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L668" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestUnconfiguredParametersOmitted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L682" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestUnconfiguredParametersOmitted</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.1-5">RFC2131-4.3.1-5</code></td><td colspan="3"><span class="rfc-subject">Server MUST supply as many of the requested parameters as possible and MUST omit any it cannot provide (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the parameter request list is never parsed (optParamReqList internal/plugins/dhcpserver/handler.go:52 is read nowhere in production), so ze supplies its fixed configured option set (buildReply handler.go:245-285) rather than as many of the client&#39;s requested parameters as it can</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.1-6">RFC2131-4.3.1-6</code></td><td colspan="3"><span class="rfc-subject">Server MUST include each requested parameter only once unless explicitly allowed (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L723" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestEachParameterEmittedOnce</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L744" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestEachParameterEmittedOnce</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.1-7">RFC2131-4.3.1-7</code></td><td colspan="3"><span class="rfc-subject">Vendor class identifier parameters MUST be identified by an exact match between client and server class identifiers (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze identifies the vendor class by a ten-octet prefix comparison against the string PXEClient: (isPXEClient internal/plugins/dhcpserver/handler.go:493-496) rather than by an exact match against a configured class identifier, and that prefix match is what selects the class-specific options appended at handler.go:292-330</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.1-1">RFC2131-4.4.1-1</code></td><td colspan="3"><span class="rfc-subject">Client MUST include its hardware address in the &#39;chaddr&#39; field if necessary for DHCP reply delivery (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> chaddr is filled by the vendored library from the bound interface -- nclient4.New resolves the interface MAC (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:199-209) and NewDiscovery/NewRequestFromOffer set it with WithHwAddr (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:198-209, 256-270); ze only names the interface to bind (internal/plugins/iface/dhcp/dhcp_v4_linux.go:37)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.2-1">RFC2131-4.4.2-1</code></td><td colspan="3"><span class="rfc-subject">Client sending DHCPDECLINE MUST insert its known network address as &#39;requested IP address&#39; option (§4.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCPv4 client sends no DHCPDECLINE, so no ze path builds the message whose fields this governs -- runV4 installs the ACKed address directly (handleV4Lease internal/plugins/iface/dhcp/dhcp_v4_linux.go:158-184) and neither ze nor the vendored nclient4 client holds a DECLINE producer; that absence is itself recorded as the gap on RFC2131-3.1-7</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.2-2">RFC2131-4.4.2-2</code></td><td colspan="3"><span class="rfc-subject">Client sending DHCPDECLINE/DHCPRELEASE of requested IP MUST NOT include &#39;server identifier&#39; in INIT-REBOOT (§4.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCPv4 client sends no DHCPDECLINE, so no ze path builds the message whose fields this governs -- runV4 installs the ACKed address directly (handleV4Lease internal/plugins/iface/dhcp/dhcp_v4_linux.go:158-184) and neither ze nor the vendored nclient4 client holds a DECLINE producer; that absence is itself recorded as the gap on RFC2131-3.1-7</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.3-1">RFC2131-4.4.3-1</code></td><td colspan="3"><span class="rfc-subject">DHCPINFORM messages MUST be directed to the &#39;DHCP server&#39; UDP port (§4.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s client sends no DHCPINFORM -- nclient4 exposes Inform (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:483-498) and ze calls it nowhere; runV4 and renewV4 use only Request and Renew (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48, 143)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.2-5">RFC2131-4.3.2-5</code></td><td colspan="3"><span class="rfc-subject">DHCPREQUEST in REBINDING state MUST be broadcast to 0xFFFFFFFF (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s T2 attempt reuses the same vendored Renew call as its T1 attempt (internal/plugins/iface/dhcp/dhcp_v4_linux.go:103 and 143), so both the message and its destination are the library&#39;s: NewRenewFromAck builds it (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:275-290) and it goes to the default serverAddr of 255.255.255.255:67 (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:50-53, 183, used at nclient4/lease.go:60); ze chooses neither</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-5">RFC2131-4.4.5-5</code></td><td colspan="3"><span class="rfc-subject">Client given a new network address after lease expiry MUST NOT continue using the previous address (§4.4.5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a renewal that returns a different yiaddr leaves the previous address in use -- renewV4 hands the new ACK to handleV4Lease (internal/plugins/iface/dhcp/dhcp_v4_linux.go:154), which installs the new address with ReplaceAddressWithLifetime (internal/plugins/iface/dhcp/dhcp_v4_linux.go:180), a per-address replace that touches no other address (internal/plugins/iface/netlink/manage_linux.go:268-286), and runV4 then overwrites its ack reference (internal/plugins/iface/dhcp/dhcp_v4_linux.go:87-88) so the previous address is never passed to removeV4Addr; both addresses stay configured on the interface</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-6">RFC2131-4.4.5-6</code></td><td colspan="3"><span class="rfc-subject">Client in RENEWING state MUST NOT include &#39;server identifier&#39; in the DHCPREQUEST (§4.4.5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the RENEWING/REBINDING REQUEST is constructed entirely inside the vendored library -- renewV4 calls client.Renew with no modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:143) and NewRenewFromAck sets message type, ciaddr, the broadcast flag and a requested-options list only (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:275-290), adding neither a server identifier nor a requested IP address; ze authors none of those bytes</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-7">RFC2131-4.4.5-7</code></td><td colspan="3"><span class="rfc-subject">Client in REBINDING state MUST NOT include &#39;server identifier&#39; in the DHCPREQUEST (§4.4.5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the RENEWING/REBINDING REQUEST is constructed entirely inside the vendored library -- renewV4 calls client.Renew with no modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:143) and NewRenewFromAck sets message type, ciaddr, the broadcast flag and a requested-options list only (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:275-290), adding neither a server identifier nor a requested IP address; ze authors none of those bytes</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.2-3">RFC2131-3.2-3</code></td><td colspan="3"><span class="rfc-subject">Client MUST NOT fill in &#39;ciaddr&#39; when it has not received its network address (INIT-REBOOT) (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCPv4 client never enters INIT-REBOOT -- every acquisition is a full DORA (client.Request internal/plugins/iface/dhcp/dhcp_v4_linux.go:48) and every renewal is a RENEWING request built from the stored ACK (client.Renew internal/plugins/iface/dhcp/dhcp_v4_linux.go:143); no ze code path caches an address to reboot with, so ze produces no INIT-REBOOT REQUEST</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4-1">RFC2131-4.4-1</code></td><td colspan="3"><span class="rfc-subject">DHCPDECLINE/DHCPRELEASE: vendor class identifier MUST NOT be included (§4.4, Table 5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCPv4 client sends no DHCPDECLINE, so no ze path builds the message whose fields this governs -- runV4 installs the ACKed address directly (handleV4Lease internal/plugins/iface/dhcp/dhcp_v4_linux.go:158-184) and neither ze nor the vendored nclient4 client holds a DECLINE producer; that absence is itself recorded as the gap on RFC2131-3.1-7</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4-2">RFC2131-4.4-2</code></td><td colspan="3"><span class="rfc-subject">DHCPDECLINE: requested IP address MUST be included (§4.4, Table 5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCPv4 client sends no DHCPDECLINE, so no ze path builds the message whose fields this governs -- runV4 installs the ACKed address directly (handleV4Lease internal/plugins/iface/dhcp/dhcp_v4_linux.go:158-184) and neither ze nor the vendored nclient4 client holds a DECLINE producer; that absence is itself recorded as the gap on RFC2131-3.1-7</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4-3">RFC2131-4.4-3</code></td><td colspan="3"><span class="rfc-subject">DHCPRELEASE: server identifier MUST be included (§4.4, Table 5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DHCPv4 client sends no DHCPRELEASE, so no ze path builds the message whose fields this governs -- runV4 ends a lease by removing the address locally (internal/plugins/iface/dhcp/dhcp_v4_linux.go:120, 211-235), and nclient4&#39;s Release (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/lease.go:26) is called nowhere in ze</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.3-2">RFC2131-4.4.3-2</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD NOT request lease time parameters in DHCPINFORM (§4.4.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>4.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.1-2">RFC2131-4.4.1-2</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD wait a random time between one and ten seconds before first DHCPDISCOVER (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.1-3">RFC2131-4.4.1-3</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD broadcast ARP reply to announce new IP address after DHCPACK (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.2-6">RFC2131-4.3.2-6</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD check &#39;ciaddr&#39; for correctness before replying to REBINDING DHCPREQUEST (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.2-4">RFC2131-4.2-4</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD provide mechanism for user to select vendor class identifier values (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-8">RFC2131-4.4.5-8</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD wait one-half of remaining time before retransmitting DHCPREQUEST in RENEWING/REBINDING (§4.4.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-9">RFC2131-4.4.5-9</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD continue network processing if given its previous address after lease expiry (§4.4.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.4.5-10">RFC2131-4.4.5-10</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD notify the local users if given a new address after lease expiry (§4.4.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.4.5-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-3.5-3">RFC2131-3.5-3</code></td><td colspan="3"><span class="rfc-subject">Server SHOULD respond with DHCPNAK if &#39;requested IP address&#39; is invalid (§3.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-3.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2131-4.3.1-8">RFC2131-4.3.1-8</code></td><td colspan="3"><span class="rfc-subject">Address selection for new allocation SHOULD follow specified priority order (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2131-4.3.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc2131-4.3.5-1"><code>RFC2131-4.3.5-1</code></a> Server MUST NOT send lease expiration time for DHCPINFORM (§4.3.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze answers no DHCPINFORM at all -- the message-type switch in handle (internal/plugins/dhcpserver/handler.go:121-134) dispatches DISCOVER, REQUEST, RELEASE and DECLINE, and every other type including msgInform (handler.go:37) falls to the default branch that returns nil, so ze builds no DHCPINFORM response at all</td>
+</tr>
+<tr><td><a href="#rfc2131-4.3.2-1"><code>RFC2131-4.3.2-1</code></a> When giaddr is 0x0, server MUST broadcast DHCPNAK to 0xFFFFFFFF (§4.3.2, §3.2)</td>
+<td>{gap}, no test</td>
+<td>with giaddr zero the delivery path unicasts a DHCPNAK to a non-zero ciaddr instead of broadcasting -- responseAddr tests giaddr, then ciaddr, before it ever reaches the broadcast decision (internal/plugins/dhcpserver/register.go:275-298) and never special-cases the NAK message type, so a REQUEST whose ciaddr is on-subnet and whose requested address is off-subnet is NAKed to ciaddr:68</td>
+</tr>
+<tr><td><a href="#rfc2131-4.3.2-2"><code>RFC2131-4.3.2-2</code></a> When giaddr is set in DHCPNAK, server MUST set the broadcast bit (§4.3.2)</td>
+<td>{gap}, no test</td>
+<td>buildNak copies the client&#39;s flags word verbatim (internal/plugins/dhcpserver/handler.go:339) and never forces the BROADCAST bit, so a DHCPNAK relayed through a non-zero giaddr leaves the server with the broadcast bit clear whenever the client left it clear</td>
+</tr>
+<tr><td><a href="#rfc2131-4.3.2-3"><code>RFC2131-4.3.2-3</code></a> If server has no record of client in INIT-REBOOT, server MUST remain silent (§4.3.2)</td>
+<td>{gap}, no test</td>
+<td>the INIT-REBOOT branch commits a binding for any in-subnet requested address without consulting the lease table (handleRequest internal/plugins/dhcpserver/handler.go:178-183 calls commitBinding at handler.go:194), so a client the server holds no record of draws a DHCPACK rather than silence</td>
+</tr>
+<tr><td><a href="#rfc2131-4.3.3-1"><code>RFC2131-4.3.3-1</code></a> Server MUST mark the network address as unavailable on DHCPDECLINE (§4.3.3)</td>
+<td>{gap}, no test</td>
+<td>markUnavailable sets the pool bit and the static set for the declined address (internal/plugins/dhcpserver/pool.go:144-163), but the declining client&#39;s MAC-to-address cache entry survives -- pool.release returns early for a staticSet address (pool.go:174-177) -- so pool.allocate hands that same declined address back to that client on its next DISCOVER (pool.go:68-72)</td>
+</tr>
+<tr><td><a href="#rfc2131-4.1-1"><code>RFC2131-4.1-1</code></a> A server with multiple network addresses MUST be prepared to accept any of its addresses as identifying that server (§4.1)</td>
+<td>{gap}, no test</td>
+<td>each handler accepts exactly one address as its server identifier -- handleRequest discards a REQUEST whose option 54 differs from its own serverIP (internal/plugins/dhcpserver/handler.go:167-169) -- and that address is the single per-subnet value derived at register.go:93-101, so a REQUEST naming another of the server&#39;s own addresses is silently dropped</td>
+</tr>
+<tr><td><a href="#rfc2131-4.1-2"><code>RFC2131-4.1-2</code></a> Server MUST choose a server identifier address reachable from the client (§4.1)</td>
+<td>{gap}, no test</td>
+<td>with no default-router configured for a subnet the server identifier is not an address the server answers on -- register.go:93 prefers sub.DefaultRouter, which parseSubnet leaves unset when the leaf is absent (internal/plugins/dhcpserver/config.go:189-195), and falls back to the first pool address (internal/plugins/dhcpserver/register.go:95-97), which the server itself hands out to a client, or to the subnet network address (register.go:99-101), which is no host at all; buildReply then emits that value as option 54 (internal/plugins/dhcpserver/handler.go:246), so a client unicasting to it reaches nothing</td>
+</tr>
+<tr><td><a href="#rfc2131-4.2-1"><code>RFC2131-4.2-1</code></a> If client supplies a client identifier, server MUST use it to identify the client (§4.2)</td>
+<td>{gap}, no test</td>
+<td>ze never reads the client identifier -- option 61 is absent from the option codes at internal/plugins/dhcpserver/handler.go:41-61 and no parse call asks for it -- and keys every binding on the hardware address instead (extractMAC handler.go:456, leaseTable byMAC lease.go:23, pool.macToAddr pool.go:22), so a client that supplies a client identifier is still identified by chaddr</td>
+</tr>
+<tr><td><a href="#rfc2131-2-1"><code>RFC2131-2-1</code></a> Client identifier MUST be unique within the subnet (§2)</td>
+<td>{gap}, no test</td>
+<td>ze&#39;s client emits the operator-configured client identifier verbatim and nothing derives or checks it -- v4RequestModifiers appends OptClientIdentifier([]byte(c.config.ClientID)) (internal/plugins/iface/dhcp/dhcp_v4_linux.go:304-306) from the config leaf read at internal/component/iface/config.go:1267-1269 and carried at internal/component/iface/register.go:891, and no validator constrains the value, so two units on one subnet configured with the same client-id emit colliding identifiers</td>
+</tr>
+<tr><td><a href="#rfc2131-2-2"><code>RFC2131-2-2</code></a> If client uses a client identifier in one message, it MUST use the same identifier in all subsequent messages (§2)</td>
+<td>{gap}, no test</td>
+<td>ze&#39;s client sends option 61 at acquisition and omits it on every renewal -- the DORA call passes v4RequestModifiers() (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48, built at :299-308) while renewV4 calls client.Renew(ctx, lease) with no modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:143), and the renewal REQUEST is built by NewRenewFromAck (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:275-290) whose WithReply copies only opcode, HW type, xid, chaddr and flags (vendor/github.com/insomniacslk/dhcp/dhcpv4/modifiers.go:56-68) and never an option, so the identifier the server bound at acquisition is absent from every later message</td>
+</tr>
+<tr><td><a href="#rfc2131-3.1-1"><code>RFC2131-3.1-1</code></a> DHCPREQUEST in SELECTING state MUST include the server identifier option (§3.1, Table 4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze hands SELECTING message construction to the vendored library -- runV4 calls client.Request (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48), which builds the REQUEST in NewRequestFromOffer (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:256-270) where the server identifier is copied from the OFFER at dhcpv4.go:263; ze contributes only hostname and client-id modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:299-308) and authors none of those bytes</td>
+</tr>
+<tr><td><a href="#rfc2131-3.1-2"><code>RFC2131-3.1-2</code></a> DHCPREQUEST in SELECTING state MUST include the requested IP address option (§3.1, Table 4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze hands SELECTING message construction to the vendored library -- runV4 calls client.Request (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48), which builds the REQUEST in NewRequestFromOffer (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:256-270) where the requested IP address option is set from the OFFER&#39;s yiaddr at dhcpv4.go:261; ze contributes only hostname and client-id modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:299-308) and authors none of those bytes</td>
+</tr>
+<tr><td><a href="#rfc2131-3.1-3"><code>RFC2131-3.1-3</code></a> DHCPREQUEST in INIT-REBOOT state MUST include the requested IP address option (§3.1, Table 4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCPv4 client never enters INIT-REBOOT -- every acquisition is a full DORA (client.Request internal/plugins/iface/dhcp/dhcp_v4_linux.go:48) and every renewal is a RENEWING request built from the stored ACK (client.Renew internal/plugins/iface/dhcp/dhcp_v4_linux.go:143); no ze code path caches an address to reboot with, so ze produces no INIT-REBOOT REQUEST</td>
+</tr>
+<tr><td><a href="#rfc2131-3.1-4"><code>RFC2131-3.1-4</code></a> DHCPREQUEST in INIT-REBOOT state MUST NOT include the server identifier option (§3.1, Table 4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCPv4 client never enters INIT-REBOOT -- every acquisition is a full DORA (client.Request internal/plugins/iface/dhcp/dhcp_v4_linux.go:48) and every renewal is a RENEWING request built from the stored ACK (client.Renew internal/plugins/iface/dhcp/dhcp_v4_linux.go:143); no ze code path caches an address to reboot with, so ze produces no INIT-REBOOT REQUEST</td>
+</tr>
+<tr><td><a href="#rfc2131-3.1-5"><code>RFC2131-3.1-5</code></a> DHCPREQUEST in RENEWING/REBINDING MUST NOT include server identifier or requested IP address (§3.1, Table 4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the RENEWING/REBINDING REQUEST is constructed entirely inside the vendored library -- renewV4 calls client.Renew with no modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:143) and NewRenewFromAck sets message type, ciaddr, the broadcast flag and a requested-options list only (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:275-290), adding neither a server identifier nor a requested IP address; ze authors none of those bytes</td>
+</tr>
+<tr><td><a href="#rfc2131-3.2-1"><code>RFC2131-3.2-1</code></a> Client in INIT-REBOOT MUST NOT fill in ciaddr (§3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCPv4 client never enters INIT-REBOOT -- every acquisition is a full DORA (client.Request internal/plugins/iface/dhcp/dhcp_v4_linux.go:48) and every renewal is a RENEWING request built from the stored ACK (client.Renew internal/plugins/iface/dhcp/dhcp_v4_linux.go:143); no ze code path caches an address to reboot with, so ze produces no INIT-REBOOT REQUEST</td>
+</tr>
+<tr><td><a href="#rfc2131-3.1-6"><code>RFC2131-3.1-6</code></a> Client MUST use same client identifier in DHCPRELEASE as used to obtain the lease (§3.1, §3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCPv4 client sends no DHCPRELEASE, so no ze path builds the message whose fields this governs -- runV4 ends a lease by removing the address locally (internal/plugins/iface/dhcp/dhcp_v4_linux.go:120, 211-235), and nclient4&#39;s Release (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/lease.go:26) is called nowhere in ze</td>
+</tr>
+<tr><td><a href="#rfc2131-3.1-7"><code>RFC2131-3.1-7</code></a> If client detects allocated address is already in use, it MUST send DHCPDECLINE (§3.1, §3.2)</td>
+<td>{gap}, no test</td>
+<td>ze&#39;s client installs the ACKed address without checking it is free and has no DHCPDECLINE path -- handleV4Lease goes straight from the ACK to ReplaceAddressWithLifetime (internal/plugins/iface/dhcp/dhcp_v4_linux.go:158-184) with no probe of the address, and neither ze nor the vendored nclient4 client contains a DECLINE producer, so an address found in use is kept rather than declined</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4.5-1"><code>RFC2131-4.4.5-1</code></a> Client MUST stop network processing when lease expires (§4.4.5)</td>
+<td>{gap}, no test</td>
+<td>ze tears the lease down late -- runV4 budgets fixed sleeps of lease/2, 3*lease/8 and lease/8 (internal/plugins/iface/dhcp/dhcp_v4_linux.go:80-118) and calls renewV4 between them, so the blocking renewal attempts add to that budget: each failed renewal spends the vendored retry schedule of 5 seconds doubling over 3 tries (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:32, 35, retryFn 649-669), leaving the lease&#39;s default route (internal/plugins/iface/dhcp/dhcp_v4_linux.go:190) installed for around 70 seconds past expiry before removeV4Addr runs (internal/plugins/iface/dhcp/dhcp_v4_linux.go:120, 228-235); only the address itself leaves on time, because the kernel holds the lease duration as its valid lifetime (internal/plugins/iface/dhcp/dhcp_v4_linux.go:180, internal/plugins/iface/netlink/manage_linux.go:268-286)</td>
+</tr>
+<tr><td><a href="#rfc2131-4.1-4"><code>RFC2131-4.1-4</code></a> If option overload is used, it MUST appear in the options field (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze neither emits nor honors option overload (52) -- buildReply and buildNak leave sname and file zeroed (internal/plugins/dhcpserver/handler.go:220-290 and 333-354) and every option reader starts at pkt[240:], the options field alone (parseMsgType handler.go:367, parseOptionAddr handler.go:386, parseOptionBytes handler.go:471), so no option ever lives in the sname or file field</td>
+</tr>
+<tr><td><a href="#rfc2131-4.1-5"><code>RFC2131-4.1-5</code></a> Options in sname/file fields MUST begin with the first octet, be terminated by end option, and be followed by pad (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze neither emits nor honors option overload (52) -- buildReply and buildNak leave sname and file zeroed (internal/plugins/dhcpserver/handler.go:220-290 and 333-354) and every option reader starts at pkt[240:], the options field alone (parseMsgType handler.go:367, parseOptionAddr handler.go:386, parseOptionBytes handler.go:471), so no option ever lives in the sname or file field</td>
+</tr>
+<tr><td><a href="#rfc2131-4.1-7"><code>RFC2131-4.1-7</code></a> Options field MUST be interpreted first, then file, then sname (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze neither emits nor honors option overload (52) -- buildReply and buildNak leave sname and file zeroed (internal/plugins/dhcpserver/handler.go:220-290 and 333-354) and every option reader starts at pkt[240:], the options field alone (parseMsgType handler.go:367, parseOptionAddr handler.go:386, parseOptionBytes handler.go:471), so no option ever lives in the sname or file field; ze reads options from the options field only, so it holds no second option stream to order against it</td>
+</tr>
+<tr><td><a href="#rfc2131-4.1-8"><code>RFC2131-4.1-8</code></a> Client MUST adopt a retransmission strategy with randomized exponential backoff (§4.1)</td>
+<td>{gap}, no test</td>
+<td>ze&#39;s client retransmits on a doubling timeout with no randomization -- runV4 and renewV4 build the client with no ClientOpt (internal/plugins/iface/dhcp/dhcp_v4_linux.go:37, 128), so it runs the vendored defaults of a 5 second timeout over 3 tries (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:32, 35, 183) through retryFn, which only doubles the timeout between tries (client.go:649-669)</td>
+</tr>
+<tr><td><a href="#rfc2131-4.1-9"><code>RFC2131-4.1-9</code></a> Client MUST choose xid values to minimize collision with other clients (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the transaction ID is drawn inside the vendored library -- every message ze&#39;s client sends is built through dhcpv4.New (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:144-150), which takes the xid from crypto/rand via GenerateTransactionID (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:121-139); ze calls only client.Request and client.Renew (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48, 143) and authors no xid</td>
+</tr>
+<tr><td><a href="#rfc2131-4.1-10"><code>RFC2131-4.1-10</code></a> Client MUST use the IP address from the server identifier option for unicast requests (§4.1)</td>
+<td>{gap}, no test</td>
+<td>ze&#39;s renewal is not unicast to the server identifier -- renewV4 creates the client with nclient4.New(c.ifaceName) and no WithServerAddr (internal/plugins/iface/dhcp/dhcp_v4_linux.go:128), so serverAddr keeps the library default of 255.255.255.255:67 (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:50-53, assigned at client.go:183) and Renew sends the RENEWING REQUEST to that broadcast address (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/lease.go:60) instead of to the server identifier the ACK carried</td>
+</tr>
+<tr><td><a href="#rfc2131-3.4-1"><code>RFC2131-3.4-1</code></a> Server MUST NOT check for existing lease when responding to DHCPINFORM (§3.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze answers no DHCPINFORM at all -- the message-type switch in handle (internal/plugins/dhcpserver/handler.go:121-134) dispatches DISCOVER, REQUEST, RELEASE and DECLINE, and every other type including msgInform (handler.go:37) falls to the default branch that returns nil, so ze builds no DHCPINFORM response at all, so no response path exists that could consult an existing lease</td>
+</tr>
+<tr><td><a href="#rfc2131-2-4"><code>RFC2131-2-4</code></a> Client MUST be prepared to receive DHCP messages with options field of at least 312 octets (§2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze reads no DHCP bytes itself -- the receive path is the vendored library&#39;s receiveLoop, which reads each datagram into a MaxMessageSize (1500 octet) buffer before decoding (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:256-271, MaxMessageSize at client.go:38), and ze only consumes the decoded result of client.Request and client.Renew (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48, 143)</td>
+</tr>
+<tr><td><a href="#rfc2131-3.5-1"><code>RFC2131-3.5-1</code></a> If client includes a parameter request list in DHCPDISCOVER, it MUST include that list in subsequent DHCPREQUEST messages (§3.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the parameter request list is written by the vendored library, the same list in both messages -- NewDiscovery (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:198-209) and NewRequestFromOffer (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:256-270) each add the identical WithRequestedOptions set, and ze passes only hostname and client-id modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:299-308), so it authors no request list</td>
+</tr>
+<tr><td><a href="#rfc2131-3.1-8"><code>RFC2131-3.1-8</code></a> DHCPREQUEST in SELECTING MUST use the same secs field and broadcast address as the original DHCPDISCOVER (§3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the secs field and the broadcast flag of the SELECTING REQUEST are the vendored library&#39;s -- it leaves secs zero in both the DISCOVER and the REQUEST (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:164-180 sets no secs) and copies the flags word across with WithReply (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:258, vendor/github.com/insomniacslk/dhcp/dhcpv4/modifiers.go:56-68), while ze&#39;s DORA call and its modifiers touch neither (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48, 299-308)</td>
+</tr>
+<tr><td><a href="#rfc2131-4.3.1-1"><code>RFC2131-4.3.1-1</code></a> Server MUST select configuration parameters by applying rules in specified order (§4.3.1)</td>
+<td>{gap}, no test</td>
+<td>ze applies no parameter-selection procedure -- buildReply emits one fixed option set in one fixed order (internal/plugins/dhcpserver/handler.go:245-285) and the parameter request list is never parsed (optParamReqList is defined at handler.go:52 and read nowhere in production), so the ordered rules of Section 4.3.1 govern no ze code path</td>
+</tr>
+<tr><td><a href="#rfc2131-4.3.1-3"><code>RFC2131-4.3.1-3</code></a> If server recognizes a parameter defined in the Host Requirements Document, it MUST include the default value (§4.3.1)</td>
+<td>{gap}, no test</td>
+<td>ze returns only the values its own subnet configuration holds (buildReply internal/plugins/dhcpserver/handler.go:245-285); it reads no parameter request list (optParamReqList handler.go:52 is parsed nowhere in production) and carries no Host Requirements defaults, so a recognized parameter the client requests draws no default value</td>
+</tr>
+<tr><td><a href="#rfc2131-4.3.1-5"><code>RFC2131-4.3.1-5</code></a> Server MUST supply as many of the requested parameters as possible and MUST omit any it cannot provide (§4.3.1)</td>
+<td>{gap}, no test</td>
+<td>the parameter request list is never parsed (optParamReqList internal/plugins/dhcpserver/handler.go:52 is read nowhere in production), so ze supplies its fixed configured option set (buildReply handler.go:245-285) rather than as many of the client&#39;s requested parameters as it can</td>
+</tr>
+<tr><td><a href="#rfc2131-4.3.1-7"><code>RFC2131-4.3.1-7</code></a> Vendor class identifier parameters MUST be identified by an exact match between client and server class identifiers (§4.3.1)</td>
+<td>{gap}, no test</td>
+<td>ze identifies the vendor class by a ten-octet prefix comparison against the string PXEClient: (isPXEClient internal/plugins/dhcpserver/handler.go:493-496) rather than by an exact match against a configured class identifier, and that prefix match is what selects the class-specific options appended at handler.go:292-330</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4.1-1"><code>RFC2131-4.4.1-1</code></a> Client MUST include its hardware address in the &#39;chaddr&#39; field if necessary for DHCP reply delivery (§4.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: chaddr is filled by the vendored library from the bound interface -- nclient4.New resolves the interface MAC (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:199-209) and NewDiscovery/NewRequestFromOffer set it with WithHwAddr (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:198-209, 256-270); ze only names the interface to bind (internal/plugins/iface/dhcp/dhcp_v4_linux.go:37)</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4.2-1"><code>RFC2131-4.4.2-1</code></a> Client sending DHCPDECLINE MUST insert its known network address as &#39;requested IP address&#39; option (§4.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCPv4 client sends no DHCPDECLINE, so no ze path builds the message whose fields this governs -- runV4 installs the ACKed address directly (handleV4Lease internal/plugins/iface/dhcp/dhcp_v4_linux.go:158-184) and neither ze nor the vendored nclient4 client holds a DECLINE producer; that absence is itself recorded as the gap on RFC2131-3.1-7</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4.2-2"><code>RFC2131-4.4.2-2</code></a> Client sending DHCPDECLINE/DHCPRELEASE of requested IP MUST NOT include &#39;server identifier&#39; in INIT-REBOOT (§4.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCPv4 client sends no DHCPDECLINE, so no ze path builds the message whose fields this governs -- runV4 installs the ACKed address directly (handleV4Lease internal/plugins/iface/dhcp/dhcp_v4_linux.go:158-184) and neither ze nor the vendored nclient4 client holds a DECLINE producer; that absence is itself recorded as the gap on RFC2131-3.1-7</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4.3-1"><code>RFC2131-4.4.3-1</code></a> DHCPINFORM messages MUST be directed to the &#39;DHCP server&#39; UDP port (§4.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s client sends no DHCPINFORM -- nclient4 exposes Inform (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:483-498) and ze calls it nowhere; runV4 and renewV4 use only Request and Renew (internal/plugins/iface/dhcp/dhcp_v4_linux.go:48, 143)</td>
+</tr>
+<tr><td><a href="#rfc2131-4.3.2-5"><code>RFC2131-4.3.2-5</code></a> DHCPREQUEST in REBINDING state MUST be broadcast to 0xFFFFFFFF (§4.3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s T2 attempt reuses the same vendored Renew call as its T1 attempt (internal/plugins/iface/dhcp/dhcp_v4_linux.go:103 and 143), so both the message and its destination are the library&#39;s: NewRenewFromAck builds it (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:275-290) and it goes to the default serverAddr of 255.255.255.255:67 (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:50-53, 183, used at nclient4/lease.go:60); ze chooses neither</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4.5-5"><code>RFC2131-4.4.5-5</code></a> Client given a new network address after lease expiry MUST NOT continue using the previous address (§4.4.5)</td>
+<td>{gap}, no test</td>
+<td>a renewal that returns a different yiaddr leaves the previous address in use -- renewV4 hands the new ACK to handleV4Lease (internal/plugins/iface/dhcp/dhcp_v4_linux.go:154), which installs the new address with ReplaceAddressWithLifetime (internal/plugins/iface/dhcp/dhcp_v4_linux.go:180), a per-address replace that touches no other address (internal/plugins/iface/netlink/manage_linux.go:268-286), and runV4 then overwrites its ack reference (internal/plugins/iface/dhcp/dhcp_v4_linux.go:87-88) so the previous address is never passed to removeV4Addr; both addresses stay configured on the interface</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4.5-6"><code>RFC2131-4.4.5-6</code></a> Client in RENEWING state MUST NOT include &#39;server identifier&#39; in the DHCPREQUEST (§4.4.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the RENEWING/REBINDING REQUEST is constructed entirely inside the vendored library -- renewV4 calls client.Renew with no modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:143) and NewRenewFromAck sets message type, ciaddr, the broadcast flag and a requested-options list only (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:275-290), adding neither a server identifier nor a requested IP address; ze authors none of those bytes</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4.5-7"><code>RFC2131-4.4.5-7</code></a> Client in REBINDING state MUST NOT include &#39;server identifier&#39; in the DHCPREQUEST (§4.4.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the RENEWING/REBINDING REQUEST is constructed entirely inside the vendored library -- renewV4 calls client.Renew with no modifiers (internal/plugins/iface/dhcp/dhcp_v4_linux.go:143) and NewRenewFromAck sets message type, ciaddr, the broadcast flag and a requested-options list only (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4.go:275-290), adding neither a server identifier nor a requested IP address; ze authors none of those bytes</td>
+</tr>
+<tr><td><a href="#rfc2131-3.2-3"><code>RFC2131-3.2-3</code></a> Client MUST NOT fill in &#39;ciaddr&#39; when it has not received its network address (INIT-REBOOT) (§3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCPv4 client never enters INIT-REBOOT -- every acquisition is a full DORA (client.Request internal/plugins/iface/dhcp/dhcp_v4_linux.go:48) and every renewal is a RENEWING request built from the stored ACK (client.Renew internal/plugins/iface/dhcp/dhcp_v4_linux.go:143); no ze code path caches an address to reboot with, so ze produces no INIT-REBOOT REQUEST</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4-1"><code>RFC2131-4.4-1</code></a> DHCPDECLINE/DHCPRELEASE: vendor class identifier MUST NOT be included (§4.4, Table 5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCPv4 client sends no DHCPDECLINE, so no ze path builds the message whose fields this governs -- runV4 installs the ACKed address directly (handleV4Lease internal/plugins/iface/dhcp/dhcp_v4_linux.go:158-184) and neither ze nor the vendored nclient4 client holds a DECLINE producer; that absence is itself recorded as the gap on RFC2131-3.1-7</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4-2"><code>RFC2131-4.4-2</code></a> DHCPDECLINE: requested IP address MUST be included (§4.4, Table 5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCPv4 client sends no DHCPDECLINE, so no ze path builds the message whose fields this governs -- runV4 installs the ACKed address directly (handleV4Lease internal/plugins/iface/dhcp/dhcp_v4_linux.go:158-184) and neither ze nor the vendored nclient4 client holds a DECLINE producer; that absence is itself recorded as the gap on RFC2131-3.1-7</td>
+</tr>
+<tr><td><a href="#rfc2131-4.4-3"><code>RFC2131-4.4-3</code></a> DHCPRELEASE: server identifier MUST be included (§4.4, Table 5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DHCPv4 client sends no DHCPRELEASE, so no ze path builds the message whose fields this governs -- runV4 ends a lease by removing the address locally (internal/plugins/iface/dhcp/dhcp_v4_linux.go:120, 211-235), and nclient4&#39;s Release (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/lease.go:26) is called nowhere in ze</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc2131-4.3-1"><code>RFC2131-4.3-1</code></a></h3>
+<p>Server identifier MUST be included in DHCPOFFER, DHCPACK, and DHCPNAK (§4.3, Table 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L169" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestServerIdentifierInEveryReply</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3-2"><code>RFC2131-4.3-2</code></a></h3>
+<p>IP address lease time MUST be included in DHCPOFFER (§4.3, Table 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L194" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestLeaseTimeInOfferAndAck</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3-3"><code>RFC2131-4.3-3</code></a></h3>
+<p>IP address lease time MUST be included in DHCPACK for DHCPREQUEST (§4.3, Table 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L198" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestLeaseTimeInOfferAndAck</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3-4"><code>RFC2131-4.3-4</code></a></h3>
+<p>IP address lease time MUST NOT be included in DHCPNAK (§4.3, Table 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L333" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L245" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3-5"><code>RFC2131-4.3-5</code></a></h3>
+<p>Requested IP address option MUST NOT be included in DHCPOFFER, DHCPACK, or DHCPNAK (§4.3, Table 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L312" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L224" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3-6"><code>RFC2131-4.3-6</code></a></h3>
+<p>Client identifier MUST NOT be included in DHCPOFFER or DHCPACK (§4.3, Table 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L327" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L239" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3-7"><code>RFC2131-4.3-7</code></a></h3>
+<p>Parameter request list MUST NOT be included in DHCPOFFER, DHCPACK, or DHCPNAK (§4.3, Table 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L316" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L228" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3-8"><code>RFC2131-4.3-8</code></a></h3>
+<p>Maximum message size MUST NOT be included in DHCPOFFER, DHCPACK, or DHCPNAK (§4.3, Table 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L320" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L232" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3-9"><code>RFC2131-4.3-9</code></a></h3>
+<p>Options other than message MUST NOT be included in DHCPNAK (§4.3, Table 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L337" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyDoesNotEchoClientOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L249" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOmitsClientOnlyOptions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3.5-1"><code>RFC2131-4.3.5-1</code></a></h3>
+<p>Server MUST NOT send lease expiration time for DHCPINFORM (§4.3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.3.5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.3.2-1"><code>RFC2131-4.3.2-1</code></a></h3>
+<p>When giaddr is 0x0, server MUST broadcast DHCPNAK to 0xFFFFFFFF (§4.3.2, §3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.3.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.3.2-2"><code>RFC2131-4.3.2-2</code></a></h3>
+<p>When giaddr is set in DHCPNAK, server MUST set the broadcast bit (§4.3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.3.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.3.2-3"><code>RFC2131-4.3.2-3</code></a></h3>
+<p>If server has no record of client in INIT-REBOOT, server MUST remain silent (§4.3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.3.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.3.3-1"><code>RFC2131-4.3.3-1</code></a></h3>
+<p>Server MUST mark the network address as unavailable on DHCPDECLINE (§4.3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.3.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.1-1"><code>RFC2131-4.1-1</code></a></h3>
+<p>A server with multiple network addresses MUST be prepared to accept any of its addresses as identifying that server (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.1-2"><code>RFC2131-4.1-2</code></a></h3>
+<p>Server MUST choose a server identifier address reachable from the client (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.2-1"><code>RFC2131-4.2-1</code></a></h3>
+<p>If client supplies a client identifier, server MUST use it to identify the client (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.2-2"><code>RFC2131-4.2-2</code></a></h3>
+<p>If client does not provide a client identifier, server MUST use chaddr to identify the client (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L390" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestUnidentifiableClientRejected</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L366" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestChaddrIdentifiesClientWithoutClientIdentifier</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-2-1"><code>RFC2131-2-1</code></a></h3>
+<p>Client identifier MUST be unique within the subnet (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-2-2"><code>RFC2131-2-2</code></a></h3>
+<p>If client uses a client identifier in one message, it MUST use the same identifier in all subsequent messages (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.1-1"><code>RFC2131-3.1-1</code></a></h3>
+<p>DHCPREQUEST in SELECTING state MUST include the server identifier option (§3.1, Table 4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.1-2"><code>RFC2131-3.1-2</code></a></h3>
+<p>DHCPREQUEST in SELECTING state MUST include the requested IP address option (§3.1, Table 4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.1-3"><code>RFC2131-3.1-3</code></a></h3>
+<p>DHCPREQUEST in INIT-REBOOT state MUST include the requested IP address option (§3.1, Table 4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.1-4"><code>RFC2131-3.1-4</code></a></h3>
+<p>DHCPREQUEST in INIT-REBOOT state MUST NOT include the server identifier option (§3.1, Table 4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.1-5"><code>RFC2131-3.1-5</code></a></h3>
+<p>DHCPREQUEST in RENEWING/REBINDING MUST NOT include server identifier or requested IP address (§3.1, Table 4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.2-1"><code>RFC2131-3.2-1</code></a></h3>
+<p>Client in INIT-REBOOT MUST NOT fill in ciaddr (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.1-6"><code>RFC2131-3.1-6</code></a></h3>
+<p>Client MUST use same client identifier in DHCPRELEASE as used to obtain the lease (§3.1, §3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.1-6, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.1-7"><code>RFC2131-3.1-7</code></a></h3>
+<p>If client detects allocated address is already in use, it MUST send DHCPDECLINE (§3.1, §3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.1-7, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4.5-1"><code>RFC2131-4.4.5-1</code></a></h3>
+<p>Client MUST stop network processing when lease expires (§4.4.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4.5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3-1"><code>RFC2131-3-1</code></a></h3>
+<p>Options field MUST start with magic cookie 0x63825363 (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L431" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestMagicCookieRequiredAndEmitted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L423" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestMagicCookieRequiredAndEmitted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.1-3"><code>RFC2131-4.1-3</code></a></h3>
+<p>Options field MUST end with end option (255) (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L471" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOptionsTerminatedByEnd</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L453" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestReplyOptionsTerminatedByEnd</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.1-4"><code>RFC2131-4.1-4</code></a></h3>
+<p>If option overload is used, it MUST appear in the options field (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.1-5"><code>RFC2131-4.1-5</code></a></h3>
+<p>Options in sname/file fields MUST begin with the first octet, be terminated by end option, and be followed by pad (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.1-6"><code>RFC2131-4.1-6</code></a></h3>
+<p>Each option MUST be entirely contained in its field (options/sname/file) (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L515" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestOptionsContainedWithinTheirField</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L492" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestOptionsContainedWithinTheirField</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.1-7"><code>RFC2131-4.1-7</code></a></h3>
+<p>Options field MUST be interpreted first, then file, then sname (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.1-7, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.1-8"><code>RFC2131-4.1-8</code></a></h3>
+<p>Client MUST adopt a retransmission strategy with randomized exponential backoff (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.1-8, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.1-9"><code>RFC2131-4.1-9</code></a></h3>
+<p>Client MUST choose xid values to minimize collision with other clients (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.1-9, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.1-10"><code>RFC2131-4.1-10</code></a></h3>
+<p>Client MUST use the IP address from the server identifier option for unicast requests (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.1-10, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.4-1"><code>RFC2131-3.4-1</code></a></h3>
+<p>Server MUST NOT check for existing lease when responding to DHCPINFORM (§3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-2-3"><code>RFC2131-2-3</code></a></h3>
+<p>Flags field bits 1-15 MUST be set to zero by clients and ignored by servers/relay agents (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L560" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestFlagsReservedBitsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L549" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestFlagsReservedBitsIgnored</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-2-4"><code>RFC2131-2-4</code></a></h3>
+<p>Client MUST be prepared to receive DHCP messages with options field of at least 312 octets (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-2-4, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.5-1"><code>RFC2131-3.5-1</code></a></h3>
+<p>If client includes a parameter request list in DHCPDISCOVER, it MUST include that list in subsequent DHCPREQUEST messages (§3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4.5-2"><code>RFC2131-4.4.5-2</code></a></h3>
+<p>T1 MUST be earlier than T2 (§4.4.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L630" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestShortLeaseTimeRejected</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L603" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestRenewalTimersOrderedWithinLease</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.4.5-3"><code>RFC2131-4.4.5-3</code></a></h3>
+<p>T2 MUST be earlier than lease expiry (§4.4.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L635" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestShortLeaseTimeRejected</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L607" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestRenewalTimersOrderedWithinLease</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-3.1-8"><code>RFC2131-3.1-8</code></a></h3>
+<p>DHCPREQUEST in SELECTING MUST use the same secs field and broadcast address as the original DHCPDISCOVER (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.1-8, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.3.1-1"><code>RFC2131-4.3.1-1</code></a></h3>
+<p>Server MUST select configuration parameters by applying rules in specified order (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.3.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.3.1-2"><code>RFC2131-4.3.1-2</code></a></h3>
+<p>If server has an explicitly configured default value for a requested parameter, it MUST include that value (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L697" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestUnconfiguredParametersOmitted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3.1-3"><code>RFC2131-4.3.1-3</code></a></h3>
+<p>If server recognizes a parameter defined in the Host Requirements Document, it MUST include the default value (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.3.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.3.1-4"><code>RFC2131-4.3.1-4</code></a></h3>
+<p>If server has no value for a requested parameter, it MUST NOT return a value for that parameter (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L682" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestUnconfiguredParametersOmitted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L668" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestUnconfiguredParametersOmitted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3.1-5"><code>RFC2131-4.3.1-5</code></a></h3>
+<p>Server MUST supply as many of the requested parameters as possible and MUST omit any it cannot provide (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.3.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.3.1-6"><code>RFC2131-4.3.1-6</code></a></h3>
+<p>Server MUST include each requested parameter only once unless explicitly allowed (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L744" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestEachParameterEmittedOnce</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L723" title="internal/plugins/dhcpserver/rfc2131_test.go" target="_blank" rel="noopener"><code>TestEachParameterEmittedOnce</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2131-4.3.1-7"><code>RFC2131-4.3.1-7</code></a></h3>
+<p>Vendor class identifier parameters MUST be identified by an exact match between client and server class identifiers (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.3.1-7, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4.1-1"><code>RFC2131-4.4.1-1</code></a></h3>
+<p>Client MUST include its hardware address in the &#39;chaddr&#39; field if necessary for DHCP reply delivery (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4.2-1"><code>RFC2131-4.4.2-1</code></a></h3>
+<p>Client sending DHCPDECLINE MUST insert its known network address as &#39;requested IP address&#39; option (§4.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4.2-2"><code>RFC2131-4.4.2-2</code></a></h3>
+<p>Client sending DHCPDECLINE/DHCPRELEASE of requested IP MUST NOT include &#39;server identifier&#39; in INIT-REBOOT (§4.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4.3-1"><code>RFC2131-4.4.3-1</code></a></h3>
+<p>DHCPINFORM messages MUST be directed to the &#39;DHCP server&#39; UDP port (§4.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.3.2-5"><code>RFC2131-4.3.2-5</code></a></h3>
+<p>DHCPREQUEST in REBINDING state MUST be broadcast to 0xFFFFFFFF (§4.3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.3.2-5, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4.5-5"><code>RFC2131-4.4.5-5</code></a></h3>
+<p>Client given a new network address after lease expiry MUST NOT continue using the previous address (§4.4.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4.5-5, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4.5-6"><code>RFC2131-4.4.5-6</code></a></h3>
+<p>Client in RENEWING state MUST NOT include &#39;server identifier&#39; in the DHCPREQUEST (§4.4.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4.5-6, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4.5-7"><code>RFC2131-4.4.5-7</code></a></h3>
+<p>Client in REBINDING state MUST NOT include &#39;server identifier&#39; in the DHCPREQUEST (§4.4.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4.5-7, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-3.2-3"><code>RFC2131-3.2-3</code></a></h3>
+<p>Client MUST NOT fill in &#39;ciaddr&#39; when it has not received its network address (INIT-REBOOT) (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-3.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4-1"><code>RFC2131-4.4-1</code></a></h3>
+<p>DHCPDECLINE/DHCPRELEASE: vendor class identifier MUST NOT be included (§4.4, Table 5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4-2"><code>RFC2131-4.4-2</code></a></h3>
+<p>DHCPDECLINE: requested IP address MUST be included (§4.4, Table 5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2131-4.4-3"><code>RFC2131-4.4-3</code></a></h3>
+<p>DHCPRELEASE: server identifier MUST be included (§4.4, Table 5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2131-4.4-3, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 2131, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 2131, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

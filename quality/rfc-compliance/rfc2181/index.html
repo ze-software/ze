@@ -1,0 +1,1244 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 2181 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 2181 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 2181 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 2181: Clarifications to the DNS Specification. 23 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc2181/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc2181/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 2181 - Clarifications to the DNS Specification</h1>
+    <p>Every requirement this repository extracted from RFC 2181, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>7.7%</strong><b>1 of 13 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>84.6%</strong><b>11 of 13 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>23</strong><b>of 70 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>10</strong><b>of 23 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>7.7%</strong><b>1 of 13 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 13 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>70</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>23</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>13</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>10</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>1</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>13</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>13</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc2181.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc2181.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc2181.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Clarifications to the DNS Specification (RFC 2181): ze is authoritative (internal/plugins/geodns, internal/plugins/as112) plus a stub resolver+cache (internal/component/resolve/dns). 1 MET (section 8 TTL 0..2147483647 bound, both polarities) + 11 single-polarity positive (UDP reply source-IP/port fidelity 4.1-1/4.2-1/4.2-2, RRSet equal TTLs 5.2-1, cache replaces RRSets without merging 5.4-1/5.4-2, canonical NS targets with A glue 10.3-1/10.3-2, wire label/name limits and unrestricted labels 11-1/11-2/11-3) + 1 gap (5.1-1 no TC/Truncate on oversized RRSet) + 10 not-applicable (SIG/DNSSEC 5.3.1-2/5.3.1-3/5.3.1-4/5.4.1-8/5.4.1-9, recursive-resolver ranking 5.4.1-3, AXFR 5.5-4, CNAME/PTR authoring 10.1-4/10.1.1-1/10.2-1)</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>Authoritative GeoDNS/AS112 answers with RRSet-consistent per-record TTLs, the section 8 0..2147483647 TTL bound (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config.go" target="_blank" rel="noopener"><code>internal/plugins/geodns/config.go</code></a>), canonical NS targets with A glue, UDP reply source-address/port fidelity, wire label/name limits, and a stub-resolver cache that replaces whole RRSets without merging</li>
+<li>tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2181.md" target="_blank" rel="noopener"><code>rfc/short/rfc2181.md</code></a>.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+One MUST gap (<a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>): GeoDNS and AS112 never set the TC bit or call miekg Truncate, so an oversized RRSet would be sent unmarked rather than truncated. The recursive-resolver data-ranking, DNSSEC/SIG, AXFR, and CNAME/PTR-authoring MUSTs are not-applicable (ze is authoritative plus a stub resolver only).
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>22</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>23</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc2181-8-1"><code>RFC2181-8-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (22):</strong> <a href="#rfc2181-4.1-1"><code>RFC2181-4.1-1</code></a>, <a href="#rfc2181-4.2-1"><code>RFC2181-4.2-1</code></a>, <a href="#rfc2181-4.2-2"><code>RFC2181-4.2-2</code></a>, <a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a>, <a href="#rfc2181-5.2-1"><code>RFC2181-5.2-1</code></a>, <a href="#rfc2181-5.3.1-2"><code>RFC2181-5.3.1-2</code></a>, <a href="#rfc2181-5.3.1-3"><code>RFC2181-5.3.1-3</code></a>, <a href="#rfc2181-5.3.1-4"><code>RFC2181-5.3.1-4</code></a>, <a href="#rfc2181-5.4-1"><code>RFC2181-5.4-1</code></a>, <a href="#rfc2181-5.4-2"><code>RFC2181-5.4-2</code></a>, <a href="#rfc2181-5.4.1-3"><code>RFC2181-5.4.1-3</code></a>, <a href="#rfc2181-5.4.1-8"><code>RFC2181-5.4.1-8</code></a>, <a href="#rfc2181-5.4.1-9"><code>RFC2181-5.4.1-9</code></a>, <a href="#rfc2181-5.5-4"><code>RFC2181-5.5-4</code></a>, <a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a>, <a href="#rfc2181-10.1.1-1"><code>RFC2181-10.1.1-1</code></a>, <a href="#rfc2181-10.2-1"><code>RFC2181-10.2-1</code></a>, <a href="#rfc2181-10.3-1"><code>RFC2181-10.3-1</code></a>, <a href="#rfc2181-10.3-2"><code>RFC2181-10.3-2</code></a>, <a href="#rfc2181-11-1"><code>RFC2181-11-1</code></a>, <a href="#rfc2181-11-2"><code>RFC2181-11-2</code></a>, <a href="#rfc2181-11-3"><code>RFC2181-11-3</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-4.1-1">RFC2181-4.1-1</code></td><td colspan="3"><span class="rfc-subject">When responding to a query over UDP, a server must send the reply with the IP source address set to the address that was in the destination address field of the query packet. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L315" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> each UDP listener binds one specific IP at internal/core/dnsserver/manager.go:160 so the kernel sources every reply from the query destination address, and ze has no wildcard-bind or explicit-source path that could send from another address</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-4.2-1">RFC2181-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Replies to all queries must be directed to the port from which they were sent. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L320" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the reply is written on the same socket the query arrived on via internal/core/dnsserver/handler.go:62 so miekg/dns directs it to the query source port, a property ze cannot violate</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-4.2-2">RFC2181-4.2-2</code></td><td colspan="3"><span class="rfc-subject">For queries received by UDP, the server must take note of the source port and use it as the destination port in the response. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L325" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> miekg/dns ServeUDP records the datagram source port and uses it as the reply destination for the write at internal/core/dnsserver/handler.go:62, so ze always answers to the query source port</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.1-1">RFC2181-5.1-1</code></td><td colspan="3"><span class="rfc-subject">The response must be marked &#34;truncated&#34; if the entire RRSet will not fit in the response. (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> geodns and as112 never set the TC bit or call miekg Truncate, and miekg WriteMsg at vendor/github.com/miekg/dns/server.go:747 packs and sends without auto-truncating, so an oversized RRSet would be sent unmarked</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-1">RFC2181-5.2-1</code></td><td colspan="3"><span class="rfc-subject">The TTLs of all RRs in an RRSet must be the same; in no case may a server send an RRSet with TTLs not all equal. (§5.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L367" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_RRSetEqualTTL</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns assigns one TTL per host record set at internal/plugins/geodns/config.go:271 and as112 uses fixed per-zone TTL constants, so an emitted RRSet never carries unequal TTLs and no code path can produce one</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.1-2">RFC2181-5.3.1-2</code></td><td colspan="3"><span class="rfc-subject">Where SIG records are returned in the answer section (a query for SIG records, or type=ANY), the entire SIG RRSet must be included, as for any other RR type. (§5.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze serves no SIG or DNSSEC records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so there is no SIG RRSet to include</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.1-3">RFC2181-5.3.1-3</code></td><td colspan="3"><span class="rfc-subject">A server receiving SIG records in the authority section (or, probably incorrectly, as additional data) must understand that the entire RRSet has almost certainly not been included. (§5.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.3.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.1-4">RFC2181-5.3.1-4</code></td><td colspan="3"><span class="rfc-subject">Such a server must not cache that SIG record in a way that would permit it to be returned in response to a query for SIG records. (§5.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.3.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the resolver caches only records it extracted from the answer section at internal/component/resolve/dns/resolver.go:299 and never handles SIG, so an authority-section SIG can never be cached or returned</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4-1">RFC2181-5.4-1</code></td><td colspan="3"><span class="rfc-subject">Servers must never merge RRs from a response with RRs in their cache to form an RRSet. (§5.4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L226" title="internal/component/resolve/dns/cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the resolver cache replaces the whole RRSet for a name+type at internal/component/resolve/dns/cache.go:145 by removing the existing entry before storing the new records, so response RRs are never merged with cached ones</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4-2">RFC2181-5.4-2</code></td><td colspan="3"><span class="rfc-subject">When a response would form an RRSet with cached data, the server must either ignore the response RRs or discard the entire cached RRSet, as appropriate. (§5.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L234" title="internal/component/resolve/dns/cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> put discards the entire cached RRSet before storing the new answer at internal/component/resolve/dns/cache.go:145, taking the discard-cached branch of the rule rather than merging</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-3">RFC2181-5.4.1-3</code></td><td colspan="3"><span class="rfc-subject">Data trustworthiness shall rank, most to least: primary zone file (non-glue), zone transfer (non-glue), authoritative answer-section data, authority-section data of an authoritative answer, glue, non-authoritative answer data, then additional information and non-authoritative authority-section data. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s resolver is a stub forwarder to one configured upstream at internal/component/resolve/dns/resolver.go:263 with a single-source cache keyed by name+type, so it never ranks data from competing trustworthiness sources</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-8">RFC2181-5.4.1-8</code></td><td colspan="3"><span class="rfc-subject">When DNS security is in use and an authenticated reply has been received and verified, the authenticated data shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the stub resolver performs no per-record trust ranking -- it relies on a validating upstream returning SERVFAIL at internal/component/resolve/dns/resolver.go:99 rather than comparing authenticated against unauthenticated data</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-9">RFC2181-5.4.1-9</code></td><td colspan="3"><span class="rfc-subject">DNSSEC-aware servers must still correctly set the AA bit in responses, to enable correct operation with servers that are not security aware. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s authoritative servers implement no DNSSEC signing so the DNSSEC-aware precondition does not hold; the AA bit is nonetheless always set at internal/core/dnsserver/handler.go:73</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.5-4">RFC2181-5.5-4</code></td><td colspan="3"><span class="rfc-subject">Where a duplicate RRSet is required (e.g. the SOA at the first and last record of an AXFR), the TTL transmitted in each case must be the same. (§5.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-8-1">RFC2181-8-1</code></td><td colspan="3"><span class="rfc-subject">A TTL is an unsigned number in the range 0..2147483647 (2^31 - 1); when transmitted it shall be encoded in the less significant 31 bits of the 32-bit TTL field, with the most significant (sign) bit set to zero. (§8)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L225" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L238" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-4">RFC2181-10.1-4</code></td><td colspan="3"><span class="rfc-subject">An alias (the label of a CNAME record) may have no data other than SIG, NXT, and KEY RRs; a CNAME must not coexist with any other data. (§10.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>10.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze serves no CNAME records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so no CNAME can coexist with other data</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1.1-1">RFC2181-10.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Care must be taken to be very clear whether the label or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>10.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.1.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze authors no CNAME records at internal/plugins/geodns/record.go:10, so there is no label-versus-canonical-name ambiguity for an implementation to resolve</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.2-1">RFC2181-10.2-1</code></td><td colspan="3"><span class="rfc-subject">The value of a PTR record must not be an alias; it should be a canonical name. (§10.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>10.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze authors no PTR records -- geodns serves A/AAAA/SRV and as112 reverse zones return NODATA with the SOA at internal/plugins/as112/zones.go:273 rather than any PTR, so no PTR value can be an alias</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.3-1">RFC2181-10.3-1</code></td><td colspan="3"><span class="rfc-subject">The domain name used as the value of an NS record, or as part of the value of an MX record, must not be an alias, and must never have a CNAME RR. (§10.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>10.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L407" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns synthesizes NS targets as canonical ns&lt;n&gt;.&lt;zone&gt; names at internal/plugins/geodns/server.go:154 and as112 uses fixed canonical names, so ze never emits a CNAME as an NS or MX value and serves no MX at all</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.3-2">RFC2181-10.3-2</code></td><td colspan="3"><span class="rfc-subject">That domain name must have as its value one or more address records. (§10.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>10.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L424" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns emits A glue for every synthesized NS target at internal/plugins/geodns/server.go:161, and as112 NS targets are canonical names whose address records are authoritative elsewhere, so the target name always has address records</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-1">RFC2181-11-1</code></td><td colspan="3"><span class="rfc-subject">Any one label is limited to between 1 and 63 octets; a full domain name is limited to 255 octets, including the separators. (§11)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-11-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L451" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_WireNameLimits</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the DNS wire codec ze packs and unpacks through rejects a label of 64+ octets at vendor/github.com/miekg/dns/msg.go:281 and caps a name at 255, and geodns/as112 emit only short synthetic names, so no over-limit name is produced</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-2">RFC2181-11-2</code></td><td colspan="3"><span class="rfc-subject">Implementations of the DNS protocols must not place any restrictions on the labels that can be used. (§11)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-11-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L271" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns applies no label-content restriction -- parseHost at internal/plugins/geodns/config.go:270 accepts any label characters and only requires a configured-zone suffix, so underscore and other non-hostname labels are served</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-3">RFC2181-11-3</code></td><td colspan="3"><span class="rfc-subject">DNS servers must not refuse to serve a zone because it contains labels that might not be acceptable to some DNS client programs. (§11)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-11-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L260" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> geodns never refuses a zone for questionable labels -- config parsing at internal/plugins/geodns/config.go:246 rejects only a missing zone suffix or an invalid IP, never label characters</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-4.1-3">RFC2181-4.1-3</code></td><td colspan="3"><span class="rfc-subject">If the required source address is not permitted for this purpose, the legal source address chosen should be one that maximises the possibility that the client can use it for further queries. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-4.2-3">RFC2181-4.2-3</code></td><td colspan="3"><span class="rfc-subject">Replies should always be sent from the port to which they were directed. (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5-1">RFC2181-5-1</code></td><td colspan="3"><span class="rfc-subject">Servers should suppress duplicate RRs (equal label, class, type, and data) if encountered. (§5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-2">RFC2181-5.2-2</code></td><td colspan="3"><span class="rfc-subject">A client that receives a response containing an RRSet whose RRs have differing TTLs should treat this as an error. (§5.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-3">RFC2181-5.2-3</code></td><td colspan="3"><span class="rfc-subject">If such an RRSet is from a non-authoritative source, the client should ignore the RRSet and, if the values are required, seek to acquire them from an authoritative source. (§5.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-4">RFC2181-5.2-4</code></td><td colspan="3"><span class="rfc-subject">Clients configured to send all queries to one or more particular servers should treat those servers as authoritative for this purpose. (§5.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.2-5">RFC2181-5.2-5</code></td><td colspan="3"><span class="rfc-subject">Should an authoritative source send such a malformed RRSet, the client should treat all its RRs as if every TTL had been set to the value of the lowest TTL in the RRSet. (§5.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4-4">RFC2181-5.4-4</code></td><td colspan="3"><span class="rfc-subject">A server should update a cached RRSet&#39;s TTL from an identical received answer only if that answer would be considered more authoritative than the previously cached answer. (§5.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-1">RFC2181-5.4.1-1</code></td><td colspan="3"><span class="rfc-subject">When deciding whether to accept a reply&#39;s RRSet or retain one already cached, a server should consider the relative likely trustworthiness of the various data. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-2">RFC2181-5.4.1-2</code></td><td colspan="3"><span class="rfc-subject">An authoritative answer from a reply should replace cached data that had been obtained from additional information in an earlier reply. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-4">RFC2181-5.4.1-4</code></td><td colspan="3"><span class="rfc-subject">Clients should assume that records other than the alias record in an authoritative answer may have come from the server&#39;s cache. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-5">RFC2181-5.4.1-5</code></td><td colspan="3"><span class="rfc-subject">Where authoritative answers are required, the client should query again using the canonical name associated with the alias. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-6">RFC2181-5.4.1-6</code></td><td colspan="3"><span class="rfc-subject">Unauthenticated RRs cached from the least trustworthy groupings (additional data, and the authority section of a non-authoritative answer) should not be cached in such a way that they would ever be returned as answers to a received query. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-10">RFC2181-5.4.1-10</code></td><td colspan="3"><span class="rfc-subject">Where glue for the same name exists in multiple zones and differs in value, the nameserver should select data from a primary zone file in preference to secondary. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-12">RFC2181-5.4.1-12</code></td><td colspan="3"><span class="rfc-subject">Where a server can detect from two zone files that one or more are incorrectly configured so as to create conflicts, it should refuse to load the zones determined to be erroneous and issue suitable diagnostics. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.5-1">RFC2181-5.5-1</code></td><td colspan="3"><span class="rfc-subject">A Resource Record Set should only be included once in any DNS reply. (§5.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.5-3">RFC2181-5.5-3</code></td><td colspan="3"><span class="rfc-subject">An RRSet should not be repeated in the same or any other section, except where explicitly required by a specification. (§5.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>5.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.1-1">RFC2181-6.1-1</code></td><td colspan="3"><span class="rfc-subject">A server for a zone should not return authoritative answers for queries related to names in another zone (including the NS, and perhaps A, records at a zone cut) unless it also happens to be a server for the other zone. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-6.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.1-2">RFC2181-6.1-2</code></td><td colspan="3"><span class="rfc-subject">Servers should ignore data other than NS records, and the A records necessary to locate the servers listed in those NS records, that may happen to be configured in a zone at a zone cut. (§6.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-6.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.2-2">RFC2181-6.2-2</code></td><td colspan="3"><span class="rfc-subject">Where a subzone is secure, its KEY and SIG records should also always be present in the parent zone (if secure). (§6.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-6.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.2-3">RFC2181-6.2-3</code></td><td colspan="3"><span class="rfc-subject">In none of these zone-cut cases should a server for the parent zone, not also being a server for the subzone, set the AA bit in any response for a label at a zone cut. (§6.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-6.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.2-1">RFC2181-7.2-1</code></td><td colspan="3"><span class="rfc-subject">Implementations should not assume that SOA records will have a TTL of zero. (§7.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-7.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.3-1">RFC2181-7.3-1</code></td><td colspan="3"><span class="rfc-subject">The MNAME field of the SOA record should contain the name of the primary (master) server for the zone identified by the SOA. (§7.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-7.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.3-2">RFC2181-7.3-2</code></td><td colspan="3"><span class="rfc-subject">The SOA MNAME field should not contain the name of the zone itself. (§7.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-7.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-8-2">RFC2181-8-2</code></td><td colspan="3"><span class="rfc-subject">Implementations should treat TTL values received with the most significant bit set as if the entire value received was zero. (§8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-8-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-1">RFC2181-9-1</code></td><td colspan="3"><span class="rfc-subject">The TC bit should be set in responses only when an RRSet is required as part of the response but could not be included in its entirety. (§9)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-2">RFC2181-9-2</code></td><td colspan="3"><span class="rfc-subject">The TC bit should not be set merely because some extra information (including additional-section processing) could have been included but there was insufficient room. (§9)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-9-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-3">RFC2181-9-3</code></td><td colspan="3"><span class="rfc-subject">In such cases the entire RRSet that will not fit should be omitted and the reply sent as is, with the TC bit clear. (§9)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-9-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-5">RFC2181-9-5</code></td><td colspan="3"><span class="rfc-subject">When a client receives a reply with TC set, it should ignore that response and query again using a mechanism, such as a TCP connection, that will permit larger replies. (§9)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-9-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-2">RFC2181-10.1-2</code></td><td colspan="3"><span class="rfc-subject">The canonical name given by a CNAME record should generally be a name that exists elsewhere in the DNS. (§10.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>10.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.2-2">RFC2181-10.2-2</code></td><td colspan="3"><span class="rfc-subject">No restriction that only one PTR record is permitted for a name should be inferred. (§10.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>10.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-5">RFC2181-11-5</code></td><td colspan="3"><span class="rfc-subject">Warning about, or refusing to load, a primary zone because of questionable labels should not happen by default. (§11)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-11-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-4.1-2">RFC2181-4.1-2</code></td><td colspan="3"><span class="rfc-subject">If setting the required source address is not permitted for this purpose, the response may be sent from any legal IP address allocated to the server. (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-4.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.1-1">RFC2181-5.3.1-1</code></td><td colspan="3"><span class="rfc-subject">The authority section may contain only those SIG RRs whose &#34;type covered&#34; field equals the type field of an answer being returned. (§5.3.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.3.2-1">RFC2181-5.3.2-1</code></td><td colspan="3"><span class="rfc-subject">Servers are not required to treat two differing NXT RRSets as a special case; they may elect to notice the two NXT RRSets and treat them as they would any two different RRSets (cache one, ignore the other). (§5.3.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4-3">RFC2181-5.4-3</code></td><td colspan="3"><span class="rfc-subject">When a received answer contains an RRSet identical to the cached one except for the TTL value, the server may optionally update the TTL in its cache with the TTL of the received answer. (§5.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-7">RFC2181-5.4.1-7</code></td><td colspan="3"><span class="rfc-subject">Such untrustworthy RRs may be returned as additional information where appropriate. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.4.1-11">RFC2181-5.4.1-11</code></td><td colspan="3"><span class="rfc-subject">Where conflicting glue exists, the nameserver may otherwise choose any single set of such data. (§5.4.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.4.1-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-5.5-2">RFC2181-5.5-2</code></td><td colspan="3"><span class="rfc-subject">An RRSet may occur in any of the Answer, Authority, or Additional Information sections, as required. (§5.5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-5.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-6.2-1">RFC2181-6.2-1</code></td><td colspan="3"><span class="rfc-subject">Servers may, but are not required to, retain all differing NXT records they receive, regardless of the rules in section 5.4. (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-6.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.1-1">RFC2181-7.1-1</code></td><td colspan="3"><span class="rfc-subject">The authority section of an authoritative answer may contain the SOA record for the zone; SOA records, if added, are to be placed in the authority section. (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-7.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-7.2-2">RFC2181-7.2-2</code></td><td colspan="3"><span class="rfc-subject">Implementations are not required to send SOA records with a TTL of zero (they may send a non-zero SOA TTL). (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-7.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-8-3">RFC2181-8-3</code></td><td colspan="3"><span class="rfc-subject">Implementations are always free to place an upper bound on any received TTL and treat any larger values as if they were that upper bound. (§8)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-8-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-9-4">RFC2181-9-4</code></td><td colspan="3"><span class="rfc-subject">Where TC is set, the partial RRSet that would not completely fit may be left in the response. (§9)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-9-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-1">RFC2181-10.1-1</code></td><td colspan="3"><span class="rfc-subject">There may be only one canonical name for any one alias. (§10.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>10.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-10.1-3">RFC2181-10.1-3</code></td><td colspan="3"><span class="rfc-subject">An alias (the label of a CNAME record) may, if DNSSEC is in use, have SIG, NXT, and KEY RRs. (§10.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>10.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-10.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2181-11-4">RFC2181-11-4</code></td><td colspan="3"><span class="rfc-subject">A DNS server may be configurable to issue warnings when loading, or even to refuse to load, a primary zone containing labels that might be considered questionable. (§11)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2181-11-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a> The response must be marked &#34;truncated&#34; if the entire RRSet will not fit in the response. (§5.1)</td>
+<td>{gap}, no test</td>
+<td>geodns and as112 never set the TC bit or call miekg Truncate, and miekg WriteMsg at vendor/github.com/miekg/dns/server.go:747 packs and sends without auto-truncating, so an oversized RRSet would be sent unmarked</td>
+</tr>
+<tr><td><a href="#rfc2181-5.3.1-2"><code>RFC2181-5.3.1-2</code></a> Where SIG records are returned in the answer section (a query for SIG records, or type=ANY), the entire SIG RRSet must be included, as for any other RR type. (§5.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze serves no SIG or DNSSEC records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so there is no SIG RRSet to include</td>
+</tr>
+<tr><td><a href="#rfc2181-5.3.1-3"><code>RFC2181-5.3.1-3</code></a> A server receiving SIG records in the authority section (or, probably incorrectly, as additional data) must understand that the entire RRSet has almost certainly not been included. (§5.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s stub resolver extracts only answer-section A/AAAA/TXT/PTR/CNAME/MX/NS/SRV at internal/component/resolve/dns/resolver.go:299 and processes no SIG records, so there is no partial SIG RRSet to reason about</td>
+</tr>
+<tr><td><a href="#rfc2181-5.3.1-4"><code>RFC2181-5.3.1-4</code></a> Such a server must not cache that SIG record in a way that would permit it to be returned in response to a query for SIG records. (§5.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the resolver caches only records it extracted from the answer section at internal/component/resolve/dns/resolver.go:299 and never handles SIG, so an authority-section SIG can never be cached or returned</td>
+</tr>
+<tr><td><a href="#rfc2181-5.4.1-3"><code>RFC2181-5.4.1-3</code></a> Data trustworthiness shall rank, most to least: primary zone file (non-glue), zone transfer (non-glue), authoritative answer-section data, authority-section data of an authoritative answer, glue, non-authoritative answer data, then additional information and non-authoritative authority-section data. (§5.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s resolver is a stub forwarder to one configured upstream at internal/component/resolve/dns/resolver.go:263 with a single-source cache keyed by name+type, so it never ranks data from competing trustworthiness sources</td>
+</tr>
+<tr><td><a href="#rfc2181-5.4.1-8"><code>RFC2181-5.4.1-8</code></a> When DNS security is in use and an authenticated reply has been received and verified, the authenticated data shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the stub resolver performs no per-record trust ranking -- it relies on a validating upstream returning SERVFAIL at internal/component/resolve/dns/resolver.go:99 rather than comparing authenticated against unauthenticated data</td>
+</tr>
+<tr><td><a href="#rfc2181-5.4.1-9"><code>RFC2181-5.4.1-9</code></a> DNSSEC-aware servers must still correctly set the AA bit in responses, to enable correct operation with servers that are not security aware. (§5.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s authoritative servers implement no DNSSEC signing so the DNSSEC-aware precondition does not hold; the AA bit is nonetheless always set at internal/core/dnsserver/handler.go:73</td>
+</tr>
+<tr><td><a href="#rfc2181-5.5-4"><code>RFC2181-5.5-4</code></a> Where a duplicate RRSet is required (e.g. the SOA at the first and last record of an AXFR), the TTL transmitted in each case must be the same. (§5.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze serves no AXFR -- the geodns YANG notes this at internal/plugins/geodns/yang/ze-geodns-conf.yang:95 and no plugin emits an SOA twice in one message, so no duplicate RRSet arises</td>
+</tr>
+<tr><td><a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a> An alias (the label of a CNAME record) may have no data other than SIG, NXT, and KEY RRs; a CNAME must not coexist with any other data. (§10.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze serves no CNAME records -- geodns emits only A/AAAA/SRV at internal/plugins/geodns/record.go:10 and as112 only SOA/NS/TXT, so no CNAME can coexist with other data</td>
+</tr>
+<tr><td><a href="#rfc2181-10.1.1-1"><code>RFC2181-10.1.1-1</code></a> Care must be taken to be very clear whether the label or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze authors no CNAME records at internal/plugins/geodns/record.go:10, so there is no label-versus-canonical-name ambiguity for an implementation to resolve</td>
+</tr>
+<tr><td><a href="#rfc2181-10.2-1"><code>RFC2181-10.2-1</code></a> The value of a PTR record must not be an alias; it should be a canonical name. (§10.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze authors no PTR records -- geodns serves A/AAAA/SRV and as112 reverse zones return NODATA with the SOA at internal/plugins/as112/zones.go:273 rather than any PTR, so no PTR value can be an alias</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc2181-4.1-1"><code>RFC2181-4.1-1</code></a></h3>
+<p>When responding to a query over UDP, a server must send the reply with the IP source address set to the address that was in the destination address field of the query packet. (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L315" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-4.2-1"><code>RFC2181-4.2-1</code></a></h3>
+<p>Replies to all queries must be directed to the port from which they were sent. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L320" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-4.2-2"><code>RFC2181-4.2-2</code></a></h3>
+<p>For queries received by UDP, the server must take note of the source port and use it as the destination port in the response. (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L325" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_UDPReplySourceAndPort</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-5.1-1"><code>RFC2181-5.1-1</code></a></h3>
+<p>The response must be marked &#34;truncated&#34; if the entire RRSet will not fit in the response. (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-5.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-5.2-1"><code>RFC2181-5.2-1</code></a></h3>
+<p>The TTLs of all RRs in an RRSet must be the same; in no case may a server send an RRSet with TTLs not all equal. (§5.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L367" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_RRSetEqualTTL</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-5.3.1-2"><code>RFC2181-5.3.1-2</code></a></h3>
+<p>Where SIG records are returned in the answer section (a query for SIG records, or type=ANY), the entire SIG RRSet must be included, as for any other RR type. (§5.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-5.3.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-5.3.1-3"><code>RFC2181-5.3.1-3</code></a></h3>
+<p>A server receiving SIG records in the authority section (or, probably incorrectly, as additional data) must understand that the entire RRSet has almost certainly not been included. (§5.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-5.3.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-5.3.1-4"><code>RFC2181-5.3.1-4</code></a></h3>
+<p>Such a server must not cache that SIG record in a way that would permit it to be returned in response to a query for SIG records. (§5.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-5.3.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-5.4-1"><code>RFC2181-5.4-1</code></a></h3>
+<p>Servers must never merge RRs from a response with RRs in their cache to form an RRSet. (§5.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L226" title="internal/component/resolve/dns/cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-5.4-2"><code>RFC2181-5.4-2</code></a></h3>
+<p>When a response would form an RRSet with cached data, the server must either ignore the response RRs or discard the entire cached RRSet, as appropriate. (§5.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/cache_test.go#L234" title="internal/component/resolve/dns/cache_test.go" target="_blank" rel="noopener"><code>TestRFC2181_CacheReplacesRRSetNoMerge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-5.4.1-3"><code>RFC2181-5.4.1-3</code></a></h3>
+<p>Data trustworthiness shall rank, most to least: primary zone file (non-glue), zone transfer (non-glue), authoritative answer-section data, authority-section data of an authoritative answer, glue, non-authoritative answer data, then additional information and non-authoritative authority-section data. (§5.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-5.4.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-5.4.1-8"><code>RFC2181-5.4.1-8</code></a></h3>
+<p>When DNS security is in use and an authenticated reply has been received and verified, the authenticated data shall be considered more trustworthy than unauthenticated data of the same type. (§5.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-5.4.1-8, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-5.4.1-9"><code>RFC2181-5.4.1-9</code></a></h3>
+<p>DNSSEC-aware servers must still correctly set the AA bit in responses, to enable correct operation with servers that are not security aware. (§5.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-5.4.1-9, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-5.5-4"><code>RFC2181-5.5-4</code></a></h3>
+<p>Where a duplicate RRSet is required (e.g. the SOA at the first and last record of an AXFR), the TTL transmitted in each case must be the same. (§5.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-5.5-4, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-8-1"><code>RFC2181-8-1</code></a></h3>
+<p>A TTL is an unsigned number in the range 0..2147483647 (2^31 - 1); when transmitted it shall be encoded in the less significant 31 bits of the 32-bit TTL field, with the most significant (sign) bit set to zero. (§8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L238" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L225" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_TTLSignBitBound</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-10.1-4"><code>RFC2181-10.1-4</code></a></h3>
+<p>An alias (the label of a CNAME record) may have no data other than SIG, NXT, and KEY RRs; a CNAME must not coexist with any other data. (§10.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-10.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-10.1.1-1"><code>RFC2181-10.1.1-1</code></a></h3>
+<p>Care must be taken to be very clear whether the label or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-10.1.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-10.2-1"><code>RFC2181-10.2-1</code></a></h3>
+<p>The value of a PTR record must not be an alias; it should be a canonical name. (§10.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2181-10.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2181-10.3-1"><code>RFC2181-10.3-1</code></a></h3>
+<p>The domain name used as the value of an NS record, or as part of the value of an MX record, must not be an alias, and must never have a CNAME RR. (§10.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L407" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-10.3-2"><code>RFC2181-10.3-2</code></a></h3>
+<p>That domain name must have as its value one or more address records. (§10.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L424" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_NSCanonicalWithGlue</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-11-1"><code>RFC2181-11-1</code></a></h3>
+<p>Any one label is limited to between 1 and 63 octets; a full domain name is limited to 255 octets, including the separators. (§11)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server_test.go#L451" title="internal/plugins/geodns/server_test.go" target="_blank" rel="noopener"><code>TestRFC2181_WireNameLimits</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-11-2"><code>RFC2181-11-2</code></a></h3>
+<p>Implementations of the DNS protocols must not place any restrictions on the labels that can be used. (§11)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L271" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2181-11-3"><code>RFC2181-11-3</code></a></h3>
+<p>DNS servers must not refuse to serve a zone because it contains labels that might not be acceptable to some DNS client programs. (§11)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/config_test.go#L260" title="internal/plugins/geodns/config_test.go" target="_blank" rel="noopener"><code>TestRFC2181_LabelsUnrestricted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 2181, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 2181, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

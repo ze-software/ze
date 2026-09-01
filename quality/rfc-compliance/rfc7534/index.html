@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 7534 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 7534: AS112 Nameserver Operations. 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 7534 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 7534: AS112 Nameserver Operations. 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 7534 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 7534: AS112 Nameserver Operations. 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc7534/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc7534/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 7534 - AS112 Nameserver Operations</h1>
+    <p>Every requirement this repository extracted from RFC 7534, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>2 of 3 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>33.3%</strong><b>1 of 3 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 3 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 5 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>3</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 3 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 3 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>16</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>3</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>3</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>5</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>5</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc7534.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc7534.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc7534.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: AS112 Nameserver Operations: three MUSTs over ze&#39;s authoritative AS112 DNS server (internal/plugins/as112, answerQuestions/zones.go). RFC7534-3.5-1 (answer authoritatively for each delegated zone) both polarities: a query at the apex of a Direct-Delegation reverse zone is answered from that zone (TestZoneAnswer_ReverseZoneNoData) while a name outside every served zone draws REFUSED with AA clear, so the node makes no authority claim over it (TestZoneAnswer_OutOfZoneRefused). RFC7534-3.5-2 (no records beyond SOA and NS) both polarities: a PTR query at the apex yields NODATA (TestZoneAnswer_ReverseZoneNoData) while the zone does contain its SOA + the two blackhole NS records (TestSOA_RFCMandatedParameters). RFC7534-3.5-3 (RFC 1918 records not hosted) is {single-polarity: positive}: the zones hold their records at the apex and nothing below it, so an RFC 1918 reverse PTR yields NXDOMAIN with no PTR in the reply and no such record is ever hosted (TestZoneAnswer_ResponseCodeByNamePosition). Ledger row unchanged (no gap).</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<p><strong>What the ledger says is covered:</strong></p>
+Authoritative sink for misdirected RFC 1918 and link-local reverse DNS.
+<p><strong>What the ledger says remains:</strong></p>
+No tracked gap in current source anchors.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>2</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>3</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc7534-3.5-1"><code>RFC7534-3.5-1</code></a>, <a href="#rfc7534-3.5-2"><code>RFC7534-3.5-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc7534-3.5-3"><code>RFC7534-3.5-3</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.5-1">RFC7534-3.5-1</code></td><td colspan="3"><span class="rfc-subject">AS112 nameservers answer authoritatively for each zone delegated to them (§3.5, also restated in RFC 7535 §1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5 - DNS Software</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ReverseZoneNoData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_OutOfZoneRefused</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.5-2">RFC7534-3.5-2</code></td><td colspan="3"><span class="rfc-subject">Direct Delegation zones contain no resource records beyond SOA and NS (§3.5, db.dd-empty)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5 - DNS Software</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ReverseZoneNoData</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestSOA_RFCMandatedParameters</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.5-3">RFC7534-3.5-3</code></td><td colspan="3"><span class="rfc-subject">Records relating to RFC 1918 resources within the hosting site are not hosted on the AS112 nameserver itself (§3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5 - DNS Software</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L247" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s AS112 nameserver serves only empty SOA/NS Direct-Delegation zones (internal/plugins/as112/zones.go), which hold their records at the apex and nothing below it, so every RFC 1918 reverse name draws a name error and no RFC 1918 record is ever hosted -- there is no &#34;RFC 1918 record is hosted&#34; case to assert as a negative. The positive (an RFC 1918 reverse PTR yields NXDOMAIN, with no PTR anywhere in the reply) is proven in TestZoneAnswer_ResponseCodeByNamePosition</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.3-1">RFC7534-3.3-1</code></td><td colspan="3"><span class="rfc-subject">The chosen platform supports cloned loopback interfaces or multiple addresses on one loopback interface (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3 - Operating System and Host Considerations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.3-2">RFC7534-3.3-2</code></td><td colspan="3"><span class="rfc-subject">A host running an AS112 node is dedicated to that purpose, not shared with other services (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3 - Operating System and Host Considerations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.3-3">RFC7534-3.3-3</code></td><td colspan="3"><span class="rfc-subject">Startup order is: loopback interface configuration, then DNS software, then routing software (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3 - Operating System and Host Considerations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.3-4">RFC7534-3.3-4</code></td><td colspan="3"><span class="rfc-subject">The AS112 service prefix is not advertised while anycast addresses are unconfigured or DNS software is not running (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3 - Operating System and Host Considerations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.4-1">RFC7534-3.4-1</code></td><td colspan="3"><span class="rfc-subject">Outbound BGP advertisement is restricted by a prefix filter permitting only the AS112 service prefixes (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.4 - Routing Software</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.4-2">RFC7534-3.4-2</code></td><td colspan="3"><span class="rfc-subject">Outbound BGP advertisement is restricted by an AS_PATH filter matching only locally-originated routes (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.4 - Routing Software</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.5-4">RFC7534-3.5-4</code></td><td colspan="3"><span class="rfc-subject">AS112 nodes run as authoritative-only DNS servers with recursion disabled (§3.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.5 - DNS Software</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.5-5">RFC7534-3.5-5</code></td><td colspan="3"><span class="rfc-subject">HOSTNAME.AS112.NET / HOSTNAME.AS112.ARPA TXT responses fit within a 512-octet UDP datagram without requiring EDNS0 (§3.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.5 - DNS Software</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.5-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-4.1-1">RFC7534-4.1-1</code></td><td colspan="3"><span class="rfc-subject">AS112 nodes are monitored as a production service (§4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.1 - Monitoring</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-4.2-1">RFC7534-4.2-1</code></td><td colspan="3"><span class="rfc-subject">An AS112 node going off-line for maintenance withdraws its service-prefix BGP announcement first (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2 - Downtime</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-4.3-1">RFC7534-4.3-1</code></td><td colspan="3"><span class="rfc-subject">Usage is measured for long-term trend and anomaly tracking (§4.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3 - Statistics and Measurement</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.2-1">RFC7534-3.2-1</code></td><td colspan="3"><span class="rfc-subject">New AS112 node operators notify the local community (e.g. IXP mailing list) before installation; globally-reachable nodes coordinate with other AS112 operators (§3.2, §5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.2 - Topological Location</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7534-3.4-3">RFC7534-3.4-3</code></td><td colspan="3"><span class="rfc-subject">An IPv4-only node configures only the IPv4 anycast addresses; an IPv6-only node configures only the IPv6 anycast addresses (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.4 - Routing Software</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7534-3.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<p>RFC 7534 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc7534-3.5-1"><code>RFC7534-3.5-1</code></a></h3>
+<p>AS112 nameservers answer authoritatively for each zone delegated to them (§3.5, also restated in RFC 7535 §1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L169" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_OutOfZoneRefused</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L85" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ReverseZoneNoData</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7534-3.5-2"><code>RFC7534-3.5-2</code></a></h3>
+<p>Direct Delegation zones contain no resource records beyond SOA and NS (§3.5, db.dd-empty)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L293" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestSOA_RFCMandatedParameters</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L88" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ReverseZoneNoData</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7534-3.5-3"><code>RFC7534-3.5-3</code></a></h3>
+<p>Records relating to RFC 1918 resources within the hosting site are not hosted on the AS112 nameserver itself (§3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L247" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6, rfc7534</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc7534.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>e49b3f8cd69c5bc3</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc7534.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>0</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>3</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. Walked rather than skipped because the site scan attributes two sites here, both excluded below: the Abstract&#39;s last paragraph and the IETF Trust Legal Provisions boilerplate. The Abstract restates section 1 and states that the document obsoletes RFC 6304. Nothing before section 1 binds a nameserver or its operator.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Indicative throughout: private-use addresses are not globally unique, devices originate reverse lookups for them, those queries are answered by nobody usefully, and the AS112 project is a distributed sink for them. Its one guidance sentence, &#39;it is good practice for site administrators to ensure that such queries are answered locally [RFC6303]&#39;, binds the site administrator whose resolver leaks the query, not the AS112 node; rfc/short/rfc7534.md carries it under Security Considerations and RFC 6303 owns it. The last paragraph states the project&#39;s operating shape, which the AS112 plugin implements: a nameserver configured to answer authoritatively for a nominated zone set, one node in an anycast cloud.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>AS112 DNS Service, the parent heading</td>
+<td>0</td>
+<td>walked</td>
+<td>AS112 DNS Service, the parent heading. No text of its own.</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>Approach, the parent heading of 2.1.1 and 2.1.2</td>
+<td>0</td>
+<td>walked</td>
+<td>Approach, the parent heading of 2.1.1 and 2.1.2. No text of its own.</td>
+</tr>
+<tr><td><code>2.1.1</code></td>
+<td>Direct Delegation</td>
+<td>0</td>
+<td>walked</td>
+<td>Direct Delegation. Indicative: zones whose traffic should be sunk are delegated directly to AS112 nameservers, and each node is manually configured to answer for them. The delegation half binds the parent zone&#39;s operator and IANA, not the node. The node half is the same obligation as RFC7534-3.5-1, declared unsourced on 3.5.</td>
+</tr>
+<tr><td><code>2.1.2</code></td>
+<td>DNAME Redirection</td>
+<td>0</td>
+<td>walked</td>
+<td>DNAME Redirection. Reports that RFC 7535 defines a different approach, in which queries are redirected to an empty zone also hosted on AS112 servers using DNAME [RFC6672], and that this document introduces the capability. The obligations of that approach belong to RFC 7535, which has its own summary and its own sign-off; nothing here directs a node beyond serving EMPTY.AS112.ARPA, which 2.2 lists and RFC7534-3.5-1 covers.</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>Zones</td>
+<td>0</td>
+<td>walked</td>
+<td>Zones. The zone list an AS112 nameserver answers authoritatively for: 10.IN-ADDR.ARPA, the sixteen 172.16/12 zones, 168.192.IN-ADDR.ARPA, 254.169.IN-ADDR.ARPA, EMPTY.AS112.ARPA, and the two identification zones HOSTNAME.AS112.NET and HOSTNAME.AS112.ARPA. It is a list of names, not a directive; the obligation to answer authoritatively for each of them is RFC7534-3.5-1, declared unsourced on 3.5. The section closes by pointing at 3.5 for the recommended contents. Ze&#39;s table is buildServedZones in internal/plugins/as112/zones.go, twenty-two zones with the same membership.</td>
+</tr>
+<tr><td><code>2.3</code></td>
+<td>Nameservers</td>
+<td>0</td>
+<td>walked</td>
+<td>Nameservers. States which nameserver names and anycast addresses the zones are delegated to (BLACKHOLE-1 and BLACKHOLE-2.IANA.ORG, PRISONER.IANA.ORG as the SOA MNAME, BLACKHOLE.AS112.ARPA for DNAME redirection), and which prefixes cover them. The delegation binds IANA and the parent zone operators. The addresses a node configures are the subject of 3.3 and 3.4 and of RFC7534-3.4-3; the names a node puts in its own SOA and NS records are the subject of 3.5. Nothing is directed at a speaker here that is not directed again there. Ze&#39;s constants are anycastV4DirectDelegationAddr and its three siblings in internal/plugins/as112/register.go.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Installation of a New Node, the parent heading</td>
+<td>0</td>
+<td>walked</td>
+<td>Installation of a New Node, the parent heading. No text of its own.</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>Useful Background Knowledge</td>
+<td>0</td>
+<td>walked</td>
+<td>Useful Background Knowledge. Says installation is straightforward and that experience in BGP, DNS authoritative server operations and anycast distribution may prove useful. Advice to a person, directing no software behavior.</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>Topological Location</td>
+<td>0</td>
+<td>walked</td>
+<td>Topological Location. Says a node may be located anywhere, that an Internet Exchange Point is often advantageous, and that a node may advertise its service prefix for local or for global use. Its one guidance sentence, &#39;It is good operational practice to notify the community of users that may fall within the reach of a new AS112 node before it is installed&#39;, with &#39;coordination with other AS112 operators is highly recommended&#39; for globally reachable nodes, binds the operator installing the node and is repeated in section 5. rfc/short/rfc7534.md declares it as RFC7534-3.2-1 at [SHOULD] and cites both sections; it is declared unsourced here because the modal is the lowercase &#39;recommended&#39; inside &#39;is highly recommended&#39;, which the site scan does not attribute to this section.</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>Operating System and Host Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Operating System and Host Considerations. Four lowercase-&#39;should&#39; sentences, all four declared unsourced here because the site scan attributes no site to this section: the chosen platform &#39;should include either support for cloned loopback interfaces or the capability to bind multiple addresses to a single loopback interface&#39; (RFC7534-3.3-1); a host acting as an AS112 node &#39;should be dedicated to that purpose and should not be used to simultaneously provide other services&#39; (RFC7534-3.3-2); startup order &#39;should be arranged such that routing software startup follows DNS software startup, and DNS software startup follows loopback interface configuration&#39; (RFC7534-3.3-3); and &#39;Wrapper scripts or other arrangements should be employed to ensure that the anycast service prefix for AS112 is not advertised while either the anycast addresses are not configured or the DNS software is not running&#39; (RFC7534-3.3-4). The first three bind the operator choosing and building the host. The fourth lands on ze, which is both the DNS server and the BGP speaker: as112Producer.onServingChanged and withdraw (internal/plugins/as112/redistribute.go) hold the covering prefixes back until the listeners are serving and withdraw them when they stop, so the wrapper the RFC asks an operator to write is inside the product.</td>
+</tr>
+<tr><td><code>3.4</code></td>
+<td>Routing Software</td>
+<td>1</td>
+<td>walked</td>
+<td>Routing Software. States that each AS112 node is a BGP speaker announcing 192.175.48.0/24 and 2620:4f:8000::/48 with origin AS 112, that the examples are based on the Quagga Routing Suite, and that an IPv4-only node need not configure the IPv6 elements and an IPv6-only node need not configure the IPv4 ones (RFC7534-3.4-3, [MAY]). Most of the section is an annotated bgpd.conf, and the guidance it carries is stated in the paragraph after it: &#39;two restrictions on what the AS112 should advertise to its BGP neighbours: a prefix filter that permits only the service prefixes, and an AS_PATH filter that matches only locally originated routes&#39;, which rfc/short/rfc7534.md declares as RFC7534-3.4-1 and RFC7534-3.4-2. All three ids are declared unsourced here: the one site the scan attributes to this section is the zebra.conf sentence, which is about Quagga and is excluded below. Ze&#39;s covering prefixes and origin AS are coveringPrefixesFor and as112DefaultASN (internal/plugins/as112/redistribute.go, config.go).</td>
+</tr>
+<tr><td><code>3.5</code></td>
+<td>DNS Software</td>
+<td>0</td>
+<td>walked</td>
+<td>DNS Software. The section that carries every MUST-level id this summary declares, and not one of them is stated with a modal the site scan can see, so all five ids read from here are declared unsourced. &#39;AS112 nodes operate as fully functional and standards-compliant DNS authoritative servers [RFC1034]&#39; is RFC7534-3.5-1, with the named.conf note &#39;the nameserver is configured to act as an authoritative-only server (i.e., recursion is disabled)&#39; as RFC7534-3.5-4. The zone content rules are comments inside db.dd-empty and db.dr-empty: &#39;There should be no other resource records included in this zone&#39; is RFC7534-3.5-2, and &#39;Records that relate to RFC 1918-numbered resources within the site hosting this AS112 node should not be hosted on this nameserver&#39; is RFC7534-3.5-3. &#39;the responses to the queries &#34;HOSTNAME.AS112.NET IN TXT&#34; and &#34;HOSTNAME.AS112.ARPA IN TXT&#34; should fit within a 512-octet DNS/UDP datagram: i.e., it should be available over UDP transport without requiring EDNS0 support by the client&#39; is RFC7534-3.5-5. The SOA field values, the NS targets and the $TTL of 1W are sample zone data rather than sentences, and rfc/short/rfc7534.md carries them in its DNS Software Requirements prose; ze&#39;s constants are soaRefresh, soaRetry, soaExpire, soaMinTTL and zoneTTL in internal/plugins/as112/zones.go, and the answer synthesis is zoneAnswer in the same file. Two further sentences state no obligation ze is left owing. &#39;The optional LOC record [RFC1876] included in each zone apex provides information about the geospatial location of the node&#39; is offered as optional and no id declares it; ze synthesizes SOA, NS and TXT at the apex and no LOC. &#39;Where software implementations support it, operational data should also be carried using NSID [RFC5001]&#39; is conditioned on the DNS software supporting NSID, and ze&#39;s DNS harness (internal/core/dnsserver) reads the EDNS0 OPT record for client-subnet (RFC 7871) and implements no NSID option, so the condition does not hold and the sentence binds nothing here.</td>
+</tr>
+<tr><td><code>3.6</code></td>
+<td>Testing a Newly Installed Node</td>
+<td>0</td>
+<td>walked</td>
+<td>Testing a Newly Installed Node. A worked &#39;dig&#39; invocation against hostname.as112.net TXT, how to read a response that names a different node, and the note that a proper test set queries from many places over both UDP and TCP against all three anycast addresses. Instructions to the person commissioning the node, directing no behavior of the node itself. Ze&#39;s equivalent is the operator-facing as112 health command, handleAS112Health in internal/plugins/as112/health.go.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Operations, the parent heading</td>
+<td>0</td>
+<td>walked</td>
+<td>Operations, the parent heading. No text of its own.</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>Monitoring</td>
+<td>0</td>
+<td>walked</td>
+<td>Monitoring. One lowercase-&#39;should&#39; sentence, declared unsourced here: &#39;AS112 nodes should be monitored to ensure that they are functioning correctly, just as with any other production service.&#39; It binds the node&#39;s operator, and the rest of the section says why: a node that answers wrongly causes failures and timeouts in dependent systems that are hard to diagnose.</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>Downtime</td>
+<td>0</td>
+<td>walked</td>
+<td>Downtime. One lowercase-&#39;should&#39; sentence, declared unsourced here: &#39;An AS112 node that needs to go off-line (e.g., for planned maintenance or as part of the diagnosis of some problem) should stop advertising the AS112 service prefixes to its BGP peers&#39;, by shutting the routing software down or by withdrawing the route. The second paragraph gives the reason: an announced prefix with a dead nameserver blackholes the query traffic. The obligation binds the operator taking the node down, and ze gives them the mechanism: as112Producer.withdraw (internal/plugins/as112/redistribute.go) withdraws the covering prefixes when the listeners stop serving.</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>Statistics and Measurement</td>
+<td>0</td>
+<td>walked</td>
+<td>Statistics and Measurement. One lowercase-&#39;should&#39; sentence, declared unsourced here: &#39;Use of the AS112 node should be measured in order to track long-term trends, identify anomalous conditions, and ensure that the configuration of the AS112 node is sufficient to handle the query load.&#39; It binds the operator. The rest names free monitoring tools (bindgraph, dnstop, DSC) and suggests joining DNS-OARC collection events, which is a recommendation about a community activity and directs no software. Ze publishes the counters an operator measures with: buildMetrics in internal/plugins/as112/metrics.go.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Communications</td>
+<td>0</td>
+<td>walked</td>
+<td>Communications. Repeats 3.2&#39;s notify-the-community guidance, names the as112-ops@lists.dns-oarc.net mailing list and www.as112.net, says information about a node should also be published in the DNS through the HOSTNAME.AS112.* zones (which is 3.5&#39;s TXT content, RFC7534-3.5-5), and says operators should be aware of RFC 6305 and direct site administrators appropriately. Every obligation binds the node&#39;s operator and is already declared: RFC7534-3.2-1 cites this section beside 3.2, and it is declared unsourced on 3.2 rather than twice.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>On the Future of AS112 Nodes</td>
+<td>0</td>
+<td>walked</td>
+<td>On the Future of AS112 Nodes. Indicative and predictive: recursive-nameserver operators are recommended by RFC 6303 to answer these zones locally, no trend toward that compliance is observable, vendors are expected to ship such defaults, the query load will not fall to zero, and the community might one day recommend retiring Direct Delegation service -- which the section says explicitly this document does not recommend. The one recommendation named belongs to RFC 6303 and binds a recursive resolver, not an AS112 node.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>IANA Considerations, the parent heading</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations, the parent heading.</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>IANA Considerations, General</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations, General. Records who assigned the AS number and the four prefixes (ARIN for 112, 192.175.48.0/24 and 2620:4f:8000::/48; IANA for 192.31.196.0/24 and 2001:4:112::/48) and that the anycast infrastructure itself is not an IANA function. Binds IANA and the registries.</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>IANA Actions, the parent heading</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Actions, the parent heading.</td>
+</tr>
+<tr><td><code>7.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>The AAAA records IANA has added for PRISONER, BLACKHOLE-1 and BLACKHOLE-2.IANA.ORG. An IANA action on the IANA.ORG zone.</td>
+</tr>
+<tr><td><code>7.2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>The registration of AS 112 in the Special-Purpose AS Numbers registry [RFC7249]. An IANA action.</td>
+</tr>
+<tr><td><code>7.2.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>The registration of 192.175.48.0/24 in the IANA IPv4 Special-Purpose Address Registry [RFC6890]. An IANA action.</td>
+</tr>
+<tr><td><code>7.2.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>The registration of 2620:4f:8000::/48 in the IANA IPv6 Special-Purpose Address Registry [RFC6890]. An IANA action.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. Five paragraphs, none of which directs the node&#39;s DNS or BGP behavior. Hosts should never normally send these queries and should answer them locally, which binds the querying site. Responses are unexpected and can trigger intrusion detection, so AS112 operators should expect to be contacted, with RFC 6305 as the advice to give. A loosely coordinated deployment makes a compromised node hard to detect, so operators should protect their nodes as they would any production nameserver, with RFC 2870 named as instructive: that binds the operator. The last paragraph states as fact that AS112 zones are not DNSSEC-signed, because the key material would have to be effectively public; it is a statement of what the service does not do, not an obligation. rfc/short/rfc7534.md carries all five under Security Considerations and declares no id for them.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>References, the parent heading</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References, the parent heading.</td>
+</tr>
+<tr><td><code>9.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: RFC 1034, RFC 1918, RFC 2870, RFC 4033, RFC 4271, RFC 4786 and RFC 7535.</td>
+</tr>
+<tr><td><code>9.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative References: RFC 1876, RFC 5001, RFC 5855, RFC 6303, RFC 6304, RFC 6305, RFC 6672, RFC 6890 and RFC 7249.</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>Appendix A, A Brief History of AS112</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>Appendix A, A Brief History of AS112. Narrative: RFC 1918 use spread from 1996, offloading IN-ADDR.ARPA from the root servers was proposed by Bill Manning and John Brown, ARIN provided the prefix and AS 112, the first nodes were deployed in 2002, and IN-ADDR.ARPA was redelegated in 2011. It directs nobody.</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>Appendix B, Changes since RFC 6304: IPv6 transport, DNAME-based delegation of additional zones, the consequent configuration guidance, clarified information-leak text, and the direction to IANA to register the prefixes. A change list over the obsoleted document. The derivation attributes the trailing Acknowledgements and Authors&#39; Addresses to this section, and neither binds anybody either.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The Abstract&#39;s closing paragraph, non-normative by RFC convention. Its lowercase &#39;required&#39; is inside &#39;the steps required to install a new AS112 node&#39;, which names what the document is about rather than obliging anybody to do anything. The installation guidance itself is section 3, and every id read from it is declared unsourced on the section that states it.</td>
+<td>This document describes the steps required to install a new AS112 node and offers advice relating to such a node&#39;s operation.</td>
+</tr>
+<tr><td><code>front:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Boilerplate the extractor did not strip: the IETF Trust Legal Provisions paragraph of the Copyright Notice. Its lowercase &#39;must&#39; binds a party extracting Code Components from the document text, and directs no DNS or BGP behavior. The document&#39;s sample bgpd.conf, named.conf and zone files are Quagga and BIND9 configuration, not code components ze reuses: internal/plugins/as112 synthesizes the same zone contents in Go.</td>
+<td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
+</tr>
+<tr><td><code>3.4:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A description of another system, and the extractor cannot see which: &#39;zebra.conf&#39; is a file of the Quagga Routing Suite, which the same section names as the basis of its examples while saying &#39;other software packages exist that also provide suitable BGP support for AS112 nodes&#39;. The sentence states that Quagga needs a zebra daemon to reach the kernel FIB, so its lowercase &#39;required&#39; is a fact about that package&#39;s architecture and not an obligation on an AS112 node. Ze is a single daemon with its own FIB path and no zebra; the two restrictions this section does place on an AS112 node&#39;s BGP advertisement are RFC7534-3.4-1 and RFC7534-3.4-2, declared unsourced on 3.4.</td>
+<td>The &#34;zebra.conf&#34; file is required to provide integration between protocol daemons (bgpd, in this case) and the kernel.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 7534, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

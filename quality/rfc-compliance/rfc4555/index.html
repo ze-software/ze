@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 4555 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 4555: IKEv2 Mobility and Multihoming Protocol (MOBIKE). 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 4555 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 4555: IKEv2 Mobility and Multihoming Protocol (MOBIKE). 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 4555 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 4555: IKEv2 Mobility and Multihoming Protocol (MOBIKE). 6 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc4555/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc4555/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Unsupported</span>
+    <h1 id="rfc-detail-title">RFC 4555 - IKEv2 Mobility and Multihoming Protocol (MOBIKE)</h1>
+    <p>Every requirement this repository extracted from RFC 4555, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>6</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>6</strong><b>of 6 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>No card above is a share of a population, so there is nothing to add up.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Unsupported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>16</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>6</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>0</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>6</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>0</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>0</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc4555.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc4555.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc4555.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: IKEv2 Mobility and Multihoming Protocol (MOBIKE): six MUST-level requirements, all {not-applicable} to Ze. Ze does not implement the RFC 4555 MOBIKE extension -- its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path (no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, no address-update handling; grep for MOBIKE/UPDATE_SA_ADDRESSES across internal/component/ike/ finds nothing). RFC4555-x-1 (MOBIKE_SUPPORTED in IKE_AUTH), RFC4555-x-2 (switch to port 4500 for MOBIKE+NAT-T), RFC4555-3.9-1 (NO_NATS_ALLOWED in address-updating messages), RFC4555-3.7-1 (responder copies COOKIE2 verbatim), RFC4555-3.8-1 (no dynamic address updates when not behind NAT), RFC4555-3.8-2 (echo NAT_DETECTION in MOBIKE INFORMATIONAL) all govern MOBIKE behaviors Ze does not implement. No SHOULD/MAY requirements are gated.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Unsupported</p>
+<p><strong>What the ledger says is covered:</strong></p>
+<ul class="rfc-prose">
+<li>None</li>
+<li>the IKE engine does not define the MOBIKE notify types (16396/16400) and does not handle UPDATE_SA_ADDRESSES.</li>
+</ul>
+<p><strong>What the ledger says remains:</strong></p>
+Responder role (announce MOBIKE_SUPPORTED, accept UPDATE_SA_ADDRESSES, migrate XFRM endpoints) is not implemented.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>6</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>6</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Annotated instead of tested (6):</strong> <a href="#rfc4555-x-1"><code>RFC4555-x-1</code></a>, <a href="#rfc4555-x-2"><code>RFC4555-x-2</code></a>, <a href="#rfc4555-3.9-1"><code>RFC4555-3.9-1</code></a>, <a href="#rfc4555-3.7-1"><code>RFC4555-3.7-1</code></a>, <a href="#rfc4555-3.8-1"><code>RFC4555-3.8-1</code></a>, <a href="#rfc4555-3.8-2"><code>RFC4555-3.8-2</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-x-1">RFC4555-x-1</code></td><td colspan="3"><span class="rfc-subject">Both peers MUST include N(MOBIKE_SUPPORTED) in IKE_AUTH to enable MOBIKE for that IKE SA (Capability Negotiation, Sections 3.1-3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-x-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-x-2">RFC4555-x-2</code></td><td colspan="3"><span class="rfc-subject">Implementations supporting both MOBIKE and NAT Traversal MUST switch to port 4500 during IKE_AUTH even if no NAT is detected (Capability Negotiation, Sections 3.1-3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-x-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.9-1">RFC4555-3.9-1</code></td><td colspan="3"><span class="rfc-subject">When NAT Traversal is NOT enabled, address-updating messages MUST include NO_NATS_ALLOWED containing actual source/destination IP and ports (NAT Prohibition, Section 3.9)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.7-1">RFC4555-3.7-1</code></td><td colspan="3"><span class="rfc-subject">The exchange responder MUST copy COOKIE2 verbatim into the response (Return Routability Check, Section 3.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.8-1">RFC4555-3.8-1</code></td><td colspan="3"><span class="rfc-subject">When MOBIKE is active, the host not behind a NAT MUST NOT use dynamic IKEv2 address updates for IKE packets (NAT Mapping Changes, Section 3.8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.8-2">RFC4555-3.8-2</code></td><td colspan="3"><span class="rfc-subject">The responder MUST echo NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP if present in any INFORMATIONAL request (NAT Mapping Changes, Section 3.8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.8-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.7-2">RFC4555-3.7-2</code></td><td colspan="3"><span class="rfc-subject">Return routability check SHOULD be performed by default (Return Routability Check, Section 3.7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.8-3">RFC4555-3.8-3</code></td><td colspan="3"><span class="rfc-subject">The initiator behind a NAT SHOULD include NAT detection payloads in DPD messages and compare with previous values (NAT Mapping Changes, Section 3.8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.8-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.9-2">RFC4555-3.9-2</code></td><td colspan="3"><span class="rfc-subject">The initiator SHOULD retry several times on UNEXPECTED_NAT_DETECTED (NAT Prohibition, Section 3.9)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.9-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.11-1">RFC4555-3.11-1</code></td><td colspan="3"><span class="rfc-subject">The responder SHOULD use long timeout intervals (at least 5 minutes for retransmission) to give the initiator time to detect problems and switch paths (Failure Recovery, Section 3.11)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.11-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.12-1">RFC4555-3.12-1</code></td><td colspan="3"><span class="rfc-subject">MOBIKE nodes SHOULD verify that incoming IPsec packets use expected addresses (Dead Peer Detection, Section 3.12)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.12-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.12-2">RFC4555-3.12-2</code></td><td colspan="3"><span class="rfc-subject">Packets from stale addresses SHOULD NOT count as evidence that the peer is alive and synchronized (Dead Peer Detection, Section 3.12)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>3.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.12-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-x-3">RFC4555-x-3</code></td><td colspan="3"><span class="rfc-subject">SPD cache links to SAD entries should NOT use (remote IP, remote SPI) as the key (Implementation Considerations, Appendix A)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-x-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-x-4">RFC4555-x-4</code></td><td colspan="3"><span class="rfc-subject">Both peers MAY advertise extra addresses in IKE_AUTH and later in INFORMATIONAL requests (Additional Addresses, Sections 3.4, 3.6)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-x-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.7-3">RFC4555-3.7-3</code></td><td colspan="3"><span class="rfc-subject">Return routability check MAY be omitted in trusted environments (Return Routability Check, Section 3.7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.7-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4555-3.8-4">RFC4555-3.8-4</code></td><td colspan="3"><span class="rfc-subject">The host not behind a NAT MAY use dynamic IKEv2 address updates for ESP packets when MOBIKE is active (NAT Mapping Changes, Section 3.8)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4555-3.8-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc4555-x-1"><code>RFC4555-x-1</code></a> Both peers MUST include N(MOBIKE_SUPPORTED) in IKE_AUTH to enable MOBIKE for that IKE SA (Capability Negotiation, Sections 3.1-3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</td>
+</tr>
+<tr><td><a href="#rfc4555-x-2"><code>RFC4555-x-2</code></a> Implementations supporting both MOBIKE and NAT Traversal MUST switch to port 4500 during IKE_AUTH even if no NAT is detected (Capability Negotiation, Sections 3.1-3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</td>
+</tr>
+<tr><td><a href="#rfc4555-3.9-1"><code>RFC4555-3.9-1</code></a> When NAT Traversal is NOT enabled, address-updating messages MUST include NO_NATS_ALLOWED containing actual source/destination IP and ports (NAT Prohibition, Section 3.9)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</td>
+</tr>
+<tr><td><a href="#rfc4555-3.7-1"><code>RFC4555-3.7-1</code></a> The exchange responder MUST copy COOKIE2 verbatim into the response (Return Routability Check, Section 3.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</td>
+</tr>
+<tr><td><a href="#rfc4555-3.8-1"><code>RFC4555-3.8-1</code></a> When MOBIKE is active, the host not behind a NAT MUST NOT use dynamic IKEv2 address updates for IKE packets (NAT Mapping Changes, Section 3.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</td>
+</tr>
+<tr><td><a href="#rfc4555-3.8-2"><code>RFC4555-3.8-2</code></a> The responder MUST echo NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP if present in any INFORMATIONAL request (NAT Mapping Changes, Section 3.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 4555 MOBIKE (IKEv2 Mobility and Multihoming) extension. Its IKE engine (internal/component/ike/) implements base IKEv2 (RFC 7296) and NAT-Traversal but has no MOBIKE code path -- no N(MOBIKE_SUPPORTED) negotiation, no UPDATE_SA_ADDRESSES exchange, and no address-update handling (grep for MOBIKE / UPDATE_SA_ADDRESSES / MOBIKE_SUPPORTED across internal/component/ike/ finds nothing), so this MOBIKE requirement has no applicable code path.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc4555-x-1"><code>RFC4555-x-1</code></a></h3>
+<p>Both peers MUST include N(MOBIKE_SUPPORTED) in IKE_AUTH to enable MOBIKE for that IKE SA (Capability Negotiation, Sections 3.1-3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4555-x-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4555-x-2"><code>RFC4555-x-2</code></a></h3>
+<p>Implementations supporting both MOBIKE and NAT Traversal MUST switch to port 4500 during IKE_AUTH even if no NAT is detected (Capability Negotiation, Sections 3.1-3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4555-x-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4555-3.9-1"><code>RFC4555-3.9-1</code></a></h3>
+<p>When NAT Traversal is NOT enabled, address-updating messages MUST include NO_NATS_ALLOWED containing actual source/destination IP and ports (NAT Prohibition, Section 3.9)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4555-3.9-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4555-3.7-1"><code>RFC4555-3.7-1</code></a></h3>
+<p>The exchange responder MUST copy COOKIE2 verbatim into the response (Return Routability Check, Section 3.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4555-3.7-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4555-3.8-1"><code>RFC4555-3.8-1</code></a></h3>
+<p>When MOBIKE is active, the host not behind a NAT MUST NOT use dynamic IKEv2 address updates for IKE packets (NAT Mapping Changes, Section 3.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4555-3.8-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4555-3.8-2"><code>RFC4555-3.8-2</code></a></h3>
+<p>The responder MUST echo NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP if present in any INFORMATIONAL request (NAT Mapping Changes, Section 3.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4555-3.8-2, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 4555, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 4555, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

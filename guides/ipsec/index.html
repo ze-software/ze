@@ -61,6 +61,8 @@
 </ol></li>
 <li><a href="#certificate-chain-length">Certificate chain length</a></li>
 <li><a href="#hash-and-url-certificates">Hash and URL certificates</a></li>
+<li><a href="#eap-method-negotiation">EAP method negotiation</a></li>
+<li><a href="#eap-md5-challenge">EAP MD5-Challenge</a></li>
 <li><a href="#eap-tls-with-tls-13">EAP-TLS with TLS 1.3</a></li>
 <li><a href="#eap-tls-with-tls-12-needs-rfc-7627">EAP-TLS with TLS 1.2 needs RFC 7627</a></li>
 <li><a href="#denial-of-service-protection">Denial-of-service protection</a></li>
@@ -109,7 +111,7 @@
 </tr>
 <tr>
 <td><code>internal/component/ike/eap</code></td>
-<td>EAP-MSCHAPv2 and EAP-TLS authentication</td>
+<td>EAP-MSCHAPv2, EAP-TLS and EAP MD5-Challenge authentication</td>
 </tr>
 <tr>
 <td><code>internal/component/ike/engine</code></td>
@@ -308,7 +310,7 @@ restart instead of waiting for Dead Peer Detection.</p>
     }
 }
 </code></pre>
-<p>For a road-warrior EAP server, set <code>authentication { mode eap-mschapv2 }</code> or <code>eap-tls</code>, then reference a device <code>certificate</code> and <code>ca-certificate</code> from the PKI store. Configure the client as a <code>site-to-site</code> peer.</p>
+<p>For a road-warrior EAP server, set <code>authentication { mode eap-mschapv2 }</code>, <code>eap-tls</code> or <code>eap-md5</code>, then reference a device <code>certificate</code> and <code>ca-certificate</code> from the PKI store. Configure the client as a <code>site-to-site</code> peer. Read the EAP MD5-Challenge section below before you select <code>eap-md5</code>.</p>
 <p>The <code>remote-access</code> container is not wired yet. It parses, and no session reads
 it, so a <code>pool</code> assigns no address and an <code>eap-user</code> list authenticates nobody.
 <code>plan/spec-ipsec-remote-access.md</code> owns the work.</p>
@@ -537,6 +539,73 @@ sends no such payload, and Ze drops one from a peer that sends it anyway.</p>
 anchor. EAP-TLS has no server hostname, so the check validates the chain without
 DNS-name matching.</p>
 <!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, startTLSClient -->
+<h2 id="eap-method-negotiation">EAP method negotiation</h2>
+<p>The far end chooses the EAP method, and <code>authentication { mode ... }</code> sets the one
+Ze runs. When the far end asks for a different authentication method, Ze answers
+with an EAP Nak that names the configured method (RFC 3748 Section 5.3.1) rather
+than ending the exchange. A concentrator that also runs that method then offers
+it, and the tunnel establishes with no configuration change. A concentrator that
+runs no other method ends the exchange, and Ze logs <code>ike: EAP failed</code>. Change
+<code>mode</code> to a method both ends run.</p>
+<p>The far end can also send an EAP Notification, which is how a concentrator
+reports something such as an expiring password. Ze logs it as <code>ike: EAP notification from the authenticator</code> with the message, and the authentication
+continues. The message is unauthenticated: it is chosen by whoever sent the
+packet, so read it as a claim.</p>
+<p>When Ze is the EAP server and the client refuses the offered method, the
+<code>ike: EAP authentication failed</code> line names the types the client asked for and
+the type Ze offered.</p>
+<!-- source: internal/component/ike/eap/peer.go -- handleRequest, nakResponse, notificationResponse -->
+<!-- source: internal/component/ike/engine/fsm.go -- handleEAPResponse -->
+<!-- source: internal/component/ike/engine/responder_eap.go -- the EAP authentication failed line -->
+<h2 id="eap-md5-challenge">EAP MD5-Challenge</h2>
+<p><code>authentication { mode eap-md5 }</code> runs EAP Type 4, the CHAP exchange of RFC 1994
+carried inside EAP (RFC 3748 Section 5.4). Both ends read the <code>pre-shared-secret</code>
+leaf as the CHAP secret. Ze runs it as the authenticator and as the peer.</p>
+<p>It is discouraged, and the daemon says so. RFC 7296 Section 2.16: "EAP methods
+that do not establish a shared key SHOULD NOT be used, as they are subject to a
+number of man-in-the-middle attacks". The daemon writes one warning for each peer
+that carries the mode. It writes it when the configuration is applied, and not
+for each handshake.</p>
+<p>What it costs you, against the two other EAP modes:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th><code>eap-md5</code></th>
+<th><code>eap-mschapv2</code> and <code>eap-tls</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Key derivation</td>
+<td>None. RFC 3748 Section 5.4 records "Key derivation: No"</td>
+<td>An MSK of 64 octets</td>
+</tr>
+<tr>
+<td>IKEv2 AUTH payloads</td>
+<td>Keyed by SK_pi and SK_pr, which every party completing IKE_SA_INIT holds</td>
+<td>Keyed by the EAP MSK</td>
+</tr>
+<tr>
+<td>Who is authenticated by EAP</td>
+<td>The client only</td>
+<td>Both ends, for <code>eap-tls</code></td>
+</tr>
+<tr>
+<td>Secret at rest</td>
+<td>The CHAP secret, needed in the clear on both ends</td>
+<td>The same for <code>eap-mschapv2</code>; a private key for <code>eap-tls</code></td>
+</tr>
+</tbody>
+</table>
+<p>The responder still authenticates itself with a public-key signature, because
+RFC 7296 Section 2.16 requires one whichever EAP method runs. So <code>eap-md5</code> needs
+the same <code>certificate</code> and <code>ca-certificate</code> every other EAP mode needs. Select it
+when the client runs no other method, and prefer <code>eap-tls</code> or <code>eap-mschapv2</code>
+everywhere else.</p>
+<!-- source: internal/component/ike/eap/eap_md5challenge.go -- md5ChallengeMethod, md5ChallengeResponse -->
+<!-- source: internal/component/ike/eap/peer.go -- handleMD5ChallengeRequest -->
+<!-- source: internal/component/ike/engine/eap_auth.go -- eapMethodType, warnKeylessEAPModes, eapAuthSecret -->
 <h2 id="eap-tls-with-tls-13">EAP-TLS with TLS 1.3</h2>
 <p>RFC 9190 Section 2.5 requires an encrypted TLS record that carries application data
 <code>0x00</code>. The EAP-TLS 1.3 server sends it once it has processed the client Finished and sent
@@ -951,7 +1020,7 @@ the two gauges together separate a lost session from a session with no ESP.</p>
 <h2 id="interop-testing">Interop testing</h2>
 <p>The IKE implementation includes interop tests against strongSwan, from the Alpine 3.21 test
 image. The infrastructure in <code>test/interop-ipsec/</code> drives strongSwan containers as remote
-IKE peers. Sixteen scenarios run today:</p>
+IKE peers. Twenty-four scenarios run today:</p>
 <table>
 <thead>
 <tr>
@@ -980,11 +1049,19 @@ IKE peers. Sixteen scenarios run today:</p>
 <td>Dataplane</td>
 <td>A live Child SA whose peer changes ESP form mid-session, and BGP routes exchanged with FRR over the tunnel</td>
 </tr>
+<tr>
+<td>NAT traversal</td>
+<td>Transport mode and tunnel mode with ESP in UDP 4500, each measuring what Ze's stack does with the inner TCP and UDP checksum after decapsulation (RFC 3948 Section 3.1.2)</td>
+</tr>
+<tr>
+<td>Traffic selectors</td>
+<td>Child SA rekey narrowing, an answer that narrows the initiator's proposal, ESN offered both ways, and a peer reload that narrows</td>
+</tr>
 </tbody>
 </table>
 <p>There is no certificate-only (<code>mode x509</code>) scenario. The certificate paths are proven by
 unit tests and by the EAP-TLS scenarios, which authenticate both ends with certificates.</p>
-<!-- source: test/interop-ipsec/scenarios -- the sixteen strongSwan scenarios -->
+<!-- source: test/interop-ipsec/scenarios -- the strongSwan scenario directories -->
 <p>Ze holds every gated MUST-level requirement extracted from RFC 7296 in
 <code>rfc/short/rfc7296.md</code>. That is 222 of the summary's 227 rows, each proven in both
 directions by <code>RFC requirement:</code> tagged tests. The remaining five rows are SHOULD-level and
@@ -1043,7 +1120,7 @@ ungated.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 21:01 UTC</span>
                 </div>
             </div>
         </footer>

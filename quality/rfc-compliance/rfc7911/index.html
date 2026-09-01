@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 7911 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 7911: Advertisement of Multiple Paths in BGP. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 7911 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 7911: Advertisement of Multiple Paths in BGP. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 7911 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 7911: Advertisement of Multiple Paths in BGP. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc7911/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc7911/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 7911 - Advertisement of Multiple Paths in BGP</h1>
+    <p>Every requirement this repository extracted from RFC 7911, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>88.9%</strong><b>8 of 9 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.1%</strong><b>1 of 9 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 43 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 13 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 9 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>13</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>9</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>9</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>43</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>43</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc7911.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc7911.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc7911.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Advertisement of Multiple Paths in BGP (ADD-PATH): nine MUST-level requirements. Eight are met: 3-1 (a 4-octet Path Identifier is prepended to NLRI when ADD-PATH is negotiated), 4-1 (a single ADD-PATH capability instance lists all AFI/SAFIs), 5-1 and 5-2 (a path is sent only if the local speaker advertised Send/Both and the remote advertised Receive/Both), 5-3 (Path IDs are not added when ADD-PATH is not negotiated for the family), 5-4 (the RIB is keyed by prefix and Path ID and the egress encodes the Path ID), and 5-5 (a negotiated family&#39;s received NLRI is parsed with its 4-octet Path ID) carry positive+negative tags. 2-1 (the same prefix with different Path IDs is treated as different paths) is {single-polarity: positive}: the per-peer RIB key is (prefix, Path ID) by construction. 2-2 (a speaker re-advertising a path generates its own Path Identifier) is {gap}: ze preserves the ingress Path Identifier on re-advertisement rather than minting its own. Disclosed in the docs/features/rfc-status.md RFC 7911 row.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>Per-family send and receive modes, Path ID packing, NLRI path IDs where negotiated</li>
+<li>a re-advertised route carries ze&#39;s own Path Identifier (<a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>), assigned per ingress path in <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/forward_path_id.go</code></a> and read by both the raw same-context forward and the re-encode, so an announcement and its withdraw leave under one value and two clients that chose one identifier for a prefix stay two paths at a third</li>
+<li>tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc7911.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc7911.md</code></a>.</li>
+</ul>
+</details>
+<p><strong>What the ledger says remains:</strong></p>
+Closed 2026-08-14: <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>. Until then ze relayed the ingress Path Identifier, so a route server merged two clients&#39; paths for one prefix into one and lost a route.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>8</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>9</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (8):</strong> <a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a>, <a href="#rfc7911-3-1"><code>RFC7911-3-1</code></a>, <a href="#rfc7911-4-1"><code>RFC7911-4-1</code></a>, <a href="#rfc7911-5-1"><code>RFC7911-5-1</code></a>, <a href="#rfc7911-5-2"><code>RFC7911-5-2</code></a>, <a href="#rfc7911-5-3"><code>RFC7911-5-3</code></a>, <a href="#rfc7911-5-4"><code>RFC7911-5-4</code></a>, <a href="#rfc7911-5-5"><code>RFC7911-5-5</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc7911-2-1"><code>RFC7911-2-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-2-1">RFC7911-2-1</code></td><td colspan="3"><span class="rfc-subject">Path Identifier must be assigned so that (Prefix, Path Identifier) uniquely identifies a path advertised to a neighbor (Section 2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2 - How to Identify a Path</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/peerrib_test.go#L187" title="internal/component/bgp/plugins/rib/storage/peerrib_test.go" target="_blank" rel="noopener"><code>TestPeerRIB_AddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the RIB keys on (prefix, Path ID) so the paired negative would be a same-(prefix, Path ID) collapse-to-one assertion, but no such dedup/replacement test exists in the suite; TestPeerRIB_AddPath asserts only that distinct Path IDs yield distinct entries</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-2-2">RFC7911-2-2</code></td><td colspan="3"><span class="rfc-subject">A BGP speaker that re-advertises a route must generate its own Path Identifier (not reuse received) (Section 2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2 - How to Identify a Path</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L162" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDBoundaryReceivedValues</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L45" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDDiffersForTwoSourcePeers</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L192" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDIdenticalForEveryDestination</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_churn_test.go#L296" title="internal/component/bgp/reactor/forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeepsTheSourceOfARebuiltFrame</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L74" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMatchesAnnounceAndWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L246" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDReleaseReturnsValues</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L133" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSeparatesNonAddPathSources</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L104" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSurvivesAttributeChange</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_churn_test.go#L232" title="internal/component/bgp/reactor/forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDWithdrawCarriesTheAnnouncedValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_test.go#L33" title="internal/component/bgp/reactor/forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsDifferForCollidingSources</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_churn_test.go#L196" title="internal/component/bgp/reactor/forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsFreedOnRelayedWithdraw</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/zz_pathid_growth_probe_test.go#L208" title="internal/component/bgp/reactor/zz_pathid_growth_probe_test.go" target="_blank" rel="noopener"><code>TestPathIDKeyFollowsWhatTheSourceFramed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/zz_pathid_growth_probe_test.go#L89" title="internal/component/bgp/reactor/zz_pathid_growth_probe_test.go" target="_blank" rel="noopener"><code>TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_test.go#L85" title="internal/component/bgp/reactor/forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableAcrossUpdates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L23" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L16" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkAddPathReadvertiseCollision</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-3-1">RFC7911-3-1</code></td><td colspan="3"><span class="rfc-subject">NLRI encoding must be extended by prepending the 4-octet Path Identifier field (Section 3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3 - Extended NLRI Encodings</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/inet_test.go#L112" title="internal/core/bgp/nlri/inet_test.go" target="_blank" rel="noopener"><code>TestINETWithAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/base_len_test.go#L182" title="internal/core/bgp/nlri/base_len_test.go" target="_blank" rel="noopener"><code>TestWriteNLRI_WithStoredPathID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/base_len_test.go#L143" title="internal/core/bgp/nlri/base_len_test.go" target="_blank" rel="noopener"><code>TestWriteNLRI_AddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L16" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L19" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-4-1">RFC7911-4-1</code></td><td colspan="3"><span class="rfc-subject">Support for multiple AFI/SAFIs must be indicated in a single instance of the ADD-PATH Capability (Section 4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - ADD-PATH Capability</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L347" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathMultipleFamilies</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L318" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-1">RFC7911-5-1</code></td><td colspan="3"><span class="rfc-subject">To send multiple paths, speaker must advertise ADD-PATH Capability with Send/Receive set to 2 or 3 (Section 5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/negotiated_test.go#L167" title="internal/core/bgp/context/negotiated_test.go" target="_blank" rel="noopener"><code>TestFromNegotiatedAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L81" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/negotiated_test.go#L168" title="internal/core/bgp/context/negotiated_test.go" target="_blank" rel="noopener"><code>TestFromNegotiatedAddPath</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-2">RFC7911-5-2</code></td><td colspan="3"><span class="rfc-subject">To send multiple paths, speaker must receive ADD-PATH Capability with Send/Receive set to 1 or 3 from peer (Section 5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/negotiated_test.go#L169" title="internal/core/bgp/context/negotiated_test.go" target="_blank" rel="noopener"><code>TestFromNegotiatedAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L82" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/negotiated_test.go#L170" title="internal/core/bgp/context/negotiated_test.go" target="_blank" rel="noopener"><code>TestFromNegotiatedAddPath</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-3">RFC7911-5-3</code></td><td colspan="3"><span class="rfc-subject">Speaker must follow RFC 4271 procedures unless ADD-PATH is negotiated for both send and receive (Section 5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L118" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitSameContextKeepsRawSplit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go#L88" title="internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section54ReadsTypedNLRIUnderAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L221" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDLeavesNonAddPathDestinationAlone</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L23" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitConvertsAddPathContext</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-4">RFC7911-5-4</code></td><td colspan="3"><span class="rfc-subject">When ADD-PATH is negotiated, speaker must generate route updates based on (address prefix, Path Identifier) combination using extended NLRI encodings (Section 5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_churn_test.go#L268" title="internal/component/bgp/reactor/forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDWithdrawOfUnknownPathLeavesNothing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_split_test.go#L304" title="internal/component/bgp/reactor/forward_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdateAddPathEndToEnd</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L517" title="internal/component/bgp/reactor/reactor_test.go" target="_blank" rel="noopener"><code>TestWriteAnnounceUpdateWithAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_split_test.go#L254" title="internal/component/bgp/reactor/forward_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdateEndToEnd</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L518" title="internal/component/bgp/reactor/reactor_test.go" target="_blank" rel="noopener"><code>TestWriteAnnounceUpdateWithAddPath</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-5">RFC7911-5-5</code></td><td colspan="3"><span class="rfc-subject">Peer shall act accordingly in processing an UPDATE message related to a particular AFI/SAFI (Section 5)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>5 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-5-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_addpath_test.go#L121" title="internal/component/bgp/reactor/rfc7606_session_addpath_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_addpath_test.go#L73" title="internal/component/bgp/reactor/rfc7606_session_addpath_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_MPAddPathLargePathIDAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_addpath_test.go#L122" title="internal/component/bgp/reactor/rfc7606_session_addpath_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_addpath_test.go#L74" title="internal/component/bgp/reactor/rfc7606_session_addpath_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_MPAddPathLargePathIDAccepted</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-4-2">RFC7911-4-2</code></td><td colspan="3"><span class="rfc-subject">Invalid Send/Receive value (not 1, 2, or 3) should be treated as capability not understood and ignored per RFC 5492 (Section 4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4 - ADD-PATH Capability</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-6">RFC7911-5-6</code></td><td colspan="3"><span class="rfc-subject">Withdraw with unknown Path Identifier should be silently ignored (Section 5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-5-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-7">RFC7911-5-7</code></td><td colspan="3"><span class="rfc-subject">Best route per RFC 4271 should be included when more than one path is advertised, unless path was received from that neighbor (Section 5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-5-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7911-5-8">RFC7911-5-8</code></td><td colspan="3"><span class="rfc-subject">Implementation should take special care that forwarding plane of Receiving Speaker is not affected during graceful restart (Section 5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5 - Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7911-5-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<p>RFC 7911 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc7911-2-1"><code>RFC7911-2-1</code></a></h3>
+<p>Path Identifier must be assigned so that (Prefix, Path Identifier) uniquely identifies a path advertised to a neighbor (Section 2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/peerrib_test.go#L187" title="internal/component/bgp/plugins/rib/storage/peerrib_test.go" target="_blank" rel="noopener"><code>TestPeerRIB_AddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7911-2-2"><code>RFC7911-2-2</code></a></h3>
+<p>A BGP speaker that re-advertises a route must generate its own Path Identifier (not reuse received) (Section 2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_test.go#L85" title="internal/component/bgp/reactor/forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDStableAcrossUpdates</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_churn_test.go#L296" title="internal/component/bgp/reactor/forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDKeepsTheSourceOfARebuiltFrame</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_churn_test.go#L232" title="internal/component/bgp/reactor/forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDWithdrawCarriesTheAnnouncedValue</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_churn_test.go#L196" title="internal/component/bgp/reactor/forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsFreedOnRelayedWithdraw</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L162" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDBoundaryReceivedValues</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L45" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDDiffersForTwoSourcePeers</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L192" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDIdenticalForEveryDestination</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L74" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDMatchesAnnounceAndWithdraw</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L246" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDReleaseReturnsValues</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L133" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSeparatesNonAddPathSources</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L104" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDSurvivesAttributeChange</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_test.go#L33" title="internal/component/bgp/reactor/forward_path_id_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDsDifferForCollidingSources</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/zz_pathid_growth_probe_test.go#L208" title="internal/component/bgp/reactor/zz_pathid_growth_probe_test.go" target="_blank" rel="noopener"><code>TestPathIDKeyFollowsWhatTheSourceFramed</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/zz_pathid_growth_probe_test.go#L89" title="internal/component/bgp/reactor/zz_pathid_growth_probe_test.go" target="_blank" rel="noopener"><code>TestWithdrawOnlyUpdateFreesEveryIdentifierItBuys</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L16" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkAddPathReadvertiseCollision</code></a></td>
+<td>interop/nightly</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L23" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7911-3-1"><code>RFC7911-3-1</code></a></h3>
+<p>NLRI encoding must be extended by prepending the 4-octet Path Identifier field (Section 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/base_len_test.go#L143" title="internal/core/bgp/nlri/base_len_test.go" target="_blank" rel="noopener"><code>TestWriteNLRI_AddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L19" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/base_len_test.go#L182" title="internal/core/bgp/nlri/base_len_test.go" target="_blank" rel="noopener"><code>TestWriteNLRI_WithStoredPathID</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/inet_test.go#L112" title="internal/core/bgp/nlri/inet_test.go" target="_blank" rel="noopener"><code>TestINETWithAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L16" title="test/plugin/adj-rib-in-replay-addpath-source.ci" target="_blank" rel="noopener"><code>adj-rib-in-replay-addpath-source.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7911-4-1"><code>RFC7911-4-1</code></a></h3>
+<p>Support for multiple AFI/SAFIs must be indicated in a single instance of the ADD-PATH Capability (Section 4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L318" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathCapability</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L347" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestAddPathMultipleFamilies</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7911-5-1"><code>RFC7911-5-1</code></a></h3>
+<p>To send multiple paths, speaker must advertise ADD-PATH Capability with Send/Receive set to 2 or 3 (Section 5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/negotiated_test.go#L168" title="internal/core/bgp/context/negotiated_test.go" target="_blank" rel="noopener"><code>TestFromNegotiatedAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L81" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/negotiated_test.go#L167" title="internal/core/bgp/context/negotiated_test.go" target="_blank" rel="noopener"><code>TestFromNegotiatedAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7911-5-2"><code>RFC7911-5-2</code></a></h3>
+<p>To send multiple paths, speaker must receive ADD-PATH Capability with Send/Receive set to 1 or 3 from peer (Section 5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/negotiated_test.go#L170" title="internal/core/bgp/context/negotiated_test.go" target="_blank" rel="noopener"><code>TestFromNegotiatedAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L82" title="internal/core/bgp/capability/negotiated_test.go" target="_blank" rel="noopener"><code>TestNegotiateAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/negotiated_test.go#L169" title="internal/core/bgp/context/negotiated_test.go" target="_blank" rel="noopener"><code>TestFromNegotiatedAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7911-5-3"><code>RFC7911-5-3</code></a></h3>
+<p>Speaker must follow RFC 4271 procedures unless ADD-PATH is negotiated for both send and receive (Section 5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L23" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitConvertsAddPathContext</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_gen_test.go#L221" title="internal/component/bgp/reactor/forward_path_id_gen_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDLeavesNonAddPathDestinationAlone</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_body_test.go#L118" title="internal/component/bgp/reactor/forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitSameContextKeepsRawSplit</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go#L88" title="internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go" target="_blank" rel="noopener"><code>TestRFC7606Section54ReadsTypedNLRIUnderAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7911-5-4"><code>RFC7911-5-4</code></a></h3>
+<p>When ADD-PATH is negotiated, speaker must generate route updates based on (address prefix, Path Identifier) combination using extended NLRI encodings (Section 5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_split_test.go#L254" title="internal/component/bgp/reactor/forward_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdateEndToEnd</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L518" title="internal/component/bgp/reactor/reactor_test.go" target="_blank" rel="noopener"><code>TestWriteAnnounceUpdateWithAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_path_id_churn_test.go#L268" title="internal/component/bgp/reactor/forward_path_id_churn_test.go" target="_blank" rel="noopener"><code>TestForwardPathIDWithdrawOfUnknownPathLeavesNothing</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_split_test.go#L304" title="internal/component/bgp/reactor/forward_split_test.go" target="_blank" rel="noopener"><code>TestSplitUpdateAddPathEndToEnd</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L517" title="internal/component/bgp/reactor/reactor_test.go" target="_blank" rel="noopener"><code>TestWriteAnnounceUpdateWithAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7911-5-5"><code>RFC7911-5-5</code></a></h3>
+<p>Peer shall act accordingly in processing an UPDATE message related to a particular AFI/SAFI (Section 5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_addpath_test.go#L122" title="internal/component/bgp/reactor/rfc7606_session_addpath_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_addpath_test.go#L74" title="internal/component/bgp/reactor/rfc7606_session_addpath_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_MPAddPathLargePathIDAccepted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_addpath_test.go#L121" title="internal/component/bgp/reactor/rfc7606_session_addpath_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_addpath_test.go#L73" title="internal/component/bgp/reactor/rfc7606_session_addpath_test.go" target="_blank" rel="noopener"><code>TestEnforceRFC7606_MPAddPathLargePathIDAccepted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6 phase 5, rfc7911</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc7911.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>950784683306b771</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc7911.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>7</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>1</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. Walked rather than skipped because the site scan attributes one site here. That site is the IETF Trust Legal Provisions boilerplate and is excluded below. Nothing before section 1 binds a BGP speaker.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. States that RFC 4271 makes no provision for advertising several paths for one prefix, and that this document defines the Path Identifier that lifts the limit. It reports what the extension does and directs nobody.</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Specification of Requirements: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker. It is also what puts the lower-case &#39;must&#39; of the copyright notice outside the normative set.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>How to Identify a Path</td>
+<td>2</td>
+<td>walked</td>
+<td>How to Identify a Path. Two capitalised MUSTs, both mapped below: the Path Identifier is assigned so that (Prefix, Path Identifier) identifies a path uniquely toward one neighbor, and a re-advertising speaker generates its own identifier. The section&#39;s third normative sentence, &#39;A BGP speaker that receives a route should not assume that the identifier carries any particular semantics&#39;, writes &#39;should not&#39; in lower case, so section 1.1 puts it outside the RFC 2119 set. It states no gated obligation and the summary records it under Encoding Rules rather than as a checklist row.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Extended NLRI Encodings</td>
+<td>1</td>
+<td>walked</td>
+<td>Extended NLRI Encodings. One MUST, mapped below, plus the four-octet Path Identifier diagram. The diagram assigns a field width and states no separate obligation.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>ADD-PATH Capability</td>
+<td>1</td>
+<td>walked</td>
+<td>ADD-PATH Capability. Defines capability code 69 and the AFI/SAFI/Send-Receive tuple, and states one MUST, mapped below. The field descriptions assign values 1, 2 and 3 to receive, send and both; a value assignment is not a directive. The section&#39;s one SHOULD, on treating any other Send/Receive value as not understood, is advisory, so the site scan does not see it and it is listed unsourced here.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Operation</td>
+<td>3</td>
+<td>walked</td>
+<td>Operation. The only section carrying more obligations than sites. Three sites are mapped below, and each of the first two fuses two MUSTs into one sentence, so RFC7911-5-2 (receive the peer&#39;s capability with Send/Receive 1 or 3) and RFC7911-5-4 (generate the update on (prefix, Path Identifier) and use the extended encodings) are listed unsourced: &#39;mapped-to&#39; names one id per site. The section&#39;s three SHOULDs are advisory and are listed here for the same reason. Its opening paragraph, that the RFC 4271 advertisement rules are otherwise unchanged and that a new advertisement for the same (prefix, Path Identifier) replaces the previous one, is indicative and states no separate obligation.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>Deployment Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Deployment Considerations. States that care is needed in deployment, that the capability exchange is the only explicit indication the extended encoding is in use, and that a packet analyzer without that state cannot decode the UPDATEs. Written in the indicative and in &#39;could&#39;, it directs no speaker.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. Records that IANA has assigned value 69 for the ADD-PATH Capability in the Capability Codes registry. It binds IANA, and the assignment is already an action taken.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. Names the memory-exhaustion exposure of holding several paths per prefix, states it is not a new vulnerability, and encourages a reader to study [ADDPATH]. No countermeasure is directed at a speaker.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>References heading</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References heading.</td>
+</tr>
+<tr><td><code>9.1</code></td>
+<td>Normative References: RFC 2119, RFC 4271, RFC 4760, RFC 5492</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: RFC 2119, RFC 4271, RFC 4760, RFC 5492.</td>
+</tr>
+<tr><td><code>9.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative References: [ADDPATH], [FAST], RFC 3345, RFC 4272, RFC 4724, [STOP-OSC].</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The IETF Trust Legal Provisions boilerplate of the Copyright Notice. Its &#39;must&#39; is lower case, which section 1.1 puts outside the normative set, and it binds a person who reuses Code Components from the document, never a BGP speaker on the wire.</td>
+<td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 7911, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

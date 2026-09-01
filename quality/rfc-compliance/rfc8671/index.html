@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 8671 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 8671: Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP). 10 gated MUST-level requirements, 1 declared gaps, 1 with no test." />
+        <meta property="og:title" content="RFC 8671 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 8671: Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP). 10 gated MUST-level requirements, 1 declared gaps, 1 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 8671 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 8671: Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP). 10 gated MUST-level requirements, 1 declared gaps, 1 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc8671/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc8671/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported within BMP sender scope</span>
+    <h1 id="rfc-detail-title">RFC 8671 - Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP)</h1>
+    <p>Every requirement this repository extracted from RFC 8671, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>70.0%</strong><b>7 of 10 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.0%</strong><b>1 of 10 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 17 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>10</strong><b>of 12 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 10 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>20.0%</strong><b>2 of 10 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 10 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported within BMP sender scope</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>12</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>10</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>10</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>1</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>1</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>17</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>17</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc8671.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc8671.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc8671.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Support for Adj-RIB-Out in BMP: three MUSTs over the BMP Per-Peer Header (internal/component/bgp/plugins/bmp). RFC8671-x-1 (O flag is bit 4) both polarities: PeerFlagO == 1&lt;&lt;4 and a flags byte with bit 4 set decodes as Adj-RIB-Out while bit 3 does not (TestRFC8671OFlagBit4). RFC8671-x-2 (when O=1 the L flag is also set) both polarities: the sent direction sets O and L (TestPeerHeaderFromEventAdjRIBOut), the received direction sets neither (TestPeerHeaderFromEventAdjRIBIn). RFC8671-x-3 (Adj-RIB-Out Peer Up carries the same OPENs as Adj-RIB-In) is {single-polarity: positive}: ze sources both OPENs from the per-peer openCache (bmp.go:757-772) independent of the O flag, proven round-tripping in TestBMPPeerUpRoundTrip. Ledger row unchanged (no gap).</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported within BMP sender scope</p>
+<p><strong>What the ledger says is covered:</strong></p>
+Adj-RIB-Out direction flag handling and sent-route monitoring.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+One MUST is a gap. Section 6.2 requires the O flag to be zero on a Statistics Report, and ze sends no Statistics Report at all: <code>senderSession.writeStatisticsReport</code> clears the flag correctly and has no non-test caller, and the <code>statistics-timeout</code> leaf drives no timer, so the obligation is never exercised (<a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a>). One feature is absent by decision, and it is not a conformance gap: ze exports the post-policy Adj-RIB-Out view only, and the pre-policy Adj-RIB-Out view is not built. RFC 7854 Section 5 leaves that choice to the implementation, so the obligations that hang on it do not bind ze (<a href="#rfc8671-5.2-1"><code>RFC8671-5.2-1</code></a>). A later scope decision can revisit it and build the pre-policy view.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>7</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>2</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>10</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc8671-x-1"><code>RFC8671-x-1</code></a>, <a href="#rfc8671-x-2"><code>RFC8671-x-2</code></a>, <a href="#rfc8671-4-1"><code>RFC8671-4-1</code></a>, <a href="#rfc8671-5.1-1"><code>RFC8671-5.1-1</code></a>, <a href="#rfc8671-6.1-1"><code>RFC8671-6.1-1</code></a>, <a href="#rfc8671-6.3.1-1"><code>RFC8671-6.3.1-1</code></a>, <a href="#rfc8671-7.2-1"><code>RFC8671-7.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc8671-x-3"><code>RFC8671-x-3</code></a>, <a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (1):</strong> <a href="#rfc8671-5.2-1"><code>RFC8671-5.2-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-x-1">RFC8671-x-1</code></td><td colspan="3"><span class="rfc-subject">O flag uses bit 4 of the Per-Peer Header Flags field (Key Constraints)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-x-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L219" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagBit4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L222" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagBit4</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-x-2">RFC8671-x-2</code></td><td colspan="3"><span class="rfc-subject">When O=1 (Adj-RIB-Out), the L flag (bit 6, post-policy) is also set (Peer Up Behavior)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-x-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L57" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBOut</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L80" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBIn</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-x-3">RFC8671-x-3</code></td><td colspan="3"><span class="rfc-subject">Peer Up message for Adj-RIB-Out (O=1) carries the same sent and received OPEN messages as for Adj-RIB-In (Peer Up Behavior)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-x-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/msg_test.go#L103" title="internal/component/bgp/plugins/bmp/msg_test.go" target="_blank" rel="noopener"><code>TestBMPPeerUpRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze builds every Peer Up from the peer&#39;s cached sent and received OPEN messages (internal/component/bgp/plugins/bmp/bmp.go:757-772, pair.sent/pair.received) regardless of the O flag, so an Adj-RIB-Out Peer Up carries the same OPENs as an Adj-RIB-In one by construction; there is no &#34;different OPENs for Adj-RIB-Out&#34; case to assert as a negative. The positive (a Peer Up round-trips its sent/received OPENs) is proven in TestBMPPeerUpRoundTrip</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-x-4">RFC8671-x-4</code></td><td colspan="3"><span class="rfc-subject">A single BGP session MAY produce two Peer Up messages: one for Adj-RIB-In (O=0) and one for Adj-RIB-Out (O=1) (Peer Up Behavior)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-x-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-x-5">RFC8671-x-5</code></td><td colspan="3"><span class="rfc-subject">Pre-policy Adj-RIB-Out (L=0, O=1) is valid but uncommon (Key Constraints)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-x-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-4-1">RFC8671-4-1</code></td><td colspan="3"><span class="rfc-subject">The Per-Peer Header Flags bits reserved for future use MUST be transmitted as 0, and their values MUST be ignored on receipt (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4 - Per-Peer Header</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L66" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671ReservedPeerFlagsTransmittedAsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L108" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671ReservedPeerFlagsIgnoredOnReceipt</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-5.1-1">RFC8671-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Post-policy Adj-RIB-Out MUST convey to the BMP receiver what is actually transmitted to the peer (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1 - Post-policy</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-5.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L164" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671PostPolicyConveysTransmittedBytes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L229" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671AdjRIBOutConveysNoUntransmittedUpdate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L194" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671PostPolicyConveysUnknownAttributeUnchanged</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-5.2-1">RFC8671-5.2-1</code></td><td colspan="3"><span class="rfc-subject">The L flag MUST be set to 0 to indicate pre-policy (§5.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2 - Pre-policy</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-5.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-6.1-1">RFC8671-6.1-1</code></td><td colspan="3"><span class="rfc-subject">The O flag MUST be set accordingly to indicate if the Route Monitoring or Route Mirroring message conveys Adj-RIB-In or Adj-RIB-Out (§6.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1 - Route Monitoring and Route Mirroring</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-6.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L268" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagSetOnAdjRIBOutMessages</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L306" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagClearOnAdjRIBInMessages</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-6.2-1">RFC8671-6.2-1</code></td><td colspan="3"><span class="rfc-subject">Statistics Report messages are not specific to Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2 - Statistics Report</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-6.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the requirement implies a Statistics Report is created, and ze creates none. `senderSession.writeStatisticsReport` (internal/component/bgp/plugins/bmp/sender.go) is the only production encoder of one and it clears the O flag correctly, but it has no non-test caller, so no ze BMP session puts a Statistics Report on the wire and the obligation is never exercised. The missing piece is the timer: the `statistics-timeout` leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) is parsed into `senderConfig.StatisticsTimeout`, carried into `senderBehavior.statistics` by `behaviorOf` (sender_config.go) so a later timer bounces the session per §7.2, and read by no ticker. Owner ruling, 2026-08-31: an emission path added later that produced a non-zero O flag would redden nothing, so the encoder test is not proof of conformance</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-6.3.1-1">RFC8671-6.3.1-1</code></td><td colspan="3"><span class="rfc-subject">When multiple Admin Labels are included, the BMP receiver MUST preserve their order (§6.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3.1 - Peer Up Information</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-6.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L458" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671AdminLabelOrderPreserved</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L475" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671AdminLabelReversedOrderPreserved</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8671-7.2-1">RFC8671-7.2-1</code></td><td colspan="3"><span class="rfc-subject">A change that alters the behavior of an existing BMP session MUST bounce that session with a Peer Down/Peer Up sequence; ze keeps the BMP session up and sends a Peer Down (reason 5, configuration reasons) then a Peer Up for every established peer reported on it. The bounce is owed to a CHANGE, so ze compares the parsed sender configuration against the one in force and acts only when a leaf deciding what the session carries has moved. The change arrives on the plugin config-apply callback, and the tests drive that callback rather than the function behind it (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2 - Changes to Existing BMP Session</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8671-7.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L804" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L963" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671RemovingEveryCollectorBouncesTheSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L913" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671UnrelatedBGPChangeBouncesNothing</code></a></span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc8671-5.2-1"><code>RFC8671-5.2-1</code></a> The L flag MUST be set to 0 to indicate pre-policy (§5.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a> Statistics Report messages are not specific to Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero (§6.2)</td>
+<td>{gap}, no test</td>
+<td>the requirement implies a Statistics Report is created, and ze creates none. `senderSession.writeStatisticsReport` (internal/component/bgp/plugins/bmp/sender.go) is the only production encoder of one and it clears the O flag correctly, but it has no non-test caller, so no ze BMP session puts a Statistics Report on the wire and the obligation is never exercised. The missing piece is the timer: the `statistics-timeout` leaf (internal/component/bgp/plugins/bmp/yang/ze-bmp-conf.yang) is parsed into `senderConfig.StatisticsTimeout`, carried into `senderBehavior.statistics` by `behaviorOf` (sender_config.go) so a later timer bounces the session per §7.2, and read by no ticker. Owner ruling, 2026-08-31: an emission path added later that produced a non-zero O flag would redden nothing, so the encoder test is not proof of conformance</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc8671-x-1"><code>RFC8671-x-1</code></a></h3>
+<p>O flag uses bit 4 of the Per-Peer Header Flags field (Key Constraints)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L222" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagBit4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L219" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagBit4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8671-x-2"><code>RFC8671-x-2</code></a></h3>
+<p>When O=1 (Adj-RIB-Out), the L flag (bit 6, post-policy) is also set (Peer Up Behavior)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L80" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBIn</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L57" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestPeerHeaderFromEventAdjRIBOut</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8671-x-3"><code>RFC8671-x-3</code></a></h3>
+<p>Peer Up message for Adj-RIB-Out (O=1) carries the same sent and received OPEN messages as for Adj-RIB-In (Peer Up Behavior)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/msg_test.go#L103" title="internal/component/bgp/plugins/bmp/msg_test.go" target="_blank" rel="noopener"><code>TestBMPPeerUpRoundTrip</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8671-4-1"><code>RFC8671-4-1</code></a></h3>
+<p>The Per-Peer Header Flags bits reserved for future use MUST be transmitted as 0, and their values MUST be ignored on receipt (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L108" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671ReservedPeerFlagsIgnoredOnReceipt</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L66" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671ReservedPeerFlagsTransmittedAsZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8671-5.1-1"><code>RFC8671-5.1-1</code></a></h3>
+<p>Post-policy Adj-RIB-Out MUST convey to the BMP receiver what is actually transmitted to the peer (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L229" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671AdjRIBOutConveysNoUntransmittedUpdate</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L194" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671PostPolicyConveysUnknownAttributeUnchanged</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L164" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671PostPolicyConveysTransmittedBytes</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8671-5.2-1"><code>RFC8671-5.2-1</code></a></h3>
+<p>The L flag MUST be set to 0 to indicate pre-policy (§5.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8671-5.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8671-6.1-1"><code>RFC8671-6.1-1</code></a></h3>
+<p>The O flag MUST be set accordingly to indicate if the Route Monitoring or Route Mirroring message conveys Adj-RIB-In or Adj-RIB-Out (§6.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L306" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagClearOnAdjRIBInMessages</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L268" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671OFlagSetOnAdjRIBOutMessages</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8671-6.2-1"><code>RFC8671-6.2-1</code></a></h3>
+<p>Statistics Report messages are not specific to Adj-RIB-In or Adj-RIB-Out and MUST have the O flag set to zero (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8671-6.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8671-6.3.1-1"><code>RFC8671-6.3.1-1</code></a></h3>
+<p>When multiple Admin Labels are included, the BMP receiver MUST preserve their order (§6.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L475" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671AdminLabelReversedOrderPreserved</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L458" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671AdminLabelOrderPreserved</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8671-7.2-1"><code>RFC8671-7.2-1</code></a></h3>
+<p>A change that alters the behavior of an existing BMP session MUST bounce that session with a Peer Down/Peer Up sequence; ze keeps the BMP session up and sends a Peer Down (reason 5, configuration reasons) then a Peer Up for every established peer reported on it. The bounce is owed to a CHANGE, so ze compares the parsed sender configuration against the one in force and acts only when a leaf deciding what the session carries has moved. The change arrives on the plugin config-apply callback, and the tests drive that callback rather than the function behind it (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L963" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671RemovingEveryCollectorBouncesTheSession</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L913" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671UnrelatedBGPChangeBouncesNothing</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc8671_test.go#L804" title="internal/component/bgp/plugins/bmp/rfc8671_test.go" target="_blank" rel="noopener"><code>TestRFC8671BehaviorChangeBouncesEachPeerAndKeepsTheSession</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6 phase 4, rfc8671</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc8671.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>aed5ce37b74c3a4d</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc8671.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>7</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>3</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates section 1 and states no obligation.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Indicative prose: what BMP monitors today, why an operator cannot see what it advertises, and that this document updates the per-peer header of RFC 7854 Section 4.2 with a new flag. No sentence directs a speaker.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>Terminology</td>
+<td>0</td>
+<td>walked</td>
+<td>Terminology. The BCP 14 key-words paragraph, which binds the key words only when they appear in all capitals. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Definitions</td>
+<td>1</td>
+<td>walked</td>
+<td>Definitions. Three terms: Adj-RIB-Out quoted from RFC 4271, pre-policy Adj-RIB-Out and post-policy Adj-RIB-Out. The one capitalised keyword sits in the post-policy definition and repeats section 5.1 word for word, so it is excluded below as a duplicate.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Per-Peer Header</td>
+<td>1</td>
+<td>walked</td>
+<td>Per-Peer Header. Adds the O flag to the RFC 7854 Section 4.2 flags field and redefines Peer Address, Peer AS, Peer BGP ID and Timestamp for O=1. The bit position and the meaning of the flag are stated indicatively (&#39;The O flag indicates Adj-RIB-In if set to 0 and Adj-RIB-Out if set to 1&#39;) and in the bit diagram, so section 2 gives them no RFC 2119 level and the site scan cannot see them; RFC8671-x-1 is read from there and is listed as unsourced. The one site is the reserved-bits sentence, mapped below. The four redefined fields are value definitions carried by the O Flag table of rfc/short/rfc8671.md, not directives.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Adj-RIB-Out</td>
+<td>0</td>
+<td>walked</td>
+<td>Adj-RIB-Out. A heading with no body text: 5.1 and 5.2 carry the whole section.</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>Post-policy</td>
+<td>2</td>
+<td>walked</td>
+<td>Post-policy. States the primary use case, then two capitalised MUSTs, both mapped below. The rest is indicative: which attributes are set at transmission time, and what post-policy reflects.</td>
+</tr>
+<tr><td><code>5.2</code></td>
+<td>Pre-policy</td>
+<td>2</td>
+<td>walked</td>
+<td>Pre-policy. Two capitalised MUSTs, both excluded below as binding a role ze does not implement. The remaining prose is indicative: what the candidate route set holds for each peering session type, and that a null or loopback next hop is common before transmission. RFC8671-x-5 records that pre-policy Adj-RIB-Out is permitted and uncommon; that is read from this section&#39;s indicative prose, so it is listed as unsourced.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>BMP Messages</td>
+<td>0</td>
+<td>walked</td>
+<td>BMP Messages. Two sentences. The first says some messages carrying a per-peer header are not applicable to the Adj-RIB-In or Adj-RIB-Out distinction, and names Peer Up and Peer Down. The second, &#39;Unless otherwise defined, the O flag should be set to 0 in the per-peer header in BMP messages&#39;, uses a lowercase &#39;should&#39;, so under section 2 it carries no RFC 2119 level and the site scan does not see it. ze meets it anyway: peerHeaderFromEvent sets the O flag only for a sent-direction event, so a Peer Up, a Peer Down and a Loc-RIB message all carry O=0.</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>Route Monitoring and Route Mirroring</td>
+<td>1</td>
+<td>walked</td>
+<td>Route Monitoring and Route Mirroring. One sentence, one capitalised MUST, mapped below.</td>
+</tr>
+<tr><td><code>6.2</code></td>
+<td>Statistics Report</td>
+<td>1</td>
+<td>walked</td>
+<td>Statistics Report. One capitalised MUST, excluded below, then the four new Stat Types 14 to 17 as value definitions. Its second sentence, &#39;The O flag SHOULD be ignored by the BMP receiver&#39;, is a SHOULD and never gates; ze&#39;s receiver meets it, because decodeStatisticsReport reads the per-peer header and processStatisticsReport stores the entries without consulting the O flag.</td>
+</tr>
+<tr><td><code>6.3</code></td>
+<td>Peer Up and Down Notifications</td>
+<td>0</td>
+<td>walked</td>
+<td>Peer Up and Down Notifications. No capitalised MUST-level keyword. Two indicative sentences and one SHOULD: the peering state a Peer Up or Peer Down conveys &#39;is independent of whether or not route monitoring or route mirroring messages will be sent for Adj-RIB-In, Adj-RIB-Out, or both&#39;, and a receiver SHOULD ignore the O flag on these two messages. RFC8671-x-3, which records that an Adj-RIB-Out Peer Up carries the same sent and received OPEN messages as an Adj-RIB-In one, is read from that independence sentence, so it is listed as unsourced. RFC8671-x-4 is NOT listed: it records that one BGP session MAY produce two Peer Up messages, and no sentence of RFC 8671 says that. It is a MAY, so it gates nothing and the reverse arithmetic asks no home for it.</td>
+</tr>
+<tr><td><code>6.3.1</code></td>
+<td>Peer Up Information</td>
+<td>1</td>
+<td>walked</td>
+<td>Peer Up Information. Defines Peer Up Information TLV type 4, Admin Label: a free-form UTF-8 string, administratively assigned, with no terminator required. One capitalised MUST on the order of multiple labels, mapped below. The type number is a value definition and the last sentence, &#39;The Admin Label is optional&#39;, removes any obligation to send one.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>Other Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Other Considerations. A heading with no body text.</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>Peer and Update Groups</td>
+<td>0</td>
+<td>walked</td>
+<td>Peer and Update Groups. Indicative prose on why a BMP sender cannot publish a simple peer group name, and why the Admin Label of section 6.3.1 answers the same need. Its last sentence puts label configuration and assignment outside the document. No directive.</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>Changes to Existing BMP Session</td>
+<td>1</td>
+<td>walked</td>
+<td>Changes to Existing BMP Session. One sentence, one capitalised MUST, mapped below to RFC8671-7.2-1.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. Imports Section 11 of RFC 7854, states that an implementation SHOULD require sessions with authorized and trusted monitoring devices, and states that this document adds no further consideration. The SHOULD is advisory and never gates.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. Names the registry the three subsections write to.</td>
+</tr>
+<tr><td><code>9.1</code></td>
+<td>Addition to the BMP Peer Flags registry: flag 3, the O flag</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>Addition to the BMP Peer Flags registry: flag 3, the O flag. Binds IANA, not a speaker.</td>
+</tr>
+<tr><td><code>9.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>Additions to the BMP Statistics Types registry: types 14 to 17. Binds IANA, not a speaker.</td>
+</tr>
+<tr><td><code>9.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>Addition to the BMP Initiation Message TLVs registry: type 4, Admin Label. Binds IANA, not a speaker.</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>Normative References: RFC 2119, RFC 4271, RFC 7854, RFC 8174</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: RFC 2119, RFC 4271, RFC 7854, RFC 8174. The section also absorbs the Acknowledgements, Contributors and Authors&#39; Addresses blocks, none of which states an obligation.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>3:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The Definitions entry for post-policy Adj-RIB-Out closes with the same sentence section 5.1 states: &#39;This MUST convey to the BMP receiver what is actually transmitted to the peer.&#39; Site 5.1:1 maps that obligation to RFC8671-5.1-1. One obligation, written twice.</td>
+<td>This MUST convey to the BMP receiver what is actually transmitted to the peer.</td>
+</tr>
+<tr><td><code>5.2:1</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>The feature is OPTIONAL and ze decided not to offer it. RFC 7854 Section 5: &#39;A BMP speaker may send pre-policy routes, post-policy routes, or both.&#39; ze offers the post-policy Adj-RIB-Out view only: peerHeaderFromEvent (internal/component/bgp/plugins/bmp/bmp_events.go) sets PeerFlagO and PeerFlagL in one statement for a sent-direction event, so O=1 with L=0 is unreachable, and the route-monitoring-policy leaf offers pre-policy (Adj-RIB-In), post-policy (Adj-RIB-Out) and all, with no pre-policy Adj-RIB-Out choice. This obligation is conditional on offering that feature: ze never reaches a pre-policy phase completion at which a mandatory attribute could be unknown, and holds no route for which it would have to zero the next hop. The permission it hangs on is RFC8671-x-5 [MAY], which ze does not exercise. This is a SCOPE DECISION and not outstanding work. The absent feature is recorded as an implementation gap in docs/features/rfc-status.md, which a later scope decision can revisit; it is not a conformance gap.</td>
+<td>All mandatory attributes, such as next hop, MUST be either zero or have an empty length if they are unknown at the pre-policy phase completion.</td>
+</tr>
+<tr><td><code>5.2:2</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>The same optional feature as site 5.2:1. RFC 7854 Section 5: &#39;A BMP speaker may send pre-policy routes, post-policy routes, or both.&#39; The pre-policy L flag rule binds a speaker that sends the pre-policy view, and ze does not send it: peerHeaderFromEvent (internal/component/bgp/plugins/bmp/bmp_events.go) sets PeerFlagO and PeerFlagL together for a sent-direction event and never sets O alone. The post-policy half of the same rule, which ze does exercise, is site 5.1:2 mapping RFC8671-x-2. This is a SCOPE DECISION and not outstanding work; the absent feature is recorded as an implementation gap in docs/features/rfc-status.md, not as a conformance gap.</td>
+<td>The L flag MUST be set to 0 to indicate pre-policy.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 8671, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

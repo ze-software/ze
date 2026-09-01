@@ -1,0 +1,1636 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 9190 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 51 gated MUST-level requirements, 0 declared gaps, 48 with no test." />
+        <meta property="og:title" content="RFC 9190 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 51 gated MUST-level requirements, 0 declared gaps, 48 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 9190 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 9190: EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3. 51 gated MUST-level requirements, 0 declared gaps, 48 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc9190/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc9190/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">No row in the public ledger</span>
+    <h1 id="rfc-detail-title">RFC 9190 - EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3</h1>
+    <p>Every requirement this repository extracted from RFC 9190, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>3.9%</strong><b>2 of 51 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 51 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 8 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>51</strong><b>of 94 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 51 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>One polarity, unexcused</span><strong>2.0%</strong><b>1 of 51 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>94.1%</strong><b>48 of 51 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 51 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>No row in the public ledger</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Not enrolled (backlog)</td>
+</tr>
+<tr><td>Requirements</td>
+<td>94</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>51</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>51</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>48</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>8</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>8</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc9190.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc9190.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc9190.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Not enrolled (backlog): EAP-TLS 1.3: Using EAP with TLS 1.3. Summary written 2026-08-01 and it declares 51 MUST-level obligations over 19 sections. It is NOT enrolled because 49 of them are not yet proven by a tagged test, and the two routes to enrolment are both closed to an implementer: proving all 51 in both polarities is spec-sized work, and annotating the remainder is a conformance judgement ai/rules/rfc-compliance.md reserves to the owner. What Ze does implement today is the Section 2.3 key derivation and the Section 2.5 protected success result indication. exportEAPTLSMSK (internal/component/ike/eap/eap_tls.go) selects the exporter label EXPORTER_EAP_TLS_Key_Material, the Type-Code context and the 128-octet length whenever the negotiated version is TLS 1.3, and test/interop-ipsec/scenarios/eap-tls13 exercises that path against strongSwan. tlsMethod.indicateSuccess (same file, added 2026-08-12) writes the encrypted TLS record carrying application data 0x00 in the round that completes the handshake, so RFC9190-2.5-1 and RFC9190-2.5-2 now carry both polarities; test/interop-ipsec/scenarios/responder-eap-tls13 proves it with Ze in the EAP-TLS SERVER role, and with the write reverted strongSwan logs missing protected success indication for EAP-TLS with TLS 1.3 and the SA never establishes. PeerSession.handleTLSRequest still does not CONSUME the indication: it answers the record with the no-data EAP-Response Section 2.5 step 4 asks for, but never decrypts it, so a Ze peer cannot tell a server that sent one from a server that did not. The published RFC states no peer-side obligation and errata 7577, which proposes one, is Reported rather than Verified. Escalated for a scoping ruling rather than decided, per the same route rfc1035 and rfc5301 took.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 9190.</p>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>2</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>48</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>51</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc9190-2.5-1"><code>RFC9190-2.5-1</code></a>, <a href="#rfc9190-2.5-2"><code>RFC9190-2.5-2</code></a></p>
+<p class="rfc-id-list"><strong>One polarity only (1):</strong> <a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (48):</strong> <a href="#rfc9190-2.1-2"><code>RFC9190-2.1-2</code></a>, <a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a>, <a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a>, <a href="#rfc9190-2.1-5"><code>RFC9190-2.1-5</code></a>, <a href="#rfc9190-2.1-6"><code>RFC9190-2.1-6</code></a>, <a href="#rfc9190-2.1-7"><code>RFC9190-2.1-7</code></a>, <a href="#rfc9190-2.1-8"><code>RFC9190-2.1-8</code></a>, <a href="#rfc9190-2.1.1-1"><code>RFC9190-2.1.1-1</code></a>, <a href="#rfc9190-2.1.1-2"><code>RFC9190-2.1.1-2</code></a>, <a href="#rfc9190-2.1.2-1"><code>RFC9190-2.1.2-1</code></a>, <a href="#rfc9190-2.1.2-2"><code>RFC9190-2.1.2-2</code></a>, <a href="#rfc9190-2.1.2-3"><code>RFC9190-2.1.2-3</code></a>, <a href="#rfc9190-2.1.2-4"><code>RFC9190-2.1.2-4</code></a>, <a href="#rfc9190-2.1.3-1"><code>RFC9190-2.1.3-1</code></a>, <a href="#rfc9190-2.1.3-2"><code>RFC9190-2.1.3-2</code></a>, <a href="#rfc9190-2.1.4-1"><code>RFC9190-2.1.4-1</code></a>, <a href="#rfc9190-2.1.4-2"><code>RFC9190-2.1.4-2</code></a>, <a href="#rfc9190-2.1.4-3"><code>RFC9190-2.1.4-3</code></a>, <a href="#rfc9190-2.1.8-1"><code>RFC9190-2.1.8-1</code></a>, <a href="#rfc9190-2.1.8-2"><code>RFC9190-2.1.8-2</code></a>, <a href="#rfc9190-2.1.8-3"><code>RFC9190-2.1.8-3</code></a>, <a href="#rfc9190-2.1.8-4"><code>RFC9190-2.1.8-4</code></a>, <a href="#rfc9190-2.1.9-1"><code>RFC9190-2.1.9-1</code></a>, <a href="#rfc9190-2.1.9-2"><code>RFC9190-2.1.9-2</code></a>, <a href="#rfc9190-2.2-1"><code>RFC9190-2.2-1</code></a>, <a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a>, <a href="#rfc9190-2.3-3"><code>RFC9190-2.3-3</code></a>, <a href="#rfc9190-2.4-1"><code>RFC9190-2.4-1</code></a>, <a href="#rfc9190-2.4-2"><code>RFC9190-2.4-2</code></a>, <a href="#rfc9190-5.4-1"><code>RFC9190-5.4-1</code></a>, <a href="#rfc9190-5.4-2"><code>RFC9190-5.4-2</code></a>, <a href="#rfc9190-5.4-3"><code>RFC9190-5.4-3</code></a>, <a href="#rfc9190-5.4-4"><code>RFC9190-5.4-4</code></a>, <a href="#rfc9190-5.4-5"><code>RFC9190-5.4-5</code></a>, <a href="#rfc9190-5.6-1"><code>RFC9190-5.6-1</code></a>, <a href="#rfc9190-5.6-2"><code>RFC9190-5.6-2</code></a>, <a href="#rfc9190-5.6-3"><code>RFC9190-5.6-3</code></a>, <a href="#rfc9190-5.6-4"><code>RFC9190-5.6-4</code></a>, <a href="#rfc9190-5.7-1"><code>RFC9190-5.7-1</code></a>, <a href="#rfc9190-5.7-2"><code>RFC9190-5.7-2</code></a>, <a href="#rfc9190-5.7-3"><code>RFC9190-5.7-3</code></a>, <a href="#rfc9190-5.7-4"><code>RFC9190-5.7-4</code></a>, <a href="#rfc9190-5.7-5"><code>RFC9190-5.7-5</code></a>, <a href="#rfc9190-5.7-6"><code>RFC9190-5.7-6</code></a>, <a href="#rfc9190-5.8-1"><code>RFC9190-5.8-1</code></a>, <a href="#rfc9190-5.8-2"><code>RFC9190-5.8-2</code></a>, <a href="#rfc9190-5.8-3"><code>RFC9190-5.8-3</code></a>, <a href="#rfc9190-5.10-1"><code>RFC9190-5.10-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-2">RFC9190-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Early data MUST NOT be used in EAP-TLS (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-3">RFC9190-2.1-3</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS servers MUST NOT send an &#34;early_data&#34; extension (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-4">RFC9190-2.1-4</code></td><td colspan="3"><span class="rfc-subject">Clients MUST NOT send an EndOfEarlyData message (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-5">RFC9190-2.1-5</code></td><td colspan="3"><span class="rfc-subject">Post-handshake authentication MUST NOT be used in EAP-TLS (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-6">RFC9190-2.1-6</code></td><td colspan="3"><span class="rfc-subject">Clients MUST NOT send a &#34;post_handshake_auth&#34; extension (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-7">RFC9190-2.1-7</code></td><td colspan="3"><span class="rfc-subject">Servers MUST NOT request post-handshake client authentication (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-8">RFC9190-2.1-8</code></td><td colspan="3"><span class="rfc-subject">When EAP-TLS is used with TLS 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS (§2.1)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-1">RFC9190-2.1.1-1</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server MUST authenticate with a certificate (§2.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-2">RFC9190-2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Pre-Shared Key authentication SHALL NOT be used except for resumption (§2.1.1)</span></td></tr>
+<tr><td></td>
+<td>SHALL NOT</td>
+<td>2.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.2-1">RFC9190-2.1.2-1</code></td><td colspan="3"><span class="rfc-subject">To enable resumption, the EAP-TLS server MUST send one or more post-handshake NewSessionTicket messages in the initial authentication (§2.1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.2-2">RFC9190-2.1.2-2</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS servers MUST respect the 604800 second maximum ticket lifetime when issuing tickets (§2.1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.2-3">RFC9190-2.1.2-3</code></td><td colspan="3"><span class="rfc-subject">The NewSessionTicket message MUST NOT include an &#34;early_data&#34; extension (§2.1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.2-4">RFC9190-2.1.2-4</code></td><td colspan="3"><span class="rfc-subject">If the &#34;early_data&#34; extension is received, then it MUST be ignored (§2.1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-1">RFC9190-2.1.3-1</code></td><td colspan="3"><span class="rfc-subject">When EAP-TLS is used with TLS 1.3, EAP-TLS SHALL use a resumption mechanism compatible with version 1.3 of TLS (§2.1.3)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>2.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-2">RFC9190-2.1.3-2</code></td><td colspan="3"><span class="rfc-subject">The &#34;psk_dh_ke&#34; key exchange mode MUST be used for resumption unless the deployment has a local requirement to allow configuration of other mechanisms (§2.1.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.4-1">RFC9190-2.1.4-1</code></td><td colspan="3"><span class="rfc-subject">If the EAP-TLS peer authenticates successfully, the EAP-TLS server MUST send an EAP-Request packet with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.4-2">RFC9190-2.1.4-2</code></td><td colspan="3"><span class="rfc-subject">If the EAP-TLS server authenticates successfully, the EAP-TLS peer MUST send an EAP-Response message with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.4-3">RFC9190-2.1.4-3</code></td><td colspan="3"><span class="rfc-subject">Whenever an implementation encounters a fatal error condition, it MUST send an appropriate TLS Error alert (§2.1.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-1">RFC9190-2.1.8-1</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peer and server implementations supporting TLS 1.3 MUST support anonymous Network Access Identifiers (§2.1.8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-2">RFC9190-2.1.8-2</code></td><td colspan="3"><span class="rfc-subject">A client supporting TLS 1.3 MUST NOT send its username or any other permanent identifier in cleartext in the Identity Response, or in any message used instead of the Identity Response (§2.1.8)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.8-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-3">RFC9190-2.1.8-3</code></td><td colspan="3"><span class="rfc-subject">The NAI MUST be a UTF-8 string as defined by the grammar in Section 2.2 of RFC 7542 (§2.1.8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.8-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-4">RFC9190-2.1.8-4</code></td><td colspan="3"><span class="rfc-subject">When EAP-TLS is used with TLS 1.3, the EAP-TLS peer and EAP-TLS server SHALL follow the certificate_list processing specified by version 1.3 of TLS (§2.1.8)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>2.1.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.8-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-1">RFC9190-2.1.9-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST NOT set the L bit in unfragmented messages (§2.1.9)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-2">RFC9190-2.1.9-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST accept unfragmented messages with and without the L bit set (§2.1.9)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.9-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-1">RFC9190-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Unauthenticated information MUST NOT be used for accounting purposes or to give authorization (§2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.3-1">RFC9190-2.3-1</code></td><td colspan="3"><span class="rfc-subject">The Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface (§2.3)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc5216_msk_label_test.go#L159" title="internal/component/ike/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC9190MSKIsTheExportUnderTheRFCLabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.3-2">RFC9190-2.3-2</code></td><td colspan="3"><span class="rfc-subject">The key derivation MUST use the length values given in the section, 128 octets for Key_Material and 64 octets for Method-Id (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.3-3">RFC9190-2.3-3</code></td><td colspan="3"><span class="rfc-subject">An implementation that intends to use only a part of the TLS-Exporter output MUST ask for the full output and then only use the desired part (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.4-1">RFC9190-2.4-1</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peers and EAP-TLS servers MUST comply with the compliance requirements defined in Section 9 of RFC 8446 (§2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.4-2">RFC9190-2.4-2</code></td><td colspan="3"><span class="rfc-subject">In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be supported (§2.4)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.5-1">RFC9190-2.5-1</code></td><td colspan="3"><span class="rfc-subject">The protected success result indication procedure MUST be followed: after processing the client Finished and sending its last handshake message, the server sends an encrypted TLS record with application data 0x00, then sends no further EAP-Request and may only send EAP-Success (§2.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L167" title="internal/component/ike/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13SendsProtectedSuccessIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L298" title="internal/component/ike/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12SendsNoProtectedSuccessIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L264" title="internal/component/ike/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusedClientGetsNoSuccessIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L253" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L259" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.5-2">RFC9190-2.5-2</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server MUST NOT send an encrypted TLS record with application data 0x00 before it has successfully processed the client Finished and sent its last handshake message (§2.5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L175" title="internal/component/ike/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13SendsProtectedSuccessIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L258" title="internal/component/ike/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusedClientGetsNoSuccessIndication</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-1">RFC9190-5.4-1</code></td><td colspan="3"><span class="rfc-subject">When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked, except the trust anchor (§5.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-2">RFC9190-5.4-2</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests, that is OCSP stapling (§5.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-3">RFC9190-5.4-3</code></td><td colspan="3"><span class="rfc-subject">An EAP-TLS peer using Certificate Status Requests MUST treat a CertificateEntry without a valid CertificateStatus extension as invalid, except the trust anchor, and abort the handshake with an appropriate alert (§5.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-4">RFC9190-5.4-4</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peer implementations MUST also support checking for certificate revocation after authentication completes and network connectivity is available (§5.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-5">RFC9190-5.4-5</code></td><td colspan="3"><span class="rfc-subject">An EAP peer MUST use a secure transport to verify the revocation status of the server certificate (§5.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.4-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-1">RFC9190-5.6-1</code></td><td colspan="3"><span class="rfc-subject">When peer authentication is not used, EAP-TLS server implementations MUST take care to limit network access appropriately for unauthenticated peers (§5.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-2">RFC9190-5.6-2</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-3">RFC9190-5.6-3</code></td><td colspan="3"><span class="rfc-subject">Authorization and accounting MUST be based on authenticated information such as information in the certificate, or the PSK identity and cached data provisioned for resumption (§5.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.6-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-4">RFC9190-5.6-4</code></td><td colspan="3"><span class="rfc-subject">The requirements for Network Access Identifiers specified in Section 4 of RFC 7542 still apply and MUST be followed (§5.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.6-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-1">RFC9190-5.7-1</code></td><td colspan="3"><span class="rfc-subject">Authorization during resumption MUST be based on cached data from the initial full handshake (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-2">RFC9190-5.7-2</code></td><td colspan="3"><span class="rfc-subject">Any security policies for authorization MUST be followed also for resumption (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-3">RFC9190-5.7-3</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server or EAP client MUST cache data during the initial full handshake sufficient to allow authorization decisions to be made during resumption (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-4">RFC9190-5.7-4</code></td><td colspan="3"><span class="rfc-subject">If cached data cannot be retrieved securely, resumption MUST NOT be done (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-5">RFC9190-5.7-5</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peers MUST NOT store resumption PSKs or tickets, and associated cached data, for longer than 604800 seconds regardless of the PSK or ticket lifetime (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-6">RFC9190-5.7-6</code></td><td colspan="3"><span class="rfc-subject">If any authorization, accounting, or policy decision was made with information that has changed between the initial full handshake and resumption, and the change may lead to a different decision, that decision MUST be reevaluated (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-1">RFC9190-5.8-1</code></td><td colspan="3"><span class="rfc-subject">When anonymous NAIs are not used, privacy-friendly identities MUST be generated in a cryptographically secure way, so that an attacker cannot differentiate two identities belonging to the same user from two identities belonging to different users in the same realm (§5.8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-2">RFC9190-5.8-2</code></td><td colspan="3"><span class="rfc-subject">Privacy-friendly usernames MUST NOT include substrings that can be used to relate the identity to a specific user (§5.8)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.8-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-3">RFC9190-5.8-3</code></td><td colspan="3"><span class="rfc-subject">Privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications (§5.8)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.8-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.10-1">RFC9190-5.10-1</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS implementations MUST mitigate known attacks (§5.10)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.10-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1-1">RFC9190-2.1-1</code></td><td colspan="3"><span class="rfc-subject">Implementations SHOULD NOT send the KeyUpdate message (§2.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-3">RFC9190-2.1.1-3</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server SHOULD require the EAP-TLS peer to authenticate with a certificate (§2.1.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-3">RFC9190-2.1.3-3</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS peer SHOULD supply a &#34;key_share&#34; extension when attempting resumption (§2.1.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-4">RFC9190-2.1.3-4</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peers and EAP-TLS servers SHOULD follow the client tracking preventions in Appendix C.4 of RFC 8446 (§2.1.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-5">RFC9190-2.1.3-5</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that the EAP-TLS peer use resumption if it has a valid ticket that has not been used before (§2.1.3)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-6">RFC9190-2.1.3-6</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that the EAP-TLS server accept resumption if the ticket that was issued is still valid (§2.1.3)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-7">RFC9190-2.1.3-7</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to use Network Access Identifiers with the same realm during resumption and the original full handshake (§2.1.3)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-8">RFC9190-2.1.3-8</code></td><td colspan="3"><span class="rfc-subject">When NAI reuse can be done without privacy implications, it is RECOMMENDED to use the same NAI in the resumption as was used in the original full handshake (§2.1.3)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.7-1">RFC9190-2.1.7-1</code></td><td colspan="3"><span class="rfc-subject">When the client certificate contains an NAI as subject name or alternative subject name, an anonymous NAI SHOULD be derived from the NAI in the certificate (§2.1.7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.1.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.7-2">RFC9190-2.1.7-2</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to use anonymous NAIs in the Identity Response (§2.1.7)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.1.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.7-3">RFC9190-2.1.7-3</code></td><td colspan="3"><span class="rfc-subject">Opaque blob identities are NOT RECOMMENDED because they are not routable (§2.1.7)</span></td></tr>
+<tr><td></td>
+<td>NOT RECOMMENDED</td>
+<td>2.1.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.7-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-5">RFC9190-2.1.8-5</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to omit the username, so that the NAI is @realm (§2.1.8)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.1.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.8-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-3">RFC9190-2.1.9-3</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to keep the sizes of peer, server, and trust anchor certificates small and the certificate chains short (§2.1.9)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.1.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.9-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.9-4">RFC9190-2.1.9-4</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED to use mechanisms that reduce the sizes of Certificate messages (§2.1.9)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.1.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.9-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-2">RFC9190-2.2-2</code></td><td colspan="3"><span class="rfc-subject">EAP peer implementations SHOULD allow configuration of one or more trusted root certificates and one or more server names to match against the SubjectAltName extension (§2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-3">RFC9190-2.2-3</code></td><td colspan="3"><span class="rfc-subject">Automated methods of provisioning the root CA certificate and the server name are RECOMMENDED (§2.2)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.5-3">RFC9190-2.5-3</code></td><td colspan="3"><span class="rfc-subject">TLS Error alerts SHOULD be considered a failure result indication (§2.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-6">RFC9190-5.4-6</code></td><td colspan="3"><span class="rfc-subject">An EAP peer implementation SHOULD NOT trust the network, and any services, until it has verified the revocation status of the server certificate after receiving network connectivity (§5.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.4-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-7">RFC9190-5.4-7</code></td><td colspan="3"><span class="rfc-subject">An EAP peer SHOULD NOT send any other traffic before revocation checking for the server certificate is complete (§5.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.4-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.4-8">RFC9190-5.4-8</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that EAP-TLS peers and EAP-TLS servers use OCSP stapling for verifying the status of the EAP-TLS server&#39;s certificate chain (§5.4)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>5.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.4-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-7">RFC9190-5.7-7</code></td><td colspan="3"><span class="rfc-subject">Systems that expect to perform accounting for the session SHOULD cache an identifier that can be used in subsequent accounting (§5.7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-8">RFC9190-5.7-8</code></td><td colspan="3"><span class="rfc-subject">If a safe decision is not possible, EAP-TLS servers SHOULD reject the resumption and continue with a full handshake (§5.7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-9">RFC9190-5.7-9</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED that authorization, accounting, and policy decisions are reevaluated based on the information given in the resumption (§5.7)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-4">RFC9190-5.8-4</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS peers SHOULD use record padding to reduce information leakage of certificate sizes (§5.8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.8-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-5">RFC9190-5.8-5</code></td><td colspan="3"><span class="rfc-subject">An EAP-TLS peer SHOULD NOT continue the EAP authentication attempt if a TLS 1.2 EAP-TLS server sends an EAP-TLS/Request with a TLS alert message in response to an empty certificate message from the peer (§5.8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>5.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.8-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.8-6">RFC9190-5.8-6</code></td><td colspan="3"><span class="rfc-subject">It is RECOMMENDED for EAP-TLS peers to not use EAP-TLS with TLS 1.2 and static RSA-based cipher suites without privacy (§5.8)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>5.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.8-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.11-1">RFC9190-5.11-1</code></td><td colspan="3"><span class="rfc-subject">Using different certificates and resumption caches for different protocols is RECOMMENDED (§5.11)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>5.11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.11-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-4">RFC9190-2.1.1-4</code></td><td colspan="3"><span class="rfc-subject">A TLS implementation MAY not allow the EAP-TLS layer to control the order in which things are sent (§2.1.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.1-5">RFC9190-2.1.1-5</code></td><td colspan="3"><span class="rfc-subject">The application data 0x00 MAY therefore be sent before a NewSessionTicket (§2.1.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.3-9">RFC9190-2.1.3-9</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server MAY choose to require a full handshake instead of accepting resumption (§2.1.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.3-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.1.8-6">RFC9190-2.1.8-6</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS server MAY treat an empty certificate_list as a terminal condition (§2.1.8)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.1.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.1.8-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-4">RFC9190-2.2-4</code></td><td colspan="3"><span class="rfc-subject">The authenticator and the EAP-TLS server MAY examine the identity presented in EAP-Response/Identity for purposes such as routing and EAP method selection (§2.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-5">RFC9190-2.2-5</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS servers MAY reject conversations if the identity does not match their policy (§2.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.2-6">RFC9190-2.2-6</code></td><td colspan="3"><span class="rfc-subject">In the absence of a trusted root CA certificate, EAP peers MAY implement a trust on first use mechanism (§2.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.4-3">RFC9190-2.4-3</code></td><td colspan="3"><span class="rfc-subject">The negotiated cipher suites and algorithms MAY be used to secure data as done in other TLS-based EAP methods (§2.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.5-1">RFC9190-5.5-1</code></td><td colspan="3"><span class="rfc-subject">Protected failure result indications provide integrity and replay protection but MAY be unauthenticated (§5.5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-5">RFC9190-5.6-5</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS servers MAY reject conversations based on non-EAP information provided by the encapsulating protocol (§5.6)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.6-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.6-6">RFC9190-5.6-6</code></td><td colspan="3"><span class="rfc-subject">EAP peer implementations MAY allow binding the configured acceptable SubjectAltName to a specific CA that should have issued the server certificate (§5.6)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.6-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-10">RFC9190-5.7-10</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS peer and EAP-TLS server MAY perform fresh revocation checks on the cached certificate data (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-11">RFC9190-5.7-11</code></td><td colspan="3"><span class="rfc-subject">If the cached revocation data is not sufficiently current, the EAP-TLS peer or EAP-TLS server MAY force a full TLS handshake (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-12">RFC9190-5.7-12</code></td><td colspan="3"><span class="rfc-subject">The EAP-TLS peer MAY delete resumption PSKs or tickets earlier based on local policy (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-13">RFC9190-5.7-13</code></td><td colspan="3"><span class="rfc-subject">The cached data MAY also be removed on the EAP-TLS server or EAP-TLS peer if any certificate in the certificate chain has been revoked or has expired (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-13">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-5.7-14">RFC9190-5.7-14</code></td><td colspan="3"><span class="rfc-subject">EAP-TLS servers MAY reject resumption where the information supplied during resumption does not match the information supplied during the original authentication (§5.7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-5.7-14">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc9190-2.1-2"><code>RFC9190-2.1-2</code></a> Early data MUST NOT be used in EAP-TLS (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a> EAP-TLS servers MUST NOT send an &#34;early_data&#34; extension (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a> Clients MUST NOT send an EndOfEarlyData message (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1-5"><code>RFC9190-2.1-5</code></a> Post-handshake authentication MUST NOT be used in EAP-TLS (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1-6"><code>RFC9190-2.1-6</code></a> Clients MUST NOT send a &#34;post_handshake_auth&#34; extension (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1-7"><code>RFC9190-2.1-7</code></a> Servers MUST NOT request post-handshake client authentication (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1-8"><code>RFC9190-2.1-8</code></a> When EAP-TLS is used with TLS 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.1-1"><code>RFC9190-2.1.1-1</code></a> The EAP-TLS server MUST authenticate with a certificate (§2.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.1-2"><code>RFC9190-2.1.1-2</code></a> Pre-Shared Key authentication SHALL NOT be used except for resumption (§2.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.2-1"><code>RFC9190-2.1.2-1</code></a> To enable resumption, the EAP-TLS server MUST send one or more post-handshake NewSessionTicket messages in the initial authentication (§2.1.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.2-2"><code>RFC9190-2.1.2-2</code></a> EAP-TLS servers MUST respect the 604800 second maximum ticket lifetime when issuing tickets (§2.1.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.2-3"><code>RFC9190-2.1.2-3</code></a> The NewSessionTicket message MUST NOT include an &#34;early_data&#34; extension (§2.1.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.2-4"><code>RFC9190-2.1.2-4</code></a> If the &#34;early_data&#34; extension is received, then it MUST be ignored (§2.1.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.3-1"><code>RFC9190-2.1.3-1</code></a> When EAP-TLS is used with TLS 1.3, EAP-TLS SHALL use a resumption mechanism compatible with version 1.3 of TLS (§2.1.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.3-2"><code>RFC9190-2.1.3-2</code></a> The &#34;psk_dh_ke&#34; key exchange mode MUST be used for resumption unless the deployment has a local requirement to allow configuration of other mechanisms (§2.1.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.4-1"><code>RFC9190-2.1.4-1</code></a> If the EAP-TLS peer authenticates successfully, the EAP-TLS server MUST send an EAP-Request packet with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.4-2"><code>RFC9190-2.1.4-2</code></a> If the EAP-TLS server authenticates successfully, the EAP-TLS peer MUST send an EAP-Response message with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.4-3"><code>RFC9190-2.1.4-3</code></a> Whenever an implementation encounters a fatal error condition, it MUST send an appropriate TLS Error alert (§2.1.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.8-1"><code>RFC9190-2.1.8-1</code></a> EAP-TLS peer and server implementations supporting TLS 1.3 MUST support anonymous Network Access Identifiers (§2.1.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.8-2"><code>RFC9190-2.1.8-2</code></a> A client supporting TLS 1.3 MUST NOT send its username or any other permanent identifier in cleartext in the Identity Response, or in any message used instead of the Identity Response (§2.1.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.8-3"><code>RFC9190-2.1.8-3</code></a> The NAI MUST be a UTF-8 string as defined by the grammar in Section 2.2 of RFC 7542 (§2.1.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.8-4"><code>RFC9190-2.1.8-4</code></a> When EAP-TLS is used with TLS 1.3, the EAP-TLS peer and EAP-TLS server SHALL follow the certificate_list processing specified by version 1.3 of TLS (§2.1.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.9-1"><code>RFC9190-2.1.9-1</code></a> Implementations MUST NOT set the L bit in unfragmented messages (§2.1.9)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.1.9-2"><code>RFC9190-2.1.9-2</code></a> Implementations MUST accept unfragmented messages with and without the L bit set (§2.1.9)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.2-1"><code>RFC9190-2.2-1</code></a> Unauthenticated information MUST NOT be used for accounting purposes or to give authorization (§2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a> The key derivation MUST use the length values given in the section, 128 octets for Key_Material and 64 octets for Method-Id (§2.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.3-3"><code>RFC9190-2.3-3</code></a> An implementation that intends to use only a part of the TLS-Exporter output MUST ask for the full output and then only use the desired part (§2.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.4-1"><code>RFC9190-2.4-1</code></a> EAP-TLS peers and EAP-TLS servers MUST comply with the compliance requirements defined in Section 9 of RFC 8446 (§2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-2.4-2"><code>RFC9190-2.4-2</code></a> In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be supported (§2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.4-1"><code>RFC9190-5.4-1</code></a> When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked, except the trust anchor (§5.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.4-2"><code>RFC9190-5.4-2</code></a> EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests, that is OCSP stapling (§5.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.4-3"><code>RFC9190-5.4-3</code></a> An EAP-TLS peer using Certificate Status Requests MUST treat a CertificateEntry without a valid CertificateStatus extension as invalid, except the trust anchor, and abort the handshake with an appropriate alert (§5.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.4-4"><code>RFC9190-5.4-4</code></a> EAP-TLS peer implementations MUST also support checking for certificate revocation after authentication completes and network connectivity is available (§5.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.4-5"><code>RFC9190-5.4-5</code></a> An EAP peer MUST use a secure transport to verify the revocation status of the server certificate (§5.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.6-1"><code>RFC9190-5.6-1</code></a> When peer authentication is not used, EAP-TLS server implementations MUST take care to limit network access appropriately for unauthenticated peers (§5.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.6-2"><code>RFC9190-5.6-2</code></a> Implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.6-3"><code>RFC9190-5.6-3</code></a> Authorization and accounting MUST be based on authenticated information such as information in the certificate, or the PSK identity and cached data provisioned for resumption (§5.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.6-4"><code>RFC9190-5.6-4</code></a> The requirements for Network Access Identifiers specified in Section 4 of RFC 7542 still apply and MUST be followed (§5.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.7-1"><code>RFC9190-5.7-1</code></a> Authorization during resumption MUST be based on cached data from the initial full handshake (§5.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.7-2"><code>RFC9190-5.7-2</code></a> Any security policies for authorization MUST be followed also for resumption (§5.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.7-3"><code>RFC9190-5.7-3</code></a> The EAP-TLS server or EAP client MUST cache data during the initial full handshake sufficient to allow authorization decisions to be made during resumption (§5.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.7-4"><code>RFC9190-5.7-4</code></a> If cached data cannot be retrieved securely, resumption MUST NOT be done (§5.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.7-5"><code>RFC9190-5.7-5</code></a> EAP-TLS peers MUST NOT store resumption PSKs or tickets, and associated cached data, for longer than 604800 seconds regardless of the PSK or ticket lifetime (§5.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.7-6"><code>RFC9190-5.7-6</code></a> If any authorization, accounting, or policy decision was made with information that has changed between the initial full handshake and resumption, and the change may lead to a different decision, that decision MUST be reevaluated (§5.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.8-1"><code>RFC9190-5.8-1</code></a> When anonymous NAIs are not used, privacy-friendly identities MUST be generated in a cryptographically secure way, so that an attacker cannot differentiate two identities belonging to the same user from two identities belonging to different users in the same realm (§5.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.8-2"><code>RFC9190-5.8-2</code></a> Privacy-friendly usernames MUST NOT include substrings that can be used to relate the identity to a specific user (§5.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.8-3"><code>RFC9190-5.8-3</code></a> Privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications (§5.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9190-5.10-1"><code>RFC9190-5.10-1</code></a> EAP-TLS implementations MUST mitigate known attacks (§5.10)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc9190-2.1-2"><code>RFC9190-2.1-2</code></a></h3>
+<p>Early data MUST NOT be used in EAP-TLS (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a></h3>
+<p>EAP-TLS servers MUST NOT send an &#34;early_data&#34; extension (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a></h3>
+<p>Clients MUST NOT send an EndOfEarlyData message (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1-5"><code>RFC9190-2.1-5</code></a></h3>
+<p>Post-handshake authentication MUST NOT be used in EAP-TLS (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1-6"><code>RFC9190-2.1-6</code></a></h3>
+<p>Clients MUST NOT send a &#34;post_handshake_auth&#34; extension (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1-6, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1-7"><code>RFC9190-2.1-7</code></a></h3>
+<p>Servers MUST NOT request post-handshake client authentication (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1-7, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1-8"><code>RFC9190-2.1-8</code></a></h3>
+<p>When EAP-TLS is used with TLS 1.3, the formatting and processing of the TLS handshake SHALL be done as specified in version 1.3 of TLS (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1-8, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.1-1"><code>RFC9190-2.1.1-1</code></a></h3>
+<p>The EAP-TLS server MUST authenticate with a certificate (§2.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.1-2"><code>RFC9190-2.1.1-2</code></a></h3>
+<p>Pre-Shared Key authentication SHALL NOT be used except for resumption (§2.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.2-1"><code>RFC9190-2.1.2-1</code></a></h3>
+<p>To enable resumption, the EAP-TLS server MUST send one or more post-handshake NewSessionTicket messages in the initial authentication (§2.1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.2-2"><code>RFC9190-2.1.2-2</code></a></h3>
+<p>EAP-TLS servers MUST respect the 604800 second maximum ticket lifetime when issuing tickets (§2.1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.2-3"><code>RFC9190-2.1.2-3</code></a></h3>
+<p>The NewSessionTicket message MUST NOT include an &#34;early_data&#34; extension (§2.1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.2-4"><code>RFC9190-2.1.2-4</code></a></h3>
+<p>If the &#34;early_data&#34; extension is received, then it MUST be ignored (§2.1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.2-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.3-1"><code>RFC9190-2.1.3-1</code></a></h3>
+<p>When EAP-TLS is used with TLS 1.3, EAP-TLS SHALL use a resumption mechanism compatible with version 1.3 of TLS (§2.1.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.3-2"><code>RFC9190-2.1.3-2</code></a></h3>
+<p>The &#34;psk_dh_ke&#34; key exchange mode MUST be used for resumption unless the deployment has a local requirement to allow configuration of other mechanisms (§2.1.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.4-1"><code>RFC9190-2.1.4-1</code></a></h3>
+<p>If the EAP-TLS peer authenticates successfully, the EAP-TLS server MUST send an EAP-Request packet with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.4-2"><code>RFC9190-2.1.4-2</code></a></h3>
+<p>If the EAP-TLS server authenticates successfully, the EAP-TLS peer MUST send an EAP-Response message with EAP-Type=EAP-TLS containing TLS records conforming to the version of TLS used (§2.1.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.4-3"><code>RFC9190-2.1.4-3</code></a></h3>
+<p>Whenever an implementation encounters a fatal error condition, it MUST send an appropriate TLS Error alert (§2.1.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.4-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.8-1"><code>RFC9190-2.1.8-1</code></a></h3>
+<p>EAP-TLS peer and server implementations supporting TLS 1.3 MUST support anonymous Network Access Identifiers (§2.1.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.8-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.8-2"><code>RFC9190-2.1.8-2</code></a></h3>
+<p>A client supporting TLS 1.3 MUST NOT send its username or any other permanent identifier in cleartext in the Identity Response, or in any message used instead of the Identity Response (§2.1.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.8-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.8-3"><code>RFC9190-2.1.8-3</code></a></h3>
+<p>The NAI MUST be a UTF-8 string as defined by the grammar in Section 2.2 of RFC 7542 (§2.1.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.8-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.8-4"><code>RFC9190-2.1.8-4</code></a></h3>
+<p>When EAP-TLS is used with TLS 1.3, the EAP-TLS peer and EAP-TLS server SHALL follow the certificate_list processing specified by version 1.3 of TLS (§2.1.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.8-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.9-1"><code>RFC9190-2.1.9-1</code></a></h3>
+<p>Implementations MUST NOT set the L bit in unfragmented messages (§2.1.9)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.9-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.1.9-2"><code>RFC9190-2.1.9-2</code></a></h3>
+<p>Implementations MUST accept unfragmented messages with and without the L bit set (§2.1.9)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.1.9-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.2-1"><code>RFC9190-2.2-1</code></a></h3>
+<p>Unauthenticated information MUST NOT be used for accounting purposes or to give authorization (§2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a></h3>
+<p>The Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc5216_msk_label_test.go#L159" title="internal/component/ike/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC9190MSKIsTheExportUnderTheRFCLabel</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a></h3>
+<p>The key derivation MUST use the length values given in the section, 128 octets for Key_Material and 64 octets for Method-Id (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.3-3"><code>RFC9190-2.3-3</code></a></h3>
+<p>An implementation that intends to use only a part of the TLS-Exporter output MUST ask for the full output and then only use the desired part (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.3-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.4-1"><code>RFC9190-2.4-1</code></a></h3>
+<p>EAP-TLS peers and EAP-TLS servers MUST comply with the compliance requirements defined in Section 9 of RFC 8446 (§2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.4-2"><code>RFC9190-2.4-2</code></a></h3>
+<p>In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be supported (§2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-2.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-2.5-1"><code>RFC9190-2.5-1</code></a></h3>
+<p>The protected success result indication procedure MUST be followed: after processing the client Finished and sending its last handshake message, the server sends an encrypted TLS record with application data 0x00, then sends no further EAP-Request and may only send EAP-Success (§2.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L298" title="internal/component/ike/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12SendsNoProtectedSuccessIndication</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L264" title="internal/component/ike/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusedClientGetsNoSuccessIndication</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L259" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></td>
+<td>interop/nightly</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L167" title="internal/component/ike/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13SendsProtectedSuccessIndication</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L253" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></td>
+<td>interop/nightly</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9190-2.5-2"><code>RFC9190-2.5-2</code></a></h3>
+<p>The EAP-TLS server MUST NOT send an encrypted TLS record with application data 0x00 before it has successfully processed the client Finished and sent its last handshake message (§2.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L258" title="internal/component/ike/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusedClientGetsNoSuccessIndication</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/eap/rfc9190_test.go#L175" title="internal/component/ike/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13SendsProtectedSuccessIndication</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc9190-5.4-1"><code>RFC9190-5.4-1</code></a></h3>
+<p>When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates in the certificate chains MUST be checked, except the trust anchor (§5.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.4-2"><code>RFC9190-5.4-2</code></a></h3>
+<p>EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests, that is OCSP stapling (§5.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.4-3"><code>RFC9190-5.4-3</code></a></h3>
+<p>An EAP-TLS peer using Certificate Status Requests MUST treat a CertificateEntry without a valid CertificateStatus extension as invalid, except the trust anchor, and abort the handshake with an appropriate alert (§5.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.4-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.4-4"><code>RFC9190-5.4-4</code></a></h3>
+<p>EAP-TLS peer implementations MUST also support checking for certificate revocation after authentication completes and network connectivity is available (§5.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.4-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.4-5"><code>RFC9190-5.4-5</code></a></h3>
+<p>An EAP peer MUST use a secure transport to verify the revocation status of the server certificate (§5.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.4-5, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.6-1"><code>RFC9190-5.6-1</code></a></h3>
+<p>When peer authentication is not used, EAP-TLS server implementations MUST take care to limit network access appropriately for unauthenticated peers (§5.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.6-2"><code>RFC9190-5.6-2</code></a></h3>
+<p>Implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.6-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.6-3"><code>RFC9190-5.6-3</code></a></h3>
+<p>Authorization and accounting MUST be based on authenticated information such as information in the certificate, or the PSK identity and cached data provisioned for resumption (§5.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.6-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.6-4"><code>RFC9190-5.6-4</code></a></h3>
+<p>The requirements for Network Access Identifiers specified in Section 4 of RFC 7542 still apply and MUST be followed (§5.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.6-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.7-1"><code>RFC9190-5.7-1</code></a></h3>
+<p>Authorization during resumption MUST be based on cached data from the initial full handshake (§5.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.7-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.7-2"><code>RFC9190-5.7-2</code></a></h3>
+<p>Any security policies for authorization MUST be followed also for resumption (§5.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.7-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.7-3"><code>RFC9190-5.7-3</code></a></h3>
+<p>The EAP-TLS server or EAP client MUST cache data during the initial full handshake sufficient to allow authorization decisions to be made during resumption (§5.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.7-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.7-4"><code>RFC9190-5.7-4</code></a></h3>
+<p>If cached data cannot be retrieved securely, resumption MUST NOT be done (§5.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.7-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.7-5"><code>RFC9190-5.7-5</code></a></h3>
+<p>EAP-TLS peers MUST NOT store resumption PSKs or tickets, and associated cached data, for longer than 604800 seconds regardless of the PSK or ticket lifetime (§5.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.7-5, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.7-6"><code>RFC9190-5.7-6</code></a></h3>
+<p>If any authorization, accounting, or policy decision was made with information that has changed between the initial full handshake and resumption, and the change may lead to a different decision, that decision MUST be reevaluated (§5.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.7-6, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.8-1"><code>RFC9190-5.8-1</code></a></h3>
+<p>When anonymous NAIs are not used, privacy-friendly identities MUST be generated in a cryptographically secure way, so that an attacker cannot differentiate two identities belonging to the same user from two identities belonging to different users in the same realm (§5.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.8-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.8-2"><code>RFC9190-5.8-2</code></a></h3>
+<p>Privacy-friendly usernames MUST NOT include substrings that can be used to relate the identity to a specific user (§5.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.8-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.8-3"><code>RFC9190-5.8-3</code></a></h3>
+<p>Privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications (§5.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.8-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9190-5.10-1"><code>RFC9190-5.10-1</code></a></h3>
+<p>EAP-TLS implementations MUST mitigate known attacks (§5.10)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9190-5.10-1, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 9190, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 9190, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,1234 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 2328 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 2328: OSPF Version 2. 25 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 2328 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 2328: OSPF Version 2. 25 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 2328 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 2328: OSPF Version 2. 25 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc2328/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc2328/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 2328 - OSPF Version 2</h1>
+    <p>Every requirement this repository extracted from RFC 2328, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>96.0%</strong><b>24 of 25 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 25 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 59 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>25</strong><b>of 38 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 25 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>4.0%</strong><b>1 of 25 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 25 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>38</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>25</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>25</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>1</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>61</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>59</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc2328.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc2328.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc2328.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: OSPF Version 2</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 validation and the auth-excluding packet checksum, the Fletcher LS checksum, the Section 13 flooding procedure (checksum/unknown-type discard, stub-area Type-5 filter, Exchange-or-higher gate, Section 13.1 freshness ordering, MaxAge+MaxSequenceNumber silent discard, retransmission lists at RxmtInterval, Table 19 acknowledgment decisions, self-originated re-origination and premature-aging flush), Section 14 aging and purge retention, the Section 16 routing calculation (two-way check, ABR backbone-only summaries, LSInfinity/MaxAge/self skips, intra-over-inter-over-external path preference), Database Exchange with a single outstanding DD and the BadLSReq restart, virtual links with Interface MTU 0 in their DDs, positive interface output cost, and Appendix D authentication types 0/1/2 including the non-decreasing cryptographic sequence number. Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2328.md" target="_blank" rel="noopener"><code>rfc/short/rfc2328.md</code></a>.
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+One MUST gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2328.md" target="_blank" rel="noopener"><code>rfc/short/rfc2328.md</code></a> and gated by <code>./le rfc check</code>: <a href="#rfc2328-13.3-2"><code>RFC2328-13.3-2</code></a> -- the InfTransDelay increment of LS age is applied on retransmission (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/flooding.go</code></a>) and on a direct database-copy reply (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/flooding.go</code></a>), but the normal flood path copies the LSA with transmit delay 0 (<code>floodExcept</code> -&gt; <code>entry.LSA(d.now())</code> -&gt; <code>Raw(now, 0)</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/flooding.go</code></a> and <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/entry.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/entry.go</code></a>), so a first-flooded LSA carries an unincremented age. The feature also remains pre-production pending hardening and deployment evidence.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>24</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>25</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (24):</strong> <a href="#rfc2328-a.3.1-1"><code>RFC2328-A.3.1-1</code></a>, <a href="#rfc2328-a.3.1-2"><code>RFC2328-A.3.1-2</code></a>, <a href="#rfc2328-12.1.7-1"><code>RFC2328-12.1.7-1</code></a>, <a href="#rfc2328-13-1"><code>RFC2328-13-1</code></a>, <a href="#rfc2328-13-2"><code>RFC2328-13-2</code></a>, <a href="#rfc2328-13-3"><code>RFC2328-13-3</code></a>, <a href="#rfc2328-13.1-1"><code>RFC2328-13.1-1</code></a>, <a href="#rfc2328-13-4"><code>RFC2328-13-4</code></a>, <a href="#rfc2328-13.3-1"><code>RFC2328-13.3-1</code></a>, <a href="#rfc2328-14-1"><code>RFC2328-14-1</code></a>, <a href="#rfc2328-14-2"><code>RFC2328-14-2</code></a>, <a href="#rfc2328-13.5-1"><code>RFC2328-13.5-1</code></a>, <a href="#rfc2328-13.4-1"><code>RFC2328-13.4-1</code></a>, <a href="#rfc2328-16.1-1"><code>RFC2328-16.1-1</code></a>, <a href="#rfc2328-16.4-1"><code>RFC2328-16.4-1</code></a>, <a href="#rfc2328-16.2-1"><code>RFC2328-16.2-1</code></a>, <a href="#rfc2328-16.2-2"><code>RFC2328-16.2-2</code></a>, <a href="#rfc2328-d.2-1"><code>RFC2328-D.2-1</code></a>, <a href="#rfc2328-d.3-1"><code>RFC2328-D.3-1</code></a>, <a href="#rfc2328-d.3-2"><code>RFC2328-D.3-2</code></a>, <a href="#rfc2328-a.3.3-1"><code>RFC2328-A.3.3-1</code></a>, <a href="#rfc2328-10.1-1"><code>RFC2328-10.1-1</code></a>, <a href="#rfc2328-10.2-1"><code>RFC2328-10.2-1</code></a>, <a href="#rfc2328-c.3-1"><code>RFC2328-C.3-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc2328-13.3-2"><code>RFC2328-13.3-2</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-a.3.1-1">RFC2328-A.3.1-1</code></td><td colspan="3"><span class="rfc-subject">All OSPF packets begin with the standard 24-byte header; Version # MUST be 2 (§A.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>A.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-A.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/header_test.go#L131" title="internal/plugins/ospf/packet/header_test.go" target="_blank" rel="noopener"><code>TestOSPFHeaderRoundTrip</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/header_test.go#L153" title="internal/plugins/ospf/packet/header_test.go" target="_blank" rel="noopener"><code>TestOSPFHeaderRejectsBadVersionAndLength</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-a.3.1-2">RFC2328-A.3.1-2</code></td><td colspan="3"><span class="rfc-subject">Compute the packet header IP checksum over the whole packet excluding the 64-bit authentication field (§A.3.1, §D.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>A.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-A.3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L32" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFPacketChecksumExcludesAuth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/header_test.go#L100" title="internal/plugins/ospf/packet/header_test.go" target="_blank" rel="noopener"><code>TestPacketVerifyChecksum</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-12.1.7-1">RFC2328-12.1.7-1</code></td><td colspan="3"><span class="rfc-subject">Compute the LS (Fletcher) checksum over the complete LSA excluding the LS age field; the LS checksum MUST NOT be zero (calculation is not optional) (§12.1.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>12.1.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-12.1.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L75" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L102" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksumExcludesAge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_test.go#L10" title="internal/plugins/ospf/packet/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328ZeroLSChecksumRejected</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13-1">RFC2328-13-1</code></td><td colspan="3"><span class="rfc-subject">In the flooding procedure, discard an LSA with an invalid LS checksum and discard an LSA of unknown LS type (only types 1-5 are defined) (§13)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L30" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFFloodOutOtherInterfaces</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/packet_body_test.go#L145" title="internal/plugins/ospf/packet/packet_body_test.go" target="_blank" rel="noopener"><code>TestDecodeLSReqRejectsMalformed</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L17" title="internal/plugins/ospf/lsdb/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328BadLSChecksumDiscarded</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13-2">RFC2328-13-2</code></td><td colspan="3"><span class="rfc-subject">Flood AS-external (Type 5) LSAs into or throughout a stub area (§13, §3.6)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/area_type_test.go#L15" title="internal/plugins/ospf/lsdb/area_type_test.go" target="_blank" rel="noopener"><code>TestOSPFStubFloodFilter</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L247" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFStubAreaDropsType5</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13-3">RFC2328-13-3</code></td><td colspan="3"><span class="rfc-subject">Drop a Link State Update / Acknowledgment from a neighbor in a state lesser than Exchange (§13, §13.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L17" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328FloodingRequiresExchangeOrHigher</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L20" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328FloodingRequiresExchangeOrHigher</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13.1-1">RFC2328-13.1-1</code></td><td colspan="3"><span class="rfc-subject">Determine the more recent of two LSA instances using LS sequence number, then larger LS checksum, then MaxAge, then younger LS age beyond MaxAgeDiff (§13.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/lsdb_test.go#L126" title="internal/plugins/ospf/lsdb/lsdb_test.go" target="_blank" rel="noopener"><code>TestOSPFFreshnessCompareMatrix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L50" title="internal/plugins/ospf/lsdb/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328OlderInstanceGetsDatabaseCopyBack</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13-4">RFC2328-13-4</code></td><td colspan="3"><span class="rfc-subject">If the database copy is MaxAge with LS sequence number MaxSequenceNumber, discard a received older instance without acknowledging (§13, step 8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_edges_test.go#L19" title="internal/plugins/ospf/lsdb/flooding_edges_test.go" target="_blank" rel="noopener"><code>TestOSPFMaxSeqMaxAgeSilentDiscard</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L53" title="internal/plugins/ospf/lsdb/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328OlderInstanceGetsDatabaseCopyBack</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13.3-1">RFC2328-13.3-1</code></td><td colspan="3"><span class="rfc-subject">Add an LSA flooded out an adjacency to that adjacency&#39;s Link state retransmission list and retransmit at RxmtInterval until acknowledged (§13.3, §13.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L31" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFFloodOutOtherInterfaces</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L129" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFRetransmitTimer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L57" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFFloodQueuesExchangeAndLoadingNeighbors</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13.3-2">RFC2328-13.3-2</code></td><td colspan="3"><span class="rfc-subject">Increment an LSA&#39;s LS age by InfTransDelay (which MUST be &gt; 0) when copying it into an outgoing Link State Update, capped at MaxAge (§13.3, §13.6, §14)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the InfTransDelay bump is applied on the retransmit path (RetransmitTick, lsdb/flooding.go:545) and on a direct database-copy reply (sendDirectLSUpdate, lsdb/flooding.go:745; sendDirectLinkLSUpdate, lsdb/link_scope.go:349), but NOT on the normal flood: floodExcept builds the outgoing copy with `entry.LSA(d.now())` (lsdb/flooding.go:351), and Entry.LSA calls `e.Raw(now, 0)` with transmitDelay 0 (lsdb/entry.go:62-68, 75-85), so the first flooded copy carries the unincremented LS age. The MaxAge cap itself is present wherever the bump is applied (LSAge.Add, types/lsage.go:54-63). Disclosed in docs/features/rfc-status.md RFC 2328 row</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-14-1">RFC2328-14-1</code></td><td colspan="3"><span class="rfc-subject">Never increment an LSA&#39;s LS age past MaxAge, and exclude MaxAge LSAs from the routing-table calculation (§14)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>14</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-14-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/lsage_test.go#L39" title="internal/plugins/ospf/types/lsage_test.go" target="_blank" rel="noopener"><code>TestLSAgeAddSaturates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/aging_test.go#L34" title="internal/plugins/ospf/lsdb/aging_test.go" target="_blank" rel="noopener"><code>TestOSPFLSDBAgeToPurge</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/graph_test.go#L40" title="internal/plugins/ospf/spf/graph_test.go" target="_blank" rel="noopener"><code>TestOSPFGraphSkipsMaxAge</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-14-2">RFC2328-14-2</code></td><td colspan="3"><span class="rfc-subject">Remove a MaxAge LSA from the database only once it is on no neighbor retransmission list and no neighbor is in Exchange or Loading (§14)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>14</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-14-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L332" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFASExternalPurgeRetainedAcrossAreas</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L383" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFPurgeRetainedForExchangeOrLoading</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13.5-1">RFC2328-13.5-1</code></td><td colspan="3"><span class="rfc-subject">Acknowledge every newly received LSA (directly or implicitly per Table 19) (§13.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L93" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFAckDecisionTable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L360" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_edges_test.go#L80" title="internal/plugins/ospf/lsdb/flooding_edges_test.go" target="_blank" rel="noopener"><code>TestOSPFDRRefloodsBackOutReceivingInterface</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13.4-1">RFC2328-13.4-1</code></td><td colspan="3"><span class="rfc-subject">Detect self-originated LSAs by Advertising Router == own Router ID, or network-LSA Link State ID == own interface address, and re-originate or flush via premature aging (§13.4, §14.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/origination_test.go#L426" title="internal/plugins/ospf/lsdb/origination_test.go" target="_blank" rel="noopener"><code>TestOSPFOriginateSelfReceivedHigherSeq</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_edges_test.go#L43" title="internal/plugins/ospf/lsdb/flooding_edges_test.go" target="_blank" rel="noopener"><code>TestOSPFSelfOriginatedNoLocalCopyFlush</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-16.1-1">RFC2328-16.1-1</code></td><td colspan="3"><span class="rfc-subject">In intra-area SPF, include a transit-vertex link only if the neighbor LSA exists, is not MaxAge, and has a link back to the current vertex (two-way check) (§16.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>16.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-16.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/spf_test.go#L13" title="internal/plugins/ospf/spf/spf_test.go" target="_blank" rel="noopener"><code>TestOSPFSPFShortestPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/spf_test.go#L31" title="internal/plugins/ospf/spf/spf_test.go" target="_blank" rel="noopener"><code>TestOSPFTwoWayCheck</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-16.4-1">RFC2328-16.4-1</code></td><td colspan="3"><span class="rfc-subject">Prefer intra-area and inter-area paths over AS-external paths; prefer Type 1 external over Type 2; among Type 2 prefer the smallest type-2 metric (§16.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>16.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-16.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/route_test.go#L8" title="internal/plugins/ospf/spf/route_test.go" target="_blank" rel="noopener"><code>TestOSPFRouteTablePreference</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_test.go#L83" title="internal/plugins/ospf/spf/external_test.go" target="_blank" rel="noopener"><code>TestOSPFExternalE1PreferredOverE2</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-16.2-1">RFC2328-16.2-1</code></td><td colspan="3"><span class="rfc-subject">As an ABR, examine only backbone summary-LSAs when computing inter-area routes (§16.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>16.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-16.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L43" title="internal/plugins/ospf/spf/interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFInterAreaRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L74" title="internal/plugins/ospf/spf/interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFABRBackboneOnlyAcceptance</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-16.2-2">RFC2328-16.2-2</code></td><td colspan="3"><span class="rfc-subject">Skip a summary-LSA or AS-external-LSA whose cost is LSInfinity, whose LS age is MaxAge, or that is self-originated, during the routing calculation (§16.2, §16.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>16.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-16.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L44" title="internal/plugins/ospf/spf/interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFInterAreaRoute</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_test.go#L61" title="internal/plugins/ospf/spf/external_test.go" target="_blank" rel="noopener"><code>TestOSPFExternalLSInfinityDropped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L137" title="internal/plugins/ospf/spf/interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFInterAreaLSInfinityDropped</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L43" title="internal/plugins/ospf/spf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328ExternalSkipsMaxAgeAndSelf</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L20" title="internal/plugins/ospf/spf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-d.2-1">RFC2328-D.2-1</code></td><td colspan="3"><span class="rfc-subject">Discard a packet whose Simple-password (AuType 1) authentication field does not match the configured 64-bit password (§D.2, §D.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>D.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-D.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L94" title="internal/plugins/ospf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328SimplePasswordMismatchDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L98" title="internal/plugins/ospf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328SimplePasswordMismatchDiscarded</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-d.3-1">RFC2328-D.3-1</code></td><td colspan="3"><span class="rfc-subject">For Cryptographic auth (AuType 2), set the header checksum to 0, append the message digest (16 bytes for MD5), and exclude the digest from the OSPF header packet length while including it in the IP length (§D.3, §D.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>D.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-D.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L46" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L214" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-d.3-2">RFC2328-D.3-2</code></td><td colspan="3"><span class="rfc-subject">Treat the crypto sequence number as non-decreasing, reset it to 0 when the neighbor goes Down, and set it to a received packet&#39;s value when accepted as authentic (§D.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>D.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-D.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L198" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestNeighborDownResetsCryptoSeq</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L111" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L112" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-a.3.3-1">RFC2328-A.3.3-1</code></td><td colspan="3"><span class="rfc-subject">Set Interface MTU to 0 in Database Description packets sent over virtual links (§A.3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>A.3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-A.3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L32" title="internal/plugins/ospf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualInterfaceHasNoMTU</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L58" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualLinkDBDescCarriesZeroMTU</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L63" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualLinkDBDescCarriesZeroMTU</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-10.1-1">RFC2328-10.1-1</code></td><td colspan="3"><span class="rfc-subject">Allow only one Database Description packet outstanding per adjacency at a time (§10.1, §10.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>10.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-10.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L363" title="internal/plugins/ospf/neighbor/nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFDDRetransmit</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L431" title="internal/plugins/ospf/neighbor/nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFDuplicateDD</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-10.2-1">RFC2328-10.2-1</code></td><td colspan="3"><span class="rfc-subject">Generate the BadLSReq event and restart the Database Exchange when an LS Request names an LSA not in the database (§10.2, §13)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>10.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-10.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L566" title="internal/plugins/ospf/neighbor/nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFBadLSReqRestart</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L721" title="internal/plugins/ospf/neighbor/nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFValidLSReqSendsLSUpdate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L121" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328KnownLSRequestDoesNotRestartExchange</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-c.3-1">RFC2328-C.3-1</code></td><td colspan="3"><span class="rfc-subject">Use a positive Interface output cost (greater than 0) (§C.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>C.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-C.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_interface_validate_test.go#L16" title="internal/plugins/ospf/config_interface_validate_test.go" target="_blank" rel="noopener"><code>TestInterfaceCostAndTransmitDelayBoundary</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_interface_validate_test.go#L17" title="internal/plugins/ospf/config_interface_validate_test.go" target="_blank" rel="noopener"><code>TestInterfaceCostAndTransmitDelayBoundary</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-a.2-1">RFC2328-A.2-1</code></td><td colspan="3"><span class="rfc-subject">Reset (clear) unrecognized Options bits when sending Hellos / DD packets and when originating LSAs (§A.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>A.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-A.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-a.2-2">RFC2328-A.2-2</code></td><td colspan="3"><span class="rfc-subject">Ignore unrecognized Options bits on receipt and process the packet/LSA normally (§A.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>A.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-A.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-9.5-1">RFC2328-9.5-1</code></td><td colspan="3"><span class="rfc-subject">Set the E-bit in Hello Options iff the attached area can process AS-external-LSAs (not a stub); a mismatch causes Hello rejection (§9.5, §10.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>9.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-9.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-c.1-1">RFC2328-C.1-1</code></td><td colspan="3"><span class="rfc-subject">Keep RFC1583Compatibility set identically on all routers; &#34;disabled&#34; (the 16.4.1 rules) when no un-updated routers are present (§C.1, §16.4.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>C.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-C.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-b-1">RFC2328-B-1</code></td><td colspan="3"><span class="rfc-subject">Refresh a self-originated LSA when its LS age reaches LSRefreshTime (30 minutes) (§B, §12)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>B</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-B-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-14-3">RFC2328-14-3</code></td><td colspan="3"><span class="rfc-subject">Restart the router (at least) on detecting an LS checksum failure during database aging at a CheckAge multiple (§14, §12.1.7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>14</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-14-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-14.1-1">RFC2328-14.1-1</code></td><td colspan="3"><span class="rfc-subject">Flush a self-originated AS-external-LSA via premature aging rather than re-originating with metric LSInfinity when the route becomes unreachable (§14.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>14.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-14.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13.5-2">RFC2328-13.5-2</code></td><td colspan="3"><span class="rfc-subject">Keep delayed-acknowledgment intervals shorter than RxmtInterval to avoid needless retransmissions (§13.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>13.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-c.3-2">RFC2328-C.3-2</code></td><td colspan="3"><span class="rfc-subject">Make RouterDeadInterval some multiple of HelloInterval (e.g. 4) (§C.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>C.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-C.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-a.4.5-1">RFC2328-A.4.5-1</code></td><td colspan="3"><span class="rfc-subject">Set the Forwarding address in an AS-external-LSA to 0.0.0.0 to direct traffic to the originating ASBR (§A.4.5, §16.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>A.4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-A.4.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-16.1-2">RFC2328-16.1-2</code></td><td colspan="3"><span class="rfc-subject">Use a more efficient SPF algorithm (e.g. incremental SPF) provided it produces an identical shortest-path tree (§16.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>16.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-16.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-15-1">RFC2328-15-1</code></td><td colspan="3"><span class="rfc-subject">Configure virtual links through non-backbone (non-stub) Transit areas to repair backbone connectivity (§15)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>15</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-15-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-d.3-3">RFC2328-D.3-3</code></td><td colspan="3"><span class="rfc-subject">Configure multiple Cryptographic auth keys per interface with KeyStart/KeyStop time constants for smooth rollover (§D.3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>D.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-D.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc2328-13.3-2"><code>RFC2328-13.3-2</code></a> Increment an LSA&#39;s LS age by InfTransDelay (which MUST be &gt; 0) when copying it into an outgoing Link State Update, capped at MaxAge (§13.3, §13.6, §14)</td>
+<td>{gap}, no test</td>
+<td>the InfTransDelay bump is applied on the retransmit path (RetransmitTick, lsdb/flooding.go:545) and on a direct database-copy reply (sendDirectLSUpdate, lsdb/flooding.go:745; sendDirectLinkLSUpdate, lsdb/link_scope.go:349), but NOT on the normal flood: floodExcept builds the outgoing copy with `entry.LSA(d.now())` (lsdb/flooding.go:351), and Entry.LSA calls `e.Raw(now, 0)` with transmitDelay 0 (lsdb/entry.go:62-68, 75-85), so the first flooded copy carries the unincremented LS age. The MaxAge cap itself is present wherever the bump is applied (LSAge.Add, types/lsage.go:54-63). Disclosed in docs/features/rfc-status.md RFC 2328 row</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc2328-a.3.1-1"><code>RFC2328-A.3.1-1</code></a></h3>
+<p>All OSPF packets begin with the standard 24-byte header; Version # MUST be 2 (§A.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/header_test.go#L153" title="internal/plugins/ospf/packet/header_test.go" target="_blank" rel="noopener"><code>TestOSPFHeaderRejectsBadVersionAndLength</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/header_test.go#L131" title="internal/plugins/ospf/packet/header_test.go" target="_blank" rel="noopener"><code>TestOSPFHeaderRoundTrip</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-a.3.1-2"><code>RFC2328-A.3.1-2</code></a></h3>
+<p>Compute the packet header IP checksum over the whole packet excluding the 64-bit authentication field (§A.3.1, §D.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/header_test.go#L100" title="internal/plugins/ospf/packet/header_test.go" target="_blank" rel="noopener"><code>TestPacketVerifyChecksum</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L32" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFPacketChecksumExcludesAuth</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-12.1.7-1"><code>RFC2328-12.1.7-1</code></a></h3>
+<p>Compute the LS (Fletcher) checksum over the complete LSA excluding the LS age field; the LS checksum MUST NOT be zero (calculation is not optional) (§12.1.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_test.go#L10" title="internal/plugins/ospf/packet/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328ZeroLSChecksumRejected</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L75" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksum</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L102" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksumExcludesAge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-13-1"><code>RFC2328-13-1</code></a></h3>
+<p>In the flooding procedure, discard an LSA with an invalid LS checksum and discard an LSA of unknown LS type (only types 1-5 are defined) (§13)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L17" title="internal/plugins/ospf/lsdb/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328BadLSChecksumDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/packet_body_test.go#L145" title="internal/plugins/ospf/packet/packet_body_test.go" target="_blank" rel="noopener"><code>TestDecodeLSReqRejectsMalformed</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L30" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFFloodOutOtherInterfaces</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-13-2"><code>RFC2328-13-2</code></a></h3>
+<p>Flood AS-external (Type 5) LSAs into or throughout a stub area (§13, §3.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L247" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFStubAreaDropsType5</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/area_type_test.go#L15" title="internal/plugins/ospf/lsdb/area_type_test.go" target="_blank" rel="noopener"><code>TestOSPFStubFloodFilter</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-13-3"><code>RFC2328-13-3</code></a></h3>
+<p>Drop a Link State Update / Acknowledgment from a neighbor in a state lesser than Exchange (§13, §13.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L20" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328FloodingRequiresExchangeOrHigher</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L17" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328FloodingRequiresExchangeOrHigher</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-13.1-1"><code>RFC2328-13.1-1</code></a></h3>
+<p>Determine the more recent of two LSA instances using LS sequence number, then larger LS checksum, then MaxAge, then younger LS age beyond MaxAgeDiff (§13.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L50" title="internal/plugins/ospf/lsdb/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328OlderInstanceGetsDatabaseCopyBack</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/lsdb_test.go#L126" title="internal/plugins/ospf/lsdb/lsdb_test.go" target="_blank" rel="noopener"><code>TestOSPFFreshnessCompareMatrix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-13-4"><code>RFC2328-13-4</code></a></h3>
+<p>If the database copy is MaxAge with LS sequence number MaxSequenceNumber, discard a received older instance without acknowledging (§13, step 8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L53" title="internal/plugins/ospf/lsdb/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328OlderInstanceGetsDatabaseCopyBack</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_edges_test.go#L19" title="internal/plugins/ospf/lsdb/flooding_edges_test.go" target="_blank" rel="noopener"><code>TestOSPFMaxSeqMaxAgeSilentDiscard</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-13.3-1"><code>RFC2328-13.3-1</code></a></h3>
+<p>Add an LSA flooded out an adjacency to that adjacency&#39;s Link state retransmission list and retransmit at RxmtInterval until acknowledged (§13.3, §13.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L57" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFFloodQueuesExchangeAndLoadingNeighbors</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L31" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFFloodOutOtherInterfaces</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L129" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFRetransmitTimer</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-13.3-2"><code>RFC2328-13.3-2</code></a></h3>
+<p>Increment an LSA&#39;s LS age by InfTransDelay (which MUST be &gt; 0) when copying it into an outgoing Link State Update, capped at MaxAge (§13.3, §13.6, §14)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-13.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-14-1"><code>RFC2328-14-1</code></a></h3>
+<p>Never increment an LSA&#39;s LS age past MaxAge, and exclude MaxAge LSAs from the routing-table calculation (§14)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/graph_test.go#L40" title="internal/plugins/ospf/spf/graph_test.go" target="_blank" rel="noopener"><code>TestOSPFGraphSkipsMaxAge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/aging_test.go#L34" title="internal/plugins/ospf/lsdb/aging_test.go" target="_blank" rel="noopener"><code>TestOSPFLSDBAgeToPurge</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/lsage_test.go#L39" title="internal/plugins/ospf/types/lsage_test.go" target="_blank" rel="noopener"><code>TestLSAgeAddSaturates</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-14-2"><code>RFC2328-14-2</code></a></h3>
+<p>Remove a MaxAge LSA from the database only once it is on no neighbor retransmission list and no neighbor is in Exchange or Loading (§14)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L383" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFPurgeRetainedForExchangeOrLoading</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L332" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFASExternalPurgeRetainedAcrossAreas</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-13.5-1"><code>RFC2328-13.5-1</code></a></h3>
+<p>Acknowledge every newly received LSA (directly or implicitly per Table 19) (§13.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_edges_test.go#L80" title="internal/plugins/ospf/lsdb/flooding_edges_test.go" target="_blank" rel="noopener"><code>TestOSPFDRRefloodsBackOutReceivingInterface</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L93" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFAckDecisionTable</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_test.go#L360" title="internal/plugins/ospf/lsdb/flooding_test.go" target="_blank" rel="noopener"><code>TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-13.4-1"><code>RFC2328-13.4-1</code></a></h3>
+<p>Detect self-originated LSAs by Advertising Router == own Router ID, or network-LSA Link State ID == own interface address, and re-originate or flush via premature aging (§13.4, §14.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding_edges_test.go#L43" title="internal/plugins/ospf/lsdb/flooding_edges_test.go" target="_blank" rel="noopener"><code>TestOSPFSelfOriginatedNoLocalCopyFlush</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/origination_test.go#L426" title="internal/plugins/ospf/lsdb/origination_test.go" target="_blank" rel="noopener"><code>TestOSPFOriginateSelfReceivedHigherSeq</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-16.1-1"><code>RFC2328-16.1-1</code></a></h3>
+<p>In intra-area SPF, include a transit-vertex link only if the neighbor LSA exists, is not MaxAge, and has a link back to the current vertex (two-way check) (§16.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/spf_test.go#L31" title="internal/plugins/ospf/spf/spf_test.go" target="_blank" rel="noopener"><code>TestOSPFTwoWayCheck</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/spf_test.go#L13" title="internal/plugins/ospf/spf/spf_test.go" target="_blank" rel="noopener"><code>TestOSPFSPFShortestPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-16.4-1"><code>RFC2328-16.4-1</code></a></h3>
+<p>Prefer intra-area and inter-area paths over AS-external paths; prefer Type 1 external over Type 2; among Type 2 prefer the smallest type-2 metric (§16.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_test.go#L83" title="internal/plugins/ospf/spf/external_test.go" target="_blank" rel="noopener"><code>TestOSPFExternalE1PreferredOverE2</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/route_test.go#L8" title="internal/plugins/ospf/spf/route_test.go" target="_blank" rel="noopener"><code>TestOSPFRouteTablePreference</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-16.2-1"><code>RFC2328-16.2-1</code></a></h3>
+<p>As an ABR, examine only backbone summary-LSAs when computing inter-area routes (§16.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L74" title="internal/plugins/ospf/spf/interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFABRBackboneOnlyAcceptance</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L43" title="internal/plugins/ospf/spf/interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFInterAreaRoute</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-16.2-2"><code>RFC2328-16.2-2</code></a></h3>
+<p>Skip a summary-LSA or AS-external-LSA whose cost is LSInfinity, whose LS age is MaxAge, or that is self-originated, during the routing calculation (§16.2, §16.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/external_test.go#L61" title="internal/plugins/ospf/spf/external_test.go" target="_blank" rel="noopener"><code>TestOSPFExternalLSInfinityDropped</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L137" title="internal/plugins/ospf/spf/interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFInterAreaLSInfinityDropped</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L43" title="internal/plugins/ospf/spf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328ExternalSkipsMaxAgeAndSelf</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L20" title="internal/plugins/ospf/spf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328InterAreaSkipsMaxAgeAndSelfSummary</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/interarea_test.go#L44" title="internal/plugins/ospf/spf/interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFInterAreaRoute</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-d.2-1"><code>RFC2328-D.2-1</code></a></h3>
+<p>Discard a packet whose Simple-password (AuType 1) authentication field does not match the configured 64-bit password (§D.2, §D.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L98" title="internal/plugins/ospf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328SimplePasswordMismatchDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L94" title="internal/plugins/ospf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328SimplePasswordMismatchDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-d.3-1"><code>RFC2328-D.3-1</code></a></h3>
+<p>For Cryptographic auth (AuType 2), set the header checksum to 0, append the message digest (16 bytes for MD5), and exclude the digest from the OSPF header packet length while including it in the IP length (§D.3, §D.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L214" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L46" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthSignVerifyCrypto</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-d.3-2"><code>RFC2328-D.3-2</code></a></h3>
+<p>Treat the crypto sequence number as non-decreasing, reset it to 0 when the neighbor goes Down, and set it to a received packet&#39;s value when accepted as authentic (§D.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L112" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L198" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestNeighborDownResetsCryptoSeq</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L111" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-a.3.3-1"><code>RFC2328-A.3.3-1</code></a></h3>
+<p>Set Interface MTU to 0 in Database Description packets sent over virtual links (§A.3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L63" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualLinkDBDescCarriesZeroMTU</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L58" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualLinkDBDescCarriesZeroMTU</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L32" title="internal/plugins/ospf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualInterfaceHasNoMTU</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-10.1-1"><code>RFC2328-10.1-1</code></a></h3>
+<p>Allow only one Database Description packet outstanding per adjacency at a time (§10.1, §10.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L431" title="internal/plugins/ospf/neighbor/nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFDuplicateDD</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L363" title="internal/plugins/ospf/neighbor/nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFDDRetransmit</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-10.2-1"><code>RFC2328-10.2-1</code></a></h3>
+<p>Generate the BadLSReq event and restart the Database Exchange when an LS Request names an LSA not in the database (§10.2, §13)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L721" title="internal/plugins/ospf/neighbor/nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFValidLSReqSendsLSUpdate</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L121" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328KnownLSRequestDoesNotRestartExchange</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/nsm_test.go#L566" title="internal/plugins/ospf/neighbor/nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFBadLSReqRestart</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2328-c.3-1"><code>RFC2328-C.3-1</code></a></h3>
+<p>Use a positive Interface output cost (greater than 0) (§C.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_interface_validate_test.go#L17" title="internal/plugins/ospf/config_interface_validate_test.go" target="_blank" rel="noopener"><code>TestInterfaceCostAndTransmitDelayBoundary</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_interface_validate_test.go#L16" title="internal/plugins/ospf/config_interface_validate_test.go" target="_blank" rel="noopener"><code>TestInterfaceCostAndTransmitDelayBoundary</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 2328, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 2328, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

@@ -428,7 +428,66 @@ listener. It has no default: leaving it unset keeps the listener off, so an
 upgrade cannot expose a new RADIUS endpoint unexpectedly. Port 3799 is the
 standard deployment choice. Ze accepts CoA/DM requests only from addresses
 listed under <code>server</code>; the authentication and accounting destination port on
-each server is configured separately.</p>
+each server is configured separately. When no <code>server</code> address resolves to an IP
+the listener does not start at all, because there is then no dynamic
+authorization client to trust and the port would answer anybody.</p>
+<p>Ze answers a request only when every check below passes. A failed check either
+discards the packet without a reply, which is what RFC 5176 requires where a
+reply would confirm the shared secret to a sender that guessed wrong, or answers
+a NAK carrying an Error-Cause.</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Refused how</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source address is a configured <code>server</code></td>
+<td>Discarded</td>
+</tr>
+<tr>
+<td>Request Authenticator matches the shared secret for that source</td>
+<td>Discarded</td>
+</tr>
+<tr>
+<td>Code is CoA-Request or Disconnect-Request</td>
+<td>Discarded</td>
+</tr>
+<tr>
+<td>Message-Authenticator, when the request carries one, is correct</td>
+<td>Discarded</td>
+</tr>
+<tr>
+<td>Event-Timestamp is within 5 minutes</td>
+<td>Discarded when stale, NAK 404 when absent</td>
+</tr>
+<tr>
+<td>CoA-Request carries no Service-Type</td>
+<td>NAK 405</td>
+</tr>
+<tr>
+<td>Every attribute is one Ze supports</td>
+<td>NAK 401</td>
+</tr>
+<tr>
+<td>The identification attributes match exactly one session</td>
+<td>NAK 503 for none, NAK 508 for several</td>
+</tr>
+<tr>
+<td>The requested change reached the shaper</td>
+<td>NAK 506</td>
+</tr>
+</tbody>
+</table>
+<p>One of these is stricter than RFC 5176, deliberately. Section 6.3 makes the
+Event-Timestamp a SHOULD and lets an implementation be configurable about its
+absence; Ze refuses a request that omits it, because the port takes unsolicited
+packets that tear subscriber sessions down and without the attribute there is no
+replay protection.</p>
+<p>The response echoes the request's Proxy-State and State attributes unchanged,
+and Ze never reads their contents.</p>
 <p>RFC 5176 Section 3.4 makes the Message-Authenticator attribute optional, and Ze
 follows the RFC by default: a CoA-Request or Disconnect-Request that carries none
 is accepted, and one that carries a wrong value is discarded with no reply. The
@@ -449,7 +508,8 @@ octets of zero, and the Request Authenticator is computed afterwards, over the
 packet the finished Message-Authenticator is part of. A client that inverts the
 two is refused.</p>
 <!-- source: internal/component/l2tp/plugins/authradius/yang/ze-l2tp-auth-radius-conf.yang -- coa-port -->
-<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- source-address validation, handlePacket -->
+<!-- source: internal/component/l2tp/plugins/authradius/coa.go -- handlePacket, unsupportedAttr, oneSession -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- startCoAListener -->
 <!-- source: internal/component/radius/packet.go -- VerifyCoARequestAuth, VerifyCoAMessageAuthenticator -->
 <p>Authentication timing is controlled via the <code>authentication</code> container under <code>l2tp</code>:</p>
 <pre><code>l2tp {
@@ -972,7 +1032,7 @@ goroutine-per-tunnel.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 02:44 UTC</span>
                 </div>
             </div>
         </footer>

@@ -25,7 +25,7 @@
     "core_experimental": 52,
     "planned": 4
   },
-  "generated_at": "2026-08-31",
+  "generated_at": "2026-09-01",
   "github_stars": 50,
   "interop": {
     "scenario_dirs_raw": 132,
@@ -34,35 +34,35 @@
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-08-31T20:38:46Z",
+  "published_at": "2026-09-01T21:43:15Z",
   "repo": {
-    "design_comments": 4447,
+    "design_comments": 4462,
     "design_comments_display": "4,400+",
-    "detail_comments": 4013,
+    "detail_comments": 4037,
     "detail_comments_display": "4,000+",
     "go_packages": 759,
     "go_packages_display": "750+"
   },
   "rfc": {
-    "enrolled": 172,
-    "enrolled_display": "172",
-    "gated_must": 3037,
-    "gated_must_display": "3,037",
-    "must": 3132,
-    "must_display": "3,132",
-    "requirements": 4818,
-    "requirements_display": "4,818",
-    "summaries": 179,
-    "summaries_display": "179"
+    "enrolled": 181,
+    "enrolled_display": "181",
+    "gated_must": 3264,
+    "gated_must_display": "3,264",
+    "must": 3540,
+    "must_display": "3,540",
+    "requirements": 5384,
+    "requirements_display": "5,384",
+    "summaries": 192,
+    "summaries_display": "192"
   },
   "tests": {
-    "e2e": 1800,
-    "e2e_display": "1,800",
+    "e2e": 1807,
+    "e2e_display": "1,800+",
     "editor": 166,
     "editor_display": "160+",
     "fuzz": 79,
     "fuzz_display": "79",
-    "unit": 26960,
-    "unit_display": "26,900+"
+    "unit": 27276,
+    "unit_display": "27,200+"
   }
 }

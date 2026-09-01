@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 8092 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 8092: BGP Large Communities Attribute. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 8092 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 8092: BGP Large Communities Attribute. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 8092 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 8092: BGP Large Communities Attribute. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc8092/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc8092/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 8092 - BGP Large Communities Attribute</h1>
+    <p>Every requirement this repository extracted from RFC 8092, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>57.1%</strong><b>4 of 7 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>42.9%</strong><b>3 of 7 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 7 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 7 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 11 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>7</strong><b>of 11 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 7 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 7 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>11</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>7</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>7</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>11</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>11</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc8092.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc8092.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc8092.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: BGP Large Communities: seven MUST-level requirements over the LARGE_COMMUNITY codec (internal/core/bgp/attribute/community.go) and its RFC 7606 validator (internal/component/bgp/message/rfc7606.go:620). Both polarities: RFC8092-3-1 (duplicates not transmitted) via WriteTo/unique, RFC8092-3-2 (receiver silently removes redundant) via ParseLargeCommunities/deduplicate, RFC8092-6-2 (malformed if length not a non-zero multiple of 12) and RFC8092-6-4 (malformed -&gt; treat-as-withdraw) via validateLargeCommunityAttr driven from ValidateUpdateRFC7606. Three {single-polarity: positive}: RFC8092-5-1 (canonical, no leading zeros) since strconv.AppendUint never emits them; RFC8092-6-1 (reserved ASN not malformed) since the validator inspects length only; RFC8092-6-3 (duplicates not malformed) since the parser deduplicates rather than rejecting. The 3-3/5-2/4-1 SHOULDs and 3-4 NOT RECOMMENDED are not gated.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<p><strong>What the ledger says is covered:</strong></p>
+LARGE_COMMUNITY parsing, validation, duplicate removal, JSON, and RFC 7606 length checks.
+<p><strong>What the ledger says remains:</strong></p>
+No tracked gap in current source anchors.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>4</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>3</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>7</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc8092-3-1"><code>RFC8092-3-1</code></a>, <a href="#rfc8092-3-2"><code>RFC8092-3-2</code></a>, <a href="#rfc8092-6-2"><code>RFC8092-6-2</code></a>, <a href="#rfc8092-6-4"><code>RFC8092-6-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc8092-5-1"><code>RFC8092-5-1</code></a>, <a href="#rfc8092-6-1"><code>RFC8092-6-1</code></a>, <a href="#rfc8092-6-3"><code>RFC8092-6-3</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-3-1">RFC8092-3-1</code></td><td colspan="3"><span class="rfc-subject">Duplicate BGP Large Community values must not be transmitted (Section 3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3 - BGP Large Communities Attribute</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L430" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesWriteToNoDuplicates</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L221" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunities</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-3-2">RFC8092-3-2</code></td><td colspan="3"><span class="rfc-subject">A receiving speaker must silently remove redundant BGP Large Community values (Section 3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3 - BGP Large Communities Attribute</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L403" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesDeduplication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L245" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesParse</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-5-1">RFC8092-5-1</code></td><td colspan="3"><span class="rfc-subject">Canonical representation numbers must not contain leading zeros; zero must be represented as a single &#34;0&#34; (Section 5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5 - Canonical Representation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/text_append_test.go#L39" title="internal/core/bgp/attribute/text_append_test.go" target="_blank" rel="noopener"><code>TestAppendText_LargeCommunityElement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the canonical rendering LargeCommunity.AppendText (internal/core/bgp/attribute/community.go:316) uses strconv.AppendUint, which never emits leading zeros and renders 0 as a single &#34;0&#34;, so every value is canonical and there is no non-canonical rendering to assert as a negative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-6-1">RFC8092-6-1</code></td><td colspan="3"><span class="rfc-subject">BGP Large Communities attribute must not be considered malformed if Global Administrator contains an unallocated, unassigned, or reserved ASN (Section 6)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6 - Error Handling</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L41" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the malformed check validateLargeCommunityAttr (internal/component/bgp/message/rfc7606.go:620) inspects the attribute length only and never the Global Administrator value, so a reserved or unallocated ASN is never treated as malformed and there is no ASN-based rejection to assert as a negative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-6-2">RFC8092-6-2</code></td><td colspan="3"><span class="rfc-subject">Attribute shall be considered malformed if length is not a non-zero multiple of 12 octets (Section 6)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>6 - Error Handling</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L17" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityMalformedLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L37" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-6-3">RFC8092-6-3</code></td><td colspan="3"><span class="rfc-subject">Attribute shall not be considered malformed due to presence of duplicate Large Community values (Section 6)</span></td></tr>
+<tr><td></td>
+<td>SHALL NOT</td>
+<td>6 - Error Handling</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-6-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L406" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesDeduplication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ParseLargeCommunities silently deduplicates and returns no error on duplicates (internal/core/bgp/attribute/community.go:422), and validateLargeCommunityAttr checks only length, so a duplicate is never treated as malformed and there is no duplicate-based rejection to assert as a negative</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-6-4">RFC8092-6-4</code></td><td colspan="3"><span class="rfc-subject">A BGP UPDATE with malformed BGP Large Communities attribute shall be handled using &#34;treat-as-withdraw&#34; per RFC 7606 (Section 6)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>6 - Error Handling</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-6-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L19" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityMalformedLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L39" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-3-3">RFC8092-3-3</code></td><td colspan="3"><span class="rfc-subject">Global Administrator field should be an ASN (Section 3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3 - BGP Large Communities Attribute</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-5-2">RFC8092-5-2</code></td><td colspan="3"><span class="rfc-subject">BGP Large Communities should be represented in the canonical representation (Section 5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5 - Canonical Representation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-4-1">RFC8092-4-1</code></td><td colspan="3"><span class="rfc-subject">Aggregated routes should contain the union of all BGP Large Communities from all aggregated routes (Section 4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4 - Aggregation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8092-3-4">RFC8092-3-4</code></td><td colspan="3"><span class="rfc-subject">Use of reserved ASNs (0, 65535, 4294967295) in Global Administrator is not recommended (Section 3)</span></td></tr>
+<tr><td></td>
+<td>NOT RECOMMENDED</td>
+<td>3 - BGP Large Communities Attribute</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8092-3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<p>RFC 8092 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc8092-3-1"><code>RFC8092-3-1</code></a></h3>
+<p>Duplicate BGP Large Community values must not be transmitted (Section 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L221" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunities</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L430" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesWriteToNoDuplicates</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8092-3-2"><code>RFC8092-3-2</code></a></h3>
+<p>A receiving speaker must silently remove redundant BGP Large Community values (Section 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L245" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesParse</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L403" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesDeduplication</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8092-5-1"><code>RFC8092-5-1</code></a></h3>
+<p>Canonical representation numbers must not contain leading zeros; zero must be represented as a single &#34;0&#34; (Section 5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/text_append_test.go#L39" title="internal/core/bgp/attribute/text_append_test.go" target="_blank" rel="noopener"><code>TestAppendText_LargeCommunityElement</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8092-6-1"><code>RFC8092-6-1</code></a></h3>
+<p>BGP Large Communities attribute must not be considered malformed if Global Administrator contains an unallocated, unassigned, or reserved ASN (Section 6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L41" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8092-6-2"><code>RFC8092-6-2</code></a></h3>
+<p>Attribute shall be considered malformed if length is not a non-zero multiple of 12 octets (Section 6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L37" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L17" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityMalformedLength</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8092-6-3"><code>RFC8092-6-3</code></a></h3>
+<p>Attribute shall not be considered malformed due to presence of duplicate Large Community values (Section 6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L406" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesDeduplication</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8092-6-4"><code>RFC8092-6-4</code></a></h3>
+<p>A BGP UPDATE with malformed BGP Large Communities attribute shall be handled using &#34;treat-as-withdraw&#34; per RFC 7606 (Section 6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L39" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L19" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityMalformedLength</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6 phase 5, rfc8092</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc8092.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>e374b17f52bc7261</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc8092.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>7</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>0</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates the Introduction: the attribute is an extension to BGP-4 that signals opaque information within separate namespaces, and it suits all ASNs including four-octet ASNs. The Copyright Notice&#39;s lowercase &#39;Code Components extracted from this document must include Simplified BSD License text&#39; binds whoever reuses the document&#39;s code components, not a BGP speaker.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Indicative throughout: network operators attach communities to routes, an RFC 1997 community is a four-octet value whose halves are read as a two-octet ASN and a locally defined value, four-octet ASNs (RFC 6793) no longer fit that encoding, and the six-octet RFC 4360 Extended Community value cannot hold a four-octet ASN in both the Global Administrator and the Local Administrator sub-fields. The closing paragraph states what this document defines: an unordered set of one or more twelve-octet values, each a four-octet Global Administrator and two four-octet operator-defined fields. No sentence directs a speaker.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>Requirements Language</td>
+<td>0</td>
+<td>walked</td>
+<td>Requirements Language. The RFC 2119 key-words paragraph, which tells a reader how to read the other sections and binds no speaker; the derivation excludes it from the site inventory. It is the RFC 2119 form alone: unlike a post-RFC 8174 document it does not add the &#39;only when, and in all capitals&#39; sentence, so this walk reads a lowercase modal elsewhere in the document on its own merits rather than as a key word.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>BGP Large Communities Attribute</td>
+<td>2</td>
+<td>walked</td>
+<td>BGP Large Communities Attribute. Two MUST-level sites, 3:1 and 3:2, the transmit and receive halves of the duplicate rule, both mapped below. The rest of the section is definitional or advisory. Definitional: the attribute is an optional transitive path attribute of variable length, all routes carrying it belong to the communities it specifies, each value is a 12-octet quantity laid out as a four-octet Global Administrator followed by Local Data Part 1 and Local Data Part 2, and &#39;There is no significance to the order in which twelve-octet Large Community Attribute values are encoded&#39;. Those are indicative statements carried by the Wire Formats and Encoding Rules of rfc/short/rfc8092.md; none is written as an obligation, so none earns a checklist row. Advisory: &#39;This field SHOULD be an ASN&#39; and &#39;The use of Reserved ASNs (0 [RFC7607], 65535 and 4294967295 [RFC7300]) is NOT RECOMMENDED&#39;. Both carry capitalised keywords that are not MUST-level, so the rfc2119 site inventory does not count them; they are declared RFC8092-3-3 and RFC8092-3-4 and are listed unsourced here.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Aggregation</td>
+<td>0</td>
+<td>walked</td>
+<td>Aggregation. One sentence, and its modal is lowercase: &#39;If a range of routes is aggregated, then the resulting aggregate should have a BGP Large Communities attribute that contains all of the BGP Large Communities attributes from all of the aggregated routes.&#39; Under the rfc2119 register the site scan counts capitalised MUST-level keywords only, so it sees nothing here. The summary declares the sentence as the advisory row RFC8092-4-1, listed unsourced below.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Canonical Representation</td>
+<td>1</td>
+<td>walked</td>
+<td>Canonical Representation. Defines the three-decimal colon form, in the order Global Administrator, Local Data 1, Local Data 2, and gives 64496:4294967295:2 and 64496:0:0 as examples. Its one MUST-level site is 5:1, mapped below. The closing &#39;BGP Large Communities SHOULD be represented in the canonical representation&#39; is a capitalised advisory keyword rather than a MUST-level one, so the site scan does not count it; it is declared RFC8092-5-2 and listed unsourced here.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>Error Handling</td>
+<td>4</td>
+<td>walked</td>
+<td>Error Handling. The densest section of the document and the only one whose every sentence is normative: three bulleted SHALL-level rules and a closing MUST NOT. All four are sites, 6:1 through 6:4, and all four are mapped below to the four rows the summary declares from this section. The section carries no other sentence beyond its one-line lead-in, &#39;The error handling of BGP Large Communities is as follows&#39;.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. No capitalised keyword and no site. Its one strong modal is lowercase and binds a trust model rather than a speaker: &#39;an AS relying on the BGP Large Communities attribute carried in BGP must have trust in every other AS in the path, as any intermediate AS in the path may have added, deleted, or altered the BGP Large Communities attribute&#39;, and the next sentence puts the mechanism providing that trust beyond the document&#39;s scope. The remainder is advice to operators: the attribute does not protect the integrity of a community value, a speaker can alter values in an UPDATE, securing that is the broader BGP security problem, and administrators are pointed at Section 11 of RFC 7454. Nothing here directs encoding, decoding or propagation, so there is nothing for a daemon to implement.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>IANA Considerations. One indicative sentence: &#39;IANA has assigned the value 32 (LARGE_COMMUNITY) in the &#34;BGP Path Attributes&#34; subregistry under the &#34;Border Gateway Protocol (BGP) Parameters&#34; registry.&#39; Walked rather than skipped under the iana kind because it records an assignment already made, which Ze depends on to encode and recognise the attribute, rather than an action left for the registry to take. The value is carried by the Constants table of rfc/short/rfc8092.md. No obligation, so no id is read from here.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References. The heading alone; its two subsections carry the entries.</td>
+</tr>
+<tr><td><code>9.1</code></td>
+<td>Normative References: RFC 2119, RFC 4271, RFC 7606</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: RFC 2119, RFC 4271, RFC 7606.</td>
+</tr>
+<tr><td><code>9.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative References: RFC 1997, RFC 4360, RFC 6793, RFC 7300, RFC 7454, RFC 7607. The derived section span runs to the end of the document, so it also holds Acknowledgments, Contributors and Authors&#39; Addresses. No sentence in the span states an obligation on a BGP speaker.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<p>The walk over RFC 8092 declined no sentence: every site it found is mapped to a requirement.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 8092, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

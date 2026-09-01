@@ -1,0 +1,2511 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 5798 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 55 gated MUST-level requirements, 0 declared gaps, 55 with no test." />
+        <meta property="og:title" content="RFC 5798 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 55 gated MUST-level requirements, 0 declared gaps, 55 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 5798 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 5798: Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6. 55 gated MUST-level requirements, 0 declared gaps, 55 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc5798/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc5798/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 5798 - Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6</h1>
+    <p>Every requirement this repository extracted from RFC 5798, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 55 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 55 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 55 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>55</strong><b>of 80 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 55 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>55 of 55 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 55 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>80</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>55</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>55</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>55</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>0</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>0</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc5798.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc5798.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc5798.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: VRRP Version 3 for IPv4 and IPv6 (RFC 5798, obsoleted by RFC 9568): the VRRPv3 document ze actually speaks on the IPv4 wire. Every one of its 55 gated requirements carries a {superseded} marker naming where the obligation lives in RFC 9568, and 51 of them are restated there unchanged, so ze implements them through the same producers rfc/short/rfc9568.md gates: internal/plugins/vrrp/packet (advert encode/decode, checksum), internal/plugins/vrrp/fsm (Initialize/Backup/Master), internal/plugins/vrrp/transport (proto 112, GTSM, GARP/NA). The row that is NOT a restatement is RFC5798-5.2.8-1: Section 5.2.8 puts a pseudo-header under the checksum for both families, RFC 9568 Section 5.2.8 removes it for IPv4, and ze transmits this document form because keepalived and the pre-RFC-9568 base require it (pseudoSumV4Legacy and FillChecksum, internal/plugins/vrrp/packet/checksum.go). Enrolled 2026-08-31 with no requirement yet tagged under an RFC5798 id: the behaviour is proven under the RFC 9568 ids and the RFC5798 tags are owed.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>For IPv4, ze transmits the RFC 5798 pseudo-header checksum form, because that is what keepalived (proven on the wire: its own adverts use it) and the rest of the deployed base compute and require</li>
+<li>a message-only advert is rejected by them as &#34;Invalid VRRPv3 checksum&#34;. On receive, ze dual-accepts both this form and the RFC 9568 message-only form.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+<p>RFC 9568 Section 5.2.8 clarifies the IPv4 checksum as message-only (no pseudo-header); ze diverges from that clarification on transmit for interoperability, and counts message-only senders (<code>checksum-rfc9568-message-only</code>) so the strict-RFC-9568 population is visible. When that population dominates, the transmit form can be revisited.</p>
+<p class="rfc-prose"><strong>Enrolled 2026-09-01:</strong> <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc5798.md" target="_blank" rel="noopener"><code>rfc/short/rfc5798.md</code></a> declares 80 requirements, 55 of them MUST-level, and every one carries a <code>{superseded}</code> marker naming where RFC 9568 states it. No test carries an <code>RFC5798-</code> tag yet, so the behavior is proven under the RFC 9568 ids and the RFC 5798 ids are an open proof backlog <code>./le rfc check</code> names row by row. One RFC 5798 obligation is NOT a restatement: <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a> puts a pseudo-header under the checksum for both address families, which is the divergence this row describes. RFC 5798 Section 5.2.8 cites the pseudo-header &#34;as defined in Section 8.1 of [RFC2460]&#34;, an IPv6-only shape, so what ze and the deployed base compute for IPv4 is the classic IPv4 pseudo-header (<code>pseudoSumV4Legacy</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/checksum.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/checksum.go</code></a>) rather than the shape that sentence names.</p>
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>55</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>55</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>No test and no annotation (55):</strong> <a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a>, <a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a>, <a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a>, <a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a>, <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a>, <a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a>, <a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a>, <a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a>, <a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a>, <a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a>, <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a>, <a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a>, <a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a>, <a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a>, <a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a>, <a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a>, <a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a>, <a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a>, <a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a>, <a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a>, <a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a>, <a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a>, <a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a>, <a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a>, <a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a>, <a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a>, <a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a>, <a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a>, <a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a>, <a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a>, <a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a>, <a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a>, <a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a>, <a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a>, <a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a>, <a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a>, <a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a>, <a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a>, <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a>, <a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a>, <a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a>, <a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a>, <a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a>, <a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a>, <a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a>, <a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a>, <a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a>, <a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a>, <a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a>, <a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a>, <a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a>, <a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a>, <a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a>, <a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a>, <a href="#rfc5798-a.2-1"><code>RFC5798-A.2-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.1.1.2-1">RFC5798-5.1.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Never forward a datagram destined to 224.0.0.18, regardless of its TTL (§5.1.1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5.1.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.1.1.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.1.1.3-1">RFC5798-5.1.1.3-1</code></td><td colspan="3"><span class="rfc-subject">Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.1.1.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.1.1.3-2">RFC5798-5.1.1.3-2</code></td><td colspan="3"><span class="rfc-subject">Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.1.1.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.1.2.2-1">RFC5798-5.1.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5.1.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.1.2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.1.2.3-1">RFC5798-5.1.2.3-1</code></td><td colspan="3"><span class="rfc-subject">Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1.2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.1.2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.1.2.3-2">RFC5798-5.1.2.3-2</code></td><td colspan="3"><span class="rfc-subject">Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1.2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.1.2.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.2-1">RFC5798-5.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.4-1">RFC5798-5.2.4-1</code></td><td colspan="3"><span class="rfc-subject">Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.4-2">RFC5798-5.2.4-2</code></td><td colspan="3"><span class="rfc-subject">Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.6-1">RFC5798-5.2.6-1</code></td><td colspan="3"><span class="rfc-subject">Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.8-1">RFC5798-5.2.8-1</code></td><td colspan="3"><span class="rfc-subject">Compute and verify the checksum as the 16-bit one&#39;s complement of the one&#39;s complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.9-1">RFC5798-5.2.9-1</code></td><td colspan="3"><span class="rfc-subject">Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase &#34;must&#34; in the RFC)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-5.2.9-2">RFC5798-5.2.9-2</code></td><td colspan="3"><span class="rfc-subject">Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5.2.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-5.2.9-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.1-1">RFC5798-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-1">RFC5798-6.4.2-1</code></td><td colspan="3"><span class="rfc-subject">Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-2">RFC5798-6.4.2-2</code></td><td colspan="3"><span class="rfc-subject">Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-3">RFC5798-6.4.2-3</code></td><td colspan="3"><span class="rfc-subject">Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-4">RFC5798-6.4.2-4</code></td><td colspan="3"><span class="rfc-subject">Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-5">RFC5798-6.4.2-5</code></td><td colspan="3"><span class="rfc-subject">Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-6">RFC5798-6.4.2-6</code></td><td colspan="3"><span class="rfc-subject">Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-7">RFC5798-6.4.2-7</code></td><td colspan="3"><span class="rfc-subject">Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-8">RFC5798-6.4.2-8</code></td><td colspan="3"><span class="rfc-subject">Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-9">RFC5798-6.4.2-9</code></td><td colspan="3"><span class="rfc-subject">Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.2-10">RFC5798-6.4.2-10</code></td><td colspan="3"><span class="rfc-subject">Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.2-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-1">RFC5798-6.4.3-1</code></td><td colspan="3"><span class="rfc-subject">Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-2">RFC5798-6.4.3-2</code></td><td colspan="3"><span class="rfc-subject">Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-3">RFC5798-6.4.3-3</code></td><td colspan="3"><span class="rfc-subject">Master: respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.3, §8.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-4">RFC5798-6.4.3-4</code></td><td colspan="3"><span class="rfc-subject">Master: send ND Router Advertisements for the virtual router (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-5">RFC5798-6.4.3-5</code></td><td colspan="3"><span class="rfc-subject">Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-6">RFC5798-6.4.3-6</code></td><td colspan="3"><span class="rfc-subject">Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-7">RFC5798-6.4.3-7</code></td><td colspan="3"><span class="rfc-subject">Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-8">RFC5798-6.4.3-8</code></td><td colspan="3"><span class="rfc-subject">Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-9">RFC5798-6.4.3-9</code></td><td colspan="3"><span class="rfc-subject">Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-10">RFC5798-6.4.3-10</code></td><td colspan="3"><span class="rfc-subject">Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-11">RFC5798-6.4.3-11</code></td><td colspan="3"><span class="rfc-subject">Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-6.4.3-12">RFC5798-6.4.3-12</code></td><td colspan="3"><span class="rfc-subject">Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-6.4.3-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-1">RFC5798-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Rx: verify that the VRRP version is 3 (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-2">RFC5798-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-3">RFC5798-7.1-3</code></td><td colspan="3"><span class="rfc-subject">Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-4">RFC5798-7.1-4</code></td><td colspan="3"><span class="rfc-subject">Rx: discard the packet when any mandatory receive check fails (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.2-1">RFC5798-7.2-1</code></td><td colspan="3"><span class="rfc-subject">Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.2-2">RFC5798-7.2-2</code></td><td colspan="3"><span class="rfc-subject">Tx: set the source MAC address to the virtual router MAC address (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.2-3">RFC5798-7.2-3</code></td><td colspan="3"><span class="rfc-subject">Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.2-4">RFC5798-7.2-4</code></td><td colspan="3"><span class="rfc-subject">Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.4-1">RFC5798-7.4-1</code></td><td colspan="3"><span class="rfc-subject">Create the Interface Identifiers of an IPv6 router running VRRP in the normal manner, as in Transmission of IPv6 Packets over Ethernet Networks (§7.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.4-2">RFC5798-7.4-2</code></td><td colspan="3"><span class="rfc-subject">Never use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers (§7.4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>7.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.1.2-1">RFC5798-8.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Master: never respond to a host ARP request for a virtual router IPv4 address with its physical MAC address (§8.1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>8.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.1.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.1.3-1">RFC5798-8.1.3-1</code></td><td colspan="3"><span class="rfc-subject">Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase &#34;must&#34; in the RFC)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.1.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-1">RFC5798-8.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>8.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-2">RFC5798-8.2.2-2</code></td><td colspan="3"><span class="rfc-subject">Master: include the virtual router MAC address in the source link-layer address option of a Neighbor Solicitation it sends for a host&#39;s IPv6 address, when it sends that option (§8.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-3">RFC5798-8.2.2-3</code></td><td colspan="3"><span class="rfc-subject">Master: never use its physical MAC address in that source link-layer address option (§8.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>8.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-4">RFC5798-8.2.2-4</code></td><td colspan="3"><span class="rfc-subject">At system boot, delay every ND Router Advertisement, Neighbor Advertisement and Neighbor Solicitation until both the IPv6 address and the virtual router MAC address are configured (§8.2.2; lowercase &#34;must&#34; in the RFC)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.3-1">RFC5798-8.2.3-1</code></td><td colspan="3"><span class="rfc-subject">Configure Backup routers to send the same Router Advertisement options as the address owner (§8.2.3; lowercase &#34;must&#34; in the RFC)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.4.2-1">RFC5798-8.4.2-1</code></td><td colspan="3"><span class="rfc-subject">Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at the configured rate, even when it is sub-second (§8.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-a.2-1">RFC5798-A.2-1</code></td><td colspan="3"><span class="rfc-subject">Token Ring: implement the functional-address mode of operation when supporting VRRP on Token Ring (§A.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>A.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-A.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-5">RFC5798-7.1-5</code></td><td colspan="3"><span class="rfc-subject">Log the event when a mandatory receive check fails (§7.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-8">RFC5798-7.1-8</code></td><td colspan="3"><span class="rfc-subject">Log the event when the optional address-list check fails (§7.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.1.1-1">RFC5798-8.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Set the IPv4 source address of an ICMP redirect to the address the end-host used when making its next-hop routing decision (§8.1.1; lowercase &#34;should&#34; in the RFC)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.1.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.1.2-2">RFC5798-8.1.2-2</code></td><td colspan="3"><span class="rfc-subject">After a restart or boot, send no ARP message using the physical MAC address for an owned virtual IPv4 address (§8.1.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>8.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.1.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.1.2-3">RFC5798-8.1.2-3</code></td><td colspan="3"><span class="rfc-subject">When configuring an interface, broadcast a gratuitous ARP request carrying the virtual router MAC address for each IPv4 address on that interface (§8.1.2; lowercase &#34;should&#34; in the RFC)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.1.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.1.2-4">RFC5798-8.1.2-4</code></td><td colspan="3"><span class="rfc-subject">At system boot, delay gratuitous ARP requests and ARP responses until both the IPv4 address and the virtual router MAC address are configured (§8.1.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.1.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.1.2-5">RFC5798-8.1.2-5</code></td><td colspan="3"><span class="rfc-subject">Use an IP address known to belong to a particular router when direct access to that router is required, for example ssh (§8.1.2; lowercase &#34;must&#34; inside a SHOULD-level bullet list)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.1.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.1-1">RFC5798-8.2.1-1</code></td><td colspan="3"><span class="rfc-subject">Set the IPv6 source address of an ICMPv6 redirect to the address the end-host used when making its next-hop routing decision (§8.2.1; lowercase &#34;should&#34; in the RFC)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-5">RFC5798-8.2.2-5</code></td><td colspan="3"><span class="rfc-subject">After a restart or boot, send no ND message using the physical MAC address for an owned virtual IPv6 address (§8.2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>8.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-6">RFC5798-8.2.2-6</code></td><td colspan="3"><span class="rfc-subject">When configuring an interface, send an unsolicited ND Neighbor Advertisement carrying the virtual router MAC address for the IPv6 address on that interface (§8.2.2; lowercase &#34;should&#34; in the RFC)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.3-2">RFC5798-8.2.3-2</code></td><td colspan="3"><span class="rfc-subject">Send Router Advertisement options that advertise special services from the address owner unless the Backup routers can assume those services in full with a complete and synchronized database (§8.2.3; lowercase &#34;should not&#34; in the RFC)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>8.2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.3.1-1">RFC5798-8.3.1-1</code></td><td colspan="3"><span class="rfc-subject">Never forward packets addressed to the IPvX address a router becomes Master for when it is not the address owner (§8.3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>8.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.3.2-1">RFC5798-8.3.2-1</code></td><td colspan="3"><span class="rfc-subject">Configure no more than one VRRP router on the link with priority 255 for a single VRID (§8.3.2; lowercase in the RFC)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.3.2-2">RFC5798-8.3.2-2</code></td><td colspan="3"><span class="rfc-subject">Distribute the priority values of multiple Backup routers uniformly to speed convergence (§8.3.2; lowercase in the RFC)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.3.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.4.2-2">RFC5798-8.4.2-2</code></td><td colspan="3"><span class="rfc-subject">Do not run VRRPv2 and VRRPv3 mixed operation as a permanent deployment; it is an upgrade path (§8.4.2)</span></td></tr>
+<tr><td></td>
+<td>NOT RECOMMENDED</td>
+<td>8.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.4.2-3">RFC5798-8.4.2-3</code></td><td colspan="3"><span class="rfc-subject">Interop mode, Backup: time out from the rate the Master advertises, translating a VRRPv2 Master&#39;s seconds into centiseconds (§8.4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.4.2-4">RFC5798-8.4.2-4</code></td><td colspan="3"><span class="rfc-subject">Interop mode, Backup: ignore VRRPv2 advertisements from the current Master when VRRPv3 packets are also being received from it (§8.4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.4.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.4.3.1-1">RFC5798-8.4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">Never give a VRRPv2 implementation a higher priority than the VRRPv2/VRRPv3 implementation it interacts with when that peer advertises at a sub-second rate (§8.4.3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>8.4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.4.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-a.1-1">RFC5798-A.1-1</code></td><td colspan="3"><span class="rfc-subject">FDDI: configure the virtual router MAC address by adding a unicast MAC filter in the FDDI device rather than changing its hardware MAC address (§A.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>A.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-A.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-6">RFC5798-7.1-6</code></td><td colspan="3"><span class="rfc-subject">Indicate through network management that a receive error, or a detected misconfiguration, occurred (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-7">RFC5798-7.1-7</code></td><td colspan="3"><span class="rfc-subject">Verify that &#34;Count IPvX Addrs&#34; and the list of IPvX addresses match the addresses configured for the VRID (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.2.2-7">RFC5798-8.2.2-7</code></td><td colspan="3"><span class="rfc-subject">Answer Duplicate Address Detection for an owned address from the Backup router while the Master restarts; one solution is not to run DAD in that case (§8.2.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.2.2-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.4.2-5">RFC5798-8.4.2-5</code></td><td colspan="3"><span class="rfc-subject">Implement a configuration flag that tells the router to listen for and send both VRRPv2 and VRRPv3 advertisements (§8.4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.4.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-8.4.2-6">RFC5798-8.4.2-6</code></td><td colspan="3"><span class="rfc-subject">Report when a VRRPv3 Master is not sending VRRPv2 packets while interop mode is configured (§8.4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-8.4.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-a.2-2">RFC5798-A.2-2</code></td><td colspan="3"><span class="rfc-subject">Token Ring: support the unicast mode of operation beside the functional-address mode (§A.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>A.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-A.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a> Never forward a datagram destined to 224.0.0.18, regardless of its TTL (§5.1.1.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a> Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a> Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a> Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a> Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a> Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a> Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a> Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a> Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a> Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a> Compute and verify the checksum as the 16-bit one&#39;s complement of the one&#39;s complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a> Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase &#34;must&#34; in the RFC)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a> Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a> Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a> Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a> Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a> Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a> Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a> Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a> Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a> Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a> Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a> Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a> Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a> Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a> Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a> Master: respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.3, §8.2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a> Master: send ND Router Advertisements for the virtual router (§6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a> Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a> Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a> Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a> Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a> Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a> Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a> Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a> Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a> Rx: verify that the VRRP version is 3 (§7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a> Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a> Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a> Rx: discard the packet when any mandatory receive check fails (§7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a> Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a> Tx: set the source MAC address to the virtual router MAC address (§7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a> Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a> Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a> Create the Interface Identifiers of an IPv6 router running VRRP in the normal manner, as in Transmission of IPv6 Packets over Ethernet Networks (§7.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a> Never use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers (§7.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a> Master: never respond to a host ARP request for a virtual router IPv4 address with its physical MAC address (§8.1.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a> Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase &#34;must&#34; in the RFC)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a> Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a> Master: include the virtual router MAC address in the source link-layer address option of a Neighbor Solicitation it sends for a host&#39;s IPv6 address, when it sends that option (§8.2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a> Master: never use its physical MAC address in that source link-layer address option (§8.2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a> At system boot, delay every ND Router Advertisement, Neighbor Advertisement and Neighbor Solicitation until both the IPv6 address and the virtual router MAC address are configured (§8.2.2; lowercase &#34;must&#34; in the RFC)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a> Configure Backup routers to send the same Router Advertisement options as the address owner (§8.2.3; lowercase &#34;must&#34; in the RFC)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a> Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at the configured rate, even when it is sub-second (§8.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5798-a.2-1"><code>RFC5798-A.2-1</code></a> Token Ring: implement the functional-address mode of operation when supporting VRRP on Token Ring (§A.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a></h3>
+<p>Never forward a datagram destined to 224.0.0.18, regardless of its TTL (§5.1.1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.1.1.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a></h3>
+<p>Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.1.1.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a></h3>
+<p>Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.1.1.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a></h3>
+<p>Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.1.2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a></h3>
+<p>Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.1.2.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a></h3>
+<p>Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.1.2.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a></h3>
+<p>Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a></h3>
+<p>Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.2.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a></h3>
+<p>Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.2.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a></h3>
+<p>Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.2.6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a></h3>
+<p>Compute and verify the checksum as the 16-bit one&#39;s complement of the one&#39;s complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.2.8-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a></h3>
+<p>Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase &#34;must&#34; in the RFC)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.2.9-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a></h3>
+<p>Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-5.2.9-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a></h3>
+<p>Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a></h3>
+<p>Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a></h3>
+<p>Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a></h3>
+<p>Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a></h3>
+<p>Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.2-4, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a></h3>
+<p>Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.2-5, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a></h3>
+<p>Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.2-6, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a></h3>
+<p>Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.2-7, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a></h3>
+<p>Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.2-8, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a></h3>
+<p>Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.2-9, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a></h3>
+<p>Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.2-10, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a></h3>
+<p>Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a></h3>
+<p>Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a></h3>
+<p>Master: respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.3, §8.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-3, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a></h3>
+<p>Master: send ND Router Advertisements for the virtual router (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-4, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a></h3>
+<p>Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-5, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a></h3>
+<p>Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-6, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a></h3>
+<p>Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-7, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a></h3>
+<p>Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-8, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a></h3>
+<p>Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-9, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a></h3>
+<p>Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-10, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a></h3>
+<p>Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-11, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a></h3>
+<p>Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-6.4.3-12, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a></h3>
+<p>Rx: verify that the VRRP version is 3 (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-7.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a></h3>
+<p>Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-7.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a></h3>
+<p>Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-7.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a></h3>
+<p>Rx: discard the packet when any mandatory receive check fails (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-7.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a></h3>
+<p>Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-7.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a></h3>
+<p>Tx: set the source MAC address to the virtual router MAC address (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-7.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a></h3>
+<p>Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-7.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a></h3>
+<p>Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-7.2-4, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a></h3>
+<p>Create the Interface Identifiers of an IPv6 router running VRRP in the normal manner, as in Transmission of IPv6 Packets over Ethernet Networks (§7.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-7.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a></h3>
+<p>Never use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers (§7.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-7.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a></h3>
+<p>Master: never respond to a host ARP request for a virtual router IPv4 address with its physical MAC address (§8.1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-8.1.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a></h3>
+<p>Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase &#34;must&#34; in the RFC)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-8.1.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a></h3>
+<p>Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-8.2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a></h3>
+<p>Master: include the virtual router MAC address in the source link-layer address option of a Neighbor Solicitation it sends for a host&#39;s IPv6 address, when it sends that option (§8.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-8.2.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a></h3>
+<p>Master: never use its physical MAC address in that source link-layer address option (§8.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-8.2.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a></h3>
+<p>At system boot, delay every ND Router Advertisement, Neighbor Advertisement and Neighbor Solicitation until both the IPv6 address and the virtual router MAC address are configured (§8.2.2; lowercase &#34;must&#34; in the RFC)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-8.2.2-4, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a></h3>
+<p>Configure Backup routers to send the same Router Advertisement options as the address owner (§8.2.3; lowercase &#34;must&#34; in the RFC)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-8.2.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a></h3>
+<p>Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at the configured rate, even when it is sub-second (§8.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-8.4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5798-a.2-1"><code>RFC5798-A.2-1</code></a></h3>
+<p>Token Ring: implement the functional-address mode of operation when supporting VRRP on Token Ring (§A.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5798-A.2-1, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude-opus-5 (rfcgate-6 phase, rfc5798 walk)</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-01</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc5798.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>e28505fbe523b3a8</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc5798.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>49</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>13</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>skipped (front-matter)</td>
+<td>Title block, abstract, status of this memo, copyright notice and table of contents. No obligation is stated before Section 1.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.1.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.1.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.1.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.2.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.2.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.2.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2.4</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2.6</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2.7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2.8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2.9</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4.2</code></td>
+<td>not stated</td>
+<td>6</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4.3</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>not stated</td>
+<td>7</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.4</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1.2</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.2</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.3.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.4.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.4.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.4.3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.4.3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>Section 10, Contributors and Acknowledgments</td>
+<td>0</td>
+<td>skipped (acknowledgements)</td>
+<td>Section 10, Contributors and Acknowledgments. It names the people who wrote the merged source documents.</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>Section 11, IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>Section 11, IANA Considerations. It records the IPv4 and IPv6 multicast assignments and the protocol number already made for VRRP, and binds IANA rather than a speaker.</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>Section 12, References, its heading only</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Section 12, References, its heading only.</td>
+</tr>
+<tr><td><code>12.1</code></td>
+<td>Normative reference list</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative reference list.</td>
+</tr>
+<tr><td><code>12.2</code></td>
+<td>Informative reference list</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative reference list.</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The sentence is the IETF Trust Legal Provisions boilerplate that opens every RFC. It binds a party redistributing the document text, states no protocol behaviour, and the extractor did not strip it.</td>
+<td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
+</tr>
+<tr><td><code>front:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The site is a Table of Contents line, &#34;Required Features ... 8 2.1.&#34;, captured by the prose scan because the heading it names contains the word Required. A contents line states nothing.</td>
+<td>Required Features ...............................................8 2.1.</td>
+</tr>
+<tr><td><code>2:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The site is the section heading &#34;Required Features&#34; itself, matched on the word Required. A heading states no obligation; every feature it introduces is stated in Sections 2.1 to 2.5 and, normatively, in Sections 5 to 8.</td>
+<td>Required Features</td>
+</tr>
+<tr><td><code>3:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 3 is the protocol overview and the sentence states a deployment precondition, that an operator gives every VRRP router on the LAN the same VRID-to-address mapping. It is not a behaviour a speaker performs on a packet: no VRRP message carries or negotiates the mapping, and ze reads its own VRID and virtual addresses from operator configuration (applyGroupLeaves, internal/plugins/vrrp/groups.go, reading the vrid and virtual-address leaves of ze-vrrp-conf.yang). No normative section of RFC 5798 restates it.</td>
+<td>The mapping between the VRID and its IPvX address(es) must be coordinated among all VRRP routers on a LAN.</td>
+</tr>
+<tr><td><code>4.1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 4.1 is a worked sample configuration. The sentence describes what that example needs, &#34;In order to back up IPvX B, a second virtual router must be configured&#34;, and states no obligation on an implementation.</td>
+<td>In order to back up IPvX B, a second virtual router must be configured.</td>
+</tr>
+<tr><td><code>6.1:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The IPv6_Addresses parameter description restates the address-ordering rule of Section 5.2.9, which site 5.2.9:1 maps.</td>
+<td>The first address must be the Link-Local address associated with the virtual router.</td>
+</tr>
+<tr><td><code>6.4.2:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The sentence is the head of the Backup state list, &#34;(300) While in this state, a VRRP router MUST do the following:&#34;. It states no behaviour of its own: it sets the obligation level for the bullets under it, each of which repeats MUST or MUST NOT and is a site of its own at 6.4.2:2 to 6.4.2:6. The steps it also binds that carry no keyword, (345) to (475), are declared in this section unsourced-ids.</td>
+<td>(300) While in this state, a VRRP router MUST do the following:</td>
+</tr>
+<tr><td><code>6.4.3:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The sentence is the head of the Master state list, &#34;(600) While in this state, a VRRP router MUST do the following:&#34;, and states no behaviour of its own, exactly as 6.4.2:1 does for Backup. Its keyworded bullets are sites 6.4.3:2 to 6.4.3:9, and the steps it binds that carry no keyword, (655) to (780), are declared in this section unsourced-ids.</td>
+<td>(600) While in this state, a VRRP router MUST do the following:</td>
+</tr>
+<tr><td><code>6.4.3:6</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Step (635) restates the Accept_Mode note of Section 6.1, which site 6.1:2 maps.</td>
+<td>(635) ++ If Accept_Mode is False: MUST NOT drop IPv6 Neighbor Solicitations and Neighbor Advertisements.</td>
+</tr>
+<tr><td><code>8.1.2:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8.1.2 restates the Master ARP obligation of Section 6.4.3 step (610), which site 6.4.3:2 maps. The half that is NEW here, the prohibition on answering with the physical MAC, is the separate site 8.1.2:2.</td>
+<td>When a host sends an ARP request for one of the virtual router IPv4 addresses, the Virtual Router Master MUST respond to the ARP request with an ARP response that indicates the virtual MAC address for the virtual router.</td>
+</tr>
+<tr><td><code>8.2.2:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 8.2.2 restates the Master Neighbor Solicitation obligation of Section 6.4.3 step (625), which site 6.4.3:4 maps. The half that is NEW here, the prohibition on answering with the physical MAC, is the separate site 8.2.2:2.</td>
+<td>When a host sends an ND Neighbor Solicitation message for the virtual router IPv6 address, the Virtual Router Master MUST respond to the ND Neighbor Solicitation message with the virtual MAC address for the virtual router.</td>
+</tr>
+<tr><td><code>9:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 9 states that VRRP needs no confidentiality: &#34;there is no information in the VRRP messages that must be kept secret from other nodes on the LAN&#34;. The word sits inside a negative existential describing the absence of a need, not an obligation on a speaker.</td>
+<td>Confidentiality is not necessary for the correct operation of VRRP, and there is no information in the VRRP messages that must be kept secret from other nodes on the LAN.</td>
+</tr>
+<tr><td><code>A.2:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The bullet explains why VRRP over Token Ring is difficult, that source-route bridges need cached source-route information updated when the Master moves. It describes a property of that medium and states no obligation on a VRRP implementation; the one Token Ring obligation is site A.2:2.</td>
+<td>o In order to switch to a new Master located on a different bridge Token-Ring segment from the previous Master when using source- route bridges, a mechanism is required to update cached source- route information.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>RFC 5798 is obsoleted by RFC 9568.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Disposition</th><th>Now stated at</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a> Never forward a datagram destined to 224.0.0.18, regardless of its TTL (§5.1.1.2)</td>
+<td>restated</td>
+<td>RFC9568-5.1.1.2-1</td>
+<td>RFC 9568 Section 5.1.1.2 keeps the rule for IPv4 word for word</td>
+</tr>
+<tr><td><a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a> Set the IPv4 TTL of transmitted VRRP packets to 255 (§5.1.1.3)</td>
+<td>restated</td>
+<td>RFC9568-5.1.1.3-1</td>
+<td>RFC 9568 Section 5.1.1.3 keeps the IPv4 TTL of 255 on transmit</td>
+</tr>
+<tr><td><a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a> Discard a received IPv4 VRRP packet whose TTL is not 255 (§5.1.1.3, §7.1)</td>
+<td>restated</td>
+<td>RFC9568-5.1.1.3-2</td>
+<td>RFC 9568 Section 5.1.1.3 keeps the discard rule and Section 7.1 keeps the matching receive check</td>
+</tr>
+<tr><td><a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a> Never forward a datagram destined to FF02:0:0:0:0:0:0:12, regardless of its Hop Limit (§5.1.2.2)</td>
+<td>restated</td>
+<td>RFC9568-5.1.2.2-1</td>
+<td>RFC 9568 Section 5.1.2.2 keeps the rule for the IPv6 group</td>
+</tr>
+<tr><td><a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a> Set the IPv6 Hop Limit of transmitted VRRP packets to 255 (§5.1.2.3)</td>
+<td>restated</td>
+<td>RFC9568-5.1.2.3-1</td>
+<td>RFC 9568 Section 5.1.2.3 keeps the Hop Limit of 255 on transmit</td>
+</tr>
+<tr><td><a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a> Discard a received IPv6 VRRP packet whose Hop Limit is not 255 (§5.1.2.3, §7.1)</td>
+<td>restated</td>
+<td>RFC9568-5.1.2.3-2</td>
+<td>RFC 9568 Section 5.1.2.3 keeps the discard rule and Section 7.1 keeps the matching receive check</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a> Discard a packet with unknown Type; 1 = ADVERTISEMENT is the only type defined (§5.2.2)</td>
+<td>restated</td>
+<td>RFC9568-5.2.2-1</td>
+<td>RFC 9568 Section 5.2.2 keeps ADVERTISEMENT as the only defined type and keeps the discard rule, and Section 7.1 adds an explicit receive check for it</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a> Use Priority 255 for the VRRP router that owns the IPvX address associated with the virtual router (§5.2.4)</td>
+<td>restated</td>
+<td>RFC9568-5.2.4-1</td>
+<td>RFC 9568 Section 5.2.4 keeps Priority 255 for the address owner</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a> Use Priority values 1-254 for VRRP routers backing up a virtual router (§5.2.4)</td>
+<td>restated</td>
+<td>RFC9568-5.2.4-2</td>
+<td>RFC 9568 Section 5.2.4 keeps the 1 to 254 range for backup routers</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a> Set the rsvd field to zero on transmission and ignore it on reception (§5.2.6)</td>
+<td>restated</td>
+<td>RFC9568-5.2.6-1</td>
+<td>RFC 9568 Section 5.2.6 renames the field to Reserve and keeps both halves of the rule</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a> Compute and verify the checksum as the 16-bit one&#39;s complement of the one&#39;s complement sum of the entire VRRP message starting with the version field and a pseudo-header defined by RFC 2460, with next header 112 and the checksum field zeroed, for both address families (§5.2.8, §7.1)</td>
+<td>restated</td>
+<td>RFC9568-5.2.8-1</td>
+<td>RFC 9568 Section 5.2.8 keeps the ones-complement arithmetic and CHANGES the coverage, stating the IPv4 checksum over the VRRP message alone and keeping the RFC 8200 Section 8.1 pseudo-header for IPv6 only. RFC 9568 Section 1.2 lists that as change 4. The two documents therefore disagree about the IPv4 checksum, and the deployed base computes this one</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a> Send the IPv6 link-local address associated with the virtual router as the first address in the list (§5.2.9, §6.1; lowercase &#34;must&#34; in the RFC)</td>
+<td>restated</td>
+<td>RFC9568-5.2.9-1</td>
+<td>RFC 9568 Section 5.2.9 states the same rule with an uppercase MUST, and erratum 8300 adds the matching receive check</td>
+</tr>
+<tr><td><a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a> Never carry IPv4 and IPv6 addresses together in one IPvX Address field (§5.2.9)</td>
+<td>restated</td>
+<td>RFC9568-5.2.9-2</td>
+<td>RFC 9568 Section 5.2.9 states the rule as an address family that MUST be the same as the packet&#39;s IPvX header address family</td>
+</tr>
+<tr><td><a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a> Never drop IPv6 Neighbor Solicitations and Neighbor Advertisements when Accept_Mode is False (§6.1, §6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.1-1</td>
+<td>RFC 9568 Section 6.1 keeps the Accept_Mode note verbatim</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a> Backup: never respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.2-1</td>
+<td>RFC 9568 Section 6.4.2 keeps the rule and renames the state to Backup Router</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a> Backup: never respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.2-2</td>
+<td>RFC 9568 Section 6.4.2 keeps the rule unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a> Backup: never send ND Router Advertisement messages for the virtual router (§6.4.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.2-3</td>
+<td>RFC 9568 Section 6.4.2 keeps the rule unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a> Backup: discard packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.2-4</td>
+<td>RFC 9568 Section 6.4.2 keeps the discard unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a> Backup: never accept packets addressed to the IPvX address(es) associated with the virtual router (§6.4.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.2-5</td>
+<td>RFC 9568 Section 6.4.2 keeps the rule unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a> Backup: on a Shutdown event, cancel the Master_Down_Timer and transition to Initialize (§6.4.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.2-6</td>
+<td>RFC 9568 Section 6.4.2 keeps the Shutdown transition and renames the timer to Active_Down_Timer</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a> Backup: when the Master_Down_Timer fires, send an ADVERTISEMENT, broadcast a gratuitous ARP carrying the virtual router MAC for each IPv4 address or, for IPv6, join the Solicited-Node multicast address and send an unsolicited Neighbor Advertisement for each address, set the Adver_Timer to Advertisement_Interval, and transition to Master (§6.4.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.2-7</td>
+<td>RFC 9568 Section 6.4.2 keeps the whole sequence, renames the timer and the state, and erratum 7949 corrects the gratuitous ARP to carry the virtual router IPv4 address with the virtual router MAC as the target link-layer address</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a> Backup: on an ADVERTISEMENT with Priority 0, set the Master_Down_Timer to Skew_Time (§6.4.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.2-8</td>
+<td>RFC 9568 Section 6.4.2 keeps the Skew_Time rule for a Priority 0 advertisement</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a> Backup: on a non-zero-priority ADVERTISEMENT, when Preempt_Mode is False or the advertised Priority is greater than or equal to the local Priority, set Master_Adver_Interval to the Adver Interval in the advertisement, recompute Master_Down_Interval, and reset the Master_Down_Timer to it (§6.4.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.2-9</td>
+<td>RFC 9568 Section 6.4.2 keeps the rule and ADDS one step, recomputing Skew_Time beside Active_Down_Interval, which this document omits</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a> Backup: on a non-zero-priority ADVERTISEMENT with Preempt_Mode True and an advertised Priority lower than the local Priority, discard the ADVERTISEMENT (§6.4.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.2-10</td>
+<td>RFC 9568 Section 6.4.2 keeps the discard unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a> Master: respond to ARP requests for the IPv4 address(es) associated with the virtual router (§6.4.3, §8.1.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-1</td>
+<td>RFC 9568 Section 6.4.3 keeps the ARP obligation and renames the state to Active Router</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a> Master: be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the virtual router (§6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-2</td>
+<td>RFC 9568 Section 6.4.3 keeps the membership obligation unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a> Master: respond to ND Neighbor Solicitation messages for the IPv6 address(es) associated with the virtual router (§6.4.3, §8.2.2)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-3</td>
+<td>RFC 9568 Section 6.4.3 keeps the obligation and ADDS that the Neighbor Advertisement carries the Router Flag set</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a> Master: send ND Router Advertisements for the virtual router (§6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-4</td>
+<td>RFC 9568 Section 6.4.3 keeps the obligation unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a> Master: forward packets with a destination link-layer MAC address equal to the virtual router MAC address (§6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-5</td>
+<td>RFC 9568 Section 6.4.3 keeps the forwarding obligation unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a> Master: accept packets addressed to the IPvX address(es) associated with the virtual router when it is the address owner or when Accept_Mode is True (§6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-6</td>
+<td>RFC 9568 Section 6.4.3 keeps both admitting conditions unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a> Master: never accept those packets when it is neither the address owner nor configured with Accept_Mode True (§6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-7</td>
+<td>RFC 9568 Section 6.4.3 keeps the refusal unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a> Master: on a Shutdown event, cancel the Adver_Timer, send an ADVERTISEMENT with Priority = 0, and transition to Initialize (§6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-8</td>
+<td>RFC 9568 Section 6.4.3 keeps the Shutdown sequence unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a> Master: when the Adver_Timer fires, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-9</td>
+<td>RFC 9568 Section 6.4.3 keeps the timer-expiry behaviour unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a> Master: on an ADVERTISEMENT with Priority 0, send an ADVERTISEMENT and reset the Adver_Timer to Advertisement_Interval (§6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-10</td>
+<td>RFC 9568 Section 6.4.3 keeps the response to a Priority 0 advertisement unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a> Master: on an ADVERTISEMENT with a higher Priority, or an equal Priority with a greater sender primary IPvX address, cancel the Adver_Timer, set Master_Adver_Interval to the advertised Adver Interval, recompute Skew_Time and Master_Down_Interval, set the Master_Down_Timer, and transition to Backup (§6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-11</td>
+<td>RFC 9568 Section 6.4.3 keeps the whole sequence and states that the sender address comparison is an unsigned integer comparison in network byte order</td>
+</tr>
+<tr><td><a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a> Master: on a losing ADVERTISEMENT, one with a lower Priority or an equal Priority with a smaller sender address, discard it (§6.4.3)</td>
+<td>restated</td>
+<td>RFC9568-6.4.3-12</td>
+<td>RFC 9568 Section 6.4.3 keeps the discard and ADDS a step this document does not have, sending an advertisement immediately so learning bridges relearn the segment. RFC 9568 Section 1.2 lists that as change 5</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a> Rx: verify that the VRRP version is 3 (§7.1)</td>
+<td>restated</td>
+<td>RFC9568-7.1-1</td>
+<td>RFC 9568 Section 7.1 keeps the version check</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a> Rx: verify that the received packet contains the complete VRRP packet, the fixed fields and the IPvX address list (§7.1)</td>
+<td>restated</td>
+<td>RFC9568-7.1-3</td>
+<td>RFC 9568 Section 7.1 keeps the completeness check</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a> Rx: verify that the VRID is configured on the receiving interface and that the local router is not the IPvX address owner (§7.1)</td>
+<td>restated</td>
+<td>RFC9568-7.1-4</td>
+<td>RFC 9568 Section 7.1 keeps both halves as published, and erratum 8298 splits them, lowering the address-owner half to a SHOULD that logs rather than discards</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a> Rx: discard the packet when any mandatory receive check fails (§7.1)</td>
+<td>restated</td>
+<td>RFC9568-7.1-6</td>
+<td>RFC 9568 Section 7.1 keeps the discard on a failed mandatory check, with the SHOULD log and the MAY network-management indication beside it</td>
+</tr>
+<tr><td><a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a> Tx: fill in the VRRP packet fields from the virtual router configuration state and compute the VRRP checksum (§7.2)</td>
+<td>restated</td>
+<td>RFC9568-7.2-1</td>
+<td>RFC 9568 Section 7.2 keeps the fill-and-checksum step unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a> Tx: set the source MAC address to the virtual router MAC address (§7.2)</td>
+<td>restated</td>
+<td>RFC9568-7.2-2</td>
+<td>RFC 9568 Section 7.2 keeps the virtual router MAC as the source link-layer address</td>
+</tr>
+<tr><td><a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a> Tx: set the source IPv4 address to the interface primary IPv4 address, or the source IPv6 address to the interface link-local IPv6 address (§7.2)</td>
+<td>restated</td>
+<td>RFC9568-7.2-3</td>
+<td>RFC 9568 Section 7.2 keeps both source-address rules unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a> Tx: set the IPvX protocol to VRRP and send the packet to the VRRP IPvX multicast group (§7.2)</td>
+<td>restated</td>
+<td>RFC9568-7.2-4</td>
+<td>RFC 9568 Section 7.2 keeps protocol 112 and the IPvX multicast destination</td>
+</tr>
+<tr><td><a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a> Create the Interface Identifiers of an IPv6 router running VRRP in the normal manner, as in Transmission of IPv6 Packets over Ethernet Networks (§7.4)</td>
+<td>dropped</td>
+<td>not stated</td>
+<td>RFC 9568 Section 7.4 replaces the sentence rather than restating it. It cites RFC 8064 and RFC 7217 as the default scheme for a stable SLAAC address and states no &#34;normal manner&#34; obligation, so no equivalent requirement remains</td>
+</tr>
+<tr><td><a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a> Never use the virtual router MAC address to create the Modified Extended Unique Identifier (EUI)-64 identifiers (§7.4)</td>
+<td>restated</td>
+<td>RFC9568-7.4-1</td>
+<td>RFC 9568 Section 7.4 keeps the prohibition and restates it over the Net_Iface parameter of the RFC 7217 and RFC 8981 derivation algorithms</td>
+</tr>
+<tr><td><a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a> Master: never respond to a host ARP request for a virtual router IPv4 address with its physical MAC address (§8.1.2)</td>
+<td>restated</td>
+<td>RFC9568-8.1.2-1</td>
+<td>RFC 9568 Section 8.1.2 keeps the prohibition unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a> Advertise the virtual router MAC address in the Proxy ARP message when Proxy ARP is used on a VRRP router (§8.1.3; lowercase &#34;must&#34; in the RFC)</td>
+<td>restated</td>
+<td>RFC9568-8.1.3-1</td>
+<td>RFC 9568 Section 8.1.3 states the same obligation with an uppercase MUST</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a> Master: never respond to an ND Neighbor Solicitation for a virtual router IPv6 address with its physical MAC address (§8.2.2)</td>
+<td>restated</td>
+<td>RFC9568-8.2.2-1</td>
+<td>RFC 9568 Section 8.2.2 keeps the prohibition unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a> Master: include the virtual router MAC address in the source link-layer address option of a Neighbor Solicitation it sends for a host&#39;s IPv6 address, when it sends that option (§8.2.2)</td>
+<td>restated</td>
+<td>RFC9568-8.2.2-2</td>
+<td>RFC 9568 Section 8.2.2 keeps the obligation unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a> Master: never use its physical MAC address in that source link-layer address option (§8.2.2)</td>
+<td>restated</td>
+<td>RFC9568-8.2.2-3</td>
+<td>RFC 9568 Section 8.2.2 keeps the prohibition unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a> At system boot, delay every ND Router Advertisement, Neighbor Advertisement and Neighbor Solicitation until both the IPv6 address and the virtual router MAC address are configured (§8.2.2; lowercase &#34;must&#34; in the RFC)</td>
+<td>restated</td>
+<td>RFC9568-8.2.2-4</td>
+<td>RFC 9568 Section 8.2.2 states the same delay with an uppercase MUST</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a> Configure Backup routers to send the same Router Advertisement options as the address owner (§8.2.3; lowercase &#34;must&#34; in the RFC)</td>
+<td>restated</td>
+<td>RFC9568-8.2.3-1</td>
+<td>RFC 9568 Section 8.2.3 states the same obligation with an uppercase MUST</td>
+</tr>
+<tr><td><a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a> Interop mode, Master: send both VRRPv2 and VRRPv3 advertisements at the configured rate, even when it is sub-second (§8.4.2)</td>
+<td>restated</td>
+<td>RFC9568-8.4.2-1</td>
+<td>RFC 9568 Section 8.4.2 keeps the obligation unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-a.2-1"><code>RFC5798-A.2-1</code></a> Token Ring: implement the functional-address mode of operation when supporting VRRP on Token Ring (§A.2)</td>
+<td>dropped</td>
+<td>not stated</td>
+<td>RFC 9568 removes the legacy-media appendices. Its Section 1.2 lists as change 6 that the appendices describing operation over FDDI, Token Ring and ATM LAN Emulation were removed, so RFC 9568 states no functional-address obligation</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-5"><code>RFC5798-7.1-5</code></a> Log the event when a mandatory receive check fails (§7.1)</td>
+<td>restated</td>
+<td>RFC9568-7.1-7</td>
+<td>RFC 9568 Section 7.1 keeps the log and adds rate-limiting to it</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-8"><code>RFC5798-7.1-8</code></a> Log the event when the optional address-list check fails (§7.1)</td>
+<td>restated</td>
+<td>RFC9568-7.1-9</td>
+<td>RFC 9568 Section 7.1 keeps the log, adds rate-limiting, and states it in one sentence covering the Max Advertise Interval mismatch as well</td>
+</tr>
+<tr><td><a href="#rfc5798-8.1.1-1"><code>RFC5798-8.1.1-1</code></a> Set the IPv4 source address of an ICMP redirect to the address the end-host used when making its next-hop routing decision (§8.1.1; lowercase &#34;should&#34; in the RFC)</td>
+<td>unextracted</td>
+<td>§8.1.1</td>
+<td>RFC 9568 Section 8.1.1 keeps the sentence for IPv4, and rfc/short/rfc9568.md declares a row for the IPv6 counterpart at RFC9568-8.2.1-1 only. The IPv4 half of that pair is an extraction hole in the successor&#39;s summary</td>
+</tr>
+<tr><td><a href="#rfc5798-8.1.2-2"><code>RFC5798-8.1.2-2</code></a> After a restart or boot, send no ARP message using the physical MAC address for an owned virtual IPv4 address (§8.1.2)</td>
+<td>restated</td>
+<td>RFC9568-8.1.2-3</td>
+<td>RFC 9568 Section 8.1.2 keeps the rule unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-8.1.2-3"><code>RFC5798-8.1.2-3</code></a> When configuring an interface, broadcast a gratuitous ARP request carrying the virtual router MAC address for each IPv4 address on that interface (§8.1.2; lowercase &#34;should&#34; in the RFC)</td>
+<td>restated</td>
+<td>RFC9568-8.1.2-4</td>
+<td>RFC 9568 Section 8.1.2 keeps this half at SHOULD</td>
+</tr>
+<tr><td><a href="#rfc5798-8.1.2-4"><code>RFC5798-8.1.2-4</code></a> At system boot, delay gratuitous ARP requests and ARP responses until both the IPv4 address and the virtual router MAC address are configured (§8.1.2)</td>
+<td>restated</td>
+<td>RFC9568-8.1.2-2</td>
+<td>RFC 9568 Section 8.1.2 splits the boot bullet out and RAISES it to a MUST</td>
+</tr>
+<tr><td><a href="#rfc5798-8.1.2-5"><code>RFC5798-8.1.2-5</code></a> Use an IP address known to belong to a particular router when direct access to that router is required, for example ssh (§8.1.2; lowercase &#34;must&#34; inside a SHOULD-level bullet list)</td>
+<td>restated</td>
+<td>RFC9568-8.1.2-5</td>
+<td>RFC 9568 Section 8.1.2 keeps the recommendation</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.1-1"><code>RFC5798-8.2.1-1</code></a> Set the IPv6 source address of an ICMPv6 redirect to the address the end-host used when making its next-hop routing decision (§8.2.1; lowercase &#34;should&#34; in the RFC)</td>
+<td>restated</td>
+<td>RFC9568-8.2.1-1</td>
+<td>RFC 9568 Section 8.2.1 keeps the recommendation</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-5"><code>RFC5798-8.2.2-5</code></a> After a restart or boot, send no ND message using the physical MAC address for an owned virtual IPv6 address (§8.2.2)</td>
+<td>restated</td>
+<td>RFC9568-8.2.2-5</td>
+<td>RFC 9568 Section 8.2.2 keeps the rule unchanged</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-6"><code>RFC5798-8.2.2-6</code></a> When configuring an interface, send an unsolicited ND Neighbor Advertisement carrying the virtual router MAC address for the IPv6 address on that interface (§8.2.2; lowercase &#34;should&#34; in the RFC)</td>
+<td>restated</td>
+<td>RFC9568-8.2.2-6</td>
+<td>RFC 9568 Section 8.2.2 keeps the recommendation</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.3-2"><code>RFC5798-8.2.3-2</code></a> Send Router Advertisement options that advertise special services from the address owner unless the Backup routers can assume those services in full with a complete and synchronized database (§8.2.3; lowercase &#34;should not&#34; in the RFC)</td>
+<td>restated</td>
+<td>RFC9568-8.2.3-2</td>
+<td>RFC 9568 Section 8.2.3 keeps the recommendation</td>
+</tr>
+<tr><td><a href="#rfc5798-8.3.1-1"><code>RFC5798-8.3.1-1</code></a> Never forward packets addressed to the IPvX address a router becomes Master for when it is not the address owner (§8.3.1)</td>
+<td>restated</td>
+<td>RFC9568-8.3.1-1</td>
+<td>RFC 9568 Section 8.3.1 keeps the rule and states it over both address families</td>
+</tr>
+<tr><td><a href="#rfc5798-8.3.2-1"><code>RFC5798-8.3.2-1</code></a> Configure no more than one VRRP router on the link with priority 255 for a single VRID (§8.3.2; lowercase in the RFC)</td>
+<td>restated</td>
+<td>RFC9568-8.3.2-1</td>
+<td>RFC 9568 Section 8.3.2 keeps the recommendation and adds a rate-limited log when several priority-255 advertisers are seen</td>
+</tr>
+<tr><td><a href="#rfc5798-8.3.2-2"><code>RFC5798-8.3.2-2</code></a> Distribute the priority values of multiple Backup routers uniformly to speed convergence (§8.3.2; lowercase in the RFC)</td>
+<td>restated</td>
+<td>RFC9568-8.3.2-3</td>
+<td>RFC 9568 Section 8.3.2 keeps the recommendation and states it as sufficiently different priorities</td>
+</tr>
+<tr><td><a href="#rfc5798-8.4.2-2"><code>RFC5798-8.4.2-2</code></a> Do not run VRRPv2 and VRRPv3 mixed operation as a permanent deployment; it is an upgrade path (§8.4.2)</td>
+<td>restated</td>
+<td>RFC9568-8.4.2-5</td>
+<td>RFC 9568 Section 8.4.2 keeps the same statement</td>
+</tr>
+<tr><td><a href="#rfc5798-8.4.2-3"><code>RFC5798-8.4.2-3</code></a> Interop mode, Backup: time out from the rate the Master advertises, translating a VRRPv2 Master&#39;s seconds into centiseconds (§8.4.2)</td>
+<td>restated</td>
+<td>RFC9568-8.4.2-2</td>
+<td>RFC 9568 Section 8.4.2 RAISES both halves to MUST and splits them, keeping the timeout at RFC9568-8.4.2-2 and the seconds-to-centiseconds translation at RFC9568-8.4.2-3</td>
+</tr>
+<tr><td><a href="#rfc5798-8.4.2-4"><code>RFC5798-8.4.2-4</code></a> Interop mode, Backup: ignore VRRPv2 advertisements from the current Master when VRRPv3 packets are also being received from it (§8.4.2)</td>
+<td>restated</td>
+<td>RFC9568-8.4.2-4</td>
+<td>RFC 9568 Section 8.4.2 keeps the recommendation</td>
+</tr>
+<tr><td><a href="#rfc5798-8.4.3.1-1"><code>RFC5798-8.4.3.1-1</code></a> Never give a VRRPv2 implementation a higher priority than the VRRPv2/VRRPv3 implementation it interacts with when that peer advertises at a sub-second rate (§8.4.3.1)</td>
+<td>restated</td>
+<td>RFC9568-8.4.2.1.1-1</td>
+<td>RFC 9568 renumbers the subsection to 8.4.2.1.1 and keeps the recommendation</td>
+</tr>
+<tr><td><a href="#rfc5798-a.1-1"><code>RFC5798-A.1-1</code></a> FDDI: configure the virtual router MAC address by adding a unicast MAC filter in the FDDI device rather than changing its hardware MAC address (§A.1)</td>
+<td>dropped</td>
+<td>not stated</td>
+<td>RFC 9568 removes the legacy-media appendices. Its Section 1.2 lists as change 6 that the appendices describing operation over FDDI, Token Ring and ATM LAN Emulation were removed, so RFC 9568 states no unicast-MAC-filter recommendation</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-6"><code>RFC5798-7.1-6</code></a> Indicate through network management that a receive error, or a detected misconfiguration, occurred (§7.1)</td>
+<td>restated</td>
+<td>RFC9568-7.1-10</td>
+<td>RFC 9568 Section 7.1 keeps the network-management indication as a MAY</td>
+</tr>
+<tr><td><a href="#rfc5798-7.1-7"><code>RFC5798-7.1-7</code></a> Verify that &#34;Count IPvX Addrs&#34; and the list of IPvX addresses match the addresses configured for the VRID (§7.1)</td>
+<td>restated</td>
+<td>RFC9568-7.1-11</td>
+<td>RFC 9568 Section 7.1 keeps the address-list check as a MAY and renames the field to IPvX Addr Count</td>
+</tr>
+<tr><td><a href="#rfc5798-8.2.2-7"><code>RFC5798-8.2.2-7</code></a> Answer Duplicate Address Detection for an owned address from the Backup router while the Master restarts; one solution is not to run DAD in that case (§8.2.2)</td>
+<td>restated</td>
+<td>RFC9568-8.2.2-7</td>
+<td>RFC 9568 Section 8.2.2 keeps the note</td>
+</tr>
+<tr><td><a href="#rfc5798-8.4.2-5"><code>RFC5798-8.4.2-5</code></a> Implement a configuration flag that tells the router to listen for and send both VRRPv2 and VRRPv3 advertisements (§8.4.2)</td>
+<td>restated</td>
+<td>RFC9568-8.4.2-6</td>
+<td>RFC 9568 Section 8.4.2 keeps the flag as a MAY</td>
+</tr>
+<tr><td><a href="#rfc5798-8.4.2-6"><code>RFC5798-8.4.2-6</code></a> Report when a VRRPv3 Master is not sending VRRPv2 packets while interop mode is configured (§8.4.2)</td>
+<td>restated</td>
+<td>RFC9568-8.4.2-7</td>
+<td>RFC 9568 Section 8.4.2 keeps the report as a MAY</td>
+</tr>
+<tr><td><a href="#rfc5798-a.2-2"><code>RFC5798-A.2-2</code></a> Token Ring: support the unicast mode of operation beside the functional-address mode (§A.2)</td>
+<td>dropped</td>
+<td>not stated</td>
+<td>RFC 9568 removes the legacy-media appendices. Its Section 1.2 lists as change 6 that the appendices describing operation over FDDI, Token Ring and ATM LAN Emulation were removed, so RFC 9568 states no unicast-mode permission</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

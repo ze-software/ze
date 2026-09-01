@@ -1,0 +1,1678 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 6810 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 39 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 6810 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 39 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 6810 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 6810: The Resource Public Key Infrastructure (RPKI) to Router Protocol. 39 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc6810/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc6810/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 6810 - The Resource Public Key Infrastructure (RPKI) to Router Protocol</h1>
+    <p>Every requirement this repository extracted from RFC 6810, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>45.5%</strong><b>5 of 11 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>18.2%</strong><b>2 of 11 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 11 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>39</strong><b>of 67 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>28</strong><b>of 39 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>36.4%</strong><b>4 of 11 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 11 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>67</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>39</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>11</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>28</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>4</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>13</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>13</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc6810.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc6810.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc6810.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): router / cache-client role. 5 MET + 2 single-polarity positive + 4 gap + 28 not-applicable (cache-server-side obligations ze does not perform)</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>ze is the RTR router (client): it parses IPv4/IPv6 Prefix, Cache Response, End of Data, Cache Reset, Serial Notify and Error Report PDUs (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rpki/rtr_pdu.go</code></a>, rtr_session.go), sends Reset/Serial Queries, rejects a Prefix PDU whose Max Length is below its Prefix Length on receipt, validates route origins against the merged VRP cache (validate.go), and re-issues a Reset Query on Cache Reset and No Data Available. The v0 wire is reached through these shared router behaviors</li>
+<li>ze negotiates RTR v1/v2 (min version 1).</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Four MUST-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc6810.md" target="_blank" rel="noopener"><code>rfc/short/rfc6810.md</code></a>: <a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a> -- no Session ID mismatch detection or cache flush (rtr_session.go adopts the cache Session ID unconditionally); <a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a> -- no most-preferred-cache selection (rpki.go runs every configured cache concurrently); <a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a> -- VRPs are not marked by source cache (one shared ROACache, rpki.go, roa_cache.go); <a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a> -- no protected RTR transport (rtr_session.go dials only unprotected TCP, with no SSH/TLS/TCP-MD5/TCP-AO client).
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>5</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>34</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>39</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc6810-5-1"><code>RFC6810-5-1</code></a>, <a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a>, <a href="#rfc6810-6.3-1"><code>RFC6810-6.3-1</code></a>, <a href="#rfc6810-6.4-1"><code>RFC6810-6.4-1</code></a>, <a href="#rfc6810-8-2"><code>RFC6810-8-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (34):</strong> <a href="#rfc6810-5.6-1"><code>RFC6810-5.6-1</code></a>, <a href="#rfc6810-5.5-1"><code>RFC6810-5.5-1</code></a>, <a href="#rfc6810-5.8-1"><code>RFC6810-5.8-1</code></a>, <a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a>, <a href="#rfc6810-5.10-2"><code>RFC6810-5.10-2</code></a>, <a href="#rfc6810-5.10-3"><code>RFC6810-5.10-3</code></a>, <a href="#rfc6810-5.10-4"><code>RFC6810-5.10-4</code></a>, <a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a>, <a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a>, <a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a>, <a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a>, <a href="#rfc6810-6.2-1"><code>RFC6810-6.2-1</code></a>, <a href="#rfc6810-3-1"><code>RFC6810-3-1</code></a>, <a href="#rfc6810-4-2"><code>RFC6810-4-2</code></a>, <a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a>, <a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a>, <a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a>, <a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a>, <a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a>, <a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a>, <a href="#rfc6810-7.2-1"><code>RFC6810-7.2-1</code></a>, <a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a>, <a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a>, <a href="#rfc6810-7.2-4"><code>RFC6810-7.2-4</code></a>, <a href="#rfc6810-7.2-5"><code>RFC6810-7.2-5</code></a>, <a href="#rfc6810-7.2-6"><code>RFC6810-7.2-6</code></a>, <a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a>, <a href="#rfc6810-7.2-8"><code>RFC6810-7.2-8</code></a>, <a href="#rfc6810-7.3-1"><code>RFC6810-7.3-1</code></a>, <a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a>, <a href="#rfc6810-7.4-1"><code>RFC6810-7.4-1</code></a>, <a href="#rfc6810-7.4-2"><code>RFC6810-7.4-2</code></a>, <a href="#rfc6810-7.4-3"><code>RFC6810-7.4-3</code></a>, <a href="#rfc6810-7.4-4"><code>RFC6810-7.4-4</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5-1">RFC6810-5-1</code></td><td colspan="3"><span class="rfc-subject">Fields with unspecified content MUST be zero on transmission (Section 5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L16" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteResetQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go#L52" title="internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go" target="_blank" rel="noopener"><code>TestWriteResetQueryZeroesReservedOverGarbage</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L35" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteSerialQuery</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.1-1">RFC6810-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Max Length MUST NOT be less than Prefix Length (Section 5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L57" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestParseIPv4Prefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L130" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestParseIPv4PrefixMaxLenLessThanPrefixLen</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.6-1">RFC6810-5.6-1</code></td><td colspan="3"><span class="rfc-subject">Cache MUST ensure one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time (Section 5.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side emission guarantee -- ze is the RTR router; it only parses Prefix PDUs (internal/component/bgp/plugins/rpki/rtr_pdu.go:114 parsePrefixPDU) and has no Prefix PDU writer, so it never emits or enforces one-PDU-per-VRP</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.5-1">RFC6810-5.5-1</code></td><td colspan="3"><span class="rfc-subject">In response to a Reset Query, the withdraw/announce field in payload PDUs MUST have the value 1 (announce) (Section 5.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side emission obligation -- ze reads the announce/withdraw flag on receipt (internal/component/bgp/plugins/rpki/rtr_pdu.go:132) but sends no Prefix PDUs, so it never sets this field on transmission</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.8-1">RFC6810-5.8-1</code></td><td colspan="3"><span class="rfc-subject">Session ID in End of Data MUST be the same as the corresponding Cache Response (Section 5.8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side emission obligation -- ze reads End of Data for its serial only (internal/component/bgp/plugins/rpki/rtr_session.go:291) and emits neither Cache Response nor End of Data PDUs whose Session IDs it would have to match</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-1">RFC6810-5.10-1</code></td><td colspan="3"><span class="rfc-subject">If the Erroneous PDU field is empty, Length of Encapsulated PDU MUST be zero (Section 5.10)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.10-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Error Report sender obligation -- ze only reads received Error Reports (internal/component/bgp/plugins/rpki/rtr_session.go:363) and has no Error Report writer, so it never encodes Length of Encapsulated PDU</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-2">RFC6810-5.10-2</code></td><td colspan="3"><span class="rfc-subject">An Error Report PDU MUST NOT be sent for an Error Report PDU (Section 5.10)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.10-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Error Report sender obligation -- ze has no Error Report writer (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it can never emit an Error Report about an Error Report</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-3">RFC6810-5.10-3</code></td><td colspan="3"><span class="rfc-subject">If error text is present, it MUST be UTF-8 encoded (Section 5.10)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.10-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never encodes error text</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-4">RFC6810-5.10-4</code></td><td colspan="3"><span class="rfc-subject">If diagnostic text is not present, Length of Error Text MUST be zero (Section 5.10)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.10-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never sets Length of Error Text</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-2-1">RFC6810-2-1</code></td><td colspan="3"><span class="rfc-subject">Incoming data associated with new serial MUST NOT be sent until the fetch is complete (Section 2, Serial Number definition)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side transmission obligation on serial-associated data -- ze is the consumer; it buffers a delta in pendingVRPs and applies it atomically only at End of Data (internal/component/bgp/plugins/rpki/rtr_session.go:307), and sends no serial-tagged data</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.1-2">RFC6810-5.1-2</code></td><td colspan="3"><span class="rfc-subject">If Session ID mismatch, MUST completely drop the session and flush all data learned from that cache (Section 5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze does not detect a Session ID change -- handlePDU adopts the Cache Response Session ID unconditionally (internal/component/bgp/plugins/rpki/rtr_session.go:233, s.sessionID = hdr.SessionID) with no comparison to the prior value and no cache flush</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-4-1">RFC6810-4-1</code></td><td colspan="3"><span class="rfc-subject">The router MUST choose the most preferred cache by configuration (Section 4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze does not select the most preferred cache -- startSessions launches a Run goroutine for every configured cache concurrently (internal/component/bgp/plugins/rpki/rpki.go:291-298) and the parsed preference is only surfaced for display (rpki.go:1026), never used to order or choose caches</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.1-1">RFC6810-6.1-1</code></td><td colspan="3"><span class="rfc-subject">Router MUST send Serial Query or Reset Query no less frequently than once an hour (Section 6.1, Section 6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L87" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestPollingCadenceAtLeastHourly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the re-query cadence is Run&#39;s post-sync wait of s.retryInterval (internal/component/bgp/plugins/rpki/rtr_session.go:106-110), defaulting to 600s (rtr_session.go:81) which is below the one-hour ceiling; there is no malformed input that yields a too-infrequent negative case</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.2-1">RFC6810-6.2-1</code></td><td colspan="3"><span class="rfc-subject">Cache MUST rate limit Serial Notifies to no more than one per minute (Section 6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side rate limit on Serial Notify emission -- ze receives Serial Notify and ignores it during sync (internal/component/bgp/plugins/rpki/rtr_session.go:359) and never sends one</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.3-1">RFC6810-6.3-1</code></td><td colspan="3"><span class="rfc-subject">If Cache Reset received and no more preferred caches, router MUST issue a Reset Query (Section 6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L114" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L130" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.4-1">RFC6810-6.4-1</code></td><td colspan="3"><span class="rfc-subject">If No Data Available and no other caches, router MUST issue periodic Reset Queries (Section 6.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L162" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestNoDataAvailableKeepsResetQueryMode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L181" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestNoDataAvailableKeepsResetQueryMode</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-3-1">RFC6810-3-1</code></td><td colspan="3"><span class="rfc-subject">A relying party MUST have a trust relationship with, and a trusted transport channel to, any authoritative caches it uses (Section 3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> operator deployment obligation -- the trust relationship and trusted channel are established by network placement; ze dials the operator-configured cache over unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and has no in-band trust mechanism to produce or violate</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-4-2">RFC6810-4-2</code></td><td colspan="3"><span class="rfc-subject">Cache servers&#39; clocks MUST be correct to a tolerance of approximately an hour (Section 4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-server clock obligation -- ze is the RTR router client that dials out (internal/component/bgp/plugins/rpki/rtr_session.go:125 connectAndSync); it runs no cache and holds no clock this binds</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-1">RFC6810-7-1</code></td><td colspan="3"><span class="rfc-subject">Caches and routers MUST implement unprotected TCP transport on port rpki-rtr (323) (Section 7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L93" title="internal/component/bgp/plugins/rpki/rpki_config_test.go" target="_blank" rel="noopener"><code>TestParseRPKIConfigDefaults</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze implements the unprotected TCP transport by dialing tcp (internal/component/bgp/plugins/rpki/rtr_session.go:127) and defaults the RTR port to 323 (rpki_config.go:174); it never declines to offer unprotected TCP, so there is no negative case</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-2">RFC6810-7-2</code></td><td colspan="3"><span class="rfc-subject">If unprotected TCP is the transport, cache and routers MUST be on the same trusted and controlled network (Section 7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> operator deployment obligation -- when unprotected TCP is used the trusted-network placement is the operator&#39;s; ze dials plain TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) with no code path to enforce network topology</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-3">RFC6810-7-3</code></td><td colspan="3"><span class="rfc-subject">If available, caches and routers MUST use one of the more protected protocols (Section 7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze implements no protected RTR transport -- connectAndSync dials only unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and the plugin has no SSH, TLS, TCP-MD5, or TCP-AO client, so no more protected protocol is available to select</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-1">RFC6810-7.1-1</code></td><td colspan="3"><span class="rfc-subject">Cache servers supporting SSH MUST accept RSA and DSA authentication (Section 7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-server SSH obligation -- ze runs no RTR SSH server and no SSH client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it performs no SSH authentication</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-2">RFC6810-7.1-2</code></td><td colspan="3"><span class="rfc-subject">SSH user authentication MUST be supported (Section 7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> SSH-transport obligation -- ze implements no SSH RTR transport (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so SSH user authentication has no code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-1">RFC6810-8-1</code></td><td colspan="3"><span class="rfc-subject">Client MUST keep data marked as to source, as later updates MUST affect the correct data (Section 8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze does not mark VRPs by source cache -- every RTR session writes one shared ROACache (internal/component/bgp/plugins/rpki/rpki.go:292) and vrpEntry carries only MaxLength and ASN (roa_cache.go:12-15) with no source field, so a withdraw from one cache can remove a VRP another announced</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-2">RFC6810-8-2</code></td><td colspan="3"><span class="rfc-subject">If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation (Section 8)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-8-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L152" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L159" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-1">RFC6810-7.2-1</code></td><td colspan="3"><span class="rfc-subject">TLS client routers MUST present client-side certificates (Section 7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze implements no TLS RTR client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so the client-certificate requirement has no code path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-2">RFC6810-7.2-2</code></td><td colspan="3"><span class="rfc-subject">TLS certificates MUST include subjectAltName extension with iPAddress identities (Section 7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze implements no TLS RTR transport (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it issues and validates no rpki-rtr TLS certificates</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-3">RFC6810-7.2-3</code></td><td colspan="3"><span class="rfc-subject">Cache MUST check IP address of TLS connection against iPAddress identities (Section 7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-side TLS obligation -- ze runs no RTR TLS server (it is a client that dials out, internal/component/bgp/plugins/rpki/rtr_session.go:125), so it checks no connecting IP against iPAddress identities</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-4">RFC6810-7.2-4</code></td><td colspan="3"><span class="rfc-subject">Routers MUST verify the cache&#39;s TLS server certificate using subjectAltName dNSName identities (Section 7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze implements no TLS RTR client (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it verifies no cache server certificate</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-5">RFC6810-7.2-5</code></td><td colspan="3"><span class="rfc-subject">DNS-ID identifier type support is REQUIRED in rpki-rtr TLS implementations (Section 7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127 dials plain TCP), so DNS-ID identifier support does not apply</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-6">RFC6810-7.2-6</code></td><td colspan="3"><span class="rfc-subject">DNS-ID identifier type MUST be present in rpki-rtr server certificates (Section 7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> cache-server-certificate obligation under TLS -- ze runs no RTR TLS server and issues no server certificate (it is a plain-TCP client, internal/component/bgp/plugins/rpki/rtr_session.go:127)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-7">RFC6810-7.2-7</code></td><td colspan="3"><span class="rfc-subject">rpki-rtr TLS implementations MUST NOT use CN-ID identifiers for authentication (Section 7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it uses no certificate identifiers, CN-ID or otherwise</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-8">RFC6810-7.2-8</code></td><td colspan="3"><span class="rfc-subject">The client router MUST set its &#34;reference identifier&#34; to the DNS name of the rpki-rtr cache (Section 7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TLS-transport obligation -- ze implements no TLS RTR client (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it sets no TLS reference identifier</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.3-1">RFC6810-7.3-1</code></td><td colspan="3"><span class="rfc-subject">TCP MD5 implementations MUST support key lengths of at least 80 printable ASCII bytes (Section 7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no MD5 keys</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.3-2">RFC6810-7.3-2</code></td><td colspan="3"><span class="rfc-subject">TCP MD5 implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no MD5 key material</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.4-1">RFC6810-7.4-1</code></td><td colspan="3"><span class="rfc-subject">TCP-AO implementations MUST support key lengths of at least 80 printable ASCII bytes (Section 7.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-AO transport obligation -- ze implements no TCP-AO for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no AO keys</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.4-2">RFC6810-7.4-2</code></td><td colspan="3"><span class="rfc-subject">TCP-AO implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no AO key material</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.4-3">RFC6810-7.4-3</code></td><td colspan="3"><span class="rfc-subject">TCP-AO MAC lengths of at least 96 bits MUST be supported (Section 7.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it negotiates no MAC length</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.4-4">RFC6810-7.4-4</code></td><td colspan="3"><span class="rfc-subject">TCP-AO cryptographic algorithms described in RFC 5926 MUST be supported (Section 7.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it supports no RFC 5926 algorithms</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.2-2">RFC6810-6.2-2</code></td><td colspan="3"><span class="rfc-subject">Cache SHOULD send a Notify PDU when its serial changes (Section 6.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.6-2">RFC6810-5.6-2</code></td><td colspan="3"><span class="rfc-subject">Router receiving a duplicate announcement SHOULD raise Duplicate Announcement Received error (Section 5.6)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-4">RFC6810-7-4</code></td><td colspan="3"><span class="rfc-subject">Caches and routers SHOULD use TCP-AO, SSHv2, TCP MD5, or IPsec transport (Section 7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-5">RFC6810-7-5</code></td><td colspan="3"><span class="rfc-subject">Both caches and routers SHOULD enable transport keep-alives (Section 7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.3-2">RFC6810-6.3-2</code></td><td colspan="3"><span class="rfc-subject">Router SHOULD attempt more preferred caches on Cache Reset (Section 6.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.4-2">RFC6810-6.4-2</code></td><td colspan="3"><span class="rfc-subject">Router SHOULD attempt other caches on No Data Available (Section 6.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>6.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-3">RFC6810-8-3</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD retain data from previous cache during switchover (Section 8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-8-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-4">RFC6810-8-4</code></td><td colspan="3"><span class="rfc-subject">Client SHOULD delete data from unreachable cache after 2x polling period (Section 8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-8-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-11-1">RFC6810-11-1</code></td><td colspan="3"><span class="rfc-subject">Cache SHOULD be topologically close to router (Section 11)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-11-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-5">RFC6810-5.10-5</code></td><td colspan="3"><span class="rfc-subject">If erroneous Error Report PDU received, session SHOULD be dropped (Section 5.10)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.10-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-3">RFC6810-7.1-3</code></td><td colspan="3"><span class="rfc-subject">Cache servers supporting SSH SHOULD accept ECDSA authentication (Section 7.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-4">RFC6810-7.1-4</code></td><td colspan="3"><span class="rfc-subject">Client routers SHOULD verify the public key of the cache to avoid MITM attacks (Section 7.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-9">RFC6810-7.2-9</code></td><td colspan="3"><span class="rfc-subject">TLS cache SHOULD reject connections if no iPAddress identities match (Section 7.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.2-10">RFC6810-7.2-10</code></td><td colspan="3"><span class="rfc-subject">DNS names in rpki-rtr server certificates SHOULD NOT contain the wildcard character &#34;*&#34; (Section 7.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.2-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-6">RFC6810-7-6</code></td><td colspan="3"><span class="rfc-subject">Operators SHOULD use procedural means (e.g., ACLs) to reduce exposure to authentication issues when using unprotected TCP (Section 7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.3-3">RFC6810-7.3-3</code></td><td colspan="3"><span class="rfc-subject">Cache servers SHOULD support RFC 4808 for TCP MD5 key rollover (Section 7.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-5">RFC6810-8-5</code></td><td colspan="3"><span class="rfc-subject">The client SHOULD attempt to maintain at least one set of data regardless of cache changes (Section 8)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-8-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-11-2">RFC6810-11-2</code></td><td colspan="3"><span class="rfc-subject">The identity of the cache server SHOULD be verified and authenticated by the router client, and vice versa (Section 11)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-11-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-11-3">RFC6810-11-3</code></td><td colspan="3"><span class="rfc-subject">Protocols that provide integrity and authenticity SHOULD be used for cache-router transport (Section 11)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>11</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-11-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-10-1">RFC6810-10-1</code></td><td colspan="3"><span class="rfc-subject">Fatal errors SHOULD cause the session to be dropped (Section 10)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-10-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-6.1-2">RFC6810-6.1-2</code></td><td colspan="3"><span class="rfc-subject">Router MAY start with Serial Query if it has unexpired data from a previous session (Section 6.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-6.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5.10-6">RFC6810-5.10-6</code></td><td colspan="3"><span class="rfc-subject">Truncated Erroneous PDU MAY be included for oversized PDUs (Section 5.10)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5.10-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-5-2">RFC6810-5-2</code></td><td colspan="3"><span class="rfc-subject">Fields with unspecified content MAY be ignored on receipt (Section 5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7-7">RFC6810-7-7</code></td><td colspan="3"><span class="rfc-subject">Routers MAY use SSHv2, TCP MD5, IPsec, or TLS transport (Section 7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-5">RFC6810-7.1-5</code></td><td colspan="3"><span class="rfc-subject">SSH host authentication MAY be supported (Section 7.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-7.1-6">RFC6810-7.1-6</code></td><td colspan="3"><span class="rfc-subject">SSH implementations MAY support password authentication (Section 7.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-7.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-8-6">RFC6810-8-6</code></td><td colspan="3"><span class="rfc-subject">A client MAY drop the data from a particular cache when it is fully in sync with other caches (Section 8)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-8-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6810-3-2">RFC6810-3-2</code></td><td colspan="3"><span class="rfc-subject">There MAY be mechanisms for the router to assure authenticity of the cache (Section 3)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6810-3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc6810-5.6-1"><code>RFC6810-5.6-1</code></a> Cache MUST ensure one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time (Section 5.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: cache-side emission guarantee -- ze is the RTR router; it only parses Prefix PDUs (internal/component/bgp/plugins/rpki/rtr_pdu.go:114 parsePrefixPDU) and has no Prefix PDU writer, so it never emits or enforces one-PDU-per-VRP</td>
+</tr>
+<tr><td><a href="#rfc6810-5.5-1"><code>RFC6810-5.5-1</code></a> In response to a Reset Query, the withdraw/announce field in payload PDUs MUST have the value 1 (announce) (Section 5.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: cache-side emission obligation -- ze reads the announce/withdraw flag on receipt (internal/component/bgp/plugins/rpki/rtr_pdu.go:132) but sends no Prefix PDUs, so it never sets this field on transmission</td>
+</tr>
+<tr><td><a href="#rfc6810-5.8-1"><code>RFC6810-5.8-1</code></a> Session ID in End of Data MUST be the same as the corresponding Cache Response (Section 5.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: cache-side emission obligation -- ze reads End of Data for its serial only (internal/component/bgp/plugins/rpki/rtr_session.go:291) and emits neither Cache Response nor End of Data PDUs whose Session IDs it would have to match</td>
+</tr>
+<tr><td><a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a> If the Erroneous PDU field is empty, Length of Encapsulated PDU MUST be zero (Section 5.10)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Error Report sender obligation -- ze only reads received Error Reports (internal/component/bgp/plugins/rpki/rtr_session.go:363) and has no Error Report writer, so it never encodes Length of Encapsulated PDU</td>
+</tr>
+<tr><td><a href="#rfc6810-5.10-2"><code>RFC6810-5.10-2</code></a> An Error Report PDU MUST NOT be sent for an Error Report PDU (Section 5.10)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Error Report sender obligation -- ze has no Error Report writer (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it can never emit an Error Report about an Error Report</td>
+</tr>
+<tr><td><a href="#rfc6810-5.10-3"><code>RFC6810-5.10-3</code></a> If error text is present, it MUST be UTF-8 encoded (Section 5.10)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never encodes error text</td>
+</tr>
+<tr><td><a href="#rfc6810-5.10-4"><code>RFC6810-5.10-4</code></a> If diagnostic text is not present, Length of Error Text MUST be zero (Section 5.10)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Error Report sender obligation -- ze emits no Error Report PDU (it only reads them at internal/component/bgp/plugins/rpki/rtr_session.go:363), so it never sets Length of Error Text</td>
+</tr>
+<tr><td><a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a> Incoming data associated with new serial MUST NOT be sent until the fetch is complete (Section 2, Serial Number definition)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: cache-side transmission obligation on serial-associated data -- ze is the consumer; it buffers a delta in pendingVRPs and applies it atomically only at End of Data (internal/component/bgp/plugins/rpki/rtr_session.go:307), and sends no serial-tagged data</td>
+</tr>
+<tr><td><a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a> If Session ID mismatch, MUST completely drop the session and flush all data learned from that cache (Section 5.1)</td>
+<td>{gap}, no test</td>
+<td>ze does not detect a Session ID change -- handlePDU adopts the Cache Response Session ID unconditionally (internal/component/bgp/plugins/rpki/rtr_session.go:233, s.sessionID = hdr.SessionID) with no comparison to the prior value and no cache flush</td>
+</tr>
+<tr><td><a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a> The router MUST choose the most preferred cache by configuration (Section 4)</td>
+<td>{gap}, no test</td>
+<td>ze does not select the most preferred cache -- startSessions launches a Run goroutine for every configured cache concurrently (internal/component/bgp/plugins/rpki/rpki.go:291-298) and the parsed preference is only surfaced for display (rpki.go:1026), never used to order or choose caches</td>
+</tr>
+<tr><td><a href="#rfc6810-6.2-1"><code>RFC6810-6.2-1</code></a> Cache MUST rate limit Serial Notifies to no more than one per minute (Section 6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: cache-side rate limit on Serial Notify emission -- ze receives Serial Notify and ignores it during sync (internal/component/bgp/plugins/rpki/rtr_session.go:359) and never sends one</td>
+</tr>
+<tr><td><a href="#rfc6810-3-1"><code>RFC6810-3-1</code></a> A relying party MUST have a trust relationship with, and a trusted transport channel to, any authoritative caches it uses (Section 3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: operator deployment obligation -- the trust relationship and trusted channel are established by network placement; ze dials the operator-configured cache over unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and has no in-band trust mechanism to produce or violate</td>
+</tr>
+<tr><td><a href="#rfc6810-4-2"><code>RFC6810-4-2</code></a> Cache servers&#39; clocks MUST be correct to a tolerance of approximately an hour (Section 4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: cache-server clock obligation -- ze is the RTR router client that dials out (internal/component/bgp/plugins/rpki/rtr_session.go:125 connectAndSync); it runs no cache and holds no clock this binds</td>
+</tr>
+<tr><td><a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a> If unprotected TCP is the transport, cache and routers MUST be on the same trusted and controlled network (Section 7)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: operator deployment obligation -- when unprotected TCP is used the trusted-network placement is the operator&#39;s; ze dials plain TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) with no code path to enforce network topology</td>
+</tr>
+<tr><td><a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a> If available, caches and routers MUST use one of the more protected protocols (Section 7)</td>
+<td>{gap}, no test</td>
+<td>ze implements no protected RTR transport -- connectAndSync dials only unprotected TCP (internal/component/bgp/plugins/rpki/rtr_session.go:127) and the plugin has no SSH, TLS, TCP-MD5, or TCP-AO client, so no more protected protocol is available to select</td>
+</tr>
+<tr><td><a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a> Cache servers supporting SSH MUST accept RSA and DSA authentication (Section 7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: cache-server SSH obligation -- ze runs no RTR SSH server and no SSH client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it performs no SSH authentication</td>
+</tr>
+<tr><td><a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a> SSH user authentication MUST be supported (Section 7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: SSH-transport obligation -- ze implements no SSH RTR transport (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so SSH user authentication has no code path</td>
+</tr>
+<tr><td><a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a> Client MUST keep data marked as to source, as later updates MUST affect the correct data (Section 8)</td>
+<td>{gap}, no test</td>
+<td>ze does not mark VRPs by source cache -- every RTR session writes one shared ROACache (internal/component/bgp/plugins/rpki/rpki.go:292) and vrpEntry carries only MaxLength and ASN (roa_cache.go:12-15) with no source field, so a withdraw from one cache can remove a VRP another announced</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-1"><code>RFC6810-7.2-1</code></a> TLS client routers MUST present client-side certificates (Section 7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze implements no TLS RTR client (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so the client-certificate requirement has no code path</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a> TLS certificates MUST include subjectAltName extension with iPAddress identities (Section 7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze implements no TLS RTR transport (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it issues and validates no rpki-rtr TLS certificates</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a> Cache MUST check IP address of TLS connection against iPAddress identities (Section 7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: cache-side TLS obligation -- ze runs no RTR TLS server (it is a client that dials out, internal/component/bgp/plugins/rpki/rtr_session.go:125), so it checks no connecting IP against iPAddress identities</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-4"><code>RFC6810-7.2-4</code></a> Routers MUST verify the cache&#39;s TLS server certificate using subjectAltName dNSName identities (Section 7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze implements no TLS RTR client (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it verifies no cache server certificate</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-5"><code>RFC6810-7.2-5</code></a> DNS-ID identifier type support is REQUIRED in rpki-rtr TLS implementations (Section 7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127 dials plain TCP), so DNS-ID identifier support does not apply</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-6"><code>RFC6810-7.2-6</code></a> DNS-ID identifier type MUST be present in rpki-rtr server certificates (Section 7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: cache-server-certificate obligation under TLS -- ze runs no RTR TLS server and issues no server certificate (it is a plain-TCP client, internal/component/bgp/plugins/rpki/rtr_session.go:127)</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a> rpki-rtr TLS implementations MUST NOT use CN-ID identifiers for authentication (Section 7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it uses no certificate identifiers, CN-ID or otherwise</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-8"><code>RFC6810-7.2-8</code></a> The client router MUST set its &#34;reference identifier&#34; to the DNS name of the rpki-rtr cache (Section 7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze implements no TLS RTR client (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it sets no TLS reference identifier</td>
+</tr>
+<tr><td><a href="#rfc6810-7.3-1"><code>RFC6810-7.3-1</code></a> TCP MD5 implementations MUST support key lengths of at least 80 printable ASCII bytes (Section 7.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no MD5 keys</td>
+</tr>
+<tr><td><a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a> TCP MD5 implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TCP-MD5 transport obligation -- ze implements no TCP-MD5 for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no MD5 key material</td>
+</tr>
+<tr><td><a href="#rfc6810-7.4-1"><code>RFC6810-7.4-1</code></a> TCP-AO implementations MUST support key lengths of at least 80 printable ASCII bytes (Section 7.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TCP-AO transport obligation -- ze implements no TCP-AO for RTR (connectAndSync dials plain TCP, internal/component/bgp/plugins/rpki/rtr_session.go:127), so it holds no AO keys</td>
+</tr>
+<tr><td><a href="#rfc6810-7.4-2"><code>RFC6810-7.4-2</code></a> TCP-AO implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it parses no AO key material</td>
+</tr>
+<tr><td><a href="#rfc6810-7.4-3"><code>RFC6810-7.4-3</code></a> TCP-AO MAC lengths of at least 96 bits MUST be supported (Section 7.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it negotiates no MAC length</td>
+</tr>
+<tr><td><a href="#rfc6810-7.4-4"><code>RFC6810-7.4-4</code></a> TCP-AO cryptographic algorithms described in RFC 5926 MUST be supported (Section 7.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it supports no RFC 5926 algorithms</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc6810-5-1"><code>RFC6810-5-1</code></a></h3>
+<p>Fields with unspecified content MUST be zero on transmission (Section 5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L35" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteSerialQuery</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go#L52" title="internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go" target="_blank" rel="noopener"><code>TestWriteResetQueryZeroesReservedOverGarbage</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L16" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestWriteResetQuery</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a></h3>
+<p>Max Length MUST NOT be less than Prefix Length (Section 5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L130" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestParseIPv4PrefixMaxLenLessThanPrefixLen</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L57" title="internal/component/bgp/plugins/rpki/rtr_pdu_test.go" target="_blank" rel="noopener"><code>TestParseIPv4Prefix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6810-5.6-1"><code>RFC6810-5.6-1</code></a></h3>
+<p>Cache MUST ensure one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time (Section 5.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-5.6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-5.5-1"><code>RFC6810-5.5-1</code></a></h3>
+<p>In response to a Reset Query, the withdraw/announce field in payload PDUs MUST have the value 1 (announce) (Section 5.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-5.5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-5.8-1"><code>RFC6810-5.8-1</code></a></h3>
+<p>Session ID in End of Data MUST be the same as the corresponding Cache Response (Section 5.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-5.8-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a></h3>
+<p>If the Erroneous PDU field is empty, Length of Encapsulated PDU MUST be zero (Section 5.10)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-5.10-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-5.10-2"><code>RFC6810-5.10-2</code></a></h3>
+<p>An Error Report PDU MUST NOT be sent for an Error Report PDU (Section 5.10)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-5.10-2, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-5.10-3"><code>RFC6810-5.10-3</code></a></h3>
+<p>If error text is present, it MUST be UTF-8 encoded (Section 5.10)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-5.10-3, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-5.10-4"><code>RFC6810-5.10-4</code></a></h3>
+<p>If diagnostic text is not present, Length of Error Text MUST be zero (Section 5.10)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-5.10-4, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a></h3>
+<p>Incoming data associated with new serial MUST NOT be sent until the fetch is complete (Section 2, Serial Number definition)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a></h3>
+<p>If Session ID mismatch, MUST completely drop the session and flush all data learned from that cache (Section 5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-5.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a></h3>
+<p>The router MUST choose the most preferred cache by configuration (Section 4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a></h3>
+<p>Router MUST send Serial Query or Reset Query no less frequently than once an hour (Section 6.1, Section 6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L87" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestPollingCadenceAtLeastHourly</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6810-6.2-1"><code>RFC6810-6.2-1</code></a></h3>
+<p>Cache MUST rate limit Serial Notifies to no more than one per minute (Section 6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-6.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-6.3-1"><code>RFC6810-6.3-1</code></a></h3>
+<p>If Cache Reset received and no more preferred caches, router MUST issue a Reset Query (Section 6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L130" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L114" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestCacheResetTriggersResetQuery</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6810-6.4-1"><code>RFC6810-6.4-1</code></a></h3>
+<p>If No Data Available and no other caches, router MUST issue periodic Reset Queries (Section 6.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L181" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestNoDataAvailableKeepsResetQueryMode</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L162" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestNoDataAvailableKeepsResetQueryMode</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6810-3-1"><code>RFC6810-3-1</code></a></h3>
+<p>A relying party MUST have a trust relationship with, and a trusted transport channel to, any authoritative caches it uses (Section 3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-4-2"><code>RFC6810-4-2</code></a></h3>
+<p>Cache servers&#39; clocks MUST be correct to a tolerance of approximately an hour (Section 4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a></h3>
+<p>Caches and routers MUST implement unprotected TCP transport on port rpki-rtr (323) (Section 7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rpki_config_test.go#L93" title="internal/component/bgp/plugins/rpki/rpki_config_test.go" target="_blank" rel="noopener"><code>TestParseRPKIConfigDefaults</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a></h3>
+<p>If unprotected TCP is the transport, cache and routers MUST be on the same trusted and controlled network (Section 7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7-2, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a></h3>
+<p>If available, caches and routers MUST use one of the more protected protocols (Section 7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7-3, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a></h3>
+<p>Cache servers supporting SSH MUST accept RSA and DSA authentication (Section 7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a></h3>
+<p>SSH user authentication MUST be supported (Section 7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a></h3>
+<p>Client MUST keep data marked as to source, as later updates MUST affect the correct data (Section 8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-8-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-8-2"><code>RFC6810-8-2</code></a></h3>
+<p>If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation (Section 8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L159" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/roa_cache_test.go#L152" title="internal/component/bgp/plugins/rpki/roa_cache_test.go" target="_blank" rel="noopener"><code>TestValidationDoesNotDistinguishCacheSource</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc6810-7.2-1"><code>RFC6810-7.2-1</code></a></h3>
+<p>TLS client routers MUST present client-side certificates (Section 7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a></h3>
+<p>TLS certificates MUST include subjectAltName extension with iPAddress identities (Section 7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a></h3>
+<p>Cache MUST check IP address of TLS connection against iPAddress identities (Section 7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.2-4"><code>RFC6810-7.2-4</code></a></h3>
+<p>Routers MUST verify the cache&#39;s TLS server certificate using subjectAltName dNSName identities (Section 7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.2-4, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.2-5"><code>RFC6810-7.2-5</code></a></h3>
+<p>DNS-ID identifier type support is REQUIRED in rpki-rtr TLS implementations (Section 7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.2-5, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.2-6"><code>RFC6810-7.2-6</code></a></h3>
+<p>DNS-ID identifier type MUST be present in rpki-rtr server certificates (Section 7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.2-6, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a></h3>
+<p>rpki-rtr TLS implementations MUST NOT use CN-ID identifiers for authentication (Section 7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.2-7, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.2-8"><code>RFC6810-7.2-8</code></a></h3>
+<p>The client router MUST set its &#34;reference identifier&#34; to the DNS name of the rpki-rtr cache (Section 7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.2-8, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.3-1"><code>RFC6810-7.3-1</code></a></h3>
+<p>TCP MD5 implementations MUST support key lengths of at least 80 printable ASCII bytes (Section 7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a></h3>
+<p>TCP MD5 implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.4-1"><code>RFC6810-7.4-1</code></a></h3>
+<p>TCP-AO implementations MUST support key lengths of at least 80 printable ASCII bytes (Section 7.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.4-2"><code>RFC6810-7.4-2</code></a></h3>
+<p>TCP-AO implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.4-3"><code>RFC6810-7.4-3</code></a></h3>
+<p>TCP-AO MAC lengths of at least 96 bits MUST be supported (Section 7.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.4-3, so no unit is bound to it.</p>
+<h3><a href="#rfc6810-7.4-4"><code>RFC6810-7.4-4</code></a></h3>
+<p>TCP-AO cryptographic algorithms described in RFC 5926 MUST be supported (Section 7.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC6810-7.4-4, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 6810, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>RFC 6810 is obsoleted by RFC 8210.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Disposition</th><th>Now stated at</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc6810-5-1"><code>RFC6810-5-1</code></a> Fields with unspecified content MUST be zero on transmission (Section 5)</td>
+<td>restated</td>
+<td>RFC8210-5-1</td>
+<td>RFC 8210 Section 5 keeps the sentence and names the field, that reserved fields marked zero in the PDU diagrams MUST be zero on transmission</td>
+</tr>
+<tr><td><a href="#rfc6810-5.1-1"><code>RFC6810-5.1-1</code></a> Max Length MUST NOT be less than Prefix Length (Section 5.1)</td>
+<td>restated</td>
+<td>RFC8210-5.1-2</td>
+<td>RFC 8210 Section 5.1 keeps the rule for the IPv4 and IPv6 Prefix PDUs, that the Max Length must not be less than the Prefix Length</td>
+</tr>
+<tr><td><a href="#rfc6810-5.6-1"><code>RFC6810-5.6-1</code></a> Cache MUST ensure one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time (Section 5.6)</td>
+<td>restated</td>
+<td>RFC8210-5.6-1</td>
+<td>RFC 8210 Section 5.6 keeps the one-and-only-one rule for the IPvX Prefix PDU, and Section 5.10 states the same rule for the new Router Key PDU at RFC8210-5.10-1</td>
+</tr>
+<tr><td><a href="#rfc6810-5.5-1"><code>RFC6810-5.5-1</code></a> In response to a Reset Query, the withdraw/announce field in payload PDUs MUST have the value 1 (announce) (Section 5.5)</td>
+<td>restated</td>
+<td>RFC8210-5.5-1</td>
+<td>RFC 8210 Section 5.5 keeps the rule that payload PDUs replying to a Reset Query carry withdraw/announce value 1</td>
+</tr>
+<tr><td><a href="#rfc6810-5.8-1"><code>RFC6810-5.8-1</code></a> Session ID in End of Data MUST be the same as the corresponding Cache Response (Section 5.8)</td>
+<td>restated</td>
+<td>RFC8210-5.8-1</td>
+<td>RFC 8210 Section 5.8 keeps the Session ID rule and adds the Protocol Version to it, because version negotiation is new in version 1</td>
+</tr>
+<tr><td><a href="#rfc6810-5.10-1"><code>RFC6810-5.10-1</code></a> If the Erroneous PDU field is empty, Length of Encapsulated PDU MUST be zero (Section 5.10)</td>
+<td>restated</td>
+<td>RFC8210-5.11-2</td>
+<td>the Error Report PDU moved from Section 5.10 to Section 5.11 when the Router Key PDU took 5.10, and the rule is kept, that a generic error leaves the Erroneous PDU field empty and the Length of Encapsulated PDU zero</td>
+</tr>
+<tr><td><a href="#rfc6810-5.10-2"><code>RFC6810-5.10-2</code></a> An Error Report PDU MUST NOT be sent for an Error Report PDU (Section 5.10)</td>
+<td>restated</td>
+<td>RFC8210-5.11-1</td>
+<td>the Error Report PDU moved to Section 5.11 and keeps the rule that no Error Report PDU is sent for an Error Report PDU</td>
+</tr>
+<tr><td><a href="#rfc6810-5.10-3"><code>RFC6810-5.10-3</code></a> If error text is present, it MUST be UTF-8 encoded (Section 5.10)</td>
+<td>restated</td>
+<td>RFC8210-5.11-3</td>
+<td>the Error Report PDU moved to Section 5.11 and keeps the rule that error text, when present, is UTF-8 encoded</td>
+</tr>
+<tr><td><a href="#rfc6810-5.10-4"><code>RFC6810-5.10-4</code></a> If diagnostic text is not present, Length of Error Text MUST be zero (Section 5.10)</td>
+<td>restated</td>
+<td>RFC8210-5.11-4</td>
+<td>the Error Report PDU moved to Section 5.11 and keeps the rule that the Length of Error Text is zero when no diagnostic text is present</td>
+</tr>
+<tr><td><a href="#rfc6810-2-1"><code>RFC6810-2-1</code></a> Incoming data associated with new serial MUST NOT be sent until the fetch is complete (Section 2, Serial Number definition)</td>
+<td>unextracted</td>
+<td>§2</td>
+<td>RFC 8210 Section 2 keeps the Serial Number glossary entry word for word, that while a cache is receiving updates, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete. rfc/short/rfc8210.md declares no row for it</td>
+</tr>
+<tr><td><a href="#rfc6810-5.1-2"><code>RFC6810-5.1-2</code></a> If Session ID mismatch, MUST completely drop the session and flush all data learned from that cache (Section 5.1)</td>
+<td>restated</td>
+<td>RFC8210-5.1-4</td>
+<td>RFC 8210 Section 5.1 keeps the flush and splits the sentence in two, stating the immediate termination with an Error Report PDU of code 0 separately at RFC8210-5.1-3</td>
+</tr>
+<tr><td><a href="#rfc6810-4-1"><code>RFC6810-4-1</code></a> The router MUST choose the most preferred cache by configuration (Section 4)</td>
+<td>restated</td>
+<td>RFC8210-4-1</td>
+<td>RFC 8210 Section 4 keeps the rule that the router chooses the most preferred cache by configuration</td>
+</tr>
+<tr><td><a href="#rfc6810-6.1-1"><code>RFC6810-6.1-1</code></a> Router MUST send Serial Query or Reset Query no less frequently than once an hour (Section 6.1, Section 6.2)</td>
+<td>restated</td>
+<td>RFC8210-8.1-1</td>
+<td>the protocol sequences moved from Section 6 to Section 8, and RFC 8210 replaces the fixed once-an-hour floor with the cache-signalled Refresh Interval of Section 6. The periodic query itself stays a MUST</td>
+</tr>
+<tr><td><a href="#rfc6810-6.2-1"><code>RFC6810-6.2-1</code></a> Cache MUST rate limit Serial Notifies to no more than one per minute (Section 6.2)</td>
+<td>restated</td>
+<td>RFC8210-8.2-1</td>
+<td>the protocol sequences moved to Section 8, and Section 8.2 keeps the one-per-minute rate limit on Serial Notifies</td>
+</tr>
+<tr><td><a href="#rfc6810-6.3-1"><code>RFC6810-6.3-1</code></a> If Cache Reset received and no more preferred caches, router MUST issue a Reset Query (Section 6.3)</td>
+<td>restated</td>
+<td>RFC8210-8.3-1</td>
+<td>Section 8.3 keeps the rule that a router with no more-preferred cache available issues a Reset Query and takes an entire new load after a Cache Reset</td>
+</tr>
+<tr><td><a href="#rfc6810-6.4-1"><code>RFC6810-6.4-1</code></a> If No Data Available and no other caches, router MUST issue periodic Reset Queries (Section 6.4)</td>
+<td>restated</td>
+<td>RFC8210-8.4-1</td>
+<td>Section 8.4 keeps the rule that a router with no other cache available issues periodic Reset Queries when the cache cannot supply an update</td>
+</tr>
+<tr><td><a href="#rfc6810-3-1"><code>RFC6810-3-1</code></a> A relying party MUST have a trust relationship with, and a trusted transport channel to, any authoritative caches it uses (Section 3)</td>
+<td>unextracted</td>
+<td>§3</td>
+<td>RFC 8210 Section 3 keeps the sentence word for word, that a Relying Party MUST have a trust relationship with, and a trusted transport channel to, any cache it uses. rfc/short/rfc8210.md declares no row for it</td>
+</tr>
+<tr><td><a href="#rfc6810-4-2"><code>RFC6810-4-2</code></a> Cache servers&#39; clocks MUST be correct to a tolerance of approximately an hour (Section 4)</td>
+<td>restated</td>
+<td>RFC8210-4-2</td>
+<td>RFC 8210 Section 4 keeps the tolerance, that servers&#39; clocks are correct to approximately an hour</td>
+</tr>
+<tr><td><a href="#rfc6810-7-1"><code>RFC6810-7-1</code></a> Caches and routers MUST implement unprotected TCP transport on port rpki-rtr (323) (Section 7)</td>
+<td>restated</td>
+<td>RFC8210-9-1</td>
+<td>the transport section moved from Section 7 to Section 9, which keeps the obligation to implement unprotected transport over TCP on the rpki-rtr port 323</td>
+</tr>
+<tr><td><a href="#rfc6810-7-2"><code>RFC6810-7-2</code></a> If unprotected TCP is the transport, cache and routers MUST be on the same trusted and controlled network (Section 7)</td>
+<td>restated</td>
+<td>RFC8210-9-2</td>
+<td>Section 9 keeps the rule that cache and routers are on the same trusted and controlled network when unprotected TCP is the transport</td>
+</tr>
+<tr><td><a href="#rfc6810-7-3"><code>RFC6810-7-3</code></a> If available, caches and routers MUST use one of the more protected protocols (Section 7)</td>
+<td>restated</td>
+<td>RFC8210-9-3</td>
+<td>Section 9 keeps the obligation to use one of the more protected protocols when it is available to the operator</td>
+</tr>
+<tr><td><a href="#rfc6810-7.1-1"><code>RFC6810-7.1-1</code></a> Cache servers supporting SSH MUST accept RSA and DSA authentication (Section 7.1)</td>
+<td>restated</td>
+<td>RFC8210-9.1-1</td>
+<td>RFC 8210 Section 9.1 keeps the obligation for RSA and REMOVES DSA. Where RFC 6810 required a cache server supporting SSH to accept RSA and DSA authentication, RFC 8210 requires RSA alone, and its only other keyword in that sentence is the SHOULD for ECDSA at RFC8210-9.1-3 which RFC 6810 also carried</td>
+</tr>
+<tr><td><a href="#rfc6810-7.1-2"><code>RFC6810-7.1-2</code></a> SSH user authentication MUST be supported (Section 7.1)</td>
+<td>restated</td>
+<td>RFC8210-9.1-2</td>
+<td>Section 9.1 keeps the obligation to support SSH user authentication</td>
+</tr>
+<tr><td><a href="#rfc6810-8-1"><code>RFC6810-8-1</code></a> Client MUST keep data marked as to source, as later updates MUST affect the correct data (Section 8)</td>
+<td>restated</td>
+<td>RFC8210-10-2</td>
+<td>the router-cache setup moved from Section 8 to Section 10, which keeps the obligation to mark held data as to source because later updates must affect the correct data</td>
+</tr>
+<tr><td><a href="#rfc6810-8-2"><code>RFC6810-8-2</code></a> If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation (Section 8)</td>
+<td>restated</td>
+<td>RFC8210-10-1</td>
+<td>Section 10 keeps the prohibition on distinguishing between data sources when performing validation of BGP announcements</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-1"><code>RFC6810-7.2-1</code></a> TLS client routers MUST present client-side certificates (Section 7.2)</td>
+<td>restated</td>
+<td>RFC8210-9.2-1</td>
+<td>the TLS transport moved to Section 9.2, which keeps the obligation on a client router to present client-side certificates</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-2"><code>RFC6810-7.2-2</code></a> TLS certificates MUST include subjectAltName extension with iPAddress identities (Section 7.2)</td>
+<td>restated</td>
+<td>RFC8210-9.2-2</td>
+<td>Section 9.2 keeps the obligation that a client router certificate include a subjectAltName extension carrying one or more iPAddress identities</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-3"><code>RFC6810-7.2-3</code></a> Cache MUST check IP address of TLS connection against iPAddress identities (Section 7.2)</td>
+<td>restated</td>
+<td>RFC8210-9.2-3</td>
+<td>Section 9.2 keeps the obligation on the cache to check the IP address of the TLS connection against those iPAddress identities</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-4"><code>RFC6810-7.2-4</code></a> Routers MUST verify the cache&#39;s TLS server certificate using subjectAltName dNSName identities (Section 7.2)</td>
+<td>restated</td>
+<td>RFC8210-9.2-4</td>
+<td>Section 9.2 keeps the obligation on routers to verify the cache&#39;s TLS server certificate using subjectAltName dNSName identities as described in RFC 6125</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-5"><code>RFC6810-7.2-5</code></a> DNS-ID identifier type support is REQUIRED in rpki-rtr TLS implementations (Section 7.2)</td>
+<td>unextracted</td>
+<td>§9.2</td>
+<td>RFC 8210 Section 9.2 keeps the sentence word for word, that support for the DNS-ID identifier type is REQUIRED in rpki-rtr server and client implementations which use TLS. rfc/short/rfc8210.md declares rows for the Certification Authority half and for the certificate half, at RFC8210-9.2-9 and RFC8210-9.2-6, and none for the implementation-support half</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-6"><code>RFC6810-7.2-6</code></a> DNS-ID identifier type MUST be present in rpki-rtr server certificates (Section 7.2)</td>
+<td>restated</td>
+<td>RFC8210-9.2-6</td>
+<td>Section 9.2 keeps the obligation that the DNS-ID identifier type be present in rpki-rtr server certificates</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-7"><code>RFC6810-7.2-7</code></a> rpki-rtr TLS implementations MUST NOT use CN-ID identifiers for authentication (Section 7.2)</td>
+<td>restated</td>
+<td>RFC8210-9.2-5</td>
+<td>Section 9.2 keeps the prohibition on CN-ID identifiers, and states its second half, that a CN field present in the subject name is not used for authentication, at RFC8210-9.2-10</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-8"><code>RFC6810-7.2-8</code></a> The client router MUST set its &#34;reference identifier&#34; to the DNS name of the rpki-rtr cache (Section 7.2)</td>
+<td>restated</td>
+<td>RFC8210-9.2-8</td>
+<td>Section 9.2 keeps the obligation on the client router to set its reference identifier to the DNS name of the rpki-rtr cache</td>
+</tr>
+<tr><td><a href="#rfc6810-7.3-1"><code>RFC6810-7.3-1</code></a> TCP MD5 implementations MUST support key lengths of at least 80 printable ASCII bytes (Section 7.3)</td>
+<td>restated</td>
+<td>RFC8210-9.3-1</td>
+<td>the TCP MD5 transport moved to Section 9.3, which keeps the key length of at least 80 printable ASCII bytes</td>
+</tr>
+<tr><td><a href="#rfc6810-7.3-2"><code>RFC6810-7.3-2</code></a> TCP MD5 implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.3)</td>
+<td>restated</td>
+<td>RFC8210-9.3-2</td>
+<td>Section 9.3 keeps the obligation to support hexadecimal sequences of at least 32 characters, that is 128 bits</td>
+</tr>
+<tr><td><a href="#rfc6810-7.4-1"><code>RFC6810-7.4-1</code></a> TCP-AO implementations MUST support key lengths of at least 80 printable ASCII bytes (Section 7.4)</td>
+<td>restated</td>
+<td>RFC8210-9.4-1</td>
+<td>the TCP-AO transport moved to Section 9.4, which keeps the key length of at least 80 printable ASCII bytes</td>
+</tr>
+<tr><td><a href="#rfc6810-7.4-2"><code>RFC6810-7.4-2</code></a> TCP-AO implementations MUST support hexadecimal sequences of at least 32 characters (Section 7.4)</td>
+<td>restated</td>
+<td>RFC8210-9.4-2</td>
+<td>Section 9.4 keeps the obligation to support hexadecimal sequences of at least 32 characters, that is 128 bits</td>
+</tr>
+<tr><td><a href="#rfc6810-7.4-3"><code>RFC6810-7.4-3</code></a> TCP-AO MAC lengths of at least 96 bits MUST be supported (Section 7.4)</td>
+<td>restated</td>
+<td>RFC8210-9.4-1</td>
+<td>Section 9.4 keeps the MAC length of at least 96 bits per Section 5.1 of RFC 5925, and rfc/short/rfc8210.md carries it in the same row as the key length</td>
+</tr>
+<tr><td><a href="#rfc6810-7.4-4"><code>RFC6810-7.4-4</code></a> TCP-AO cryptographic algorithms described in RFC 5926 MUST be supported (Section 7.4)</td>
+<td>restated</td>
+<td>RFC8210-9.4-3</td>
+<td>Section 9.4 keeps the obligation to support the cryptographic algorithms and associated parameters described in RFC 5926</td>
+</tr>
+<tr><td><a href="#rfc6810-6.2-2"><code>RFC6810-6.2-2</code></a> Cache SHOULD send a Notify PDU when its serial changes (Section 6.2)</td>
+<td>restated</td>
+<td>RFC8210-8.2-2</td>
+<td>Section 8.2 keeps the SHOULD to send a Notify PDU carrying the current Serial Number when the cache&#39;s serial changes</td>
+</tr>
+<tr><td><a href="#rfc6810-5.6-2"><code>RFC6810-5.6-2</code></a> Router receiving a duplicate announcement SHOULD raise Duplicate Announcement Received error (Section 5.6)</td>
+<td>restated</td>
+<td>RFC8210-5.6-2</td>
+<td>RFC 8210 Section 5.6 keeps the SHOULD to raise a Duplicate Announcement Received error, and Section 5.10 extends it to the new Router Key PDU</td>
+</tr>
+<tr><td><a href="#rfc6810-7-4"><code>RFC6810-7-4</code></a> Caches and routers SHOULD use TCP-AO, SSHv2, TCP MD5, or IPsec transport (Section 7)</td>
+<td>restated</td>
+<td>RFC8210-9-5</td>
+<td>Section 9 keeps the SHOULD for TCP-AO alone and demotes the rest of the list to MAY, at RFC8210-9-6, adding TLS to it. RFC 6810 wrote one SHOULD over TCP-AO, SSHv2, TCP MD5 and IPsec</td>
+</tr>
+<tr><td><a href="#rfc6810-7-5"><code>RFC6810-7-5</code></a> Both caches and routers SHOULD enable transport keep-alives (Section 7)</td>
+<td>restated</td>
+<td>RFC8210-9-4</td>
+<td>Section 9 keeps the SHOULD to enable keep-alives when they are available in the chosen transport protocol</td>
+</tr>
+<tr><td><a href="#rfc6810-6.3-2"><code>RFC6810-6.3-2</code></a> Router SHOULD attempt more preferred caches on Cache Reset (Section 6.3)</td>
+<td>restated</td>
+<td>RFC8210-8.3-2</td>
+<td>Section 8.3 keeps the SHOULD to attempt a more-preferred cache on a Cache Reset</td>
+</tr>
+<tr><td><a href="#rfc6810-6.4-2"><code>RFC6810-6.4-2</code></a> Router SHOULD attempt other caches on No Data Available (Section 6.4)</td>
+<td>restated</td>
+<td>RFC8210-8.4-2</td>
+<td>Section 8.4 keeps the SHOULD to attempt other caches in preference order on No Data Available</td>
+</tr>
+<tr><td><a href="#rfc6810-8-3"><code>RFC6810-8-3</code></a> Client SHOULD retain data from previous cache during switchover (Section 8)</td>
+<td>restated</td>
+<td>RFC8210-10-4</td>
+<td>Section 10 keeps the SHOULD to retain the previous cache&#39;s data until a full set of data is held from one or more other caches</td>
+</tr>
+<tr><td><a href="#rfc6810-8-4"><code>RFC6810-8-4</code></a> Client SHOULD delete data from unreachable cache after 2x polling period (Section 8)</td>
+<td>restated</td>
+<td>RFC8210-6-2</td>
+<td>RFC 8210 replaces the locally configured timer, whose default was twice the polling period, with the Expire Interval the cache sends in the End Of Data PDU, and RAISES the rule from a SHOULD to delete to a MUST NOT retain. Section 10 now defers to Section 6 for what to do when the client cannot refresh from a cache</td>
+</tr>
+<tr><td><a href="#rfc6810-11-1"><code>RFC6810-11-1</code></a> Cache SHOULD be topologically close to router (Section 11)</td>
+<td>unextracted</td>
+<td>§13</td>
+<td>the Security Considerations moved from Section 11 to Section 13, which keeps both SHOULDs word for word, that the cache really SHOULD be as close as possible in the sense of controlled and protected transport, and SHOULD be topologically close. rfc/short/rfc8210.md declares no row for either</td>
+</tr>
+<tr><td><a href="#rfc6810-5.10-5"><code>RFC6810-5.10-5</code></a> If erroneous Error Report PDU received, session SHOULD be dropped (Section 5.10)</td>
+<td>restated</td>
+<td>RFC8210-5.11-5</td>
+<td>the Error Report PDU moved to Section 5.11 and keeps the SHOULD to drop the session on an erroneous Error Report PDU</td>
+</tr>
+<tr><td><a href="#rfc6810-7.1-3"><code>RFC6810-7.1-3</code></a> Cache servers supporting SSH SHOULD accept ECDSA authentication (Section 7.1)</td>
+<td>restated</td>
+<td>RFC8210-9.1-3</td>
+<td>Section 9.1 keeps the SHOULD to accept ECDSA authentication</td>
+</tr>
+<tr><td><a href="#rfc6810-7.1-4"><code>RFC6810-7.1-4</code></a> Client routers SHOULD verify the public key of the cache to avoid MITM attacks (Section 7.1)</td>
+<td>restated</td>
+<td>RFC8210-9.1-4</td>
+<td>Section 9.1 keeps the SHOULD for the client router to verify the public key of the cache against a monkey-in-the-middle attack</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-9"><code>RFC6810-7.2-9</code></a> TLS cache SHOULD reject connections if no iPAddress identities match (Section 7.2)</td>
+<td>unextracted</td>
+<td>§9.2</td>
+<td>RFC 8210 Section 9.2 keeps the clause word for word, that the cache SHOULD reject the connection if none of the iPAddress identities match the connection. rfc/short/rfc8210.md declares a row for the MUST check that precedes it, RFC8210-9.2-3, and none for this SHOULD</td>
+</tr>
+<tr><td><a href="#rfc6810-7.2-10"><code>RFC6810-7.2-10</code></a> DNS names in rpki-rtr server certificates SHOULD NOT contain the wildcard character &#34;*&#34; (Section 7.2)</td>
+<td>restated</td>
+<td>RFC8210-9.2-7</td>
+<td>Section 9.2 keeps the SHOULD NOT on the wildcard character in a DNS name in an rpki-rtr server certificate</td>
+</tr>
+<tr><td><a href="#rfc6810-7-6"><code>RFC6810-7-6</code></a> Operators SHOULD use procedural means (e.g., ACLs) to reduce exposure to authentication issues when using unprotected TCP (Section 7)</td>
+<td>unextracted</td>
+<td>§9</td>
+<td>RFC 8210 Section 9 keeps the sentence word for word, that operators SHOULD use procedural means, for example access control lists, to reduce the exposure to authentication issues. rfc/short/rfc8210.md declares no row for it</td>
+</tr>
+<tr><td><a href="#rfc6810-7.3-3"><code>RFC6810-7.3-3</code></a> Cache servers SHOULD support RFC 4808 for TCP MD5 key rollover (Section 7.3)</td>
+<td>restated</td>
+<td>RFC8210-9.3-3</td>
+<td>Section 9.3 keeps the SHOULD for a cache server to support RFC 4808, because key rollover with TCP MD5 stays problematic</td>
+</tr>
+<tr><td><a href="#rfc6810-8-5"><code>RFC6810-8-5</code></a> The client SHOULD attempt to maintain at least one set of data regardless of cache changes (Section 8)</td>
+<td>restated</td>
+<td>RFC8210-10-3</td>
+<td>Section 10 keeps the SHOULD to maintain at least one set of data regardless of a cache change or a new connection</td>
+</tr>
+<tr><td><a href="#rfc6810-11-2"><code>RFC6810-11-2</code></a> The identity of the cache server SHOULD be verified and authenticated by the router client, and vice versa (Section 11)</td>
+<td>restated</td>
+<td>RFC8210-11-1</td>
+<td>the Security Considerations moved to Section 13, which keeps the sentence word for word, that the identity of the cache server SHOULD be verified and authenticated by the router client and vice versa before any data are exchanged. The rfc/short/rfc8210.md row cites §11, which is that summary&#39;s own error and not a change in the document</td>
+</tr>
+<tr><td><a href="#rfc6810-11-3"><code>RFC6810-11-3</code></a> Protocols that provide integrity and authenticity SHOULD be used for cache-router transport (Section 11)</td>
+<td>unextracted</td>
+<td>§13</td>
+<td>the Security Considerations moved to Section 13, which keeps the sentence word for word, that protocols which provide integrity and authenticity SHOULD be used, and that if they cannot be, the router and cache MUST be on the same trusted controlled network. rfc/short/rfc8210.md declares no row for it</td>
+</tr>
+<tr><td><a href="#rfc6810-10-1"><code>RFC6810-10-1</code></a> Fatal errors SHOULD cause the session to be dropped (Section 10)</td>
+<td>restated</td>
+<td>RFC8210-12-1</td>
+<td>the error codes moved from Section 10 to Section 12, and RFC 8210 RAISES the rule, from errors considered fatal SHOULD cause the session to be dropped to MUST cause the session to be dropped</td>
+</tr>
+<tr><td><a href="#rfc6810-6.1-2"><code>RFC6810-6.1-2</code></a> Router MAY start with Serial Query if it has unexpired data from a previous session (Section 6.1)</td>
+<td>restated</td>
+<td>RFC8210-8.1-2</td>
+<td>RFC 8210 Section 8.1 turns the pair of permissions into one obligation, that on a new transport connection the router MUST send either a Reset Query or a Serial Query, and keeps the unexpired-data condition as indicative prose, adding that the router MUST fall back to a Reset Query in all other cases</td>
+</tr>
+<tr><td><a href="#rfc6810-5.10-6"><code>RFC6810-5.10-6</code></a> Truncated Erroneous PDU MAY be included for oversized PDUs (Section 5.10)</td>
+<td>restated</td>
+<td>RFC8210-5.11-6</td>
+<td>the Error Report PDU moved to Section 5.11 and keeps the permission to truncate the Erroneous PDU field for an excessively long PDU</td>
+</tr>
+<tr><td><a href="#rfc6810-5-2"><code>RFC6810-5-2</code></a> Fields with unspecified content MAY be ignored on receipt (Section 5)</td>
+<td>restated</td>
+<td>RFC8210-5-1</td>
+<td>RFC 8210 Section 5 states both halves in one sentence and RAISES this one, from MAY be ignored on receipt to MUST be ignored on receipt</td>
+</tr>
+<tr><td><a href="#rfc6810-7-7"><code>RFC6810-7-7</code></a> Routers MAY use SSHv2, TCP MD5, IPsec, or TLS transport (Section 7)</td>
+<td>restated</td>
+<td>RFC8210-9-6</td>
+<td>Section 9 keeps the permission and adds TLS on port rpki-rtr-tls 324 to the list</td>
+</tr>
+<tr><td><a href="#rfc6810-7.1-5"><code>RFC6810-7.1-5</code></a> SSH host authentication MAY be supported (Section 7.1)</td>
+<td>unextracted</td>
+<td>§9.1</td>
+<td>RFC 8210 Section 9.1 keeps the sentence word for word, that host authentication MAY be supported. rfc/short/rfc8210.md declares no row for it</td>
+</tr>
+<tr><td><a href="#rfc6810-7.1-6"><code>RFC6810-7.1-6</code></a> SSH implementations MAY support password authentication (Section 7.1)</td>
+<td>unextracted</td>
+<td>§9.1</td>
+<td>RFC 8210 Section 9.1 keeps the sentence word for word, that implementations MAY support password authentication. rfc/short/rfc8210.md declares no row for it</td>
+</tr>
+<tr><td><a href="#rfc6810-8-6"><code>RFC6810-8-6</code></a> A client MAY drop the data from a particular cache when it is fully in sync with other caches (Section 8)</td>
+<td>unextracted</td>
+<td>§10</td>
+<td>RFC 8210 Section 10 keeps the sentence word for word, that a client MAY drop the data from a particular cache when it is fully in sync with one or more other caches. rfc/short/rfc8210.md declares no row for it</td>
+</tr>
+<tr><td><a href="#rfc6810-3-2"><code>RFC6810-3-2</code></a> There MAY be mechanisms for the router to assure authenticity of the cache (Section 3)</td>
+<td>unextracted</td>
+<td>§3</td>
+<td>RFC 8210 Section 3 keeps the sentence word for word, that there MAY be mechanisms for the router to assure itself of the authenticity of the cache and to authenticate itself to the cache. rfc/short/rfc8210.md declares no row for it</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

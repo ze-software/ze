@@ -1,0 +1,1813 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 1035 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps, 2 with no test." />
+        <meta property="og:title" content="RFC 1035 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps, 2 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 1035 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 1035: Domain Names - Implementation and Specification. 27 gated MUST-level requirements, 0 declared gaps, 2 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc1035/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc1035/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 1035 - Domain Names - Implementation and Specification</h1>
+    <p>Every requirement this repository extracted from RFC 1035, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>92.6%</strong><b>25 of 27 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 27 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 27 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>1.6%</strong><b>1 of 62 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>27</strong><b>of 33 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 27 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>7.4%</strong><b>2 of 27 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 27 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Not enrolled (backlog)</td>
+</tr>
+<tr><td>Requirements</td>
+<td>33</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>27</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>27</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>2</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>62</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>62</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>1</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc1035.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc1035.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc1035.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Not enrolled (backlog): Domain Names: Implementation and Specification. Re-authored 2026-07-30 and it now declares 27 MUST-level obligations read from the indicative prose of a 1987 document (0 capitalised keywords, 23 lowercase must), so this is no longer an empty checklist. It is not enrolled because the obligations are not all proven and the unproven ones need an owner ruling, not an implementer&#39;s annotation. The obligation with no code path in Ze is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. The 512-octet UDP bound and the TC bit ARE enforced -- send calls Msg.Truncate(udpReplyLimit(r)) for a datagram reply in internal/core/dnsserver/handler.go, and udpReplyLimit holds the Section 2.3.4 floor while letting an RFC 6891 Section 6.2.3 OPT record raise it. An unsupported inverse query DOES draw Not Implemented: Authoritative branches on the opcode before any zone lookup, in the same file. It was the one obligation the 73-section walk found OUTSIDE the summary&#39;s declared scope and added to it. The response TTL is deliberately not raised to the SOA MINIMUM -- RFC 2308 Section 4 withdrew that rule, hdr in internal/plugins/geodns/server.go applies no floor, and TestRFC2308_NoZoneWideTTLFloor holds the decision. About 6 requirements admit only a positive polarity because miekg/dns owns the wire codec and no Ze-side change can break them. Escalated for scoping per OR-1b.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+DNS cache TTL handling, plus authoritative GeoDNS and AS112 response shaping. The reply carries the AA bit and the compression-off, recursion-unavailable shape, re-asserted after the answer function on every query (<code>Authoritative</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/handler.go" target="_blank" rel="noopener"><code>internal/core/dnsserver/handler.go</code></a>). A reply on a datagram transport is bounded and carries TC when it is shortened (<code>send</code> and <code>udpReplyLimit</code>, same file): the Section 2.3.4 floor of 512 octets, raised to the reassembly buffer an RFC 6891 Section 6.2.3 OPT record advertises. A stream reply is written whole. An opcode Ze does not serve draws Not Implemented before any zone lookup, which is the Section 6.4 reply an unsupported inverse query gets (<code>Authoritative</code>, same file). A name outside every served zone draws NXDOMAIN, and a name inside one with no matching record draws NODATA plus the zone SOA. Zone and label matching folds case. TTLs are bounded to 0..2147483647. The AS112 UDP and TCP listeners bind port 53. Obligations extracted 2026-07-30 and bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc1035.md" target="_blank" rel="noopener"><code>rfc/short/rfc1035.md</code></a>. The walk of all 73 sections is recorded in <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc1035.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc1035.json</code></a>.
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercase indicative prose. The extraction read that prose as normative, and the surviving obligation with no code path is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. A response TTL is deliberately not raised to the zone SOA MINIMUM. RFC 2308 Section 4 withdrew that rule (&#34;the minimum TTL value of all RRs in a zone, has never in practice been used and is hereby deprecated&#34;), <code>hdr</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/server.go" target="_blank" rel="noopener"><code>internal/plugins/geodns/server.go</code></a> applies no floor, and <code>TestRFC2308_NoZoneWideTTLFloor</code> holds the decision. The DNS wire codec is <code>github.com/miekg/dns</code>, so several encoding obligations admit no negative test through Ze at all. Declared <code>backlog</code> while an owner ruling is outstanding.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>25</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>2</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>27</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (25):</strong> <a href="#rfc1035-2.3.3-1"><code>RFC1035-2.3.3-1</code></a>, <a href="#rfc1035-2.3.3-2"><code>RFC1035-2.3.3-2</code></a>, <a href="#rfc1035-2.3.4-1"><code>RFC1035-2.3.4-1</code></a>, <a href="#rfc1035-2.3.4-2"><code>RFC1035-2.3.4-2</code></a>, <a href="#rfc1035-3.1-1"><code>RFC1035-3.1-1</code></a>, <a href="#rfc1035-3.1-2"><code>RFC1035-3.1-2</code></a>, <a href="#rfc1035-3.1-3"><code>RFC1035-3.1-3</code></a>, <a href="#rfc1035-3.1-4"><code>RFC1035-3.1-4</code></a>, <a href="#rfc1035-3.1-5"><code>RFC1035-3.1-5</code></a>, <a href="#rfc1035-3.1-6"><code>RFC1035-3.1-6</code></a>, <a href="#rfc1035-4.1.1-1"><code>RFC1035-4.1.1-1</code></a>, <a href="#rfc1035-4.1.1-2"><code>RFC1035-4.1.1-2</code></a>, <a href="#rfc1035-4.1.1-3"><code>RFC1035-4.1.1-3</code></a>, <a href="#rfc1035-4.1.3-1"><code>RFC1035-4.1.3-1</code></a>, <a href="#rfc1035-4.1.3-2"><code>RFC1035-4.1.3-2</code></a>, <a href="#rfc1035-4.1.4-1"><code>RFC1035-4.1.4-1</code></a>, <a href="#rfc1035-4.1.4-2"><code>RFC1035-4.1.4-2</code></a>, <a href="#rfc1035-4.1.4-3"><code>RFC1035-4.1.4-3</code></a>, <a href="#rfc1035-4.1.4-4"><code>RFC1035-4.1.4-4</code></a>, <a href="#rfc1035-4.1.4-5"><code>RFC1035-4.1.4-5</code></a>, <a href="#rfc1035-4.2.1-1"><code>RFC1035-4.2.1-1</code></a>, <a href="#rfc1035-4.2.1-2"><code>RFC1035-4.2.1-2</code></a>, <a href="#rfc1035-4.2.1-3"><code>RFC1035-4.2.1-3</code></a>, <a href="#rfc1035-4.2.2-1"><code>RFC1035-4.2.2-1</code></a>, <a href="#rfc1035-6.4-1"><code>RFC1035-6.4-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (2):</strong> <a href="#rfc1035-3.3.13-1"><code>RFC1035-3.3.13-1</code></a>, <a href="#rfc1035-4.2-1"><code>RFC1035-4.2-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.3-1">RFC1035-2.3.3-1</code></td><td colspan="3"><span class="rfc-subject">For all parts of the DNS that are part of the official protocol, all comparisons between character strings (e.g., labels, domain names, etc.) are done in a case-insensitive manner (§2.3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3.3 - Character Case</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-2.3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L54" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L97" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.3-2">RFC1035-2.3.3-2</code></td><td colspan="3"><span class="rfc-subject">Loss of case sensitive data must be minimized (§2.3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3.3 - Character Case</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-2.3.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L133" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryNameCasePreservedInTheReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L148" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryNameCasePreservedInTheReply</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.4-1">RFC1035-2.3.4-1</code></td><td colspan="3"><span class="rfc-subject">Size limit -- TTL: positive values of a signed 32 bit number (§2.3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3.4 - Size limits</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-2.3.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L144" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L159" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.4-2">RFC1035-2.3.4-2</code></td><td colspan="3"><span class="rfc-subject">Size limit -- UDP messages: 512 octets or less (§2.3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3.4 - Size limits</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-2.3.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L102" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L132" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.1-1">RFC1035-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Each label is represented as a one octet length field followed by that number of octets (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1 - Name space definitions: the wire form of a domain name</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L179" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L204" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.1-2">RFC1035-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Since every domain name ends with the null label of the root, a domain name is terminated by a length byte of zero (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1 - Name space definitions: the wire form of a domain name</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L186" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L192" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.1-3">RFC1035-3.1-3</code></td><td colspan="3"><span class="rfc-subject">The high order two bits of every length octet must be zero, and the remaining six bits of the length field limit the label to 63 octets or less (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1 - Name space definitions: the wire form of a domain name</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-3.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L57" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredLabelBoundedTo63Octets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L73" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredLabelBoundedTo63Octets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L24" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L67" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.1-4">RFC1035-3.1-4</code></td><td colspan="3"><span class="rfc-subject">The total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1 - Name space definitions: the wire form of a domain name</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-3.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L134" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredNameBoundedTo255WireOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L115" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredNameBoundedTo255WireOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L43" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L65" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.1-5">RFC1035-3.1-5</code></td><td colspan="3"><span class="rfc-subject">Name servers and resolvers must compare labels in a case-insensitive manner (i.e., A=a), assuming ASCII with zero parity (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1 - Name space definitions: the wire form of a domain name</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-3.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L59" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L105" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.1-6">RFC1035-3.1-6</code></td><td colspan="3"><span class="rfc-subject">Non-alphabetic codes must match exactly (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1 - Name space definitions: the wire form of a domain name</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-3.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L87" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L110" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.3.13-1">RFC1035-3.3.13-1</code></td><td colspan="3"><span class="rfc-subject">Whenever a RR is sent in a response to a query, the TTL field is set to the maximum of the TTL field from the RR and the MINIMUM field in the appropriate SOA (§3.3.13)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3.13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-3.3.13-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.1-1">RFC1035-4.1.1-1</code></td><td colspan="3"><span class="rfc-subject">Z is reserved for future use and must be zero in all queries and responses (§4.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1.1 - Header section format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L69" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ReservedZFieldIsZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L102" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ReservedZFieldIsZero</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.1-2">RFC1035-4.1.1-2</code></td><td colspan="3"><span class="rfc-subject">AA (Authoritative Answer) is valid in responses and specifies that the responding name server is an authority for the domain name in question section (§4.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1.1 - Header section format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L137" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_AuthoritativeAnswerBitOnEveryReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L162" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_AuthoritativeAnswerBitOnEveryReply</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L117" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L253" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.1-3">RFC1035-4.1.1-3</code></td><td colspan="3"><span class="rfc-subject">RCODE 3 (Name Error), meaningful only for responses from an authoritative name server, signifies that the domain name referenced in the query does not exist (§4.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1.1 - Header section format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L102" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L237" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L107" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L242" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.3-1">RFC1035-4.1.3-1</code></td><td colspan="3"><span class="rfc-subject">TTL is a 32 bit unsigned integer that specifies the time interval in seconds that the resource record may be cached (§4.1.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1.3 - Resource record format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L109" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L127" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.3-2">RFC1035-4.1.3-2</code></td><td colspan="3"><span class="rfc-subject">RDLENGTH is an unsigned 16 bit integer that specifies the length in octets of the RDATA field (§4.1.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1.3 - Resource record format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L181" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RDLengthCountsTheRDataOctets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L201" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RDLengthCountsTheRDataOctets</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-1">RFC1035-4.1.4-1</code></td><td colspan="3"><span class="rfc-subject">A compression pointer takes the form of a two octet sequence whose first two bits are ones, distinguishing it from a label, which must begin with two zero bits (§4.1.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1.4 - Message compression</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L150" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L225" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-2">RFC1035-4.1.4-2</code></td><td colspan="3"><span class="rfc-subject">The OFFSET field specifies an offset from the start of the message, i.e. the first octet of the ID field in the domain header (§4.1.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1.4 - Message compression</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L169" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L229" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-3">RFC1035-4.1.4-3</code></td><td colspan="3"><span class="rfc-subject">Pointers can only be used for occurances of a domain name where the format is not class specific (§4.1.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1.4 - Message compression</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L208" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L232" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-4">RFC1035-4.1.4-4</code></td><td colspan="3"><span class="rfc-subject">If a domain name is contained in a part of the message subject to a length field, such as the RDATA section of an RR, and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name (§4.1.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1.4 - Message compression</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L184" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L235" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.4-5">RFC1035-4.1.4-5</code></td><td colspan="3"><span class="rfc-subject">All programs are required to understand arriving messages that contain pointers (§4.1.4)</span></td></tr>
+<tr><td></td>
+<td>REQUIRED</td>
+<td>4.1.4 - Message compression</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.4-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L345" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_InboundCompressionPointerUnderstood</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L365" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_InboundCompressionPointerUnderstood</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.2-1">RFC1035-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Zone refresh activities must use virtual circuits because of the need for reliable transfer (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2 - Transport preamble</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.2.1-1">RFC1035-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">Messages carried by UDP are restricted to 512 bytes, not counting the IP or UDP headers (§4.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.1 - UDP usage</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L97" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L81" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L164" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.2.1-2">RFC1035-4.2.1-2</code></td><td colspan="3"><span class="rfc-subject">Longer messages are truncated and the TC bit is set in the header (§4.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.1 - UDP usage</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L107" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L90" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L195" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_StreamTransportNotTruncated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L127" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L104" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.2.1-3">RFC1035-4.2.1-3</code></td><td colspan="3"><span class="rfc-subject">Messages sent using UDP user server port 53 (decimal) (§4.2.1) &lt;!-- &#34;user&#34; is verbatim: RFC 1035 rfc/full/rfc1035.txt:1754 has a typo for &#34;use&#34;, and the id contract pins the quoted text, so it is reproduced rather than silently corrected. Compare :1783, which reads &#34;use server port 53&#34; for TCP. --&gt;</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.1 - UDP usage</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.2.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L26" title="internal/plugins/as112/rfc1035_port_test.go" target="_blank" rel="noopener"><code>TestRFC1035_DNSTransportsUseServerPort53</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L49" title="internal/plugins/as112/rfc1035_port_test.go" target="_blank" rel="noopener"><code>TestRFC1035_DNSTransportsUseServerPort53</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.2.2-1">RFC1035-4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">Messages sent over TCP connections use server port 53 decimal, and the message is prefixed with a two byte length field which gives the message length (§4.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.2 - TCP usage</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L421" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L445" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-6.4-1">RFC1035-6.4-1</code></td><td colspan="3"><span class="rfc-subject">While inverse query support is optional, all name servers must be at least able to return the error response (§6.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4 - Inverse queries (Optional)</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-6.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L241" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UnsupportedOpcodeReturnsNotImplemented</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L290" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryOpcodeAnsweredNormally</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.1-1">RFC1035-2.3.1-1</code></td><td colspan="3"><span class="rfc-subject">Preferred name syntax: labels must start with a letter, end with a letter or digit, and have as interior characters only letters, digits, and hyphen (§2.3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.3.1 - Preferred name syntax</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-2.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.3-3">RFC1035-2.3.3-3</code></td><td colspan="3"><span class="rfc-subject">When data enters the domain system, its original case should be preserved whenever possible (§2.3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.3.3 - Character Case</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-2.3.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-2.3.3-4">RFC1035-2.3.3-4</code></td><td colspan="3"><span class="rfc-subject">Attempts to store domain names in 7-bit ASCII or use of special bytes to terminate labels, etc., should be avoided (§2.3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>2.3.3 - Character Case</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-2.3.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.1-7">RFC1035-3.1-7</code></td><td colspan="3"><span class="rfc-subject">Although labels can contain any 8 bit values in octets that make up a label, it is strongly recommended that labels follow the preferred syntax described elsewhere in this memo (§3.1)</span></td></tr>
+<tr><td></td>
+<td>RECOMMENDED</td>
+<td>3.1 - Name space definitions: the wire form of a domain name</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-3.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-3.3.13-2">RFC1035-3.3.13-2</code></td><td colspan="3"><span class="rfc-subject">This use of MINIMUM should occur when the RRs are copied into the response and not when the zone is loaded from a master file or via a zone transfer (§3.3.13)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3.13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-3.3.13-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1035-4.1.3-3">RFC1035-4.1.3-3</code></td><td colspan="3"><span class="rfc-subject">Zero TTL values are interpreted to mean that the RR can only be used for the transaction in progress, and should not be cached (§4.1.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>4.1.3 - Resource record format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1035-4.1.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc1035-3.3.13-1"><code>RFC1035-3.3.13-1</code></a> Whenever a RR is sent in a response to a query, the TTL field is set to the maximum of the TTL field from the RR and the MINIMUM field in the appropriate SOA (§3.3.13)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc1035-4.2-1"><code>RFC1035-4.2-1</code></a> Zone refresh activities must use virtual circuits because of the need for reliable transfer (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc1035-2.3.3-1"><code>RFC1035-2.3.3-1</code></a></h3>
+<p>For all parts of the DNS that are part of the official protocol, all comparisons between character strings (e.g., labels, domain names, etc.) are done in a case-insensitive manner (§2.3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L97" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L54" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-2.3.3-2"><code>RFC1035-2.3.3-2</code></a></h3>
+<p>Loss of case sensitive data must be minimized (§2.3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L148" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryNameCasePreservedInTheReply</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L133" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryNameCasePreservedInTheReply</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-2.3.4-1"><code>RFC1035-2.3.4-1</code></a></h3>
+<p>Size limit -- TTL: positive values of a signed 32 bit number (§2.3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L159" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L144" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-2.3.4-2"><code>RFC1035-2.3.4-2</code></a></h3>
+<p>Size limit -- UDP messages: 512 octets or less (§2.3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L132" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L102" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-3.1-1"><code>RFC1035-3.1-1</code></a></h3>
+<p>Each label is represented as a one octet length field followed by that number of octets (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L204" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L179" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-3.1-2"><code>RFC1035-3.1-2</code></a></h3>
+<p>Since every domain name ends with the null label of the root, a domain name is terminated by a length byte of zero (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L192" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L186" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-3.1-3"><code>RFC1035-3.1-3</code></a></h3>
+<p>The high order two bits of every length octet must be zero, and the remaining six bits of the length field limit the label to 63 octets or less (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L73" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredLabelBoundedTo63Octets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L67" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L57" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredLabelBoundedTo63Octets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L24" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></td>
+<td>functional/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-3.1-4"><code>RFC1035-3.1-4</code></a></h3>
+<p>The total length of a domain name (i.e., label octets and label length octets) is restricted to 255 octets or less (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L115" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredNameBoundedTo255WireOctets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L65" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L134" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredNameBoundedTo255WireOctets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L43" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-3.1-5"><code>RFC1035-3.1-5</code></a></h3>
+<p>Name servers and resolvers must compare labels in a case-insensitive manner (i.e., A=a), assuming ASCII with zero parity (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L105" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L59" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-3.1-6"><code>RFC1035-3.1-6</code></a></h3>
+<p>Non-alphabetic codes must match exactly (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L110" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L87" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-3.3.13-1"><code>RFC1035-3.3.13-1</code></a></h3>
+<p>Whenever a RR is sent in a response to a query, the TTL field is set to the maximum of the TTL field from the RR and the MINIMUM field in the appropriate SOA (§3.3.13)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC1035-3.3.13-1, so no unit is bound to it.</p>
+<h3><a href="#rfc1035-4.1.1-1"><code>RFC1035-4.1.1-1</code></a></h3>
+<p>Z is reserved for future use and must be zero in all queries and responses (§4.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L102" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ReservedZFieldIsZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L69" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ReservedZFieldIsZero</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.1.1-2"><code>RFC1035-4.1.1-2</code></a></h3>
+<p>AA (Authoritative Answer) is valid in responses and specifies that the responding name server is an authority for the domain name in question section (§4.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L162" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_AuthoritativeAnswerBitOnEveryReply</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L253" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L117" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L137" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_AuthoritativeAnswerBitOnEveryReply</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.1.1-3"><code>RFC1035-4.1.1-3</code></a></h3>
+<p>RCODE 3 (Name Error), meaningful only for responses from an authoritative name server, signifies that the domain name referenced in the query does not exist (§4.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L242" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L107" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L237" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L102" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.1.3-1"><code>RFC1035-4.1.3-1</code></a></h3>
+<p>TTL is a 32 bit unsigned integer that specifies the time interval in seconds that the resource record may be cached (§4.1.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L127" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L109" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.1.3-2"><code>RFC1035-4.1.3-2</code></a></h3>
+<p>RDLENGTH is an unsigned 16 bit integer that specifies the length in octets of the RDATA field (§4.1.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L201" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RDLengthCountsTheRDataOctets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L181" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RDLengthCountsTheRDataOctets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.1.4-1"><code>RFC1035-4.1.4-1</code></a></h3>
+<p>A compression pointer takes the form of a two octet sequence whose first two bits are ones, distinguishing it from a label, which must begin with two zero bits (§4.1.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L225" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L150" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.1.4-2"><code>RFC1035-4.1.4-2</code></a></h3>
+<p>The OFFSET field specifies an offset from the start of the message, i.e. the first octet of the ID field in the domain header (§4.1.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L229" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L169" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.1.4-3"><code>RFC1035-4.1.4-3</code></a></h3>
+<p>Pointers can only be used for occurances of a domain name where the format is not class specific (§4.1.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L232" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L208" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.1.4-4"><code>RFC1035-4.1.4-4</code></a></h3>
+<p>If a domain name is contained in a part of the message subject to a length field, such as the RDATA section of an RR, and compression is used, the length of the compressed name is used in the length calculation, rather than the length of the expanded name (§4.1.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L235" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L184" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.1.4-5"><code>RFC1035-4.1.4-5</code></a></h3>
+<p>All programs are required to understand arriving messages that contain pointers (§4.1.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L365" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_InboundCompressionPointerUnderstood</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L345" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_InboundCompressionPointerUnderstood</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.2-1"><code>RFC1035-4.2-1</code></a></h3>
+<p>Zone refresh activities must use virtual circuits because of the need for reliable transfer (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC1035-4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc1035-4.2.1-1"><code>RFC1035-4.2.1-1</code></a></h3>
+<p>Messages carried by UDP are restricted to 512 bytes, not counting the IP or UDP headers (§4.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L164" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L97" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L81" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.2.1-2"><code>RFC1035-4.2.1-2</code></a></h3>
+<p>Longer messages are truncated and the TC bit is set in the header (§4.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L195" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_StreamTransportNotTruncated</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L127" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L104" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L107" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L90" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.2.1-3"><code>RFC1035-4.2.1-3</code></a></h3>
+<p>Messages sent using UDP user server port 53 (decimal) (§4.2.1) &lt;!-- &#34;user&#34; is verbatim: RFC 1035 rfc/full/rfc1035.txt:1754 has a typo for &#34;use&#34;, and the id contract pins the quoted text, so it is reproduced rather than silently corrected. Compare :1783, which reads &#34;use server port 53&#34; for TCP. --&gt;</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L49" title="internal/plugins/as112/rfc1035_port_test.go" target="_blank" rel="noopener"><code>TestRFC1035_DNSTransportsUseServerPort53</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L26" title="internal/plugins/as112/rfc1035_port_test.go" target="_blank" rel="noopener"><code>TestRFC1035_DNSTransportsUseServerPort53</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-4.2.2-1"><code>RFC1035-4.2.2-1</code></a></h3>
+<p>Messages sent over TCP connections use server port 53 decimal, and the message is prefixed with a two byte length field which gives the message length (§4.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L445" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L421" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc1035-6.4-1"><code>RFC1035-6.4-1</code></a></h3>
+<p>While inverse query support is optional, all name servers must be at least able to return the error response (§6.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L290" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryOpcodeAnsweredNormally</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L241" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UnsupportedOpcodeReturnsNotImplemented</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-implement agent, spec-rfcgate-4-ledger phase 6</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-07-30</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc1035.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>b8efa09ba52db966</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc1035.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>11</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>20</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Network Working Group header, obsoletes/updates block and the table of contents.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>STATUS OF THIS MEMO</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>STATUS OF THIS MEMO. Distribution statement and the note that this RFC obsoletes RFC 882 and RFC 883.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>INTRODUCTION heading, with no body of its own</td>
+<td>0</td>
+<td>walked</td>
+<td>INTRODUCTION heading, with no body of its own.</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Overview of the three-part domain system (name space, name servers, resolvers). Descriptive.</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>Common configurations: the deployment shapes a resolver and a name server can take. Its one site is a characterisation, excluded below.</td>
+</tr>
+<tr><td><code>2.3</code></td>
+<td>Conventions</td>
+<td>1</td>
+<td>walked</td>
+<td>Conventions. The section preamble is its one site, an applicability statement excluded below; the conventions themselves are in 2.3.1 to 2.3.4.</td>
+</tr>
+<tr><td><code>2.3.1</code></td>
+<td>Preferred name syntax</td>
+<td>3</td>
+<td>walked</td>
+<td>Preferred name syntax. Two sites map to the single [SHOULD] row that carries both halves; the third restates section 3.1&#39;s 63-octet limit.</td>
+</tr>
+<tr><td><code>2.3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Data Transmission Order: the big-endian octet and bit order of every multi-octet field. Stated as a description of the diagrams, with no modal verb, so the prose scan finds no site. Ze inherits the encoding from miekg/dns and adds nothing.</td>
+</tr>
+<tr><td><code>2.3.3</code></td>
+<td>Character Case</td>
+<td>1</td>
+<td>walked</td>
+<td>Character Case. Its one site is the case-preservation obligation; the case-insensitive comparison rule and the two &#39;should&#39; clauses are read from the surrounding prose, which carries no scanned keyword.</td>
+</tr>
+<tr><td><code>2.3.4</code></td>
+<td>Size limits</td>
+<td>0</td>
+<td>walked</td>
+<td>Size limits. Stated as a bare list (&#39;labels 63 octets or less&#39;, &#39;names 255 octets or less&#39;, &#39;TTL positive values of a signed 32 bit number&#39;, &#39;UDP messages 512 octets or less&#39;) with no modal verb, so the scan finds no site here even though two of the four are declared as requirements.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>DOMAIN NAME SPACE AND RR DEFINITIONS heading</td>
+<td>0</td>
+<td>walked</td>
+<td>DOMAIN NAME SPACE AND RR DEFINITIONS heading.</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>Name space definitions: the wire form of a domain name</td>
+<td>3</td>
+<td>walked</td>
+<td>Name space definitions: the wire form of a domain name. Three sites map to the length-octet, case-folding and exact-match rules; the label/terminator/total-length statements and the &#39;strongly recommended&#39; clause are indicative prose.</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>RR definitions heading</td>
+<td>0</td>
+<td>walked</td>
+<td>RR definitions heading.</td>
+</tr>
+<tr><td><code>3.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Format: the NAME/TYPE/CLASS/TTL/RDLENGTH/RDATA layout, given as a diagram plus field descriptions with no modal verb.</td>
+</tr>
+<tr><td><code>3.2.2</code></td>
+<td>TYPE values: the registry table</td>
+<td>0</td>
+<td>walked</td>
+<td>TYPE values: the registry table.</td>
+</tr>
+<tr><td><code>3.2.3</code></td>
+<td>QTYPE values: the registry table</td>
+<td>0</td>
+<td>walked</td>
+<td>QTYPE values: the registry table.</td>
+</tr>
+<tr><td><code>3.2.4</code></td>
+<td>CLASS values: the registry table</td>
+<td>0</td>
+<td>walked</td>
+<td>CLASS values: the registry table.</td>
+</tr>
+<tr><td><code>3.2.5</code></td>
+<td>QCLASS values: the registry table</td>
+<td>0</td>
+<td>walked</td>
+<td>QCLASS values: the registry table.</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Standard RRs preamble, defining the &lt;domain-name&gt; and &lt;character-string&gt; sub-formats.</td>
+</tr>
+<tr><td><code>3.3.1</code></td>
+<td>CNAME RDATA format</td>
+<td>0</td>
+<td>walked</td>
+<td>CNAME RDATA format. Ze emits no CNAME.</td>
+</tr>
+<tr><td><code>3.3.2</code></td>
+<td>HINFO RDATA format</td>
+<td>0</td>
+<td>walked</td>
+<td>HINFO RDATA format. Ze emits no HINFO.</td>
+</tr>
+<tr><td><code>3.3.3</code></td>
+<td>MB RDATA format (EXPERIMENTAL)</td>
+<td>0</td>
+<td>walked</td>
+<td>MB RDATA format (EXPERIMENTAL). Ze emits no MB.</td>
+</tr>
+<tr><td><code>3.3.4</code></td>
+<td>MD RDATA format (Obsolete)</td>
+<td>0</td>
+<td>walked</td>
+<td>MD RDATA format (Obsolete). Ze emits no MD.</td>
+</tr>
+<tr><td><code>3.3.5</code></td>
+<td>MF RDATA format (Obsolete)</td>
+<td>0</td>
+<td>walked</td>
+<td>MF RDATA format (Obsolete). Ze emits no MF.</td>
+</tr>
+<tr><td><code>3.3.6</code></td>
+<td>MG RDATA format (EXPERIMENTAL)</td>
+<td>0</td>
+<td>walked</td>
+<td>MG RDATA format (EXPERIMENTAL). Ze emits no MG.</td>
+</tr>
+<tr><td><code>3.3.7</code></td>
+<td>MINFO RDATA format (EXPERIMENTAL)</td>
+<td>0</td>
+<td>walked</td>
+<td>MINFO RDATA format (EXPERIMENTAL). Ze emits no MINFO.</td>
+</tr>
+<tr><td><code>3.3.8</code></td>
+<td>MR RDATA format (EXPERIMENTAL)</td>
+<td>0</td>
+<td>walked</td>
+<td>MR RDATA format (EXPERIMENTAL). Ze emits no MR.</td>
+</tr>
+<tr><td><code>3.3.9</code></td>
+<td>MX RDATA format</td>
+<td>0</td>
+<td>walked</td>
+<td>MX RDATA format. Ze emits no MX.</td>
+</tr>
+<tr><td><code>3.3.10</code></td>
+<td>NULL RDATA format (EXPERIMENTAL)</td>
+<td>0</td>
+<td>walked</td>
+<td>NULL RDATA format (EXPERIMENTAL). Ze emits no NULL.</td>
+</tr>
+<tr><td><code>3.3.11</code></td>
+<td>NS RDATA format</td>
+<td>0</td>
+<td>walked</td>
+<td>NS RDATA format. Ze emits NS for the zone apex and for synthesised nameserver glue; the section states the RDATA layout with no modal verb.</td>
+</tr>
+<tr><td><code>3.3.12</code></td>
+<td>PTR RDATA format</td>
+<td>0</td>
+<td>walked</td>
+<td>PTR RDATA format. Ze&#39;s as112 zones answer PTR queries with NODATA and emit no PTR record.</td>
+</tr>
+<tr><td><code>3.3.13</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>SOA RDATA format, and the source of the MINIMUM-versus-TTL rule. Both its statements are indicative (&#39;the TTL field is set to the maximum of&#39;, &#39;this use of MINIMUM should occur&#39;), so the scan finds no site.</td>
+</tr>
+<tr><td><code>3.3.14</code></td>
+<td>TXT RDATA format</td>
+<td>0</td>
+<td>walked</td>
+<td>TXT RDATA format. Ze&#39;s as112 hostname zone emits TXT.</td>
+</tr>
+<tr><td><code>3.4</code></td>
+<td>Internet specific RRs heading</td>
+<td>0</td>
+<td>walked</td>
+<td>Internet specific RRs heading.</td>
+</tr>
+<tr><td><code>3.4.1</code></td>
+<td>A RDATA format: a single 32-bit address</td>
+<td>0</td>
+<td>walked</td>
+<td>A RDATA format: a single 32-bit address. Ze emits A records.</td>
+</tr>
+<tr><td><code>3.4.2</code></td>
+<td>WKS RDATA format</td>
+<td>1</td>
+<td>walked</td>
+<td>WKS RDATA format. Its one site is the bit-map alignment rule, excluded below because Ze emits no WKS record.</td>
+</tr>
+<tr><td><code>25</code></td>
+<td>NOT A SECTION</td>
+<td>0</td>
+<td>walked</td>
+<td>NOT A SECTION. The derivation&#39;s heading pattern over-matches a column-0 line inside section 3.4.2&#39;s WKS bit-map explanation (&#39;25 (SMTP). If this bit is set, a SMTP server should be listening on TCP port 25&#39;), which _SECTION_HEADING_RE documents as unavoidable by shape alone. It carries no site and no obligation; it is classified so the artifact stays complete against the derivation.</td>
+</tr>
+<tr><td><code>3.5</code></td>
+<td>IN-ADDR.ARPA domain</td>
+<td>1</td>
+<td>walked</td>
+<td>IN-ADDR.ARPA domain. Its one site binds a host bootstrapping routing from DNS.</td>
+</tr>
+<tr><td><code>3.6</code></td>
+<td>Defining new types, classes, and special namespaces</td>
+<td>1</td>
+<td>walked</td>
+<td>Defining new types, classes, and special namespaces. Its one site binds whoever defines a new TYPE or CLASS.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>MESSAGES heading</td>
+<td>0</td>
+<td>walked</td>
+<td>MESSAGES heading.</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>Format: the five-section message layout</td>
+<td>0</td>
+<td>walked</td>
+<td>Format: the five-section message layout.</td>
+</tr>
+<tr><td><code>4.1.1</code></td>
+<td>Header section format</td>
+<td>1</td>
+<td>walked</td>
+<td>Header section format. Its one site is the Z field; AA and RCODE 3 are described field by field with no modal verb.</td>
+</tr>
+<tr><td><code>4.1.2</code></td>
+<td>Question section format: QNAME, QTYPE, QCLASS</td>
+<td>0</td>
+<td>walked</td>
+<td>Question section format: QNAME, QTYPE, QCLASS.</td>
+</tr>
+<tr><td><code>4.1.3</code></td>
+<td>Resource record format</td>
+<td>0</td>
+<td>walked</td>
+<td>Resource record format. TTL and RDLENGTH are given as field descriptions, and the zero-TTL clause is a &#39;should not&#39;, so the scan finds no site.</td>
+</tr>
+<tr><td><code>4.1.4</code></td>
+<td>Message compression</td>
+<td>3</td>
+<td>walked</td>
+<td>Message compression. Three sites; the pointer form and the receive-side obligation map, the third is rationale. The OFFSET base, the class-specific restriction and the enclosing-length rule are indicative prose.</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>Transport preamble</td>
+<td>1</td>
+<td>walked</td>
+<td>Transport preamble. Its one site is the zone-refresh rule.</td>
+</tr>
+<tr><td><code>4.2.1</code></td>
+<td>UDP usage</td>
+<td>1</td>
+<td>walked</td>
+<td>UDP usage. Its one site is a querier obligation; the 512-octet limit, the truncation-plus-TC rule and the port are indicative prose.</td>
+</tr>
+<tr><td><code>4.2.2</code></td>
+<td>TCP usage</td>
+<td>0</td>
+<td>walked</td>
+<td>TCP usage. The port and the two-octet length prefix are stated indicatively.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>MASTER FILES heading</td>
+<td>0</td>
+<td>walked</td>
+<td>MASTER FILES heading. Ze parses no master file: a repo-wide search for NewZoneParser, ZoneParser, ReadRR and dns.NewRR finds no production call site.</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>Format</td>
+<td>1</td>
+<td>walked</td>
+<td>Format. Its one site is master-file quoting syntax.</td>
+</tr>
+<tr><td><code>5.2</code></td>
+<td>Use of master files to define zones</td>
+<td>1</td>
+<td>walked</td>
+<td>Use of master files to define zones. Its one site concerns glue.</td>
+</tr>
+<tr><td><code>5.3</code></td>
+<td>Master file example</td>
+<td>0</td>
+<td>walked</td>
+<td>Master file example. Illustrative.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>NAME SERVER IMPLEMENTATION heading</td>
+<td>0</td>
+<td>walked</td>
+<td>NAME SERVER IMPLEMENTATION heading. The sections under it describe one suggested internal architecture, and Ze implements none of the recursion, caching or zone refresh they assume.</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Architecture, whose preamble states that the optimal structure depends on the host operating system and that the section &#39;discusses implementation considerations&#39;.</td>
+</tr>
+<tr><td><code>6.1.1</code></td>
+<td>Control</td>
+<td>1</td>
+<td>walked</td>
+<td>Control. Its one site constrains internal task structure.</td>
+</tr>
+<tr><td><code>6.1.2</code></td>
+<td>Database</td>
+<td>1</td>
+<td>walked</td>
+<td>Database. Its one site is conditioned on choosing the suggested hash structure.</td>
+</tr>
+<tr><td><code>6.1.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Time: the suggestion to keep absolute rather than relative times internally.</td>
+</tr>
+<tr><td><code>6.2</code></td>
+<td>Standard query processing</td>
+<td>1</td>
+<td>walked</td>
+<td>Standard query processing. Its one site is the &#39;should&#39; governing truncation order.</td>
+</tr>
+<tr><td><code>6.3</code></td>
+<td>Zone refresh and reload processing</td>
+<td>0</td>
+<td>walked</td>
+<td>Zone refresh and reload processing. Ze performs no zone transfer of any kind: a repo-wide search for AXFR, IXFR, TypeAXFR, TypeIXFR, dns.Transfer, SetAxfr, SetNotify and OpcodeNotify finds nothing.</td>
+</tr>
+<tr><td><code>6.4</code></td>
+<td>Inverse queries (Optional)</td>
+<td>2</td>
+<td>walked</td>
+<td>Inverse queries (Optional). Two sites: the permission not to implement them, and the obligation that survives declining -- the one obligation this walk added to the summary.</td>
+</tr>
+<tr><td><code>6.4.1</code></td>
+<td>The contents of inverse queries and responses</td>
+<td>0</td>
+<td>walked</td>
+<td>The contents of inverse queries and responses. Descriptive.</td>
+</tr>
+<tr><td><code>6.4.2</code></td>
+<td>Inverse query and response example</td>
+<td>0</td>
+<td>walked</td>
+<td>Inverse query and response example. Illustrative.</td>
+</tr>
+<tr><td><code>6.4.3</code></td>
+<td>Inverse query processing</td>
+<td>0</td>
+<td>walked</td>
+<td>Inverse query processing. Describes the optional algorithm.</td>
+</tr>
+<tr><td><code>6.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Completion queries and responses: obsoleted by this RFC and retained for historical reference only.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>RESOLVER IMPLEMENTATION heading</td>
+<td>0</td>
+<td>walked</td>
+<td>RESOLVER IMPLEMENTATION heading. Every obligation under it binds a resolver, a role the authoritative-server surface this summary scopes does not play.</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>Transforming a user request into a query</td>
+<td>4</td>
+<td>walked</td>
+<td>Transforming a user request into a query. Four sites, all resolver obligations or descriptions of the suggested request structure.</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>Sending the queries</td>
+<td>1</td>
+<td>walked</td>
+<td>Sending the queries. Its one site is resolver round-trip-time estimation.</td>
+</tr>
+<tr><td><code>7.3</code></td>
+<td>Processing responses</td>
+<td>1</td>
+<td>walked</td>
+<td>Processing responses. Its one site is resolver request matching.</td>
+</tr>
+<tr><td><code>7.4</code></td>
+<td>Using the cache</td>
+<td>0</td>
+<td>walked</td>
+<td>Using the cache. Ze holds no resolver cache.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>MAIL SUPPORT heading</td>
+<td>0</td>
+<td>walked</td>
+<td>MAIL SUPPORT heading. Ze emits no MX, MB, MG, MR or MINFO record and implements no mail binding.</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>Mail exchange binding</td>
+<td>0</td>
+<td>walked</td>
+<td>Mail exchange binding. Describes the MX transition from MD/MF.</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>Mailbox binding (Experimental)</td>
+<td>0</td>
+<td>walked</td>
+<td>Mailbox binding (Experimental). Experimental and unimplemented everywhere.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>REFERENCES and BIBLIOGRAPHY, followed by the index and the author&#39;s address.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>2.2:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 2.2 Common configurations, describing a stub-resolver host that forwards to a recursive server. &#39;the amount of new network code which is required&#39; characterises one deployment choice; it directs nobody.</td>
+<td>This can be appropriate for PCs or hosts which want to minimize the amount of new network code which is required.</td>
+</tr>
+<tr><td><code>2.3:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The applicability statement that opens section 2.3 Conventions: &#39;While the implementor is free to violate these conventions WITHIN HIS OWN SYSTEM, he must observe these conventions in ALL behavior observed from other hosts.&#39; It scopes the subsections that follow rather than stating an obligation of its own, and each of those conventions is captured separately.</td>
+<td>While the implementor is free to violate these conventions WITHIN HIS OWN SYSTEM, he must observe these conventions in ALL behavior observed from other hosts.</td>
+</tr>
+<tr><td><code>2.3.1:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>&#39;Labels must be 63 characters or less&#39; restates in the preferred-syntax section the limit section 3.1 states normatively as the six-bit length field. Captured once, at the site that gives it its wire form.</td>
+<td>Labels must be 63 characters or less.</td>
+</tr>
+<tr><td><code>3.4.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The WKS RDATA bit-map alignment rule. It binds a server that serves WKS records; Ze emits A, AAAA, SRV, SOA and NS only (internal/plugins/geodns/server.go builds those five and no other type), so no Ze code path can produce a WKS bit map at all.</td>
+<td>The bit map must be a multiple of 8 bits long.</td>
+</tr>
+<tr><td><code>3.5:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Section 3.5 IN-ADDR.ARPA, on a host that bootstraps its ROUTING TABLE from the domain database and must therefore already know a gateway. Ze&#39;s routing tables come from BGP, IS-IS, OSPF and the kernel; nothing in Ze reads DNS to build one. The producer that would act as it if ze did is ze&#39;s only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.</td>
+<td>- Systems that use the domain database to initialize their routing tables must start with enough gateway information to guarantee that they can access the appropriate name server.</td>
+</tr>
+<tr><td><code>3.6:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Section 3.6 Defining new types, classes, and special namespaces. It binds whoever DEFINES a new TYPE or CLASS, constraining the registry relationship between TYPE and QTYPE. Ze defines none. The role is a registry act rather than an implementation, so no producer could perform it. Ze&#39;s DNS code is the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which reads whatever TYPE and CLASS values it is given.</td>
+<td>TYPE and CLASS values must be a proper subset of QTYPEs and QCLASSes respectively.</td>
+</tr>
+<tr><td><code>4.1.4:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The rationale for the preceding restriction (&#39;If this were not the case, a name server or resolver would be required to know the format of all RRs it handles&#39;). The restriction itself is captured as RFC1035-4.1.4-3; this sentence explains why it exists.</td>
+<td>If this were not the case, a name server or resolver would be required to know the format of all RRs it handled.</td>
+</tr>
+<tr><td><code>4.2.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The retransmission strategy for queries SENT over UDP. It binds the querier; this summary&#39;s declared scope is the authoritative-server surface (see &#39;Extraction scope&#39; in rfc/short/rfc1035.md), which answers queries and originates none. The producer that would act as it if ze did is ze&#39;s only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.</td>
+<td>Queries sent using UDP may be lost, and hence a retransmission strategy is required.</td>
+</tr>
+<tr><td><code>5.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Master-file quoting syntax. It binds a master-file PARSER. Ze parses none: geodns and as112 are configured from the YANG tree, and a repo-wide search for NewZoneParser, ZoneParser, ReadRR and dns.NewRR finds no production call site.</td>
+<td>Inside a &#34; delimited string any character can occur, except for a &#34; itself, which must be quoted using \ (back slash).</td>
+</tr>
+<tr><td><code>5.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Glue in a master file that defines a zone. Same role as the site above: Ze has no master-file path. Its own level is &#39;should&#39; in any case. The producer that would act as it if ze did is ze&#39;s only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.</td>
+<td>If delegations are present and glue information is required, it should be present. 4.</td>
+</tr>
+<tr><td><code>6.1.1:1</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>Section 6.1 Architecture opens &#39;The optimal structure for the name server will depend on the host operating system ... This section discusses implementation considerations&#39;. The sentence constrains a server&#39;s internal task structure, has no wire-visible form, and nothing about it can be observed by a peer.</td>
+<td>A name server must employ multiple concurrent activities, whether they are implemented as separate tasks in the host&#39;s OS or multiplexing inside a single name server program.</td>
+</tr>
+<tr><td><code>6.1.2:1</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>Section 6.1.2 Database opens &#39;While name server implementations are free to use any internal data structures they choose, the suggested structure consists of&#39;. The sentence is conditioned on having chosen the suggested hash structure, and it restates the case-preservation rule already captured as RFC1035-2.3.3-2.</td>
+<td>In any case, hash structures used to store tree sections must insure that hash functions and procedures preserve the casing conventions of the DNS.</td>
+</tr>
+<tr><td><code>6.2:1</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>The ORDER in which a response should be truncated, at level &#39;should&#39;. It never gates. The obligation to truncate at all and to set TC is captured separately as RFC1035-4.2.1-2.</td>
+<td>When a response is so long that truncation is required, the truncation should start at the end of the response and work forward in the datagram.</td>
+</tr>
+<tr><td><code>6.4:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>&#39;Name servers are not required to support any form of inverse queries&#39; is a permission, and the sentence that qualifies it is the real obligation -- captured from the next site as RFC1035-6.4-1.</td>
+<td>Name servers are not required to support any form of inverse queries.</td>
+</tr>
+<tr><td><code>7.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Section 7 RESOLVER IMPLEMENTATION: a resolver multiplexing concurrent client requests. The authoritative server this summary scopes serves one query per response and originates none. The producer that would act as it if ze did is ze&#39;s only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.</td>
+<td>Since a resolver must be able to multiplex multiple requests if it is to perform its function efficiently, each pending request is usually represented in some block of state information.</td>
+</tr>
+<tr><td><code>7.1:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Resolver cache timeliness for a relative-time TTL. Ze&#39;s authoritative server holds no resolver cache. The producer that would act as it if ze did is ze&#39;s only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.</td>
+<td>Note that when an RRs TTL indicates a relative time, the RR must be timely, since it is part of a zone.</td>
+</tr>
+<tr><td><code>7.1:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>A bound on the work a RESOLVER does per client request, to guard against errors in the database. Same role as above. The producer that would act as it if ze did is ze&#39;s only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.</td>
+<td>The amount of work which a resolver will do in response to a client request must be limited to guard against errors in the database, such as circular CNAME references, and operational problems, such as network partition which prevents the resolver from accessing the name servers it needs.</td>
+</tr>
+<tr><td><code>7.1:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A descriptive sentence about the resolver&#39;s per-request state structure (&#39;This structure keeps track of the state of a request if it must wait for answers&#39;). It describes the suggested structure rather than obliging anyone.</td>
+<td>This structure keeps track of the state of a request if it must wait for answers from foreign name servers.</td>
+</tr>
+<tr><td><code>7.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Round-trip-time estimation when a resolver has no history for an address. A resolver obligation with no authoritative-server counterpart. The producer that would act as it if ze did is ze&#39;s only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.</td>
+<td>Part of this step must deal with addresses which have no such history; in this case an expected round trip time of 5-10 seconds should be the worst case, with lower estimates for the same local network, etc.</td>
+</tr>
+<tr><td><code>7.3:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Matching a response to its outstanding request in order to sample round-trip time. Again a resolver obligation: the authoritative server sends responses, never receives them. The producer that would act as it if ze did is ze&#39;s only DNS code, the authoritative `answerQuery` (`internal/plugins/geodns/server.go`, `internal/plugins/as112/server.go`), which answers a query out of the configured zone data: it sends no query, holds no resolver cache and reads no master file.</td>
+<td>However, if it is using the response to sample the round trip time to access the name server, it must be able to determine which transmission matches the response (and keep transmission times for each outgoing message), or only calculate round trip times based on initial transmissions.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 1035, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

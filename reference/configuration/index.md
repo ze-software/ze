@@ -5355,7 +5355,7 @@ System-level settings
     - **default-profile** `string[]`
       Ze authorization profile name(s) assigned when the Access-Accept carries no profile-attribute. Optional: leave it unset when the RADIUS server always names a profile via profile-attribute. When the server does not, and no default is set here, the login names no profile and is denied -- ze never authorizes a user it cannot attach a profile to.
     - **profile-attribute** `enumeration`
-      Access-Accept reply attribute whose value(s) name the ze authorization profile(s) for the user
+      Access-Accept reply attribute whose value(s) name the ze authorization profile(s) for the user. Filter-Id is the only value. RFC 2865 Section 5.25 says of Class that 'the client MUST NOT interpret the attribute locally', so reading a profile name out of it is not available.
     - **retries** `uint8`
       Retransmit count per server before failover
     - **server <address>** `list`

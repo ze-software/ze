@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 4578 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 4578: Dynamic Host Configuration Protocol (DHCP) Options for the Intel Preboot eXecution Environment (PXE). 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 4578 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 4578: Dynamic Host Configuration Protocol (DHCP) Options for the Intel Preboot eXecution Environment (PXE). 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 4578 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 4578: Dynamic Host Configuration Protocol (DHCP) Options for the Intel Preboot eXecution Environment (PXE). 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc4578/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc4578/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 4578 - Dynamic Host Configuration Protocol (DHCP) Options for the Intel Preboot eXecution Environment (PXE)</h1>
+    <p>Every requirement this repository extracted from RFC 4578, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>1 of 1 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 1 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 1 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 1 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>5</strong><b>of 8 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>4</strong><b>of 5 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 1 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>8</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>5</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>1</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>4</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>2</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>2</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc4578.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc4578.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc4578.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: RFC 4578 PXE DHCP options (93/94/97): five gated MUST requirements, one tested and four {not-applicable} (ze is a DHCP server, not a PXE client or Boot Server). RFC4578-2.1-2 (option 93 Client System Architecture Len MUST be an even number greater than zero) is MET and tested via TestParsePXEArch (internal/plugins/dhcpserver/handler_test.go): the producer parsePXEArch (internal/plugins/dhcpserver/handler.go:505) rejects a length &lt; 2 or odd, positive case an even Len 2 is accepted and parsed, negative case an odd Len 3 is rejected and returns 0 (BIOS default). The other four are {not-applicable}: RFC4578-2.1-1 (option 93 present in sent packets) -- ze reads option 93 for bootfile selection but emits none in OFFER/ACK (appendPXEOptions handler.go:292-331 emits only 60/66/67/43); RFC4578-2.2-1 (option 94 Client Network Interface Identifier present) and RFC4578-2.3-1 (option 97 Client Machine Identifier present) -- ze has no option 94/97 code path; RFC4578-2.4-1 (PXE clients MUST request options 128-135) -- binds the PXE client role ze never plays. No SHOULD/MAY requirements are gated.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<p><strong>What the ledger says is covered:</strong></p>
+PXE boot option injection for BIOS and UEFI bootfile selection.
+<p><strong>What the ledger says remains:</strong></p>
+No tracked gap in current source anchors.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>1</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>4</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>5</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc4578-2.1-2"><code>RFC4578-2.1-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (4):</strong> <a href="#rfc4578-2.1-1"><code>RFC4578-2.1-1</code></a>, <a href="#rfc4578-2.2-1"><code>RFC4578-2.2-1</code></a>, <a href="#rfc4578-2.3-1"><code>RFC4578-2.3-1</code></a>, <a href="#rfc4578-2.4-1"><code>RFC4578-2.4-1</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4578-2.1-1">RFC4578-2.1-1</code></td><td colspan="3"><span class="rfc-subject">Option 93 (Client System Architecture Type) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1 - Client System Architecture Type Option Definition, option 93</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4578-2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a DHCP server, not a PXE client; it reads a received option 93 to select a bootfile (parsePXEArch, internal/plugins/dhcpserver/handler.go:505) but emits no option 93 in its OFFER/ACK replies (appendPXEOptions, internal/plugins/dhcpserver/handler.go:292) and ze has no PXE Boot Server Discovery echo code path -- it sets PXE_DISCOVERY_CONTROL to skip that exchange (internal/plugins/dhcpserver/handler.go:325)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4578-2.1-2">RFC4578-2.1-2</code></td><td colspan="3"><span class="rfc-subject">Option 93 Len field MUST be an even number greater than zero (Section 2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1 - Client System Architecture Type Option Definition, option 93</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4578-2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L923" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestParsePXEArch</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L926" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestParsePXEArch</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4578-2.2-1">RFC4578-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Option 94 (Client Network Interface Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4578-2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a DHCP server, not a PXE client; ze has no option 94 code path -- it neither reads nor emits option 94 anywhere under internal/plugins/dhcpserver/ (grep for 94/UNDI in handler.go finds nothing)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4578-2.3-1">RFC4578-2.3-1</code></td><td colspan="3"><span class="rfc-subject">Option 97 (Client Machine Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3 - Client Machine Identifier Option Definition, option 97</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4578-2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a DHCP server, not a PXE client; ze has no option 97 code path -- it neither reads nor emits option 97 (the client machine GUID) anywhere under internal/plugins/dhcpserver/</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4578-2.4-1">RFC4578-2.4-1</code></td><td colspan="3"><span class="rfc-subject">All compliant PXE clients MUST include a request for DHCP options 128 through 135 in all DHCP and PXE packets (Section 2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.4 - Options Requested by PXE Clients</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4578-2.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a DHCP server, not a PXE client; this requirement binds the PXE client to request options 128-135, a role ze never plays</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4578-2.1-3">RFC4578-2.1-3</code></td><td colspan="3"><span class="rfc-subject">Clients that support more than one architecture type MAY include a list of these types in their initial DHCP and PXE boot server packets (Section 2.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.1 - Client System Architecture Type Option Definition, option 93</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4578-2.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4578-2.1-4">RFC4578-2.1-4</code></td><td colspan="3"><span class="rfc-subject">The list of supported architecture types MAY be reduced in any packet exchange between the client and server(s) (Section 2.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.1 - Client System Architecture Type Option Definition, option 93</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4578-2.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4578-2.4-2">RFC4578-2.4-2</code></td><td colspan="3"><span class="rfc-subject">Options 128-135 MAY be present in the DHCP and PXE boot server replies (Section 2.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.4 - Options Requested by PXE Clients</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4578-2.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc4578-2.1-1"><code>RFC4578-2.1-1</code></a> Option 93 (Client System Architecture Type) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; it reads a received option 93 to select a bootfile (parsePXEArch, internal/plugins/dhcpserver/handler.go:505) but emits no option 93 in its OFFER/ACK replies (appendPXEOptions, internal/plugins/dhcpserver/handler.go:292) and ze has no PXE Boot Server Discovery echo code path -- it sets PXE_DISCOVERY_CONTROL to skip that exchange (internal/plugins/dhcpserver/handler.go:325)</td>
+</tr>
+<tr><td><a href="#rfc4578-2.2-1"><code>RFC4578-2.2-1</code></a> Option 94 (Client Network Interface Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; ze has no option 94 code path -- it neither reads nor emits option 94 anywhere under internal/plugins/dhcpserver/ (grep for 94/UNDI in handler.go finds nothing)</td>
+</tr>
+<tr><td><a href="#rfc4578-2.3-1"><code>RFC4578-2.3-1</code></a> Option 97 (Client Machine Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; ze has no option 97 code path -- it neither reads nor emits option 97 (the client machine GUID) anywhere under internal/plugins/dhcpserver/</td>
+</tr>
+<tr><td><a href="#rfc4578-2.4-1"><code>RFC4578-2.4-1</code></a> All compliant PXE clients MUST include a request for DHCP options 128 through 135 in all DHCP and PXE packets (Section 2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze is a DHCP server, not a PXE client; this requirement binds the PXE client to request options 128-135, a role ze never plays</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc4578-2.1-1"><code>RFC4578-2.1-1</code></a></h3>
+<p>Option 93 (Client System Architecture Type) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4578-2.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4578-2.1-2"><code>RFC4578-2.1-2</code></a></h3>
+<p>Option 93 Len field MUST be an even number greater than zero (Section 2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L926" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestParsePXEArch</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/handler_test.go#L923" title="internal/plugins/dhcpserver/handler_test.go" target="_blank" rel="noopener"><code>TestParsePXEArch</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc4578-2.2-1"><code>RFC4578-2.2-1</code></a></h3>
+<p>Option 94 (Client Network Interface Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4578-2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4578-2.3-1"><code>RFC4578-2.3-1</code></a></h3>
+<p>Option 97 (Client Machine Identifier) MUST be present in all DHCP and PXE packets sent by PXE-compliant clients and servers (Section 2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4578-2.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4578-2.4-1"><code>RFC4578-2.4-1</code></a></h3>
+<p>All compliant PXE clients MUST include a request for DHCP options 128 through 135 in all DHCP and PXE packets (Section 2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4578-2.4-1, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6, rfc4578</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc4578.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>0c9586ab5658d5ee</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc4578.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>5</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>0</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Status of This Memo states the document specifies no Internet standard, and the Abstract restates section 1. Neither directs a DHCP speaker.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Explains why the MAC address in the chaddr field was deemed insufficient to identify a booting machine (shared docking stations reusing a MAC, one machine holding several interfaces) and says the three options were defined by Intel in the PXE and EFI specifications and are documented here for completeness. Entirely indicative. No gated requirement of rfc/short/rfc4578.md is read from this section.</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>Requirements Language: the RFC 2119 key-words paragraph</td>
+<td>0</td>
+<td>walked</td>
+<td>Requirements Language: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>Option Definitions</td>
+<td>0</td>
+<td>walked</td>
+<td>Option Definitions. One sentence: &#39;There are three DHCP options [5] defined for use by PXE clients.&#39; It counts the subsections that follow and directs nobody.</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>Client System Architecture Type Option Definition, option 93</td>
+<td>2</td>
+<td>walked</td>
+<td>Client System Architecture Type Option Definition, option 93. Holds two of the document&#39;s five sites, both mapped below: the Len constraint (2.1:1) and the presence obligation (2.1:2). The rest of the section is the option figure, the architecture type table (types 0 to 9), the statement that octets n1 and n2 encode a 16-bit architecture type identifier, and two MAY sentences that are advisory and never gate: a client supporting more than one architecture type MAY list them (RFC4578-2.1-3) and the list MAY be reduced in any packet exchange (RFC4578-2.1-4). Ze reads the first type from a received option 93 in parsePXEArch (internal/plugins/dhcpserver/handler.go), which is why a multi-type list is parsed rather than refused.</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>Client Network Interface Identifier Option Definition, option 94. The figure, the statement that octet t encodes an interface type whose only supported value is 1 (UNDI), the M and m revision encoding, and the UNDI revision table are indicative. The one normative sentence is site 2.2:1, mapped below.</td>
+</tr>
+<tr><td><code>2.3</code></td>
+<td>Client Machine Identifier Option Definition, option 97</td>
+<td>1</td>
+<td>walked</td>
+<td>Client Machine Identifier Option Definition, option 97. The figure, the statement that type 0 is the only defined value and describes the remaining octets as a 16-octet GUID, and the note that octet n is 17 for type 0 are indicative. The one normative sentence is site 2.3:1, mapped below.</td>
+</tr>
+<tr><td><code>2.4</code></td>
+<td>Options Requested by PXE Clients</td>
+<td>1</td>
+<td>walked</td>
+<td>Options Requested by PXE Clients. Its one MUST is site 2.4:1, mapped below. The rest states that the format and contents of options 128 to 135 are not defined by the PXE specification, that they MAY be present in replies (RFC4578-2.4-2, advisory and never gated), that they are not used by the PXE boot ROMs, and that because they were site-specific options before November 2004 their use for PXE may conflict with other uses on the same network.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Acknowledgements</td>
+<td>0</td>
+<td>skipped (acknowledgements)</td>
+<td>Acknowledgements. One sentence thanking Bernie Volz.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. Records that IANA updated the public DHCP option numbering space with references to this document for options 93, 94 and 97, and marked options 128 to 135 as used by PXE. Binds IANA, not a DHCP speaker, and is written in the past tense.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. Two observations and no countermeasure: a client specifying incorrect option values may reach code intended for another platform, and the options reveal a client&#39;s system architecture and pre-OS runtime environment to anyone listening to its DHCP messages. Neither sentence directs a speaker to do or refuse anything, so the section states no requirement. rfc/short/rfc4578.md carries both as its Security Considerations table.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: RFC 2119, RFC 2131, the Intel PXE and EFI specifications, RFC 2132, RFC 3942, RFC 2939 and RFC 3679. The derivation folds the trailing matter under this heading as well -- the Authors&#39; Addresses, the Full Copyright Statement, the Intellectual Property notice and the RFC Editor funding acknowledgement. None of it binds a DHCP speaker, and the site scan derives no site here.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<p>The walk over RFC 4578 declined no sentence: every site it found is mapped to a requirement.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 4578, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

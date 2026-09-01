@@ -37,19 +37,19 @@ Every gated MUST-level requirement links to source text, status, and test eviden
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**26,900+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**27,200+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
 - gomu mutates code to check assertions
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**3,037 RFC MUST checks**
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**3,264 RFC MUST checks**
 
-- 172 RFCs inspected
+- 181 RFCs inspected
 - Gaps disclosed before claims
 - Tests tied to requirement IDs
 
- RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**1,800 end to end tests**
+ RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**1,800+ end to end tests**
 
 - Peering, sessions, updates
 - Editor, commits, reloads

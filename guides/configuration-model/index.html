@@ -1946,7 +1946,9 @@ cipher and refuses it beside an AEAD cipher, because an AEAD cipher carries its 
 integrity.
 DH groups: 1-31 (14 = MODP-2048 recommended minimum).
 Authentication modes: <code>pre-shared-secret</code> (with a <code>$9$</code>-encoded key), <code>x509</code> (PKI store
-references), <code>eap-tls</code>, or <code>eap-mschapv2</code>.</p>
+references), <code>eap-tls</code>, <code>eap-mschapv2</code>, or <code>eap-md5</code>. RFC 7296 Section 2.16 discourages
+<code>eap-md5</code>, which establishes no shared key, and the daemon warns once when a configuration
+adopts it. See <a href="../ipsec/">IPsec VPN</a> for what it costs.</p>
 <p>Cross-reference validation runs at config load: peer IKE/ESP group references must name
 defined groups, <code>ca-certificate</code> and <code>certificate</code> names must exist in the PKI store,
 and <code>local-id</code> must match the certificate's subject CN.</p>
@@ -4454,7 +4456,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:20 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 15:47 UTC</span>
                 </div>
             </div>
         </footer>

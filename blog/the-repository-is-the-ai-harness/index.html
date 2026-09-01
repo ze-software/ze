@@ -169,7 +169,7 @@ Register("configure", runConfigure)
 </tr>
 </tbody>
 </table>
-<p>The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around <span data-ze-stat="tests.e2e_display">1,800</span> <code>.ci</code> scenarios and <span data-ze-stat="tests.editor_display">160+</span> editor <code>.et</code> scenarios are what that produces, next to the Go unit tests.</p>
+<p>The rule continues in the same way for interoperability, editor behaviour, fleet management and cross-component work. Unit tests on their own are accepted for genuinely internal logic, and the rule lists those cases so the exception cannot be invented on the spot. Everything else owes both kinds. Around <span data-ze-stat="tests.e2e_display">1,800+</span> <code>.ci</code> scenarios and <span data-ze-stat="tests.editor_display">160+</span> editor <code>.et</code> scenarios are what that produces, next to the Go unit tests.</p>
 <p>The test comes first and has to fail before the implementation is written. Each one carries <code>VALIDATES:</code> and <code>PREVENTS:</code> comments, so a later reader learns what the test proves and which regression it was written against.</p>
 <p>The writing happens in an incubator. <code>test/draft/</code> is gitignored and skipped by every repository-wide gate, so a half-finished scenario cannot turn somebody else's verification run red while its author is still iterating on it. A draft ends in one of two moves, promotion into the live suite or deletion, and stopping anywhere else is refused. A scenario sitting in the incubator tells the next session nothing about whether it is abandoned scaffolding or work in progress.</p>
 <h2 id="a-test-can-gate-nothing-and-still-be-green">A test can gate nothing and still be green</h2>
@@ -238,7 +238,7 @@ Register("configure", runConfigure)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 02:44 UTC</span>
                 </div>
             </div>
         </footer>

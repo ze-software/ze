@@ -542,7 +542,9 @@ data: &lt;html-fragment&gt;
 <p>The HTML fragment contains a notification banner with the change description and action buttons.</p>
 <h2 id="admin-commands">Admin Commands</h2>
 <p>The <code>/admin/</code> tier provides a browsable tree of administrative commands. Container nodes display navigable links to sub-commands. Leaf commands display a parameter form with an "Execute" button.</p>
-<!-- source: internal/component/web/handler_admin.go -- HandleAdminView, HandleAdminExecute -->
+<p>The form also shows the command's help, read from the same command model every other surface reads. The declared one-line summary is the lede above the form, and the declared long explanation is the paragraph under it. A command that declares no explanation shows the summary alone. A path the command tree does not hold shows neither text, and never borrows its parent's.</p>
+<!-- source: internal/component/web/handler_admin.go -- HandleAdminView, HandleAdminExecute, buildAdminFragmentData -->
+<!-- source: internal/component/web/component_command_form.templ -- commandForm -->
 <p>Admin command results are displayed as titled cards showing the command name, output text, and success/error styling.</p>
 <h2 id="resilience">Resilience</h2>
 <p><strong>Corrupt change files:</strong> If a per-user change file in the blob store is unparseable (e.g., from a previous bug), it is automatically discarded with a warning log. The user can continue editing without manual intervention.</p>
@@ -591,7 +593,7 @@ data: &lt;html-fragment&gt;
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 01:18 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 02:44 UTC</span>
                 </div>
             </div>
         </footer>

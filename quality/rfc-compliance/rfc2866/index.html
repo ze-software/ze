@@ -1,0 +1,1109 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 2866 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 2866: RADIUS Accounting. 16 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 2866 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 2866: RADIUS Accounting. 16 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 2866 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 2866: RADIUS Accounting. 16 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc2866/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc2866/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported for subscriber access</span>
+    <h1 id="rfc-detail-title">RFC 2866 - RADIUS Accounting</h1>
+    <p>Every requirement this repository extracted from RFC 2866, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>16 of 16 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 16 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 16 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 16 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 35 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>16</strong><b>of 18 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 16 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 16 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported for subscriber access</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>18</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>16</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>16</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>35</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>35</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc2866.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc2866.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc2866.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: ze is a RADIUS accounting client (NAS); the five gated MUST requirements the checklist held before 2026-08-31 are tested with positive+negative pairs. RFC2866-3-1 (MUST NOT tear down sessions on accounting failure): TestRFC2866AcctFailureKeepsSession positive (a failed Accounting-Start against an unreachable server leaves the session tracked), TestRFC2866SessionTeardownIndependentOfAccounting negative (teardown is driven only by the session-down event; producer authradius/acct.go:254-264 sendAcctPacket only logs on error, onSessionDown separate at acct.go:143-162). RFC2866-3-2 (authenticator = MD5(Code+ID+Length+16 zero octets+Attributes+Secret)): TestRFC2866AccountingRequestAuthFormula positive (equals an independent MD5 reference; producer radius/packet.go:252 AccountingRequestAuth, applied radius/client.go:127-132), TestRFC2866AccountingRequestAuthRejectsTampering negative (authenticator changes when secret/attribute/Code changes). RFC2866-3-3 (retransmit reuses Identifier): TestRFC2866AccountingRetransmitSameIdentifier positive (retransmit carries the same Identifier; producer radius/client.go:147-193 re-sends the pre-encoded buf), TestRFC2866AccountingDistinctRequestsDifferIdentifier negative. RFC2866-5-1 (Acct-Status-Type present Start/Stop/Interim): TestRFC2866AcctStatusTypePresent positive (each lifecycle event yields exactly one attribute valued 1/2/3; producer authradius/acct.go:196 buildAcctPacket), TestRFC2866AcctStatusTypeNeverOmitted negative. RFC2866-5.5-1 (Acct-Session-Id unique across the NAS): TestRFC2866AcctSessionIDUnique positive (1600 concurrent ids all distinct; producer authradius/acct.go:77-84 genSessionID monotonic counter under lock), TestRFC2866AcctSessionIDNoCollisionOnReusedKey negative. No SHOULD/MAY requirements are gated. The extraction walk of 2026-08-31 (rfc/extraction/rfc2866.json) added ten obligations the checklist never declared, each with a positive+negative pair: RFC2866-3-4 and RFC2866-3-5 (octets outside the Length are padding, a datagram shorter than its Length is discarded; producers radius/packet.go Decode and radius/client.go readLoop), RFC2866-4.1-2 (User-Password, CHAP-Password, Reply-Message and State never present), RFC2866-4.1-3 (either NAS-IP-Address or NAS-Identifier present; producer authradius/nasidentity.go appendNASIdentity, which fixed a config setting neither leaf), RFC2866-4.1-4 (a new request takes a new Identifier; producer radius/client.go SendToServers), RFC2866-4.2-1 (the Response Authenticator of an Accounting-Response; producer radius/client.go dispatchResponse), RFC2866-5-2 (embedded nulls survive an attribute value), RFC2866-5-3 (text of length zero omitted; producer authradius/acct.go buildAcctPacket, which fixed an empty User-Name reaching the wire), RFC2866-5.5-2 and RFC2866-5.5-3 (every record carries an Acct-Session-Id, and the records of one session carry the same one).</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported for subscriber access</p>
+<p><strong>What the ledger says is covered:</strong></p>
+Start, Stop, and Interim-Update accounting records.
+<p><strong>What the ledger says remains:</strong></p>
+Admin/operator RADIUS accounting is not wired; the admin backend is authentication-only.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>16</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>16</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (16):</strong> <a href="#rfc2866-3-1"><code>RFC2866-3-1</code></a>, <a href="#rfc2866-3-2"><code>RFC2866-3-2</code></a>, <a href="#rfc2866-5.5-1"><code>RFC2866-5.5-1</code></a>, <a href="#rfc2866-4.1-1"><code>RFC2866-4.1-1</code></a>, <a href="#rfc2866-5-1"><code>RFC2866-5-1</code></a>, <a href="#rfc2866-3-3"><code>RFC2866-3-3</code></a>, <a href="#rfc2866-3-4"><code>RFC2866-3-4</code></a>, <a href="#rfc2866-3-5"><code>RFC2866-3-5</code></a>, <a href="#rfc2866-4.1-2"><code>RFC2866-4.1-2</code></a>, <a href="#rfc2866-4.1-3"><code>RFC2866-4.1-3</code></a>, <a href="#rfc2866-4.1-4"><code>RFC2866-4.1-4</code></a>, <a href="#rfc2866-4.2-1"><code>RFC2866-4.2-1</code></a>, <a href="#rfc2866-5-2"><code>RFC2866-5-2</code></a>, <a href="#rfc2866-5-3"><code>RFC2866-5-3</code></a>, <a href="#rfc2866-5.5-2"><code>RFC2866-5.5-2</code></a>, <a href="#rfc2866-5.5-3"><code>RFC2866-5.5-3</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-3-1">RFC2866-3-1</code></td><td colspan="3"><span class="rfc-subject">Accounting failures MUST NOT tear down user sessions (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3 - Packet Format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L156" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctFailureKeepsSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L192" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866SessionTeardownIndependentOfAccounting</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-3-2">RFC2866-3-2</code></td><td colspan="3"><span class="rfc-subject">Accounting-Request authenticator MUST be computed as MD5(Code+ID+Length+16_zero_octets+Attributes+Secret) (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3 - Packet Format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L84" title="internal/component/radius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRequestAuthFormula</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L127" title="internal/component/radius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRequestAuthRejectsTampering</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-5.5-1">RFC2866-5.5-1</code></td><td colspan="3"><span class="rfc-subject">Acct-Session-Id MUST be unique across all active sessions on the NAS (§5.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.5 - Acct-Session-Id</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-5.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L112" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDUnique</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L144" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDNoCollisionOnReusedKey</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-4.1-1">RFC2866-4.1-1</code></td><td colspan="3"><span class="rfc-subject">A Framed-IP-Address included in an Accounting-Request MUST contain the IP address of the user, and where the Access-Accept used a special value telling the NAS to assign or negotiate an address, MUST contain the address actually assigned or negotiated (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1 - Accounting-Request</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L32" title="internal/component/l2tp/plugins/authradius/acct_address_test.go" target="_blank" rel="noopener"><code>TestAcctFramedIPAddressPresent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L127" title="internal/component/l2tp/plugins/authradius/acct_address_test.go" target="_blank" rel="noopener"><code>TestSessionEventDrivesAddressAndPortID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L56" title="internal/component/l2tp/plugins/authradius/acct_address_test.go" target="_blank" rel="noopener"><code>TestAcctFramedIPAddressIsSubscriberNotNAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L79" title="internal/component/l2tp/plugins/authradius/acct_address_test.go" target="_blank" rel="noopener"><code>TestAcctFramedIPAddressOmittedWhenNotIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L24" title="test/l2tp/radius-acct-wire.ci" target="_blank" rel="noopener"><code>radius-acct-wire.ci</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-5-1">RFC2866-5-1</code></td><td colspan="3"><span class="rfc-subject">Acct-Status-Type attribute MUST be included in Accounting-Request to indicate Start (1), Stop (2), or Interim-Update (3) (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Attributes</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L57" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctStatusTypePresent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L88" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctStatusTypeNeverOmitted</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-3-3">RFC2866-3-3</code></td><td colspan="3"><span class="rfc-subject">Same retransmit rules as RFC 2865: retransmitted request MUST use the same Identifier (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3 - Packet Format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L167" title="internal/component/radius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRetransmitSameIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L210" title="internal/component/radius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingDistinctRequestsDifferIdentifier</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-3-4">RFC2866-3-4</code></td><td colspan="3"><span class="rfc-subject">Octets outside the range of the Length field MUST be treated as padding and ignored on reception (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3 - Packet Format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L112" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866LengthPaddingIgnoredOnReception</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L133" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866LengthPaddingBoundaryIsTheLengthField</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-3-5">RFC2866-3-5</code></td><td colspan="3"><span class="rfc-subject">A packet shorter than its Length field indicates MUST be silently discarded (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3 - Packet Format</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L164" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866ShortPacketSilentlyDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L181" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866HonestLengthIsAccepted</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-4.1-2">RFC2866-4.1-2</code></td><td colspan="3"><span class="rfc-subject">User-Password, CHAP-Password, Reply-Message and State MUST NOT be present in an Accounting-Request (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.1 - Accounting-Request</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-4.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L37" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctForbiddenAttributesAbsent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L67" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-4.1-3">RFC2866-4.1-3</code></td><td colspan="3"><span class="rfc-subject">Either NAS-IP-Address or NAS-Identifier MUST be present in an Accounting-Request (§4.1, restated at §5.13 Note 1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1 - Accounting-Request</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L90" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctNASIdentityAlwaysPresent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L126" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctNASIdentityFallbackIsNarrow</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-4.1-4">RFC2866-4.1-4</code></td><td colspan="3"><span class="rfc-subject">The Identifier MUST change whenever the content of the Attributes field changes, and whenever a valid reply has been received for a previous request (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1 - Accounting-Request</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-4.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L193" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866IdentifierChangesForANewRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L234" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866IdentifierCounterCoversTheWholeSpace</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-4.2-1">RFC2866-4.2-1</code></td><td colspan="3"><span class="rfc-subject">The Response Authenticator of an Accounting-Response MUST contain the correct response for the pending Accounting-Request (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2 - Accounting-Response</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L260" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingResponseAuthenticatorAccepted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L272" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-5-2">RFC2866-5-2</code></td><td colspan="3"><span class="rfc-subject">Servers and clients MUST be able to deal with embedded nulls in an attribute value (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5 - Attributes</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L288" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866EmbeddedNullsSurviveTheWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L313" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866AllNullValueKeepsItsLength</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-5-3">RFC2866-5-3</code></td><td colspan="3"><span class="rfc-subject">Text of length zero MUST NOT be sent; the entire attribute is omitted instead (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5 - Attributes</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L148" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctZeroLengthTextOmitted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L168" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctNonEmptyTextIsSent</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-5.5-2">RFC2866-5.5-2</code></td><td colspan="3"><span class="rfc-subject">The start and stop records for a given session MUST have the same Acct-Session-Id (§5.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.5 - Acct-Session-Id</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-5.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L181" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDSameAcrossRecords</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L200" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDDiffersBetweenSessions</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-5.5-3">RFC2866-5.5-3</code></td><td colspan="3"><span class="rfc-subject">An Accounting-Request packet MUST have an Acct-Session-Id (§5.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.5 - Acct-Session-Id</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-5.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L216" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDPresentOnEveryRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L236" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDNeverEmpty</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-x-1">RFC2866-x-1</code></td><td colspan="3"><span class="rfc-subject">NAS SHOULD use exponential backoff between retransmits (per RFC 2865 §2.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-x-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2866-x-2">RFC2866-x-2</code></td><td colspan="3"><span class="rfc-subject">Interim-Update interval MAY be locally configured (Implementation Constraints)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-x-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<p>RFC 2866 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc2866-3-1"><code>RFC2866-3-1</code></a></h3>
+<p>Accounting failures MUST NOT tear down user sessions (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L192" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866SessionTeardownIndependentOfAccounting</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L156" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctFailureKeepsSession</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-3-2"><code>RFC2866-3-2</code></a></h3>
+<p>Accounting-Request authenticator MUST be computed as MD5(Code+ID+Length+16_zero_octets+Attributes+Secret) (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L127" title="internal/component/radius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRequestAuthRejectsTampering</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L84" title="internal/component/radius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRequestAuthFormula</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-5.5-1"><code>RFC2866-5.5-1</code></a></h3>
+<p>Acct-Session-Id MUST be unique across all active sessions on the NAS (§5.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L144" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDNoCollisionOnReusedKey</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L112" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDUnique</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-4.1-1"><code>RFC2866-4.1-1</code></a></h3>
+<p>A Framed-IP-Address included in an Accounting-Request MUST contain the IP address of the user, and where the Access-Accept used a special value telling the NAS to assign or negotiate an address, MUST contain the address actually assigned or negotiated (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L56" title="internal/component/l2tp/plugins/authradius/acct_address_test.go" target="_blank" rel="noopener"><code>TestAcctFramedIPAddressIsSubscriberNotNAS</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L79" title="internal/component/l2tp/plugins/authradius/acct_address_test.go" target="_blank" rel="noopener"><code>TestAcctFramedIPAddressOmittedWhenNotIPv4</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L32" title="internal/component/l2tp/plugins/authradius/acct_address_test.go" target="_blank" rel="noopener"><code>TestAcctFramedIPAddressPresent</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/acct_address_test.go#L127" title="internal/component/l2tp/plugins/authradius/acct_address_test.go" target="_blank" rel="noopener"><code>TestSessionEventDrivesAddressAndPortID</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L24" title="test/l2tp/radius-acct-wire.ci" target="_blank" rel="noopener"><code>radius-acct-wire.ci</code></a></td>
+<td>functional/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-5-1"><code>RFC2866-5-1</code></a></h3>
+<p>Acct-Status-Type attribute MUST be included in Accounting-Request to indicate Start (1), Stop (2), or Interim-Update (3) (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L88" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctStatusTypeNeverOmitted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L57" title="internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctStatusTypePresent</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-3-3"><code>RFC2866-3-3</code></a></h3>
+<p>Same retransmit rules as RFC 2865: retransmitted request MUST use the same Identifier (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L210" title="internal/component/radius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingDistinctRequestsDifferIdentifier</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L167" title="internal/component/radius/rfc2866_accounting_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRetransmitSameIdentifier</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-3-4"><code>RFC2866-3-4</code></a></h3>
+<p>Octets outside the range of the Length field MUST be treated as padding and ignored on reception (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L133" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866LengthPaddingBoundaryIsTheLengthField</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L112" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866LengthPaddingIgnoredOnReception</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-3-5"><code>RFC2866-3-5</code></a></h3>
+<p>A packet shorter than its Length field indicates MUST be silently discarded (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L181" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866HonestLengthIsAccepted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L164" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866ShortPacketSilentlyDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-4.1-2"><code>RFC2866-4.1-2</code></a></h3>
+<p>User-Password, CHAP-Password, Reply-Message and State MUST NOT be present in an Accounting-Request (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L67" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L37" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctForbiddenAttributesAbsent</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-4.1-3"><code>RFC2866-4.1-3</code></a></h3>
+<p>Either NAS-IP-Address or NAS-Identifier MUST be present in an Accounting-Request (§4.1, restated at §5.13 Note 1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L126" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctNASIdentityFallbackIsNarrow</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L90" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctNASIdentityAlwaysPresent</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-4.1-4"><code>RFC2866-4.1-4</code></a></h3>
+<p>The Identifier MUST change whenever the content of the Attributes field changes, and whenever a valid reply has been received for a previous request (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L234" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866IdentifierCounterCoversTheWholeSpace</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L193" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866IdentifierChangesForANewRequest</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-4.2-1"><code>RFC2866-4.2-1</code></a></h3>
+<p>The Response Authenticator of an Accounting-Response MUST contain the correct response for the pending Accounting-Request (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L272" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingResponseAuthenticatorForgeryDiscarded</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L260" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingResponseAuthenticatorAccepted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-5-2"><code>RFC2866-5-2</code></a></h3>
+<p>Servers and clients MUST be able to deal with embedded nulls in an attribute value (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L313" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866AllNullValueKeepsItsLength</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L288" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866EmbeddedNullsSurviveTheWire</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-5-3"><code>RFC2866-5-3</code></a></h3>
+<p>Text of length zero MUST NOT be sent; the entire attribute is omitted instead (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L168" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctNonEmptyTextIsSent</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L148" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctZeroLengthTextOmitted</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-5.5-2"><code>RFC2866-5.5-2</code></a></h3>
+<p>The start and stop records for a given session MUST have the same Acct-Session-Id (§5.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L200" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDDiffersBetweenSessions</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L181" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDSameAcrossRecords</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc2866-5.5-3"><code>RFC2866-5.5-3</code></a></h3>
+<p>An Accounting-Request packet MUST have an Acct-Session-Id (§5.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L236" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDNeverEmpty</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L216" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDPresentOnEveryRequest</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6, rfc2866</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc2866.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>928686054877a829</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc2866.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>14</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>8</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Status of this Memo, copyright notice, Abstract, the Implementation Note on UDP port 1646 against 1813, and the table of contents. The Implementation Note records deployment history and binds no speaker.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Names the problem RADIUS Accounting answers, and lists the key features: the client/server model, the shared secret that is never sent over the network, and the variable-length Attribute-Length-Value 3-tuples. No obligation.</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>Specification of Requirements</td>
+<td>0</td>
+<td>walked</td>
+<td>Specification of Requirements. The RFC 2119 key-words paragraph, plus one sentence of its own: &#39;These key words mean the same thing whether capitalized or not.&#39; That sentence is why this walk reads a lowercase modal as normative wherever it binds a speaker, and it is why site 2.1:1 counts although the source writes &#39;MUST not&#39;.</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>Terminology</td>
+<td>0</td>
+<td>walked</td>
+<td>Terminology. Defines service, session and &#39;silently discard&#39;. The &#39;silently discard&#39; entry carries two SHOULD clauses, on logging the error and on counting the event; neither is gated and neither is declared in rfc/short/rfc2866.md.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>Operation</td>
+<td>1</td>
+<td>walked</td>
+<td>Operation. Describes the Start and Stop exchange, recommends that the client retry with some form of backoff and can fall back to an alternate server, and states that retry and fallback algorithms are not specified in detail in this document. One capitalised site, binding the accounting server. RFC2866-3-1 is declared unsourced here: RFC 2866 nowhere states that an accounting failure must not tear a session down. The summary read it from this section&#39;s model, in which accounting is an exchange beside the session rather than a step of it, and ze meets it (sendAcctPacket logs a failed record and returns; onSessionDown is driven by the session-down event alone).</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>Proxy</td>
+<td>1</td>
+<td>walked</td>
+<td>Proxy. Walks the four steps of a forwarding server and a remote server, and states one obligation binding the forwarding server. The rest is advice to whoever implements a proxy that takes responsibility for retransmissions.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Packet Format</td>
+<td>2</td>
+<td>walked</td>
+<td>Packet Format. States the encapsulation, UDP port 1813, the field layout, and both authenticator computations in RFC 2866&#39;s own voice; it does not defer to RFC 2865. The two capitalised sites are the Length rules. The Request Authenticator formula is stated in indicative prose (&#39;contains a one-way MD5 hash calculated over a stream of octets consisting of the Code + Identifier + Length + 16 zero octets + request attributes + shared secret&#39;), so the site scan sees no keyword there and RFC2866-3-2 is declared unsourced. The Response Authenticator paragraph is indicative in the same way; RFC2866-4.2-1 is instead read from the capitalised sentence in Section 4.2. The section closes with one SHOULD on preserving the order of attributes of the same type.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Packet Types</td>
+<td>0</td>
+<td>walked</td>
+<td>Packet Types. One sentence: the Code field in the first octet decides the packet type.</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>Accounting-Request</td>
+<td>7</td>
+<td>walked</td>
+<td>Accounting-Request. The description, the packet diagram, and the field notes for Code, Identifier, Request Authenticator and Attributes. Seven capitalised sites: one binds the accounting server, and six bind the client that builds the record, which is the role ze plays.</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>Accounting-Response</td>
+<td>2</td>
+<td>walked</td>
+<td>Accounting-Response. Two capitalised sites: the server transmits the response when it recorded the request, and the Response Authenticator holds the correct response for the pending Accounting-Request, which the client checks on reception.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Attributes</td>
+<td>4</td>
+<td>walked</td>
+<td>Attributes. The attribute format, the type list for 40 to 51, the Length rule, and the five data types. RFC 2866 states this section in its own voice: unlike RFC 2869 Section 5, it carries no sentence saying the format is included from RFC 2865 for ease of reference, so its four capitalised sites are read as RFC 2866&#39;s own obligations rather than as citations.</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>Acct-Status-Type</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Status-Type. Defines type 40 and its values: Start, Stop, Interim-Update, Accounting-On, Accounting-Off, the tunnel range and Failed. One MAY, on marking the start and the end of accounting with Accounting-On and Accounting-Off; ze sends neither, and the option is the owner&#39;s to take (ai/rules/rfc-compliance.md). No capitalised MUST-level keyword.</td>
+</tr>
+<tr><td><code>5.2</code></td>
+<td>Acct-Delay-Time</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Delay-Time. Defines type 41, and notes that changing it changes the Attributes field and so requires a new Identifier and Request Authenticator. ze sends no Acct-Delay-Time.</td>
+</tr>
+<tr><td><code>5.3</code></td>
+<td>Acct-Input-Octets</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Input-Octets. Defines type 42 and says it can only be present where Acct-Status-Type is Stop. Indicative prose, no capitalised keyword.</td>
+</tr>
+<tr><td><code>5.4</code></td>
+<td>Acct-Output-Octets</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Output-Octets. Defines type 43 in the wording of Section 5.3 with the direction reversed. Indicative prose, no capitalised keyword.</td>
+</tr>
+<tr><td><code>5.5</code></td>
+<td>Acct-Session-Id</td>
+<td>3</td>
+<td>walked</td>
+<td>Acct-Session-Id. Defines type 44, states three capitalised obligations, and adds two SHOULDs on UTF-8 encoding. RFC2866-5.5-1 is declared unsourced here: &#39;unique across all active sessions on the NAS&#39; is the summary&#39;s rendering of the indicative opening sentence, &#39;This attribute is a unique Accounting ID to make it easy to match start and stop records in a log file&#39;, which carries no keyword for the site scan to see. genSessionID (authradius/acct.go) is its producer.</td>
+</tr>
+<tr><td><code>5.6</code></td>
+<td>Acct-Authentic</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Authentic. Defines type 45, how the user was authenticated. Carries one MAY on including it and one SHOULD NOT: &#39;Users who are delivered service without being authenticated SHOULD NOT generate Accounting records.&#39; Neither is gated and ze sends no Acct-Authentic. The SHOULD NOT is the RFC&#39;s own acknowledgement that an unauthenticated session reaches accounting, which is the session whose empty User-Name site 5:3 governs.</td>
+</tr>
+<tr><td><code>5.7</code></td>
+<td>Acct-Session-Time</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Session-Time. Defines type 46. Indicative prose, no capitalised keyword.</td>
+</tr>
+<tr><td><code>5.8</code></td>
+<td>Acct-Input-Packets</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Input-Packets. Defines type 47. Indicative prose, no capitalised keyword.</td>
+</tr>
+<tr><td><code>5.9</code></td>
+<td>Acct-Output-Packets</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Output-Packets. Defines type 48. Indicative prose, no capitalised keyword.</td>
+</tr>
+<tr><td><code>5.10</code></td>
+<td>Acct-Terminate-Cause</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Terminate-Cause. Defines type 49 and its eighteen values, each with a one-line meaning. ze sends no Acct-Terminate-Cause. No obligation.</td>
+</tr>
+<tr><td><code>5.11</code></td>
+<td>Acct-Multi-Session-Id</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Multi-Session-Id. Defines type 50 for linking the sessions of one multilink bundle. &#39;It is strongly recommended that&#39; the value is UTF-8, which is advice and not a keyword. ze sends no Acct-Multi-Session-Id.</td>
+</tr>
+<tr><td><code>5.12</code></td>
+<td>Acct-Link-Count</td>
+<td>0</td>
+<td>walked</td>
+<td>Acct-Link-Count. Defines type 51, carries one MAY on including it in an Accounting-Request that might have multiple links, and works an eight-record example. ze runs no multilink bundle and sends no Acct-Link-Count.</td>
+</tr>
+<tr><td><code>5.13</code></td>
+<td>Table of Attributes</td>
+<td>2</td>
+<td>walked</td>
+<td>Table of Attributes. The table itself, Note 1, and the legend that defines the 0, 0+, 0-1 and 1 symbols. The two capitalised sites are Note 1 and the legend.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. Registers the packet type codes, attribute types and attribute values from the RADIUS name spaces of RFC 2865, under BCP 26. Binds IANA, not a speaker.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. One sentence: the security issues are discussed in the sections about the authenticator and the shared secret. No obligation of its own.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>Change Log</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>Change Log. Section 1 calls it an appendix: it lists what changed against RFC 2139, in the past tense. Its &#39;must&#39; in &#39;it must be used in the accounting-request for that session&#39; is a report of the change site 5.5:3 carries, not a second obligation.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References: RFC 2139, RFC 2865, RFC 2119, RFC 768, RFC 1321, RFC 1700, RFC 2279 and RFC 2434.</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>Acknowledgements</td>
+<td>0</td>
+<td>skipped (acknowledgements)</td>
+<td>Acknowledgements. Credits Livingston Enterprises for the original RADIUS Accounting work.</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>Chair&#39;s Address</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Chair&#39;s Address. A postal, phone and mail address block, skipped the way rfc/extraction/rfc2869.json skips the same section.</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>Author&#39;s Address</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Author&#39;s Address. An address block only.</td>
+</tr>
+<tr><td><code>13</code></td>
+<td>Full Copyright Statement</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Full Copyright Statement. The ISOC boilerplate, its disclaimer, and the RFC Editor funding acknowledgement.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the RADIUS accounting server, the party that records the packet. ze runs no accounting server: radius/client.go opens a UDP socket to send requests and match the replies to them, and the one listener ze does run (authradius/coa.go) accepts a CoA-Request and a Disconnect-Request under RFC 5176, never an Accounting-Request.</td>
+<td>If the RADIUS accounting server is unable to successfully record the accounting packet it MUST NOT send an Accounting-Response acknowledgment to the client.</td>
+</tr>
+<tr><td><code>2.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds a forwarding server: the party that, in the four steps above the sentence, logs an accounting-request, adds its own Proxy-State after any other, updates the Request Authenticator and forwards the request to a remote server. ze proxies no RADIUS. buildAcctPacket (authradius/acct.go) builds the records of ze&#39;s own subscriber sessions and adds neither Proxy-State nor Class, and SendToServers (radius/client.go) sends them to the servers the operator configured.</td>
+<td>A forwarding server MUST not modify existing Proxy-State or Class attributes present in the packet.</td>
+</tr>
+<tr><td><code>4.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the RADIUS accounting server, the party that records the packet. ze runs no accounting server: radius/client.go opens a UDP socket to send requests and match the replies to them, and the one listener ze does run (authradius/coa.go) accepts a CoA-Request and a Disconnect-Request under RFC 5176, never an Accounting-Request.</td>
+<td>Upon receipt of an Accounting-Request, the server MUST transmit an Accounting-Response reply if it successfully records the accounting packet, and MUST NOT transmit any reply if it fails to record the accounting packet.</td>
+</tr>
+<tr><td><code>4.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the RADIUS accounting server, the party that records the packet. ze runs no accounting server: radius/client.go opens a UDP socket to send requests and match the replies to them, and the one listener ze does run (authradius/coa.go) accepts a CoA-Request and a Disconnect-Request under RFC 5176, never an Accounting-Request.</td>
+<td>If the Accounting- Request was recorded successfully then the RADIUS accounting server MUST transmit a packet with the Code field set to 5 (Accounting-Response).</td>
+</tr>
+<tr><td><code>5:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The sentence scopes itself to an attribute &#39;received in an Accounting-Request&#39;, and only the accounting server receives one. Binds the RADIUS accounting server, the party that records the packet. ze runs no accounting server: radius/client.go opens a UDP socket to send requests and match the replies to them, and the one listener ze does run (authradius/coa.go) accepts a CoA-Request and a Disconnect-Request under RFC 5176, never an Accounting-Request. Decode (radius/packet.go) does refuse an attribute whose Length is below 2 or runs past the packet, for every code it parses, so the rule holds wherever ze could reach it.</td>
+<td>If an attribute is received in an Accounting-Request with an invalid Length, the entire request MUST be silently discarded.</td>
+</tr>
+<tr><td><code>5:4</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The same obligation for the string data type that the sentence before it states for text; the two differ only in the type they name, and site 5:3 maps it. The producer is the same and no attribute ze builds is a zero-length string: an Accounting-Request from ze carries string-typed values only in NAS-Port-Id, appended only when the template resolved to text, and in the NAS identity, which appendNASIdentity never leaves empty.</td>
+<td>Strings of length zero (0) MUST NOT be sent; omit the entire attribute instead.</td>
+</tr>
+<tr><td><code>5.5:3</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>The enclosing construction is &#39;An Access-Request packet MAY have an Acct-Session-Id; if it does, then the NAS MUST use the same Acct-Session-Id in the Accounting-Request packets for that session.&#39; The MUST is conditioned on the MAY, and ze declines the option: buildAuthAttrs (authradius/handler.go) puts no Acct-Session-Id in an Access-Request, and the id does not exist yet at that point, because onSessionIPAssigned generates it when IPCP assigns the address (authradius/acct.go). Whether ze should take the option is a MAY for the owner to answer (ai/rules/rfc-compliance.md), not a requirement this walk can close.</td>
+<td>An Access-Request packet MAY have an Acct-Session-Id; if it does, then the NAS MUST use the same Acct-Session-Id in the Accounting- Request packets for that session.</td>
+</tr>
+<tr><td><code>5.13:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Note 1 restates over the Table of Attributes the NAS identity rule Section 4.1 already states; site 4.1:3 maps it, and appendNASIdentity (authradius/nasidentity.go) is the one producer both sentences describe.</td>
+<td>[Note 1] An Accounting-Request MUST contain either a NAS-IP-Address or a NAS-Identifier (or both).</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 2866, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

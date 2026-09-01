@@ -54,12 +54,12 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>announce flowspec</code></dd></div>
-<div><dt>Usage</dt><dd><code>announce flowspec [destination-ipv4 &lt;prefix&gt; ...] [destination-ipv6 &lt;prefix&gt; ...] [destination-port &lt;value&gt; ...] [dscp &lt;value&gt; ...] [flow-label &lt;value&gt; ...] [fragment &lt;value&gt; ...] [icmp-code &lt;value&gt; ...] [icmp-type &lt;value&gt; ...] [next-header &lt;value&gt; ...] [packet-length &lt;value&gt; ...] [port &lt;value&gt; ...] [protocol &lt;value&gt; ...] [rd &lt;value&gt;] [source-ipv4 &lt;prefix&gt; ...] [source-ipv6 &lt;prefix&gt; ...] [source-port &lt;value&gt; ...] [tcp-flags &lt;value&gt; ...] [community &lt;value&gt;] [rate-limit &lt;bytes-per-second&gt;] [discard] [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]</code></dd></div>
+<div><dt>Usage</dt><dd><code>announce flowspec [destination-ipv4 &lt;prefix&gt; ...] [destination-ipv6 &lt;prefix&gt; ...] [destination-port &lt;value&gt; ...] [dscp &lt;value&gt; ...] [flow-label &lt;value&gt; ...] [fragment &lt;value&gt; ...] [icmp-code &lt;value&gt; ...] [icmp-type &lt;value&gt; ...] [next-header &lt;value&gt; ...] [packet-length &lt;value&gt; ...] [port &lt;value&gt; ...] [protocol &lt;value&gt; ...] [rd &lt;value&gt;] [source-ipv4 &lt;prefix&gt; ...] [source-ipv6 &lt;prefix&gt; ...] [source-port &lt;value&gt; ...] [tcp-flags &lt;value&gt; ...] (community &lt;value&gt;|rate-limit &lt;bytes-per-second&gt;|discard) [tag &lt;key&gt; &lt;value&gt;] [for &lt;duration&gt;]</code></dd></div>
 <div><dt>Mode</dt><dd>Daemon</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-bgp:announce-flowspec</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
-<div><dt>Subcommands</dt><dd><code>community</code> <code>destination-ipv4</code> <code>destination-ipv6</code> <code>destination-port</code> <code>discard</code> <code>dscp</code> <code>flow-label</code> <code>for</code> <code>fragment</code> <code>icmp-code</code> <code>icmp-type</code> <code>next-header</code> <code>packet-length</code> <code>port</code> <code>protocol</code> <code>rate-limit</code> <code>rd</code> <code>source-ipv4</code> <code>source-ipv6</code> <code>source-port</code> <code>tag</code> <code>tcp-flags</code></dd></div>
+<div><dt>Subcommands</dt><dd><code>action</code> <code>destination-ipv4</code> <code>destination-ipv6</code> <code>destination-port</code> <code>dscp</code> <code>flow-label</code> <code>for</code> <code>fragment</code> <code>icmp-code</code> <code>icmp-type</code> <code>next-header</code> <code>packet-length</code> <code>port</code> <code>protocol</code> <code>rd</code> <code>source-ipv4</code> <code>source-ipv6</code> <code>source-port</code> <code>tag</code> <code>tcp-flags</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
@@ -130,7 +130,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 18:18 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 02:44 UTC</span>
                 </div>
             </div>
         </footer>

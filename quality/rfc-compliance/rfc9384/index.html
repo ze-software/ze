@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 9384 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 9384: A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD). 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 9384 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 9384: A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD). 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 9384 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 9384: A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD). 0 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc9384/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc9384/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported within BFD</span>
+    <h1 id="rfc-detail-title">RFC 9384 - A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD)</h1>
+    <p>Every requirement this repository extracted from RFC 9384, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>0</strong><b>of 0 gated MUSTs judged</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>0</strong><b>of 3 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 0 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>No card above is a share of a population, so there is nothing to add up.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported within BFD</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Not enrolled (non-normative)</td>
+</tr>
+<tr><td>Requirements</td>
+<td>3</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>0</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>0</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>0</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>0</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>0</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc9384.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc9384.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc9384.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Not enrolled (non-normative): A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD), IETF category Standards Track. The document carries the RFC 2119 / RFC 8174 key-words paragraph at Section 2, and a capitalised MUST / MUST NOT / SHALL / SHALL NOT / REQUIRED scan over rfc/full/rfc9384.txt hits those five words on one line only, line 101, which is the key-words sentence itself. That sentence tells a reader how to read the other sentences and states no obligation of its own. Outside it the text uses no MUST-level keyword anywhere. The summary written 2026-09-01 therefore captures three requirements and gates none: RFC9384-3-1 at Section 3, and RFC9384-4-1 and RFC9384-4-2 at Section 4, all three at SHOULD. Section 5 says the subcode &#34;is purely informational and has no impact on the BGP Finite State Machine beyond that already documented by [RFC4271], Sections 6.6 and 6.7&#34;, so the document adds one registry value and three recommendations about using it. A zero-MUST document can reach the public ledger two ways, as this disposition or as a manual-walk extraction sign-off with a register-reason. This disposition is the route taken, because the sign-off at rfc/extraction/rfc9384.json declares the register the source derives, prose, and the second route would need it to declare the weaker manual-walk grade instead. That sign-off bounds the three-row checklist against the source text.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported within BFD</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+The document allocates one registry value and states three SHOULD statements. It states no MUST-level obligation anywhere. <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc9384.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc9384.json</code></a> is the walk that bounds that claim, and <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9384.md" target="_blank" rel="noopener"><code>rfc/short/rfc9384.md</code></a> is the checklist. Section 3. <code>Peer.runBFDSubscriber</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_bfd.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/peer_bfd.go</code></a>) turns a BFD Down or AdminDown transition into <code>teardownAutomatic(message.NotifyCeaseBFDDown, ...)</code>. The session then ends with a Cease NOTIFICATION carrying subcode 10 rather than waiting for the hold timer. The subscriber runs only where the operator opted in with <code>bgp peer connection bfd</code>. <code>message.CeaseSubcodeString</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/notification.go</code></a>) renders the value as &#34;BFD Down&#34; in the log and in the CLI. Section 4, first statement. <code>Peer.recordNotification</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_stats.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/peer_stats.go</code></a>) stores the code and subcode of a NOTIFICATION that reached the wire. It records one ze sent and one ze received alike. <code>lastErrorString</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/summary.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/cmd/peer/summary.go</code></a>) renders them as the <code>last-error</code> field of <code>show bgp peer</code>.
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+<a href="#rfc9384-4-1"><code>RFC9384-4-1</code></a> is met only where the NOTIFICATION reached the peer. <code>sendNotificationWithin</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_write.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_write.go</code></a>) calls <code>onNotifSent</code> after a successful write alone. A teardown whose NOTIFICATION never reached the wire therefore records the reason in the log and leaves <code>last-error</code> empty. Section 4 is written for exactly that case. <a href="#rfc9384-4-2"><code>RFC9384-4-2</code></a> is conditional on RFC 8538 Hard Reset procedures, and this page records RFC 8538 as Unsupported. So the condition that statement opens with does not arise. Both are SHOULD statements, so neither is a gap at MUST level.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<p>RFC 9384 declares no MUST-level requirement, so the gate counts nothing here.</p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9384-3-1">RFC9384-3-1</code></td><td colspan="3"><span class="rfc-subject">When a BGP connection is terminated due to a BFD session going into the Down state, the BGP speaker SHOULD send a NOTIFICATION message with the error code &#34;Cease&#34; and the error subcode &#34;BFD Down&#34; (§3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3 - BFD Cease NOTIFICATION Subcode</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9384-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9384-4-1">RFC9384-4-1</code></td><td colspan="3"><span class="rfc-subject">When there is a total loss of connectivity and the Cease NOTIFICATION message could not be sent, BGP speakers SHOULD provide this reason as part of their operational state (§4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4 - Operational Considerations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9384-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9384-4-2">RFC9384-4-2</code></td><td colspan="3"><span class="rfc-subject">When the procedures in [RFC8538] for sending a NOTIFICATION message with a &#34;Cease&#34; code and &#34;Hard Reset&#34; subcode are required, and the BGP connection is being terminated because BFD has gone into the Down state, the &#34;BFD Down&#34; subcode SHOULD be encapsulated in the Hard Reset&#39;s data portion of the NOTIFICATION message (§4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4 - Operational Considerations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9384-4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<p>RFC 9384 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+</section>
+<section><h2>Proof state</h2>
+<p>RFC 9384 carries no gated, tagged or audited requirement, so there is no proof state to state.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>rfcgate-6-supported-extraction-signoff</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-01</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc9384.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>bb7702e0b362aaeb</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc9384.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>1</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>1</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Abstract, Status of This Memo, Copyright Notice and Table of Contents. The Abstract restates Section 1 and Section 3 and binds nobody on its own.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. It states why a BGP speaker uses BFD for faster failure detection and announces the subcode Section 3 allocates. No obligation of its own.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>Requirements Language</td>
+<td>0</td>
+<td>walked</td>
+<td>Requirements Language. The RFC 2119 / RFC 8174 key-words paragraph, which tells a reader how to read the other sentences. It is the document&#39;s only capitalised MUST-level keyword line and the site scan excludes it.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>BFD Cease NOTIFICATION Subcode</td>
+<td>0</td>
+<td>walked</td>
+<td>BFD Cease NOTIFICATION Subcode. Two sentences: the IANA value, and the one SHOULD this document exists for. The site scan reads must, shall and required and cannot see a SHOULD, so the obligation is recorded as unsourced.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Operational Considerations</td>
+<td>1</td>
+<td>walked</td>
+<td>Operational Considerations. Three paragraphs carrying two SHOULDs. The Hard Reset sentence is the one site the scan sees, on its lowercase &#39;are required&#39;; the operational-state SHOULD carries no scanned modal and is recorded as unsourced.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. It states that the subcode is purely informational and has no impact on the BGP Finite State Machine beyond RFC 4271 Sections 6.6 and 6.7. A property of the subcode, not an obligation.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. It records that IANA has assigned the value 10 with the name &#39;BFD Down&#39;. The value is captured as a constant in the summary.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>References, the parent heading of 7.1 and 7.2</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References, the parent heading of 7.1 and 7.2. It carries no text of its own.</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>Normative References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References. Citation entries for RFC 2119, RFC 4271, RFC 5880, RFC 5882, RFC 8174 and RFC 8538.</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative References, followed by the Acknowledgments and the Author&#39;s Address, which the derivation attributes to this section because neither carries a numbered heading.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The IETF Trust Legal Provisions copyright notice, which the site scan reaches on its lowercase &#39;must&#39;. It binds a person who republishes code from the document, and it states no protocol behavior. The scan strips the RFC 2119 key-words paragraph and does not strip this one.</td>
+<td>Code Components extracted from this document must include Revised BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Revised BSD License.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 9384, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

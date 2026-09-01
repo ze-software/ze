@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 8277 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 8277: Using BGP to Bind MPLS Labels to Address Prefixes. 34 gated MUST-level requirements, 10 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 8277 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 8277: Using BGP to Bind MPLS Labels to Address Prefixes. 34 gated MUST-level requirements, 10 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 8277 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 8277: Using BGP to Bind MPLS Labels to Address Prefixes. 34 gated MUST-level requirements, 10 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc8277/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc8277/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 8277 - Using BGP to Bind MPLS Labels to Address Prefixes</h1>
+    <p>Every requirement this repository extracted from RFC 8277, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>21.1%</strong><b>4 of 19 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>26.3%</strong><b>5 of 19 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 19 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>34</strong><b>of 41 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>15</strong><b>of 34 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>52.6%</strong><b>10 of 19 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 19 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>41</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>34</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>19</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>15</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>10</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>13</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>13</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc8277.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc8277.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc8277.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Using BGP to Bind MPLS Labels to Address Prefixes</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>IPv4 and IPv6 labeled unicast NLRI (SAFI 4) encode and decode, label stack handling, ADD-PATH framing, route config, Adj-RIB-In label side-data, best-path comparability across differing labels, and dataplane handoff</li>
+<li>requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8277.md" target="_blank" rel="noopener"><code>rfc/short/rfc8277.md</code></a>.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+<p>Ten MUST-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8277.md" target="_blank" rel="noopener"><code>rfc/short/rfc8277.md</code></a>. Multiple Labels Capability (code 8) is absent from ze&#39;s capability set (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability.go" target="_blank" rel="noopener"><code>internal/core/bgp/capability/capability.go</code></a>), so every session is in the RFC 8277 Section 2 single-label mode while the encoders still accept and emit a full stack: <a href="#rfc8277-2-1"><code>RFC8277-2-1</code></a>, <a href="#rfc8277-2-3"><code>RFC8277-2-3</code></a>, <a href="#rfc8277-3.2.2-2"><code>RFC8277-3.2.2-2</code></a>. Propagation of an already-multi-label route is unguarded for the same reason: <a href="#rfc8277-3.2.1-2"><code>RFC8277-3.2.1-2</code></a> -- the prohibition binds on every peer precisely because the capability is negotiated with none, and <a href="#rfc8277-3.2.1-4"><code>RFC8277-3.2.1-4</code></a> -- no propagation is ever blocked on label count, so the paired withdrawal has no producer either.</p>
+<p class="rfc-prose"><strong>Encoding:</strong> <a href="#rfc8277-2.1-10"><code>RFC8277-2.1-10</code></a> -- the one-octet NLRI Length is written as <code>byte(totalBits)</code> with no bound check (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/types.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/labeled/types.go</code></a>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_labeled.go" target="_blank" rel="noopener"><code>internal/component/bgp/message/update_build_labeled.go</code></a>).</p>
+<p class="rfc-prose"><strong>Reception:</strong> <a href="#rfc8277-2.2-2"><code>RFC8277-2.2-2</code></a> and <a href="#rfc8277-2.4-1"><code>RFC8277-2.4-1</code></a> -- the label-stack readers are S-bit-driven (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/labeled.go" target="_blank" rel="noopener"><code>internal/core/bgp/nlri/nlrisplit/labeled.go</code></a>,:112), so a single-label NLRI with S clear, and a Section 2.4 withdrawal carrying the RECOMMENDED Compatibility value 0x800000, are both read past their prefix and rejected.</p>
+<p class="rfc-prose"><strong>State:</strong> <a href="#rfc8277-2.5-3"><code>RFC8277-2.5-3</code></a> -- label side-data is keyed on the prefix alone (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/storage/peerrib.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/storage/peerrib.go</code></a>, familyrib.go), so a second ADD-PATH path overwrites the first path&#39;s label binding.</p>
+<p class="rfc-prose"><strong>Propagation:</strong> <a href="#rfc8277-3.2.2-1"><code>RFC8277-3.2.2-1</code></a> -- ze binds no local label, so a next-hop rewrite re-advertises the upstream label unchanged (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/filter_delta_handlers.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/filter_delta_handlers.go</code></a>).</p>
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>4</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>30</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>34</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc8277-2.2-3"><code>RFC8277-2.2-3</code></a>, <a href="#rfc8277-2.5-1"><code>RFC8277-2.5-1</code></a>, <a href="#rfc8277-2.5-2"><code>RFC8277-2.5-2</code></a>, <a href="#rfc8277-3.1-1"><code>RFC8277-3.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (30):</strong> <a href="#rfc8277-2-1"><code>RFC8277-2-1</code></a>, <a href="#rfc8277-2-2"><code>RFC8277-2-2</code></a>, <a href="#rfc8277-2.1-1"><code>RFC8277-2.1-1</code></a>, <a href="#rfc8277-2.1-2"><code>RFC8277-2.1-2</code></a>, <a href="#rfc8277-2-3"><code>RFC8277-2-3</code></a>, <a href="#rfc8277-2.1-3"><code>RFC8277-2.1-3</code></a>, <a href="#rfc8277-2.1-4"><code>RFC8277-2.1-4</code></a>, <a href="#rfc8277-2.1-5"><code>RFC8277-2.1-5</code></a>, <a href="#rfc8277-2.1-6"><code>RFC8277-2.1-6</code></a>, <a href="#rfc8277-2.1-7"><code>RFC8277-2.1-7</code></a>, <a href="#rfc8277-2.1-8"><code>RFC8277-2.1-8</code></a>, <a href="#rfc8277-2.1-9"><code>RFC8277-2.1-9</code></a>, <a href="#rfc8277-2.1-10"><code>RFC8277-2.1-10</code></a>, <a href="#rfc8277-2.1-11"><code>RFC8277-2.1-11</code></a>, <a href="#rfc8277-2.1-12"><code>RFC8277-2.1-12</code></a>, <a href="#rfc8277-2.1-13"><code>RFC8277-2.1-13</code></a>, <a href="#rfc8277-2.1-14"><code>RFC8277-2.1-14</code></a>, <a href="#rfc8277-2.2-1"><code>RFC8277-2.2-1</code></a>, <a href="#rfc8277-2.2-2"><code>RFC8277-2.2-2</code></a>, <a href="#rfc8277-2.3-1"><code>RFC8277-2.3-1</code></a>, <a href="#rfc8277-2.3-2"><code>RFC8277-2.3-2</code></a>, <a href="#rfc8277-2.4-1"><code>RFC8277-2.4-1</code></a>, <a href="#rfc8277-2.1-15"><code>RFC8277-2.1-15</code></a>, <a href="#rfc8277-2.5-3"><code>RFC8277-2.5-3</code></a>, <a href="#rfc8277-3.2.1-1"><code>RFC8277-3.2.1-1</code></a>, <a href="#rfc8277-3.2.1-2"><code>RFC8277-3.2.1-2</code></a>, <a href="#rfc8277-3.2.1-3"><code>RFC8277-3.2.1-3</code></a>, <a href="#rfc8277-3.2.1-4"><code>RFC8277-3.2.1-4</code></a>, <a href="#rfc8277-3.2.2-1"><code>RFC8277-3.2.2-1</code></a>, <a href="#rfc8277-3.2.2-2"><code>RFC8277-3.2.2-2</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2-1">RFC8277-2-1</code></td><td colspan="3"><span class="rfc-subject">Without Multiple Labels Capability exchanged, bind a prefix to only a single label (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze never exchanges the Multiple Labels Capability, so every session is in the single-label mode of §2, yet the operator-facing encoder accepts an unbounded stack: parseLabeledNLRI appends one label per `label` token (internal/component/bgp/plugins/cmd/update/update_text_nlri.go:325) and BuildLabeledUnicastNLRIBytes encodes len(p.Labels) entries with no capability check (internal/component/bgp/message/update_build_labeled.go:257)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2-2">RFC8277-2-2</code></td><td colspan="3"><span class="rfc-subject">Without Multiple Labels Capability exchanged, use the encoding of Section 2.2 (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L33" title="internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledSingleLabelSection22Encoding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> LabeledUnicast.WriteTo emits the §2.2 layout unconditionally -- Length octet = 24 + prefix bits, one 3-octet label entry, prefix (internal/component/bgp/plugins/nlri/labeled/types.go:125) -- so there is no non-conformant transmission input to reject</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-1">RFC8277-2.1-1</code></td><td colspan="3"><span class="rfc-subject">When Multiple Labels Capability exchanged for an AFI/SAFI, use the encoding of Section 2.3 (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no Multiple Labels Capability (code 8) producer -- the registered capability codes are 1, 2, 5, 6, 9, 64, 65, 69, 70, 73, 76 (internal/core/bgp/capability/capability.go:68-78) and `grep -rni &#34;multiple.label\|CodeMultipleLabels&#34; internal/ pkg/` matches no capability code, so no session ever reaches the Section 2.3 branch</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-2">RFC8277-2.1-2</code></td><td colspan="3"><span class="rfc-subject">When Multiple Labels Capability exchanged, use Section 2.3 encoding even for a single label (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> same missing producer -- capability code 8 is absent from the Code constants (internal/core/bgp/capability/capability.go:68-78), so the &#34;capability exchanged&#34; state never exists</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2-3">RFC8277-2-3</code></td><td colspan="3"><span class="rfc-subject">Send UPDATE binding more than one label without having both sent and received Multiple Labels Capability (§2, §2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> with no capability code 8 producer (internal/core/bgp/capability/capability.go:68-78) the precondition is never met, and yet WriteLabelStack emits every label it is given, S clear on all but the last (internal/core/bgp/nlri/helpers.go:61), reached from BuildLabeledUnicastNLRIBytes (internal/component/bgp/message/update_build_labeled.go:257)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-3">RFC8277-2.1-3</code></td><td colspan="3"><span class="rfc-subject">Support at least two labels in NLRI when sending Multiple Labels Capability (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze sends no Multiple Labels Capability -- the OPEN capability encoder writes only the codes listed at internal/core/bgp/capability/capability.go:68-78, which exclude code 8, so the obligation attached to sending it has no producer</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-4">RFC8277-2.1-4</code></td><td colspan="3"><span class="rfc-subject">Capability length must be a multiple of 4; otherwise consider malformed (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> no Multiple Labels Capability parser exists to length-check -- `grep -rni &#34;multiple.label&#34; internal/core/bgp/capability/` returns nothing and code 8 is absent from the Code constants (internal/core/bgp/capability/capability.go:68-78)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-5">RFC8277-2.1-5</code></td><td colspan="3"><span class="rfc-subject">Send a triple with Count=0 or Count=1 (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze emits no AFI/SAFI/Count triples because it emits no capability code 8 (internal/core/bgp/capability/capability.go:68-78)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-6">RFC8277-2.1-6</code></td><td colspan="3"><span class="rfc-subject">Ignore received triples with Count=0 or Count=1 (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> no triple parser exists -- capability code 8 has no decoder (internal/core/bgp/capability/capability.go:68-78), so a received capability is handled by the RFC 5492 unknown-capability path rather than by a Count reader</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-7">RFC8277-2.1-7</code></td><td colspan="3"><span class="rfc-subject">Ignore all but the first triple for a given AFI/SAFI in the capability (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> no Multiple Labels Capability decoder exists to hold per-AFI/SAFI triples (internal/core/bgp/capability/capability.go:68-78)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-8">RFC8277-2.1-8</code></td><td colspan="3"><span class="rfc-subject">Ignore subsequent copies if multiple copies of Multiple Labels Capability in OPEN (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze stores no Multiple Labels Capability state, so no first-copy-wins rule has a producer (internal/core/bgp/capability/capability.go:68-78)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-9">RFC8277-2.1-9</code></td><td colspan="3"><span class="rfc-subject">Apply treat-as-withdraw per RFC 7606 when UPDATE binds more labels than receiver&#39;s announced Count (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze announces no Count because it announces no capability code 8 (internal/core/bgp/capability/capability.go:68-78), so the &#34;more labels than announced Count&#34; condition has no producer to evaluate it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-10">RFC8277-2.1-10</code></td><td colspan="3"><span class="rfc-subject">Attempt to send more labels than can be properly encoded in NLRI field of MP_REACH_NLRI (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the NLRI Length field is one octet and both encoders narrow the computed bit count without a bound check -- LabeledUnicast.WriteTo writes buf[pos] = byte(totalBits) (internal/component/bgp/plugins/nlri/labeled/types.go:135) and BuildLabeledUnicastNLRIBytes writes buf[0] = byte(totalBits) (internal/component/bgp/message/update_build_labeled.go:277) -- so a stack whose labels plus prefix exceed 255 bits is emitted with a wrapped Length octet instead of being refused</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-11">RFC8277-2.1-11</code></td><td colspan="3"><span class="rfc-subject">Explicitly withdraw prefixes advertised with multiple labels when capability lost on session restart (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> capability code 8 is never negotiated (internal/core/bgp/capability/capability.go:68-78), so &#34;capability lost on restart&#34; is not a state ze can enter</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-12">RFC8277-2.1-12</code></td><td colspan="3"><span class="rfc-subject">Explicitly withdraw prefixes advertised with more labels than valid when maximum label count reduced (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze tracks no per-peer maximum label Count, since no capability code 8 decoder exists to supply one (internal/core/bgp/capability/capability.go:68-78)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-13">RFC8277-2.1-13</code></td><td colspan="3"><span class="rfc-subject">Exchange complete set of routes for given AFI/SAFI when capability or count changes (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-13">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> neither the capability nor the Count exists in ze&#39;s session state (internal/core/bgp/capability/capability.go:68-78), so no change event can trigger the full re-exchange</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-14">RFC8277-2.1-14</code></td><td colspan="3"><span class="rfc-subject">Apply Enhanced Graceful Restart procedures when capability lost or count reduced on restart (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-14">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the guard condition is a Multiple Labels Capability or Count change, and neither is represented anywhere in ze -- `grep -rni &#34;multiple.label&#34; internal/component/bgp/plugins/gr/` returns nothing and code 8 is absent from internal/core/bgp/capability/capability.go:68-78</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.2-1">RFC8277-2.2-1</code></td><td colspan="3"><span class="rfc-subject">S bit must be set to 1 on transmission in single-label encoding (§2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L34" title="internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledSingleLabelSection22Encoding</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> WriteLabelStack sets the bottom-of-stack bit on the final entry unconditionally, so a one-label stack always transmits S=1 and no code path can emit S=0 to reject (internal/core/bgp/nlri/helpers.go:67)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.2-2">RFC8277-2.2-2</code></td><td colspan="3"><span class="rfc-subject">S bit must be ignored on reception in single-label encoding (§2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the receive path is S-driven rather than Length-driven -- ExtractLabels keeps consuming 3-octet entries until it sees S=1 (internal/core/bgp/nlri/nlrisplit/labeled.go:112) and SplitLabeled frames the NLRI the same way (internal/core/bgp/nlri/nlrisplit/labeled.go:63) -- so a conformant single-label NLRI whose S bit is clear is read past its prefix and rejected as a truncated label stack</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.2-3">RFC8277-2.2-3</code></td><td colspan="3"><span class="rfc-subject">Rsrv field must be ignored on reception (§2.2, §2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L21" title="internal/core/bgp/nlri/nlrisplit/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRsrvIgnoredOnReceive</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L22" title="internal/core/bgp/nlri/nlrisplit/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRsrvIgnoredOnReceive</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.3-1">RFC8277-2.3-1</code></td><td colspan="3"><span class="rfc-subject">In multiple-label encoding, S bit must be 0 in all labels except the last (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L77" title="internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledLabelStackSBitPlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> WriteLabelStack sets the S bit only when i == len(labels)-1, leaving every earlier entry at S=0 by construction, so there is no transmission input that could carry a mid-stack S bit to reject (internal/core/bgp/nlri/helpers.go:67)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.3-2">RFC8277-2.3-2</code></td><td colspan="3"><span class="rfc-subject">In multiple-label encoding, S bit must be 1 in the last label (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L78" title="internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledLabelStackSBitPlacement</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the same encoder always terminates the stack with S=1 and offers no way to emit a stack without a bottom-of-stack entry (internal/core/bgp/nlri/helpers.go:67)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.4-1">RFC8277-2.4-1</code></td><td colspan="3"><span class="rfc-subject">Compatibility field in withdrawal must be ignored on reception (§2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> a §2.4 withdrawal is [Length][Compatibility(3)][Prefix], but ze reads those three octets as a label stack entry and stops on the S bit -- ExtractLabels (internal/core/bgp/nlri/nlrisplit/labeled.go:112) and SplitLabeled (internal/core/bgp/nlri/nlrisplit/labeled.go:63) -- so the RECOMMENDED value 0x800000, whose S bit is clear, makes the reader run past the NLRI and the withdrawal is dropped by removeLabeled&#39;s error return (internal/component/bgp/plugins/rib/rib_structured.go:565)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-15">RFC8277-2.1-15</code></td><td colspan="3"><span class="rfc-subject">If both speakers sent Multiple Labels Capability but a given AFI/SAFI was not specified in both, UPDATEs for that AFI/SAFI MUST use the encoding of Section 2.2 (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the premise is that both speakers sent capability code 8, which ze never sends or parses (internal/core/bgp/capability/capability.go:68-78)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.5-1">RFC8277-2.5-1</code></td><td colspan="3"><span class="rfc-subject">Without ADD-PATH, UPDATE U2 for same prefix/nexthop MUST be interpreted as implicit withdrawal of U1 (§2.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L93" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledImplicitWithdrawalNoAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L94" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledImplicitWithdrawalNoAddPath</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.5-2">RFC8277-2.5-2</code></td><td colspan="3"><span class="rfc-subject">With ADD-PATH and same Path Identifier, UPDATE U2 MUST be interpreted as implicit withdrawal of U1 (§2.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L139" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledImplicitWithdrawalAddPath</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L140" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledImplicitWithdrawalAddPath</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.5-3">RFC8277-2.5-3</code></td><td colspan="3"><span class="rfc-subject">With ADD-PATH and different Path Identifiers, U2 MUST be interpreted as a new binding; U2 MUST NOT be interpreted as withdrawing U1 (§2.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> route entries are keyed on (path-id, prefix) but the MPLS label side-data is keyed on the prefix alone -- SetLabelsIfRouteExists discards the path-id returned by parseNLRIKey (internal/component/bgp/plugins/rib/storage/peerrib.go:320) and FamilyRIB.SetLabels stores one handle per prefix (internal/component/bgp/plugins/rib/storage/familyrib.go:569) -- so U2 for a second Path Identifier overwrites U1&#39;s label binding, and RemoveLabels for either path deletes the shared entry (internal/component/bgp/plugins/rib/storage/peerrib.go:341)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.1-1">RFC8277-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Routes with different labels for the same prefix must be considered comparable for best-path selection (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L226" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRoutesWithDifferentLabelsAreComparable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L227" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRoutesWithDifferentLabelsAreComparable</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.1-1">RFC8277-3.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When propagating with unchanged Next Hop, Label field(s) must also be left unchanged (§3.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-3.2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_test.go#L33" title="internal/component/bgp/reactor/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledPropagationUnchangedNextHopKeepsLabels</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> an unchanged next hop produces no next-hop modification op (applyNextHopMod, internal/component/bgp/reactor/reactor_api_forward.go:815) and mpReachNextHopHandler copies the source attribute verbatim when no Set op reaches it (internal/component/bgp/reactor/filter_delta_handlers.go:252), so the labels are preserved by construction and there is no non-conformant propagation input to reject</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.1-2">RFC8277-3.2.1-2</code></td><td colspan="3"><span class="rfc-subject">Propagate route to peer if NLRI has multiple labels but Multiple Labels Capability not negotiated with that peer (§3.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-3.2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the condition is that the capability is NOT negotiated, and ze negotiates it with nobody -- code 8 is absent from the Code constants (internal/core/bgp/capability/capability.go:68-78) -- so the prohibition binds on every peer, and ze propagates anyway: WriteLabelStack emits every label it is handed, S clear on all but the last (internal/core/bgp/nlri/helpers.go:61,:67) from BuildLabeledUnicastNLRIBytes (internal/component/bgp/message/update_build_labeled.go:257), and mpReachNextHopHandler copies a received multi-label NLRI verbatim while patching only the next hop (internal/component/bgp/reactor/filter_delta_handlers.go:241)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.1-3">RFC8277-3.2.1-3</code></td><td colspan="3"><span class="rfc-subject">Propagate route to peer if NLRI has more labels than peer&#39;s announced Count (§3.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-3.2.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> no peer Count is stored because no capability code 8 decoder exists (internal/core/bgp/capability/capability.go:68-78)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.1-4">RFC8277-3.2.1-4</code></td><td colspan="3"><span class="rfc-subject">Withdraw previous route from peer if propagation blocked due to label count (§3.2.1, §3.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-3.2.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> the trigger never fires only because ze fails RFC8277-3.2.1-2 -- no propagation is ever blocked on label count, since the egress path applies no label-count limit at all (internal/component/bgp/message/update_build_labeled.go:257, internal/component/bgp/reactor/filter_delta_handlers.go:241). Vacuity produced by ze&#39;s own violation is not a reason the obligation does not apply: implementing the §3.2.1 block requires this withdrawal alongside it, and no withdrawal producer keyed on label count exists</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.2-1">RFC8277-3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">When propagating with changed Next Hop, Label field(s) must contain labels bound to prefix at the new next hop (§3.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-3.2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze binds no local MPLS label for labeled unicast, and a next-hop change rewrites only the next-hop field -- mpReachNextHopHandler patches the next hop in place and copies the AFI/SAFI header, reserved octet and NLRI unchanged (internal/component/bgp/reactor/filter_delta_handlers.go:241) -- so the upstream label is re-advertised alongside a next hop that never bound it</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-3.2.2-2">RFC8277-3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">Send multiple labels to peer without having exchanged Multiple Labels Capability (§3.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-3.2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> no capability code 8 is ever exchanged (internal/core/bgp/capability/capability.go:68-78), and the egress path applies no label-count limit -- BuildLabeledUnicastNLRIBytes encodes every label in LabeledUnicastParams.Labels (internal/component/bgp/message/update_build_labeled.go:257) and the forwarding path copies a received multi-label NLRI verbatim (internal/component/bgp/reactor/filter_delta_handlers.go:241)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.2-4">RFC8277-2.2-4</code></td><td colspan="3"><span class="rfc-subject">Rsrv field should be set to zero on transmission (§2.2, §2.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.4-2">RFC8277-2.4-2</code></td><td colspan="3"><span class="rfc-subject">Compatibility field in withdrawal should be set to 0x800000 on transmission (§2.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.1-16">RFC8277-2.1-16</code></td><td colspan="3"><span class="rfc-subject">Send more labels to a peer than peer&#39;s Count in Multiple Labels Capability (§2.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.1-16">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.5-4">RFC8277-2.5-4</code></td><td colspan="3"><span class="rfc-subject">Treat same next-hop from different sessions as multiple paths (§2.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-2.5-5">RFC8277-2.5-5</code></td><td colspan="3"><span class="rfc-subject">Load-balance between multiple paths with different labels for same prefix and next-hop (§2.5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-2.5-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-5-1">RFC8277-5-1</code></td><td colspan="3"><span class="rfc-subject">Convert SAFI-4 to SAFI-1 for propagation to non-SAFI-4 peers (§5)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8277-4-1">RFC8277-4-1</code></td><td colspan="3"><span class="rfc-subject">Use SAFI-4 routes for IP forwarding (§4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8277-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc8277-2-1"><code>RFC8277-2-1</code></a> Without Multiple Labels Capability exchanged, bind a prefix to only a single label (§2)</td>
+<td>{gap}, no test</td>
+<td>ze never exchanges the Multiple Labels Capability, so every session is in the single-label mode of §2, yet the operator-facing encoder accepts an unbounded stack: parseLabeledNLRI appends one label per `label` token (internal/component/bgp/plugins/cmd/update/update_text_nlri.go:325) and BuildLabeledUnicastNLRIBytes encodes len(p.Labels) entries with no capability check (internal/component/bgp/message/update_build_labeled.go:257)</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-1"><code>RFC8277-2.1-1</code></a> When Multiple Labels Capability exchanged for an AFI/SAFI, use the encoding of Section 2.3 (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze has no Multiple Labels Capability (code 8) producer -- the registered capability codes are 1, 2, 5, 6, 9, 64, 65, 69, 70, 73, 76 (internal/core/bgp/capability/capability.go:68-78) and `grep -rni &#34;multiple.label\|CodeMultipleLabels&#34; internal/ pkg/` matches no capability code, so no session ever reaches the Section 2.3 branch</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-2"><code>RFC8277-2.1-2</code></a> When Multiple Labels Capability exchanged, use Section 2.3 encoding even for a single label (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: same missing producer -- capability code 8 is absent from the Code constants (internal/core/bgp/capability/capability.go:68-78), so the &#34;capability exchanged&#34; state never exists</td>
+</tr>
+<tr><td><a href="#rfc8277-2-3"><code>RFC8277-2-3</code></a> Send UPDATE binding more than one label without having both sent and received Multiple Labels Capability (§2, §2.1)</td>
+<td>{gap}, no test</td>
+<td>with no capability code 8 producer (internal/core/bgp/capability/capability.go:68-78) the precondition is never met, and yet WriteLabelStack emits every label it is given, S clear on all but the last (internal/core/bgp/nlri/helpers.go:61), reached from BuildLabeledUnicastNLRIBytes (internal/component/bgp/message/update_build_labeled.go:257)</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-3"><code>RFC8277-2.1-3</code></a> Support at least two labels in NLRI when sending Multiple Labels Capability (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze sends no Multiple Labels Capability -- the OPEN capability encoder writes only the codes listed at internal/core/bgp/capability/capability.go:68-78, which exclude code 8, so the obligation attached to sending it has no producer</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-4"><code>RFC8277-2.1-4</code></a> Capability length must be a multiple of 4; otherwise consider malformed (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: no Multiple Labels Capability parser exists to length-check -- `grep -rni &#34;multiple.label&#34; internal/core/bgp/capability/` returns nothing and code 8 is absent from the Code constants (internal/core/bgp/capability/capability.go:68-78)</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-5"><code>RFC8277-2.1-5</code></a> Send a triple with Count=0 or Count=1 (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze emits no AFI/SAFI/Count triples because it emits no capability code 8 (internal/core/bgp/capability/capability.go:68-78)</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-6"><code>RFC8277-2.1-6</code></a> Ignore received triples with Count=0 or Count=1 (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: no triple parser exists -- capability code 8 has no decoder (internal/core/bgp/capability/capability.go:68-78), so a received capability is handled by the RFC 5492 unknown-capability path rather than by a Count reader</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-7"><code>RFC8277-2.1-7</code></a> Ignore all but the first triple for a given AFI/SAFI in the capability (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: no Multiple Labels Capability decoder exists to hold per-AFI/SAFI triples (internal/core/bgp/capability/capability.go:68-78)</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-8"><code>RFC8277-2.1-8</code></a> Ignore subsequent copies if multiple copies of Multiple Labels Capability in OPEN (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze stores no Multiple Labels Capability state, so no first-copy-wins rule has a producer (internal/core/bgp/capability/capability.go:68-78)</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-9"><code>RFC8277-2.1-9</code></a> Apply treat-as-withdraw per RFC 7606 when UPDATE binds more labels than receiver&#39;s announced Count (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze announces no Count because it announces no capability code 8 (internal/core/bgp/capability/capability.go:68-78), so the &#34;more labels than announced Count&#34; condition has no producer to evaluate it</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-10"><code>RFC8277-2.1-10</code></a> Attempt to send more labels than can be properly encoded in NLRI field of MP_REACH_NLRI (§2.1)</td>
+<td>{gap}, no test</td>
+<td>the NLRI Length field is one octet and both encoders narrow the computed bit count without a bound check -- LabeledUnicast.WriteTo writes buf[pos] = byte(totalBits) (internal/component/bgp/plugins/nlri/labeled/types.go:135) and BuildLabeledUnicastNLRIBytes writes buf[0] = byte(totalBits) (internal/component/bgp/message/update_build_labeled.go:277) -- so a stack whose labels plus prefix exceed 255 bits is emitted with a wrapped Length octet instead of being refused</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-11"><code>RFC8277-2.1-11</code></a> Explicitly withdraw prefixes advertised with multiple labels when capability lost on session restart (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: capability code 8 is never negotiated (internal/core/bgp/capability/capability.go:68-78), so &#34;capability lost on restart&#34; is not a state ze can enter</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-12"><code>RFC8277-2.1-12</code></a> Explicitly withdraw prefixes advertised with more labels than valid when maximum label count reduced (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze tracks no per-peer maximum label Count, since no capability code 8 decoder exists to supply one (internal/core/bgp/capability/capability.go:68-78)</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-13"><code>RFC8277-2.1-13</code></a> Exchange complete set of routes for given AFI/SAFI when capability or count changes (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: neither the capability nor the Count exists in ze&#39;s session state (internal/core/bgp/capability/capability.go:68-78), so no change event can trigger the full re-exchange</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-14"><code>RFC8277-2.1-14</code></a> Apply Enhanced Graceful Restart procedures when capability lost or count reduced on restart (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the guard condition is a Multiple Labels Capability or Count change, and neither is represented anywhere in ze -- `grep -rni &#34;multiple.label&#34; internal/component/bgp/plugins/gr/` returns nothing and code 8 is absent from internal/core/bgp/capability/capability.go:68-78</td>
+</tr>
+<tr><td><a href="#rfc8277-2.2-2"><code>RFC8277-2.2-2</code></a> S bit must be ignored on reception in single-label encoding (§2.2)</td>
+<td>{gap}, no test</td>
+<td>the receive path is S-driven rather than Length-driven -- ExtractLabels keeps consuming 3-octet entries until it sees S=1 (internal/core/bgp/nlri/nlrisplit/labeled.go:112) and SplitLabeled frames the NLRI the same way (internal/core/bgp/nlri/nlrisplit/labeled.go:63) -- so a conformant single-label NLRI whose S bit is clear is read past its prefix and rejected as a truncated label stack</td>
+</tr>
+<tr><td><a href="#rfc8277-2.4-1"><code>RFC8277-2.4-1</code></a> Compatibility field in withdrawal must be ignored on reception (§2.4)</td>
+<td>{gap}, no test</td>
+<td>a §2.4 withdrawal is [Length][Compatibility(3)][Prefix], but ze reads those three octets as a label stack entry and stops on the S bit -- ExtractLabels (internal/core/bgp/nlri/nlrisplit/labeled.go:112) and SplitLabeled (internal/core/bgp/nlri/nlrisplit/labeled.go:63) -- so the RECOMMENDED value 0x800000, whose S bit is clear, makes the reader run past the NLRI and the withdrawal is dropped by removeLabeled&#39;s error return (internal/component/bgp/plugins/rib/rib_structured.go:565)</td>
+</tr>
+<tr><td><a href="#rfc8277-2.1-15"><code>RFC8277-2.1-15</code></a> If both speakers sent Multiple Labels Capability but a given AFI/SAFI was not specified in both, UPDATEs for that AFI/SAFI MUST use the encoding of Section 2.2 (§2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the premise is that both speakers sent capability code 8, which ze never sends or parses (internal/core/bgp/capability/capability.go:68-78)</td>
+</tr>
+<tr><td><a href="#rfc8277-2.5-3"><code>RFC8277-2.5-3</code></a> With ADD-PATH and different Path Identifiers, U2 MUST be interpreted as a new binding; U2 MUST NOT be interpreted as withdrawing U1 (§2.5)</td>
+<td>{gap}, no test</td>
+<td>route entries are keyed on (path-id, prefix) but the MPLS label side-data is keyed on the prefix alone -- SetLabelsIfRouteExists discards the path-id returned by parseNLRIKey (internal/component/bgp/plugins/rib/storage/peerrib.go:320) and FamilyRIB.SetLabels stores one handle per prefix (internal/component/bgp/plugins/rib/storage/familyrib.go:569) -- so U2 for a second Path Identifier overwrites U1&#39;s label binding, and RemoveLabels for either path deletes the shared entry (internal/component/bgp/plugins/rib/storage/peerrib.go:341)</td>
+</tr>
+<tr><td><a href="#rfc8277-3.2.1-2"><code>RFC8277-3.2.1-2</code></a> Propagate route to peer if NLRI has multiple labels but Multiple Labels Capability not negotiated with that peer (§3.2.1)</td>
+<td>{gap}, no test</td>
+<td>the condition is that the capability is NOT negotiated, and ze negotiates it with nobody -- code 8 is absent from the Code constants (internal/core/bgp/capability/capability.go:68-78) -- so the prohibition binds on every peer, and ze propagates anyway: WriteLabelStack emits every label it is handed, S clear on all but the last (internal/core/bgp/nlri/helpers.go:61,:67) from BuildLabeledUnicastNLRIBytes (internal/component/bgp/message/update_build_labeled.go:257), and mpReachNextHopHandler copies a received multi-label NLRI verbatim while patching only the next hop (internal/component/bgp/reactor/filter_delta_handlers.go:241)</td>
+</tr>
+<tr><td><a href="#rfc8277-3.2.1-3"><code>RFC8277-3.2.1-3</code></a> Propagate route to peer if NLRI has more labels than peer&#39;s announced Count (§3.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: no peer Count is stored because no capability code 8 decoder exists (internal/core/bgp/capability/capability.go:68-78)</td>
+</tr>
+<tr><td><a href="#rfc8277-3.2.1-4"><code>RFC8277-3.2.1-4</code></a> Withdraw previous route from peer if propagation blocked due to label count (§3.2.1, §3.2.2)</td>
+<td>{gap}, no test</td>
+<td>the trigger never fires only because ze fails RFC8277-3.2.1-2 -- no propagation is ever blocked on label count, since the egress path applies no label-count limit at all (internal/component/bgp/message/update_build_labeled.go:257, internal/component/bgp/reactor/filter_delta_handlers.go:241). Vacuity produced by ze&#39;s own violation is not a reason the obligation does not apply: implementing the §3.2.1 block requires this withdrawal alongside it, and no withdrawal producer keyed on label count exists</td>
+</tr>
+<tr><td><a href="#rfc8277-3.2.2-1"><code>RFC8277-3.2.2-1</code></a> When propagating with changed Next Hop, Label field(s) must contain labels bound to prefix at the new next hop (§3.2.2)</td>
+<td>{gap}, no test</td>
+<td>ze binds no local MPLS label for labeled unicast, and a next-hop change rewrites only the next-hop field -- mpReachNextHopHandler patches the next hop in place and copies the AFI/SAFI header, reserved octet and NLRI unchanged (internal/component/bgp/reactor/filter_delta_handlers.go:241) -- so the upstream label is re-advertised alongside a next hop that never bound it</td>
+</tr>
+<tr><td><a href="#rfc8277-3.2.2-2"><code>RFC8277-3.2.2-2</code></a> Send multiple labels to peer without having exchanged Multiple Labels Capability (§3.2.2)</td>
+<td>{gap}, no test</td>
+<td>no capability code 8 is ever exchanged (internal/core/bgp/capability/capability.go:68-78), and the egress path applies no label-count limit -- BuildLabeledUnicastNLRIBytes encodes every label in LabeledUnicastParams.Labels (internal/component/bgp/message/update_build_labeled.go:257) and the forwarding path copies a received multi-label NLRI verbatim (internal/component/bgp/reactor/filter_delta_handlers.go:241)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc8277-2-1"><code>RFC8277-2-1</code></a></h3>
+<p>Without Multiple Labels Capability exchanged, bind a prefix to only a single label (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2-2"><code>RFC8277-2-2</code></a></h3>
+<p>Without Multiple Labels Capability exchanged, use the encoding of Section 2.2 (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L33" title="internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledSingleLabelSection22Encoding</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8277-2.1-1"><code>RFC8277-2.1-1</code></a></h3>
+<p>When Multiple Labels Capability exchanged for an AFI/SAFI, use the encoding of Section 2.3 (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-2"><code>RFC8277-2.1-2</code></a></h3>
+<p>When Multiple Labels Capability exchanged, use Section 2.3 encoding even for a single label (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2-3"><code>RFC8277-2-3</code></a></h3>
+<p>Send UPDATE binding more than one label without having both sent and received Multiple Labels Capability (§2, §2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-3"><code>RFC8277-2.1-3</code></a></h3>
+<p>Support at least two labels in NLRI when sending Multiple Labels Capability (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-4"><code>RFC8277-2.1-4</code></a></h3>
+<p>Capability length must be a multiple of 4; otherwise consider malformed (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-5"><code>RFC8277-2.1-5</code></a></h3>
+<p>Send a triple with Count=0 or Count=1 (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-6"><code>RFC8277-2.1-6</code></a></h3>
+<p>Ignore received triples with Count=0 or Count=1 (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-6, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-7"><code>RFC8277-2.1-7</code></a></h3>
+<p>Ignore all but the first triple for a given AFI/SAFI in the capability (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-7, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-8"><code>RFC8277-2.1-8</code></a></h3>
+<p>Ignore subsequent copies if multiple copies of Multiple Labels Capability in OPEN (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-8, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-9"><code>RFC8277-2.1-9</code></a></h3>
+<p>Apply treat-as-withdraw per RFC 7606 when UPDATE binds more labels than receiver&#39;s announced Count (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-9, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-10"><code>RFC8277-2.1-10</code></a></h3>
+<p>Attempt to send more labels than can be properly encoded in NLRI field of MP_REACH_NLRI (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-10, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-11"><code>RFC8277-2.1-11</code></a></h3>
+<p>Explicitly withdraw prefixes advertised with multiple labels when capability lost on session restart (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-11, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-12"><code>RFC8277-2.1-12</code></a></h3>
+<p>Explicitly withdraw prefixes advertised with more labels than valid when maximum label count reduced (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-12, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-13"><code>RFC8277-2.1-13</code></a></h3>
+<p>Exchange complete set of routes for given AFI/SAFI when capability or count changes (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-13, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-14"><code>RFC8277-2.1-14</code></a></h3>
+<p>Apply Enhanced Graceful Restart procedures when capability lost or count reduced on restart (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-14, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.2-1"><code>RFC8277-2.2-1</code></a></h3>
+<p>S bit must be set to 1 on transmission in single-label encoding (§2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L34" title="internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledSingleLabelSection22Encoding</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8277-2.2-2"><code>RFC8277-2.2-2</code></a></h3>
+<p>S bit must be ignored on reception in single-label encoding (§2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.2-3"><code>RFC8277-2.2-3</code></a></h3>
+<p>Rsrv field must be ignored on reception (§2.2, §2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L22" title="internal/core/bgp/nlri/nlrisplit/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRsrvIgnoredOnReceive</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L21" title="internal/core/bgp/nlri/nlrisplit/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRsrvIgnoredOnReceive</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8277-2.3-1"><code>RFC8277-2.3-1</code></a></h3>
+<p>In multiple-label encoding, S bit must be 0 in all labels except the last (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L77" title="internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledLabelStackSBitPlacement</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8277-2.3-2"><code>RFC8277-2.3-2</code></a></h3>
+<p>In multiple-label encoding, S bit must be 1 in the last label (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L78" title="internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledLabelStackSBitPlacement</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8277-2.4-1"><code>RFC8277-2.4-1</code></a></h3>
+<p>Compatibility field in withdrawal must be ignored on reception (§2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.1-15"><code>RFC8277-2.1-15</code></a></h3>
+<p>If both speakers sent Multiple Labels Capability but a given AFI/SAFI was not specified in both, UPDATEs for that AFI/SAFI MUST use the encoding of Section 2.2 (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.1-15, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-2.5-1"><code>RFC8277-2.5-1</code></a></h3>
+<p>Without ADD-PATH, UPDATE U2 for same prefix/nexthop MUST be interpreted as implicit withdrawal of U1 (§2.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L94" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledImplicitWithdrawalNoAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L93" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledImplicitWithdrawalNoAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8277-2.5-2"><code>RFC8277-2.5-2</code></a></h3>
+<p>With ADD-PATH and same Path Identifier, UPDATE U2 MUST be interpreted as implicit withdrawal of U1 (§2.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L140" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledImplicitWithdrawalAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L139" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledImplicitWithdrawalAddPath</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8277-2.5-3"><code>RFC8277-2.5-3</code></a></h3>
+<p>With ADD-PATH and different Path Identifiers, U2 MUST be interpreted as a new binding; U2 MUST NOT be interpreted as withdrawing U1 (§2.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-2.5-3, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-3.1-1"><code>RFC8277-3.1-1</code></a></h3>
+<p>Routes with different labels for the same prefix must be considered comparable for best-path selection (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L227" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRoutesWithDifferentLabelsAreComparable</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L226" title="internal/component/bgp/plugins/rib/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledRoutesWithDifferentLabelsAreComparable</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8277-3.2.1-1"><code>RFC8277-3.2.1-1</code></a></h3>
+<p>When propagating with unchanged Next Hop, Label field(s) must also be left unchanged (§3.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_test.go#L33" title="internal/component/bgp/reactor/rfc8277_test.go" target="_blank" rel="noopener"><code>TestLabeledPropagationUnchangedNextHopKeepsLabels</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc8277-3.2.1-2"><code>RFC8277-3.2.1-2</code></a></h3>
+<p>Propagate route to peer if NLRI has multiple labels but Multiple Labels Capability not negotiated with that peer (§3.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-3.2.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-3.2.1-3"><code>RFC8277-3.2.1-3</code></a></h3>
+<p>Propagate route to peer if NLRI has more labels than peer&#39;s announced Count (§3.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-3.2.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-3.2.1-4"><code>RFC8277-3.2.1-4</code></a></h3>
+<p>Withdraw previous route from peer if propagation blocked due to label count (§3.2.1, §3.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-3.2.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-3.2.2-1"><code>RFC8277-3.2.2-1</code></a></h3>
+<p>When propagating with changed Next Hop, Label field(s) must contain labels bound to prefix at the new next hop (§3.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-3.2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8277-3.2.2-2"><code>RFC8277-3.2.2-2</code></a></h3>
+<p>Send multiple labels to peer without having exchanged Multiple Labels Capability (§3.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8277-3.2.2-2, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 8277, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 8277, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

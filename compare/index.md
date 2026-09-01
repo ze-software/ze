@@ -1,12 +1,14 @@
 # How Ze compares
 
-Choose the comparison lens before jumping into the tables. The BGP page compares Ze with BGP daemon implementations. The Network OS page compares Ze with VyOS and freeRtr as full router operating systems.
+Choose the comparison lens before jumping into the tables. The BGP page compares Ze with BGP daemon implementations. It also carries an OSPF table against FRR and BIRD. The Network OS page compares Ze with VyOS and freeRtr as full router operating systems.
 
 **BGP**
 
 ### [BGP daemon comparison](https://ze-software.net/compare/bgp/)
 
 Ze against BIRD, FRR, OpenBGPd, GoBGP, bio-rd, ExaBGP, RustyBGP, rustbgpd, and freeRtr across AFI/SAFI, core protocol, policy, security, observability, APIs, operations, and best-path behavior.
+
+Plus OSPF standards coverage against the two daemons that also implement it.
 
 - Best for protocol capability checks.
 - Includes where Ze is behind today.

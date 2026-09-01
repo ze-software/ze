@@ -18917,7 +18917,7 @@
                 "type": "string"
               },
               {
-                "description": "Access-Accept reply attribute whose value(s) name the\nze authorization profile(s) for the user",
+                "description": "Access-Accept reply attribute whose value(s) name the\nze authorization profile(s) for the user.\n\nFilter-Id is the only value. RFC 2865 Section 5.25 says\nof Class that 'the client MUST NOT interpret the\nattribute locally', so reading a profile name out of it\nis not available.",
                 "kind": "leaf",
                 "name": "profile-attribute",
                 "source": "config",

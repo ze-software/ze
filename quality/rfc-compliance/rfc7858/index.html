@@ -1,0 +1,911 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 7858 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 7858: Specification for DNS over Transport Layer Security (TLS). 19 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 7858 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 7858: Specification for DNS over Transport Layer Security (TLS). 19 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 7858 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 7858: Specification for DNS over Transport Layer Security (TLS). 19 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc7858/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc7858/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Partial</span>
+    <h1 id="rfc-detail-title">RFC 7858 - Specification for DNS over Transport Layer Security (TLS)</h1>
+    <p>Every requirement this repository extracted from RFC 7858, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.0%</strong><b>4 of 8 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>37.5%</strong><b>3 of 8 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 8 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>19</strong><b>of 38 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>11</strong><b>of 19 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>12.5%</strong><b>1 of 8 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 4 shares marked as a part above are the whole of the 8 obligations that bind Ze: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Partial</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>38</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>19</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>8</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>11</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>1</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>12</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>12</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc7858.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc7858.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc7858.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: DNS over TLS / DoT (RFC 7858): server role. 4 MET (TLS-first handshake, DoT port refuses cleartext (2 facets), TLS 1.2/BCP 195 floor) + 3 single-polarity positive (listen/accept on 853, RFC 7766 two-octet length framing, robust to idle-connection close) + 1 gap (DoT listen-port 53 not rejected) + 11 not-applicable (9 DoT client-role MUSTs + 2 TCP-Fast-Open MUSTs)</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Partial</p>
+<details class="rfc-fold"><summary>What the ledger says is covered</summary>
+<ul class="rfc-prose">
+<li>DoT server on the shared DNS harness: a TLS-wrapped TCP listener (miekg/dns RFC 7766 two-octet length-prefixed framing) on the DoT port, default 853, sharing the same dns.Handler as cleartext and DoH</li>
+<li>TLS 1.2 minimum (BCP 195)</li>
+<li>cleartext queries to the DoT port are refused. Server role only -- ze is not a DoT client.</li>
+</ul>
+</details>
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+One MUST NOT gap (<a href="#rfc7858-3.1-3"><code>RFC7858-3.1-3</code></a>): ze does not reject a DoT listen-port of 53 (<a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure.go" target="_blank" rel="noopener"><code>internal/core/dnsserver/secure.go</code></a> validates only 1..65535). The DoT client-role MUSTs (connect, response-matching, key-pinning, bootstrap alerting) and the TCP-Fast-Open MUSTs are not-applicable -- ze plays no DoT client and its DoT listener uses no TCP Fast Open.
+</details>
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>4</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>15</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>19</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc7858-3.1-5"><code>RFC7858-3.1-5</code></a>, <a href="#rfc7858-3.1-6"><code>RFC7858-3.1-6</code></a>, <a href="#rfc7858-3.1-8"><code>RFC7858-3.1-8</code></a>, <a href="#rfc7858-8-1"><code>RFC7858-8-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (15):</strong> <a href="#rfc7858-3.1-1"><code>RFC7858-3.1-1</code></a>, <a href="#rfc7858-3.1-2"><code>RFC7858-3.1-2</code></a>, <a href="#rfc7858-3.1-3"><code>RFC7858-3.1-3</code></a>, <a href="#rfc7858-3.1-7"><code>RFC7858-3.1-7</code></a>, <a href="#rfc7858-3.3-1"><code>RFC7858-3.3-1</code></a>, <a href="#rfc7858-3.3-4"><code>RFC7858-3.3-4</code></a>, <a href="#rfc7858-3.3-5"><code>RFC7858-3.3-5</code></a>, <a href="#rfc7858-3.4-5"><code>RFC7858-3.4-5</code></a>, <a href="#rfc7858-3.4-7"><code>RFC7858-3.4-7</code></a>, <a href="#rfc7858-3.4-8"><code>RFC7858-3.4-8</code></a>, <a href="#rfc7858-3.4-9"><code>RFC7858-3.4-9</code></a>, <a href="#rfc7858-4.2-4"><code>RFC7858-4.2-4</code></a>, <a href="#rfc7858-4.2-5"><code>RFC7858-4.2-5</code></a>, <a href="#rfc7858-4.2-6"><code>RFC7858-4.2-6</code></a>, <a href="#rfc7858-4.2-7"><code>RFC7858-4.2-7</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.1-1">RFC7858-3.1-1</code></td><td colspan="3"><span class="rfc-subject">By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use another port (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L377" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDefaultSecureConfig</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L52" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> affirmative listen mandate. Positive proof: a DoT listener accepts a TCP+TLS connection and answers (internal/core/dnsserver/secure_test.go TestDoTListener) with the default DoT port pinned to 853 (internal/core/dnsserver/secure.go:39, TestDefaultSecureConfig). A &#34;must listen and accept&#34; obligation has no rejecting counter-behavior to assert as a negative.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.1-2">RFC7858-3.1-2</code></td><td colspan="3"><span class="rfc-subject">By default, a DNS client desiring privacy MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement to use another port (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is a DoT server only, not a DoT client. The querying resolver initiates the connection; ze&#39;s only DoT code path is the server listener bindDoT (internal/core/dnsserver/secure.go:307), and dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.1-3">RFC7858-3.1-3</code></td><td colspan="3"><span class="rfc-subject">A mutually agreed alternative port MUST NOT be port 53 (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{gap}:</strong> ze does not enforce this. ParseSecureLeaves validates the DoT listen-port only as 1..65535 (internal/core/dnsserver/secure.go:166-172) and does not reject 53, so an operator can configure the DoT listener on port 53.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.1-5">RFC7858-3.1-5</code></td><td colspan="3"><span class="rfc-subject">The first data exchange on the TCP connection MUST be the client and server initiating a TLS handshake per RFC 5246 (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L53" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L632" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTRefusesCleartext</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.1-6">RFC7858-3.1-6</code></td><td colspan="3"><span class="rfc-subject">DNS clients and servers MUST NOT use port 853 to transport cleartext DNS messages (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L633" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTRefusesCleartext</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.1-7">RFC7858-3.1-7</code></td><td colspan="3"><span class="rfc-subject">DNS clients MUST NOT send cleartext DNS messages on any port used for DNS over TLS, including after a failed TLS handshake (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> constrains a DoT client&#39;s send behavior; ze is a DoT server only (internal/core/dnsserver/secure.go:307 bindDoT) and issues no DoT queries. The server-side counterpart (do not respond to cleartext on the DoT port) is RFC7858-3.1-8.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.1-8">RFC7858-3.1-8</code></td><td colspan="3"><span class="rfc-subject">DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS, including after a failed TLS handshake (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L634" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTRefusesCleartext</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.3-1">RFC7858-3.3-1</code></td><td colspan="3"><span class="rfc-subject">All messages (requests and responses) in the established TLS session MUST use the two-octet length field described in Section 4.2.2 of RFC 1035 (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L56" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the RFC 1035 4.2.2 two-octet length-prefixed framing is provided by the miekg/dns Server ze hands the TLS listener to (internal/core/dnsserver/secure.go:314-315). A successful DoT round trip (internal/core/dnsserver/secure_test.go TestDoTListener) proves conformant framing; ze has no code path that emits non-length-prefixed framing to exercise as a negative.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.3-4">RFC7858-3.3-4</code></td><td colspan="3"><span class="rfc-subject">Clients MUST match pipelined responses to outstanding queries on the same TLS connection using the Message ID (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> a DoT client obligation to match pipelined responses to outstanding queries; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries. dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.3-5">RFC7858-3.3-5</code></td><td colspan="3"><span class="rfc-subject">If a response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields (§3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> a DoT client response-matching obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries to match responses against.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-5">RFC7858-3.4-5</code></td><td colspan="3"><span class="rfc-subject">Clients and servers that keep idle connections open MUST be robust to termination of an idle connection by either party (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L708" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTRobustToIdleConnectionClose</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> server-side liveness property. Positive proof: after a DoT client abruptly closes an idle connection the server keeps serving and answers a fresh connection (internal/core/dnsserver/secure_test.go TestDoTRobustToIdleConnectionClose). &#34;Remains robust&#34; has no failure polarity to assert as a negative.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-7">RFC7858-3.4-7</code></td><td colspan="3"><span class="rfc-subject">Clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> a DoT client reconnect/retry obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and opens no client connections to reestablish. The server-side robustness counterpart is RFC7858-3.4-5.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-8">RFC7858-3.4-8</code></td><td colspan="3"><span class="rfc-subject">When using TCP Fast Open, the client and server MUST immediately initiate or resume a TLS handshake (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DoT listener does not use TCP Fast Open. bindDoT opens an ordinary TCP socket via lc.Listen (internal/core/dnsserver/secure.go:308-309) with no TCP_FASTOPEN, so the TFO-specific handshake obligation has no bearing.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-9">RFC7858-3.4-9</code></td><td colspan="3"><span class="rfc-subject">When using TCP Fast Open, cleartext DNS MUST NOT be exchanged (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze&#39;s DoT listener does not use TCP Fast Open (internal/core/dnsserver/secure.go:308-309 opens a plain TCP socket, no TCP_FASTOPEN), so the TFO-specific cleartext prohibition has no bearing.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-4.2-4">RFC7858-4.2-4</code></td><td colspan="3"><span class="rfc-subject">The user MUST be alerted whenever possible that DNS is not private during such bootstrap network configuration (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-4.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> a DoT client bootstrap-configuration obligation (opportunistic-privacy user alerting); ze is a DoT server only (internal/core/dnsserver/secure.go:307) and performs no client bootstrap.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-4.2-5">RFC7858-4.2-5</code></td><td colspan="3"><span class="rfc-subject">If no computed fingerprint matches a configured pin, the client MUST treat the SPKI validation failure as a non-recoverable error (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-4.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> a DoT client out-of-band key-pinning obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and pins no server SPKI. Client authentication policy is the querying resolver&#39;s concern.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-4.2-6">RFC7858-4.2-6</code></td><td colspan="3"><span class="rfc-subject">Implementations of the key-pinned profile MUST support computing a fingerprint as the SHA-256 hash of the DER-encoded ASN.1 SubjectPublicKeyInfo of an X.509 certificate (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-4.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> a DoT client key-pinned-profile obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side SPKI pinning profile.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-4.2-7">RFC7858-4.2-7</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST support representing a SHA-256 fingerprint as a base64-encoded character string (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-4.2-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> a DoT client key-pinning representation obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side pin storage.</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-8-1">RFC7858-8-1</code></td><td colspan="3"><span class="rfc-subject">Clients and servers MUST adhere to the TLS implementation recommendations and security considerations of BCP 195 (§8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L57" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L684" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTRejectsBelowTLS12</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.1-9">RFC7858-3.1-9</code></td><td colspan="3"><span class="rfc-subject">DNS clients SHOULD remember server IP addresses that do not support DNS over TLS (timeouts, connection refusals, TLS handshake failures) and not request DNS over TLS from them for a reasonable period (§3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.1-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.3-2">RFC7858-3.3-2</code></td><td colspan="3"><span class="rfc-subject">DNS clients and servers SHOULD pass the two-octet length field and the message it describes to the TCP layer at the same time, e.g. in a single write system call (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.3-3">RFC7858-3.3-3</code></td><td colspan="3"><span class="rfc-subject">Clients SHOULD pipeline multiple queries over a TLS session (§3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-1">RFC7858-3.4-1</code></td><td colspan="3"><span class="rfc-subject">Clients SHOULD reuse a single TCP connection to the recursive resolver (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-2">RFC7858-3.4-2</code></td><td colspan="3"><span class="rfc-subject">Clients and servers SHOULD NOT immediately close a connection after each response (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-3">RFC7858-3.4-3</code></td><td colspan="3"><span class="rfc-subject">Clients and servers SHOULD reuse existing connections for subsequent queries as long as they have sufficient resources (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-4">RFC7858-3.4-4</code></td><td colspan="3"><span class="rfc-subject">An implementor of DNS over TLS SHOULD follow best practices for DNS over TCP per RFC 7766 (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-10">RFC7858-3.4-10</code></td><td colspan="3"><span class="rfc-subject">DNS servers SHOULD enable fast TLS session resumption (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-11">RFC7858-3.4-11</code></td><td colspan="3"><span class="rfc-subject">Fast TLS session resumption SHOULD be used when reestablishing connections (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-12">RFC7858-3.4-12</code></td><td colspan="3"><span class="rfc-subject">When closing a connection, DNS servers SHOULD use the TLS close-notify to shift the TCP TIME-WAIT state to the client (§3.4)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-4.2-1">RFC7858-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Client administrators SHOULD deploy a backup pin along with the primary pin (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-4.2-2">RFC7858-4.2-2</code></td><td colspan="3"><span class="rfc-subject">After a change of keys on the server, an updated pin set SHOULD be distributed to all clients in some secure way (§4.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-5-1">RFC7858-5-1</code></td><td colspan="3"><span class="rfc-subject">To minimize server state and connection startup time, clients SHOULD minimize the creation of new TCP connections (§5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.1-4">RFC7858-3.1-4</code></td><td colspan="3"><span class="rfc-subject">A mutually agreed alternative port MAY be from the &#34;first-come, first-served&#34; port range (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.1-10">RFC7858-3.1-10</code></td><td colspan="3"><span class="rfc-subject">DNS clients following an out-of-band key-pinned privacy profile MAY be more aggressive about retrying DNS-over-TLS connection failures (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.1-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-3.4-6">RFC7858-3.4-6</code></td><td colspan="3"><span class="rfc-subject">As with current DNS over TCP, DNS servers MAY close the connection at any time (§3.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>3.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-3.4-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-4.2-3">RFC7858-4.2-3</code></td><td colspan="3"><span class="rfc-subject">Techniques such as those used by DNSSEC-trigger MAY be used during network configuration, transitioning to the designated DNS provider after authentication (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-4.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-4.2-8">RFC7858-4.2-8</code></td><td colspan="3"><span class="rfc-subject">Additional fingerprint types MAY also be supported (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-4.2-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7858-8-2">RFC7858-8-2</code></td><td colspan="3"><span class="rfc-subject">Clients MAY discard cached information about server capabilities advertised in cleartext (§8)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7858-8-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc7858-3.1-2"><code>RFC7858-3.1-2</code></a> By default, a DNS client desiring privacy MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement to use another port (§3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze is a DoT server only, not a DoT client. The querying resolver initiates the connection; ze&#39;s only DoT code path is the server listener bindDoT (internal/core/dnsserver/secure.go:307), and dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client.</td>
+</tr>
+<tr><td><a href="#rfc7858-3.1-3"><code>RFC7858-3.1-3</code></a> A mutually agreed alternative port MUST NOT be port 53 (§3.1)</td>
+<td>{gap}, no test</td>
+<td>ze does not enforce this. ParseSecureLeaves validates the DoT listen-port only as 1..65535 (internal/core/dnsserver/secure.go:166-172) and does not reject 53, so an operator can configure the DoT listener on port 53.</td>
+</tr>
+<tr><td><a href="#rfc7858-3.1-7"><code>RFC7858-3.1-7</code></a> DNS clients MUST NOT send cleartext DNS messages on any port used for DNS over TLS, including after a failed TLS handshake (§3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: constrains a DoT client&#39;s send behavior; ze is a DoT server only (internal/core/dnsserver/secure.go:307 bindDoT) and issues no DoT queries. The server-side counterpart (do not respond to cleartext on the DoT port) is RFC7858-3.1-8.</td>
+</tr>
+<tr><td><a href="#rfc7858-3.3-4"><code>RFC7858-3.3-4</code></a> Clients MUST match pipelined responses to outstanding queries on the same TLS connection using the Message ID (§3.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: a DoT client obligation to match pipelined responses to outstanding queries; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries. dnsserver/client.go is EDNS0 client-subnet resolution (client.go:21), not a DoT client.</td>
+</tr>
+<tr><td><a href="#rfc7858-3.3-5"><code>RFC7858-3.3-5</code></a> If a response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields (§3.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: a DoT client response-matching obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and issues no DoT queries to match responses against.</td>
+</tr>
+<tr><td><a href="#rfc7858-3.4-7"><code>RFC7858-3.4-7</code></a> Clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries (§3.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: a DoT client reconnect/retry obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and opens no client connections to reestablish. The server-side robustness counterpart is RFC7858-3.4-5.</td>
+</tr>
+<tr><td><a href="#rfc7858-3.4-8"><code>RFC7858-3.4-8</code></a> When using TCP Fast Open, the client and server MUST immediately initiate or resume a TLS handshake (§3.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DoT listener does not use TCP Fast Open. bindDoT opens an ordinary TCP socket via lc.Listen (internal/core/dnsserver/secure.go:308-309) with no TCP_FASTOPEN, so the TFO-specific handshake obligation has no bearing.</td>
+</tr>
+<tr><td><a href="#rfc7858-3.4-9"><code>RFC7858-3.4-9</code></a> When using TCP Fast Open, cleartext DNS MUST NOT be exchanged (§3.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze&#39;s DoT listener does not use TCP Fast Open (internal/core/dnsserver/secure.go:308-309 opens a plain TCP socket, no TCP_FASTOPEN), so the TFO-specific cleartext prohibition has no bearing.</td>
+</tr>
+<tr><td><a href="#rfc7858-4.2-4"><code>RFC7858-4.2-4</code></a> The user MUST be alerted whenever possible that DNS is not private during such bootstrap network configuration (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: a DoT client bootstrap-configuration obligation (opportunistic-privacy user alerting); ze is a DoT server only (internal/core/dnsserver/secure.go:307) and performs no client bootstrap.</td>
+</tr>
+<tr><td><a href="#rfc7858-4.2-5"><code>RFC7858-4.2-5</code></a> If no computed fingerprint matches a configured pin, the client MUST treat the SPKI validation failure as a non-recoverable error (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: a DoT client out-of-band key-pinning obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and pins no server SPKI. Client authentication policy is the querying resolver&#39;s concern.</td>
+</tr>
+<tr><td><a href="#rfc7858-4.2-6"><code>RFC7858-4.2-6</code></a> Implementations of the key-pinned profile MUST support computing a fingerprint as the SHA-256 hash of the DER-encoded ASN.1 SubjectPublicKeyInfo of an X.509 certificate (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: a DoT client key-pinned-profile obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side SPKI pinning profile.</td>
+</tr>
+<tr><td><a href="#rfc7858-4.2-7"><code>RFC7858-4.2-7</code></a> Implementations MUST support representing a SHA-256 fingerprint as a base64-encoded character string (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: a DoT client key-pinning representation obligation; ze is a DoT server only (internal/core/dnsserver/secure.go:307) and implements no client-side pin storage.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc7858-3.1-1"><code>RFC7858-3.1-1</code></a></h3>
+<p>By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use another port (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L377" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDefaultSecureConfig</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L52" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7858-3.1-2"><code>RFC7858-3.1-2</code></a></h3>
+<p>By default, a DNS client desiring privacy MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement to use another port (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-3.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-3.1-3"><code>RFC7858-3.1-3</code></a></h3>
+<p>A mutually agreed alternative port MUST NOT be port 53 (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-3.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-3.1-5"><code>RFC7858-3.1-5</code></a></h3>
+<p>The first data exchange on the TCP connection MUST be the client and server initiating a TLS handshake per RFC 5246 (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L632" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTRefusesCleartext</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L53" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7858-3.1-6"><code>RFC7858-3.1-6</code></a></h3>
+<p>DNS clients and servers MUST NOT use port 853 to transport cleartext DNS messages (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L633" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTRefusesCleartext</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7858-3.1-7"><code>RFC7858-3.1-7</code></a></h3>
+<p>DNS clients MUST NOT send cleartext DNS messages on any port used for DNS over TLS, including after a failed TLS handshake (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-3.1-7, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-3.1-8"><code>RFC7858-3.1-8</code></a></h3>
+<p>DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS, including after a failed TLS handshake (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L634" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTRefusesCleartext</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7858-3.3-1"><code>RFC7858-3.3-1</code></a></h3>
+<p>All messages (requests and responses) in the established TLS session MUST use the two-octet length field described in Section 4.2.2 of RFC 1035 (§3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L56" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7858-3.3-4"><code>RFC7858-3.3-4</code></a></h3>
+<p>Clients MUST match pipelined responses to outstanding queries on the same TLS connection using the Message ID (§3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-3.3-4, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-3.3-5"><code>RFC7858-3.3-5</code></a></h3>
+<p>If a response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields (§3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-3.3-5, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-3.4-5"><code>RFC7858-3.4-5</code></a></h3>
+<p>Clients and servers that keep idle connections open MUST be robust to termination of an idle connection by either party (§3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L708" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTRobustToIdleConnectionClose</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7858-3.4-7"><code>RFC7858-3.4-7</code></a></h3>
+<p>Clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries (§3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-3.4-7, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-3.4-8"><code>RFC7858-3.4-8</code></a></h3>
+<p>When using TCP Fast Open, the client and server MUST immediately initiate or resume a TLS handshake (§3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-3.4-8, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-3.4-9"><code>RFC7858-3.4-9</code></a></h3>
+<p>When using TCP Fast Open, cleartext DNS MUST NOT be exchanged (§3.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-3.4-9, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-4.2-4"><code>RFC7858-4.2-4</code></a></h3>
+<p>The user MUST be alerted whenever possible that DNS is not private during such bootstrap network configuration (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-4.2-4, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-4.2-5"><code>RFC7858-4.2-5</code></a></h3>
+<p>If no computed fingerprint matches a configured pin, the client MUST treat the SPKI validation failure as a non-recoverable error (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-4.2-5, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-4.2-6"><code>RFC7858-4.2-6</code></a></h3>
+<p>Implementations of the key-pinned profile MUST support computing a fingerprint as the SHA-256 hash of the DER-encoded ASN.1 SubjectPublicKeyInfo of an X.509 certificate (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-4.2-6, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-4.2-7"><code>RFC7858-4.2-7</code></a></h3>
+<p>Implementations MUST support representing a SHA-256 fingerprint as a base64-encoded character string (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7858-4.2-7, so no unit is bound to it.</p>
+<h3><a href="#rfc7858-8-1"><code>RFC7858-8-1</code></a></h3>
+<p>Clients and servers MUST adhere to the TLS implementation recommendations and security considerations of BCP 195 (§8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L684" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTRejectsBelowTLS12</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L57" title="internal/core/dnsserver/secure_test.go" target="_blank" rel="noopener"><code>TestDoTListener</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Extraction sign-off</h2>
+<p>No extraction sign-off exists for RFC 7858, so no reviewer has walked its text sentence by sentence.</p>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 7858, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

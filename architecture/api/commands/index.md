@@ -58,7 +58,7 @@ user-facing commands use verb-first syntax.
 
 **Streaming vs polling:** `monitor` commands keep the display active and auto-refresh.
 `monitor event` streams live events line-by-line. `monitor bgp` polls summary data
-every 2 seconds and renders a dashboard. Both use the `monitor` verb because they
+every second and renders a dashboard. Both use the `monitor` verb because they
 produce continuously-updating output.
 
 ## Command Categories

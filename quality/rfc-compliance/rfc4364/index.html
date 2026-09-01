@@ -1,0 +1,1066 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 4364 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 4364: BGP/MPLS IP Virtual Private Networks (VPNs). 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 4364 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 4364: BGP/MPLS IP Virtual Private Networks (VPNs). 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 4364 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 4364: BGP/MPLS IP Virtual Private Networks (VPNs). 8 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc4364/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc4364/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 4364 - BGP/MPLS IP Virtual Private Networks (VPNs)</h1>
+    <p>Every requirement this repository extracted from RFC 4364, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>8</strong><b>of 13 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>8</strong><b>of 8 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>No card above is a share of a population, so there is nothing to add up.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>13</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>8</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>0</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>8</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>0</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>0</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc4364.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc4364.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc4364.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: BGP/MPLS IP Virtual Private Networks (L3VPN): eight MUST-level requirements, all {not-applicable}. ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go) with Route-Distinguisher, label, and Route-Target wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path. The gated MUSTs (CE Route-Target authorization/filtering, customer-route to VPN-IPv4 conversion, LDP for VPN LSPs, Downstream-Unsolicited and Downstream-on-Demand label distribution, backbone labeled-packet acceptance, and MPLS-in-IP/GRE tunneling with IPsec or egress-PE source validation) are all PE data-plane, forwarding, and VRF-policy duties ze does not perform.</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<p><strong>What the ledger says is covered:</strong></p>
+VPNv4 NLRI, RD, labels, route config, encode, and decode.
+<p><strong>What the ledger says remains:</strong></p>
+No tracked gap in current source anchors.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>8</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>8</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Annotated instead of tested (8):</strong> <a href="#rfc4364-4.3.1-1"><code>RFC4364-4.3.1-1</code></a>, <a href="#rfc4364-4.3.1-2"><code>RFC4364-4.3.1-2</code></a>, <a href="#rfc4364-4.3.2-1"><code>RFC4364-4.3.2-1</code></a>, <a href="#rfc4364-4.3.2-2"><code>RFC4364-4.3.2-2</code></a>, <a href="#rfc4364-4.3.2-3"><code>RFC4364-4.3.2-3</code></a>, <a href="#rfc4364-6-1"><code>RFC4364-6-1</code></a>, <a href="#rfc4364-13.1-1"><code>RFC4364-13.1-1</code></a>, <a href="#rfc4364-13.1-2"><code>RFC4364-13.1-2</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.1-1">RFC4364-4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">If the CE is allowed to attach RTs to its routes, the PE MUST filter out all routes that contain RTs the customer is not allowed to use (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1 - The Route Target Attribute</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-4.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so there is no CE-attached-Route-Target authorization/filter code path to enforce</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.1-2">RFC4364-4.3.1-2</code></td><td colspan="3"><span class="rfc-subject">If the CE is not allowed to attach RTs but does so anyway, the PE MUST remove the RT before converting the customer&#39;s route to a VPN-IPv4 route (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1 - The Route Target Attribute</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-4.3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path; there is no customer-route-to-VPN-IPv4 conversion stage (no VRF ingest), so the strip-disallowed-RT obligation has no host</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-1">RFC4364-4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">All systems implementing this VPN architecture using MPLS LSPs MUST support Label Distribution Protocol (LDP) (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.2 - Route Distribution Among PEs by BGP</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-4.3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> LDP support for VPN LSP tunneling is a PE data-plane duty; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it neither sets up nor forwards over VPN LSPs</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-2">RFC4364-4.3.2-2</code></td><td colspan="3"><span class="rfc-subject">Downstream Unsolicited mode MUST be supported on interfaces that are neither LC-ATM nor LC-FR interfaces (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.2 - Route Distribution Among PEs by BGP</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-4.3.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> LDP Downstream Unsolicited mode is a PE label-distribution/data-plane property; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-3">RFC4364-4.3.2-3</code></td><td colspan="3"><span class="rfc-subject">Downstream on Demand mode MUST be supported on LC-ATM and LC-FR interfaces (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.2 - Route Distribution Among PEs by BGP</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-4.3.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> LDP Downstream on Demand on LC-ATM/LC-FR interfaces is a PE link-layer duty; ze has no such interfaces and no VPN forwarding path (ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-6-1">RFC4364-6-1</code></td><td colspan="3"><span class="rfc-subject">A router in the backbone MUST NOT accept a labeled packet from any adjacent non-backbone device unless conditions in §6 are met (§6)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6 - Maintaining Proper Isolation of VPNs</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> accepting or rejecting a labeled packet at a backbone router is an MPLS forwarding/security duty; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it is not a P or PE forwarder</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-13.1-1">RFC4364-13.1-1</code></td><td colspan="3"><span class="rfc-subject">Any implementation allowing VPN packets to be tunneled via MPLS-in-IP/GRE MUST contain an implementation of IPsec (§13.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13.1 - Data Plane</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-13.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it never tunnels VPN packets via MPLS-in-IP/GRE and the must-contain-IPsec trigger never fires (the IKE/IPsec engine in internal/component/ike is unrelated to VPN tunneling)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-13.1-2">RFC4364-13.1-2</code></td><td colspan="3"><span class="rfc-subject">Any implementation allowing MPLS-in-IP/GRE tunneling without IPsec MUST allow the egress PE to validate the IP source address of tunneled packets (§13.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13.1 - Data Plane</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-13.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so there is no MPLS-in-IP/GRE VPN data path at an egress PE to validate a tunneled packet&#39;s source address</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-4">RFC4364-4.3.2-4</code></td><td colspan="3"><span class="rfc-subject">A PE router (unless it is a route reflector or ASBR) should not install a VPN-IPv4 route unless it has at least one VRF with a matching Import Target (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.2 - Route Distribution Among PEs by BGP</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-4.3.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-5">RFC4364-4.3.2-5</code></td><td colspan="3"><span class="rfc-subject">Inbound filtering should be used to discard unneeded VPN-IPv4 routes (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.2 - Route Distribution Among PEs by BGP</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-4.3.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-13.2-1">RFC4364-13.2-1</code></td><td colspan="3"><span class="rfc-subject">TCP/IP MD5 authentication option should be used with both BGP and LDP (§13.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>13.2 - Control Plane</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-13.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-6">RFC4364-4.3.2-6</code></td><td colspan="3"><span class="rfc-subject">PE may distribute exact VRF routes, aggregates, or both (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.3.2 - Route Distribution Among PEs by BGP</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-4.3.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4364-4.3.2-7">RFC4364-4.3.2-7</code></td><td colspan="3"><span class="rfc-subject">Multiple label allocation strategies: per-VRF, per-attachment-circuit, or per-route (§4.3.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.3.2 - Route Distribution Among PEs by BGP</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4364-4.3.2-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc4364-4.3.1-1"><code>RFC4364-4.3.1-1</code></a> If the CE is allowed to attach RTs to its routes, the PE MUST filter out all routes that contain RTs the customer is not allowed to use (§4.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so there is no CE-attached-Route-Target authorization/filter code path to enforce</td>
+</tr>
+<tr><td><a href="#rfc4364-4.3.1-2"><code>RFC4364-4.3.1-2</code></a> If the CE is not allowed to attach RTs but does so anyway, the PE MUST remove the RT before converting the customer&#39;s route to a VPN-IPv4 route (§4.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path; there is no customer-route-to-VPN-IPv4 conversion stage (no VRF ingest), so the strip-disallowed-RT obligation has no host</td>
+</tr>
+<tr><td><a href="#rfc4364-4.3.2-1"><code>RFC4364-4.3.2-1</code></a> All systems implementing this VPN architecture using MPLS LSPs MUST support Label Distribution Protocol (LDP) (§4.3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: LDP support for VPN LSP tunneling is a PE data-plane duty; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it neither sets up nor forwards over VPN LSPs</td>
+</tr>
+<tr><td><a href="#rfc4364-4.3.2-2"><code>RFC4364-4.3.2-2</code></a> Downstream Unsolicited mode MUST be supported on interfaces that are neither LC-ATM nor LC-FR interfaces (§4.3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: LDP Downstream Unsolicited mode is a PE label-distribution/data-plane property; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path</td>
+</tr>
+<tr><td><a href="#rfc4364-4.3.2-3"><code>RFC4364-4.3.2-3</code></a> Downstream on Demand mode MUST be supported on LC-ATM and LC-FR interfaces (§4.3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: LDP Downstream on Demand on LC-ATM/LC-FR interfaces is a PE link-layer duty; ze has no such interfaces and no VPN forwarding path (ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path)</td>
+</tr>
+<tr><td><a href="#rfc4364-6-1"><code>RFC4364-6-1</code></a> A router in the backbone MUST NOT accept a labeled packet from any adjacent non-backbone device unless conditions in §6 are met (§6)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: accepting or rejecting a labeled packet at a backbone router is an MPLS forwarding/security duty; ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it is not a P or PE forwarder</td>
+</tr>
+<tr><td><a href="#rfc4364-13.1-1"><code>RFC4364-13.1-1</code></a> Any implementation allowing VPN packets to be tunneled via MPLS-in-IP/GRE MUST contain an implementation of IPsec (§13.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so it never tunnels VPN packets via MPLS-in-IP/GRE and the must-contain-IPsec trigger never fires (the IKE/IPsec engine in internal/component/ike is unrelated to VPN tunneling)</td>
+</tr>
+<tr><td><a href="#rfc4364-13.1-2"><code>RFC4364-13.1-2</code></a> Any implementation allowing MPLS-in-IP/GRE tunneling without IPsec MUST allow the egress PE to validate the IP source address of tunneled packets (§13.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze is not a BGP/MPLS L3VPN Provider Edge: its VPN support is a control-plane VPNv4/VPNv6 (SAFI 128) NLRI codec in decode mode (internal/component/bgp/plugins/nlri/vpn/vpn.go:61-66 Mode &#34;decode&#34;) with RD/label/RT wire decoding, and it has no VRF, no PE/CE protocol, and no MPLS-VPN forwarding data path, so there is no MPLS-in-IP/GRE VPN data path at an egress PE to validate a tunneled packet&#39;s source address</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc4364-4.3.1-1"><code>RFC4364-4.3.1-1</code></a></h3>
+<p>If the CE is allowed to attach RTs to its routes, the PE MUST filter out all routes that contain RTs the customer is not allowed to use (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4364-4.3.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4364-4.3.1-2"><code>RFC4364-4.3.1-2</code></a></h3>
+<p>If the CE is not allowed to attach RTs but does so anyway, the PE MUST remove the RT before converting the customer&#39;s route to a VPN-IPv4 route (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4364-4.3.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4364-4.3.2-1"><code>RFC4364-4.3.2-1</code></a></h3>
+<p>All systems implementing this VPN architecture using MPLS LSPs MUST support Label Distribution Protocol (LDP) (§4.3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4364-4.3.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4364-4.3.2-2"><code>RFC4364-4.3.2-2</code></a></h3>
+<p>Downstream Unsolicited mode MUST be supported on interfaces that are neither LC-ATM nor LC-FR interfaces (§4.3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4364-4.3.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4364-4.3.2-3"><code>RFC4364-4.3.2-3</code></a></h3>
+<p>Downstream on Demand mode MUST be supported on LC-ATM and LC-FR interfaces (§4.3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4364-4.3.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4364-6-1"><code>RFC4364-6-1</code></a></h3>
+<p>A router in the backbone MUST NOT accept a labeled packet from any adjacent non-backbone device unless conditions in §6 are met (§6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4364-6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4364-13.1-1"><code>RFC4364-13.1-1</code></a></h3>
+<p>Any implementation allowing VPN packets to be tunneled via MPLS-in-IP/GRE MUST contain an implementation of IPsec (§13.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4364-13.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4364-13.1-2"><code>RFC4364-13.1-2</code></a></h3>
+<p>Any implementation allowing MPLS-in-IP/GRE tunneling without IPsec MUST allow the egress PE to validate the IP source address of tunneled packets (§13.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4364-13.1-2, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6, rfc4364</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc4364.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>68e6a7bce4ad9d4b</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc4364.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>7</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>50</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>Title block, Status of This Memo, Copyright Notice, Abstract and Table of Contents. The Abstract restates section 1: a Service Provider uses an IP backbone to offer IP VPNs under a peer model, CE routers send their routes to PE routers, and data packets are tunneled so the core routers need not know the VPN routes. No site and no directive.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Restates the peer model, records that BGP carries a VPN&#39;s routes among the PE routers attached to it, that each VPN route is assigned an MPLS label distributed with the route, and that the labeled packet is further encapsulated so it tunnels across the backbone. Indicative throughout and no site.</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>Virtual Private Networks</td>
+<td>0</td>
+<td>walked</td>
+<td>Virtual Private Networks. Defines a VPN as a subset of sites with the rule that two sites have IP connectivity over the backbone only if some VPN contains both, names the customers and the Service Providers, and states that the policies deciding what is a VPN are the customers&#39;. Definitions and scope, no directive and no site.</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>Customer Edge and Provider Edge</td>
+<td>2</td>
+<td>walked</td>
+<td>Customer Edge and Provider Edge. Defines attachment circuit, CE, PE and P router, ingress and egress attachment circuit, and records that a CE router peers with its PEs and not with CE routers at other sites. Both of its sites are properties of that deployment model and are excluded below.</td>
+</tr>
+<tr><td><code>1.3</code></td>
+<td>VPNs with Overlapping Address Spaces</td>
+<td>1</td>
+<td>walked</td>
+<td>VPNs with Overlapping Address Spaces. States that two VPNs with no site in common may use the same addresses for different systems, which is common with RFC 1918 space. Its one site is the addressing constraint inside each VPN and is excluded below.</td>
+</tr>
+<tr><td><code>1.4</code></td>
+<td>VPNs with Different Routes to the Same System</td>
+<td>0</td>
+<td>walked</td>
+<td>VPNs with Different Routes to the Same System. Works an example where intranet traffic reaches a server directly while extranet traffic is routed through a firewall at another site, and shows two routes to the same server. Illustration, no directive and no site.</td>
+</tr>
+<tr><td><code>1.5</code></td>
+<td>SP Backbone Routers</td>
+<td>0</td>
+<td>walked</td>
+<td>SP Backbone Routers. States the scalability property the architecture rests on: routing information about a VPN is needed only in the PE routers attached to that VPN, and the P routers need no per-VPN routing information at all. Indicative and no site.</td>
+</tr>
+<tr><td><code>1.6</code></td>
+<td>Security</td>
+<td>1</td>
+<td>walked</td>
+<td>Security. States that the architecture gives security equivalent to a layer 2 backbone, that it does not encrypt data or detect tampering, and points at section 13. Its one site is the conditional about applying cryptography and is excluded below.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>Sites and CEs</td>
+<td>1</td>
+<td>walked</td>
+<td>Sites and CEs. Defines a site topologically rather than geographically, records that a site may belong to several VPNs, that a PE may attach to CEs of many sites, and that a CE may attach to several PEs for robustness. Its one site is a false positive of the prose scan and is excluded below.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>VRFs: Multiple Forwarding Tables in PEs</td>
+<td>0</td>
+<td>walked</td>
+<td>VRFs: Multiple Forwarding Tables in PEs. Three sentences: each PE maintains several forwarding tables, one is the default forwarding table, and the others are VPN Routing and Forwarding tables. Definitions, no directive and no site.</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>VRFs and Attachment Circuits</td>
+<td>0</td>
+<td>walked</td>
+<td>VRFs and Attachment Circuits. States that every PE/CE attachment circuit is associated by configuration with one or more VRFs, that a packet arriving on one is looked up in the associated VRF, that a packet on a non-VRF circuit uses the default forwarding table, and how restricting the route set in a VRF restricts connectivity. Indicative and no site.</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>Associating IP Packets with VRFs</td>
+<td>4</td>
+<td>walked</td>
+<td>Associating IP Packets with VRFs. How a PE decides which attachment circuit a packet arrived on and therefore which VRF to use, why a customer must not be able to forge that decision by writing layer 2 header fields, and how virtual sites are selected by VLAN tag or IP source address. All four sites bind the PE ingress classifier or the customer host and are excluded below.</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>Populating the VRFs</td>
+<td>0</td>
+<td>walked</td>
+<td>Populating the VRFs. Works the PE1/PE2/PE3 example: PE1 learns routes from CE1 and distributes them by BGP, and PE2 and PE3 use them to populate the VRFs for their own sites. Records that learning covers static configuration, and that two attachment circuits share a VRF only when their CEs are in exactly the same set of VPNs. Indicative and no site.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>VPN Route Distribution via BGP</td>
+<td>1</td>
+<td>walked</td>
+<td>VPN Route Distribution via BGP. States why two routes to the same IPv4 prefix in different VPNs must not be comparable, and announces the new address family that meets the goal. Its one site is that design statement and is excluded below.</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>The VPN-IPv4 Address Family</td>
+<td>0</td>
+<td>walked</td>
+<td>The VPN-IPv4 Address Family. Defines a VPN-IPv4 address as an 8-byte Route Distinguisher followed by a 4-byte IPv4 address, states that BGP never compares a VPN-IPv4 address with an IPv4 address, that an RD carries no inherent information and exists only to create distinct routes to a common prefix, and that its structure is not meaningful to BGP. This is the layout ze implements, in internal/component/bgp/plugins/nlri/vpn.ParseVPN and internal/core/bgp/nlri.RouteDistinguisher, and the summary carries it in the Wire Formats tables. No directive and no site.</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>Encoding of Route Distinguishers</td>
+<td>6</td>
+<td>walked</td>
+<td>Encoding of Route Distinguishers. The RD&#39;s 2-byte Type field and 6-byte Value field, and the Administrator and Assigned Number subfields of types 0, 1 and 2. The layout is carried by the Route Distinguisher Format tables of rfc/short/rfc4364.md and is decoded by internal/core/bgp/nlri.ParseRouteDistinguisher, which reads the type field and keeps the six value octets, with RouteDistinguisher.String rendering each type. All six sites constrain the number the assigning authority puts in the Administrator subfield rather than the encoding, and are excluded below.</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>Controlling Route Distribution</td>
+<td>0</td>
+<td>walked</td>
+<td>Controlling Route Distribution. Describes the life of a route: learned from a CE into a VRF, converted to a VPN-IPv4 route and exported to BGP, best-path selected, distributed to the PEs that need it, imported back into VRFs and distributed to the associated CE routers. Indicative and no site.</td>
+</tr>
+<tr><td><code>4.3.1</code></td>
+<td>The Route Target Attribute</td>
+<td>3</td>
+<td>walked</td>
+<td>The Route Target Attribute. Defines the Export Targets and Import Targets of a VRF, records that Route Targets are encoded as BGP Extended Community Route Targets of RFC 4360, and closes with the two capitalised MUSTs about a CE that attaches Route Targets to its own routes, mapped below to RFC4364-4.3.1-1 and RFC4364-4.3.1-2. Site 4.3.1:1 is the distribution rule for a route carrying Route Target T and is excluded.</td>
+</tr>
+<tr><td><code>4.3.2</code></td>
+<td>Route Distribution Among PEs by BGP</td>
+<td>6</td>
+<td>walked</td>
+<td>Route Distribution Among PEs by BGP. How PEs distribute labeled VPN-IPv4 routes over IBGP or a route reflector, with the PE&#39;s own address as BGP next hop encoded as a VPN-IPv4 address with an RD of zero, and the three label allocation strategies. Sites 4.3.2:4 and 4.3.2:5 carry the capitalised MUSTs and are mapped below to RFC4364-4.3.2-1 and RFC4364-4.3.2-2. Five further declared rows are read from prose here and are the unsourced ids: RFC4364-4.3.2-3 is the second half of the sentence site 4.3.2:5 quotes, &#39;Downstream on Demand mode MUST be supported on LC-ATM interfaces and LC-FR interfaces&#39;, which the splitter keeps whole; RFC4364-4.3.2-4 and RFC4364-4.3.2-5 are the two lowercase &#39;should&#39; sentences about not installing a VPN-IPv4 route without a matching Import Target and discarding the rest by inbound filtering; and RFC4364-4.3.2-6 and RFC4364-4.3.2-7 are the exact-or-aggregate choice and the per-VRF, per-attachment-circuit or per-route label strategies, both stated as a choice left to the implementation.</td>
+</tr>
+<tr><td><code>4.3.3</code></td>
+<td>Use of Route Reflectors</td>
+<td>1</td>
+<td>walked</td>
+<td>Use of Route Reflectors. Two ways to partition VPN-IPv4 routes among route reflectors: preconfigure each with a list of Route Targets and derive inbound filters and ORFs from it, or let each learn the set of Route Targets its clients use. Its one site is the BGP Refresh obligation in the second method and is excluded below.</td>
+</tr>
+<tr><td><code>4.3.4</code></td>
+<td>How VPN-IPv4 NLRI Is Carried in BGP</td>
+<td>1</td>
+<td>walked</td>
+<td>How VPN-IPv4 NLRI Is Carried in BGP. Assigns AFI 1 with SAFI 128 to MPLS-labeled VPN-IPv4 addresses, records that AFI 1 is used because the network layer protocol is still IP, that unlabeled VPN-IPv4 addresses need not be distributed, and that the NLRI is encoded as in RFC 3107 with an 8-byte RD before the IPv4 prefix. Those values are carried by the Constants and Wire Formats tables of rfc/short/rfc4364.md and are what internal/component/bgp/plugins/nlri/vpn registers and decodes. Its one site is the capability-advertisement requirement, which the sentence itself delegates to RFC 4760, and is excluded below.</td>
+</tr>
+<tr><td><code>4.3.5</code></td>
+<td>Building VPNs Using Route Targets</td>
+<td>0</td>
+<td>walked</td>
+<td>Building VPNs Using Route Targets. Shows how Import and Export Targets build a fully meshed closed user group and a hub-and-spoke VPN. Illustration, no directive and no site.</td>
+</tr>
+<tr><td><code>4.3.6</code></td>
+<td>Route Distribution Among VRFs in a Single PE</td>
+<td>0</td>
+<td>walked</td>
+<td>Route Distribution Among VRFs in a Single PE. States that a route can be distributed from one VRF to another inside one PE, and that the decision is the same one that would be made if the VRFs sat on different PEs. Indicative and no site.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Forwarding</td>
+<td>4</td>
+<td>walked</td>
+<td>Forwarding. The whole forwarding path: choosing the VRF from the ingress attachment circuit, sending directly on an egress attachment circuit of the same PE, or pushing the VPN route label and tunneling to the BGP Next Hop with a tunnel label, and what the egress PE does with the VPN route label. Its four sites are excluded below: two are statements about what necessarily follows, one restates the LDP obligation of section 4.3.2, and one qualifies a kind of tunnel.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>Maintaining Proper Isolation of VPNs</td>
+<td>2</td>
+<td>walked</td>
+<td>Maintaining Proper Isolation of VPNs. The rule that no backbone router accepts a tunneled packet from outside the backbone unless both tunnel endpoints are outside it, stated for MPLS as the capitalised MUST NOT of site 6:1, mapped below to RFC4364-6-1, with its two conditions. Site 6:2 is the corresponding filtering rule when MPLS is not the tunneling technology and is excluded.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>How PEs Learn Routes from CEs</td>
+<td>4</td>
+<td>walked</td>
+<td>How PEs Learn Routes from CEs. The four PE/CE route distribution techniques: static routing, RIP, OSPF and BGP, with the loop-prevention rules each needs and the Site of Origin attribute that identifies the routes learned from one site. All four sites bind the PE or the CE of a PE/CE session and are excluded below.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>How CEs Learn Routes from PEs</td>
+<td>1</td>
+<td>walked</td>
+<td>How CEs Learn Routes from PEs. States that a PE may distribute a route in a CE&#39;s VRF to that CE when the PE/CE protocol permits, adds the Site of Origin restriction, and observes that distributing the default route is usually enough. Its one site is that restriction and is excluded below.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>Carriers&#39; Carriers</td>
+<td>6</td>
+<td>walked</td>
+<td>Carriers&#39; Carriers. How a VPN that is itself an ISP or SP network takes backbone service from a carrier&#39;s carrier, with the CE routers supporting MPLS: the CEs distribute only internal routes, the PEs distribute labels for the routes they give the CEs, and BGP connections between the sites carry the external routes. All six sites bind the carrier&#39;s carrier PE or the customer&#39;s CE routers and are excluded below.</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>Multi-AS Backbones</td>
+<td>3</td>
+<td>walked</td>
+<td>Multi-AS Backbones. The three inter-AS procedures: VRF-to-VRF connections at the AS border routers, EBGP redistribution of labeled VPN-IPv4 routes between ASBRs, and multi-hop EBGP between the source and destination ASes with labeled IPv4 /32 routes between the ASBRs. All three sites bind the SPs or their ASBRs and are excluded below.</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>Accessing the Internet from a VPN</td>
+<td>3</td>
+<td>walked</td>
+<td>Accessing the Internet from a VPN. Four ways a VPN site reaches the public Internet: a non-VRF interface to an ISP, a VRF interface falling back to the default forwarding table, non-VPN routes held in the VRF, and Internet routes carried in the VRF itself. All three sites bind the ISP or the PE that joins a VRF to the Internet forwarding table and are excluded below.</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>Management VPNs</td>
+<td>0</td>
+<td>walked</td>
+<td>Management VPNs. How an SP-managed CE is reached: address the PE/CE sub-interface out of the SP&#39;s space, attach the network management system to a PE over a VRF interface, and use two Route Targets so the management system and the CEs can talk without the CEs reaching each other. Indicative and no site.</td>
+</tr>
+<tr><td><code>13</code></td>
+<td>Security Considerations</td>
+<td>0</td>
+<td>walked</td>
+<td>Security Considerations. The heading for sections 13.1 to 13.3.</td>
+</tr>
+<tr><td><code>13.1</code></td>
+<td>Data Plane</td>
+<td>4</td>
+<td>walked</td>
+<td>Data Plane. States what data plane security means here, the three conditions it rests on, and the precise rule for discarding a labeled packet from a neighbor. It closes on MPLS-in-IP and MPLS-in-GRE tunneling per RFC 4023: sites 13.1:2 and 13.1:3 carry the two capitalised MUST-level obligations and are mapped below to RFC4364-13.1-1 and RFC4364-13.1-2, while site 13.1:1 points at RFC 4023&#39;s own security considerations and site 13.1:4 states the LAN-interface conditions, both excluded.</td>
+</tr>
+<tr><td><code>13.2</code></td>
+<td>Control Plane</td>
+<td>0</td>
+<td>walked</td>
+<td>Control Plane. States that data plane security depends on control plane security, that neither BGP nor LDP connections should be made with untrusted peers, and that the routing protocol inside the SP&#39;s network should be secured in the same way. The declared row RFC4364-13.2-1 is read from its lowercase &#39;should&#39; sentence, &#39;The TCP/IP MD5 authentication option [TCP-MD5] should be used with both these protocols&#39;, and is the unsourced id here. No site.</td>
+</tr>
+<tr><td><code>13.3</code></td>
+<td>Security of P and PE Devices</td>
+<td>0</td>
+<td>walked</td>
+<td>Security of P and PE Devices. States that compromising the physical security of these devices can compromise data plane security, and that the usual steps are taken so Internet traffic cannot reconfigure them or mount a denial of service. Advisory prose with no site.</td>
+</tr>
+<tr><td><code>14</code></td>
+<td>Quality of Service</td>
+<td>0</td>
+<td>walked</td>
+<td>Quality of Service. Records that L3 QoS applies to labeled packets through the experimental bits of the shim header or through ATM QoS, that RSVP-TE traffic engineering applies, and that an SP may apply intserv or diffserv to a VPN. No directive and no site.</td>
+</tr>
+<tr><td><code>15</code></td>
+<td>Scalability</td>
+<td>2</td>
+<td>walked</td>
+<td>Scalability. Summarises what each component holds: P routers hold no VPN route, a PE holds routes only for the VPNs it attaches to, route reflectors and ASBRs can be partitioned among VPNs. Both of its sites state that something is NOT required and are excluded below.</td>
+</tr>
+<tr><td><code>16</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. Records the new Route Distinguisher Type Field registry with types 0, 1 and 2 defined here, the First Come First Served and IETF consensus ranges, and the change of SAFI 128 from private use to MPLS-labeled VPN address. Binds IANA, not a speaker.</td>
+</tr>
+<tr><td><code>17</code></td>
+<td>Acknowledgements</td>
+<td>0</td>
+<td>skipped (acknowledgements)</td>
+<td>Acknowledgements.</td>
+</tr>
+<tr><td><code>18</code></td>
+<td>Contributors</td>
+<td>0</td>
+<td>skipped (acknowledgements)</td>
+<td>Contributors. The postal and electronic addresses of the contributors listed for the document.</td>
+</tr>
+<tr><td><code>19</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: RFC 4271, RFC 4760, RFC 4023, RFC 3107, RFC 3031, RFC 3032, RFC 5036, RFC 4360, RFC 2385, RFC 4456, RFC 2918, RFC 5291 and the ATM and Frame Relay label switching documents.</td>
+</tr>
+<tr><td><code>20</code></td>
+<td>Informative References</td>
+<td>1</td>
+<td>walked</td>
+<td>Informative References. Because no numbered heading follows it, the derived span also carries the Authors&#39; Addresses, the Full Copyright Statement, the Intellectual Property boilerplate and the RFC Editor funding note. Walked rather than skipped because the prose scan attributes one site here; that site is IPR boilerplate and is excluded below. Nothing in the span states an obligation on an implementation.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>1.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the customer&#39;s VPN site: each one contains one or more CE devices, hosts or routers, attached to the PE over an attachment circuit. It states what the deployment model is made of rather than directing a protocol speaker, and the role it names is one ze does not play. ze is not a BGP/MPLS L3VPN Provider Edge: its RFC 4364 surface is the control-plane VPN-IPv4/VPN-IPv6 (SAFI 128) NLRI codec of internal/component/bgp/plugins/nlri/vpn (ParseVPN decodes the Route Distinguisher, the label stack and the prefix, WriteTo and EncodeRoute build them, and the plugin registers both families in decode mode) over the Route Distinguisher type 0/1/2 layout of internal/core/bgp/nlri.RouteDistinguisher. It has no VRF, no PE/CE protocol and no MPLS-VPN forwarding path.</td>
+<td>Each VPN site must contain one or more Customer Edge (CE) devices.</td>
+</tr>
+<tr><td><code>1.2:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the sentence states that something is NOT required. It records the administrative boundary the architecture keeps -- customers need no access to the PE or P routers for management, and the SP needs none to the CE devices -- and places no obligation on either party.</td>
+<td>Customers are not required to access the PE or P routers for management purposes, nor is the SP required to access the CE devices for management purposes.</td>
+</tr>
+<tr><td><code>1.3:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the party administering addresses inside a VPN, the customer or the SP acting for it: two VPNs with no site in common may reuse the same addresses, but within one VPN each address is unambiguous. It is an addressing-plan constraint on a numbering authority, not behavior of a BGP speaker. Ze administers no VPN address plan; the RD that makes two identical prefixes distinct on the wire is decoded by internal/core/bgp/nlri.ParseRouteDistinguisher and carried opaquely.</td>
+<td>Of course, within each VPN, each address must be unambiguous.</td>
+</tr>
+<tr><td><code>1.6:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the SP or customer that wants confidentiality: the section states that these methods do not themselves encrypt data or detect tampering, and that cryptographic measures are applied in addition if that is desired, pointing at [MPLS/BGP-IPsec]. The obligation falls on whoever deploys that additional layer, and ze provides no VPN data path over which to deploy it. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>If this is desired, cryptographic measures must be applied in addition.</td>
+</tr>
+<tr><td><code>2:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the prose scan matches the authorial cross-reference &#39;as we shall see in Section 3.2&#39;, not a directive. The sentence itself is a definition -- a CE device is always regarded as being in a single site, though a site may consist of several virtual sites -- and RFC 4364 has no RFC 2119 key-words section, so nothing in it gives a lowercase modal a level.</td>
+<td>A CE device is always regarded as being in a single site (though as we shall see in Section 3.2, a site may consist of multiple &#34;virtual sites&#34;).</td>
+</tr>
+<tr><td><code>3.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the PE ingress classifier: on a packet from a CE the PE determines the attachment circuit it arrived on, because that determines the VRF used to forward it. ze is not a BGP/MPLS L3VPN Provider Edge: its RFC 4364 surface is the control-plane VPN-IPv4/VPN-IPv6 (SAFI 128) NLRI codec of internal/component/bgp/plugins/nlri/vpn (ParseVPN decodes the Route Distinguisher, the label stack and the prefix, WriteTo and EncodeRoute build them, and the plugin registers both families in decode mode) over the Route Distinguisher type 0/1/2 layout of internal/core/bgp/nlri.RouteDistinguisher. It has no VRF, no PE/CE protocol and no MPLS-VPN forwarding path, so it classifies no customer packet and selects no VRF.</td>
+<td>When a PE router receives a packet from a CE device, it must determine the attachment circuit over which the packet arrived, as this determines in turn the VRF (or set of VRFs) that can be used for forwarding that packet.</td>
+</tr>
+<tr><td><code>3.2:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the SP&#39;s PE and the layer 2 access it controls: a customer must not be able to forge the attachment-circuit decision by writing the layer 2 header fields, the Frame Relay DLCI in the section&#39;s own example. Ze terminates no customer attachment circuit and makes no such decision. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>Although the PE&#39;s conclusion that a particular packet arrived on a particular attachment circuit may be partially determined by the packet&#39;s layer 2 header, it must be impossible for a customer, by writing the header fields, to fool the SP into thinking that a packet that was received over one attachment circuit really arrived over a different one.</td>
+</tr>
+<tr><td><code>3.2:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same SP-controlled attachment circuit as site 3.2:2: the layer 2 field is set to the value the SP specified or the packet does not reach the PE. It constrains the provisioning of the access link, and ze provisions none. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>Rather, it must be set to a value specified by the SP, or else the packet cannot arrive at the PE router.</td>
+</tr>
+<tr><td><code>3.2:4</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the customer HOST that sits in several virtual sites: it decides, for each packet, which virtual site the packet belongs to, by sending on different VLANs or out different interfaces. Ze is neither that host nor the PE that reads its VLAN tag. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>If it is desired to have a particular host be in multiple virtual sites, then that host must determine, for each packet, which virtual site the packet is associated with.</td>
+</tr>
+<tr><td><code>4:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the PE that maintains VRFs. The sentence is the authors stating the design goal the address family then meets (&#39;Further, we must ensure that POLICY is used to determine which packets get sent on which routes&#39;), and its operative constraint is on the VRF: of several routes BGP installs, only one appears in any particular VRF. Ze holds no VRF, so nothing applies the constraint. Its VPN-IPv4 routes are decoded and stored as raw NLRI, never installed into a per-VPN forwarding table. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>Further, we must ensure that POLICY is used to determine which packets get sent on which routes; given that several such routes are installed by BGP, only one such must appear in any particular VRF.</td>
+</tr>
+<tr><td><code>4.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the assigning authority for a type 0 Route Distinguisher, the enterprise or Service Provider that administers its own RD numbering space: the Administrator subfield carries an Autonomous System number they hold. Ze assigns no RD. It implements the LAYOUT this list defines -- internal/core/bgp/nlri.ParseRouteDistinguisher reads the 2-byte type and keeps the 6-byte value, RouteDistinguisher.String renders type 0 as ASN:number -- and the summary carries that layout in its Route Distinguisher Format tables. What this sentence adds beyond the layout is the numbering constraint, which binds the assigner.</td>
+<td>The Administrator subfield must contain an Autonomous System number.</td>
+</tr>
+<tr><td><code>4.2:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the numbering authority and the enterprise it assigns to: an ASN from the public space in a type 0 RD has been assigned by the appropriate authority, and using a private-space value is strongly discouraged. Nothing here directs an encoder or a decoder, and ze never assigns an ASN. The producer that would act as it if ze did is the RD codec, `internal/core/bgp/nlri/rd.go`: it parses and formats the eight octets and assigns no number to anybody.</td>
+<td>If this ASN is from the public ASN space, it must have been assigned by the appropriate authority (use of ASN values from the private ASN space is strongly discouraged).</td>
+</tr>
+<tr><td><code>4.2:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The type 1 counterpart of site 4.2:1, binding the same assigning authority: the Administrator subfield carries an IP address held by the assigner. Ze decodes the six value octets of a type 1 RD without judging whose address they are. The producer that would act as it if ze did is the RD codec, `internal/core/bgp/nlri/rd.go`: it parses and formats the eight octets and assigns no number to anybody.</td>
+<td>The Administrator subfield must contain an IP address.</td>
+</tr>
+<tr><td><code>4.2:4</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The type 1 counterpart of site 4.2:2: a public IP address in the Administrator subfield has been assigned by an appropriate authority, and private space is strongly discouraged. It binds the address registry and the assignee, neither of which ze is. The producer that would act as it if ze did is the RD codec, `internal/core/bgp/nlri/rd.go`: it parses and formats the eight octets and assigns no number to anybody.</td>
+<td>If this IP address is from the public IP address space, it must have been assigned by an appropriate authority (use of addresses from the private IP address space is strongly discouraged).</td>
+</tr>
+<tr><td><code>4.2:5</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The type 2 counterpart of site 4.2:1: the Administrator subfield carries a 4-byte Autonomous System number, assigned to whoever administers the RD. Ze decodes the field and assigns no number. The producer that would act as it if ze did is the RD codec, `internal/core/bgp/nlri/rd.go`: it parses and formats the eight octets and assigns no number to anybody.</td>
+<td>The Administrator subfield must contain a 4-byte Autonomous System number [BGP-AS4].</td>
+</tr>
+<tr><td><code>4.2:6</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>The type 2 counterpart of site 4.2:2, binding the ASN registry and its assignee: a public 4-byte ASN has been assigned by the appropriate authority, and private-space values are strongly discouraged. The producer that would act as it if ze did is the RD codec, `internal/core/bgp/nlri/rd.go`: it parses and formats the eight octets and assigns no number to anybody.</td>
+<td>If this ASN is from the public ASN space, it must have been assigned by the appropriate authority (use of ASN values from the private ASN space is strongly discouraged).</td>
+</tr>
+<tr><td><code>4.3.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the VPN route distribution system: a route carrying Route Target T reaches every PE that has a VRF associated with T, where it becomes eligible for installation in those VRFs. The obligation is stated over VRFs and their Import Targets, and ze is not a BGP/MPLS L3VPN Provider Edge: its RFC 4364 surface is the control-plane VPN-IPv4/VPN-IPv6 (SAFI 128) NLRI codec of internal/component/bgp/plugins/nlri/vpn (ParseVPN decodes the Route Distinguisher, the label stack and the prefix, WriteTo and EncodeRoute build them, and the plugin registers both families in decode mode) over the Route Distinguisher type 0/1/2 layout of internal/core/bgp/nlri.RouteDistinguisher. It has no VRF, no PE/CE protocol and no MPLS-VPN forwarding path, so no PE-with-VRF exists here for the rule to reach. A VPN-IPv4 route ze receives is held as an opaque NLRI, with no Route-Target-driven import.</td>
+<td>Any route associated with Route Target T must be distributed to every PE router that has a VRF associated with Route Target T.</td>
+</tr>
+<tr><td><code>4.3.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the PE that assigned the label: when the labeled route is an aggregate, packets arriving from the backbone with that label have their destination addresses looked up in a VRF. It describes a PE forwarding decision, and ze holds no VRF and forwards no labeled packet. The MPLS entries ze does program are RSVP-TE and LDP transport labels, through fibkernel.handleMPLSEntry (internal/plugins/fib/kernel/mpls.go), with no VPN label behind them.</td>
+<td>If R is an aggregate of a set of routes in the VRF, the PE will know that packets from the backbone that arrive with this label must have their destination addresses looked up in a VRF.</td>
+</tr>
+<tr><td><code>4.3.2:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same PE, on the receive side: looking the label up in its Label Information Base tells it which VRF to use. Ze keeps no Label Information Base for VPN labels and no VRF to select. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>When the PE looks up the label in its Label Information Base, it learns which VRF must be used.</td>
+</tr>
+<tr><td><code>4.3.2:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the egress PE under the per-VRF label strategy: on a packet carrying the VRF&#39;s single label it looks the destination address up in that VRF to find the egress attachment circuit and the data link encapsulation. Ze is not an egress PE and terminates no attachment circuit. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>Then when the egress PE receives a packet with that label, it must look up the packet&#39;s IP destination address in that VRF (the packet&#39;s &#34;egress VRF&#34;), in order to determine the packet&#39;s egress attachment circuit and the corresponding data link encapsulation.</td>
+</tr>
+<tr><td><code>4.3.2:6</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the PE managing its VRFs&#39; Import Targets: after a VPN Join adds a new Import Target, the PE acquires the routes it previously discarded, which the section says can be done with the refresh mechanism of RFC 2918. Ze holds no VRF and no Import Target set, so no Join can occur. It does implement the mechanism the sentence names, ROUTE-REFRESH per RFC 2918 (rfc/short/rfc2918.md), which is a separate obligation and is discharged there. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>If a new Import Target is later added to one of the PE&#39;s VRFs (a &#34;VPN Join&#34; operation), it must then acquire the routes it may previously have discarded.</td>
+</tr>
+<tr><td><code>4.3.3:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the VPN-partitioning route reflector of method 2: one that tracks the set of Route Targets carried by its clients&#39; routes and derives its inbound route filtering from that set, and so must issue BGP Refresh to the other route reflectors when the set gains a Route Target and it does not use ORFs. Ze&#39;s route reflector (internal/component/bgp/plugins/rr) reflects routes without maintaining a VPN Route Target set, so there is no set whose change triggers this. As with site 4.3.2:6, ze does implement the ROUTE-REFRESH message the sentence names.</td>
+<td>If the route reflector doesn&#39;t use ORFs, and a new Route Target is added to the set, the route reflector, after changing its inbound route filtering, must issue BGP Refresh to other route reflectors.</td>
+</tr>
+<tr><td><code>4.3.4:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation belongs to RFC 4760, which this document cites as [BGP-MP] and which the sentence itself defers to: &#39;This is done as specified in [BGP-MP], by using capability code 1 (multiprotocol BGP), with an AFI of 1 and an SAFI of 128.&#39; RFC 4760 section 8 is what binds a speaker to advertise the Multiprotocol capability for an AFI/SAFI pair, and rfc/short/rfc4760.md carries it as RFC4760-8-1 at [MUST], where ze implements it. This sentence applies that mechanism to AFI 1 with SAFI 128 and adds no obligation of its own.</td>
+<td>In order for two BGP speakers to exchange labeled VPN-IPv4 NLRI, they must use BGP Capabilities Advertisement to ensure that they both are capable of properly processing such NLRI.</td>
+</tr>
+<tr><td><code>5:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the modal states what NECESSARILY FOLLOWS, not what anyone owes. Given that the packet&#39;s next hop is not reached over a VRF attachment circuit of this PE, the packet travels at least one hop through the backbone, which is why the next sentences give it a BGP Next Hop and a VPN route label. The forwarding obligation itself is site 5:2.</td>
+<td>If the packet&#39;s next hop is NOT reached through a VRF attachment circuit, then the packet must travel at least one hop through the backbone.</td>
+</tr>
+<tr><td><code>5:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the ingress PE forwarding path: having turned the IP packet into an MPLS packet carrying the VPN route label, it tunnels the packet to the BGP Next Hop. ze is not a BGP/MPLS L3VPN Provider Edge: its RFC 4364 surface is the control-plane VPN-IPv4/VPN-IPv6 (SAFI 128) NLRI codec of internal/component/bgp/plugins/nlri/vpn (ParseVPN decodes the Route Distinguisher, the label stack and the prefix, WriteTo and EncodeRoute build them, and the plugin registers both families in decode mode) over the Route Distinguisher type 0/1/2 layout of internal/core/bgp/nlri.RouteDistinguisher. It has no VRF, no PE/CE protocol and no MPLS-VPN forwarding path, so it imposes no VPN route label and tunnels no customer packet.</td>
+<td>The packet must then be tunneled to the BGP Next Hop.</td>
+</tr>
+<tr><td><code>5:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates the LDP interoperability obligation of section 4.3.2 in the forwarding section: &#39;To ensure interoperability among different implementations, it is required to support LDP for setting up the label switched paths across the backbone.&#39; Site 4.3.2:4 maps that obligation to RFC4364-4.3.2-1, and this sentence adds only that other methods of setting up the label switched paths remain possible.</td>
+<td>To ensure interoperability among different implementations, it is required to support LDP for setting up the label switched paths across the backbone.</td>
+</tr>
+<tr><td><code>5:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the modal sits in a relative clause naming a KIND of tunnel, and the sentence is a compatibility statement. Having listed four things the specification DOES NOT require of its tunnels, it adds that it is nonetheless compatible with point-to-point tunnels &#39;that must be explicitly configured and/or signaled&#39;. Nothing is required of an implementation.</td>
+<td>Of course, this specification is compatible with the use of point- to-point tunnels that must be explicitly configured and/or signaled, and in some situations there may be reasons for using such tunnels.</td>
+</tr>
+<tr><td><code>6:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the backbone border router when the tunneling technology is not MPLS: it filters so an MPLS-in-IP or MPLS-in-GRE packet enters the backbone only when its IP destination address will send it back out. Ze operates no VPN backbone edge and accepts no MPLS-in-IP or MPLS-in-GRE packet; it has no MPLS-VPN forwarding path at all. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>If MPLS is not being used as the tunneling technology, then filtering must be done to ensure that an MPLS-in-IP or MPLS-in-GRE packet can be accepted into the backbone only if the packet&#39;s IP destination address will cause it to be sent outside the backbone.</td>
+</tr>
+<tr><td><code>7:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the PE/CE RIP session: when RIP is configured in the CE, prefixes the CE learned from the PE are never advertised back to it. Ze implements no PE/CE routing protocol and runs no RIP at all, so it is neither end of this session. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>When RIP is configured in the CE, care must be taken to ensure that address prefixes from other sites (i.e., address prefixes learned by the CE router from the PE router) are never advertised to the PE.</td>
+</tr>
+<tr><td><code>7:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same PE/CE route distribution, stated precisely: a route the PE derived from a VPN-IPv4 route and gave to a CE is not distributed back from that site to a PE unless that PE maps it to a VPN-IPv4 route with a different RD. Ze converts no VPN-IPv4 route into a CE route and holds no VRF in which the loop could form. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>More precisely: if a PE router, say, PE1, receives a VPN-IPv4 route R1, and as a result distributes an IPv4 route R2 to a CE, then R2 must not be distributed back from that CE&#39;s site to a PE router, say, PE2, (where PE1 and PE2 may be the same router or different routers), unless PE2 maps R2 to a VPN-IPv4 route that is different than (i.e., contains a different RD than) R1. 3.</td>
+</tr>
+<tr><td><code>7:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the PE that is an OSPF peer of CE routers in distinct VPNs: it runs multiple instances of OSPF. Ze implements OSPF (internal/plugins/ospf), but not as a PE/CE protocol: it has no VRF, no per-VPN OSPF instance and no VPN-IPv4 redistribution between OSPF and BGP, so it never plays the PE end of a PE/CE OSPF session.</td>
+<td>If a PE router is an OSPF peer of CE routers that are in distinct VPNs, the PE must of course be running multiple instances of OSPF.</td>
+</tr>
+<tr><td><code>7:4</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the PE redistributing a route learned from a site: before it does, it assigns a Route Target attribute to the route, and it may assign a Site of Origin attribute. Ze performs no such redistribution, because there is no VRF to learn a site&#39;s routes into. Attaching a Route Target extended community to a route ze originates is operator-driven configuration (internal/component/bgp/config, the extended-community parser), not a PE&#39;s conversion of a CE route.</td>
+<td>Before a PE can redistribute a VPN-IPv4 route learned from a site, it must assign a Route Target attribute (see Section 4.3.1) to the route, and it may assign a Site of Origin attribute to the route.</td>
+</tr>
+<tr><td><code>8:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the PE distributing routes to a CE: a route whose Site of Origin attribute identifies a site is never redistributed to any CE at that site. Ze distributes no route to a CE and holds no VRF from which to do so. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>(For example, if a particular PE/CE protocol has &#34;split horizon&#34;, certain routes in the VRF cannot be redistributed back to the CE.) We add one more restriction on the distribution of routes from PE to CE: if a route&#39;s Site of Origin attribute identifies a particular site, that route must never be redistributed to any CE at that site.</td>
+</tr>
+<tr><td><code>9:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the carriers&#39; carrier PE distributing labels to its CE routers: it does not give the same label to two different CEs unless they share exactly the same set of VRFs, or it keeps a separate Incoming Label Map per CE. Ze distributes no per-CE labels and keeps no Incoming Label Map. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>The PE must not distribute the same label to two different CEs unless one of the following conditions holds:</td>
+</tr>
+<tr><td><code>9:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same carriers&#39; carrier PE on the data path: on a labeled packet from a CE it verifies that the top label is one it distributed to that CE. Ze receives no labeled customer packet; MPLS packets are handled by the kernel AF_MPLS datapath or by VPP, which ze programs but does not sit in. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>Further, when the PE receives a labeled packet from a CE, it must verify that the top label is one that was distributed to that CE.</td>
+</tr>
+<tr><td><code>9:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the CE routers of a carriers&#39; carrier VPN: all the external routes are known to them, because they are the routers that resolve a packet&#39;s destination to an internal BGP next hop and label it. Ze is not a CE router in such a VPN. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>- All the external routes must be known to the CE routers.</td>
+</tr>
+<tr><td><code>9:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the sentence RELAXES a requirement rather than stating one. When every router at a VPN site supports MPLS, &#39;it is no longer required that the CE routers know all the external routes&#39;, and the next sentence says what is required instead, which is site 9:5.</td>
+<td>If, on the other hand, all the routers at a particular VPN site support MPLS, then it is no longer required that the CE routers know all the external routes.</td>
+</tr>
+<tr><td><code>9:5</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds whichever routers at the customer&#39;s site impose the label stack on a hitherto unlabeled packet, and the label switched path from them to their BGP peers at other sites. Ze is not a router of a carriers&#39; carrier customer site and imposes no VPN label stack. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>All that is required is that the external routes be known to whatever routers are responsible for putting the label stack on a hitherto unlabeled packet and that there be label switched path that leads from those routers to their BGP peers at other sites.</td>
+</tr>
+<tr><td><code>9:6</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the CE router of the carriers&#39; carrier customer in that same case: for each internal route it distributes to a PE router it also distributes a label. Ze plays no CE role and distributes no labels with its routes on any PE/CE session. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>In this case, for each internal route that a CE router distributes to a PE router, it must also distribute a label.</td>
+</tr>
+<tr><td><code>10:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the Service Providers whose ASes the label switched path crosses: the appropriate trust relationships exist between and among them. It is an inter-provider business arrangement, and the sentence directs no protocol behavior. Ze is a daemon, not a party to an SP agreement. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>Hence the appropriate trust relationships must exist between and among the set of ASes along the path.</td>
+</tr>
+<tr><td><code>10:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same set of Service Providers: they agree which border routers receive routes with which Route Targets. It is an inter-provider agreement rather than an implementation obligation. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>Also, there must be agreement among the set of SPs as to which border routers need to receive routes with which Route Targets.</td>
+</tr>
+<tr><td><code>10:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the inter-AS VPN ASBR of method (c): it maintains labeled IPv4 /32 routes to the PE routers of its own AS and distributes them by EBGP, which builds the label switched path between the ingress and egress PEs. Ze is not a VPN ASBR: it originates no labeled /32 routes for PE loopbacks and takes no part in inter-provider VPN label stacking. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>An ASBR must maintain labeled IPv4 /32 routes to the PE routers within its AS.</td>
+</tr>
+<tr><td><code>11:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the ISP that gives a VPN site its Internet access: it distributes to the Internet the routes leading to the addresses inside the VPN, which the section says is completely independent of the route distribution procedures of this document. Ze provides no Internet gateway for a VPN and holds no VPN address space to announce. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>In order to properly handle traffic from the Internet, the ISP must distribute, to the Internet, routes leading to addresses that are within the VPN.</td>
+</tr>
+<tr><td><code>11:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the PE offering VRF Internet access: some of the VRF&#39;s routes are exported into the Internet forwarding table so traffic can flow natively from the Internet to the VRF interface. Ze holds neither a VRF nor a per-PE default forwarding table to export between. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>In order for traffic to flow natively in the opposite direction (from Internet to VRF interface), some of the routes from the VRF must be exported to the Internet forwarding table.</td>
+</tr>
+<tr><td><code>11:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same PE and the operator configuring it: any route exported from a VRF to the Internet forwarding table corresponds to a globally unique address. Ze exports nothing between a VRF and an Internet table, having neither. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>Needless to say, any such routes must correspond to globally unique addresses.</td>
+</tr>
+<tr><td><code>13.1:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation belongs to RFC 4023, &#39;Encapsulating MPLS in IP or Generic Routing Encapsulation (GRE)&#39;, which this document cites as [MPLS-in-IP-GRE] and which the sentence points at by section: &#39;the security considerations described in Section 8 of that document must be fully understood&#39;. It directs a reader to another document&#39;s analysis and states no requirement of its own. The two obligations this section does state about those tunnels are sites 13.1:2 and 13.1:3, mapped below.</td>
+<td>If it is desired to use such tunnels to carry VPN packets, then the security considerations described in Section 8 of that document must be fully understood.</td>
+</tr>
+<tr><td><code>13.1:4</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the SP deploying a PE whose LAN interface carries several CE routers: either every CE on the LAN belongs to one VPN, or a trusted and secured LAN switch splits it into per-VPN VLANs and tags each packet before it reaches the PE. It constrains the access network and the switch in it, and ze operates neither. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4364 code, the VPN NLRI codec `internal/component/bgp/plugins/nlri/vpn/vpn.go`, which decodes and encodes the route and nothing else: the tree holds no VRF, no attachment circuit, no PE-to-CE label distribution and no VPN forwarding path for the role to inhabit.</td>
+<td>In the case where a number of CE routers attach to a PE router via a LAN interface, to ensure proper security, one of the following conditions must hold:</td>
+</tr>
+<tr><td><code>15:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the sentence states that something is NOT required. It is the scalability summary&#39;s conclusion about route reflectors, that partitioning them among VPNs leaves no single one holding routes for all VPNs, and it directs nobody.</td>
+<td>Thus, no single route reflector is required to maintain routes for all VPNs.</td>
+</tr>
+<tr><td><code>15:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the same negative form for ASBRs. Partitioning the ASBRs that maintain and distribute VPN-IPv4 routes leaves no single ASBR holding routes for all the inter-provider VPNs, and if multi-hop EBGP is used the ASBRs need not maintain those routes at all.</td>
+<td>For inter-provider VPNs, if the ASBRs maintain and distribute VPN- IPv4 routes, then the ASBRs can be partitioned among VPNs in a similar manner, with the result that no single ASBR is required to maintain routes for all the inter-provider VPNs.</td>
+</tr>
+<tr><td><code>20:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: this is the IETF&#39;s standard Intellectual Property boilerplate, which the derived section span carries into section 20 after the Informative References. The sentence invites interested parties to disclose patent rights to the IETF, and its &#39;may be required to implement this standard&#39; describes what a patent might cover rather than requiring anything of an implementation.</td>
+<td>The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 4364, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

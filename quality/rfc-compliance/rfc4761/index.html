@@ -1,0 +1,1158 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>RFC 4761 requirement ledger - Ze</title>
+        <meta name="description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:title" content="RFC 4761 requirement ledger - Ze" />
+        <meta property="og:description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="RFC 4761 requirement ledger - Ze" />
+        <meta name="twitter:description" content="RFC 4761: Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling. 18 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/quality/rfc-compliance/rfc4761/" />
+        <meta property="og:url" content="https://ze-software.net/quality/rfc-compliance/rfc4761/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+            <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Supported</span>
+    <h1 id="rfc-detail-title">RFC 4761 - Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling</h1>
+    <p>Every requirement this repository extracted from RFC 4761, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.</p>
+</div>
+<style>
+.rfc-table-wrap { overflow-x: auto; }
+.rfc-id-list { margin: .6rem 0; line-height: 1.9; }
+.rfc-verdict { margin: 1rem 0 1.6rem; padding: 1rem 1.2rem; border-radius: 18px; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-verdict p { margin: 0 0 .4rem; color: var(--muted); }
+.rfc-verdict p:last-child { margin-bottom: 0; }
+.rfc-verdict span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-verdict strong { display: block; margin: .2rem 0 .5rem; font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1; color: var(--text); }
+.rfc-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); grid-auto-rows: 1fr; gap: 1rem; margin: 1.25rem 0 .8rem; }
+.rfc-card { display: flex; flex-direction: column; border-radius: 18px; padding: 1rem 1.1rem; background: var(--panel-strong); border: 1px solid var(--line); box-shadow: 0 1rem 2rem -1.6rem var(--shadow); }
+.rfc-card span { display: block; color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.rfc-card strong { display: block; margin: .3rem 0 .15rem; font-size: clamp(1.75rem, 4vw, 2.55rem); line-height: 1; color: var(--text); }
+.rfc-card b { display: block; margin: 0 0 .5rem; color: var(--text); font-size: .9rem; font-weight: 700; }
+.rfc-card p { margin: auto 0 0; padding-top: .35rem; color: var(--muted); font-size: .92rem; }
+.rfc-ok { border-left: 7px solid var(--teal-base); }
+.rfc-neutral { border-left: 7px solid var(--line-strong); }
+.rfc-warn { border-left: 7px solid var(--gold-base); }
+.rfc-bad { border-left: 7px solid var(--danger-deep); }
+.rfc-tape { display: flex; height: 1.5rem; margin: 1rem 0 .8rem; overflow: hidden; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--panel); box-shadow: inset 0 0 0 1px rgba(255,255,255,.75); }
+.rfc-tape span { width: var(--w); min-width: 0; display: block; }
+.rfc-tape-key { display: flex; flex-wrap: wrap; gap: .35rem 1.4rem; margin: 0 0 1.4rem; padding: 0; list-style: none; font-size: .92rem; }
+.rfc-tape-key li { display: flex; align-items: center; gap: .45rem; }
+.rfc-swatch { display: inline-block; width: .85rem; height: .85rem; border-radius: .25rem; border: 1px solid var(--line-strong); vertical-align: -.1rem; }
+.rfc-tape-both_polarities { background: var(--teal-chip); }
+.rfc-tape-single_polarity { background: var(--sky-chip); }
+.rfc-tape-not_applicable { background: var(--grape-chip); }
+.rfc-tape-gap { background: var(--gold-chip); }
+.rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
+.rfc-tape-missing_unexcused { background: var(--danger-deep); }
+.rfc-swatch.rfc-ok { background: var(--teal-base); }
+.rfc-swatch.rfc-neutral { background: var(--line-strong); }
+.rfc-swatch.rfc-warn { background: var(--gold-base); }
+.rfc-swatch.rfc-bad { background: var(--danger-deep); }
+.rfc-total td { border-top: 2px solid var(--line-strong); }
+.rfc-prose { max-width: 46rem; }
+ul.rfc-prose { margin: .5rem 0 1rem; padding-left: 1.2rem; }
+ul.rfc-prose li { margin: .35rem 0; line-height: 1.6; }
+p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
+.rfc-fold { margin: .6rem 0; }
+.rfc-fold > summary { cursor: pointer; font-weight: 700; }
+.rfc-span > td { padding-bottom: .2rem; border-bottom: 0; }
+.rfc-table td:first-child { font-weight: 400; }
+.rfc-table .rfc-span > td { padding-top: .9rem; }
+.rfc-subject-id { white-space: nowrap; vertical-align: top; }
+.rfc-subject { display: block; max-width: 52rem; }
+.rfc-tests { display: grid; gap: .15rem .8rem; }
+.rfc-tests-row { display: grid; grid-template-columns: 5rem 9.5rem minmax(0, 1fr); gap: .8rem; align-items: baseline; }
+.rfc-tests-row > span:first-child { color: var(--muted); font-size: .88rem; }
+.rfc-mark { margin: .45rem 0 0; color: var(--muted); max-width: 52rem; }
+@media (max-width: 760px) {
+  .rfc-tests-row { grid-template-columns: 1fr; gap: 0; padding-bottom: .35rem; }
+}
+.rfc-text > summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.rfc-text > p { margin: .35rem 0 0; max-width: 44rem; }
+.rfc-note-box { margin: 1rem 0; padding: 1rem 1.2rem; border-radius: 16px; background: var(--gold-tint); border: 1px solid var(--gold-chip); }
+.rfc-note-box h3 { margin-top: 0; }
+.rfc-note-box ul { margin-bottom: 0; }
+.rfc-check-ok strong { color: var(--teal-deep); }
+.rfc-check-bad strong { color: var(--danger-deep); }
+</style>
+<section><h2>Overview</h2>
+<h3>Positive</h3>
+<p>what Ze has</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 0 binding obligations</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+</div>
+<h3>Neutral</h3>
+<p>measures that are neither good news nor bad</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>18</strong><b>of 27 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>18</strong><b>of 18 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze. Scope, not coverage: it is in no share below</p></article>
+</div>
+<p>No card above is a share of a population, so there is nothing to add up.</p>
+<details class="rfc-fold"><summary>How to read the colors</summary>
+<p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Card</th><th>Tone here</th><th>Why that color</th></tr></thead>
+<tbody>
+<tr><td>Gated MUSTs</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total</td>
+</tr>
+<tr><td>Out of scope</td>
+<td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
+<td>no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim</td>
+</tr>
+<tr><td>Tested both ways</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got</td>
+</tr>
+<tr><td>One polarity plus reason</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it</td>
+</tr>
+<tr><td>One polarity, unexcused</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+</tr>
+<tr><td>No test at all</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
+</tr>
+<tr><td>Proven by a recorded break</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td>green at every value: an observed break is the outcome the discrimination gate exists to produce. The denominator is TAGGED UNITS, not obligations, so this share is not one of the parts above</td>
+</tr>
+<tr><td>Audit verdicts</td>
+<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a gated MUST is unjudged, green when every one is judged sound and current</td>
+</tr>
+</tbody>
+</table>
+</div>
+</details>
+</section>
+<section><h2>At a glance</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Public status</td>
+<td>Supported</td>
+</tr>
+<tr><td>Enrolment</td>
+<td>Enrolled</td>
+</tr>
+<tr><td>Requirements</td>
+<td>27</td>
+</tr>
+<tr><td>Gated MUST-level</td>
+<td>18</td>
+</tr>
+<tr><td>Obligations that bind Ze</td>
+<td>0</td>
+</tr>
+<tr><td>Not applicable, so out of scope</td>
+<td>18</td>
+</tr>
+<tr><td>Declared gaps</td>
+<td>0</td>
+</tr>
+<tr><td>Gated with no test</td>
+<td>0</td>
+</tr>
+<tr><td>Nightly-only evidence</td>
+<td>0</td>
+</tr>
+<tr><td>Test tags</td>
+<td>0</td>
+</tr>
+<tr><td>Tagged units</td>
+<td>0</td>
+</tr>
+<tr><td>Recorded audit verdicts</td>
+<td>0</td>
+</tr>
+<tr><td>Discrimination records</td>
+<td>0</td>
+</tr>
+<tr><td>Summary</td>
+<td><code>rfc/short/rfc4761.md</code></td>
+</tr>
+<tr><td>Requirement shard</td>
+<td><code>rfc/requirements/rfc4761.md</code></td>
+</tr>
+<tr><td>RFC text</td>
+<td><code>rfc/full/rfc4761.txt</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Enrolment</h2>
+<p>Enrolled: Virtual Private LAN Service / VPLS Using BGP (RFC 4761): all 18 gated MUSTs not-applicable. ze is not a VPLS PE -- its RFC 4761 support is a decode-mode L2VPN/VPLS (AFI 25, SAFI 65) NLRI codec (internal/component/bgp/plugins/nlri/vpls/) plus an operator-driven Layer2 Info ext-community passthrough; no VSI, no pseudowire signaling, no MAC FIB, received L2VPN routes stored as opaque raw NLRI blobs (adj_rib_in/rib.go). The gated MUSTs are all VPLS-PE control-plane signaling and data-plane forwarding duties ze does not perform. Same delegation pattern as enrolled RFC 4364</p>
+</section>
+<section><h2>What the public ledger says</h2>
+<p><strong>Status:</strong> Supported</p>
+<p><strong>What the ledger says is covered:</strong></p>
+L2VPN VPLS family registration, encode, decode, and route config.
+<p><strong>What the ledger says remains:</strong></p>
+No tracked gap in current source anchors.
+</section>
+<section><h2>Coverage</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
+<tbody>
+<tr><td>Positive and negative tests</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Annotated instead of tested</td>
+<td><strong>18</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>One polarity only</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>No test and no annotation</td>
+<td><strong>0</strong></td>
+<td>one part of the gated population</td>
+</tr>
+<tr><td>Evidence that runs nightly only</td>
+<td><strong>0</strong></td>
+<td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>18</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+</tbody>
+</table>
+</div>
+<p class="rfc-id-list"><strong>Annotated instead of tested (18):</strong> <a href="#rfc4761-2.3-1"><code>RFC4761-2.3-1</code></a>, <a href="#rfc4761-3.2.4-1"><code>RFC4761-3.2.4-1</code></a>, <a href="#rfc4761-3.2.4-2"><code>RFC4761-3.2.4-2</code></a>, <a href="#rfc4761-3.2.4-3"><code>RFC4761-3.2.4-3</code></a>, <a href="#rfc4761-3.2.4-4"><code>RFC4761-3.2.4-4</code></a>, <a href="#rfc4761-3.2.4-5"><code>RFC4761-3.2.4-5</code></a>, <a href="#rfc4761-3.2.4-6"><code>RFC4761-3.2.4-6</code></a>, <a href="#rfc4761-3.2.3-1"><code>RFC4761-3.2.3-1</code></a>, <a href="#rfc4761-3.2.3-2"><code>RFC4761-3.2.3-2</code></a>, <a href="#rfc4761-3.3-1"><code>RFC4761-3.3-1</code></a>, <a href="#rfc4761-3.4.2-1"><code>RFC4761-3.4.2-1</code></a>, <a href="#rfc4761-3.5-1"><code>RFC4761-3.5-1</code></a>, <a href="#rfc4761-3.5-2"><code>RFC4761-3.5-2</code></a>, <a href="#rfc4761-4.2.1-1"><code>RFC4761-4.2.1-1</code></a>, <a href="#rfc4761-4.2.2-1"><code>RFC4761-4.2.2-1</code></a>, <a href="#rfc4761-4.2.5-1"><code>RFC4761-4.2.5-1</code></a>, <a href="#rfc4761-6-1"><code>RFC4761-6-1</code></a>, <a href="#rfc4761-6-2"><code>RFC4761-6-2</code></a></p>
+</section>
+<section><h2>Requirements</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
+<tbody>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-2.3-1">RFC4761-2.3-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MUST maintain a separate routing storage for each service (Section 2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3 - Interactions</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> maintaining a separate routing/forwarding store per VPLS service is a VPLS-PE VSI duty; ze is not a VPLS PE: its RFC 4761 support is a control-plane L2VPN/VPLS (AFI 25, SAFI 65) NLRI codec (internal/component/bgp/plugins/nlri/vpls/vpls.go:45 Mode decode; types.go:82 ParseVPLS, types.go:163 WriteTo) plus route-injection encoders, with no VPLS instance (VSI), no pseudowire signaling, no MAC FIB, and no VPLS forwarding data path, so there is no per-service VSI store to maintain</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-1">RFC4761-3.2.4-1</code></td><td colspan="3"><span class="rfc-subject">MBZ bits in Control Flags MUST be set to zero when sending (Section 3.2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2.4 - Signaling PE Capabilities</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.2.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> signalling the Layer2 Info Extended Community (0x800A) Control Flags is a duty of a VPLS PE originating auto-discovery; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW signaling), and the only l2info code is an operator-driven raw ext-community encoder that packs the supplied control byte verbatim (internal/component/bgp/config/routeattr_community.go:283-305 parseL2InfoExtCommunity), not a PE Control-Flags sender, so ze originates no VPLS Control Flags whose MBZ bits it must zero</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-2">RFC4761-3.2.4-2</code></td><td colspan="3"><span class="rfc-subject">MBZ bits in Control Flags MUST be ignored when receiving (Section 3.2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2.4 - Signaling PE Capabilities</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.2.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ignoring MBZ bits on receipt of the Layer2 Info Control Flags is a VPLS-PE receive duty; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW state) and has no Layer2 Info decoder, so no MBZ-on-receive processing exists to exercise</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-3">RFC4761-3.2.4-3</code></td><td colspan="3"><span class="rfc-subject">When C flag is 1, a Control Word MUST be present when sending VPLS packets to that PE (Section 3.2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2.4 - Signaling PE Capabilities</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.2.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> inserting a Control Word into VPLS packets when the C flag is 1 is a pseudowire data-plane encapsulation choice; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW signaling, no VPLS forwarding data path), so it sends no VPLS packets and the C-flag data-plane obligation has no host</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-4">RFC4761-3.2.4-4</code></td><td colspan="3"><span class="rfc-subject">When C flag is 0, a Control Word MUST NOT be present when sending VPLS packets to that PE (Section 3.2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2.4 - Signaling PE Capabilities</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.2.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> omitting the Control Word from VPLS packets when the C flag is 0 is a pseudowire data-plane choice; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it sends no VPLS packets to constrain</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-5">RFC4761-3.2.4-5</code></td><td colspan="3"><span class="rfc-subject">When S flag is 1, sequenced delivery of frames MUST be used when sending VPLS packets to that PE (Section 3.2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2.4 - Signaling PE Capabilities</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.2.4-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> using sequenced delivery for VPLS packets when the S flag is 1 is a pseudowire data-plane behavior; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it delivers no VPLS packets</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.4-6">RFC4761-3.2.4-6</code></td><td colspan="3"><span class="rfc-subject">When S flag is 0, sequenced delivery MUST NOT be used when sending VPLS packets to that PE (Section 3.2.4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.2.4 - Signaling PE Capabilities</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.2.4-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> refraining from sequenced delivery when the S flag is 0 is a pseudowire data-plane behavior; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it delivers no VPLS packets</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.3-1">RFC4761-3.2.3-1</code></td><td colspan="3"><span class="rfc-subject">If announcing PE&#39;s VE ID is not covered by any remote VE set that PE-b announced, PE-b MUST make a new announcement covering it (Section 3.2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2.3 - PW Setup and Teardown</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> computing and announcing a new label block to cover a peer&#39;s VE ID is VPLS-PE auto-discovery signaling; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI), and runs no label-block allocation or pseudowire-setup algorithm</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.2.3-2">RFC4761-3.2.3-2</code></td><td colspan="3"><span class="rfc-subject">If Y withdraws an NLRI for V that X was using, X MUST tear down its ends of the pseudowire between X and Y (Section 3.2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2.3 - PW Setup and Teardown</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.2.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> tearing down pseudowire ends when a peer withdraws its NLRI is a VPLS-PE data-plane action; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it establishes and tears down no pseudowires</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.3-1">RFC4761-3.3-1</code></td><td colspan="3"><span class="rfc-subject">PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V when V is removed from configuration (Section 3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3 - BGP VPLS Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> withdrawing a PE&#39;s own VPLS announcements when a VE ID leaves the VSI configuration is a VPLS-PE lifecycle duty; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45), and has no VSI/VE configuration model that originates or withdraws such announcements</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.4.2-1">RFC4761-3.4.2-1</code></td><td colspan="3"><span class="rfc-subject">Inter-AS Method (b): Length, Route Distinguisher, VE ID, VE Block Offset, and VE Block Size MUST be the same when ASBR re-advertises (Section 3.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> re-advertising a VPLS NLRI with unchanged Length/RD/VE-ID/VE-Block-Offset/VE-Block-Size while swapping labels is a VPLS ASBR duty (Inter-AS option b); ze is not a VPLS PE or ASBR (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), and performs no VPLS ASBR label-swap re-advertisement</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.5-1">RFC4761-3.5-1</code></td><td colspan="3"><span class="rfc-subject">When receiving equivalent NLRIs from multiple PEs, MUST pick only one via BGP path selection (Section 3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5 - Multi-homing and Path Selection</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> selecting exactly one among equivalent VPLS NLRIs (same RD, VE ID, VE Block Offset) for pseudowire setup is a VPLS-PE control duty; ze is not a VPLS PE: received L2VPN routes are stored as opaque raw NLRI blobs (internal/component/bgp/plugins/adj_rib_in/rib.go:850-851), with no VPLS-specific equivalence or best-path over the (RD, VE ID, VBO) tuple, and no VSI to install a chosen pseudowire</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.5-2">RFC4761-3.5-2</code></td><td colspan="3"><span class="rfc-subject">If two PEs are assigned the same VE ID in a given VPLS, they MUST use the same Route Distinguisher (Section 3.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.5 - Multi-homing and Path Selection</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> the same-VE-ID-implies-same-RD rule binds VPLS-PE provisioning; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI), provisions no VPLS VE identities, and holds no VE-ID-to-RD assignment to constrain</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.1-1">RFC4761-4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When a VE learns a source MAC address S on port P and later sees S on a different port P&#39;, the VE MUST update its FIB to reflect the new port (Section 4.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.1 - MAC Address Learning</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-4.2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> updating the FIB when a source MAC moves to a new port is VPLS-PE data-plane bridging; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no MAC FIB), so it performs no MAC learning or L2 forwarding</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.2-1">RFC4761-4.2.2-1</code></td><td colspan="3"><span class="rfc-subject">If the age of source MAC S exceeds aging time T, S MUST be flushed from the FIB (Section 4.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.2 - Aging</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-4.2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> flushing an aged-out source MAC from the FIB is VPLS-PE data-plane bridging; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45), and maintains no MAC FIB to age</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.5-1">RFC4761-4.2.5-1</code></td><td colspan="3"><span class="rfc-subject">For split horizon: PE MUST NOT send frames received from another PE to other PEs (Section 4.2.5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.2.5 - &#39;Split Horizon&#39; Forwarding</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-4.2.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> split-horizon flooding (never sending a PE-sourced frame back to other PEs) is VPLS-PE data-plane forwarding; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VPLS forwarding data path), so it floods no VPLS frames</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-6-1">RFC4761-6-1</code></td><td colspan="3"><span class="rfc-subject">Any implementation using MPLS-in-IP/GRE tunnels for VPLS MUST contain an IPsec implementation (Section 6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6 - Security Considerations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it tunnels no VPLS packets over MPLS-in-IP/GRE and the must-contain-IPsec trigger never fires (the IKE/IPsec engine in internal/component/ike is unrelated to VPLS tunneling)</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-6-2">RFC4761-6-2</code></td><td colspan="3"><span class="rfc-subject">If not using IPsec, implementation MUST allow egress PE to validate the IP source address of any tunneled packet (Section 6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6 - Security Considerations</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> validating the IP source address of a tunneled VPLS packet is an egress-PE data-plane check; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VPLS forwarding data path), so there is no MPLS-in-IP/GRE VPLS data path at an egress PE to validate a packet&#39;s source</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.3-2">RFC4761-3.3-2</code></td><td colspan="3"><span class="rfc-subject">When all CE links go down, PE SHOULD either withdraw all NLRIs or signal unavailability (Section 3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.3 - BGP VPLS Operation</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-3.5-3">RFC4761-3.5-3</code></td><td colspan="3"><span class="rfc-subject">Multi-homed PEs with same VE ID SHOULD announce the same VE Block Size for a given VE Offset (Section 3.5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>3.5 - Multi-homing and Path Selection</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-3.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.2-2">RFC4761-4.2.2-2</code></td><td colspan="3"><span class="rfc-subject">VPLS PEs SHOULD have an aging mechanism to remove MAC addresses (Section 4.2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2.2 - Aging</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-4.2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.2-3">RFC4761-4.2.2-3</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD provide a configurable knob to set the aging time T on a per-VPLS basis (Section 4.2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2.2 - Aging</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-4.2.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.7-1">RFC4761-4.2.7-1</code></td><td colspan="3"><span class="rfc-subject">An implementation SHOULD allow the 802.1p to EXP mapping function to be different for each VPLS (Section 4.2.7)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.2.7 - Class of Service</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-4.2.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.1-2">RFC4761-4.2.1-2</code></td><td colspan="3"><span class="rfc-subject">A VE MAY implement a mechanism to damp flapping of source ports for a given MAC address (Section 4.2.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2.1 - MAC Address Learning</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-4.2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.2-4">RFC4761-4.2.2-4</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY accelerate aging of all MAC addresses on topology change (Section 4.2.2)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2.2 - Aging</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-4.2.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.4-1">RFC4761-4.2.4-1</code></td><td colspan="3"><span class="rfc-subject">A VE MAY use techniques to restrict multicast frame transmission to a smaller set of receivers (Section 4.2.4)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2.4 - Broadcast and Multicast</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-4.2.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4761-4.2.7-2">RFC4761-4.2.7-2</code></td><td colspan="3"><span class="rfc-subject">An implementation MAY choose to map 802.1p bits to EXP bits for Class of Service (Section 4.2.7)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.2.7 - Class of Service</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4761-4.2.7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Gaps and untested MUSTs</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc4761-2.3-1"><code>RFC4761-2.3-1</code></a> An implementation MUST maintain a separate routing storage for each service (Section 2.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: maintaining a separate routing/forwarding store per VPLS service is a VPLS-PE VSI duty; ze is not a VPLS PE: its RFC 4761 support is a control-plane L2VPN/VPLS (AFI 25, SAFI 65) NLRI codec (internal/component/bgp/plugins/nlri/vpls/vpls.go:45 Mode decode; types.go:82 ParseVPLS, types.go:163 WriteTo) plus route-injection encoders, with no VPLS instance (VSI), no pseudowire signaling, no MAC FIB, and no VPLS forwarding data path, so there is no per-service VSI store to maintain</td>
+</tr>
+<tr><td><a href="#rfc4761-3.2.4-1"><code>RFC4761-3.2.4-1</code></a> MBZ bits in Control Flags MUST be set to zero when sending (Section 3.2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: signalling the Layer2 Info Extended Community (0x800A) Control Flags is a duty of a VPLS PE originating auto-discovery; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW signaling), and the only l2info code is an operator-driven raw ext-community encoder that packs the supplied control byte verbatim (internal/component/bgp/config/routeattr_community.go:283-305 parseL2InfoExtCommunity), not a PE Control-Flags sender, so ze originates no VPLS Control Flags whose MBZ bits it must zero</td>
+</tr>
+<tr><td><a href="#rfc4761-3.2.4-2"><code>RFC4761-3.2.4-2</code></a> MBZ bits in Control Flags MUST be ignored when receiving (Section 3.2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ignoring MBZ bits on receipt of the Layer2 Info Control Flags is a VPLS-PE receive duty; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW state) and has no Layer2 Info decoder, so no MBZ-on-receive processing exists to exercise</td>
+</tr>
+<tr><td><a href="#rfc4761-3.2.4-3"><code>RFC4761-3.2.4-3</code></a> When C flag is 1, a Control Word MUST be present when sending VPLS packets to that PE (Section 3.2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: inserting a Control Word into VPLS packets when the C flag is 1 is a pseudowire data-plane encapsulation choice; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no PW signaling, no VPLS forwarding data path), so it sends no VPLS packets and the C-flag data-plane obligation has no host</td>
+</tr>
+<tr><td><a href="#rfc4761-3.2.4-4"><code>RFC4761-3.2.4-4</code></a> When C flag is 0, a Control Word MUST NOT be present when sending VPLS packets to that PE (Section 3.2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: omitting the Control Word from VPLS packets when the C flag is 0 is a pseudowire data-plane choice; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it sends no VPLS packets to constrain</td>
+</tr>
+<tr><td><a href="#rfc4761-3.2.4-5"><code>RFC4761-3.2.4-5</code></a> When S flag is 1, sequenced delivery of frames MUST be used when sending VPLS packets to that PE (Section 3.2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: using sequenced delivery for VPLS packets when the S flag is 1 is a pseudowire data-plane behavior; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it delivers no VPLS packets</td>
+</tr>
+<tr><td><a href="#rfc4761-3.2.4-6"><code>RFC4761-3.2.4-6</code></a> When S flag is 0, sequenced delivery MUST NOT be used when sending VPLS packets to that PE (Section 3.2.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: refraining from sequenced delivery when the S flag is 0 is a pseudowire data-plane behavior; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it delivers no VPLS packets</td>
+</tr>
+<tr><td><a href="#rfc4761-3.2.3-1"><code>RFC4761-3.2.3-1</code></a> If announcing PE&#39;s VE ID is not covered by any remote VE set that PE-b announced, PE-b MUST make a new announcement covering it (Section 3.2.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: computing and announcing a new label block to cover a peer&#39;s VE ID is VPLS-PE auto-discovery signaling; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI), and runs no label-block allocation or pseudowire-setup algorithm</td>
+</tr>
+<tr><td><a href="#rfc4761-3.2.3-2"><code>RFC4761-3.2.3-2</code></a> If Y withdraws an NLRI for V that X was using, X MUST tear down its ends of the pseudowire between X and Y (Section 3.2.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: tearing down pseudowire ends when a peer withdraws its NLRI is a VPLS-PE data-plane action; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it establishes and tears down no pseudowires</td>
+</tr>
+<tr><td><a href="#rfc4761-3.3-1"><code>RFC4761-3.3-1</code></a> PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V when V is removed from configuration (Section 3.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: withdrawing a PE&#39;s own VPLS announcements when a VE ID leaves the VSI configuration is a VPLS-PE lifecycle duty; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45), and has no VSI/VE configuration model that originates or withdraws such announcements</td>
+</tr>
+<tr><td><a href="#rfc4761-3.4.2-1"><code>RFC4761-3.4.2-1</code></a> Inter-AS Method (b): Length, Route Distinguisher, VE ID, VE Block Offset, and VE Block Size MUST be the same when ASBR re-advertises (Section 3.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: re-advertising a VPLS NLRI with unchanged Length/RD/VE-ID/VE-Block-Offset/VE-Block-Size while swapping labels is a VPLS ASBR duty (Inter-AS option b); ze is not a VPLS PE or ASBR (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), and performs no VPLS ASBR label-swap re-advertisement</td>
+</tr>
+<tr><td><a href="#rfc4761-3.5-1"><code>RFC4761-3.5-1</code></a> When receiving equivalent NLRIs from multiple PEs, MUST pick only one via BGP path selection (Section 3.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: selecting exactly one among equivalent VPLS NLRIs (same RD, VE ID, VE Block Offset) for pseudowire setup is a VPLS-PE control duty; ze is not a VPLS PE: received L2VPN routes are stored as opaque raw NLRI blobs (internal/component/bgp/plugins/adj_rib_in/rib.go:850-851), with no VPLS-specific equivalence or best-path over the (RD, VE ID, VBO) tuple, and no VSI to install a chosen pseudowire</td>
+</tr>
+<tr><td><a href="#rfc4761-3.5-2"><code>RFC4761-3.5-2</code></a> If two PEs are assigned the same VE ID in a given VPLS, they MUST use the same Route Distinguisher (Section 3.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: the same-VE-ID-implies-same-RD rule binds VPLS-PE provisioning; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI), provisions no VPLS VE identities, and holds no VE-ID-to-RD assignment to constrain</td>
+</tr>
+<tr><td><a href="#rfc4761-4.2.1-1"><code>RFC4761-4.2.1-1</code></a> When a VE learns a source MAC address S on port P and later sees S on a different port P&#39;, the VE MUST update its FIB to reflect the new port (Section 4.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: updating the FIB when a source MAC moves to a new port is VPLS-PE data-plane bridging; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no MAC FIB), so it performs no MAC learning or L2 forwarding</td>
+</tr>
+<tr><td><a href="#rfc4761-4.2.2-1"><code>RFC4761-4.2.2-1</code></a> If the age of source MAC S exceeds aging time T, S MUST be flushed from the FIB (Section 4.2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: flushing an aged-out source MAC from the FIB is VPLS-PE data-plane bridging; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45), and maintains no MAC FIB to age</td>
+</tr>
+<tr><td><a href="#rfc4761-4.2.5-1"><code>RFC4761-4.2.5-1</code></a> For split horizon: PE MUST NOT send frames received from another PE to other PEs (Section 4.2.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: split-horizon flooding (never sending a PE-sourced frame back to other PEs) is VPLS-PE data-plane forwarding; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VPLS forwarding data path), so it floods no VPLS frames</td>
+</tr>
+<tr><td><a href="#rfc4761-6-1"><code>RFC4761-6-1</code></a> Any implementation using MPLS-in-IP/GRE tunnels for VPLS MUST contain an IPsec implementation (Section 6)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VSI, no VPLS forwarding data path), so it tunnels no VPLS packets over MPLS-in-IP/GRE and the must-contain-IPsec trigger never fires (the IKE/IPsec engine in internal/component/ike is unrelated to VPLS tunneling)</td>
+</tr>
+<tr><td><a href="#rfc4761-6-2"><code>RFC4761-6-2</code></a> If not using IPsec, implementation MUST allow egress PE to validate the IP source address of any tunneled packet (Section 6)</td>
+<td>no test</td>
+<td>no test carries this requirement id; annotated {not-applicable}: validating the IP source address of a tunneled VPLS packet is an egress-PE data-plane check; ze is not a VPLS PE (control-plane VPLS NLRI codec at internal/component/bgp/plugins/nlri/vpls/vpls.go:45, no VPLS forwarding data path), so there is no MPLS-in-IP/GRE VPLS data path at an egress PE to validate a packet&#39;s source</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Proof state</h2>
+<p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc4761-2.3-1"><code>RFC4761-2.3-1</code></a></h3>
+<p>An implementation MUST maintain a separate routing storage for each service (Section 2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-2.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.2.4-1"><code>RFC4761-3.2.4-1</code></a></h3>
+<p>MBZ bits in Control Flags MUST be set to zero when sending (Section 3.2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.2.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.2.4-2"><code>RFC4761-3.2.4-2</code></a></h3>
+<p>MBZ bits in Control Flags MUST be ignored when receiving (Section 3.2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.2.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.2.4-3"><code>RFC4761-3.2.4-3</code></a></h3>
+<p>When C flag is 1, a Control Word MUST be present when sending VPLS packets to that PE (Section 3.2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.2.4-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.2.4-4"><code>RFC4761-3.2.4-4</code></a></h3>
+<p>When C flag is 0, a Control Word MUST NOT be present when sending VPLS packets to that PE (Section 3.2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.2.4-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.2.4-5"><code>RFC4761-3.2.4-5</code></a></h3>
+<p>When S flag is 1, sequenced delivery of frames MUST be used when sending VPLS packets to that PE (Section 3.2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.2.4-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.2.4-6"><code>RFC4761-3.2.4-6</code></a></h3>
+<p>When S flag is 0, sequenced delivery MUST NOT be used when sending VPLS packets to that PE (Section 3.2.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.2.4-6, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.2.3-1"><code>RFC4761-3.2.3-1</code></a></h3>
+<p>If announcing PE&#39;s VE ID is not covered by any remote VE set that PE-b announced, PE-b MUST make a new announcement covering it (Section 3.2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.2.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.2.3-2"><code>RFC4761-3.2.3-2</code></a></h3>
+<p>If Y withdraws an NLRI for V that X was using, X MUST tear down its ends of the pseudowire between X and Y (Section 3.2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.2.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.3-1"><code>RFC4761-3.3-1</code></a></h3>
+<p>PE-a MUST withdraw all its announcements for VPLS foo that contain VE ID V when V is removed from configuration (Section 3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.4.2-1"><code>RFC4761-3.4.2-1</code></a></h3>
+<p>Inter-AS Method (b): Length, Route Distinguisher, VE ID, VE Block Offset, and VE Block Size MUST be the same when ASBR re-advertises (Section 3.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.5-1"><code>RFC4761-3.5-1</code></a></h3>
+<p>When receiving equivalent NLRIs from multiple PEs, MUST pick only one via BGP path selection (Section 3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-3.5-2"><code>RFC4761-3.5-2</code></a></h3>
+<p>If two PEs are assigned the same VE ID in a given VPLS, they MUST use the same Route Distinguisher (Section 3.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-3.5-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-4.2.1-1"><code>RFC4761-4.2.1-1</code></a></h3>
+<p>When a VE learns a source MAC address S on port P and later sees S on a different port P&#39;, the VE MUST update its FIB to reflect the new port (Section 4.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-4.2.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-4.2.2-1"><code>RFC4761-4.2.2-1</code></a></h3>
+<p>If the age of source MAC S exceeds aging time T, S MUST be flushed from the FIB (Section 4.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-4.2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-4.2.5-1"><code>RFC4761-4.2.5-1</code></a></h3>
+<p>For split horizon: PE MUST NOT send frames received from another PE to other PEs (Section 4.2.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-4.2.5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-6-1"><code>RFC4761-6-1</code></a></h3>
+<p>Any implementation using MPLS-in-IP/GRE tunnels for VPLS MUST contain an IPsec implementation (Section 6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4761-6-2"><code>RFC4761-6-2</code></a></h3>
+<p>If not using IPsec, implementation MUST allow egress PE to validate the IP source address of any tunneled packet (Section 6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4761-6-2, so no unit is bound to it.</p>
+</section>
+<section><h2>Extraction sign-off</h2>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>ze-work agent, spec-rfcgate-6, rfc4761</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-08-31</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc4761.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>26c76afd3dd9f253</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc4761.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>16</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>26</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>Title block, Status of This Memo, Copyright Notice, IESG Note, Abstract and Table of Contents. Walked rather than skipped because the site scan attributes one site here, the Abstract&#39;s statement of what the document describes, excluded below. The IESG Note records that RFC 4762 and this document both perform VPLS in different, incompatible manners.</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>Introduction</td>
+<td>0</td>
+<td>walked</td>
+<td>Introduction. Indicative prose: what a VPLS is, that it glues individual LANs across a packet switched network by MAC learning, flooding and forwarding over pseudowires, what this document adds (auto-discovery and signaling over BGP, and transport of VPLS frames over tunnels), and which alternatives exist, RFC 4762&#39;s LDP-signaled VPLS among them. No directive and no site.</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>Scope of This Document</td>
+<td>1</td>
+<td>walked</td>
+<td>Scope of This Document. A roadmap: the functional model in section 2, the BGP control plane in section 3, the forwarding plane in section 4, the deployment options in section 5. Its one site is the roadmap sentence pointing at section 4 and is excluded below.</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>Conventions Used in This Document</td>
+<td>0</td>
+<td>walked</td>
+<td>Conventions Used in This Document. The RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory.</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>Functional Model</td>
+<td>0</td>
+<td>walked</td>
+<td>Functional Model. One sentence introducing Figure 1, the example VPLS with CEs, PEs, a u-PE and five customer sites. No directive and no site.</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>Terminology</td>
+<td>0</td>
+<td>walked</td>
+<td>Terminology. Defines SP, P, PE, CE, u-PE, VE and demultiplexor, records that PE and u-PE devices are VPLS-aware while a CE is not, and that the demultiplexor in this document is an MPLS label. Definitions, not directives, and no site.</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>Assumptions</td>
+<td>0</td>
+<td>walked</td>
+<td>Assumptions. States the assumptions the rest of the document rests on: a packet switched SP network, PEs logically fully meshed with tunnels established outside this document, flooding and learning private to each SP device, and a bidirectional pseudowire between every pair of PEs in a VPLS. Indicative throughout and no site.</td>
+</tr>
+<tr><td><code>2.3</code></td>
+<td>Interactions</td>
+<td>1</td>
+<td>walked</td>
+<td>Interactions. States what makes VPLS a LAN service, private and virtual, that PE interactions are control-driven rather than data-driven, and that a PE can run VPLS and IP VPNs at once because the two use different AFI/SAFI pairs. Its one capitalised MUST-level site is the separate-routing-storage obligation that follows from that, mapped below to RFC4761-2.3-1.</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>Control Plane</td>
+<td>0</td>
+<td>walked</td>
+<td>Control Plane. One paragraph naming the two control-plane functions, auto-discovery and signaling, and pointing at sections 3.1 to 3.5. No directive and no site.</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>Auto-Discovery</td>
+<td>2</td>
+<td>walked</td>
+<td>Auto-Discovery. Contrasts configuring every PE by hand with discovering them by protocol. Both sites belong to the description of the manual alternative and are excluded below; the paragraph on auto-discovery that follows states what BGP buys and directs nobody.</td>
+</tr>
+<tr><td><code>3.1.1</code></td>
+<td>Functions</td>
+<td>3</td>
+<td>walked</td>
+<td>Functions. States what the discovery function has to provide: a PE must be able to tell the others it is a member of a VPLS, to declare that it no longer participates, and so to have a means of identifying a VPLS and of communicating with all other PEs. All three sites bind the VPLS PE performing auto-discovery and are excluded below.</td>
+</tr>
+<tr><td><code>3.1.2</code></td>
+<td>Protocol Specification</td>
+<td>0</td>
+<td>walked</td>
+<td>Protocol Specification. States that the mechanism uses the Route Target extended community of RFC 4360 to identify VPLS members with RFC 4364&#39;s semantics, that one RT suffices for a fully meshed VPLS, and how a PE announces membership by annotating its NLRIs with that RT and withdraws it by withdrawing them. Indicative throughout and no site.</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>Signaling</td>
+<td>1</td>
+<td>walked</td>
+<td>Signaling. States what signaling is (each pair of PEs establishing and tearing down pseudowires, that is exchanging and withdrawing demultiplexors), what a demultiplexor carries, and why one common Update carrying demultiplexors for every remote PE beats N individual messages. Its one site is the pseudowire-establishment sentence, which binds the VPLS PE and is excluded below.</td>
+</tr>
+<tr><td><code>3.2.1</code></td>
+<td>Label Blocks</td>
+<td>0</td>
+<td>walked</td>
+<td>Label Blocks. Defines a label block as the contiguous set {LB, ..., LB+VBS-1}, extends it with the VE block offset so a block is {LB+VBO, ..., LB+VBO+VBS-1}, and explains how each receiving PE infers its own demultiplexor by adding its VE ID to the label base. Definitions, not directives, and no site.</td>
+</tr>
+<tr><td><code>3.2.2</code></td>
+<td>VPLS BGP NLRI</td>
+<td>1</td>
+<td>walked</td>
+<td>VPLS BGP NLRI. The document&#39;s wire-format section: AFI 25, SAFI 65, and the NLRI&#39;s Length, Route Distinguisher, VE ID, VE Block Offset, VE Block Size and 3-octet Label Base, with the one-to-one correspondence between the remote VE set and the label block. The layout is carried by the Wire Formats tables of rfc/short/rfc4761.md, and it is the part of this RFC ze does implement: internal/component/bgp/plugins/nlri/vpls.ParseVPLS decodes exactly these fields and EncodeRoute builds them. Its one site is the VE ID provisioning sentence, which binds the VPLS PE and is excluded below.</td>
+</tr>
+<tr><td><code>3.2.3</code></td>
+<td>PW Setup and Teardown</td>
+<td>2</td>
+<td>walked</td>
+<td>PW Setup and Teardown. The four-step procedure PE-b runs on an announcement from PE-a, and the teardown rule when an NLRI in use is withdrawn. Its two capitalised MUST-level sites are mapped below to RFC4761-3.2.3-1 and RFC4761-3.2.3-2; steps 1, 2 and 4 are stated in the indicative and the site scan sees nothing in them.</td>
+</tr>
+<tr><td><code>3.2.4</code></td>
+<td>Signaling PE Capabilities</td>
+<td>4</td>
+<td>walked</td>
+<td>Signaling PE Capabilities. Defines the Layer2 Info Extended Community (0x800A) carrying Encaps Type, Control Flags and Layer-2 MTU, with Encaps Type 19 for VPLS, and the C and S Control Flags. Three of its four sites carry the section&#39;s obligations and are mapped below to RFC4761-3.2.4-1, -3 and -5. The other half of each of those three sentences is a second declared row, listed here as an unsourced id, because the splitter keeps one sentence as one site: RFC4761-3.2.4-2 is &#39;MUST be ignored when receiving this community&#39;, RFC4761-3.2.4-4 is the C=0 &#39;MUST NOT be present&#39; half, and RFC4761-3.2.4-6 is the S=0 &#39;MUST NOT be used&#39; half. Site 3.2.4:1 is the Figure 4 bit vector and its legend and is excluded below.</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>BGP VPLS Operation</td>
+<td>4</td>
+<td>walked</td>
+<td>BGP VPLS Operation. Walks the whole life of a BGP VPLS announcement: the administrator picks an RT, the PE is configured with a VE ID and possibly an RD, it generates a label block and a remote VE set, builds the NLRI, attaches the Layer2 Info community and the RT, sets itself as Next Hop and announces. Site 3.3:4 carries the withdrawal obligation and is mapped below to RFC4761-3.3-1; sites 3.3:1, 3.3:2 and 3.3:3 are excluded. The SHOULD listed as an unsourced id is the CE-links-down rule: &#39;If all of PE-a&#39;s links to its CEs in VPLS foo go down, then PE-a SHOULD either withdraw all its NLRIs for VPLS foo or let other PEs in the VPLS foo know in some way that PE-a is no longer connected to its CEs.&#39;</td>
+</tr>
+<tr><td><code>3.4</code></td>
+<td>Multi-AS VPLS</td>
+<td>0</td>
+<td>walked</td>
+<td>Multi-AS VPLS. States the problem when the sites of a VPLS attach to PEs in different ASes, introduces Figure 5 and the three methods of sections 3.4.1 to 3.4.3 in order of increasing scalability. No directive and no site.</td>
+</tr>
+<tr><td><code>3.4.1</code></td>
+<td>Method (a): VPLS-to-VPLS Connections at the ASBRs</td>
+<td>1</td>
+<td>walked</td>
+<td>Method (a): VPLS-to-VPLS Connections at the ASBRs. Each ASBR acts as a PE for the VPLSs spanning the two ASes and views the other ASBR as a CE, which requires Ethernet on the interconnect and full PE operation on the ASBR. Its one site is the loop-prevention rule for redundant inter-AS connections and is excluded below.</td>
+</tr>
+<tr><td><code>3.4.2</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>Method (b): EBGP Redistribution of VPLS Information between ASBRs. The ASBRs re-advertise the VPLS NLRI with new labels and themselves as next hop, and swap labels in the forwarding path. Site 3.4.2:1 carries the obligation that everything but the Label Base stay identical and is mapped below to RFC4761-3.4.2-1; sites 3.4.2:2 and 3.4.2:3 are the ASBR forwarding-path installations and are excluded.</td>
+</tr>
+<tr><td><code>3.4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>Method (c): Multi-Hop EBGP Redistribution of VPLS Information between ASes. A multi-hop E-BGP peering between the PEs or their route reflectors, with a tunnel LSP from PE1 to PE2 and no VPLS state on the ASBRs. Indicative throughout and no site.</td>
+</tr>
+<tr><td><code>3.4.4</code></td>
+<td>Allocation of VE IDs across Multiple ASes</td>
+<td>0</td>
+<td>walked</td>
+<td>Allocation of VE IDs across Multiple ASes. Suggests allocating a VE ID range per AS to keep VE IDs unique while minimising the number of NLRIs, with no overlap between ranges except for multi-homing. Advisory prose with no site.</td>
+</tr>
+<tr><td><code>3.5</code></td>
+<td>Multi-homing and Path Selection</td>
+<td>2</td>
+<td>walked</td>
+<td>Multi-homing and Path Selection. When the PEs attached to one site carry the same VE ID, BGP path selection builds the loop-free topology, and two VPLS NLRIs are equivalent when their Route Distinguisher, VE ID and VE Block Offset match. Its two capitalised MUST-level sites are mapped below to RFC4761-3.5-1 and RFC4761-3.5-2. The unsourced id is the SHOULD that closes the second of those sentences, &#39;they SHOULD announce the same VE Block Size for a given VE Offset&#39;, which the splitter keeps in site 3.5:2.</td>
+</tr>
+<tr><td><code>3.6</code></td>
+<td>Hierarchical BGP VPLS</td>
+<td>1</td>
+<td>walked</td>
+<td>Hierarchical BGP VPLS. How BGP route reflectors scale the VPLS control plane, that RRs introduce no data plane state, that no MAC addresses are exchanged over BGP, and when BGP processing for VPLS happens. Its one site states that something is NOT required and is excluded below.</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>Data Plane</td>
+<td>0</td>
+<td>walked</td>
+<td>Data Plane. One sentence naming the two aspects sections 4.1 and 4.2 cover, encapsulation and forwarding. No directive and no site.</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>Encapsulation</td>
+<td>0</td>
+<td>walked</td>
+<td>Encapsulation. One sentence: Ethernet frames from CE devices are encapsulated for transmission over the packet switched network as in RFC 4448. No obligation of its own and no site.</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>Forwarding</td>
+<td>0</td>
+<td>walked</td>
+<td>Forwarding. States that a VPLS packet is classified into a service instance by the interface it arrived on, and forwarded within that instance on the destination MAC address. Indicative and no site.</td>
+</tr>
+<tr><td><code>4.2.1</code></td>
+<td>MAC Address Learning</td>
+<td>2</td>
+<td>walked</td>
+<td>MAC Address Learning. The SP network appears as one logical learning bridge per VPLS, learning associates a source MAC with the logical port it arrived on, and that association is the FIB. Site 4.2.1:2 carries the MAC-move obligation and is mapped below to RFC4761-4.2.1-1; site 4.2.1:1 is the learning-bridge analogy and is excluded. The unsourced id is the MAY that closes the section, &#39;A VE MAY implement a mechanism to damp flapping of source ports for a given MAC address.&#39;</td>
+</tr>
+<tr><td><code>4.2.2</code></td>
+<td>Aging</td>
+<td>2</td>
+<td>walked</td>
+<td>Aging. Site 4.2.2:2 carries the capitalised MUST, mapped below to RFC4761-4.2.2-1, and site 4.2.2:1 is the rationale sentence inside the section&#39;s opening SHOULD and is excluded. Three declared rows are read from prose here and are the unsourced ids: RFC4761-4.2.2-2 is &#39;VPLS PEs SHOULD have an aging mechanism to remove a MAC address associated with a logical port&#39;, RFC4761-4.2.2-3 is &#39;An implementation SHOULD provide a configurable knob to set the aging time T on a per-VPLS basis&#39;, and RFC4761-4.2.2-4 is the MAY to accelerate aging of every MAC address in a VPLS on a Spanning Tree topology change.</td>
+</tr>
+<tr><td><code>4.2.3</code></td>
+<td>Flooding</td>
+<td>0</td>
+<td>walked</td>
+<td>Flooding. Describes flooding a frame whose destination is not in the FIB to every other VE in the VPLS, and works the Figure 1 example through PE2, PE1 and a u-PE, including a PE that announces whether it is capable of flooding. Indicative throughout and no site.</td>
+</tr>
+<tr><td><code>4.2.4</code></td>
+<td>Broadcast and Multicast</td>
+<td>1</td>
+<td>walked</td>
+<td>Broadcast and Multicast. Its one site is the broadcast-delivery rule and is excluded below. The unsourced id is the MAY that follows, &#39;a VE MAY also use certain techniques to restrict transmission of multicast frames to a smaller set of receivers&#39;, whose discussion the section puts out of scope.</td>
+</tr>
+<tr><td><code>4.2.5</code></td>
+<td>&#39;Split Horizon&#39; Forwarding</td>
+<td>4</td>
+<td>walked</td>
+<td>&#39;Split Horizon&#39; Forwarding. Four sites: three describe what a flooding PE sends where, and the fourth is the capitalised split-horizon prohibition mapped below to RFC4761-4.2.5-1. The other three bind the VPLS PE forwarding path and are excluded. The closing sentence extends the rule to broadcast and multicast packets as well as unknown MAC addresses.</td>
+</tr>
+<tr><td><code>4.2.6</code></td>
+<td>Qualified and Unqualified Learning</td>
+<td>0</td>
+<td>walked</td>
+<td>Qualified and Unqualified Learning. Defines the two learning keys, the MAC address alone or the customer VLAN tag with it, and weighs one global broadcast domain against one per VLAN. Definitions and trade-offs, no directive and no site.</td>
+</tr>
+<tr><td><code>4.2.7</code></td>
+<td>Class of Service</td>
+<td>1</td>
+<td>walked</td>
+<td>Class of Service. Its one site is the SHOULD that the mapping function be per-VPLS, mapped below to RFC4761-4.2.7-1. The unsourced id is the MAY that opens the section, &#39;an implementation MAY choose to map 802.1p bits in a customer Ethernet frame with a VLAN tag to an appropriate setting of EXP bits in the pseudowire and/or tunnel label&#39;.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>Deployment Options</td>
+<td>1</td>
+<td>walked</td>
+<td>Deployment Options. Defines &#39;decoupled&#39; operation: the VE closest to the customer can be the PE itself or a u-PE that does the Layer 2 functions and a limited set of Layer 3 functions, and PEs of both kinds mix in one network because discovery and signaling are unchanged. Its one site is the SP&#39;s deployment decision and is excluded below.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>Security Considerations</td>
+<td>3</td>
+<td>walked</td>
+<td>Security Considerations. States that VPLS offers no confidentiality, integrity or authentication, that both the control plane and the forwarding path have to be protected, that RFC 2385 authenticates the BGP exchanges, and that VPLS labels must be accepted only from valid interfaces. It closes on MPLS-in-IP and MPLS-in-GRE tunneling per RFC 4023: sites 6:2 and 6:3 carry the two capitalised MUST-level obligations and are mapped below to RFC4761-6-1 and RFC4761-6-2, and site 6:1 points at RFC 4023&#39;s own security considerations and is excluded.</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>IANA Considerations</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations. Records the allocated AFI 25 for L2VPN information and the allocated extended community value 0x800A for the Layer2 Info Extended Community. Binds IANA, not a speaker.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>References. The heading for sections 8.1 and 8.2.</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References: RFC 2119, RFC 2385, RFC 4023, RFC 4760, RFC 4360, RFC 4364 and RFC 4448.</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative References: RFC 4456, RFC 4664, RFC 4762, the VR-based Layer-3 VPN and Constrained VPN Route Distribution drafts, RFC 4447, the Layer 2 VPNs Over Tunnels draft and IEEE 802.1D.</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>Appendix A, Contributors</td>
+<td>0</td>
+<td>skipped (acknowledgements)</td>
+<td>Appendix A, Contributors. The list of people who contributed to the document.</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>Appendix B, Acknowledgements</td>
+<td>1</td>
+<td>walked</td>
+<td>Appendix B, Acknowledgements. Because no numbered heading follows it, the derived span also carries the Editors&#39; Addresses, the Full Copyright Statement, the Intellectual Property boilerplate and the RFC Editor funding note. Walked rather than skipped because the prose scan attributes one site here; that site is IPR boilerplate and is excluded below. Nothing in the span states an obligation on an implementation.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the sentence is the Abstract&#39;s statement of the document&#39;s CONTENTS, &#39;This document describes the functions required to offer VPLS, a mechanism for signaling a VPLS, and rules for forwarding VPLS frames across a packet switched network.&#39; The case-insensitive prose scan sees &#39;required&#39; inside the noun phrase &#39;the functions required to offer VPLS&#39;, which names what the document describes rather than directing a speaker.</td>
+<td>This document describes the functions required to offer VPLS, a mechanism for signaling a VPLS, and rules for forwarding VPLS frames across a packet switched network.</td>
+</tr>
+<tr><td><code>1.1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: a roadmap sentence in Scope of This Document. Its subject is where the material is written down -- &#39;The forwarding plane and the actions that a participating Provider Edge (PE) router offering the VPLS service must take is described in Section 4&#39; -- so the lowercase &#39;must&#39; sits in a relative clause naming what section 4 covers. The obligations themselves are in section 4 and are classified there.</td>
+<td>The forwarding plane and the actions that a participating Provider Edge (PE) router offering the VPLS service must take is described in Section 4.</td>
+</tr>
+<tr><td><code>3.1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: a description of the OTHER approach, the one this document replaces. The paragraph characterises configuring each PE by hand (&#39;The former approach is fairly configuration-intensive&#39;), and the lowercase &#39;is required&#39; states why that approach costs what it does, namely that the PEs of a VPLS are fully meshed with pseudowires. It directs no speaker, and the auto-discovery paragraph that follows is the mechanism this document specifies.</td>
+<td>The former approach is fairly configuration-intensive, especially since it is required that the PEs participating in a given VPLS are fully meshed (i.e., that every PE in a given VPLS establish pseudowires to every other PE in that VPLS).</td>
+</tr>
+<tr><td><code>3.1:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the second half of the same characterisation of the manual approach. It states a CONSEQUENCE of not auto-discovering, that a topology change forces the VPLS configuration on every PE to change, and the paragraph that follows says auto-discovery removes it. It directs no speaker.</td>
+<td>Furthermore, when the topology of a VPLS changes (i.e., a PE is added to, or removed from, the VPLS), the VPLS configuration on all PEs in that VPLS must be changed.</td>
+</tr>
+<tr><td><code>3.1.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the VPLS PE performing auto-discovery: the sentence says a PE participating in VPLS instance V must be able to tell every other PE in V that it is a member. ze is not a VPLS PE: its RFC 4761 surface is the control-plane L2VPN/VPLS (AFI 25, SAFI 65) NLRI codec of internal/component/bgp/plugins/nlri/vpls (ParseVPLS decodes the section 3.2.2 NLRI, EncodeRoute and EncodeNLRIHex build one from operator-supplied fields, and the plugin registers the family in decode mode) plus the operator-driven Layer2 Info extended community encoder internal/component/bgp/config.parseL2InfoExtCommunity. There is no VSI, no pseudowire signaling, no MAC FIB and no VPLS forwarding path, and a received L2VPN route is stored as an opaque raw NLRI blob. It joins no VPLS and announces no membership.</td>
+<td>A PE that participates in a given VPLS instance V must be able to tell all other PEs in VPLS V that it is also a member of V.</td>
+</tr>
+<tr><td><code>3.1.1:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same VPLS PE role: it must have a means of declaring that it no longer participates in a VPLS. Ze participates in no VPLS to leave. It decodes and encodes the VPLS NLRI (internal/component/bgp/plugins/nlri/vpls.ParseVPLS and EncodeRoute) and holds no VSI whose membership it could withdraw.</td>
+<td>A PE must also have a means of declaring that it no longer participates in a VPLS.</td>
+</tr>
+<tr><td><code>3.1.1:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same VPLS PE role, stating what the two preceding sentences need: a means of identifying a VPLS and a means of communicating with every other PE. Ze plays no VPLS PE role, so it needs neither. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit.</td>
+<td>To do both of these, the PE must have a means of identifying a VPLS and a means by which to communicate to all other PEs.</td>
+</tr>
+<tr><td><code>3.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the VPLS PE performing signaling: each PAIR of PEs in a VPLS must be able to establish and tear down pseudowires to each other, exchanging and withdrawing demultiplexors. ze is not a VPLS PE: its RFC 4761 surface is the control-plane L2VPN/VPLS (AFI 25, SAFI 65) NLRI codec of internal/component/bgp/plugins/nlri/vpls (ParseVPLS decodes the section 3.2.2 NLRI, EncodeRoute and EncodeNLRIHex build one from operator-supplied fields, and the plugin registers the family in decode mode) plus the operator-driven Layer2 Info extended community encoder internal/component/bgp/config.parseL2InfoExtCommunity. There is no VSI, no pseudowire signaling, no MAC FIB and no VPLS forwarding path, and a received L2VPN route is stored as an opaque raw NLRI blob. It signals no pseudowire and holds no demultiplexor state.</td>
+<td>Once discovery is done, each pair of PEs in a VPLS must be able to establish (and tear down) pseudowires to each other, i.e., exchange (and withdraw) demultiplexors.</td>
+</tr>
+<tr><td><code>3.2.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds VPLS PE provisioning: a PE participating in a VPLS must have at least one VE ID, one per attached u-PE and possibly one for itself. Ze provisions no VE identity. Its VE ID handling is codec-level only: internal/component/bgp/plugins/nlri/vpls.ParseVPLS reads the 2-octet field off the wire and EncodeRoute writes the value the operator supplied.</td>
+<td>A PE participating in a VPLS must have at least one VE ID.</td>
+</tr>
+<tr><td><code>3.2.4:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the site is Figure 4 itself, the Control Flags bit vector, and the keyword is in the figure&#39;s LEGEND expanding a field name -- &#39;(MBZ = MUST Be Zero)&#39;. The obligation the abbreviation stands for is stated in the sentence site 3.2.4:2 quotes, which is mapped to RFC4761-3.2.4-1.</td>
+<td>0 1 2 3 4 5 6 7 +-+-+-+-+-+-+-+-+ | MBZ |C|S| (MBZ = MUST Be Zero) +-+-+-+-+-+-+-+-+</td>
+</tr>
+<tr><td><code>3.3:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the network administrator provisioning the service: to create a VPLS, an administrator must pick a Route Target for it, which every PE serving that VPLS then uses. It is a provisioning act by a person, not behavior of a protocol speaker, and ze offers no VPLS service to provision. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit.</td>
+<td>To create a new VPLS, say VPLS foo, a network administrator must pick an RT for VPLS foo, say RT-foo.</td>
+</tr>
+<tr><td><code>3.3:2</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation belongs to RFC 4760, which this document cites as [4] and which the sentence names explicitly: &#39;this association is required by [4], Section 5&#39;. RFC 4760 section 5 is what binds the Network Layer protocol of the Next Hop address for an &lt;AFI, SAFI&gt; pair, and rfc/short/rfc4760.md carries it. This sentence records the association for &lt;AFI=L2VPN, SAFI=VPLS&gt; and adds no obligation of its own.</td>
+<td>The Network Layer protocol associated with the Network Address of the Next Hop for the combination &lt;AFI=L2VPN AFI, SAFI=VPLS SAFI&gt; is IP; this association is required by [4], Section 5.</td>
+</tr>
+<tr><td><code>3.3:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the VPLS PE that has discovered a peer: PE-b must set up its part of the VPLS pseudowire between itself and PE-a. ze is not a VPLS PE: its RFC 4761 surface is the control-plane L2VPN/VPLS (AFI 25, SAFI 65) NLRI codec of internal/component/bgp/plugins/nlri/vpls (ParseVPLS decodes the section 3.2.2 NLRI, EncodeRoute and EncodeNLRIHex build one from operator-supplied fields, and the plugin registers the family in decode mode) plus the operator-driven Layer2 Info extended community encoder internal/component/bgp/config.parseL2InfoExtCommunity. There is no VSI, no pseudowire signaling, no MAC FIB and no VPLS forwarding path, and a received L2VPN route is stored as an opaque raw NLRI blob. It sets up no pseudowire.</td>
+<td>Similarly, PE-b will have discovered that PE-a is in the same VPLS, and PE-b must set up its part of the VPLS pseudowire.</td>
+</tr>
+<tr><td><code>3.4.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the inter-AS VPLS ASBR and the PEs of method (a), which have to run the Spanning Tree Protocol or another loop-detection mechanism per VPLS when several links join the two ASes; the section itself puts how that is achieved out of scope. Ze runs no Spanning Tree Protocol and acts as neither a VPLS PE nor a VPLS ASBR. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit.</td>
+<td>In this case, the Spanning Tree Protocol (STP) [15], or some other means of loop detection and prevention, must be run on each VPLS that spans these ASes, so that a loop-free topology can be constructed in each VPLS.</td>
+</tr>
+<tr><td><code>3.4.2:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the inter-AS VPLS ASBR of method (b) in its FORWARDING path: ASBR1 installs a swap of each label of its own block for the corresponding label of PE1&#39;s block, with the tunnel label pushed. Ze is not a VPLS ASBR and installs no VPLS label swap. The MPLS entries it does program are RSVP-TE and LDP transport labels, through fibkernel.handleMPLSEntry (internal/plugins/fib/kernel/mpls.go), with no VPLS label block behind them.</td>
+<td>Furthermore, ASBR1 must also update its forwarding path as follows: if the Label Base sent by PE1 is L1, the Label-block Size is N, the Label Base sent by ASBR1 is L2, and the tunnel label from ASBR1 to PE1 is T, then ASBR1 must install the following in the forwarding path: swap L2 with L1 and push T,</td>
+</tr>
+<tr><td><code>3.4.2:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the second inter-AS VPLS ASBR of method (b), which acts as ASBR1 does except that a direct connection removes the need for a tunnel label. Ze plays no VPLS ASBR role. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit.</td>
+<td>ASBR2 must act similarly, except that it may not need a tunnel label if it is directly connected with ASBR1.</td>
+</tr>
+<tr><td><code>3.6:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: the sentence states that something is NOT required. It records a consequence of route reflection, that no single set of RRs has to handle every BGP message and no single RR every message from a given PE, and the rest of the paragraph gives examples of partitioning RRs by service. It directs nobody.</td>
+<td>Another consequence of this approach is that it is not required that one set of RRs handles all BGP messages, or that a particular RR handle all messages from a given PE.</td>
+</tr>
+<tr><td><code>4.2.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the VPLS PE bridging data path: the SP bridge must learn MAC addresses at its VEs, as a learning bridge learns them on its ports. ze is not a VPLS PE: its RFC 4761 surface is the control-plane L2VPN/VPLS (AFI 25, SAFI 65) NLRI codec of internal/component/bgp/plugins/nlri/vpls (ParseVPLS decodes the section 3.2.2 NLRI, EncodeRoute and EncodeNLRIHex build one from operator-supplied fields, and the plugin registers the family in decode mode) plus the operator-driven Layer2 Info extended community encoder internal/component/bgp/config.parseL2InfoExtCommunity. There is no VSI, no pseudowire signaling, no MAC FIB and no VPLS forwarding path, and a received L2VPN route is stored as an opaque raw NLRI blob. It learns no MAC address and holds no FIB.</td>
+<td>Just as a learning bridge learns MAC addresses on its ports, the SP bridge must learn MAC addresses at its VEs.</td>
+</tr>
+<tr><td><code>4.2.2:1</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>The enclosing construction is a SHOULD: &#39;VPLS PEs SHOULD have an aging mechanism to remove a MAC address associated with a logical port, much the same as learning bridges do. This is required so that a MAC address can be relearned if it &#34;moves&#34; from a logical port to another logical port ...&#39;. The site is that second sentence, which gives the RATIONALE for the SHOULD rather than stating an obligation of its own, so its &#39;is required&#39; asserts no level. rfc/short/rfc4761.md declares the enclosing SHOULD as RFC4761-4.2.2-2, listed as an unsourced id on this section.</td>
+<td>This is required so that a MAC address can be relearned if it &#34;moves&#34; from a logical port to another logical port, either because the station to which that MAC address belongs really has moved or because of a topology change in the LAN that causes this MAC address to arrive on a new port.</td>
+</tr>
+<tr><td><code>4.2.4:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the VPLS PE forwarding path: a frame addressed to the broadcast MAC address must reach all stations in that VPLS, by the same means used for flooding. Ze forwards no VPLS frame and floods nothing; it holds no VSI and no MAC FIB, only the control-plane NLRI codec of internal/component/bgp/plugins/nlri/vpls.</td>
+<td>An Ethernet frame whose destination MAC address is the broadcast MAC address must be sent to all stations in that VPLS.</td>
+</tr>
+<tr><td><code>4.2.5:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the flooding-capable VPLS PE: on a broadcast frame or one with an unknown destination MAC, it must flood. Ze is not a VPLS PE and floods no VPLS frame. The capitalised split-horizon prohibition that closes this section is site 4.2.5:4, mapped below because rfc/short/rfc4761.md declares it. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit.</td>
+<td>When a PE capable of flooding (say PEx) receives a broadcast Ethernet frame, or one with an unknown destination MAC address, it must flood the frame.</td>
+</tr>
+<tr><td><code>4.2.5:2</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same flooding-capable VPLS PE for a frame arriving from an attached CE: a copy goes to every other attached CE and to every other PE in the VPLS. Ze has no attached CE, no VPLS peer set and no VPLS forwarding path. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit.</td>
+<td>If the frame arrived from an attached CE, PEx must send a copy of the frame to every other attached CE, as well as to all other PEs participating in the VPLS.</td>
+</tr>
+<tr><td><code>4.2.5:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the same PE for a frame arriving from another PE: the copy goes only to attached CEs. Ze forwards no VPLS frame from any source. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit.</td>
+<td>If, on the other hand, the frame arrived from another PE (say PEy), PEx must send a copy of the packet only to attached CEs.</td>
+</tr>
+<tr><td><code>5:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds the Service Provider deploying the network: the SP decides which functions the VPLS-aware device closest to the customer supports, that is whether the VE is the PE itself or a u-PE. It is a deployment decision by an operator, and ze deploys no VPLS service. The producer that would act as it if ze did is the whole of ze&#39;s RFC 4761 code, the VPLS NLRI codec `internal/component/bgp/plugins/nlri/vpls/vpls.go`, which codes the SAFI 65 route and nothing else: the tree holds no VPLS forwarding path, no MAC learning and no flooding for the role to inhabit.</td>
+<td>In deploying a network that supports VPLS, the SP must decide what functions the VPLS-aware device closest to the customer (the VE) supports.</td>
+</tr>
+<tr><td><code>6:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation belongs to RFC 4023, &#39;Encapsulating MPLS in IP or Generic Routing Encapsulation (GRE)&#39;, which this document cites as [3] and which the sentence points at by section: &#39;the security considerations described in Section 8 of that document must be fully understood&#39;. The sentence directs a reader to another document&#39;s analysis and states no requirement of its own. The two obligations this section does state about those tunnels are sites 6:2 and 6:3, mapped below.</td>
+<td>If it is desired to use such tunnels to carry VPLS packets, then the security considerations described in Section 8 of that document must be fully understood.</td>
+</tr>
+<tr><td><code>B:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Non-normative use: this is the IETF&#39;s standard Intellectual Property boilerplate, which the derived section span carries into Appendix B after the Acknowledgements. The sentence invites interested parties to disclose patent rights to the IETF, and its &#39;may be required to implement this standard&#39; describes what a patent might cover rather than requiring anything of an implementation.</td>
+<td>The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section><h2>Superseded</h2>
+<p>No document obsoletes RFC 4761, so its obligations are stated where they were written.</p>
+</section>
+            </section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Debugging</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>Quality hub</h2>
+                    <a class="page-sidebar-link" href="../../../quality/">
+                        <span class="page-sidebar-link-label">Quality overview</span>
+                        <small>Return to the verification map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../quality/verify-debugging/">
+                        <span class="page-sidebar-link-label">Verify debugging</span>
+                        <small>How failed checks route to evidence.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
+                        <span class="page-sidebar-link-label">Production diagnostics</span>
+                        <small>Symptom-led debugging for running systems.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <span class="footer-published">Published 1 September 2026 21:38 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

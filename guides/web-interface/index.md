@@ -323,7 +323,10 @@ The HTML fragment contains a notification banner with the change description and
 ## Admin Commands
 
 The `/admin/` tier provides a browsable tree of administrative commands. Container nodes display navigable links to sub-commands. Leaf commands display a parameter form with an "Execute" button.
-<!-- source: internal/component/web/handler_admin.go -- HandleAdminView, HandleAdminExecute -->
+
+The form also shows the command's help, read from the same command model every other surface reads. The declared one-line summary is the lede above the form, and the declared long explanation is the paragraph under it. A command that declares no explanation shows the summary alone. A path the command tree does not hold shows neither text, and never borrows its parent's.
+<!-- source: internal/component/web/handler_admin.go -- HandleAdminView, HandleAdminExecute, buildAdminFragmentData -->
+<!-- source: internal/component/web/component_command_form.templ -- commandForm -->
 
 Admin command results are displayed as titled cards showing the command name, output text, and success/error styling.
 

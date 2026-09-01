@@ -220,7 +220,7 @@ ze's own BGP peer state changes and route updates.</p>
 <tr>
 <td><code>statistics-timeout</code></td>
 <td>0</td>
-<td>Seconds between statistics reports (0 = disabled)</td>
+<td>Seconds between statistics reports. Read by nothing today: the sender has no statistics timer</td>
 </tr>
 </tbody>
 </table>
@@ -241,7 +241,7 @@ per RFC 7854 recommendations.</p>
 </tr>
 <tr>
 <td><code>ze show bmp peers</code></td>
-<td>Show monitored BGP peers (AS, BGP ID, up/down status)</td>
+<td>Show monitored BGP peers (AS, BGP ID, up/down status, and the address families their Peer Up OPEN advertised)</td>
 </tr>
 <tr>
 <td><code>ze show bmp collectors</code></td>
@@ -289,7 +289,7 @@ per RFC 7854 recommendations.</p>
 <tr>
 <td>Statistics Report (1)</td>
 <td>Stores per-peer counters</td>
-<td>Periodic (if configured)</td>
+<td>Encoder only, with the O flag cleared (RFC 8671 Section 6.2); no timer sends one yet</td>
 </tr>
 <tr>
 <td>Route Mirroring (6)</td>
@@ -316,13 +316,35 @@ per RFC 7854 recommendations.</p>
 <li>With <code>route-mirroring true</code>, wraps every BGP message (OPEN, UPDATE, NOTIFICATION,
 KEEPALIVE, ROUTE-REFRESH, both directions) as Route Mirroring (RFC 7854 Section 4.7).
 The O flag follows the direction, as it does for Route Monitoring</li>
+<li>Clears the O flag on a Statistics Report, which RFC 8671 Section 6.2 requires
+because the report belongs to neither RIB</li>
 <li>Route-monitoring-policy controls which direction(s) are streamed</li>
 <li>With <code>loc-rib true</code>, streams local RIB best-path changes as Loc-RIB Route
-Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance with
-zero-length OPENs and the local router-id as Peer BGP ID, a full-table dump,
-and a Loc-RIB Peer Down with reason code 6 (RFC 9069 Section 5.3) on shutdown
-and on the commit that turns <code>loc-rib</code> off</li>
+Monitoring (RFC 9069, Peer Type 3): one Loc-RIB Peer Up per RIB instance
+carrying a fabricated BGP OPEN in both the sent and the received field, the
+router's own 4-octet ASN as Peer AS and the local router-id as Peer BGP ID, a
+full-table dump, and a Loc-RIB Peer Down with reason code 6 (RFC 9069
+Section 5.3) on shutdown and on the commit that turns <code>loc-rib</code> off. RFC 9069
+Section 5.2 requires that OPEN and its capabilities: "This is a fabricated BGP
+OPEN message. Capabilities MUST include the 4-octet ASN and all necessary
+capabilities to represent the Loc-RIB Route Monitoring messages." Ze
+advertises the 4-octet ASN capability and one address-family capability per
+family the dump delivers, and nothing else</li>
+<li>Names that Loc-RIB <code>global</code> in a VRF/Table Name Information TLV (type 3) on
+the Peer Up, and repeats the TLV after reason code 6 on the Peer Down. RFC
+9069 Section 5.2.1: "The default value of "global" MUST be used for the
+default Loc-RIB instance with a zero-filled distinguisher", and Section 5.3:
+"The VRF/Table Name informational TLV MUST be included if it was in the Peer
+Up." Ze runs one Loc-RIB, the default instance, and its distinguisher is zero</li>
+<li>Timestamps a Loc-RIB message with the time its routes entered the Loc-RIB, and
+with ZERO where that time is unknown. RFC 9069 Section 5.1: "If zero, the time
+is unavailable." An incremental best change is delivered on the goroutine that
+installed it, so it carries a real time; the initial full-table dump, the Peer
+Up, the Peer Down and the End-of-RIB marker each carry zero rather than a
+wall-clock read that would date every replayed route to the collector's
+connection</li>
 </ul>
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- locRIBPeerHeader, fabricateLocRIBOpen, ensureLocRIBPeerUp, sendLocRIBPeerDown -->
 <h4 id="a-config-change-bounces-the-peers-not-the-session">A Config Change Bounces the Peers, Not the Session</h4>
 <p>RFC 8671 Section 7.2 says a change that alters the behavior of an existing BMP
 session MUST bounce that session with a Peer Down and Peer Up sequence. Ze
@@ -547,7 +569,7 @@ forbids a RIB back-door for the full attribute set.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 31 August 2026 12:47 UTC</span>
+                    <span class="footer-published">Published 1 September 2026 02:44 UTC</span>
                 </div>
             </div>
         </footer>
