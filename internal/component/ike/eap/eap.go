@@ -236,6 +236,21 @@ func (s *Session) Process(response *Packet) *Packet {
 		return s.failure(response)
 	}
 
+	// RFC 3748 Section 4.1: "An authenticator receiving a Response whose
+	// Identifier value does not match that of the currently outstanding Request
+	// MUST silently discard the Response."
+	//
+	// s.identifier IS that outstanding value while the exchange waits: every
+	// Request leaves carrying it, and it is reassigned only when a terminal
+	// packet answers a Response's own Identifier. So an answer to a Request this
+	// exchange never sent, or a replay of one already answered, is dropped here
+	// rather than fed to the method. The peer's duty to echo the Identifier is
+	// RFC3748-4.1-4, a different row: this one is the authenticator's duty to
+	// check that it did.
+	if response.Identifier != s.identifier {
+		return nil
+	}
+
 	switch s.state {
 	case stateIdentity:
 		return s.handleIdentity(response)
